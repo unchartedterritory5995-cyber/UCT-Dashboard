@@ -24,6 +24,18 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
 
+  // Single ticker-change handler — every path (search dropdown pick, typed
+  // submit, StockChart's own onSymbolChange) routes through this. After the
+  // sym updates we refocus the chart container so the user can immediately
+  // start typing again for the next ticker without re-clicking the chart.
+  const handleSymbolChange = useCallback((s) => {
+    if (!s) return
+    setGroupSym(color, s)
+    requestAnimationFrame(() => {
+      focusableRef.current?.focus({ preventScroll: true })
+    })
+  }, [color, setGroupSym])
+
   const handleChartClick = useCallback(() => {
     // Don't steal focus from a child input (e.g., the open search dropdown).
     const ae = document.activeElement
@@ -45,7 +57,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
         <div className={styles.symbolSlot}>
-          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={(s) => setGroupSym(color, s)} />
+          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={handleSymbolChange} />
         </div>
         <span className={styles.tfBarDivider} aria-hidden="true" />
         {TFS.map(([code, label]) => (
@@ -67,7 +79,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         <StockChart
           sym={sym}
           tf={tf}
-          onSymbolChange={(s) => setGroupSym(color, s)}
+          onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
         />
       </div>

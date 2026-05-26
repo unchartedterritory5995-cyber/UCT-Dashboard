@@ -1,19 +1,24 @@
-// app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + search input overlay
+// app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + predictive search overlay
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import styles from './SymbolSearch.module.css'
 
-// Common tickers for quick access
+// Default suggestions shown when the input is empty.
 const POPULAR = [
   'SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD',
   'AVGO', 'NFLX', 'CRM', 'COST', 'LLY', 'PLTR', 'SMCI', 'MSTR', 'COIN', 'SNOW',
   'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'GLD', 'TLT', 'ARKK', 'SOXX',
 ]
+const POPULAR_RESULTS = POPULAR.map(t => ({ ticker: t, name: null }))
 
 const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [results, setResults] = useState(POPULAR_RESULTS)
+  const [activeIdx, setActiveIdx] = useState(0)
   const inputRef = useRef(null)
   const wrapRef = useRef(null)
+  const listRef = useRef(null)
+  const abortRef = useRef(null)
 
   // Imperative open-with-text — used by ChartWidget so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -24,13 +29,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
     },
   }), [])
 
-  // Focus input when opened. (We do NOT reset query here — it would clobber
-  // text passed via openWith. The badge-click handler clears query before
-  // opening for that flow.)
+  // Focus input when opened.
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus()
-      // Place caret at end so the user can keep typing the rest of the ticker
       const len = inputRef.current.value.length
       try { inputRef.current.setSelectionRange(len, len) } catch {}
     }
@@ -54,6 +56,48 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
     return () => document.removeEventListener('keydown', handler)
   }, [open])
 
+  // Debounced server-side autocomplete (3,685-ticker $300M+ universe).
+  // Empty query → POPULAR. Non-empty → /api/ticker-search.
+  useEffect(() => {
+    if (!open) return
+    const q = query.trim()
+    if (!q) {
+      setResults(POPULAR_RESULTS)
+      setActiveIdx(0)
+      return
+    }
+    if (abortRef.current) abortRef.current.abort()
+    const ctl = new AbortController()
+    abortRef.current = ctl
+    const t = setTimeout(() => {
+      fetch(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ctl.signal })
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(j => {
+          const arr = Array.isArray(j?.results) ? j.results : []
+          // Ensure the literal "go to {q}" fallback is always present last when
+          // no exact match exists — keeps the type-anything UX from the V1.
+          const hasExact = arr.some(r => r.ticker === q.toUpperCase())
+          const merged = hasExact ? arr : [...arr, { ticker: q.toUpperCase(), name: null, _typed: true }]
+          setResults(merged)
+          setActiveIdx(0)
+        })
+        .catch(() => {
+          // Network or 4xx — show the literal typed value so submit still works.
+          setResults([{ ticker: q.toUpperCase(), name: null, _typed: true }])
+          setActiveIdx(0)
+        })
+    }, 150)
+    return () => { clearTimeout(t); ctl.abort() }
+  }, [query, open])
+
+  // Auto-scroll active item into view during keyboard navigation
+  useEffect(() => {
+    const el = listRef.current?.children?.[activeIdx]
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIdx])
+
   const submit = useCallback((ticker) => {
     const clean = ticker.trim().toUpperCase()
     if (clean && clean !== sym) {
@@ -63,9 +107,19 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
     setQuery('')
   }, [sym, onSymbolChange])
 
-  const filtered = query.trim()
-    ? POPULAR.filter(t => t.startsWith(query.trim().toUpperCase()))
-    : POPULAR
+  const handleInputKey = useCallback((e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx(i => Math.min(i + 1, Math.max(0, results.length - 1)))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      const pick = results[activeIdx]
+      if (pick?.ticker) submit(pick.ticker)
+      else if (query.trim()) submit(query)
+    }
+  }, [results, activeIdx, submit, query])
 
   if (!onSymbolChange) {
     // Read-only mode — just show symbol, not clickable
@@ -94,25 +148,35 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
               className={styles.input}
               value={query}
               onChange={e => setQuery(e.target.value.toUpperCase())}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && query.trim()) submit(query)
-              }}
+              onKeyDown={handleInputKey}
               placeholder="Type ticker..."
               spellCheck={false}
               maxLength={10}
             />
           </div>
-          <div className={styles.list}>
-            {filtered.slice(0, 20).map(t => (
+          <div ref={listRef} className={styles.list}>
+            {results.map((r, i) => (
               <button
-                key={t}
-                className={`${styles.item} ${t === sym ? styles.itemActive : ''}`}
-                onClick={() => submit(t)}
+                key={`${r.ticker}-${i}`}
+                className={[
+                  styles.item,
+                  r.ticker === sym ? styles.itemActive : '',
+                  i === activeIdx ? styles.itemHighlighted : '',
+                ].filter(Boolean).join(' ')}
+                onMouseEnter={() => setActiveIdx(i)}
+                onClick={() => submit(r.ticker)}
               >
-                {t}
+                {r._typed ? (
+                  <>Go to <strong>{r.ticker}</strong></>
+                ) : (
+                  <>
+                    <span className={styles.itemSym}>{r.ticker}</span>
+                    {r.name && <span className={styles.itemName}>{r.name}</span>}
+                  </>
+                )}
               </button>
             ))}
-            {query.trim() && !filtered.length && (
+            {results.length === 0 && query.trim() && (
               <button className={styles.item} onClick={() => submit(query)}>
                 Go to <strong>{query.trim().toUpperCase()}</strong>
               </button>
