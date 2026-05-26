@@ -1,8 +1,5 @@
 .orb {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 8000;
+  position: relative;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -132,10 +129,24 @@
 
 /* ── Batch 6b Train Me cluster ──────────────────────────────────────────── */
 .orbCluster {
-  position: relative;
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 8000;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.orbCluster.dragging {
+  cursor: grabbing;
+}
+.orbCluster.dragging .orb {
+  transition: none;
+  animation: none;
+  filter: brightness(1.12);
 }
 .trainBtn {
   width: 28px;

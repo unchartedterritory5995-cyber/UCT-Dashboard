@@ -1,8 +1,39 @@
+import { useEffect, useRef, useState } from 'react'
 import { useVoice } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
 import styles from './FloatingOrb.module.css'
+
+const POS_KEY = 'voice.orb.position'
+const DRAG_THRESHOLD_PX = 5
+const EDGE_PADDING_PX = 8
+
+function loadPos() {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(POS_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (typeof p?.x !== 'number' || typeof p?.y !== 'number') return null
+    return p
+  } catch { return null }
+}
+
+function savePos(p) {
+  if (typeof localStorage === 'undefined') return
+  try { localStorage.setItem(POS_KEY, JSON.stringify(p)) } catch { /* noop */ }
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+function clampToViewport(x, y, w, h) {
+  if (typeof window === 'undefined') return { x, y }
+  return {
+    x: clamp(x, EDGE_PADDING_PX, window.innerWidth - w - EDGE_PADDING_PX),
+    y: clamp(y, EDGE_PADDING_PX, window.innerHeight - h - EDGE_PADDING_PX),
+  }
+}
 
 /**
  * Floating brand-mark compass orb. Click → starts a Realtime conversation. Click again → ends it.
@@ -24,6 +55,27 @@ import styles from './FloatingOrb.module.css'
 export default function FloatingOrb({ context = 'global' }) {
   const voice = useVoice()
   const { connect, disconnect } = useRealtimeSession()
+  const clusterRef = useRef(null)
+  const dragRef = useRef({ active: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
+  const [pos, setPos] = useState(loadPos)
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    function onResize() {
+      setPos(prev => {
+        if (!prev) return prev
+        const el = clusterRef.current
+        if (!el) return prev
+        const r = el.getBoundingClientRect()
+        const next = clampToViewport(prev.x, prev.y, r.width, r.height)
+        if (next.x === prev.x && next.y === prev.y) return prev
+        savePos(next)
+        return next
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   if (voice.mode === 'a' && voice.status === 'playing') return null
 
@@ -60,8 +112,21 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const inSession = voice.mode === 'c' && status !== 'idle' && status !== 'error'
   const inTrainMode = inSession && voice.sessionContext === 'train_me'
-  const onClick = () => (inSession ? disconnect() : connect(context))
+
+  const consumeDragClick = () => {
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false
+      return true
+    }
+    return false
+  }
+
+  const onClick = () => {
+    if (consumeDragClick()) return
+    inSession ? disconnect() : connect(context)
+  }
   const onTrainClick = () => {
+    if (consumeDragClick()) return
     if (inSession) {
       disconnect()
     } else {
@@ -69,8 +134,66 @@ export default function FloatingOrb({ context = 'global' }) {
     }
   }
 
+  const handlePointerDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const el = clusterRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    dragRef.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: rect.left,
+      posY: rect.top,
+      pointerId: e.pointerId,
+    }
+    try { el.setPointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+
+  const handlePointerMove = (e) => {
+    const d = dragRef.current
+    if (!d.active) return
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+    if (!d.moved) setDragging(true)
+    d.moved = true
+    const el = clusterRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPos(clampToViewport(d.posX + dx, d.posY + dy, r.width, r.height))
+  }
+
+  const handlePointerUp = (e) => {
+    const d = dragRef.current
+    if (!d.active) return
+    d.active = false
+    const el = clusterRef.current
+    try { el?.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    if (d.moved) {
+      setDragging(false)
+      if (el) {
+        const r = el.getBoundingClientRect()
+        savePos({ x: r.left, y: r.top })
+      }
+    }
+  }
+
+  const clusterStyle = pos
+    ? { top: `${pos.y}px`, left: `${pos.x}px`, right: 'auto', bottom: 'auto' }
+    : undefined
+
   return (
-    <div className={styles.orbCluster}>
+    <div
+      ref={clusterRef}
+      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''}`}
+      style={clusterStyle}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
       <button
         type="button"
         className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''}`}
