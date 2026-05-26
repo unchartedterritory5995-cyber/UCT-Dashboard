@@ -2,13 +2,40 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import styles from './SymbolSearch.module.css'
 
-// Default suggestions shown when the input is empty.
-const POPULAR = [
-  'SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD',
-  'AVGO', 'NFLX', 'CRM', 'COST', 'LLY', 'PLTR', 'SMCI', 'MSTR', 'COIN', 'SNOW',
-  'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'GLD', 'TLT', 'ARKK', 'SOXX',
+// Default suggestions shown when the input is empty. Hardcoded names so the
+// empty-state list always shows them even before the ticker_meta cache fills.
+const POPULAR_RESULTS = [
+  { ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust' },
+  { ticker: 'QQQ',   name: 'Invesco QQQ Trust' },
+  { ticker: 'AAPL',  name: 'Apple Inc.' },
+  { ticker: 'MSFT',  name: 'Microsoft Corp.' },
+  { ticker: 'NVDA',  name: 'NVIDIA Corp.' },
+  { ticker: 'AMZN',  name: 'Amazon.com Inc.' },
+  { ticker: 'GOOGL', name: 'Alphabet Inc. Class A' },
+  { ticker: 'META',  name: 'Meta Platforms Inc.' },
+  { ticker: 'TSLA',  name: 'Tesla Inc.' },
+  { ticker: 'AMD',   name: 'Advanced Micro Devices' },
+  { ticker: 'AVGO',  name: 'Broadcom Inc.' },
+  { ticker: 'NFLX',  name: 'Netflix Inc.' },
+  { ticker: 'CRM',   name: 'Salesforce Inc.' },
+  { ticker: 'COST',  name: 'Costco Wholesale Corp.' },
+  { ticker: 'LLY',   name: 'Eli Lilly & Co.' },
+  { ticker: 'PLTR',  name: 'Palantir Technologies' },
+  { ticker: 'SMCI',  name: 'Super Micro Computer' },
+  { ticker: 'MSTR',  name: 'MicroStrategy Inc.' },
+  { ticker: 'COIN',  name: 'Coinbase Global' },
+  { ticker: 'SNOW',  name: 'Snowflake Inc.' },
+  { ticker: 'IWM',   name: 'iShares Russell 2000 ETF' },
+  { ticker: 'DIA',   name: 'SPDR Dow Jones Industrial' },
+  { ticker: 'XLF',   name: 'Financial Select Sector SPDR' },
+  { ticker: 'XLE',   name: 'Energy Select Sector SPDR' },
+  { ticker: 'XLK',   name: 'Technology Select Sector SPDR' },
+  { ticker: 'XLV',   name: 'Health Care Select Sector SPDR' },
+  { ticker: 'GLD',   name: 'SPDR Gold Trust' },
+  { ticker: 'TLT',   name: 'iShares 20+ Year Treasury' },
+  { ticker: 'ARKK',  name: 'ARK Innovation ETF' },
+  { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
-const POPULAR_RESULTS = POPULAR.map(t => ({ ticker: t, name: null }))
 
 const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, ref) {
   const [open, setOpen] = useState(false)
