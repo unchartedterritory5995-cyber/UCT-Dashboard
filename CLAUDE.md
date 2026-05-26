@@ -1166,6 +1166,50 @@ v1: regex-only on `\$[A-Z]{1,5}\b`, minus forex pairs (USD/EUR/GBP/JPY/CAD/AUD/C
 ### Cost forecast
 $13–22/mo at the curated 4-account list × burst cadence. `since_id` filtering keeps each poll's billable count to "what's new since last poll." Live MTD cost surfaces in `/api/admin/twitter-stats`.
 
+## Morning Catalyst Table (built 2026-05-25)
+
+Pre-market intelligence engine that pulls candidates from 6 existing project sources (movers, batch snapshot, earnings, tweets, RSS, scanner), composite-scores them, picks the top 12 with a forced 6/3/2/1 category mix, and uses Claude Opus 4.7 to synthesize a 2–3 sentence catalyst description per entry. Surfaces as a full-width tile above the Movers/Breadth/Themes row on Dashboard.
+
+### Architecture
+- **Database:** SQLite at `/data/catalysts.db` (web service Railway volume). Indefinite retention for historical browsing.
+- **Synthesis:** Claude Opus 4.7 via `api/services/engine._get_anthropic_client()` (same client pattern as earnings_enrichment + transcripts). Haiku fallback on Opus 5xx. Skip-if-stable SHA1 hash of source signals — re-uses prior thesis when nothing changed (so quiet days cost ~$0).
+- **Scheduler:** APScheduler in `api/main.py` next to COT + Twitter — 5min burst pre-market + AMC, 30min midday, hourly safety net. Gated on `CATALYST_ENGINE_ENABLED=1`.
+- **Cost cap:** $5/day soft (logs warning), $10/day hard (disables synthesis for remainder of day). Per-call USD recorded in `catalyst_cost_log` table.
+
+### Files
+- `api/services/catalyst/sources.py` — parallel pulls
+- `api/services/catalyst/scoring.py` — composite formula with env-tunable weights
+- `api/services/catalyst/tagging.py` — deterministic Earnings > Catalyst > Gapper > News
+- `api/services/catalyst/selection.py` — 6/3/2/1 quota selector with redistribution
+- `api/services/catalyst/cost_guard.py` — daily spend tracking + caps
+- `api/services/catalyst/synthesize.py` — Opus call + skip-if-stable + Haiku fallback + JSON validation + "no clear catalyst" enforcement
+- `api/services/catalyst/store.py` — SQLite CRUD (catalysts + catalyst_cost_log tables)
+- `api/services/catalyst/engine.py` — orchestrator
+- `api/routers/catalysts.py` — `/api/catalysts/today`, `/api/catalysts/by-date/{ymd}`, `POST /api/catalysts/refresh` (admin), `GET /api/admin/catalyst-stats`
+- `app/src/components/tiles/CatalystTable.{jsx,module.css}` — 6-col table tile
+- `app/src/utils/highlightThesis.jsx` — bold markdown + gold cashtags + colored pcts
+- `app/src/hooks/useCatalysts.js` — SWR hook polling /today every 30s
+
+### Env vars
+- `CATALYST_ENGINE_ENABLED=1` — master switch for scheduler
+- `CATALYST_OPUS_MODEL=claude-opus-4-7` (default)
+- `CATALYST_COST_CAP_DAILY=5.00` (USD; soft cap)
+- `CATALYST_COST_HARD_CAP=10.00` (USD; hard cutoff)
+- `CATALYST_PRICE_FLOOR=2.00` (below this, score penalty)
+- `CATALYST_QUOTA_CATALYST=6` / `_EARNINGS=3` / `_GAPPER=2` / `_NEWS=1` — forced mix
+- `CATALYST_SCORE_W_*` — scoring weight overrides
+- `VITE_CATALYST_UI_ENABLED=1` (frontend kill-switch, default ON)
+
+### Spec + plan
+- Spec: `docs/superpowers/specs/2026-05-25-morning-catalyst-table-design.md`
+- Plan: `docs/superpowers/plans/2026-05-25-morning-catalyst-table-phase-1.md`
+
+### Phase 1 limitations (deferred to Phase 2+)
+- **vol_x defaults to 1.0** — no ADV pipeline wired yet. Phase 2 will add it.
+- **No Finviz Elite, no AlphaVantage NEWS_SENTIMENT, no Twitter advanced_search, no Perplexity** — Phase 2 source expansion.
+- **No watchlist highlight, no catalyst-triggered alerts, no tag-chip filter UI** — Phase 3.
+- **No history browser, no Compass 🧭 button per row, no Dashboard restyle** — Phase 4.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
