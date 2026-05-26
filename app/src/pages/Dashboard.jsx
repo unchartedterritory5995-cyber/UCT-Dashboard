@@ -11,6 +11,7 @@ import NewsFeed from '../components/tiles/NewsFeed'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import RegimeTile from '../components/tiles/RegimeTile'
 import MoversSidebar from '../components/MoversSidebar'
+import CatalystTable from '../components/tiles/CatalystTable'
 import TileCard from '../components/TileCard'
 import styles from './Dashboard.module.css'
 
@@ -79,6 +80,10 @@ export default function Dashboard() {
           <CompassTodayTile />
           <RegimeTile />
         </div>
+
+        {/* Morning Catalyst Table — full-width row (spec 2026-05-25). Shown on
+            desktop + mobile (CSS collapses columns at <768px). */}
+        <CatalystTable />
 
         {/* ── Desktop layout (hidden on mobile) ──────────────────────────── */}
         <div className={styles.desktopOnly}>
