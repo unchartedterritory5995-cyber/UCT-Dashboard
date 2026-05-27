@@ -57,6 +57,17 @@ def _key_status(name: str) -> dict:
     return {"set": bool(v), "length": len(v) if v else 0}
 
 
+@router.get("/voice-hallucinations")
+def voice_hallucinations(limit: int = 100, user=Depends(require_admin)) -> dict:
+    """ADMIN — all flagged hallucinations across all users (recent first).
+    Plus aggregate stats. For the Voice Hallucinations dashboard."""
+    from api.services.voice_hallucination_audit import list_all_flags, stats
+    return {
+        "stats": stats(),
+        "flags": list_all_flags(limit=limit),
+    }
+
+
 @router.get("/api-health")
 def api_health(user=Depends(require_admin)) -> dict:
     """Report which API keys + feature flags are set on this deploy.

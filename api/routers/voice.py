@@ -1114,6 +1114,11 @@ def session_end_post(
     # so the Compass tab sees what was said in voice. Non-blocking.
     background_tasks.add_task(_bridge_session_to_compass_thread,
                               body.session_id, user["id"])
+    # Phase 3 Sprint 8: passive Trader Profile auto-populator. Reads the
+    # transcript, extracts concrete trader-preference signals via Haiku,
+    # writes them as j2_profile_suggestions for one-click user approval.
+    background_tasks.add_task(_auto_populate_profile_background,
+                              body.session_id, user["id"])
 
     return {"ok": True, "duration_seconds": duration}
 
@@ -1197,6 +1202,20 @@ def _audit_session_background(session_id: int, user_id: str) -> None:
                        session_id, result["suspect_count"])
     except Exception as e:  # noqa: BLE001
         _log.warning("hallucination audit failed for %s: %s", session_id, e)
+
+
+def _auto_populate_profile_background(session_id: int, user_id: str) -> None:
+    """Phase 3 Sprint 8: Haiku reads the transcript and writes any concrete
+    trader-preference signals as j2_profile_suggestions for user review.
+    Never auto-applies — always one-click approval."""
+    try:
+        from api.services.trader_profile_auto import auto_populate_after_session
+        result = auto_populate_after_session(session_id, user_id)
+        if result.get("created", 0) > 0:
+            _log.info("[trader_profile_auto] session=%s suggestions_created=%d",
+                       session_id, result["created"])
+    except Exception as e:  # noqa: BLE001
+        _log.warning("trader_profile_auto failed for %s: %s", session_id, e)
 
 
 def _bridge_session_to_compass_thread(session_id: int, user_id: str) -> None:

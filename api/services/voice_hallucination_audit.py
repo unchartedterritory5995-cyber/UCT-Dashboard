@@ -268,6 +268,58 @@ def audit_session(session_id: int, user_id: str) -> dict:
     }
 
 
+def list_all_flags(*, limit: int = 100) -> list[dict]:
+    """ADMIN ONLY — return flagged hallucinations across ALL users with
+    user_id + email if available. Powers the admin observability dashboard."""
+    _ensure_schema()
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT h.id, h.user_id, h.session_id, h.turn_text,
+                      h.suspect_number, h.suspect_unit, h.evidence,
+                      h.confidence, h.created_at,
+                      u.email AS user_email
+                 FROM voice_hallucinations h
+                 LEFT JOIN users u ON u.id = h.user_id
+                ORDER BY h.created_at DESC
+                LIMIT ?""",
+            (max(1, min(500, int(limit))),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def stats() -> dict:
+    """Aggregate hallucination stats for observability."""
+    _ensure_schema()
+    conn = get_connection()
+    try:
+        total = conn.execute(
+            "SELECT COUNT(*) AS c FROM voice_hallucinations"
+        ).fetchone()["c"]
+        last_24h = conn.execute(
+            "SELECT COUNT(*) AS c FROM voice_hallucinations "
+            "WHERE created_at >= datetime('now', '-1 day')"
+        ).fetchone()["c"]
+        last_7d = conn.execute(
+            "SELECT COUNT(*) AS c FROM voice_hallucinations "
+            "WHERE created_at >= datetime('now', '-7 day')"
+        ).fetchone()["c"]
+        unique_users_7d = conn.execute(
+            "SELECT COUNT(DISTINCT user_id) AS c FROM voice_hallucinations "
+            "WHERE created_at >= datetime('now', '-7 day')"
+        ).fetchone()["c"]
+        return {
+            "total_flags": total,
+            "flags_last_24h": last_24h,
+            "flags_last_7d": last_7d,
+            "unique_users_last_7d": unique_users_7d,
+        }
+    finally:
+        conn.close()
+
+
 def list_recent_flags(user_id: str, *, limit: int = 50) -> list[dict]:
     _ensure_schema()
     conn = get_connection()
