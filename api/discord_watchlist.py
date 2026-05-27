@@ -35,8 +35,8 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — matches aligned column width
-SEP_RAW = "╌" * 30
+# Dim dotted separator — short enough for inline fields on PC
+SEP_RAW = "╌" * 12
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
@@ -195,9 +195,9 @@ def build_messages(
                 f"```ansi\n{_GREEN_A if bull_pct>=50 else _RED_A}{bull_pct}% {'bullish' if bull_pct>=50 else 'bearish'}{_RESET}\n```"
             ),
             "fields": [
-                {"name": f"{net_emoji} Net", "value": f"```ansi\n{net_color}{_fmt(net)}{_RESET}\n```", "inline": True},
-                {"name": "🟢 Bull", "value": f"```ansi\n{_GREEN_A}{_fmt(total_bull)}{_RESET}\n```", "inline": True},
-                {"name": "🔴 Bear", "value": f"```ansi\n{_RED_A}{_fmt(total_bear)}{_RESET}\n```", "inline": True},
+                {"name": f"{net_emoji} Net", "value": f"**{_fmt(net)}**", "inline": True},
+                {"name": "🟢 Bull", "value": f"**{_fmt(total_bull)}**", "inline": True},
+                {"name": "🔴 Bear", "value": f"**{_fmt(total_bear)}**", "inline": True},
             ],
         })
 
