@@ -26,3 +26,4 @@ resend>=2.0.0
 numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
+praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool

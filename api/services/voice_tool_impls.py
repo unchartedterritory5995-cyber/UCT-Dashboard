@@ -374,6 +374,80 @@ def _web_search(query: str = "", max_tokens: int = 400,
     }
 
 
+def _reddit_sentiment(ticker: str = "", hours: int = 24) -> dict:
+    """Reddit retail sentiment (r/wsb / r/stocks / r/options / r/investing /
+    r/thetagang) for a ticker. Returns bull/bear markers, score, samples."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.reddit_sentiment import sentiment_for_ticker
+        return sentiment_for_ticker(ticker, hours=hours or 24)
+    except Exception as e:
+        _log.warning("reddit_sentiment failed: %s", e)
+        return {"error": f"reddit unavailable: {e}"}
+
+
+def _stocktwits_sentiment(ticker: str = "", limit: int = 30) -> dict:
+    """Stocktwits bull/bear-tagged messages aggregated for a ticker. Public
+    API, no auth. Returns counts + samples."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.stocktwits_sentiment import sentiment_for_ticker
+        return sentiment_for_ticker(ticker, limit=limit or 30)
+    except Exception as e:
+        _log.warning("stocktwits_sentiment failed: %s", e)
+        return {"error": f"stocktwits unavailable: {e}"}
+
+
+def _get_institutional_holders(ticker: str = "", top_n: int = 10) -> dict:
+    """Top institutional holders for a ticker + % held by institutions/insiders."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.institutional_holdings import get_institutional_holders
+        return get_institutional_holders(ticker, top_n=top_n or 10)
+    except Exception as e:
+        _log.warning("get_institutional_holders failed: %s", e)
+        return {"error": f"institutional holders unavailable: {e}"}
+
+
+def _get_short_interest(ticker: str = "") -> dict:
+    """Short interest + days-to-cover + % of float (FINRA via yfinance)."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.short_interest import get_short_interest
+        return get_short_interest(ticker)
+    except Exception as e:
+        _log.warning("get_short_interest failed: %s", e)
+        return {"error": f"short interest unavailable: {e}"}
+
+
+def _get_insider_clusters(days: int = 7, count: int = 15) -> dict:
+    """Recent insider buying clusters (multiple insiders, same ticker)
+    via OpenInsider scrape. Free, no key."""
+    try:
+        from api.services.insider_clusters import get_recent_clusters
+        return get_recent_clusters(days=days or 7, count=count or 15)
+    except Exception as e:
+        _log.warning("get_insider_clusters failed: %s", e)
+        return {"error": f"insider clusters unavailable: {e}", "clusters": []}
+
+
+def _get_social_sentiment(ticker: str = "") -> dict:
+    """Unified social sentiment — combines Twitter trader feed + Reddit + Stocktwits.
+    Single call replaces three. Returns aggregate verdict + agreement signal."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.sentiment_aggregator import aggregate
+        return aggregate(ticker)
+    except Exception as e:
+        _log.warning("get_social_sentiment failed: %s", e)
+        return {"error": f"social sentiment unavailable: {e}"}
+
+
 def _get_earnings_transcript(symbol: str = "") -> dict:
     """Most-recent earnings-call transcript with AI summary (Finnhub + Claude).
     Returns headline + sentiment + 5-7 bullets + quarter/year. Cached 24h."""
@@ -2185,6 +2259,91 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="reddit_sentiment",
+        description=(
+            "Reddit retail sentiment for a ticker — searches r/wallstreetbets, "
+            "r/stocks, r/options, r/investing, r/thetagang for mentions, "
+            "counts bull/bear language markers, returns net score + verdict + "
+            "sample posts. Requires REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "hours": {"type": "integer", "description": "Lookback window (default 24)."},
+        },
+        contexts=["global"],
+    )(_reddit_sentiment)
+
+    _vt.voice_tool(
+        name="stocktwits_sentiment",
+        description=(
+            "Stocktwits sentiment for a ticker — recent messages with user-"
+            "tagged Bullish/Bearish counts, net score, sample messages. "
+            "Free public API, no auth required."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "limit": {"type": "integer", "description": "Max messages to analyze (default 30, max 50)."},
+        },
+        contexts=["global"],
+    )(_stocktwits_sentiment)
+
+    _vt.voice_tool(
+        name="get_institutional_holders",
+        description=(
+            "Top institutional holders for a ticker (from Yahoo Finance 13F "
+            "aggregate). Returns each holder + shares + % of outstanding + "
+            "value, plus overall held_by_institutions_pct and "
+            "held_by_insiders_pct. Call for 'who owns NVDA', 'how much is "
+            "institutional', 'who are the top 5 holders'."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "top_n": {"type": "integer", "description": "How many holders (default 10, max 25)."},
+        },
+        contexts=["global"],
+    )(_get_institutional_holders)
+
+    _vt.voice_tool(
+        name="get_short_interest",
+        description=(
+            "Short interest + days-to-cover + % of float for a ticker. "
+            "Includes month-over-month change. Verdict 'crowded' field: "
+            "low / moderate / high / very_high. Call for 'how shorted is X', "
+            "'days to cover on Y', 'is the short crowded'."
+        ),
+        parameters={"ticker": {"type": "string"}},
+        contexts=["global"],
+    )(_get_short_interest)
+
+    _vt.voice_tool(
+        name="get_insider_clusters",
+        description=(
+            "Recent insider BUYING clusters (multiple insiders buying same "
+            "ticker) from OpenInsider. Strong bullish signal when 3+ insiders "
+            "buy the same name in a week. Returns ticker + company + insider "
+            "count + total $ value + dates."
+        ),
+        parameters={
+            "days": {"type": "integer", "description": "Lookback window (default 7, max 30)."},
+            "count": {"type": "integer", "description": "Max clusters (default 15, max 50)."},
+        },
+        contexts=["global"],
+    )(_get_insider_clusters)
+
+    _vt.voice_tool(
+        name="get_social_sentiment",
+        description=(
+            "ONE-CALL unified social sentiment — combines Twitter trader feed "
+            "+ Reddit + Stocktwits in parallel. Returns aggregate verdict "
+            "(bullish/bearish/mixed) + agreement signal (unanimous_bullish / "
+            "unanimous_bearish / mixed_across_sources). Use this INSTEAD of "
+            "calling all three individually."
+        ),
+        parameters={"ticker": {"type": "string"}},
+        contexts=["global"],
+    )(_get_social_sentiment)
 
     _vt.voice_tool(
         name="get_earnings_transcript",

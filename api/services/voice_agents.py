@@ -379,6 +379,14 @@ def _compass_tool_union() -> set[str]:
     out.add("get_earnings_transcript")   # Finnhub + Claude transcript summary
     out.add("get_top_catalysts")         # Opus-scored pre-market catalysts
     out.add("email_me_weekly_digest")    # on-demand weekly digest send
+    # Phase 3 Sprint 4: new data sources — social sentiment + institutional
+    # ownership + short interest + insider buying clusters.
+    out.add("reddit_sentiment")          # PRAW r/wsb + r/stocks + etc
+    out.add("stocktwits_sentiment")      # public ST API, user-tagged bull/bear
+    out.add("get_institutional_holders") # yfinance 13F aggregate
+    out.add("get_short_interest")        # yfinance + FINRA
+    out.add("get_insider_clusters")      # OpenInsider scrape
+    out.add("get_social_sentiment")      # one-call aggregate of all three social
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")
