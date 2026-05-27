@@ -371,7 +371,14 @@ def _compass_tool_union() -> set[str]:
     # exhaustive multi-minute reports via sonar-deep-research.
     out.add("web_search")
     out.add("search_finance_news")
-    out.add("research_deep")
+    # NOTE: research_deep (sonar-deep-research, 2-5 MINUTES) deliberately
+    # EXCLUDED from default union — when the model occasionally picks it
+    # over a faster alternative, the voice session "hangs" for minutes,
+    # which user-reports as intermittent failure. deep_research (Claude
+    # Sonnet 4.6 sub-agent at 5-9s) handles all the "real research" use
+    # cases. If we want research_deep back, gate it behind explicit user
+    # opt-in ("Compass, do real deep research on X") via a separate
+    # context or a dedicated endpoint.
     # TheFly institutional squawk feed — analyst calls, syndicate, M&A,
     # hot-mover alerts. Requires THEFLY_API_KEY.
     out.add("get_thefly_squawks")
