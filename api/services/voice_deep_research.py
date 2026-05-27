@@ -95,7 +95,14 @@ def _gather_sources(question: str, ticker: str = "") -> dict[str, Any]:
     def _web():
         try:
             from api.services.perplexity_search import web_search
-            return web_search(question, max_tokens=500)
+            # Use reasoning mode + finance pack + day recency by default for
+            # deep_research — the sub-agent question is always substantive
+            # enough to warrant the extra ~5s of reasoning, and finance pack
+            # kills SEO-spam citations.
+            return web_search(
+                question, max_tokens=600,
+                mode="reasoning", recency="day", domain_pack="finance",
+            )
         except Exception as e:
             _log.warning("web search failed: %s", e)
             return None

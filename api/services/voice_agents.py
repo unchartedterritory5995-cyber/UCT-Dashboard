@@ -365,10 +365,13 @@ def _compass_tool_union() -> set[str]:
     # EarningsModal already show.
     out.add("tweets_for_ticker")
     out.add("tweet_tape")
-    # Live web research via Perplexity Sonar Pro — fills the "what's the
-    # street saying / what's happening with X today" gap that internal KB
-    # + market APIs can't cover.
+    # Live web research via Perplexity — tiered modes. web_search is the
+    # full-control entry point; search_finance_news is pre-tuned for daily
+    # market news (locked to Bloomberg/Reuters/WSJ/etc); research_deep is
+    # exhaustive multi-minute reports via sonar-deep-research.
     out.add("web_search")
+    out.add("search_finance_news")
+    out.add("research_deep")
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")

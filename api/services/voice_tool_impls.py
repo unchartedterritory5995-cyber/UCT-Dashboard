@@ -336,16 +336,21 @@ def _list_economic_series() -> dict:
         return {"count": 0, "series": []}
 
 
-def _web_search(query: str = "", max_tokens: int = 400) -> dict:
-    """Live web research via Perplexity Sonar Pro. Returns a synthesized
-    answer + citation URLs for questions the dashboard's internal data
-    can't answer (street consensus, analyst takes, macro/policy news,
-    breaking developments beyond the cached headline feed)."""
+def _web_search(query: str = "", max_tokens: int = 400,
+                mode: str = "fast", recency: str = "",
+                domain_pack: str = "general") -> dict:
+    """Live web research via Perplexity — tiered modes (fast / reasoning /
+    deep) + finance domain pack + recency filter."""
     if not query or not (query := query.strip()):
         return {"answer": "no query provided", "citations": [], "count": 0}
     try:
         from api.services.perplexity_search import web_search
-        result = web_search(query=query, max_tokens=max_tokens or 400)
+        result = web_search(
+            query=query, max_tokens=max_tokens or 400,
+            mode=mode or "fast",
+            recency=recency or None,
+            domain_pack=domain_pack or "general",
+        )
     except Exception as e:
         _log.warning("web_search dispatch failed: %s", e)
         return {"answer": "web search unavailable", "citations": [], "error": str(e), "count": 0}
@@ -356,15 +361,39 @@ def _web_search(query: str = "", max_tokens: int = 400) -> dict:
             "error": result["error"],
             "count": 0,
         }
-    answer = (result.get("answer") or "")[:1500]
+    answer = (result.get("answer") or "")[:1800]
     citations = result.get("citations") or []
     return {
         "answer": answer,
         "citations": citations,
         "count": len(citations),
+        "mode": result.get("mode"),
+        "model": result.get("model"),
         "elapsed_ms": result.get("elapsed_ms"),
         "cached": bool(result.get("cached")),
     }
+
+
+def _search_finance_news(query: str = "", recency: str = "day",
+                         max_tokens: int = 400) -> dict:
+    """Perplexity locked to top finance sources (Bloomberg / Reuters / WSJ /
+    FT / Barrons / CNBC / SEC / Federal Reserve) with default 'day' recency.
+    Convenience wrapper — pre-tuned for market-news questions."""
+    return _web_search(
+        query=query, max_tokens=max_tokens,
+        mode="fast", recency=recency or "day", domain_pack="finance",
+    )
+
+
+def _research_deep(query: str = "", max_tokens: int = 2000) -> dict:
+    """Perplexity sonar-deep-research — exhaustive multi-source research.
+    Takes 2-5 minutes. Returns long-form synthesis with full citation graph.
+    Use only when the question warrants a real research report ('build me
+    a thesis on X', 'give me the bear case on Y'). Cache TTL: 1 hour."""
+    return _web_search(
+        query=query, max_tokens=max_tokens or 2000,
+        mode="deep", recency=None, domain_pack="finance",
+    )
 
 
 def _tweet_tape(hours: int = 12, count: int = 10) -> dict:
@@ -2044,22 +2073,65 @@ def _register_all() -> None:
     _vt.voice_tool(
         name="web_search",
         description=(
-            "Live web research via Perplexity Sonar Pro. Returns a synthesized "
-            "cited answer. Call when the question needs CURRENT WEB content "
-            "the dashboard doesn't have: street consensus, analyst takes, "
-            "macro/policy/Fed news, sector narratives, specific experts' views, "
-            "breaking developments beyond the cached headline feed, or any "
-            "general-knowledge question you would otherwise have to guess at. "
-            "DO NOT use for live quotes (get_quote), internal positions or "
-            "journal data (use journal tools), or anything a dashboard-specific "
-            "tool already covers. ~2-4s latency."
+            "Live web research via Perplexity. THREE modes: 'fast' (sonar-pro, "
+            "~3s, default), 'reasoning' (sonar-reasoning-pro, ~7s, explicit "
+            "reasoning step), 'deep' (sonar-deep-research, 2-5 MINUTES — TELL "
+            "the user it'll take a few minutes before calling). "
+            "ALWAYS pass domain_pack='finance' for market questions — locks "
+            "results to Bloomberg/Reuters/WSJ/FT/Barrons/CNBC/SEC/Fed. "
+            "ALWAYS pass recency='hour' or 'day' for 'today / now / breaking' "
+            "questions. For convenience, search_finance_news() pre-tunes "
+            "these for you; research_deep() pre-tunes deep mode."
         ),
         parameters={
             "query": {"type": "string", "description": "Natural-language research question."},
-            "max_tokens": {"type": "integer", "description": "Max answer tokens (default 400, max 1500)."},
+            "max_tokens": {"type": "integer", "description": "Max answer tokens (default 400, max 3000)."},
+            "mode": {"type": "string", "enum": ["fast", "reasoning", "deep"],
+                     "description": "fast | reasoning | deep. Default fast."},
+            "recency": {"type": "string", "enum": ["hour", "day", "week", "month"],
+                        "description": "Limit search to results newer than this window."},
+            "domain_pack": {"type": "string", "enum": ["finance", "general"],
+                            "description": "'finance' locks to curated finance sources. Default 'general'."},
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="search_finance_news",
+        description=(
+            "Pre-tuned wrapper around web_search — Perplexity locked to top "
+            "finance sources (Bloomberg/Reuters/WSJ/FT/Barrons/CNBC/SEC/Fed) "
+            "with default 'day' recency. Use as the DEFAULT for any "
+            "market-news question — sharper than plain web_search because "
+            "pre-tuned. Pass recency='hour' for breaking-news questions."
+        ),
+        parameters={
+            "query": {"type": "string", "description": "Natural-language news/market question."},
+            "recency": {"type": "string", "enum": ["hour", "day", "week", "month"],
+                        "description": "Default 'day'. Use 'hour' for breaking news."},
+            "max_tokens": {"type": "integer", "description": "Max answer tokens (default 400)."},
+        },
+        contexts=["global"],
+    )(_search_finance_news)
+
+    _vt.voice_tool(
+        name="research_deep",
+        description=(
+            "EXHAUSTIVE research via Perplexity sonar-deep-research. Runs for "
+            "2-5 MINUTES and produces a long-form (800-1500 word) multi-source "
+            "synthesis with full citation graph. Use for 'build me a thesis "
+            "on X', 'give me the full bear case on Y', 'do real research on "
+            "the SMR sector', 'comprehensive write-up on the macro setup'. "
+            "BEFORE calling, tell the user out loud: 'This will take a few "
+            "minutes — let me dig in and I'll come back to you.' Then call. "
+            "Cache TTL: 1 hour, so repeat queries return instantly."
+        ),
+        parameters={
+            "query": {"type": "string", "description": "Research question warranting a full report."},
+            "max_tokens": {"type": "integer", "description": "Max answer tokens (default 2000, max 3000)."},
+        },
+        contexts=["global"],
+    )(_research_deep)
 
     _vt.voice_tool(
         name="tweet_tape",
