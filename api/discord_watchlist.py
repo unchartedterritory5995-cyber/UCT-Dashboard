@@ -81,7 +81,7 @@ def _build_two_col(items, side="bull"):
 def _build_table_compact(items, side="bull"):
     """Build a table for inline fields — full format: ticker + exp + strike/cp + prem + date."""
     prem_color = _GREEN_A if side == "bull" else _RED_A
-    sep_line = f"{_DIM}{'╌' * 25}{_RESET}"
+    sep_line = f"{_DIM}{'╌' * 22}{_RESET}"
 
     lines = []
     for i, item in enumerate(items[:10], 1):
