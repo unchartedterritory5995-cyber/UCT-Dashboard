@@ -124,6 +124,14 @@ export default function NoteEditorPage({ noteId, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Slash menu's "Image" option dispatches this event so we can open the
+  // native file picker from outside the editor's React tree.
+  useEffect(() => {
+    const onOpenPicker = () => fileInputRef.current?.click()
+    window.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+    return () => window.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+  }, [])
+
   const onHeroChange = async () => {
     // Hero update already persisted by HeroImagePicker — refresh local copy.
     await refresh()

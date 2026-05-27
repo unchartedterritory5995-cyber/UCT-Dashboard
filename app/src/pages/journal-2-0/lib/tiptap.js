@@ -7,8 +7,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { SlashMenuExtension } from '../components/notebook/SlashMenu'
 
-export function buildExtensions({ placeholder = 'Start writing…' } = {}) {
+export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
@@ -21,6 +22,7 @@ export function buildExtensions({ placeholder = 'Start writing…' } = {}) {
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
     Placeholder.configure({ placeholder }),
+    SlashMenuExtension,
   ]
 }
 
