@@ -35,18 +35,18 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — fits Discord mobile ~25-char code blocks
-SEP_RAW = "╌" * 22
+# Dim dotted separator — matches aligned column width
+SEP_RAW = "╌" * 30
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
-    """Build a compact monospace table — no padding, fits Discord mobile ~26-char code blocks."""
+    """Build a compact aligned monospace table for Discord code blocks."""
     prem_color = _GREEN_A if side == "bull" else _RED_A
     sep_line = f"{_DIM}{SEP_RAW}{_RESET}"
 
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???")
+        sym = (item.get("sym") or "???").ljust(6)
 
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
@@ -58,11 +58,9 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
                 strike_num = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp} {strike_num}{cp} {prem_color}{prem}{_RESET}"
+            contract = f"{exp.ljust(5)} {(strike_num + cp).ljust(6)} {prem_color}{prem.rjust(6)}{_RESET}"
         else:
             contract = "—"
-
-        score = float(item.get("score") or item.get("autoScore") or 0)
 
         # Entry date — compact M/D format
         date_str = ""
@@ -78,7 +76,7 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
             if age:
                 date_str = age
 
-        row = f"{sym} {contract} {date_str}" if date_str else f"{sym} {contract}"
+        row = f"{sym}{contract} {date_str}" if date_str else f"{sym}{contract}"
         lines.append(row)
 
         if i < min(len(items), limit):
