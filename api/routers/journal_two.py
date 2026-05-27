@@ -625,105 +625,191 @@ def get_current_regime_route(
     return regime_service.get_current_regime()
 
 
-# ── Playbook / Stock Observation Library (Phase 5) ──────────────────────────
+# ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
+from api.services.journal_two import notes as notes_service
+from api.services.journal_two.notes import NoteValidationError
 
 
-@router.get("/playbook")
-def list_playbook(
-    symbol: str | None = None,
-    status: str | None = None,
+@router.get("/notes")
+def list_notes_endpoint(
+    folder_id: str | None = None,
+    tag: str | None = None,
+    ticker: str | None = None,
+    q: str | None = None,
+    sort: str = "updated",
+    limit: int = 100,
+    offset: int = 0,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """User's playbook entries, newest first. Optional symbol + status filters."""
+    rows = notes_service.list_notes(
+        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        sort=sort, limit=limit, offset=offset,
+    )
+    return {"notes": rows}
+
+
+@router.get("/notes/{note_id}")
+def get_note_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
+@router.post("/notes")
+def create_note_endpoint(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
     try:
-        return {
-            "entries": playbook_service.list_entries(
-                user["id"], symbol=symbol, status=status,
-            ),
-        }
-    except playbook_service.PlaybookValidationError as e:
+        n = notes_service.create_note(user["id"], payload or {})
+    except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    return {"note": n}
 
 
-@router.post("/playbook")
-def create_playbook(
-    payload: dict[str, Any],
-    user: dict = Depends(get_current_user),
-) -> dict[str, Any]:
-    """Create a new playbook entry (stock observation)."""
-    try:
-        return playbook_service.create_entry(user["id"], payload)
-    except playbook_service.PlaybookValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/playbook/{entry_id}")
-def get_playbook(
-    entry_id: str,
-    user: dict = Depends(get_current_user),
-) -> dict[str, Any]:
-    got = playbook_service.get_entry(user["id"], entry_id)
-    if got is None:
-        raise HTTPException(status_code=404, detail="Playbook entry not found")
-    return got
-
-
-@router.put("/playbook/{entry_id}")
-def update_playbook(
-    entry_id: str,
+@router.put("/notes/{note_id}")
+def update_note_endpoint(
+    note_id: str,
     patch: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
-        updated = playbook_service.update_entry(user["id"], entry_id, patch)
-    except playbook_service.PlaybookValidationError as e:
+        n = notes_service.update_note(user["id"], note_id, patch)
+    except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Playbook entry not found")
-    return updated
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
 
 
-@router.delete("/playbook/{entry_id}")
-def delete_playbook(
-    entry_id: str,
+@router.delete("/notes/{note_id}")
+def delete_note_endpoint(
+    note_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    ok = playbook_service.delete_entry(user["id"], entry_id)
+    ok = notes_service.delete_note(user["id"], note_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="Playbook entry not found")
-    return {"deleted": True}
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
 
 
-@router.post("/playbook/{entry_id}/screenshots")
-async def post_playbook_screenshot(
-    entry_id: str,
+@router.post("/notes/{note_id}/images")
+async def upload_note_image_endpoint(
+    note_id: str,
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Upload a screenshot for a playbook entry."""
-    # Verify ownership before writing to disk
-    if playbook_service.get_entry(user["id"], entry_id) is None:
-        raise HTTPException(status_code=404, detail="Playbook entry not found")
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
-        return await playbook_service.save_screenshot(user["id"], entry_id, file)
-    except playbook_service.PlaybookValidationError as e:
+        img = await notes_service.save_note_image(
+            user["id"], note_id, file, kind="inline",
+        )
+    except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    return img
 
 
-@router.get("/playbook/attachments/{user_id}/{entry_id}/{filename}")
-def get_playbook_screenshot(
-    user_id: str,
-    entry_id: str,
+@router.post("/notes/{note_id}/hero")
+async def upload_note_hero_endpoint(
+    note_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        img = await notes_service.save_note_image(
+            user["id"], note_id, file, kind="hero",
+        )
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    updated = notes_service.update_note(
+        user["id"], note_id, {"heroImageUrl": img["url"]},
+    )
+    return {"heroImageUrl": img["url"], "note": updated}
+
+
+@router.delete("/notes/{note_id}/hero")
+def delete_note_hero_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.update_note(user["id"], note_id, {"heroImageUrl": None})
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
+def serve_note_attachment(
+    user_id_param: str,
+    note_id: str,
+    sub: str,
     filename: str,
     user: dict = Depends(get_current_user),
 ) -> Any:
-    """Serve a previously uploaded playbook screenshot. Owner-only."""
-    if user["id"] != user_id:
+    if user["id"] != user_id_param:
         raise HTTPException(status_code=403, detail="Forbidden")
-    path = playbook_service.serve_screenshot_path(user_id, entry_id, filename)
+    path = notes_service.serve_note_image_path(user_id_param, note_id, sub, filename)
     if path is None:
-        raise HTTPException(status_code=404, detail="Screenshot not found")
-    return FileResponse(path)
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(str(path))
+
+
+@router.get("/note-folders")
+def list_folders_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    return {"folders": notes_service.list_folders(user["id"])}
+
+
+@router.post("/note-folders")
+def create_folder_endpoint(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        f = notes_service.create_folder(
+            user["id"],
+            name=payload.get("name", ""),
+            sort_order=int(payload.get("sortOrder", 0) or 0),
+        )
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"folder": f}
+
+
+@router.put("/note-folders/{folder_id}")
+def update_folder_endpoint(
+    folder_id: str,
+    patch: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        f = notes_service.update_folder(user["id"], folder_id, patch)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if f is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"folder": f}
+
+
+@router.delete("/note-folders/{folder_id}")
+def delete_folder_endpoint(
+    folder_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    ok = notes_service.delete_folder(user["id"], folder_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
 
 
 # ── Options — multi-leg strategies (Phase 5) ────────────────────────────────
