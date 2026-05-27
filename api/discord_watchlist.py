@@ -35,8 +35,8 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — compact for mobile (~28 chars)
-SEP_RAW = "╌" * 28
+# Dim dotted separator — fits Discord mobile ~25-char code blocks
+SEP_RAW = "╌" * 22
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
