@@ -378,18 +378,42 @@ def build_messages(
         unusual_embeds = []
 
         if ub_sorted:
-            unusual_embeds.append({
-                "color": GOLD,
-                "title": "⚡ UNUSUAL FLOW — BULL",
-                "description": f"```ansi\n{_build_table(ub_sorted, limit, side='bull')}\n```",
-            })
+            if len(ub_sorted) > 10:
+                left = ub_sorted[:10]
+                right = ub_sorted[10:20]
+                unusual_embeds.append({
+                    "color": GOLD,
+                    "title": "⚡ UNUSUAL FLOW — BULL",
+                    "fields": [
+                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bull')}\n```", "inline": True},
+                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bull')}\n```", "inline": True},
+                    ],
+                })
+            else:
+                unusual_embeds.append({
+                    "color": GOLD,
+                    "title": "⚡ UNUSUAL FLOW — BULL",
+                    "description": f"```ansi\n{_build_table(ub_sorted, 10, 'bull')}\n```",
+                })
 
         if ubear_sorted:
-            unusual_embeds.append({
-                "color": 0x9B59B6,  # Purple
-                "title": "⚡ UNUSUAL FLOW — BEAR",
-                "description": f"```ansi\n{_build_table(ubear_sorted, limit, side='bear')}\n```",
-            })
+            if len(ubear_sorted) > 10:
+                left = ubear_sorted[:10]
+                right = ubear_sorted[10:20]
+                unusual_embeds.append({
+                    "color": 0x9B59B6,
+                    "title": "⚡ UNUSUAL FLOW — BEAR",
+                    "fields": [
+                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(left, 'bear')}\n```", "inline": True},
+                        {"name": "\u200b", "value": f"```ansi\n{_build_table_compact(right, 'bear')}\n```", "inline": True},
+                    ],
+                })
+            else:
+                unusual_embeds.append({
+                    "color": 0x9B59B6,
+                    "title": "⚡ UNUSUAL FLOW — BEAR",
+                    "description": f"```ansi\n{_build_table(ubear_sorted, 10, 'bear')}\n```",
+                })
 
         if unusual_embeds:
             unusual_embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
