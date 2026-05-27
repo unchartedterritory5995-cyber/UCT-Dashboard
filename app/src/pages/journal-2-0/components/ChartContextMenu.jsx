@@ -16,6 +16,7 @@ export default function ChartContextMenu({
   y,
   onReset,
   onAddToPortfolio,
+  onSaveToNotebook,
   onOpenSettings,
   onClose,
 }) {
@@ -77,6 +78,16 @@ export default function ChartContextMenu({
       >
         + Add to Portfolio
       </button>
+      {typeof onSaveToNotebook === 'function' && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={() => select(onSaveToNotebook)}
+        >
+          📓 Save to Notebook
+        </button>
+      )}
       {showSettings && (
         <>
           <div className={styles.separator} />

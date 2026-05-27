@@ -85,6 +85,28 @@ export default function GlobalAddPositionProvider() {
     })
   }, [menu])
 
+  const handleSaveToNotebook = useCallback(async () => {
+    if (!menu) return
+    const ticker = menu.sym
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      const res = await fetch('/api/j2/notes', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: ticker ? `${ticker} — ${today}` : `Note — ${today}`,
+          ticker: ticker || null,
+        }),
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const body = await res.json()
+      window.location.href = `/journal?j2tab=notebook&note=${body.note.id}`
+    } catch (e) {
+      setToast({ message: `Could not create note: ${e.message || e}`, tone: 'error' })
+    }
+  }, [menu])
+
   const handleCreate = useCallback(async (payload) => {
     const acctId = payload.accountId || accountId || accounts[0]?.id || null
     await postPosition({ ...payload, accountId: acctId })
@@ -107,6 +129,7 @@ export default function GlobalAddPositionProvider() {
         y={menu?.clientY || 0}
         onReset={null}
         onAddToPortfolio={handleAddFromBar}
+        onSaveToNotebook={handleSaveToNotebook}
         onOpenSettings={null}
         onClose={() => setMenu(null)}
       />
