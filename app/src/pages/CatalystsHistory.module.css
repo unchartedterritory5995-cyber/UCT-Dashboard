@@ -1,0 +1,177 @@
+.page {
+  padding: 16px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+.title {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 0 0 6px;
+  color: var(--text-bright);
+}
+.subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 720px;
+}
+
+.controlsRow {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.dateLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dateInput {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--ut-cream);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+.quickJumps {
+  display: flex;
+  gap: 6px;
+}
+.quickBtn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.quickBtn:hover { color: var(--ut-cream); border-color: var(--ut-cream); }
+.quickBtnActive {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  position: relative;
+}
+.tile::before {
+  content: '';
+  position: absolute;
+  top: 10px; bottom: 10px; left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--ut-green), var(--ut-gold), var(--ut-green));
+  opacity: 0.4;
+  border-radius: 2px;
+}
+
+.tileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tileTitle {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-bright);
+}
+.tileMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.tableWrap { width: 100%; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--font-sans); }
+.table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.02)); }
+
+.colSym    { width: 80px; white-space: nowrap; }
+.colPrice  { width: 80px; white-space: nowrap; }
+.colGap    { width: 80px; font-weight: 600; white-space: nowrap; }
+.colVol    { width: 70px; white-space: nowrap; }
+.colTag    { width: 100px; white-space: nowrap; }
+.colThesis { width: auto; line-height: 1.5; }
+.colWhen   {
+  width: 130px; white-space: nowrap; font-size: 10px;
+  color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right;
+}
+
+.ticker { color: var(--ut-cream); font-weight: 600; letter-spacing: 0.5px; cursor: pointer; }
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
+.tagCatalyst { background: rgba(56, 132, 255, 0.12); color: #60a5fa; }
+.tagEarnings { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+.tagGapper   { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.tagNews     { background: rgba(180, 180, 180, 0.12); color: #cbd5e1; }
+.tagDefault  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+.sourceCount {
+  display: inline;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.footer {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 10px;
+  opacity: 0.5;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .colSym { width: auto; }
+  .colPrice, .colVol, .colTag, .colWhen { display: none; }
+  .table { font-size: 11px; }
+  .table td { padding: 8px 6px; }
+}

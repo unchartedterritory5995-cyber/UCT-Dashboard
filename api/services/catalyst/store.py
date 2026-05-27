@@ -52,6 +52,17 @@ CREATE TABLE IF NOT EXISTS catalyst_cost_log (
   was_cached      INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_catalyst_cost_date ON catalyst_cost_log(market_date);
+
+-- Dedup table for catalyst-triggered alerts. PK on (user_id, ticker, market_date)
+-- means each (user, ticker) gets at most one alert per day, regardless of how
+-- many refreshes the ticker stays in the top-20.
+CREATE TABLE IF NOT EXISTS catalyst_alerts_fired (
+  user_id      TEXT NOT NULL,
+  ticker       TEXT NOT NULL,
+  market_date  TEXT NOT NULL,
+  fired_at     INTEGER NOT NULL,
+  PRIMARY KEY (user_id, ticker, market_date)
+);
 """
 
 
@@ -165,6 +176,24 @@ def cost_stats_for_date(market_date: str) -> dict:
             (market_date,),
         ).fetchone()
         return dict(row)
+
+
+def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
+    """Atomically dedupe a catalyst alert. Returns True if newly recorded
+    (caller should fire alert), False if already fired today for this
+    (user, ticker, market_date)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        try:
+            c.execute(
+                """INSERT INTO catalyst_alerts_fired
+                   (user_id, ticker, market_date, fired_at)
+                   VALUES (?, ?, ?, ?)""",
+                (user_id, ticker.upper(), market_date, int(time.time())),
+            )
+            c.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
 
 
 def cost_stats_mtd(year_month: str) -> dict:

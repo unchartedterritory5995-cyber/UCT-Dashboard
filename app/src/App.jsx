@@ -45,6 +45,7 @@ const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
+const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
 const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
@@ -165,6 +166,7 @@ export default function App() {
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/catalysts/history" element={<CatalystsHistory />} />
                 <Route path="/admin/chart-health" element={<ChartHealth />} />
                 <Route path="/admin/patterns" element={<PatternAdmin />} />
               </Route>

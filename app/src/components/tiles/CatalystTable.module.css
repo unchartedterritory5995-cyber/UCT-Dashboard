@@ -35,6 +35,15 @@
   font-size: 11px; color: var(--text-muted);
 }
 .updated { opacity: 0.7; }
+.historyLink {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+.historyLink:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
 .refreshBtn {
   background: none;
   border: 1px solid var(--border);
@@ -77,6 +86,12 @@
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+}
+.sortableHeader:hover { color: var(--ut-cream); }
+.sortActive { color: var(--ut-gold, #c9a84c); }
 .table td {
   padding: 10px;
   border-bottom: 1px solid var(--border);
@@ -191,6 +206,68 @@
 }
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
+
+.explainRow {
+  margin-bottom: 12px;
+}
+.explainToggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.explainToggle:hover { color: var(--ut-cream); border-color: var(--ut-cream); }
+.explainPanel {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.explainInputRow { display: flex; gap: 8px; margin-bottom: 8px; }
+.explainInput {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--ut-cream);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.explainBtn {
+  background: var(--ut-gold, #c9a84c);
+  border: none;
+  color: var(--bg-surface);
+  border-radius: 4px;
+  padding: 4px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 11px;
+}
+.explainBtn:disabled { opacity: 0.5; cursor: wait; }
+.explainError { color: #f87171; font-size: 11px; }
+.explainBody { padding: 4px 0; line-height: 1.5; }
+.explainHeader {
+  display: flex; gap: 16px; align-items: center;
+  font-family: var(--font-sans); font-size: 12px;
+  margin-bottom: 4px;
+}
+.explainHint { color: var(--text-muted); font-size: 11px; font-style: italic; }
+.explainDetails { margin-top: 6px; font-size: 11px; }
+.explainPre {
+  background: rgba(0,0,0,0.2);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  overflow-x: auto;
+  margin: 4px 0 0;
+}
 
 .sectorBanners {
   display: flex;

@@ -71,6 +71,102 @@ function parseSources(raw) {
   }
 }
 
+function ExplainTickerWidget() {
+  const [open, setOpen] = useState(false)
+  const [sym, setSym] = useState('')
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  async function lookup() {
+    const t = sym.trim().toUpperCase()
+    if (!t) return
+    setLoading(true); setResult(null)
+    try {
+      const r = await fetch(`/api/catalysts/explain/${t}`)
+      if (!r.ok) {
+        setResult({ error: `HTTP ${r.status}` })
+      } else {
+        setResult(await r.json())
+      }
+    } catch (e) {
+      setResult({ error: String(e) })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={styles.explainRow}>
+      <button
+        type="button"
+        className={styles.explainToggle}
+        onClick={() => setOpen(o => !o)}
+        title="Why isn't a ticker on the list?"
+      >
+        🔎 {open ? 'Close lookup' : 'Why isn\'t X on the list?'}
+      </button>
+      {open && (
+        <div className={styles.explainPanel}>
+          <div className={styles.explainInputRow}>
+            <input
+              type="text"
+              value={sym}
+              onChange={(e) => setSym(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && lookup()}
+              placeholder="Ticker (e.g. NVDA)"
+              className={styles.explainInput}
+              maxLength={6}
+            />
+            <button type="button" className={styles.explainBtn} disabled={loading} onClick={lookup}>
+              {loading ? '…' : 'Check'}
+            </button>
+          </div>
+          {result && result.error && (
+            <div className={styles.explainError}>Error: {result.error}</div>
+          )}
+          {result && !result.error && !result.found && (
+            <div className={styles.explainBody}>
+              <strong>{result.ticker}</strong>: not in candidate pool this refresh.
+              <div className={styles.explainHint}>{result.reason}</div>
+            </div>
+          )}
+          {result && !result.error && result.found && (
+            <div className={styles.explainBody}>
+              <div className={styles.explainHeader}>
+                <strong>{result.ticker}</strong>
+                <span>{result.tag ? `tag: ${result.tag}` : 'no tag'}</span>
+                <span>score: {result.score?.toFixed(2)}</span>
+                <span>rank: {result.rank_among_scored ?? '—'} / {result.total_scored}</span>
+              </div>
+              <div className={styles.explainHint}>{result.reason}</div>
+              <details className={styles.explainDetails}>
+                <summary>Signal breakdown</summary>
+                <pre className={styles.explainPre}>
+{JSON.stringify(result.signal_summary, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SortableTh({ col, className, sortBy, onSort, children }) {
+  const active = sortBy && sortBy.col === col
+  const arrow = !active ? '' : (sortBy.dir === 'asc' ? ' ▲' : ' ▼')
+  return (
+    <th
+      className={`${className} ${styles.sortableHeader} ${active ? styles.sortActive : ''}`}
+      onClick={() => onSort(col)}
+      title="Click to sort"
+    >
+      {children}{arrow}
+    </th>
+  )
+}
+
 function CitationsPopover({ sources }) {
   const [open, setOpen] = useState(false)
   if (!sources || sources.length === 0) return null
@@ -124,6 +220,30 @@ export default function CatalystTable() {
   const tickerSymbols = useMemo(() => allRows.map(r => r.ticker), [allRows])
   const { prices: livePrices } = useLivePrices(tickerSymbols)
 
+  // Sort state: null = engine-ranked order (default), or {col, dir} for column sort
+  const [sortBy, setSortBy] = useState(null)
+
+  function toggleSort(col) {
+    setSortBy(prev => {
+      if (!prev || prev.col !== col) return { col, dir: 'desc' }
+      if (prev.dir === 'desc') return { col, dir: 'asc' }
+      return null  // third click clears
+    })
+  }
+
+  function getSortValue(row, col) {
+    const live = livePrices[row.ticker] || livePrices[String(row.ticker).toUpperCase()]
+    switch (col) {
+      case 'sym':       return row.ticker || ''
+      case 'price':     return (live?.price != null ? live.price : row.price) ?? 0
+      case 'change':    return (live?.change_pct != null ? live.change_pct : row.gap_pct) ?? 0
+      case 'volx':      return row.vol_x ?? 0
+      case 'tag':       return row.tag || ''
+      case 'when':      return row.catalyst_at ?? row.thesis_at ?? 0
+      default:          return row.rank ?? 999
+    }
+  }
+
   // Per-tag counts (used in chip labels) — computed against full row list,
   // not filtered list, so toggling a chip doesn't change the counts.
   const tagCounts = useMemo(() => {
@@ -135,10 +255,20 @@ export default function CatalystTable() {
     return counts
   }, [allRows])
 
-  const filteredRows = useMemo(
-    () => allRows.filter(r => activeTags.has(r.tag)),
-    [allRows, activeTags]
-  )
+  const filteredRows = useMemo(() => {
+    const filtered = allRows.filter(r => activeTags.has(r.tag))
+    if (!sortBy) return filtered
+    const sorted = [...filtered].sort((a, b) => {
+      const av = getSortValue(a, sortBy.col)
+      const bv = getSortValue(b, sortBy.col)
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return sortBy.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+      }
+      return sortBy.dir === 'asc' ? av - bv : bv - av
+    })
+    return sorted
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows, activeTags, sortBy, livePrices])
 
   function toggleTag(tag) {
     setActiveTags(prev => {
@@ -171,6 +301,9 @@ export default function CatalystTable() {
         <span className={styles.title}>🎯 STOCK CATALYSTS</span>
         <span className={styles.meta}>
           <span className={styles.updated}>{updatedText}</span>
+          <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
+            history →
+          </a>
           {isAdmin && (
             <button
               type="button"
@@ -183,6 +316,8 @@ export default function CatalystTable() {
           )}
         </span>
       </div>
+
+      <ExplainTickerWidget />
 
       {sectorContexts.length > 0 && (
         <div className={styles.sectorBanners}>
@@ -235,13 +370,13 @@ export default function CatalystTable() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.colSym}>Sym</th>
-                <th className={styles.colPrice}>Price</th>
-                <th className={styles.colGap}>% Change</th>
-                <th className={styles.colVol}>Vol×</th>
-                <th className={styles.colTag}>Tag</th>
+                <SortableTh col="sym"    className={styles.colSym}     sortBy={sortBy} onSort={toggleSort}>Sym</SortableTh>
+                <SortableTh col="price"  className={styles.colPrice}   sortBy={sortBy} onSort={toggleSort}>Price</SortableTh>
+                <SortableTh col="change" className={styles.colGap}     sortBy={sortBy} onSort={toggleSort}>% Change</SortableTh>
+                <SortableTh col="volx"   className={styles.colVol}     sortBy={sortBy} onSort={toggleSort}>Vol×</SortableTh>
+                <SortableTh col="tag"    className={styles.colTag}     sortBy={sortBy} onSort={toggleSort}>Tag</SortableTh>
                 <th className={styles.colThesis}>Catalyst</th>
-                <th className={styles.colUpdated}>When</th>
+                <SortableTh col="when"   className={styles.colUpdated} sortBy={sortBy} onSort={toggleSort}>When</SortableTh>
               </tr>
             </thead>
             <tbody>

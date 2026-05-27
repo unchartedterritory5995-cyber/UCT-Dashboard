@@ -53,6 +53,71 @@ def catalysts_refresh(user=Depends(require_admin)):
     return {"ok": True, "message": "Refresh started in background."}
 
 
+@router.get("/catalysts/explain/{sym}")
+def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
+    """Why isn't $SYM on today's list? Or what would put it there?
+
+    Runs the SAME source pull + scoring + tagging logic the engine uses,
+    isolated to one ticker. Returns a breakdown of which sources surfaced
+    it, what tag it would get, what its composite score is, and what
+    threshold/quota it would need to make the top-20.
+    """
+    sym = sym.upper().strip()
+    if not sym or not sym.isalpha() or len(sym) > 6:
+        raise HTTPException(400, "invalid ticker")
+
+    from api.services.catalyst import sources, scoring, tagging
+    candidates = sources.collect_all()
+    # Score + tag everyone
+    for c in candidates:
+        c["tag"] = tagging.assign_tag(c)
+        c["score"] = scoring.score(c)
+    scored = [c for c in candidates if c.get("tag")]
+
+    # Find our ticker
+    me = next((c for c in candidates if c.get("ticker") == sym), None)
+    if me is None:
+        return {
+            "ticker": sym,
+            "found": False,
+            "reason": "Ticker did not appear in any source pull (movers, earnings, tweets, RSS, scanner, Perplexity discovery).",
+            "score": None,
+            "tag": None,
+            "signal_summary": {},
+        }
+
+    # Where does my score rank among scored candidates?
+    scored_sorted = sorted(scored, key=lambda c: c.get("score", 0), reverse=True)
+    my_rank = next((i + 1 for i, c in enumerate(scored_sorted)
+                    if c.get("ticker") == sym), None)
+
+    return {
+        "ticker": sym,
+        "found": True,
+        "tag": me.get("tag"),
+        "score": me.get("score"),
+        "rank_among_scored": my_rank,
+        "total_scored": len(scored),
+        "signal_summary": {
+            "gap_pct": me.get("gap_pct"),
+            "vol_x": me.get("vol_x"),
+            "tweet_mention_count": me.get("tweet_mention_count"),
+            "rss_headline_count": me.get("rss_headline_count"),
+            "earnings_reported_recently": me.get("earnings_reported_recently"),
+            "scanner_setup": me.get("scanner_setup"),
+            "sector": me.get("sector"),
+            "market_cap": me.get("market_cap"),
+            "price": me.get("price"),
+        },
+        "reason": (
+            "Tagged but didn't meet quota cutoff — sources too thin or"
+            " score below higher-ranked peers." if my_rank and my_rank > 20
+            else "On today's list." if my_rank and my_rank <= 20
+            else "Has source signal but tag didn't qualify (e.g. Gapper needs ≥5% gap + ≥3× vol)."
+        ),
+    }
+
+
 @router.get("/admin/catalyst-stats")
 def catalyst_stats(user=Depends(require_admin)):
     today = _today()

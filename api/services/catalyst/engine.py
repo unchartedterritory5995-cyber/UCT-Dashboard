@@ -123,6 +123,103 @@ def get_sector_contexts(market_date: str) -> list[dict]:
     return _SECTOR_CONTEXT_BY_DATE.get(market_date, [])
 
 
+def _collect_user_watchlist_tickers() -> dict[str, set[str]]:
+    """Returns {user_id: set(tickers)} for every user who has any watchlist
+    or flagged ticker. Used to fire catalyst alerts when a top-20 ticker
+    matches a user's interest."""
+    try:
+        from api.services.auth_db import get_connection
+    except Exception:
+        return {}
+
+    out: dict[str, set[str]] = {}
+    try:
+        with get_connection() as conn:
+            cur = conn.cursor()
+            # Get all (user_id, sym) pairs from watchlist_items via watchlists JOIN
+            rows = cur.execute(
+                """SELECT w.user_id, wi.sym
+                   FROM watchlists w
+                   JOIN watchlist_items wi ON wi.watchlist_id = w.id"""
+            ).fetchall()
+            for row in rows:
+                user_id = row[0] if not isinstance(row, dict) else row["user_id"]
+                sym = row[1] if not isinstance(row, dict) else row["sym"]
+                if not user_id or not sym:
+                    continue
+                out.setdefault(str(user_id), set()).add(sym.upper())
+    except Exception:
+        logger.exception("[catalyst-engine] failed to collect user watchlists")
+
+    return out
+
+
+def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
+    """For each (user, ticker) where ticker is in top-N and on user's watchlist,
+    fire a multi-channel alert (AlertBell + email + Discord). Deduped per
+    (user, ticker, market_date) — only fires once per day.
+
+    Gated on CATALYST_ALERTS_ENABLED env var (default ON).
+    Returns count of alerts fired this call.
+    """
+    if os.environ.get("CATALYST_ALERTS_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return 0
+    if not top_n:
+        return 0
+
+    user_tickers = _collect_user_watchlist_tickers()
+    if not user_tickers:
+        return 0
+
+    try:
+        from api.services.watchlist_alert_service import deliver_alert_payload
+    except Exception:
+        logger.exception("[catalyst-engine] alert service unavailable")
+        return 0
+
+    top_by_ticker = {c["ticker"].upper(): c for c in top_n if c.get("ticker")}
+    fired = 0
+
+    for user_id, watched in user_tickers.items():
+        matched = watched & set(top_by_ticker.keys())
+        for ticker in matched:
+            c = top_by_ticker[ticker]
+            # Atomic dedup — try to insert into alerts_fired, skip if already there
+            if not store.try_record_alert(user_id, ticker, market_date):
+                continue
+
+            tag = c.get("tag", "Catalyst")
+            gap = c.get("gap_pct") or 0.0
+            thesis = (c.get("thesis_text") or "")[:300]
+            title = f"📰 Catalyst: ${ticker} ({tag})"
+            message = (
+                f"{ticker} is a top catalyst today ({tag}, {gap:+.2f}%). "
+                f"{thesis}"
+            )
+            try:
+                deliver_alert_payload(
+                    user_id=user_id,
+                    sym=ticker,
+                    title=title,
+                    message=message,
+                    source="catalyst_alert",
+                    extra_data={
+                        "ticker": ticker,
+                        "tag": tag,
+                        "gap_pct": gap,
+                        "market_date": market_date,
+                    },
+                )
+                fired += 1
+            except Exception:
+                logger.exception("[catalyst-engine] alert delivery for %s/%s failed",
+                                 user_id, ticker)
+
+    if fired:
+        logger.info("[catalyst-engine] fired %d catalyst alerts", fired)
+    return fired
+
+
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
@@ -406,6 +503,15 @@ def run_refresh() -> dict:
             summary["sector_contexts"] = len(sector_contexts)
     except Exception:
         logger.exception("[catalyst-engine] sector context computation failed")
+
+    # Tier B-1: Fire alerts for any top-20 ticker that's on a user's watchlist.
+    # Deduped per (user, ticker, market_date) so a sticky catalyst doesn't spam.
+    try:
+        alerts_fired = _fire_catalyst_alerts(top_12, md)
+        if alerts_fired:
+            summary["alerts_fired"] = alerts_fired
+    except Exception:
+        logger.exception("[catalyst-engine] alert firing failed")
 
     store.clear_ranks_for_date(md)
 
