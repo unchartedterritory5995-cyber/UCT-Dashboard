@@ -1301,28 +1301,30 @@ async def lifespan(app: FastAPI):
             print("[scheduler] tweet poll jobs registered")
 
         # ── Morning Catalyst Engine (spec 2026-05-25) ─────────────────────
+        # Cadence reduced 2026-05-27 emergency cost pass: bursts went 5min→15min,
+        # AMC dropped from 5min→30min. Cuts call volume ~3x.
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
 
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/15"),
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-59/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-59/15"),
                 id="catalyst_open", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-59/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-59/15"),
                 id="catalyst_close", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/30"),
                 id="catalyst_amc", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="*/30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="0"),
                 id="catalyst_midday", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
                 trigger=CronTrigger(minute="0"),
                 id="catalyst_slow", max_instances=1, replace_existing=True)
-            print("[scheduler] catalyst engine jobs registered")
+            print("[scheduler] catalyst engine jobs registered (reduced cadence: 15min bursts)")
 
         def _check_churn_risk():
             try:

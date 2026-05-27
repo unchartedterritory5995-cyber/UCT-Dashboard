@@ -13,9 +13,14 @@ from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-# Primary model is Sonnet 4.6 (cost-reduction pass 2026-05-27).
-# Set CATALYST_OPUS_MODEL=claude-opus-4-7 on Railway to revert to Opus.
-OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
+# Primary model PINNED to Haiku 4.5 (emergency cost pass 2026-05-27 evening).
+# Reason: Anthropic console showed Opus 4.7 was silently failing for this API key
+# and falling through to Haiku — meaning the engine was running on Haiku the whole
+# time. Switching primary to Sonnet earlier today made it ~4× more expensive
+# (Sonnet succeeds where Opus failed). Pinning explicitly to Haiku ensures the
+# engine runs at the original (verified-working) cost profile.
+# Revert: set CATALYST_OPUS_MODEL=claude-sonnet-4-6 or claude-opus-4-7 in env.
+OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-haiku-4-5")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
 
 SYSTEM_PROMPT = """You write pre-market trading catalyst summaries for a professional trader's morning dashboard.

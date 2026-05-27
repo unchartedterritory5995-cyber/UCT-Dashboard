@@ -85,7 +85,11 @@ def test_opus_call_on_fresh_input(s):
     assert result["thesis_model"] == synthesize.OPUS_MODEL
 
 
-def test_falls_back_to_haiku_on_opus_5xx(s):
+def test_falls_back_to_haiku_on_opus_5xx(s, monkeypatch):
+    # Force primary != fallback so the test can distinguish the two paths.
+    # In production default both happen to be Haiku (cost pass 2026-05-27 eve),
+    # which means the "fallback" code path is a no-op in prod — still exercised here.
+    monkeypatch.setattr(synthesize, "OPUS_MODEL", "claude-sonnet-4-6")
     # Candidate has sources so no-sources enforcement doesn't trip
     c = _candidate(tweets=[{"id": "1", "text": "x", "author_handle": "h", "url": "u"}])
     payload = {"thesis": "Fallback haiku.", "tag": "News",
