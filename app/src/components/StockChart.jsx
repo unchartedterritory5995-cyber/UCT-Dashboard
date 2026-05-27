@@ -2836,12 +2836,26 @@ export default function StockChart({
       // Only block the browser default menu once we know we have a bar.
       e.preventDefault()
 
+      // Lazy chart screenshot: only invoked if the consumer actually needs
+      // it (e.g. "Save to Notebook"). Lightweight Charts v5 exposes
+      // takeScreenshot() → HTMLCanvasElement; we wrap it as a Promise<Blob>.
+      const getScreenshotBlob = () => new Promise((resolve, reject) => {
+        try {
+          const c = chart.takeScreenshot()
+          if (!c) return reject(new Error('no canvas'))
+          c.toBlob((blob) => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png')
+        } catch (err) {
+          reject(err)
+        }
+      })
+
       if (onBarContextMenu) {
         onBarContextMenu({
           bar: closest,
           clientX: e.clientX,
           clientY: e.clientY,
           event: e,
+          getScreenshotBlob,
         })
       } else {
         window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {
@@ -2851,6 +2865,7 @@ export default function StockChart({
             bar: closest,
             clientX: e.clientX,
             clientY: e.clientY,
+            getScreenshotBlob,
           },
         }))
       }

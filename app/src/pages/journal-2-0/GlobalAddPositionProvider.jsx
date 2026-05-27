@@ -65,6 +65,7 @@ export default function GlobalAddPositionProvider() {
         clientY: d.clientY,
         sym: d.sym,
         bar: d.bar,
+        getScreenshotBlob: d.getScreenshotBlob,
       })
     }
     window.addEventListener('uct:chart-contextmenu', onEvt)
@@ -89,6 +90,19 @@ export default function GlobalAddPositionProvider() {
     if (!menu) return
     const ticker = menu.sym
     const today = new Date().toISOString().slice(0, 10)
+
+    // Capture the chart screenshot up front (synchronous-ish; needs canvas
+    // pixels before we navigate away). If anything fails, fall through
+    // without a hero — note still gets created.
+    let heroBlob = null
+    if (typeof menu.getScreenshotBlob === 'function') {
+      try {
+        heroBlob = await menu.getScreenshotBlob()
+      } catch (e) {
+        console.warn('chart screenshot failed', e)
+      }
+    }
+
     try {
       const res = await fetch('/api/j2/notes', {
         method: 'POST',
@@ -101,7 +115,23 @@ export default function GlobalAddPositionProvider() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
-      window.location.href = `/journal?j2tab=notebook&note=${body.note.id}`
+      const noteId = body.note.id
+
+      // Upload hero in parallel-ish with the navigate. If it fails, the
+      // note still exists — user can upload a hero manually.
+      if (heroBlob) {
+        try {
+          const fd = new FormData()
+          fd.append('file', heroBlob, `${ticker || 'chart'}-${today}.png`)
+          await fetch(`/api/j2/notes/${noteId}/hero`, {
+            method: 'POST', credentials: 'include', body: fd,
+          })
+        } catch (e) {
+          console.warn('hero upload failed', e)
+        }
+      }
+
+      window.location.href = `/journal?j2tab=notebook&note=${noteId}`
     } catch (e) {
       setToast({ message: `Could not create note: ${e.message || e}`, tone: 'error' })
     }
