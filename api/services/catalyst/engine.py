@@ -443,6 +443,11 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
                     "text": t.get("text", ""),
                     "url": t.get("url"),
                     "id": tid,
+                    # Carry the tweet's true publish time so _compute_catalyst_at
+                    # can use it. Previously dropped here → every advanced-search
+                    # sourced catalyst silently fell back to thesis_at (which made
+                    # batches of unrelated tickers all share the same "When" time).
+                    "created_at": t.get("created_at"),
                 })
                 seen_ids.add(tid)
         c["tweets"] = merged

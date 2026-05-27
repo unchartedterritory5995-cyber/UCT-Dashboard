@@ -60,7 +60,9 @@ def _api_key() -> str:
 
 def _parse_created_at(value) -> int:
     """Parse the API's `createdAt` (Twitter-style 'Mon Jan 01 12:00:00 +0000 2026')
-    or an ISO string, or a unix int. Returns unix seconds UTC."""
+    or an ISO string, or a unix int. Returns unix seconds UTC, or 0 on failure
+    so downstream filters (catalyst_at, time-window queries) can skip cleanly
+    instead of poisoning the data with NOW."""
     if isinstance(value, int):
         return value
     if isinstance(value, str):
@@ -73,7 +75,7 @@ def _parse_created_at(value) -> int:
             return int(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
         except Exception:
             pass
-    return int(time.time())
+    return 0
 
 
 def _normalize_tweet(raw: dict, fallback_handle: str) -> dict:

@@ -143,6 +143,29 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
 
 
 # ── Source 3: Earnings ──────────────────────────────────────────────────
+def _earnings_publish_time(timing: str) -> Optional[int]:
+    """Inferred 'when did this earnings event hit the wire' for BMO / AMC rows.
+
+    EW and Finnhub don't always return a precise publish timestamp, so we
+    approximate so catalyst_at has something to fall back on instead of None
+    (which would force the UI to show thesis_at as the catalyst time and make
+    batches of unrelated rows share the same time).
+
+    BMO -> 7:00 AM ET today (most pre-market releases happen 6-7 AM ET)
+    AMC -> 4:30 PM ET yesterday (most after-hours releases happen 4:00-4:30 PM ET)
+    """
+    et = ZoneInfo("America/New_York")
+    now_et = dt.datetime.now(et)
+    if timing == "bmo":
+        target = now_et.replace(hour=7, minute=0, second=0, microsecond=0)
+    elif timing == "amc":
+        target = (now_et - dt.timedelta(days=1)).replace(
+            hour=16, minute=30, second=0, microsecond=0)
+    else:
+        return None
+    return int(target.timestamp())
+
+
 def _pull_earnings() -> dict[str, dict]:
     """Returns {ticker: earnings_meta} for today BMO + yesterday AMC."""
     from api.services.engine import get_earnings
@@ -157,6 +180,7 @@ def _pull_earnings() -> dict[str, dict]:
             out[sym] = {
                 "ticker": sym,
                 "timing": when_label,
+                "publish_time": _earnings_publish_time(when_label),
                 "eps_actual": entry.get("reported_eps") or entry.get("eps_actual"),
                 "eps_estimate": entry.get("eps_estimate"),
                 "revenue_actual_m": entry.get("rev_actual") or entry.get("revenue_m"),
