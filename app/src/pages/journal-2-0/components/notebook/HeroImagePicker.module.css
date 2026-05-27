@@ -8,13 +8,34 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
 .empty:hover { border-color: #c9a84c; color: #c9a84c; }
+.empty:focus {
+  outline: none;
+  border-color: #c9a84c;
+  color: #c9a84c;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
+}
+.empty.dragOver {
+  border-color: #c9a84c;
+  border-style: solid;
+  background: rgba(201, 168, 76, 0.08);
+  color: #c9a84c;
+}
 .filled {
   position: relative;
   width: 100%;
   border-radius: 10px;
   overflow: hidden;
+  outline: none;
+  transition: box-shadow 120ms ease;
+}
+.filled:focus {
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.5);
+}
+.filled.dragOver {
+  box-shadow: 0 0 0 3px #c9a84c;
 }
 .filled img {
   width: 100%;
@@ -29,7 +50,7 @@
   opacity: 0;
   transition: opacity 120ms ease;
 }
-.filled:hover .overlay { opacity: 1; }
+.filled:hover .overlay, .filled:focus .overlay { opacity: 1; }
 .iconBtn {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -38,5 +59,17 @@
   color: #fff;
   cursor: pointer;
   font-size: 16px;
+}
+.dropHint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #c9a84c;
+  font-size: 16px;
+  font-weight: 600;
+  pointer-events: none;
 }
 .error { color: #ef4444; font-size: 12px; margin-top: 6px; }
