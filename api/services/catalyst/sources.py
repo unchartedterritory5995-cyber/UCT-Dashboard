@@ -294,6 +294,7 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     now = _now_et()
     hour = now.hour
     is_premarket = (4 <= hour < 9) or (hour == 9 and now.minute < 30)
+    is_eod_window = 16 <= hour < 20  # 4 PM – 8 PM ET — post-close prep
 
     # ── A1: always-on broad discovery ──────────────────────────────────
     a1_query = (
@@ -320,6 +321,37 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
                         len(_extract_tickers_from_text(a1_text)))
     except Exception:
         logger.exception("[catalyst-sources] perplexity A1 discovery failed")
+
+    # ── F1: EOD tomorrow-setup query (4 PM – 8 PM ET only) ─────────────
+    # Seeds tomorrow morning's candidate pool with stuff known after-hours:
+    # AMC earnings reactions, post-close analyst actions, M&A announcements,
+    # tomorrow's BMO reporters with notable setups, etc.
+    if is_eod_window:
+        f1_query = (
+            "What single-stock catalysts are setting up for tomorrow's US "
+            "market open? Include companies reporting before market open, "
+            "stocks moving on after-hours news, M&A or guidance announced "
+            "post-close, FDA decisions expected, analyst actions, and any "
+            "other specific single-stock catalysts traders should know about "
+            "before tomorrow. For each, give ticker ($TICKER format) and a "
+            "one-sentence reason. Cite sources."
+        )
+        try:
+            f1_result = perplexity_search.web_search(f1_query, max_tokens=600)
+            f1_text = (f1_result or {}).get("answer") or ""
+            f1_citations = (f1_result or {}).get("citations") or []
+            for sym in _extract_tickers_from_text(f1_text):
+                out[sym].append({
+                    "source": "Perplexity (EOD setup)",
+                    "title": f1_text[:400],
+                    "url": f1_citations[0] if f1_citations else "",
+                    "time_published": int(time.time()),
+                })
+            if f1_text:
+                logger.info("[catalyst-sources] perplexity EOD-setup found %d tickers",
+                            len(_extract_tickers_from_text(f1_text)))
+        except Exception:
+            logger.exception("[catalyst-sources] perplexity F1 EOD failed")
 
     # ── D1: pre-market window only ─────────────────────────────────────
     if is_premarket:

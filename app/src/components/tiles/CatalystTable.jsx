@@ -116,6 +116,7 @@ export default function CatalystTable() {
 
   const allRows = data?.rows || []
   const generatedAt = data?.generated_at
+  const sectorContexts = data?.sector_contexts || []
 
   // Live prices for the displayed tickers — gives us tick-by-tick % change
   // (2s SWR poll). Backend stored gap_pct is the fallback while live data
@@ -182,6 +183,20 @@ export default function CatalystTable() {
           )}
         </span>
       </div>
+
+      {sectorContexts.length > 0 && (
+        <div className={styles.sectorBanners}>
+          {sectorContexts.map((sc, i) => (
+            <div key={i} className={styles.sectorBanner}>
+              <span className={styles.sectorBadge}>📊 {sc.sector} · {sc.ticker_count} catalysts</span>
+              <span className={styles.sectorSummary}>{sc.summary}</span>
+              {sc.source_urls && sc.source_urls.length > 0 && (
+                <CitationsPopover sources={sc.source_urls} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {allRows.length > 0 && (
         <div className={styles.chipRow}>

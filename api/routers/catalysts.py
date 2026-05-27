@@ -25,11 +25,14 @@ def _today() -> str:
 
 @router.get("/catalysts/today")
 def catalysts_today(user=Depends(get_current_user)):
-    rows = store.get_for_date(_today(), ranked_only=True)
+    md = _today()
+    rows = store.get_for_date(md, ranked_only=True)
+    sector_contexts = engine.get_sector_contexts(md)
     return {
-        "market_date": _today(),
+        "market_date": md,
         "generated_at": rows[0]["thesis_at"] if rows else None,
         "rows": rows,
+        "sector_contexts": sector_contexts,
     }
 
 

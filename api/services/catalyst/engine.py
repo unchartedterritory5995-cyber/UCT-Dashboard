@@ -24,6 +24,64 @@ from api.services.catalyst import (
 )
 
 
+def _compute_sector_context(top_n: list[dict]) -> list[dict]:
+    """When 3+ selected candidates share a sector, ask Perplexity what's
+    driving the concentrated activity. Returns a list of sector-context
+    dicts: [{sector, ticker_count, summary, source_urls}].
+
+    Used by the frontend to render a small banner above the table.
+    Cost: ~0-2 calls per refresh × $0.005 ≈ $1-3/mo, skipped entirely
+    on refreshes where no sector hits the 3-ticker threshold.
+
+    Gated on CATALYST_PERPLEXITY_ENABLED.
+    """
+    if os.environ.get("CATALYST_PERPLEXITY_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return []
+
+    from collections import Counter
+    sector_counts = Counter(c.get("sector") for c in top_n if c.get("sector"))
+
+    hot_sectors = [s for s, count in sector_counts.items() if count >= 3]
+    if not hot_sectors:
+        return []
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return []
+
+    contexts: list[dict] = []
+    for sector in hot_sectors[:2]:  # cap at 2 sectors per refresh to bound cost
+        # Tickers in this sector for prompt grounding
+        sector_tickers = [c["ticker"] for c in top_n if c.get("sector") == sector][:6]
+        ticker_list = ", ".join(f"${t}" for t in sector_tickers)
+
+        query = (
+            f"Multiple US stocks in the {sector} sector are showing "
+            f"significant catalysts today: {ticker_list}. What is the "
+            f"broader sector/macro story driving this concentrated activity? "
+            f"Cite sources. Be concise — 2-3 sentences."
+        )
+        try:
+            result = perplexity_search.web_search(query, max_tokens=300)
+        except Exception:
+            logger.exception("[catalyst-engine] sector context for %s failed", sector)
+            continue
+
+        answer = (result or {}).get("answer") or ""
+        if not answer or "error" in (result or {}):
+            continue
+
+        contexts.append({
+            "sector": sector,
+            "ticker_count": sector_counts[sector],
+            "summary": answer,
+            "source_urls": (result or {}).get("citations") or [],
+        })
+
+    return contexts
+
+
 def _compute_catalyst_at(c: dict) -> Optional[int]:
     """Earliest source-signal timestamp for this candidate, in unix seconds.
 
@@ -55,9 +113,80 @@ def _compute_catalyst_at(c: dict) -> Optional[int]:
 logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
+# Per-day sector context cache, populated by run_refresh. Module-level so it
+# survives across requests but not across restarts (recomputed on next refresh).
+_SECTOR_CONTEXT_BY_DATE: dict[str, list[dict]] = {}
+
+
+def get_sector_contexts(market_date: str) -> list[dict]:
+    """Read-only accessor for the catalysts router."""
+    return _SECTOR_CONTEXT_BY_DATE.get(market_date, [])
+
 
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
+
+
+def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
+    """For the 3 highest-scored candidates, run a richer Perplexity query
+    that captures peer reaction, historical comparable setups, and broader
+    context that simple source-feed signals miss.
+
+    Cost: 3 queries per refresh × $0.005 ≈ $0.015 per refresh ≈ $40/mo.
+    These are the rows the user will scrutinize most, so the marginal
+    cost is well-spent on synthesis quality.
+
+    Gated on CATALYST_PERPLEXITY_ENABLED. Skips candidates that already have
+    rich source signals (>5 tweets + >2 RSS items) to avoid redundancy.
+    """
+    if os.environ.get("CATALYST_PERPLEXITY_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return
+
+    # Top 3 by score (already sorted by selection.select_top_12)
+    for c in top_12[:3]:
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+
+        # Skip if already source-rich — Opus has plenty of context already
+        tweet_count = len(c.get("tweets") or [])
+        rss_count = len(c.get("rss") or [])
+        if tweet_count > 5 and rss_count > 2:
+            continue
+
+        tag = c.get("tag") or "Catalyst"
+        query = (
+            f"Provide deep context on ${ticker} for a professional swing "
+            f"trader. The stock is moving today with a '{tag}' tag. Cover: "
+            f"(1) the specific catalyst details, (2) sell-side reaction "
+            f"with any analyst PT changes, (3) how peers/sector are "
+            f"reacting, (4) historical comparable setups for this kind of "
+            f"move, (5) key levels or signals worth watching. Cite sources. "
+            f"Be concise but specific with names, dates, and numbers."
+        )
+        try:
+            result = perplexity_search.web_search(query, max_tokens=500)
+        except Exception:
+            logger.exception("[catalyst-engine] perplexity top-3 %s failed", ticker)
+            continue
+
+        answer = (result or {}).get("answer") or ""
+        if not answer or "error" in (result or {}):
+            continue
+        citations = (result or {}).get("citations") or []
+
+        c.setdefault("rss", []).append({
+            "source": "Perplexity (deep context)",
+            "title": answer[:600],
+            "url": citations[0] if citations else "",
+            "time_published": int(time.time()),
+        })
+        c["rss_headline_count"] = len(c["rss"])
 
 
 def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
@@ -263,6 +392,20 @@ def run_refresh() -> dict:
     # P1-C1: Earnings-tagged rows get a Perplexity deep-dive for guidance +
     # sell-side context that Finnhub's eps/rev numbers don't carry.
     _enrich_earnings_with_perplexity(top_12)
+
+    # P2-B1: Top 3 by score get the richest context — peer reaction, historical
+    # comparables, key levels. These are the rows the user scrutinizes most.
+    _enrich_top_3_with_deep_context(top_12)
+
+    # P2-E1: When 3+ selected candidates share a sector, run a Perplexity
+    # sector-framing query. Surfaced as a banner above the table.
+    try:
+        sector_contexts = _compute_sector_context(top_12)
+        _SECTOR_CONTEXT_BY_DATE[md] = sector_contexts
+        if sector_contexts:
+            summary["sector_contexts"] = len(sector_contexts)
+    except Exception:
+        logger.exception("[catalyst-engine] sector context computation failed")
 
     store.clear_ranks_for_date(md)
 
