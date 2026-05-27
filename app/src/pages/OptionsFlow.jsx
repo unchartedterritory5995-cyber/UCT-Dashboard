@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { formatET, formatETFull } from "../utils/timeAgo";
 
 // ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
@@ -583,6 +582,23 @@ function buildCharts(cc) {
     if (t.price > 0) allCons[k].prices.push(t.price);
     allCons[k].sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
   });
+
+  // ── B-side conviction override ─────────────────────────────────────────────
+  // Fix: if first trade had D=null but later trades have direction, inherit it
+  // Also: B-side-only confirmed clusters with high premium + sweep = directional
+  Object.values(allCons).forEach(c => {
+    // Fix 1: inherit direction from dirs if c.dir is null but dirs has entries
+    if (!c.dir && c.dirs.size === 1) {
+      c.dir = [...c.dirs][0];
+    }
+    // Fix 2: B-side conviction — confirmed B-side calls/puts with sweep + substantial premium
+    // B-side buying calls = bullish intent when confirmed by YELLOW/MAGENTA + high premium
+    if (!c.dir && c.oiExceeded && c.hasSweep && c.prem >= 200000 && c.bidPrem > 0 && c.askPrem === 0) {
+      if (c.cp === "C") { c.dir = "BULL"; c.dirs.add("BULL"); }
+      else if (c.cp === "P") { c.dir = "BEAR"; c.dirs.add("BEAR"); }
+    }
+  });
+
   const preSort = Object.values(allCons).filter(c=>c.dir).map(c => {
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
@@ -605,7 +621,9 @@ function buildCharts(cc) {
       side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
       strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
-    if (!c.clean || c.DTE <= 7) return false;
+    if (!c.clean) return false;
+    // DTE filter: remove dying weeklies UNLESS premium is substantial ($500K+)
+    if (c.DTE <= 7 && c.prem < 500000) return false;
     // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
     // so expired contracts disappear even if DTE in CSV was still positive
     if (c.exp) {
@@ -770,11 +788,13 @@ function processFlowData(rows) {
       if (cp === "C") {
         if (side === "AA" || side === "A") direction = "BULL";
         else if (side === "BB" && isSWP) direction = "BEAR"; // BB sweep call = selling calls = bearish
-        // B Call / BB Block Call = ambiguous/repositioning, no direction
+        // B Call sweep + confirmed + meaningful premium = likely opening, not repositioning
+        else if (side === "B" && isSWP && confirmed && premium >= 20000) direction = "BULL";
       } else {
         if (side === "AA" || side === "A") direction = "BEAR";
         else if (side === "BB" && isSWP) direction = "BULL"; // BB sweep put = selling puts = bullish
-        // B Put / BB Block Put = ambiguous/repositioning, no direction
+        // B Put sweep + confirmed + meaningful premium = likely opening
+        else if (side === "B" && isSWP && confirmed && premium >= 20000) direction = "BEAR";
       }
       // Lottery ticket filter: way OTM + short DTE = noise, not conviction
       // Uses live DTE (from expiry date vs today), not historical CSV DTE
@@ -2676,7 +2696,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
       if (resp.ok) {
         const data = await resp.json();
-        data.fetchedAt = formatET(Date.now());
+        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
         setGexData(data);
       } else {
         setGexData({ error: `API error: ${resp.status}` });
@@ -2693,7 +2713,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(sym)}&dte=month`);
       if (resp.ok) {
         const data = await resp.json();
-        data.fetchedAt = formatET(Date.now());
+        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
         setIdeaGex({ sym, data, loading:false });
       } else {
         setIdeaGex({ sym, data:{ error:"API error: "+resp.status }, loading:false });
@@ -6125,7 +6145,7 @@ export default function OptionsFlowDashboard() {
                           {a.action==="score_override" && <span><span style={{ color:P.ac }}>SCORE</span> {Math.round(a.from*10)}% → <span style={{ fontWeight:700, color:P.wh }}>{Math.round(a.to*10)}%</span></span>}
                           {a.action==="notes_added" && <span style={{ color:P.dm }}>Notes added</span>}
                           {a.action==="removed" && <span><span style={{ color:P.be }}>REMOVED</span> — {a.reason}</span>}
-                          <span style={{ color:P.mt, marginLeft:6 }}>{formatET(a.at)}</span>
+                          <span style={{ color:P.mt, marginLeft:6 }}>{new Date(a.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
                         </div>
                       ))}
                     </div>
