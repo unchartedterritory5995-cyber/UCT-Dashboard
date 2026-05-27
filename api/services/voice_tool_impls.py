@@ -374,6 +374,84 @@ def _web_search(query: str = "", max_tokens: int = 400,
     }
 
 
+def _get_earnings_transcript(symbol: str = "") -> dict:
+    """Most-recent earnings-call transcript with AI summary (Finnhub + Claude).
+    Returns headline + sentiment + 5-7 bullets + quarter/year. Cached 24h."""
+    if not symbol or not (symbol := symbol.strip()):
+        return {"error": "symbol required"}
+    try:
+        from api.services.transcripts import get_transcript_summary
+        result = get_transcript_summary(symbol.upper())
+        if not result or not result.get("available"):
+            return {
+                "symbol": symbol.upper(),
+                "available": False,
+                "message": "no transcript available (Finnhub Premium may be required)",
+            }
+        return {
+            "symbol": result["symbol"],
+            "available": True,
+            "headline": result.get("headline", ""),
+            "sentiment": result.get("sentiment", ""),
+            "bullets": result.get("bullets", []),
+            "quarter": result.get("quarter"),
+            "year": result.get("year"),
+        }
+    except Exception as e:
+        _log.warning("get_earnings_transcript failed: %s", e)
+        return {"error": f"transcript unavailable: {e}"}
+
+
+def _get_top_catalysts(count: int = 12) -> dict:
+    """Top pre-market catalysts ranked by Claude Opus — gappers, news, M&A,
+    earnings reactions, analyst upgrades/downgrades, syndicate pricings."""
+    try:
+        from api.services.catalyst.store import get_for_date
+        from api.services.catalyst.engine import _today_market_date
+        rows = get_for_date(_today_market_date(), ranked_only=True)
+        count = max(1, min(25, int(count or 12)))
+        rows = rows[:count]
+        if not rows:
+            return {"count": 0, "catalysts": [], "message": "no catalysts ranked for today yet"}
+        # Compact to voice-friendly fields
+        items = []
+        for r in rows:
+            items.append({
+                "rank": r.get("rank"),
+                "ticker": r.get("ticker"),
+                "score": r.get("score"),
+                "headline": (r.get("headline") or "")[:200],
+                "category": r.get("category"),
+                "thesis": (r.get("thesis") or "")[:300],
+            })
+        return {"count": len(items), "market_date": rows[0].get("market_date"), "catalysts": items}
+    except Exception as e:
+        _log.warning("get_top_catalysts failed: %s", e)
+        return {"error": f"catalyst table unavailable: {e}", "count": 0}
+
+
+def _email_me_weekly_digest(*, user) -> dict:
+    """Generate + email the Compass weekly digest immediately. Mirrors the
+    Sunday 8am ET cron — useful for 'send me my recap' on demand."""
+    try:
+        from api.services.journal_two.coach_email_digest import send_digest_for_account
+        # Resolve user's primary account (unified _all_ if multi-account)
+        account_id = _voice_account_id(user["id"])
+        if not account_id or account_id == "default":
+            return {"error": "no Journal account configured"}
+        result = send_digest_for_account(
+            user_id=user["id"], account_id=account_id, force=True,
+        )
+        return {
+            "ok": bool(result.get("sent")),
+            "reason": result.get("reason", ""),
+            "week_start": result.get("week_start", ""),
+        }
+    except Exception as e:
+        _log.warning("email_me_weekly_digest failed: %s", e)
+        return {"error": f"digest send failed: {e}"}
+
+
 def _get_thefly_squawks(symbol: str = "", category: str = "", count: int = 10) -> dict:
     """TheFly institutional Squawk feed — analyst calls, syndicate pricings,
     M&A flashes, hot-mover alerts. Requires THEFLY_API_KEY env var."""
@@ -2107,6 +2185,47 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="get_earnings_transcript",
+        description=(
+            "Most-recent earnings-call transcript summary (Finnhub source + "
+            "Claude analysis). Returns headline + sentiment + 5-7 key bullets "
+            "+ quarter/year. Call for 'what did X say on the call', 'guidance "
+            "from last earnings', 'analyst Q&A summary'. Cached 24h. May "
+            "return 'no transcript available' if Finnhub Premium isn't tier."
+        ),
+        parameters={"symbol": {"type": "string", "description": "Ticker symbol."}},
+        contexts=["global"],
+    )(_get_earnings_transcript)
+
+    _vt.voice_tool(
+        name="get_top_catalysts",
+        description=(
+            "Today's top pre-market catalysts ranked by Claude Opus — gappers, "
+            "news, M&A, earnings reactions, analyst calls, syndicate pricings. "
+            "Returns rank + ticker + score + headline + category + thesis. "
+            "Call for 'what's moving today', 'top stories pre-open', 'who's "
+            "in play this morning'. Refreshed nightly + intraday updates."
+        ),
+        parameters={
+            "count": {"type": "integer", "description": "How many top catalysts (default 12, max 25)."},
+        },
+        contexts=["global"],
+    )(_get_top_catalysts)
+
+    _vt.voice_tool(
+        name="email_me_weekly_digest",
+        description=(
+            "Generate + email the Compass weekly digest immediately (mirrors "
+            "the Sunday 8am ET cron). Call when the user says 'send me my "
+            "weekly recap', 'email me the digest', 'I want my weekly review "
+            "in my inbox'."
+        ),
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_email_me_weekly_digest)
 
     _vt.voice_tool(
         name="get_thefly_squawks",

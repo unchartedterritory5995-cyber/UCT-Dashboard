@@ -375,6 +375,10 @@ def _compass_tool_union() -> set[str]:
     # TheFly institutional squawk feed — analyst calls, syndicate, M&A,
     # hot-mover alerts. Requires THEFLY_API_KEY.
     out.add("get_thefly_squawks")
+    # Phase 3 Sprint 3: services that were built but not voice-accessible.
+    out.add("get_earnings_transcript")   # Finnhub + Claude transcript summary
+    out.add("get_top_catalysts")         # Opus-scored pre-market catalysts
+    out.add("email_me_weekly_digest")    # on-demand weekly digest send
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")
