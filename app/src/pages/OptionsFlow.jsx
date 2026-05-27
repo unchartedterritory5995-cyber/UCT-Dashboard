@@ -788,13 +788,11 @@ function processFlowData(rows) {
       if (cp === "C") {
         if (side === "AA" || side === "A") direction = "BULL";
         else if (side === "BB" && isSWP) direction = "BEAR"; // BB sweep call = selling calls = bearish
-        // B Call sweep + confirmed + meaningful premium = likely opening, not repositioning
-        else if (side === "B" && isSWP && confirmed && premium >= 20000) direction = "BULL";
+        // B Call / BB Block Call = ambiguous/repositioning, no direction
       } else {
         if (side === "AA" || side === "A") direction = "BEAR";
         else if (side === "BB" && isSWP) direction = "BULL"; // BB sweep put = selling puts = bullish
-        // B Put sweep + confirmed + meaningful premium = likely opening
-        else if (side === "B" && isSWP && confirmed && premium >= 20000) direction = "BEAR";
+        // B Put / BB Block Put = ambiguous/repositioning, no direction
       }
       // Lottery ticket filter: way OTM + short DTE = noise, not conviction
       // Uses live DTE (from expiry date vs today), not historical CSV DTE
@@ -1671,14 +1669,25 @@ export default function OptionsFlowDashboard() {
     // Grade: 0.5–2.5
     const g = c.grade||"";
     s += g==="A+"?2.5:g==="A"?2:g==="B+"?1.5:g==="B"?1:g==="C"?0.5:0.5;
-    // Hits (repetition): 0.5–2.5, but skip penalty for extreme V/OI
+    // Premium (used in multiple checks)
+    const p = c.prem||0;
+    // Hits (repetition): 0.5–2.5
     const h = c.hits||0;
     const v = c.volOI||0;
-    if (v >= 20 && h <= 1) { s += 1.5; } // single trade but extreme V/OI = still good
-    else { s += h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5; }
-    // Cap-relative premium: 0.5–2
-    const p = c.prem||0;
     const isMega = wlCapCheck(c)==="Mega";
+    if (h <= 1) {
+      // Single trade — score by conviction signals (premium + V/OI) instead of repetition
+      if (v >= 15) s += 2.5;
+      else if (v >= 5 && (isMega ? p >= 2e6 : p >= 250e3)) s += 2;
+      else if (isMega ? p >= 5e6 : p >= 1e6) s += 2; // massive single-trade premium
+      else if (v >= 5) s += 1.5;
+      else if (isMega ? p >= 2e6 : p >= 500e3) s += 1.5;
+      else s += 0.5;
+    } else {
+      s += h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5;
+    }
+    // Cap-relative premium: 0.5–2
+    // (isMega and p already defined above)
     if (isMega) { s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5; }
     else { s += p>=2e6?2:p>=500e3?1.5:p>=100e3?1:0.5; }
     // V/OI ratio: 0.5–2.5 (boosted from 1.5 max)
