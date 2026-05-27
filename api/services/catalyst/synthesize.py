@@ -13,7 +13,9 @@ from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-opus-4-7")
+# Primary model is Sonnet 4.6 (cost-reduction pass 2026-05-27).
+# Set CATALYST_OPUS_MODEL=claude-opus-4-7 on Railway to revert to Opus.
+OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
 
 SYSTEM_PROMPT = """You write pre-market trading catalyst summaries for a professional trader's morning dashboard.
@@ -192,7 +194,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                        or candidate.get("earnings_meta")
                        or candidate.get("scanner_setup"))
 
-    # Primary call: Opus 4.7
+    # Primary call: OPUS_MODEL env (defaults to Sonnet 4.6; can be set to Opus 4.7)
     msg = None
     used_model = OPUS_MODEL
     in_tokens = out_tokens = 0
@@ -200,8 +202,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
     try:
         msg, in_tokens, out_tokens = _call_anthropic(OPUS_MODEL, prompt, SYSTEM_PROMPT)
     except Exception as e:
-        logger.warning("[catalyst-synth] Opus failed for %s: %s. Falling back to Haiku.",
-                       candidate["ticker"], e)
+        logger.warning("[catalyst-synth] primary model %s failed for %s: %s. Falling back to Haiku.",
+                       OPUS_MODEL, candidate["ticker"], e)
         try:
             msg, in_tokens, out_tokens = _call_anthropic(HAIKU_FALLBACK, prompt, SYSTEM_PROMPT)
             used_model = HAIKU_FALLBACK

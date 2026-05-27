@@ -78,7 +78,7 @@ _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 _AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
 _AV_RATE_INTERVAL_SECS      = 13.0     # ≥13s between AV calls → ≤4.6/min (free tier: 5/min)
-_EARNINGS_AI_MODEL          = "claude-haiku-4-5"  # alias — never append date suffix
+_EARNINGS_AI_MODEL          = "claude-sonnet-4-6"  # upgraded Haiku→Sonnet 2026-05-27 (richer earnings analysis)
 
 # Alpha Vantage free tier: 5 calls/min. Serialize all AV calls with ≥13s spacing.
 _av_lock = _threading.Lock()

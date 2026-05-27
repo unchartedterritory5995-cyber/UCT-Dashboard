@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 
 _TRANSCRIPT_CACHE_TTL_HIT  = 86_400   # 24h — transcripts don't change
 _TRANSCRIPT_CACHE_TTL_MISS = 3_600    # 1h — retry window
-_TRANSCRIPT_AI_MODEL       = "claude-haiku-4-5-20251001"
+_TRANSCRIPT_AI_MODEL       = "claude-sonnet-4-6"  # upgraded Haiku→Sonnet 2026-05-27 (richer transcript summaries)
 _TRANSCRIPT_AI_MAX_TOKENS  = 800      # 5-7 detailed bullets from full call
 _MAX_TRANSCRIPT_CHARS      = 12_000   # truncation threshold
 _HEAD_CHARS                = 3_000    # CEO/CFO prepared remarks

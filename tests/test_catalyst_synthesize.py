@@ -82,7 +82,7 @@ def test_opus_call_on_fresh_input(s):
         result = synthesize.synthesize_ticker(c, "2026-05-26")
     assert result["thesis_text"] == payload["thesis"]
     assert result["was_cached"] is False
-    assert result["thesis_model"] == "claude-opus-4-7"
+    assert result["thesis_model"] == synthesize.OPUS_MODEL
 
 
 def test_falls_back_to_haiku_on_opus_5xx(s):
@@ -94,7 +94,7 @@ def test_falls_back_to_haiku_on_opus_5xx(s):
 
     def side_effect(model, prompt, system):
         call_count["n"] += 1
-        if "opus" in model:
+        if model == synthesize.OPUS_MODEL:
             raise Exception("APIError: 500 Internal Server Error")
         return (_mock_opus_response(json.dumps(payload)), 500, 100)
 

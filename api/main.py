@@ -1470,6 +1470,11 @@ async def lifespan(app: FastAPI):
 
         def _compass_eod_job():
             import os as _os
+            # Per-surface kill switch (default OFF) — paused 2026-05-27 at user request for cost.
+            # Belt-and-suspenders even if COMPASS_AUTOMATION_ENABLED is flipped on.
+            if _os.environ.get("COMPASS_EOD_RECAP_ENABLED", "0") != "1":
+                print("[scheduler] Compass EOD: paused via COMPASS_EOD_RECAP_ENABLED=0 — no tokens spent")
+                return
             if not _os.environ.get("ANTHROPIC_API_KEY"):
                 print("[scheduler] Compass EOD: ANTHROPIC_API_KEY missing — skipping batch")
                 return
@@ -1517,6 +1522,11 @@ async def lifespan(app: FastAPI):
 
         def _compass_weekly_email_job():
             import os as _os
+            # Per-surface kill switch (default OFF) — paused 2026-05-27 at user request for cost.
+            # Belt-and-suspenders even if COMPASS_AUTOMATION_ENABLED is flipped on.
+            if _os.environ.get("COMPASS_WEEKLY_DIGEST_ENABLED", "0") != "1":
+                print("[scheduler] Compass weekly digest: paused via COMPASS_WEEKLY_DIGEST_ENABLED=0 — no tokens spent")
+                return
             if not _os.environ.get("ANTHROPIC_API_KEY"):
                 print("[scheduler] Compass weekly email: ANTHROPIC_API_KEY missing — skipping batch")
                 return

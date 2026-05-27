@@ -1,8 +1,9 @@
 """Tracks daily spend, enforces soft + hard caps.
 
 Anthropic pricing (USD per million tokens, 2026):
-  claude-opus-4-7:  $15.00 input, $75.00 output
-  claude-haiku-4-5: $0.80 input,  $4.00  output
+  claude-opus-4-7:   $15.00 input, $75.00 output
+  claude-sonnet-4-6: $3.00  input, $15.00 output
+  claude-haiku-4-5:  $0.80  input, $4.00  output
 """
 import logging
 import os
@@ -15,8 +16,9 @@ _SOFT_CAP_LOGGED_FOR_DATE: str | None = None
 _HARD_CAP_TRIPPED = False
 
 _PRICING = {
-    "claude-opus-4-7":  {"input": 15.0, "output": 75.0},
-    "claude-haiku-4-5": {"input": 0.80, "output": 4.0},
+    "claude-opus-4-7":   {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
+    "claude-haiku-4-5":  {"input": 0.80, "output": 4.0},
 }
 
 
