@@ -1446,8 +1446,18 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
 
 
 def _prewarm_earnings_analysis(data: dict) -> None:
-    """Pre-cache AI analysis for reported tickers; AI preview for Pending entries."""
+    """Pre-cache AI analysis for reported tickers; AI preview for Pending entries.
+
+    Disabled by default 2026-05-27 emergency cost pass: Railway redeploys wipe
+    the in-memory cache, causing this pre-warm to re-fire for every earnings
+    ticker on every restart (~60K Haiku/Sonnet tokens per redeploy × N redeploys/day
+    = primary source of baseline daily burn). On-demand modal clicks still work
+    via synchronous cache-miss fallback. Set EARNINGS_PREWARM_ENABLED=1 to revert.
+    """
     if not os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    if os.environ.get("EARNINGS_PREWARM_ENABLED", "0") != "1":
+        _logger.info("prewarm: disabled via EARNINGS_PREWARM_ENABLED=0 (no tokens spent)")
         return
     _logger.info("prewarm: starting for buckets bmo/amc/amc_tonight")
 
