@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
+import useLivePrices from '../../hooks/useLivePrices'
 import HighlightThesis from '../../utils/highlightThesis'
 import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
@@ -116,6 +117,12 @@ export default function CatalystTable() {
   const allRows = data?.rows || []
   const generatedAt = data?.generated_at
 
+  // Live prices for the displayed tickers — gives us tick-by-tick % change
+  // (2s SWR poll). Backend stored gap_pct is the fallback while live data
+  // is loading or for tickers not in the live-price endpoint's universe.
+  const tickerSymbols = useMemo(() => allRows.map(r => r.ticker), [allRows])
+  const { prices: livePrices } = useLivePrices(tickerSymbols)
+
   // Per-tag counts (used in chip labels) — computed against full row list,
   // not filtered list, so toggling a chip doesn't change the counts.
   const tagCounts = useMemo(() => {
@@ -215,7 +222,7 @@ export default function CatalystTable() {
               <tr>
                 <th className={styles.colSym}>Sym</th>
                 <th className={styles.colPrice}>Price</th>
-                <th className={styles.colGap}>Gap %</th>
+                <th className={styles.colGap}>% Change</th>
                 <th className={styles.colVol}>Vol×</th>
                 <th className={styles.colTag}>Tag</th>
                 <th className={styles.colThesis}>Catalyst</th>
@@ -225,6 +232,12 @@ export default function CatalystTable() {
             <tbody>
               {filteredRows.map(r => {
                 const onMyList = myTickers.has(String(r.ticker || '').toUpperCase())
+                // Prefer live price + change from useLivePrices (2s poll);
+                // fall back to stored snapshot values when live data is loading
+                // or the ticker isn't in the live-prices universe.
+                const live = livePrices[r.ticker] || livePrices[String(r.ticker).toUpperCase()]
+                const displayPrice = (live && live.price != null) ? live.price : r.price
+                const displayChange = (live && live.change_pct != null) ? live.change_pct : r.gap_pct
                 return (
                   <tr key={r.ticker} className={onMyList ? styles.rowMine : ''}>
                     <td className={styles.colSym}>
@@ -235,9 +248,9 @@ export default function CatalystTable() {
                         </span>
                       </TickerPopup>
                     </td>
-                    <td className={styles.colPrice}>{fmtPrice(r.price)}</td>
-                    <td className={`${styles.colGap} ${(r.gap_pct ?? 0) >= 0 ? styles.gain : styles.loss}`}>
-                      {fmtPct(r.gap_pct)}
+                    <td className={styles.colPrice}>{fmtPrice(displayPrice)}</td>
+                    <td className={`${styles.colGap} ${(displayChange ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+                      {fmtPct(displayChange)}
                     </td>
                     <td className={styles.colVol}>{fmtVolX(r.vol_x)}</td>
                     <td className={styles.colTag}><RowTagChip tag={r.tag} /></td>

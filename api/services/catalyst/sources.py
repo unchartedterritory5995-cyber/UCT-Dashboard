@@ -430,21 +430,18 @@ def collect_all() -> list[dict]:
         if sector:
             sector_counts[sector] += 1
 
-        # gap_pct preference order — for a morning catalyst dashboard,
-        # the TRUE open gap is the most useful number (frozen at 9:30 ET,
-        # tells you what the catalyst caused). Pre-market we fall back
-        # to intraday change which is mathematically the same.
-        #   1. snapshot open_gap_pct  (= (day_open - prev_close) / prev_close)
-        #   2. snapshot change_pct    (intraday — used pre-market when day_open=0)
-        #   3. movers feed gap_pct    (fallback for tickers missing snapshot)
-        #   4. 0.0
-        gap_pct = snap.get("open_gap_pct")
-        if gap_pct is None:
-            snap_chg = snap.get("change_pct")
-            if snap_chg is not None:
-                gap_pct = float(snap_chg)
-            else:
-                gap_pct = movers_data.get("gap_pct") or 0.0
+        # gap_pct stored is the % change at synthesis time. Frontend will
+        # overlay tick-by-tick live % change from useLivePrices when the
+        # row renders; stored value is only the fallback during initial
+        # load or for tickers outside the live-prices universe.
+        #   1. snapshot change_pct (Massive todaysChangePerc — works for any ticker)
+        #   2. movers feed gap_pct (fallback for tickers missing snapshot)
+        #   3. 0.0
+        snap_chg = snap.get("change_pct")
+        if snap_chg is not None:
+            gap_pct = float(snap_chg)
+        else:
+            gap_pct = movers_data.get("gap_pct") or 0.0
 
         candidates.append({
             "ticker": ticker,
