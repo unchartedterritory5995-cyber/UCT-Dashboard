@@ -374,6 +374,51 @@ def _web_search(query: str = "", max_tokens: int = 400,
     }
 
 
+def _simulate_sizing_change(*, user, rule: str = "flat_pct",
+                            rule_value: float = 1.5, days: int = 180) -> dict:
+    """Re-run user's closed trades with alternative sizing.
+    rule: 'flat_pct' | 'flat_dollar' | 'multiplier'."""
+    try:
+        from api.services.scenario_simulator import simulate
+        return simulate(
+            user_id=user["id"], rule=rule or "flat_pct",
+            rule_value=float(rule_value or 1.5),
+            days=int(days or 180),
+        )
+    except Exception as e:
+        _log.warning("simulate_sizing_change failed: %s", e)
+        return {"error": f"simulator failed: {e}"}
+
+
+def _stress_test_portfolio(*, user, scenario: str = "regime_red") -> dict:
+    """Apply a named scenario shock to current open positions, report
+    expected P&L per position + portfolio totals."""
+    try:
+        from api.services.portfolio_stress import stress_test
+        return stress_test(user["id"], scenario or "regime_red")
+    except Exception as e:
+        _log.warning("stress_test_portfolio failed: %s", e)
+        return {"error": f"stress test failed: {e}"}
+
+
+def _backtest_pattern(ticker: str = "", pattern_id: str = "",
+                     days: int = 365, target_r: float = 3.0,
+                     stop_r: float = 1.0, max_hold_bars: int = 20,
+                     min_confidence: float = 60.0) -> dict:
+    """Walk-forward backtest of a pattern detector on a single ticker."""
+    try:
+        from api.services.pattern_backtest import backtest_pattern_on_ticker
+        return backtest_pattern_on_ticker(
+            ticker, pattern_id,
+            days=days or 365, target_r=target_r or 3.0,
+            stop_r=stop_r or 1.0, max_hold_bars=max_hold_bars or 20,
+            min_confidence=min_confidence or 60.0,
+        )
+    except Exception as e:
+        _log.warning("backtest_pattern failed: %s", e)
+        return {"error": f"backtest failed: {e}"}
+
+
 def _post_to_discord(*, user, message: str = "", embed_title: str = "") -> dict:
     """Post a message to the configured Discord channel via webhook.
     Rate-limited 5/min/user."""
@@ -2294,6 +2339,67 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="simulate_sizing_change",
+        description=(
+            "Re-run user's closed trades with an alternative sizing rule and "
+            "report the would-be P&L delta. rule='flat_pct' (rule_value = "
+            "percent of account per trade, e.g. 1.5), 'flat_dollar' (e.g. 500), "
+            "or 'multiplier' (e.g. 2.0 = double current sizes). Returns "
+            "actual vs scenario totals + per-setup breakdown. Call for "
+            "'what if I'd sized 2 percent per trade', 'what would my P&L be "
+            "with flat 500 dollar risk'."
+        ),
+        parameters={
+            "rule": {"type": "string", "enum": ["flat_pct", "flat_dollar", "multiplier"]},
+            "rule_value": {"type": "number", "description": "Value for the rule."},
+            "days": {"type": "integer", "description": "Lookback (default 180, max 730)."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_simulate_sizing_change)
+
+    _vt.voice_tool(
+        name="stress_test_portfolio",
+        description=(
+            "Stress test the user's current open positions against a scenario "
+            "shock. Scenarios: 'regime_red' (broad selloff), 'vol_expansion' "
+            "(IV spike), 'factor_rotation' (tech out, defensives in), "
+            "'rate_shock_up' (yields jump), 'fed_dovish' (risk-on). Returns "
+            "expected P&L per position (sorted worst-first) + portfolio "
+            "totals. Call for 'how much would I lose in a selloff', 'what "
+            "if the Fed pivots hawkish', 'stress test my book'."
+        ),
+        parameters={
+            "scenario": {"type": "string", "enum": ["regime_red", "vol_expansion",
+                          "factor_rotation", "rate_shock_up", "fed_dovish"]},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_stress_test_portfolio)
+
+    _vt.voice_tool(
+        name="backtest_pattern",
+        description=(
+            "Walk-forward backtest of a pattern detector on a single ticker. "
+            "At each bar where the pattern fires (above min_confidence), "
+            "simulates entering at next open and exiting on target_r, stop_r, "
+            "or max_hold_bars. Returns win rate, avg R, profit factor, last "
+            "20 trade details. Call list_pattern_types to find valid "
+            "pattern_id values."
+        ),
+        parameters={
+            "ticker": {"type": "string"},
+            "pattern_id": {"type": "string", "description": "e.g. 'vcp', 'bull_flag', 'high_tight_flag'."},
+            "days": {"type": "integer", "description": "Lookback in bars (default 365, max 2500)."},
+            "target_r": {"type": "number", "description": "Target in R multiples (default 3.0)."},
+            "stop_r": {"type": "number", "description": "Stop in R multiples (default 1.0)."},
+            "max_hold_bars": {"type": "integer", "description": "Max bars to hold (default 20)."},
+            "min_confidence": {"type": "number", "description": "Min detector confidence (default 60)."},
+        },
+        contexts=["global"],
+    )(_backtest_pattern)
 
     _vt.voice_tool(
         name="post_to_discord",

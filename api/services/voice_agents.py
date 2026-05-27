@@ -392,6 +392,10 @@ def _compass_tool_union() -> set[str]:
     out.add("post_to_discord")
     out.add("play_my_morning_briefing")
     out.add("list_voice_personas")
+    # Phase 3 Sprint 6: backtest + scenario simulator + portfolio stress.
+    out.add("simulate_sizing_change")
+    out.add("stress_test_portfolio")
+    out.add("backtest_pattern")
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")
