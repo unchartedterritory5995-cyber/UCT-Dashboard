@@ -180,9 +180,9 @@ function computePaneMargins(cs, hasVolume) {
     out[key] = { top: +((1 - bottom - h).toFixed(2)), bottom: +bottom.toFixed(2) }
     bottom = +(bottom + h).toFixed(2)
   }
-  // Top margin 0.60 leaves the highest candle ~60% from the top of the chart
+  // Top margin 0.30 leaves the highest candle ~30% from the top of the chart
   // so there's deliberate headroom above price action (matches TC2000-style layout).
-  out.main = { top: 0.60, bottom: bottom }
+  out.main = { top: 0.30, bottom: bottom }
   return out
 }
 
