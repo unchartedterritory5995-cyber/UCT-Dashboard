@@ -283,6 +283,70 @@ def _get_polygon_news(ticker: str = "", limit: int = 10,
         return {"error": f"polygon news unavailable: {e}", "items": []}
 
 
+def _get_ticker_details(ticker: str = "") -> dict:
+    """Full company details via Polygon."""
+    if not ticker or not (ticker := ticker.strip()):
+        return {"error": "ticker required"}
+    try:
+        from api.services.polygon_extras import get_ticker_details
+        return get_ticker_details(ticker)
+    except Exception as e:
+        _log.warning("get_ticker_details failed: %s", e)
+        return {"error": f"ticker details unavailable: {e}"}
+
+
+def _get_indices_snapshot(symbols: str = "") -> dict:
+    """Real-time snapshot of major indices via Polygon."""
+    try:
+        from api.services.polygon_extras import get_indices_snapshot
+        return get_indices_snapshot(symbols or None)
+    except Exception as e:
+        _log.warning("get_indices_snapshot failed: %s", e)
+        return {"error": f"indices snapshot unavailable: {e}"}
+
+
+def _get_upcoming_dividends(ticker: str = "", count: int = 10) -> dict:
+    """Upcoming dividends via Polygon."""
+    try:
+        from api.services.polygon_extras import get_upcoming_dividends
+        return get_upcoming_dividends(ticker=ticker or "", count=count or 10)
+    except Exception as e:
+        _log.warning("get_upcoming_dividends failed: %s", e)
+        return {"error": f"dividends unavailable: {e}"}
+
+
+def _get_recent_splits(ticker: str = "", count: int = 10,
+                       lookback_days: int = 90) -> dict:
+    """Stock splits in lookback window + upcoming, via Polygon."""
+    try:
+        from api.services.polygon_extras import get_splits
+        return get_splits(ticker=ticker or "", count=count or 10,
+                          lookback_days=lookback_days or 90)
+    except Exception as e:
+        _log.warning("get_recent_splits failed: %s", e)
+        return {"error": f"splits unavailable: {e}"}
+
+
+def _get_crypto_snapshot(symbol: str = "BTCUSD") -> dict:
+    """Real-time crypto snapshot via Polygon."""
+    try:
+        from api.services.polygon_extras import get_crypto_snapshot
+        return get_crypto_snapshot(symbol or "BTCUSD")
+    except Exception as e:
+        _log.warning("get_crypto_snapshot failed: %s", e)
+        return {"error": f"crypto snapshot unavailable: {e}"}
+
+
+def _get_forex_snapshot(pair: str = "EURUSD") -> dict:
+    """Real-time forex snapshot via Polygon."""
+    try:
+        from api.services.polygon_extras import get_forex_snapshot
+        return get_forex_snapshot(pair or "EURUSD")
+    except Exception as e:
+        _log.warning("get_forex_snapshot failed: %s", e)
+        return {"error": f"forex snapshot unavailable: {e}"}
+
+
 def _search_news(query: str = "", count: int = 5) -> dict:
     """Fresh news search via Google News RSS (no key, broad coverage)."""
     if not query or not (query := query.strip()):
@@ -2246,6 +2310,88 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_get_polygon_news)
+
+    _vt.voice_tool(
+        name="get_ticker_details",
+        description=(
+            "Full company reference data via Polygon — name, sector, industry "
+            "(SIC), description, market cap, employees, exchange, list date, "
+            "phone, address, logo URL, CIK, FIGI. Use for 'tell me about X', "
+            "'what does X actually do', 'when did X IPO'. Cached 6 hours."
+        ),
+        parameters={"ticker": {"type": "string"}},
+        contexts=["global"],
+    )(_get_ticker_details)
+
+    _vt.voice_tool(
+        name="get_indices_snapshot",
+        description=(
+            "Real-time snapshot of major indices via Polygon — SPX, NDX, DJI, "
+            "RUT, VIX by default. Returns value, change, change_pct, OHL, "
+            "previous close, market status. Pass comma-separated symbols to "
+            "override defaults (e.g. 'SPX,VIX')."
+        ),
+        parameters={
+            "symbols": {"type": "string", "description": "Optional comma-separated index symbols. Aliases: SPX/NDX/DJI/RUT/VIX/SP500/DOW/RUSSELL/NASDAQ100."},
+        },
+        contexts=["global"],
+    )(_get_indices_snapshot)
+
+    _vt.voice_tool(
+        name="get_upcoming_dividends",
+        description=(
+            "Upcoming dividends via Polygon — ex-div date, pay date, cash "
+            "amount, frequency (1=annual, 4=quarterly, 12=monthly). Optional "
+            "ticker filter. Use for 'when does X pay its next dividend', "
+            "'what dividends are upcoming this week'."
+        ),
+        parameters={
+            "ticker": {"type": "string", "description": "Optional ticker filter."},
+            "count": {"type": "integer", "description": "Max entries (default 10, max 50)."},
+        },
+        contexts=["global"],
+    )(_get_upcoming_dividends)
+
+    _vt.voice_tool(
+        name="get_recent_splits",
+        description=(
+            "Stock splits in the lookback window + any upcoming, via Polygon. "
+            "Returns ticker + execution_date + split_from + split_to + ratio "
+            "string. Use for 'did X split recently', 'any upcoming splits'."
+        ),
+        parameters={
+            "ticker": {"type": "string", "description": "Optional ticker filter."},
+            "count": {"type": "integer", "description": "Max entries (default 10)."},
+            "lookback_days": {"type": "integer", "description": "Lookback window (default 90, max 730)."},
+        },
+        contexts=["global"],
+    )(_get_recent_splits)
+
+    _vt.voice_tool(
+        name="get_crypto_snapshot",
+        description=(
+            "Real-time crypto snapshot via Polygon — last trade, day OHLC, "
+            "vwap, volume, change. Pass symbol like 'BTCUSD' / 'ETHUSD' / "
+            "'SOLUSD' (USD pair format). Defaults to BTCUSD."
+        ),
+        parameters={
+            "symbol": {"type": "string", "description": "Crypto/USD pair like BTCUSD, ETHUSD."},
+        },
+        contexts=["global"],
+    )(_get_crypto_snapshot)
+
+    _vt.voice_tool(
+        name="get_forex_snapshot",
+        description=(
+            "Real-time forex snapshot via Polygon — bid, ask, day OHLC, "
+            "change. Pass pair like 'EURUSD' / 'USDJPY' / 'GBPUSD'. Defaults "
+            "to EURUSD."
+        ),
+        parameters={
+            "pair": {"type": "string", "description": "FX pair like EURUSD, USDJPY."},
+        },
+        contexts=["global"],
+    )(_get_forex_snapshot)
 
     _vt.voice_tool(
         name="get_option_contract",

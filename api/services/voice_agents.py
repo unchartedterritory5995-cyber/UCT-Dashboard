@@ -396,10 +396,15 @@ def _compass_tool_union() -> set[str]:
     out.add("simulate_sizing_change")
     out.add("stress_test_portfolio")
     out.add("backtest_pattern")
-    # Hotfix: Polygon (Massive Advanced) institutional news with per-ticker
-    # sentiment classification + reasoning. Sharper than RSS for ticker-
-    # specific queries. Free with the $200/mo tier we already pay for.
-    out.add("get_polygon_news")
+    # Polygon (Massive Advanced) extras — institutional endpoints we
+    # already pay for via the $200/mo tier.
+    out.add("get_polygon_news")        # per-ticker sentiment + reasoning
+    out.add("get_ticker_details")      # sector/industry/desc/employees/CIK
+    out.add("get_indices_snapshot")    # SPX/NDX/DJI/RUT/VIX real-time
+    out.add("get_upcoming_dividends")  # ex-div + pay dates
+    out.add("get_recent_splits")       # corporate actions
+    out.add("get_crypto_snapshot")     # BTC/ETH/SOL/etc
+    out.add("get_forex_snapshot")      # EURUSD/USDJPY/etc
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")
