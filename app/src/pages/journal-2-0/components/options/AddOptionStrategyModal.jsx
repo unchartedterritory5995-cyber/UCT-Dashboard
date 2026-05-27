@@ -12,7 +12,6 @@
 
 import { useState, useId, useEffect, useMemo, useCallback } from 'react'
 import StrategyIcon from './StrategyIcon'
-import useJ2Playbook from '../../hooks/useJ2Playbook'
 import {
   STRATEGY_TEMPLATES,
   STRATEGY_TEMPLATES_BY_CATEGORY,
@@ -50,14 +49,8 @@ export default function AddOptionStrategyModal({
   // Tri-state: null = never auto-filled, true = auto, false = user touched
   const [feesAutoFilled, setFeesAutoFilled] = useState(null)
   const [legs, setLegs] = useState([])
-  const [linkedPlaybookId, setLinkedPlaybookId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
-
-  // Filter playbook entries to the currently-typed underlying.
-  const { entries: playbookEntries } = useJ2Playbook(
-    underlying ? { symbol: underlying } : {},
-  )
 
   // Close on Escape
   useEffect(() => {
@@ -154,7 +147,7 @@ export default function AddOptionStrategyModal({
         fees: fees === '' ? 0 : Number(fees),
         setup: setup || null,
         notes: notes || null,
-        linked_playbook_id: linkedPlaybookId || null,
+        linked_playbook_id: null,
         legs: legs.map((l) => ({
           side: l.side,
           contract_type: l.contractType,
@@ -305,29 +298,6 @@ export default function AddOptionStrategyModal({
                   />
                 )}
               </label>
-
-              {playbookEntries.length > 0 && (
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>
-                    Link to Playbook Entry
-                    <span className={styles.autoTag}> optional</span>
-                  </span>
-                  <select
-                    value={linkedPlaybookId}
-                    onChange={(e) => setLinkedPlaybookId(e.target.value)}
-                    className={styles.textInput}
-                  >
-                    <option value="">— None —</option>
-                    {playbookEntries.slice(0, 50).map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.symbol}
-                        {entry.title ? ` — ${entry.title}` : ''}
-                        {entry.status ? ` · ${entry.status}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Notes</span>
