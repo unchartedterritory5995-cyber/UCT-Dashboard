@@ -1222,49 +1222,126 @@ v1: regex-only on `\$[A-Z]{1,5}\b`, minus forex pairs (USD/EUR/GBP/JPY/CAD/AUD/C
 ### Cost forecast
 $13–22/mo at the curated 4-account list × burst cadence. `since_id` filtering keeps each poll's billable count to "what's new since last poll." Live MTD cost surfaces in `/api/admin/twitter-stats`.
 
-## Morning Catalyst Table (built 2026-05-25)
+## Stock Catalysts (built 2026-05-25 → 2026-05-26, multi-tier expansion)
 
-Pre-market intelligence engine that pulls candidates from 6 existing project sources (movers, batch snapshot, earnings, tweets, RSS, scanner), composite-scores them, picks the top 12 with a forced 6/3/2/1 category mix, and uses Claude Opus 4.7 to synthesize a 2–3 sentence catalyst description per entry. Surfaces as a full-width tile above the Movers/Breadth/Themes row on Dashboard.
+Pre-market intelligence engine: pulls candidates from 8 sources, composite-scores them, picks the top 20 with a forced 10/5/3/2 category mix, uses Claude Opus 4.7 to synthesize 2–3 sentence catalyst descriptions, surfaces as a full-width tile titled "🎯 STOCK CATALYSTS" at the top of Dashboard. Multi-channel alerts when watchlist tickers surface. Full historical browser at `/catalysts/history`.
+
+Originally spec'd as "Morning Catalyst Table"; renamed to "Stock Catalysts" since it stays useful throughout the trading day.
 
 ### Architecture
-- **Database:** SQLite at `/data/catalysts.db` (web service Railway volume). Indefinite retention for historical browsing.
-- **Synthesis:** Claude Opus 4.7 via `api/services/engine._get_anthropic_client()` (same client pattern as earnings_enrichment + transcripts). Haiku fallback on Opus 5xx. Skip-if-stable SHA1 hash of source signals — re-uses prior thesis when nothing changed (so quiet days cost ~$0).
-- **Scheduler:** APScheduler in `api/main.py` next to COT + Twitter — 5min burst pre-market + AMC, 30min midday, hourly safety net. Gated on `CATALYST_ENGINE_ENABLED=1`.
-- **Cost cap:** $5/day soft (logs warning), $10/day hard (disables synthesis for remainder of day). Per-call USD recorded in `catalyst_cost_log` table.
+- **Primary DB:** `/data/catalysts.db` (web service Railway volume). Indefinite retention. Tables: `catalysts` (one row per ticker per day with rank/score/tag/price/gap_pct/vol_x/sector/market_cap/thesis_*/catalyst_at/raw_signals), `catalyst_cost_log` (per-call cost telemetry), `catalyst_alerts_fired` (alert dedup, PK on user_id+ticker+market_date).
+- **Metadata cache DB:** `/data/catalyst_metadata.db` — yfinance-backed sector/market_cap/avg_volume_30d cache, 24h TTL, lazy-init via `_ensure_init()` on first use.
+- **Synthesis:** Claude Opus 4.7 via `api/services/engine._get_anthropic_client()`. Haiku fallback on Opus 5xx. SHA1 skip-if-stable hash of source signals reuses prior thesis when inputs unchanged (~$0 on quiet days).
+- **Scheduler:** APScheduler in `api/main.py` next to COT + Twitter — 5min burst pre-market (4–9:30 AM ET) + open + close + AMC, 30min midday, hourly safety net. Gated on `CATALYST_ENGINE_ENABLED=1`.
+- **Cost cap:** $8/day soft (logs warning), $15/day hard (disables synthesis for remainder of day). Per-call USD recorded in `catalyst_cost_log`.
 
-### Files
-- `api/services/catalyst/sources.py` — parallel pulls
-- `api/services/catalyst/scoring.py` — composite formula with env-tunable weights
-- `api/services/catalyst/tagging.py` — deterministic Earnings > Catalyst > Gapper > News
-- `api/services/catalyst/selection.py` — 6/3/2/1 quota selector with redistribution
-- `api/services/catalyst/cost_guard.py` — daily spend tracking + caps
+### Sources (8 parallel pulls)
+1. Massive movers (gainers/losers) — `massive.get_movers()`
+2. Massive batch snapshot (price, today_volume, prev_close, day_open, change_pct) — `_get_client().get_batch_rich_snapshots()`
+3. yfinance ticker metadata (sector, market_cap, avg_volume_30d) — `ticker_metadata.get_metadata_batch()`, cached 24h
+4. Earnings (EW + Finnhub today BMO + yesterday AMC) — `engine.get_earnings()`
+5. Tweet store (curated 4 accounts + Twitter advanced_search per top-20) — `tweet_store.tape()` + `twitterapi_io.search_tweets()`
+6. RSS news (CNBC, MarketWatch, Yahoo, Benzinga, etc.) — `news_aggregator.fetch_rss_news()`
+7. UCT scanner candidates — `engine.get_candidates()`
+8. **Perplexity discovery** — three query variants in `_pull_perplexity_discovery()`:
+   - **A1 (always-on):** "top 15 catalyst movers right now" — runs every refresh
+   - **D1 (4–9:30 AM ET):** "biggest pre-market movers + why"
+   - **F1 (4–8 PM ET):** "what catalysts are setting up for tomorrow's open"
+
+### Per-candidate enrichment (after top-20 selection, before synthesis)
+- **Twitter advanced_search** per top-20 — broadens beyond curated 4 accounts. Skipped when candidate already has ≥5 curated-account tweets.
+- **Perplexity fallback** for zero-signal candidates ("what's the catalyst for $XYZ today?") — `engine._enrich_with_perplexity`
+- **Perplexity earnings deep-dive** for Earnings-tagged rows (guidance + sell-side reaction + PT changes) — `engine._enrich_earnings_with_perplexity`
+- **Perplexity top-3 deep context** for highest-scored rows (peer reaction + historical comparables + key levels) — `engine._enrich_top_3_with_deep_context`. Skipped when row already source-rich (>5 tweets + >2 RSS).
+- **Perplexity sector framing** when 3+ selected candidates share a sector — `engine._compute_sector_context`, results in module-level cache `_SECTOR_CONTEXT_BY_DATE`, exposed via `get_sector_contexts()`, surfaced as banner in tile
+
+### Scoring + tagging + selection
+- **Score** (`scoring.py`): `gap_pct + log(vol_x)*15 + tweets*5 + rss*8 + earnings_reported*20 + scanner_setup*12 + sector_momentum*5 − penny_penalty`. All weights env-overridable via `CATALYST_SCORE_W_*`.
+- **Tag** (`tagging.py`): deterministic Earnings > Catalyst (2+ tweets or 1+ rss) > Gapper (5%+ abs gap + 3+ vol_x) > News.
+- **Selection** (`selection.py`): forced quotas 10 Catalyst / 5 Earnings / 3 Gapper / 2 News = 20 rows. Redistributes empty buckets to next-highest leftovers. Env-overridable via `CATALYST_QUOTA_*`.
+- **gap_pct** preference: snapshot change_pct (live intraday) → movers feed → 0.0. (Frontend overlays live tick-by-tick from useLivePrices, so stored gap_pct is mostly synthesis-time fallback.)
+
+### Alerts (catalyst-triggered)
+- After each refresh, `_fire_catalyst_alerts(top_20, market_date)` reads all user watchlists from auth.db (watchlists + watchlist_items joined on user_id).
+- Intersection of top-20 tickers × user watchlist tickers → fires multi-channel alert via existing `watchlist_alert_service.deliver_alert_payload` (AlertBell + email + Discord).
+- Dedup via `store.try_record_alert(user_id, ticker, market_date)` — atomic INSERT OR IntegrityError pattern, one alert per (user, ticker, day) max.
+- Gated on `CATALYST_ALERTS_ENABLED=1` (default ON).
+
+### Files (backend)
+- `api/services/catalyst/sources.py` — parallel pulls + Perplexity discovery (3 queries)
+- `api/services/catalyst/scoring.py` — composite formula, env-tunable
+- `api/services/catalyst/tagging.py` — deterministic tag assignment
+- `api/services/catalyst/selection.py` — 10/5/3/2 quota selector (function name still `select_top_12` for backwards compat)
+- `api/services/catalyst/cost_guard.py` — Opus/Haiku pricing + daily caps
 - `api/services/catalyst/synthesize.py` — Opus call + skip-if-stable + Haiku fallback + JSON validation + "no clear catalyst" enforcement
-- `api/services/catalyst/store.py` — SQLite CRUD (catalysts + catalyst_cost_log tables)
-- `api/services/catalyst/engine.py` — orchestrator
-- `api/routers/catalysts.py` — `/api/catalysts/today`, `/api/catalysts/by-date/{ymd}`, `POST /api/catalysts/refresh` (admin), `GET /api/admin/catalyst-stats`
-- `app/src/components/tiles/CatalystTable.{jsx,module.css}` — 6-col table tile
-- `app/src/utils/highlightThesis.jsx` — bold markdown + gold cashtags + colored pcts
-- `app/src/hooks/useCatalysts.js` — SWR hook polling /today every 30s
+- `api/services/catalyst/store.py` — SQLite CRUD (catalysts + catalyst_cost_log + catalyst_alerts_fired)
+- `api/services/catalyst/ticker_metadata.py` — yfinance-backed sector/cap/ADV cache (own SQLite at /data/catalyst_metadata.db)
+- `api/services/catalyst/engine.py` — orchestrator + Perplexity enrichment functions + alert firing + sector context cache
+- `api/services/twitterapi_io.py` — adds `search_tweets()` for advanced_search endpoint
+- `api/routers/catalysts.py` — `GET /api/catalysts/today` (includes sector_contexts), `GET /api/catalysts/by-date/{ymd}`, `GET /api/catalysts/explain/{sym}`, `POST /api/catalysts/refresh` (admin), `GET /api/admin/catalyst-stats`
+
+### Files (frontend)
+- `app/src/components/tiles/CatalystTable.{jsx,module.css}` — 7-col table (Sym/Price/%Change/Vol×/Tag/Catalyst/When) with sortable headers, tag chip filter, ★ watchlist highlight, ⓘ citations popover, 🔎 Why-isn't-X widget, sector context banners
+- `app/src/utils/highlightThesis.jsx` — renders **bold** markdown + gold cashtags + colored ± pct + bold $amounts
+- `app/src/utils/timeAgo.js` — adds `formatET(ts)` for absolute ET timestamps ("9:32 AM EDT" same-day, "May 25, 9:32 AM EDT" earlier days)
+- `app/src/hooks/useCatalysts.js` — SWR poll /api/catalysts/today every 30s
+- `app/src/hooks/useUserTickerSet.js` — combines useFlagged + /api/watchlists into a Set for ★ highlight matching
+- `app/src/pages/CatalystsHistory.{jsx,module.css}` — `/catalysts/history` route, date picker + quick-jump (Today / Yesterday / 1 week / 30 days), reads `GET /api/catalysts/by-date/{ymd}`
+- Live data overlay via existing `useLivePrices` (2s SWR poll); falls back to stored values when live data loading or ticker outside live-prices universe
 
 ### Env vars
 - `CATALYST_ENGINE_ENABLED=1` — master switch for scheduler
 - `CATALYST_OPUS_MODEL=claude-opus-4-7` (default)
-- `CATALYST_COST_CAP_DAILY=5.00` (USD; soft cap)
-- `CATALYST_COST_HARD_CAP=10.00` (USD; hard cutoff)
+- `CATALYST_HAIKU_FALLBACK_MODEL=claude-haiku-4-5` (default)
+- `CATALYST_COST_CAP_DAILY=8.00` (USD; soft cap)
+- `CATALYST_COST_HARD_CAP=15.00` (USD; hard cutoff)
 - `CATALYST_PRICE_FLOOR=2.00` (below this, score penalty)
-- `CATALYST_QUOTA_CATALYST=6` / `_EARNINGS=3` / `_GAPPER=2` / `_NEWS=1` — forced mix
+- `CATALYST_QUOTA_CATALYST=10` / `_EARNINGS=5` / `_GAPPER=3` / `_NEWS=2` — forced 20-row mix
 - `CATALYST_SCORE_W_*` — scoring weight overrides
-- `VITE_CATALYST_UI_ENABLED=1` (frontend kill-switch, default ON)
+- `CATALYST_TWITTER_SEARCH_ENABLED=1` — toggle Twitter advanced_search enrichment per top-20
+- `CATALYST_PERPLEXITY_ENABLED=1` — toggle all 6 Perplexity uses (discovery + pre-market + EOD + fallback + earnings + top-3 + sector)
+- `CATALYST_ALERTS_ENABLED=1` — toggle watchlist-match alert firing
+- `CATALYST_METADATA_DB_PATH=/data/catalyst_metadata.db` (override for local)
+- `VITE_CATALYST_UI_ENABLED=1` — frontend kill-switch
+
+### Cost forecast (with all Perplexity enrichments active)
+- Synthesis (Opus 4.7): ~$2-4/day (skip-if-stable keeps quiet days near $0)
+- Perplexity (~10–15 queries/refresh average): ~$60-70/mo
+- Twitter advanced_search: ~$10-20/mo
+- All-in: ~$80-100/mo at full activity. Hard cap stops Opus at $15/day.
+
+### Schema (catalysts.db)
+```sql
+CREATE TABLE catalysts (
+  market_date, ticker, rank, score, tag, price, gap_pct, vol_x, market_cap, sector,
+  thesis_text, thesis_model, thesis_at, thesis_sources, signals_hash,
+  catalyst_at,           -- earliest source-signal time (true "when did the catalyst occur")
+  raw_signals,           -- full JSON of source inputs at synthesis time
+  PRIMARY KEY (market_date, ticker)
+);
+CREATE TABLE catalyst_cost_log (ts, market_date, ticker, model, input_tokens, output_tokens, cost_usd, was_cached);
+CREATE TABLE catalyst_alerts_fired (user_id, ticker, market_date, fired_at, PRIMARY KEY (user_id, ticker, market_date));
+```
 
 ### Spec + plan
 - Spec: `docs/superpowers/specs/2026-05-25-morning-catalyst-table-design.md`
 - Plan: `docs/superpowers/plans/2026-05-25-morning-catalyst-table-phase-1.md`
 
-### Phase 1 limitations (deferred to Phase 2+)
-- **vol_x defaults to 1.0** — no ADV pipeline wired yet. Phase 2 will add it.
-- **No Finviz Elite, no AlphaVantage NEWS_SENTIMENT, no Twitter advanced_search, no Perplexity** — Phase 2 source expansion.
-- **No watchlist highlight, no catalyst-triggered alerts, no tag-chip filter UI** — Phase 3.
-- **No history browser, no Compass 🧭 button per row, no Dashboard restyle** — Phase 4.
+### What's deferred to a future session
+- **Compass 🧭 per-row** — needs careful AddPositionModal coupling design (deeply tied to J2 account selection, discipline state, stop-prefill logic, intervention banners). Two paths: (a) new catalyst-context verdict endpoint, or (b) refactor AddPositionModal for prefill. Both ~3-4h done right.
+- **Dashboard restyle** — user explicitly deferred until they've used the system for several mornings.
+- **Finviz Elite per-ticker news scraping** — Perplexity discovery already covers what Finviz would surface. Re-evaluate after morning use.
+- **AlphaVantage NEWS_SENTIMENT per ticker** — needs paid tier ($50/mo); free quota already exhausted by existing news_aggregator.
+- **Settings UI for env-tunable knobs** — tuning currently via Railway env vars; UI is nice-to-have.
+- **Admin stats visualization** — raw JSON at /api/admin/catalyst-stats; UI is polish.
+- **Audio briefing at 6 AM ET** — voice infra exists, just not wired.
+- **Backtesting tool** — apply current scoring to historical catalyst data to validate setup quality.
+
+### LOCKED invariants (don't regress)
+- **gap_pct preference order:** snapshot.change_pct → movers feed → 0.0. Frontend overlays useLivePrices on top — do NOT use stored gap_pct as the primary display value.
+- **Skip-if-stable hash** is on raw_signals JSON; bumping the hash function invalidates all cached theses (forces re-synthesis = cost spike). Don't change without intentional opt-in.
+- **catalyst_alerts_fired PRIMARY KEY** is (user_id, ticker, market_date) — three-column. Removing market_date would create perma-dedup; removing user_id would silence other users.
+- **catalyst_at field** is computed as min(source timestamps) by `_compute_catalyst_at()`. Empty when all sources are Perplexity-synthetic. Frontend falls back to thesis_at with dimmed italics in that case.
 
 ## Known Issues / Gotchas
 
