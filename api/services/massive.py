@@ -147,12 +147,15 @@ class _MassiveRestClient:
         return result
 
     def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:
-        """Return price + prev-day volume + change_pct for a batch of tickers.
+        """Return price + prev-day volume + change_pct + day_open + prev_close
+        for a batch of tickers.
 
         Uses the same batch endpoint as get_batch_snapshots but extracts richer fields.
-        price   — today's close (falls back to lastTrade → prevDay close)
-        vol     — yesterday's full-day volume (prevDay.v) — stable proxy for liquidity
-        change_pct — today's % change
+        price       — today's close (falls back to lastTrade → prevDay close)
+        vol         — yesterday's full-day volume (prevDay.v) — stable proxy for liquidity
+        change_pct  — today's % change (intraday, vs prev close)
+        day_open    — today's regular-session opening print (0 pre-market)
+        prev_close  — yesterday's regular-session close
         """
         if not tickers:
             return {}
@@ -179,6 +182,8 @@ class _MassiveRestClient:
                 "price":      round(float(close), 2),
                 "vol":        vol,
                 "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
+                "day_open":   round(float(day.get("o") or 0.0), 2),
+                "prev_close": round(float(prev_day.get("c") or 0.0), 2),
             }
         return result
 
