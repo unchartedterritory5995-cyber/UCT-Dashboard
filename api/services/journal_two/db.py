@@ -346,6 +346,43 @@ CREATE TABLE IF NOT EXISTS j2_unified_coach_state (
     created_at            TEXT NOT NULL,
     updated_at            TEXT NOT NULL
 );
+
+-- Notebook (replaces Playbook 2026-05-26). Long-form Substack-style
+-- notes with TipTap doc body, folders, tags, optional ticker, hero
+-- image. Migration of j2_playbook_entries -> j2_notes runs once at
+-- startup, gated by .notebook_migration_v1 flag file.
+CREATE TABLE IF NOT EXISTS j2_notes (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    account_id      TEXT,
+    folder_id       TEXT,
+    title           TEXT NOT NULL DEFAULT '',
+    subtitle        TEXT,
+    body_json       TEXT NOT NULL DEFAULT '{"type":"doc","content":[]}',
+    body_plain      TEXT NOT NULL DEFAULT '',
+    hero_image_url  TEXT,
+    ticker          TEXT,
+    tags            TEXT NOT NULL DEFAULT '[]',
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_notes_user_updated
+    ON j2_notes(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
+    ON j2_notes(user_id, folder_id);
+CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
+    ON j2_notes(user_id, ticker);
+
+CREATE TABLE IF NOT EXISTS j2_note_folders (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    UNIQUE(user_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
+    ON j2_note_folders(user_id, sort_order);
 """
 
 
