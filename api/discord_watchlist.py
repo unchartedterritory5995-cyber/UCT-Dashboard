@@ -38,6 +38,44 @@ _RESET = "\u001b[0m"
 # Dim dotted separator
 SEP_FULL = "╌" * 25
 SEP_COMPACT = "╌" * 16
+COL_W = 22  # visible chars per column in 2-col mode
+
+
+def _fmt_row(item, side="bull"):
+    """Format a single row for 2-column layout (22 visible chars)."""
+    prem_color = _GREEN_A if side == "bull" else _RED_A
+    sym = (item.get("sym") or "???").ljust(6)
+    strike_val = item.get("strike")
+    if strike_val and str(strike_val).strip():
+        cp = (item.get("cp") or "?")[0].upper()
+        try:
+            sv = float(strike_val)
+            sn = str(int(sv)) if sv == int(sv) else f"{sv:g}"
+        except (ValueError, TypeError):
+            sn = ""
+        exp = _fmt_exp(item.get("exp") or "")
+        prem = _fmt_short(float(item.get("prem") or 0))
+        return f"{sym}{exp.ljust(5)}{(sn + cp).ljust(6)}{prem_color}{prem.rjust(5)}{_RESET}"
+    return f"{sym}—"
+
+
+def _build_two_col(items, side="bull"):
+    """Build a 2-column table: items 1-10 left, 11-20 right, in a single code block."""
+    left = items[:10]
+    right = items[10:20]
+    sep = f"{_DIM}{'╌' * COL_W} {'╌' * COL_W}{_RESET}"
+    empty = " " * COL_W
+
+    lines = []
+    max_rows = max(len(left), len(right))
+    for i in range(max_rows):
+        l = _fmt_row(left[i], side) if i < len(left) else empty
+        r = _fmt_row(right[i], side) if i < len(right) else ""
+        lines.append(f"{l} {r}" if r else l)
+        if i < max_rows - 1:
+            lines.append(sep)
+
+    return "\n".join(lines)
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact: bool = False) -> str:
@@ -233,23 +271,29 @@ def build_messages(
             ],
         })
 
-        # Embed 2: Bull watchlist (green sidebar) — single column, all items
+        # Embed 2: Bull watchlist (green sidebar)
         if bull_sorted:
-            bull_embed = {
+            if len(bull_sorted) > 10:
+                table = _build_two_col(bull_sorted, "bull")
+            else:
+                table = _build_table(bull_sorted, 10, "bull")
+            embeds.append({
                 "color": GREEN,
                 "title": f"🟢 BULL WATCHLIST",
-                "description": f"```ansi\n{_build_table(bull_sorted, 20, 'bull')}\n```",
-            }
-            embeds.append(bull_embed)
+                "description": f"```ansi\n{table}\n```",
+            })
 
-        # Embed 3: Bear watchlist (red sidebar) — single column, all items
+        # Embed 3: Bear watchlist (red sidebar)
         if bear_sorted:
-            bear_embed = {
+            if len(bear_sorted) > 10:
+                table = _build_two_col(bear_sorted, "bear")
+            else:
+                table = _build_table(bear_sorted, 10, "bear")
+            embeds.append({
                 "color": RED,
                 "title": f"🔴 BEAR WATCHLIST",
-                "description": f"```ansi\n{_build_table(bear_sorted, 20, 'bear')}\n```",
-            }
-            embeds.append(bear_embed)
+                "description": f"```ansi\n{table}\n```",
+            })
 
         # Footer on last embed
         embeds[-1]["footer"] = {"text": f"UCT Intelligence · {time_str}"}
