@@ -143,17 +143,28 @@ async def market_summary():
 
 @router.get("/market-narrative")
 async def market_narrative():
-    """Generate AI narrative of today's market using Claude + web search."""
+    """Generate AI narrative of today's market using Claude + web search.
+
+    Cached 30 min keyed by date — cuts cost ~15x without losing freshness
+    since the "how did markets close" framing is stable through the trading day
+    (cost pass 2026-05-27 evening).
+    """
     import os
     import anthropic
+    from datetime import datetime
+    from api.services.cache import cache
+
+    today = datetime.now()
+    cache_key = f"market_narrative_{today.strftime('%Y%m%d')}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return {"narrative": cached}
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
 
     try:
-        from datetime import datetime
-        today = datetime.now()
         today_str = today.strftime("%A, %B %d, %Y")
         weekday = today.weekday()
         day_note = ""
@@ -161,7 +172,7 @@ async def market_narrative():
             day_note = " (Saturday — markets closed, summarize Friday's action)"
         elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
-        
+
         client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -182,6 +193,8 @@ async def market_narrative():
             if text.startswith(noise):
                 sentences = text.split(". ")
                 text = ". ".join(s for s in sentences if any(w in s for w in ["S&P", "Nasdaq", "Dow", "market", "stock", "fell", "rose", "gained", "dropped", "declined"]))
+        if text:
+            cache.set(cache_key, text, ttl=1800)
         return {"narrative": text if text else "Market summary unavailable."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
