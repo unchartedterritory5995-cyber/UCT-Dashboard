@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useContext } from 'react'
 import { VoiceContext } from '../../../context/VoiceContext'
+import { formatETFull } from '../../../utils/timeAgo'
 
 
 export default function TradeReviewCard({ review, isLoading, onFeedback, onRegenerate, onForget }) {
@@ -88,7 +89,7 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
           🧭 Compass review
           {review.created_at && (
             <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
-              · {new Date(review.created_at).toLocaleString()}
+              · {formatETFull(review.created_at)}
             </span>
           )}
         </div>

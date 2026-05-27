@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
+import { formatET, formatETFull } from "../utils/timeAgo";
 
 // ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
@@ -2675,7 +2676,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
       if (resp.ok) {
         const data = await resp.json();
-        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
+        data.fetchedAt = formatET(Date.now());
         setGexData(data);
       } else {
         setGexData({ error: `API error: ${resp.status}` });
@@ -2692,7 +2693,7 @@ export default function OptionsFlowDashboard() {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(sym)}&dte=month`);
       if (resp.ok) {
         const data = await resp.json();
-        data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
+        data.fetchedAt = formatET(Date.now());
         setIdeaGex({ sym, data, loading:false });
       } else {
         setIdeaGex({ sym, data:{ error:"API error: "+resp.status }, loading:false });
@@ -6124,7 +6125,7 @@ export default function OptionsFlowDashboard() {
                           {a.action==="score_override" && <span><span style={{ color:P.ac }}>SCORE</span> {Math.round(a.from*10)}% → <span style={{ fontWeight:700, color:P.wh }}>{Math.round(a.to*10)}%</span></span>}
                           {a.action==="notes_added" && <span style={{ color:P.dm }}>Notes added</span>}
                           {a.action==="removed" && <span><span style={{ color:P.be }}>REMOVED</span> — {a.reason}</span>}
-                          <span style={{ color:P.mt, marginLeft:6 }}>{new Date(a.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+                          <span style={{ color:P.mt, marginLeft:6 }}>{formatET(a.at)}</span>
                         </div>
                       ))}
                     </div>

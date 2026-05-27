@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import HighlightThesis from '../utils/highlightThesis'
-import { timeAgo, formatET } from '../utils/timeAgo'
+import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import styles from './CatalystsHistory.module.css'
 

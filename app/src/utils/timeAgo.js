@@ -69,6 +69,65 @@ export function formatET(ts) {
   }).format(d)
 }
 
+/**
+ * Always render just the time-of-day in ET: "9:32 AM EDT".
+ * Unlike formatET, never includes the date — use for "Updated 9:32 AM EDT"
+ * or "Last refresh: 9:32 AM EDT" displays.
+ */
+export function formatETTime(ts) {
+  if (ts === null || ts === undefined || ts === '') return ''
+  let ms
+  if (typeof ts === 'number') {
+    ms = ts < 1e12 ? ts * 1000 : ts
+  } else {
+    ms = new Date(ts).getTime()
+  }
+  if (Number.isNaN(ms)) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  }).format(new Date(ms))
+}
+
+/**
+ * Always render just the date in ET: "May 25, 2026".
+ * Use for date-only displays where time isn't meaningful (e.g. "as of May 25").
+ */
+export function formatETDate(ts) {
+  if (ts === null || ts === undefined || ts === '') return ''
+  let ms
+  if (typeof ts === 'number') {
+    ms = ts < 1e12 ? ts * 1000 : ts
+  } else {
+    ms = new Date(ts).getTime()
+  }
+  if (Number.isNaN(ms)) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: 'short', day: 'numeric',
+  }).format(new Date(ms))
+}
+
+/**
+ * Full date + time in ET: "May 25, 2026, 9:32 AM EDT".
+ * Use for tooltips, audit logs, or anywhere unambiguous absolute is required.
+ */
+export function formatETFull(ts) {
+  if (ts === null || ts === undefined || ts === '') return ''
+  let ms
+  if (typeof ts === 'number') {
+    ms = ts < 1e12 ? ts * 1000 : ts
+  } else {
+    ms = new Date(ts).getTime()
+  }
+  if (Number.isNaN(ms)) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  }).format(new Date(ms))
+}
+
 /** Short variant used by AlertBell: "now / 5m / 2h / 3d" (no "ago"). */
 export function timeAgoShort(ts) {
   if (ts === null || ts === undefined || ts === '') return ''

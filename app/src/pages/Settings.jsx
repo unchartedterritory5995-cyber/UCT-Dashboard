@@ -14,6 +14,7 @@ import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import { useVoice } from '../context/VoiceContext'
+import { formatETDate } from '../utils/timeAgo'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -34,9 +35,7 @@ const THEME_OPTIONS = [
 // ── Helpers ──
 function formatDate(dateStr) {
   if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatETDate(dateStr) || '—'
 }
 
 function daysUntil(dateStr) {

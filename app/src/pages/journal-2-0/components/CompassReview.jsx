@@ -14,6 +14,7 @@
 import { useMemo } from 'react'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
+import { formatETFull } from '../../../utils/timeAgo'
 
 export default function CompassReview({ review, onFeedback, onRegenerate, onForget }) {
   const body = useMemo(() => renderMarkdown(review?.body), [review?.body])
@@ -41,7 +42,7 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           Week of <strong>{review.week_start || review.metadata?.week_start || '—'}</strong>
           {review.created_at && (
-            <> · written {new Date(review.created_at).toLocaleString()}</>
+            <> · written {formatETFull(review.created_at)}</>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { formatETDate } from '../../utils/timeAgo'
 import styles from './VoiceDocumentsPanel.module.css'
 
 /**
@@ -226,7 +227,7 @@ export default function VoiceDocumentsPanel() {
                 <td>{d.chunk_count}</td>
                 <td>{Math.round((d.char_count || 0) / 1000)}k chars</td>
                 <td className={styles.docDate}>
-                  {d.created_at ? new Date(d.created_at).toLocaleDateString() : '—'}
+                  {d.created_at ? formatETDate(d.created_at) : '—'}
                 </td>
                 <td>
                   <button

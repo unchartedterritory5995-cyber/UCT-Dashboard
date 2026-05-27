@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { formatETDate, formatETFull } from '../../utils/timeAgo'
 import styles from './VoiceTelemetryPanel.module.css'
 
 /**
@@ -314,7 +315,7 @@ export default function VoiceTelemetryPanel() {
                 <div className={styles.failureTool}>{f.tool_name}</div>
                 <div className={styles.failureError}>{f.error || '—'}</div>
                 <div className={styles.failureTime}>
-                  {f.created_at ? new Date(f.created_at).toLocaleString() : ''}
+                  {f.created_at ? formatETFull(f.created_at) : ''}
                 </div>
               </div>
             ))}
@@ -339,7 +340,7 @@ export default function VoiceTelemetryPanel() {
                   </div>
                 )}
                 <div className={styles.correctionTime}>
-                  {c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}
+                  {c.created_at ? formatETDate(c.created_at) : ''}
                 </div>
               </li>
             ))}
@@ -357,7 +358,7 @@ export default function VoiceTelemetryPanel() {
                 <span className={styles.fbRating}>{f.rating === 'up' ? '👍' : '👎'}</span>
                 <span className={styles.fbText}>{f.turn_text || f.correction_text || '—'}</span>
                 <span className={styles.fbTime}>
-                  {f.created_at ? new Date(f.created_at).toLocaleDateString() : ''}
+                  {f.created_at ? formatETDate(f.created_at) : ''}
                 </span>
               </li>
             ))}

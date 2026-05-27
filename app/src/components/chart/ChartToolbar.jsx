@@ -5,6 +5,7 @@ import ColorPicker from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import PatternToolbarButton from './PatternToolbarButton'
+import { formatETDate } from '../../utils/timeAgo'
 import styles from './ChartToolbar.module.css'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
@@ -630,8 +631,7 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
 function formatReplayDate(t) {
   if (!t) return ''
   if (typeof t === 'string') return t
-  const d = new Date(t * 1000)
-  return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })
+  return formatETDate(t * 1000)
 }
 
 export default function ChartToolbar({

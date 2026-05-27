@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { formatETDate, formatETFull } from '../../utils/timeAgo'
 import styles from './VoiceInsightsPanel.module.css'
 
 /**
@@ -166,7 +167,7 @@ export default function VoiceInsightsPanel() {
                     importance {i.importance}/10
                   </span>
                   <span className={styles.rowDate}>
-                    {i.created_at ? new Date(i.created_at).toLocaleString() : '—'}
+                    {i.created_at ? formatETFull(i.created_at) : '—'}
                   </span>
                 </div>
                 <div className={styles.rowHeadline}>{i.headline}</div>
@@ -175,7 +176,7 @@ export default function VoiceInsightsPanel() {
                   {isPending && <span className={styles.statusPending}>pending</span>}
                   {!isPending && !isDismissed && i.delivered_at && (
                     <span className={styles.statusDelivered}>
-                      delivered {new Date(i.delivered_at).toLocaleDateString()}
+                      delivered {formatETDate(i.delivered_at)}
                     </span>
                   )}
                   {isDismissed && (

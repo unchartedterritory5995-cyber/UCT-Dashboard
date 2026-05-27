@@ -10,6 +10,7 @@
 
 import { useMemo } from 'react'
 import { renderMarkdown } from '../lib/coachMarkdown'
+import { formatETFull } from '../../../utils/timeAgo'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) {
   const body = useMemo(() => renderMarkdown(recap?.body), [recap?.body])
@@ -39,7 +40,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           {recap.day || recap.metadata?.day || '—'}
           {recap.created_at && (
-            <> · written {new Date(recap.created_at).toLocaleString()}</>
+            <> · written {formatETFull(recap.created_at)}</>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>

@@ -10,6 +10,7 @@ import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import { prefetchBars } from '../utils/prefetchBars'
+import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -1243,9 +1244,7 @@ export default function Breadth() {
 
   const rows = data?.rows ?? []
   const lastUpdated = rows[0]?._created_at
-    ? new Date(rows[0]._created_at + 'Z').toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-      })
+    ? formatETFull(rows[0]._created_at + 'Z')
     : null
   const visibleCols = useMemo(
     () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),

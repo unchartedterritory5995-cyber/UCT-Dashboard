@@ -9,6 +9,7 @@ import {
   deleteIndicatorAlert,
   toggleIndicatorAlert,
 } from '../../hooks/useIndicatorAlerts'
+import { formatET } from '../../utils/timeAgo'
 
 const INDICATORS = [
   { value: 'rsi', label: 'RSI' },
@@ -71,12 +72,7 @@ function conditionLabel(indicator, condition) {
 
 function fmtTriggeredAt(epochSec) {
   if (!epochSec) return null
-  const d = new Date(epochSec * 1000)
-  const now = new Date()
-  const sameDay = d.toDateString() === now.toDateString()
-  return sameDay
-    ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return formatET(epochSec * 1000)
 }
 
 export default function IndicatorAlertPopover({ sym, onClose }) {

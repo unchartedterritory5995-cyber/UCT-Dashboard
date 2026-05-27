@@ -13,6 +13,7 @@ import {
   fmtSignedPct,
 } from '../lib/calendar'
 import { money } from '../../../lib/journal-2-0'
+import { formatETFull } from '../../../utils/timeAgo'
 import styles from './ReportPage.module.css'
 
 const fetcher = (url) =>
@@ -90,7 +91,7 @@ export default function ReportPage() {
           {from && to && (
             <span><strong>Range:</strong> {from} → {to}</span>
           )}
-          <span><strong>Generated:</strong> {new Date().toLocaleString()}</span>
+          <span><strong>Generated:</strong> {formatETFull(Date.now())}</span>
         </div>
       </header>
 

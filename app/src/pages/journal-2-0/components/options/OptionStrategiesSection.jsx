@@ -15,6 +15,7 @@ import {
   prettyStrategyType,
   classifyDebitCredit,
 } from '../../lib/optionCalcs'
+import { formatETDate } from '../../../../utils/timeAgo'
 import StrategyIcon from './StrategyIcon'
 import styles from './OptionStrategiesSection.module.css'
 
@@ -275,7 +276,7 @@ function StrategyRow({
             </td>
             <td>
               {strategy.closedAt
-                ? new Date(strategy.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                ? formatETDate(strategy.closedAt)
                 : '—'}
               {strategy.status !== 'closed' && (
                 <span className={styles.statusTag}> · {strategy.status}</span>

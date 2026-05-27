@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatETFull } from '../../utils/timeAgo'
 import styles from './ChartHealth.module.css'
 
 export default function ChartHealth() {
@@ -184,7 +185,7 @@ export default function ChartHealth() {
         <div className={styles.metric}>
           <div className={styles.label}>Last audit</div>
           <div className={styles.value}>
-            {report ? new Date(report.started_at * 1000).toLocaleString() : 'Never'}
+            {report ? formatETFull(report.started_at * 1000) : 'Never'}
           </div>
         </div>
         <div className={styles.metric}>
@@ -322,8 +323,8 @@ export default function ChartHealth() {
         {provResult && (
           <div className={styles.kv}>
             <div>Source</div><div>{provResult.source}</div>
-            <div>Validated at</div><div>{new Date(provResult.validated_at * 1000).toLocaleString()}</div>
-            <div>Verified at</div><div>{provResult.verified_at ? new Date(provResult.verified_at * 1000).toLocaleString() : 'not yet reconciled'}</div>
+            <div>Validated at</div><div>{formatETFull(provResult.validated_at * 1000)}</div>
+            <div>Verified at</div><div>{provResult.verified_at ? formatETFull(provResult.verified_at * 1000) : 'not yet reconciled'}</div>
           </div>
         )}
       </div>
@@ -363,7 +364,7 @@ export default function ChartHealth() {
             <tbody>
               {alerts.slice(0, 25).map((a, idx) => (
                 <tr key={idx} className={a.severity === 'warning' || a.severity === 'error' ? styles.staleRow : undefined}>
-                  <td>{new Date(a.emitted_at * 1000).toLocaleString()}</td>
+                  <td>{formatETFull(a.emitted_at * 1000)}</td>
                   <td>{a.severity}</td>
                   <td>{a.alert_key}</td>
                   <td>{a.message}</td>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './Admin.module.css'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
+import { formatETDate } from '../utils/timeAgo'
 
 // ── Constants ──
 const FILTERS = [
@@ -40,8 +41,7 @@ function timeAgo(dateString) {
 
 function formatDate(d) {
   if (!d) return '\u2014'
-  const dt = new Date(d)
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatETDate(d) || '\u2014'
 }
 
 function shortDate(d) {

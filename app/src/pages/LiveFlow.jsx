@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { formatETTime } from "../utils/timeAgo";
 import styles from './LiveFlow.module.css';
 
 
@@ -1688,7 +1689,7 @@ export default function LiveFlowDashboard() {
               <span style={{ width:8, height:8, borderRadius:"50%", display:"inline-block", background: wsStatus==="connected" && uwConnected ? "#22c55e" : wsStatus==="connected" ? "#eab308" : "#ef4444", boxShadow: wsStatus==="connected" && uwConnected ? "0 0 6px #22c55e88" : "none", animation: wsStatus==="connected" && uwConnected ? "wsPulse 2s ease-in-out infinite" : "none" }} />
               {wsStatus==="connected" && uwConnected ? "Live" : wsStatus==="connected" ? "UW…" : "Offline"}
             </div>
-            {lastRefresh && <span style={{ fontSize:9, color:P.dm }}>Updated {lastRefresh.toLocaleTimeString()}</span>}
+            {lastRefresh && <span style={{ fontSize:9, color:P.dm }}>Updated {formatETTime(lastRefresh)}</span>}
 
             <button onClick={()=>setRefreshKey(k=>k+1)} disabled={csvLoading}
               style={{ padding:"5px 14px", borderRadius:5, border:"none", cursor:csvLoading?"not-allowed":"pointer",

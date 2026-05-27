@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { formatETFull } from '../../utils/timeAgo'
 import styles from './VoiceSessionsPanel.module.css'
 
 /**
@@ -84,7 +85,7 @@ export default function VoiceSessionsPanel() {
               <div className={styles.rowHeader}>
                 <span className={styles.rowCtx}>{(s.page_context || 'global').replace('_', ' ')}</span>
                 <span className={styles.rowDate}>
-                  {s.started_at ? new Date(s.started_at).toLocaleString() : '—'}
+                  {s.started_at ? formatETFull(s.started_at) : '—'}
                 </span>
               </div>
               <div className={styles.rowMeta}>

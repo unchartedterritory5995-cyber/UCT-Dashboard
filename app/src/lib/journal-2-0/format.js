@@ -82,30 +82,42 @@ export const shares = (n, allowFractional) => {
 }
 
 /**
- * Date for table cells: MM/DD/YY.
+ * Date for table cells: MM/DD/YY in ET. Trade dates from the J2 backend
+ * are anchored at ET noon UTC, so rendering them in the viewer's local
+ * tz could shift the displayed day. Use ET so the table always shows
+ * the trading day the user intended.
  * @param {string|Date|null|undefined} d
  */
 export const dateShort = (d) => {
   if (!d) return DASH
   const date = typeof d === 'string' ? new Date(d) : d
   if (Number.isNaN(date.getTime())) return DASH
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const yy = String(date.getFullYear()).slice(-2)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    month: '2-digit', day: '2-digit', year: '2-digit',
+  }).formatToParts(date)
+  const mm = parts.find(p => p.type === 'month')?.value || '01'
+  const dd = parts.find(p => p.type === 'day')?.value || '01'
+  const yy = parts.find(p => p.type === 'year')?.value || '00'
   return `${mm}/${dd}/${yy}`
 }
 
 /**
- * Date for modal/form inputs: MM/DD/YYYY.
+ * Date for modal/form inputs: MM/DD/YYYY in ET. See dateShort for why
+ * ET is the right zone here.
  * @param {string|Date|null|undefined} d
  */
 export const dateLong = (d) => {
   if (!d) return DASH
   const date = typeof d === 'string' ? new Date(d) : d
   if (Number.isNaN(date.getTime())) return DASH
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const yyyy = String(date.getFullYear())
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    month: '2-digit', day: '2-digit', year: 'numeric',
+  }).formatToParts(date)
+  const mm = parts.find(p => p.type === 'month')?.value || '01'
+  const dd = parts.find(p => p.type === 'day')?.value || '01'
+  const yyyy = parts.find(p => p.type === 'year')?.value || '1970'
   return `${mm}/${dd}/${yyyy}`
 }
 
