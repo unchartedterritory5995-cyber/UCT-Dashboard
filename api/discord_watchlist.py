@@ -36,7 +36,7 @@ _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
 # Dim dotted separator
-SEP_FULL = "╌" * 30
+SEP_FULL = "╌" * 25
 SEP_COMPACT = "╌" * 16
 
 
