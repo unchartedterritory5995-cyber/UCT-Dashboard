@@ -35,48 +35,70 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — short enough for inline fields on PC
-SEP_RAW = "╌" * 12
+# Dim dotted separator
+SEP_FULL = "╌" * 24
+SEP_COMPACT = "╌" * 16
 
 
-def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
-    """Build a compact aligned monospace table for Discord code blocks."""
+def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact: bool = False) -> str:
+    """
+    Build a monospace table for Discord code blocks.
+    compact=True: for inline fields (~18 char width) — ticker + strike/cp + prem only.
+    compact=False: full row — ticker + exp + strike/cp + prem + date.
+    """
     prem_color = _GREEN_A if side == "bull" else _RED_A
-    sep_line = f"{_DIM}{SEP_RAW}{_RESET}"
+    sep_raw = SEP_COMPACT if compact else SEP_FULL
+    sep_line = f"{_DIM}{sep_raw}{_RESET}"
 
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(6)
-
         strike_val = item.get("strike")
-        if strike_val and str(strike_val).strip():
-            cp = (item.get("cp") or "?")[0].upper()
-            try:
-                sv = float(strike_val)
-                strike_num = str(int(sv)) if sv == int(sv) else f"{sv:g}"
-            except (ValueError, TypeError):
-                strike_num = ""
-            exp = _fmt_exp(item.get("exp") or "")
-            prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(5)} {(strike_num + cp).ljust(6)} {prem_color}{prem.rjust(6)}{_RESET}"
+        prem_raw = float(item.get("prem") or 0)
+
+        if compact:
+            sym = (item.get("sym") or "???").ljust(5)
+            if strike_val and str(strike_val).strip():
+                cp = (item.get("cp") or "?")[0].upper()
+                try:
+                    sv = float(strike_val)
+                    sn = str(int(sv)) if sv == int(sv) else f"{sv:g}"
+                except (ValueError, TypeError):
+                    sn = ""
+                prem = _fmt_short(prem_raw)
+                row = f"{sym}{(sn + cp).ljust(6)}{prem_color}{prem.rjust(5)}{_RESET}"
+            else:
+                row = f"{sym}—"
         else:
-            contract = "—"
+            sym = (item.get("sym") or "???").ljust(6)
+            if strike_val and str(strike_val).strip():
+                cp = (item.get("cp") or "?")[0].upper()
+                try:
+                    sv = float(strike_val)
+                    sn = str(int(sv)) if sv == int(sv) else f"{sv:g}"
+                except (ValueError, TypeError):
+                    sn = ""
+                exp = _fmt_exp(item.get("exp") or "")
+                prem = _fmt(prem_raw)
+                contract = f"{exp.ljust(5)} {(sn + cp).ljust(6)} {prem_color}{prem.rjust(6)}{_RESET}"
+            else:
+                contract = "—"
 
-        # Entry date — compact M/D format
-        date_str = ""
-        for field in ("firstDate", "date", "entryDate"):
-            raw = item.get(field) or ""
-            if raw:
-                fmt = _fmt_exp(raw)
-                if fmt and fmt != "?":
-                    date_str = fmt
-                    break
-        if not date_str:
-            age = item.get("age") or ""
-            if age:
-                date_str = age
+            # Entry date
+            date_str = ""
+            for field in ("firstDate", "date", "entryDate"):
+                raw = item.get(field) or ""
+                if raw:
+                    fmt = _fmt_exp(raw)
+                    if fmt and fmt != "?":
+                        date_str = fmt
+                        break
+            if not date_str:
+                age = item.get("age") or ""
+                if age:
+                    date_str = age
 
-        row = f"{sym}{contract} {date_str}" if date_str else f"{sym}{contract}"
+            row = f"{sym}{contract} {date_str}" if date_str else f"{sym}{contract}"
+
         lines.append(row)
 
         if i < min(len(items), limit):
@@ -90,6 +112,16 @@ def _fmt(n: float) -> str:
         if a >= 10e6:
             return f"${a / 1e6:.0f}M"
         return f"${a / 1e6:.1f}M"
+    if a >= 1e3:
+        return f"${a / 1e3:.0f}K"
+    return f"${a:.0f}"
+
+
+def _fmt_short(n: float) -> str:
+    """Ultra-compact premium format for inline fields — no decimals."""
+    a = abs(n)
+    if a >= 1e6:
+        return f"${a / 1e6:.0f}M"
     if a >= 1e3:
         return f"${a / 1e3:.0f}K"
     return f"${a:.0f}"
@@ -211,8 +243,8 @@ def build_messages(
             }
             if right:
                 bull_embed["fields"] = [
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bull')}\n```", "inline": True},
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bull')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bull', compact=True)}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bull', compact=True)}\n```", "inline": True},
                 ]
             else:
                 bull_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bull')}\n```"
@@ -228,8 +260,8 @@ def build_messages(
             }
             if right:
                 bear_embed["fields"] = [
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bear')}\n```", "inline": True},
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bear')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bear', compact=True)}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bear', compact=True)}\n```", "inline": True},
                 ]
             else:
                 bear_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bear')}\n```"
