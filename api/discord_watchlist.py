@@ -87,6 +87,8 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
 def _fmt(n: float) -> str:
     a = abs(n)
     if a >= 1e6:
+        if a >= 10e6:
+            return f"${a / 1e6:.0f}M"
         return f"${a / 1e6:.1f}M"
     if a >= 1e3:
         return f"${a / 1e3:.0f}K"
