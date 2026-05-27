@@ -35,54 +35,50 @@ _WHITE_A = "\u001b[1;37m"
 _DIM = "\u001b[2;37m"
 _RESET = "\u001b[0m"
 
-# Dim dotted separator — compact for mobile (~32 chars)
-SEP_RAW = "╌" * 32
+# Dim dotted separator — compact for mobile (~28 chars)
+SEP_RAW = "╌" * 28
 
 
 def _build_table(items: list[dict], limit: int = 10, side: str = "bull") -> str:
-    """Build a compact monospace table with dim separators and colored premium."""
+    """Build a compact monospace table — no padding, fits Discord mobile ~26-char code blocks."""
     prem_color = _GREEN_A if side == "bull" else _RED_A
     sep_line = f"{_DIM}{SEP_RAW}{_RESET}"
 
     lines = []
     for i, item in enumerate(items[:limit], 1):
-        sym = (item.get("sym") or "???").ljust(4)
+        sym = (item.get("sym") or "???")
 
         strike_val = item.get("strike")
         if strike_val and str(strike_val).strip():
             cp = (item.get("cp") or "?")[0].upper()
             try:
-                strike = _fmt_strike(float(strike_val))
+                sv = float(strike_val)
+                strike_num = str(int(sv)) if sv == int(sv) else f"{sv:g}"
             except (ValueError, TypeError):
-                strike = ""
+                strike_num = ""
             exp = _fmt_exp(item.get("exp") or "")
             prem = _fmt(float(item.get("prem") or 0))
-            contract = f"{exp.ljust(4)} {strike.ljust(6)}{cp} {prem_color}{prem.rjust(5)}{_RESET}"
+            contract = f"{exp} {strike_num}{cp} {prem_color}{prem}{_RESET}"
         else:
             contract = "—"
 
         score = float(item.get("score") or item.get("autoScore") or 0)
-        grade = _conviction_grade(score)
-        grade_color = _YELLOW_A if grade in ("A+", "A") else _WHITE_A
-        grade_str = f"{grade_color}{grade.ljust(2)}{_RESET}"
 
-        # Entry date — try multiple fields
-        entry_date = ""
+        # Entry date — compact M/D format
+        date_str = ""
         for field in ("firstDate", "date", "entryDate"):
             raw = item.get(field) or ""
             if raw:
-                entry_date = _fmt_exp(raw)
-                if entry_date and entry_date != "?":
+                fmt = _fmt_exp(raw)
+                if fmt and fmt != "?":
+                    date_str = fmt
                     break
-                entry_date = ""
-        # Fallback: if age field exists (e.g. "3d"), show it
-        if not entry_date:
+        if not date_str:
             age = item.get("age") or ""
             if age:
-                entry_date = age
-        date_str = f" {entry_date}" if entry_date else ""
+                date_str = age
 
-        row = f"{sym}{contract} {grade_str}{date_str}"
+        row = f"{sym} {contract} {date_str}" if date_str else f"{sym} {contract}"
         lines.append(row)
 
         if i < min(len(items), limit):
