@@ -6252,15 +6252,6 @@ export default function OptionsFlowDashboard() {
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
                     {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
                   </button>
-                  <button onClick={screenshotWatchlist}
-                    style={{ padding:"5px 14px", borderRadius:"5px 0 0 5px", border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
-                    📸 Copy
-                  </button>
-                  <button onClick={screenshotPushDiscord} disabled={discordImgPushing}
-                    style={{ padding:"5px 10px", borderRadius:"0 5px 5px 0", border:"none", background:discordImgPushing?"#5865F266":"#5865F2", color:"#fff",
-                      fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:discordImgPushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                    {discordImgPushing ? "📸 …" : "📸 Discord"}
-                  </button>
                 </div>
               </div>
             </Card>
