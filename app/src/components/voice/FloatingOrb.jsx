@@ -3,6 +3,7 @@ import { useVoice } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
+import VisionAttachButton from './VisionAttachButton'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -228,6 +229,7 @@ export default function FloatingOrb({ context = 'global' }) {
           🎓
         </button>
       )}
+      {!inSession && <VisionAttachButton />}
       {!inSession && <AgentPicker />}
       {inTrainMode && (
         <div className={styles.trainBadge}>Training</div>

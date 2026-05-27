@@ -1,0 +1,139 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(0, 0, 0, 0.4);
+  color: #c9a84c;
+  font-size: 14px;
+  line-height: 26px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 120ms, transform 120ms;
+  padding: 0;
+}
+.btn:hover {
+  opacity: 1;
+  transform: scale(1.08);
+  border-color: #c9a84c;
+}
+.btn:focus-visible {
+  outline: 2px solid #c9a84c;
+  outline-offset: 2px;
+}
+
+.popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  max-height: 480px;
+  overflow-y: auto;
+  background: rgba(15, 15, 18, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 9000;
+  padding: 12px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.busy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.busyLabel {
+  color: #c9a84c;
+  font-size: 12px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(201, 168, 76, 0.25);
+  border-top-color: #c9a84c;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error { padding: 4px 0; }
+.errorTitle {
+  color: #ef4444;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.errorBody {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.preview {
+  width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #c9a84c;
+}
+.confidence {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.narration {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.levels {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rec {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+  .btn { transition: none; }
+}
