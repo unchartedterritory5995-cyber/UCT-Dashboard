@@ -387,6 +387,11 @@ def _compass_tool_union() -> set[str]:
     out.add("get_short_interest")        # yfinance + FINRA
     out.add("get_insider_clusters")      # OpenInsider scrape
     out.add("get_social_sentiment")      # one-call aggregate of all three social
+    # Phase 3 Sprint 5: proactive layer — Discord relay, morning briefing,
+    # voice persona introspection.
+    out.add("post_to_discord")
+    out.add("play_my_morning_briefing")
+    out.add("list_voice_personas")
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")

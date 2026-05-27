@@ -374,6 +374,41 @@ def _web_search(query: str = "", max_tokens: int = 400,
     }
 
 
+def _post_to_discord(*, user, message: str = "", embed_title: str = "") -> dict:
+    """Post a message to the configured Discord channel via webhook.
+    Rate-limited 5/min/user."""
+    if not message or not (message := message.strip()):
+        return {"error": "message required"}
+    try:
+        from api.services.discord_relay import post_message
+        return post_message(user_id=user["id"], message=message,
+                           embed_title=embed_title or None)
+    except Exception as e:
+        _log.warning("post_to_discord failed: %s", e)
+        return {"error": f"discord relay failed: {e}"}
+
+
+def _play_my_morning_briefing(*, user) -> dict:
+    """Generate (or fetch cached) morning briefing for the user. Returns
+    {date, script, sections}. Compass reads `script` verbatim."""
+    try:
+        from api.services.voice_briefings_proactive import build_briefing
+        return build_briefing(user["id"])
+    except Exception as e:
+        _log.warning("play_my_morning_briefing failed: %s", e)
+        return {"error": f"briefing unavailable: {e}"}
+
+
+def _list_voice_personas() -> dict:
+    """List available voice personas (PM / Coach / Analyst / Devil's Advocate)."""
+    try:
+        from api.services.voice_personas import list_personas
+        items = list_personas()
+        return {"count": len(items), "personas": items}
+    except Exception as e:
+        return {"error": str(e), "personas": []}
+
+
 def _reddit_sentiment(ticker: str = "", hours: int = 24) -> dict:
     """Reddit retail sentiment (r/wsb / r/stocks / r/options / r/investing /
     r/thetagang) for a ticker. Returns bull/bear markers, score, samples."""
@@ -2259,6 +2294,48 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="post_to_discord",
+        description=(
+            "Post a message to the user's configured Discord channel (via "
+            "DISCORD_WEBHOOK_URL). Rate-limited 5/min/user. Use for 'post "
+            "this to my trading group', 'share this take on Discord'. "
+            "Pass embed_title to send as a styled embed; omit for plain text."
+        ),
+        parameters={
+            "message": {"type": "string", "description": "Message body (max 1800 chars)."},
+            "embed_title": {"type": "string", "description": "Optional embed title — sends as a styled embed instead of plain text."},
+        },
+        contexts=["global"],
+        wants_user=True,
+    )(_post_to_discord)
+
+    _vt.voice_tool(
+        name="play_my_morning_briefing",
+        description=(
+            "Generate (or fetch cached) the user's morning briefing — regime, "
+            "open positions, this-week focus, active interventions, overnight "
+            "news, top catalysts. Returns a 40-60 second voice script. Call "
+            "for 'give me my morning briefing', 'what should I know this "
+            "morning', 'brief me for the open'. Cached 8 hrs per day."
+        ),
+        parameters={},
+        contexts=["global"],
+        wants_user=True,
+    )(_play_my_morning_briefing)
+
+    _vt.voice_tool(
+        name="list_voice_personas",
+        description=(
+            "List available voice personas — PM (decisive default), Coach "
+            "(Socratic), Analyst (data-first), Devil's Advocate (challenges "
+            "thesis). To switch persona, the user must reload with ?persona=X "
+            "or use the persona picker UI."
+        ),
+        parameters={},
+        contexts=["global"],
+    )(_list_voice_personas)
 
     _vt.voice_tool(
         name="reddit_sentiment",

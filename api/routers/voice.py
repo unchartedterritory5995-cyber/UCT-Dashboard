@@ -703,6 +703,9 @@ class SessionTokenRequest(BaseModel):
     # Compass's system prompt so it can answer in-page questions without
     # the user having to spell out context.
     page_hint: str | None = None
+    # Phase 3 Sprint 5: voice persona selector. None or unknown → default
+    # PM voice; valid values: "pm" | "coach" | "analyst" | "devil".
+    persona: str | None = None
 
 
 class ExecRequest(BaseModel):
@@ -965,6 +968,16 @@ def session_token(
         session_instructions = session_instructions + "\n\n" + gap_block
     if trader_state_block:
         session_instructions = session_instructions + "\n\n" + trader_state_block
+
+    # Phase 3 Sprint 5: persona addendum (PM / Coach / Analyst / Devil)
+    if ctx != "train_me":
+        try:
+            from api.services.voice_personas import get_addendum
+            persona_addendum = get_addendum(body.persona)
+            if persona_addendum:
+                session_instructions = session_instructions + persona_addendum
+        except Exception as e:
+            _log.warning("[session_token] persona addendum failed: %s", e)
     if insight_lines:
         session_instructions = session_instructions + (
             "\n\n=== PROACTIVE INSIGHTS FOR THIS SESSION ===\n"
