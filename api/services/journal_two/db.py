@@ -8,7 +8,11 @@ never touched.
 Spec §4 (data model), audit §5 (schema commitment).
 """
 
+import json
+import os
 import sqlite3
+import uuid
+from pathlib import Path
 
 
 _J2_SCHEMA = """
@@ -474,3 +478,157 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             if "duplicate column" not in msg and "already exists" not in msg:
                 raise
     conn.commit()
+
+    try:
+        run_notebook_migration_v1(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration] aborted: {e}")
+
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("DATA_DIR", "/data"))
+
+
+def run_notebook_migration_v1(conn: sqlite3.Connection) -> None:
+    """One-shot migration: convert every j2_playbook_entries row into
+    a j2_notes row. Idempotent via .notebook_migration_v1 flag file.
+    Safe to call on every startup.
+
+    The old j2_playbook_entries table is left in place as a backup —
+    manual DROP TABLE after ~30 days of green prod."""
+    flag = _data_dir() / ".notebook_migration_v1"
+    try:
+        if flag.exists():
+            return
+    except Exception:
+        # If /data isn't writable, fall through — we still need to try
+        # in dev. The flag isn't strictly required for correctness
+        # because the inner loop is row-by-row idempotent.
+        pass
+
+    # Check the old table actually exists (fresh installs won't have it).
+    table_row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='j2_playbook_entries'"
+    ).fetchone()
+    if table_row is None:
+        # Nothing to migrate — still touch the flag so we don't keep
+        # poking sqlite_master.
+        try:
+            flag.parent.mkdir(parents=True, exist_ok=True)
+            flag.touch()
+        except Exception:
+            pass
+        return
+
+    # Lazy import to avoid cycles (notes imports from this module's caller chain).
+    from api.services.journal_two.notes import (
+        convert_playbook_to_tiptap, extract_plain_text,
+    )
+
+    migrated = 0
+    skipped = 0
+    errored = 0
+
+    # Use a fresh row factory if not set (defensive).
+    prev_row_factory = conn.row_factory
+    if prev_row_factory is None:
+        conn.row_factory = sqlite3.Row
+
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_playbook_entries ORDER BY created_at ASC"
+        ).fetchall()
+    finally:
+        conn.row_factory = prev_row_factory
+
+    for row in rows:
+        try:
+            # Normalize row access — works for both sqlite3.Row and tuple.
+            def _v(key, default=None):
+                try:
+                    return row[key]
+                except (KeyError, IndexError, TypeError):
+                    return default
+
+            user_id = _v("user_id")
+            symbol = _v("symbol") or ""
+            observed = _v("observed_date") or ""
+            setup = _v("setup")
+            thesis = _v("thesis") or ""
+            status = _v("status")
+            levels_raw = _v("levels") or "{}"
+            attachments_raw = _v("attachments") or "[]"
+            notes_raw = _v("notes") or ""
+            created_at = _v("created_at")
+            updated_at = _v("updated_at")
+            row_id = _v("id")
+
+            entry = {
+                "id": row_id,
+                "userId": user_id,
+                "symbol": symbol,
+                "observedDate": observed,
+                "setup": setup,
+                "thesis": thesis,
+                "levels": json.loads(levels_raw) if levels_raw else {},
+                "status": status,
+                "attachments": json.loads(attachments_raw) if attachments_raw else [],
+                "notes": notes_raw,
+            }
+
+            title = (
+                f"{symbol} {setup} — {observed}".strip() if setup
+                else (f"{symbol} — {observed}" if symbol and observed else (symbol or "Note"))
+            )
+
+            # Idempotency check: if a note with the same user_id/title/created_at
+            # already exists, skip (this handles partial retry of a crashed run).
+            exists = conn.execute(
+                "SELECT 1 FROM j2_notes WHERE user_id = ? AND title = ? AND created_at = ?",
+                (user_id, title, created_at),
+            ).fetchone()
+            if exists:
+                skipped += 1
+                continue
+
+            doc = convert_playbook_to_tiptap(entry)
+            body_plain = extract_plain_text(doc)
+
+            hero = None
+            for att in entry["attachments"]:
+                if isinstance(att, dict) and att.get("kind") == "image" and att.get("url"):
+                    hero = att["url"]
+                    break
+
+            tags = [status] if status else []
+
+            new_id = uuid.uuid4().hex
+            conn.execute(
+                """
+                INSERT INTO j2_notes (
+                    id, user_id, account_id, folder_id, title, subtitle,
+                    body_json, body_plain, hero_image_url, ticker, tags,
+                    created_at, updated_at
+                ) VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    new_id, user_id, title, setup,
+                    json.dumps(doc), body_plain, hero, symbol or None,
+                    json.dumps(tags), created_at, updated_at,
+                ),
+            )
+            migrated += 1
+        except Exception as e:  # noqa: BLE001 — defensive, never crash startup
+            errored += 1
+            print(f"[notebook-migration] row failed: {e}")
+
+    conn.commit()
+    print(f"[notebook-migration] migrated={migrated} skipped={skipped} errored={errored}")
+
+    if errored == 0:
+        try:
+            flag.parent.mkdir(parents=True, exist_ok=True)
+            flag.touch()
+        except Exception:
+            pass
