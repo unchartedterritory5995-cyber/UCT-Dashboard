@@ -233,38 +233,22 @@ def build_messages(
             ],
         })
 
-        # Embed 2: Bull watchlist (green sidebar) — 2 columns via inline fields
+        # Embed 2: Bull watchlist (green sidebar) — single column, all items
         if bull_sorted:
-            left = bull_sorted[:10]
-            right = bull_sorted[10:20]
             bull_embed = {
                 "color": GREEN,
                 "title": f"🟢 BULL WATCHLIST",
+                "description": f"```ansi\n{_build_table(bull_sorted, 20, 'bull')}\n```",
             }
-            if right:
-                bull_embed["fields"] = [
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bull')}\n```", "inline": True},
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bull')}\n```", "inline": True},
-                ]
-            else:
-                bull_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bull')}\n```"
             embeds.append(bull_embed)
 
-        # Embed 3: Bear watchlist (red sidebar) — 2 columns via inline fields
+        # Embed 3: Bear watchlist (red sidebar) — single column, all items
         if bear_sorted:
-            left = bear_sorted[:10]
-            right = bear_sorted[10:20]
             bear_embed = {
                 "color": RED,
                 "title": f"🔴 BEAR WATCHLIST",
+                "description": f"```ansi\n{_build_table(bear_sorted, 20, 'bear')}\n```",
             }
-            if right:
-                bear_embed["fields"] = [
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bear')}\n```", "inline": True},
-                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bear')}\n```", "inline": True},
-                ]
-            else:
-                bear_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bear')}\n```"
             embeds.append(bear_embed)
 
         # Footer on last embed
