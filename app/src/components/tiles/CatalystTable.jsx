@@ -359,7 +359,7 @@ export default function CatalystTable() {
 
       {allRows.length === 0 ? (
         <div className={styles.empty}>
-          No catalysts yet. Engine refreshes every 5 min during market hours.
+          No catalysts yet. Click the ↻ refresh button to pull fresh data.
         </div>
       ) : filteredRows.length === 0 ? (
         <div className={styles.empty}>
