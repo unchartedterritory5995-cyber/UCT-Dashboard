@@ -1784,6 +1784,7 @@ export default function OptionsFlowDashboard() {
 
   const wlPopulateUnusual = () => {
     if (!FD || !FD.CONV) return;
+    const dateMap = _buildDateMap();
     // Build unusual items same way as Unusual tab
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
@@ -1800,18 +1801,26 @@ export default function OptionsFlowDashboard() {
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const tickerSeen = new Set();
     const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
-    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
-      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
-      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
-    }));
-    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
-      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
-      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[]
-    }));
+    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
+      const ds = _extractDateSpot(c, dateMap);
+      return {
+        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+        dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+      };
+    });
+    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
+      const ds = _extractDateSpot(c, dateMap);
+      return {
+        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+        dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+      };
+    });
     setWlBull(bulls);
     setWlBear(bears);
   };
