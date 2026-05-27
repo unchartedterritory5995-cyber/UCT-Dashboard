@@ -20,7 +20,7 @@ import TradeJournalTab from './tabs/TradeJournalTab'
 import CalendarTab from './tabs/CalendarTab'
 import AccountsTab from './tabs/AccountsTab'
 import AnalyticsTab from './tabs/AnalyticsTab'
-import PlaybookTab from './tabs/PlaybookTab'
+import NotebookTab from './tabs/NotebookTab'
 import CompassTab from './tabs/CompassTab'
 import CommunityTab from './tabs/CommunityTab'
 import AccountSelector from './components/accounts/AccountSelector'
@@ -36,7 +36,7 @@ const NESTED_TABS = [
   { key: 'calendar', label: '📅 Calendar' },
   { key: 'accounts', label: '💼 Accounts' },
   { key: 'analytics', label: '📈 Analytics' },
-  { key: 'playbook', label: '📚 Playbook' },
+  { key: 'notebook', label: '📓 Notebook' },
   { key: 'compass', label: '🧭 Compass' },
   { key: 'community', label: '🌐 Community' },
 ]
@@ -83,7 +83,7 @@ export default function JournalTwoRoot() {
   useHotkeys('g>a', () => setNestedTab('calendar'))
   useHotkeys('g>t', () => setNestedTab('accounts'))
   useHotkeys('g>y', () => setNestedTab('analytics'))
-  useHotkeys('g>b', () => setNestedTab('playbook'))
+  useHotkeys('g>n', () => setNestedTab('notebook'))
   useHotkeys('g>k', () => setNestedTab('compass'))
   useHotkeys('g>c', () => setNestedTab('community'))
 
@@ -176,7 +176,7 @@ export default function JournalTwoRoot() {
           <AccountsTab onNewAccount={() => setShowNewAccount(true)} />
         )}
         {nestedTab === 'analytics' && <AnalyticsTab />}
-        {nestedTab === 'playbook' && <PlaybookTab />}
+        {nestedTab === 'notebook' && <NotebookTab />}
         {nestedTab === 'compass' && <CompassTab />}
         {nestedTab === 'community' && <CommunityTab />}
       </div>
