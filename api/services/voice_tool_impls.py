@@ -207,11 +207,20 @@ def _deep_research(question: str = "", ticker: str = "") -> dict:
 
 
 def _list_option_expirations(ticker: str = "") -> dict:
+    """Upcoming option expirations via Polygon (Massive Advanced)."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        from api.services.options_chain import list_expirations
-        return list_expirations(ticker)
+        # Polygon primary — institutional data
+        from api.services.polygon_options import list_expirations
+        result = list_expirations(ticker)
+        if not result.get("error"):
+            return result
+        # Fallback to yfinance if Polygon is down / unconfigured
+        _log.info("polygon expirations failed, falling back to yfinance: %s",
+                  result.get("error"))
+        from api.services.options_chain import list_expirations as yf_list
+        return yf_list(ticker)
     except Exception as e:
         _log.warning("list_option_expirations failed: %s", e)
         return {"error": f"options unavailable: {e}"}
@@ -219,12 +228,21 @@ def _list_option_expirations(ticker: str = "") -> dict:
 
 def _get_option_chain(ticker: str = "", expiration: str = "",
                      strikes_around_spot: int = 6) -> dict:
+    """Option chain with REAL Greeks + IV + OI via Polygon (Massive Advanced).
+    Falls back to yfinance + Black-Scholes if Polygon is unavailable."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        from api.services.options_chain import get_chain
-        return get_chain(ticker, expiration=expiration or "",
-                         strikes_around_spot=strikes_around_spot or 6)
+        from api.services.polygon_options import get_chain
+        result = get_chain(ticker, expiration=expiration or "",
+                          strikes_around_spot=strikes_around_spot or 6)
+        if not result.get("error"):
+            return result
+        _log.info("polygon chain failed, falling back to yfinance: %s",
+                  result.get("error"))
+        from api.services.options_chain import get_chain as yf_chain
+        return yf_chain(ticker, expiration=expiration or "",
+                       strikes_around_spot=strikes_around_spot or 6)
     except Exception as e:
         _log.warning("get_option_chain failed: %s", e)
         return {"error": f"options chain unavailable: {e}"}
@@ -232,15 +250,37 @@ def _get_option_chain(ticker: str = "", expiration: str = "",
 
 def _get_option_contract(ticker: str = "", strike: float = 0,
                          expiration: str = "", call_or_put: str = "call") -> dict:
+    """Single option contract with REAL Greeks via Polygon. Falls back to
+    yfinance + Black-Scholes if Polygon unavailable."""
     if not ticker or not strike or not expiration:
         return {"error": "ticker, strike, expiration required"}
     try:
-        from api.services.options_chain import get_contract
-        return get_contract(ticker, strike=float(strike), expiration=expiration,
-                            call_or_put=call_or_put or "call")
+        from api.services.polygon_options import get_contract
+        result = get_contract(ticker, strike=float(strike), expiration=expiration,
+                             call_or_put=call_or_put or "call")
+        if not result.get("error"):
+            return result
+        _log.info("polygon contract failed, falling back to yfinance: %s",
+                  result.get("error"))
+        from api.services.options_chain import get_contract as yf_contract
+        return yf_contract(ticker, strike=float(strike), expiration=expiration,
+                          call_or_put=call_or_put or "call")
     except Exception as e:
         _log.warning("get_option_contract failed: %s", e)
         return {"error": f"option contract unavailable: {e}"}
+
+
+def _get_polygon_news(ticker: str = "", limit: int = 10,
+                     sentiment: str = "") -> dict:
+    """Institutional news feed via Polygon (Massive Advanced) with
+    per-ticker sentiment classification + reasoning."""
+    try:
+        from api.services.polygon_news import get_news
+        return get_news(ticker=ticker or "", limit=limit or 10,
+                       sentiment=sentiment or "")
+    except Exception as e:
+        _log.warning("get_polygon_news failed: %s", e)
+        return {"error": f"polygon news unavailable: {e}", "items": []}
 
 
 def _search_news(query: str = "", count: int = 5) -> dict:
@@ -2173,19 +2213,39 @@ def _register_all() -> None:
     _vt.voice_tool(
         name="get_option_chain",
         description=(
-            "Option chain for a ticker on a specific expiration with bid/ask, "
-            "IV, open interest, volume, AND Greeks (delta, gamma, theta, vega, "
-            "rho) computed via Black-Scholes. Returns N strikes around spot for "
-            "both calls and puts. Call for 'show me the NVDA call chain', "
-            "'what does the put side look like', 'IV on weekly TSLA calls'."
+            "Option chain for a ticker — REAL exchange-derived Greeks (delta, "
+            "gamma, theta, vega), IV, open interest, bid/ask, volume, VWAP, "
+            "break-even via Polygon (Massive Advanced, $200/mo tier). Falls "
+            "back to yfinance + Black-Scholes if Polygon down. Returns N "
+            "strikes around spot for both calls and puts."
         ),
         parameters={
             "ticker": {"type": "string"},
             "expiration": {"type": "string", "description": "YYYY-MM-DD. Omit for nearest expiration."},
-            "strikes_around_spot": {"type": "integer", "description": "How many strikes either side (default 6, max 15)."},
+            "strikes_around_spot": {"type": "integer", "description": "How many strikes either side (default 6, max 20)."},
         },
         contexts=["global"],
     )(_get_option_chain)
+
+    _vt.voice_tool(
+        name="get_polygon_news",
+        description=(
+            "Institutional news feed via Polygon (Massive Advanced) — richer "
+            "than RSS / cached news. Each article includes publisher + tickers "
+            "mentioned + PER-TICKER sentiment classification (positive / "
+            "negative / neutral) + sentiment_reasoning text. Filter by ticker "
+            "and/or sentiment. Use as the FIRST stop for any 'news on X' "
+            "question — sharper than search_finance_news for ticker-specific "
+            "queries since it's structured ticker-aware data."
+        ),
+        parameters={
+            "ticker": {"type": "string", "description": "Optional ticker filter."},
+            "limit": {"type": "integer", "description": "Max articles (default 10, max 50)."},
+            "sentiment": {"type": "string", "enum": ["positive", "negative", "neutral"],
+                          "description": "Optional sentiment filter."},
+        },
+        contexts=["global"],
+    )(_get_polygon_news)
 
     _vt.voice_tool(
         name="get_option_contract",
