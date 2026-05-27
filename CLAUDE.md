@@ -43,9 +43,10 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_accounts` — multi-account model (per-account sizing/setups/goals/fees)
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
-  - `j2_playbook_entries` — stock observation library (Prep → Plan → Trade → Recap)
+  - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`).
+  - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
   - `j2_option_strategies`, `j2_option_legs` — Pattern C multi-leg options
-- **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, Playbook, **Options multi-leg**)
+- **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, ~~Playbook~~ → **Notebook**, Options multi-leg)
 - **Specs:** `docs/superpowers/specs/` (newer specs; e.g. `2026-04-19-options-multi-leg-design.md`) + `docs/plans/journal-2.0-spec.md` (original)
 - **Architecture:** `docs/journal-2.0-architecture.md`
 - **Cherry-picking reference:** `docs/feature-blending-guide.md`
@@ -66,7 +67,7 @@ Open the last tab to try it. All existing Journal tabs behave identically to bef
 
 ### Journal 2.0 — Compass Coaching Layer (Phases A–G, shipped 2026-05-08 → 2026-05-12)
 
-J2 is now a full coaching product: Journal + Playbook + AI Coach. **10 distinct coaching surfaces** powered by Anthropic Sonnet 4.6 with server-side hallucination audit + sample-size confidence + regime awareness.
+J2 is now a full coaching product: Journal + Notebook + AI Coach. **10 distinct coaching surfaces** powered by Anthropic Sonnet 4.6 with server-side hallucination audit + sample-size confidence + regime awareness.
 
 - **Source:** `api/services/journal_two/coach*.py` (coach, coach_chat, coach_chat_tools, coach_prompts, coach_validation, coach_data_assembler), `api/services/journal_two/{pre_trade_verdict,trade_review,interventions,profile_suggestions,overview}.py`
 - **Frontend:** `app/src/pages/journal-2-0/components/{CompassChat,CompassOverview,VoiceInputButton,TradeDrawer}.jsx`
@@ -103,7 +104,7 @@ Whisper-backed push-to-talk dictation + Compass voice conversation are paired on
 - **Backend:** `POST /api/voice/transcribe` (`api/routers/voice.py`) — additive endpoint. Multipart audio in, `{text, seconds_billed}` out. Thin wrapper around existing `transcribe_audio()` (OpenAI Whisper). New `mode_d` cap (1 hr/month default, `MODE_D_DEFAULT_CAP_SECONDS`) tracks usage via `voice_usage.record_mode_d_seconds`. `voice_usage_monthly` gained a `mode_d_seconds` column (auth_db migration list).
 - **`VoiceInputButton`** (`app/src/pages/journal-2-0/components/VoiceInputButton.jsx`): same prop API (`onTranscript`, `disabled`). MediaRecorder → POST primary, browser Web Speech fallback if MediaRecorder unavailable OR backend 5xx. Same visual UX (🎤 / 🛑, "Listening…" / "Transcribing…").
 - **`CompassAssistButton`** (`app/src/components/voice/CompassAssistButton.jsx`): 🧭 button that opens a full Realtime conversation with Compass, pre-loaded with a surface-specific `pageHint`. Reuses existing `useRealtimeSession` + `setVoicePageHint` infra — no new backend. Returns null when no `VoiceProvider` is mounted.
-- **Surfaces wired:** `CompassChat` (already had both); `DayReflection` (4 sections, date threaded into hint); `TradeDrawer` (🎙️ Talk about this trade — hint includes ticker/side/entry/exit/P&L/setup); `AddPositionModal` (Notes); `PlaybookEntryModal` (Thesis + Additional Notes); `CompassReview` (Weekly Review — 🎙️ Discuss).
+- **Surfaces wired:** `CompassChat` (already had both); `DayReflection` (4 sections, date threaded into hint); `TradeDrawer` (🎙️ Talk about this trade — hint includes ticker/side/entry/exit/P&L/setup); `AddPositionModal` (Notes); ~~`PlaybookEntryModal`~~ (replaced by Notebook 2026-05-26; voice integration intentionally not carried over); `CompassReview` (Weekly Review — 🎙️ Discuss).
 - **Page hints**: every CompassAssistButton passes a rich `pageHint` describing the surface + record context. `setVoicePageHint` is called on click so the Realtime session-token mint includes it. Compass's existing P4-B mechanism turns the hint into a "=== CURRENT PAGE ===" block in its system prompt.
 - **Cleanup mode (2026-05-15):** `cleanup_transcript()` in `voice_openai.py` — gpt-4o-mini pass that strips fillers, fixes ticker mishears ("in video"→NVDA), adds punctuation. Best-effort: returns original text on ANY error so dictation is never lost. `/api/voice/transcribe` takes optional `cleanup` form param; `VoiceInputButton` sends `cleanup=true` by default (overridable via `cleanup={false}` prop).
 - **Settings (2026-05-15):** "Ways to talk to Compass" section in the Compass TileCard (`Settings.jsx`) — read-only list of all 6 voice access paths (dictate, assist/talk, orb, push-to-talk hotkey, wake word, read-aloud).
