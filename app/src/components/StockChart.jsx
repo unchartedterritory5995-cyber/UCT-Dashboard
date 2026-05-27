@@ -180,7 +180,9 @@ function computePaneMargins(cs, hasVolume) {
     out[key] = { top: +((1 - bottom - h).toFixed(2)), bottom: +bottom.toFixed(2) }
     bottom = +(bottom + h).toFixed(2)
   }
-  out.main = { top: 0.02, bottom: bottom }
+  // Top margin 0.42 leaves the highest candle ~42% from the top of the chart
+  // so there's deliberate headroom above price action (matches TC2000-style layout).
+  out.main = { top: 0.42, bottom: bottom }
   return out
 }
 
@@ -1672,7 +1674,7 @@ export default function StockChart({
         borderColor: themeColors.borderColor,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 8,
+        rightOffset: 3,
         rightBarStaysOnScroll: true,
       },
     }
@@ -2399,12 +2401,12 @@ export default function StockChart({
         if (filteredBars.length > visibleBars) {
           chart.timeScale().setVisibleLogicalRange({
             from: filteredBars.length - visibleBars,
-            to: filteredBars.length + 8,
+            to: filteredBars.length + 3,
           })
         } else {
           chart.timeScale().setVisibleLogicalRange({
             from: 0,
-            to: filteredBars.length + 8,
+            to: filteredBars.length + 3,
           })
         }
       }
