@@ -77,3 +77,74 @@ def test_delete_prefix_full_ticker_wipe():
     n = c.delete_prefix("bars_AAPL_")
     assert n == 4
     assert c.get("bars_TSLA_30_200") == "x"
+
+
+# ── Thread safety ───────────────────────────────────────────────────────────
+
+def test_concurrent_get_set_does_not_raise():
+    """Regression: without the internal RLock the OrderedDict ops below
+    race in ways that surface as `KeyError` / `RuntimeError` on the
+    /api/bars hot path under low concurrency (the 2026-05-27 incident).
+    Hammer the cache from many threads at once and verify no exception
+    bubbles out. The mix is intentional: eviction loop + invalidate +
+    delete_prefix + get all on overlapping keys to maximize race surface."""
+    import threading
+
+    c = TTLCache()
+    # Seed near the eviction threshold so the `while len > _MAX_SIZE`
+    # popitem loop fires repeatedly during the contention window.
+    for i in range(450):
+        c.set(f"seed_{i}", i, ttl=60)
+
+    errors: list[BaseException] = []
+    stop = threading.Event()
+
+    def writer():
+        i = 0
+        while not stop.is_set():
+            try:
+                c.set(f"k_{i % 200}", i, ttl=60)
+                i += 1
+            except BaseException as e:  # noqa: BLE001
+                errors.append(e)
+                return
+
+    def reader():
+        i = 0
+        while not stop.is_set():
+            try:
+                c.get(f"k_{i % 200}")
+                c.get(f"seed_{i % 450}")
+                i += 1
+            except BaseException as e:  # noqa: BLE001
+                errors.append(e)
+                return
+
+    def invalidator():
+        i = 0
+        while not stop.is_set():
+            try:
+                c.invalidate(f"k_{i % 200}")
+                if i % 50 == 0:
+                    c.delete_prefix("seed_")
+                    # Re-seed so subsequent prefix wipes still have targets.
+                    for j in range(100):
+                        c.set(f"seed_{j}", j, ttl=60)
+                i += 1
+            except BaseException as e:  # noqa: BLE001
+                errors.append(e)
+                return
+
+    threads = (
+        [threading.Thread(target=writer) for _ in range(4)]
+        + [threading.Thread(target=reader) for _ in range(4)]
+        + [threading.Thread(target=invalidator) for _ in range(2)]
+    )
+    for t in threads:
+        t.start()
+    time.sleep(0.5)
+    stop.set()
+    for t in threads:
+        t.join(timeout=2)
+
+    assert not errors, f"cache races raised: {errors[:3]}"

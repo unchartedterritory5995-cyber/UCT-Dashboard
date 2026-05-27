@@ -996,6 +996,13 @@ export default function StockChart({
     ? data.bars
     : ((idbBars?.length && !idbStaleIntraday) ? idbBars : data?.bars)
   const loading = !bars && !error
+  // Only surface the "Failed to load chart" overlay when we have NOTHING
+  // to render. If IDB has cached bars (or the SWR data was already painted
+  // before the error), keep showing them and let the 30s SWR refresh
+  // recover silently. Otherwise a transient backend 5xx pins the chart at
+  // a hard-fail state for the user even though usable history is sitting
+  // in IndexedDB. The retry button below still mutate()'s on click.
+  const showFatalError = !!error && !bars?.length
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
@@ -3105,7 +3112,7 @@ export default function StockChart({
           <div className={styles.skeletonText}>Loading {sym}…</div>
         </div>
       )}
-      {error && (
+      {showFatalError && (
         <div className={styles.error}>
           <span>Failed to load chart for {sym}</span>
           <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
@@ -3114,9 +3121,9 @@ export default function StockChart({
       <div
         ref={containerRef}
         className={styles.chart}
-        style={{ display: error ? 'none' : 'block' }}
+        style={{ display: showFatalError ? 'none' : 'block' }}
       />
-      {!error && (
+      {!showFatalError && (
         <img
           src={brandMark}
           alt="Uncharted Territory"

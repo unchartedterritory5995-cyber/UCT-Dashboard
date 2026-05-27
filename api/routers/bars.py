@@ -130,34 +130,57 @@ def get_bars(
     When `since` is provided (browser already has bars up to that timestamp),
     only newer bars are returned — drastically smaller payloads on repeat visits.
     """
+    import logging
+    import traceback
+    _log = logging.getLogger(__name__)
+    response = None
     try:
-        if since:
-            response = _get_bars_since_response(ticker, tf, bars, since)
-        else:
-            response = _get_bars_inner(ticker, tf, bars)
-    except Exception as e:
-        import logging, traceback
-        logging.getLogger(__name__).error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
-        # Return 503 (not 200 + empty bars) so the frontend treats the failure
-        # as transient and retries with backoff, keeping any last-known IDB
-        # bars on screen instead of blanking the chart. The dominant cause is
-        # the SQLite inode swap during data_sync.force_resync (R2 snapshot
-        # pull at startup if PRAGMA integrity_check fails) — every read for
-        # 30s+ throws until the epoch bump lands. Empty payloads previously
-        # poisoned every chart with `bars=[]`, indistinguishable from "no
-        # data exists." 503 + Retry-After preserves the distinction.
-        response = JSONResponse(
+        try:
+            if since:
+                response = _get_bars_since_response(ticker, tf, bars, since)
+            else:
+                response = _get_bars_inner(ticker, tf, bars)
+        except Exception as e:
+            _log.error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
+            # Return 503 (not 200 + empty bars) so the frontend treats the failure
+            # as transient and retries with backoff, keeping any last-known IDB
+            # bars on screen instead of blanking the chart. The dominant cause is
+            # the SQLite inode swap during data_sync.force_resync (R2 snapshot
+            # pull at startup if PRAGMA integrity_check fails) — every read for
+            # 30s+ throws until the epoch bump lands. Empty payloads previously
+            # poisoned every chart with `bars=[]`, indistinguishable from "no
+            # data exists." 503 + Retry-After preserves the distinction.
+            response = JSONResponse(
+                status_code=503,
+                content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": "transient"},
+            )
+            response.headers["Retry-After"] = "5"
+
+        # Bars data must never be served from a stale browser/CDN cache. Server-side
+        # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
+        # would re-introduce phantom OHLC bars after a corruption fix ships.
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
+    except Exception as outer_e:
+        # Belt-and-suspenders: ensure no exception ever leaks past this handler
+        # as a bare Starlette "Internal Server Error" 500. A leak here means
+        # the inner except itself failed (e.g. JSONResponse construction race,
+        # response.headers assignment on a partially-built object) — the SWR
+        # retry path treats 5xx as transient, but 500 with plain-text body
+        # was indistinguishable to operators from a real backend bug. 503 +
+        # Retry-After keeps the recovery path the same as the inner except.
+        _log.error(
+            f"[bars] OUTER-CRASH {ticker} tf={tf}: "
+            f"{type(outer_e).__name__}: {outer_e}\n{traceback.format_exc()}"
+        )
+        fallback = JSONResponse(
             status_code=503,
             content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": "transient"},
         )
-        response.headers["Retry-After"] = "5"
-
-    # Bars data must never be served from a stale browser/CDN cache. Server-side
-    # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
-    # would re-introduce phantom OHLC bars after a corruption fix ships.
-    response.headers["Cache-Control"] = "no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    return response
+        fallback.headers["Retry-After"] = "5"
+        fallback.headers["Cache-Control"] = "no-store, must-revalidate"
+        return fallback
 
 
 @router.post("/api/admin/warm-universe")
