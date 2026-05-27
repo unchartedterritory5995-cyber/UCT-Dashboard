@@ -211,8 +211,8 @@ def build_messages(
             }
             if right:
                 bull_embed["fields"] = [
-                    {"name": "1–10", "value": f"```ansi\n{_build_table(left, 10, 'bull')}\n```", "inline": True},
-                    {"name": "11–20", "value": f"```ansi\n{_build_table(right, 10, 'bull')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bull')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bull')}\n```", "inline": True},
                 ]
             else:
                 bull_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bull')}\n```"
@@ -228,8 +228,8 @@ def build_messages(
             }
             if right:
                 bear_embed["fields"] = [
-                    {"name": "1–10", "value": f"```ansi\n{_build_table(left, 10, 'bear')}\n```", "inline": True},
-                    {"name": "11–20", "value": f"```ansi\n{_build_table(right, 10, 'bear')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(left, 10, 'bear')}\n```", "inline": True},
+                    {"name": "\u200b", "value": f"```ansi\n{_build_table(right, 10, 'bear')}\n```", "inline": True},
                 ]
             else:
                 bear_embed["description"] = f"```ansi\n{_build_table(left, 10, 'bear')}\n```"
