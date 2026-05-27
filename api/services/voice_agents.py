@@ -372,6 +372,9 @@ def _compass_tool_union() -> set[str]:
     out.add("web_search")
     out.add("search_finance_news")
     out.add("research_deep")
+    # TheFly institutional squawk feed — analyst calls, syndicate, M&A,
+    # hot-mover alerts. Requires THEFLY_API_KEY.
+    out.add("get_thefly_squawks")
     # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
     # etc). Free public API with friendly alias catalog.
     out.add("get_economic_series")

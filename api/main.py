@@ -62,6 +62,7 @@ from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
+from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.flow_router import flow_router
 from api.darkpool_router import router as darkpool_router
@@ -1677,6 +1678,7 @@ app.include_router(flow_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
+app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 
 # Discord flow watchlist — manual trigger endpoint

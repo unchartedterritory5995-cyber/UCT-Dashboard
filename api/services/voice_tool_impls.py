@@ -374,6 +374,18 @@ def _web_search(query: str = "", max_tokens: int = 400,
     }
 
 
+def _get_thefly_squawks(symbol: str = "", category: str = "", count: int = 10) -> dict:
+    """TheFly institutional Squawk feed — analyst calls, syndicate pricings,
+    M&A flashes, hot-mover alerts. Requires THEFLY_API_KEY env var."""
+    try:
+        from api.services.thefly_news import get_squawks
+        return get_squawks(symbol=symbol or "", category=category or "",
+                          count=count or 10)
+    except Exception as e:
+        _log.warning("thefly squawks failed: %s", e)
+        return {"error": str(e), "items": [], "count": 0}
+
+
 def _search_finance_news(query: str = "", recency: str = "day",
                          max_tokens: int = 400) -> dict:
     """Perplexity locked to top finance sources (Bloomberg / Reuters / WSJ /
@@ -2095,6 +2107,24 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_web_search)
+
+    _vt.voice_tool(
+        name="get_thefly_squawks",
+        description=(
+            "TheFly institutional Squawk feed — the news wire trading desks "
+            "watch for analyst upgrades/downgrades, syndicate (IPO + secondary) "
+            "pricings, M&A flashes, hot-mover alerts. Filter by symbol or "
+            "category ('analyst' / 'syndicate' / 'm_and_a' / 'earnings' / "
+            "'general'). Requires THEFLY_API_KEY — returns 'not configured' "
+            "if missing."
+        ),
+        parameters={
+            "symbol": {"type": "string", "description": "Optional ticker filter."},
+            "category": {"type": "string", "enum": ["analyst", "syndicate", "m_and_a", "earnings", "general"]},
+            "count": {"type": "integer", "description": "Max items (default 10, max 50)."},
+        },
+        contexts=["global"],
+    )(_get_thefly_squawks)
 
     _vt.voice_tool(
         name="search_finance_news",
