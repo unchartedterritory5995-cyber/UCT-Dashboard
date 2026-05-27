@@ -113,6 +113,7 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
         price = float(snap.get("price") or 0)
         today_vol = int(snap.get("vol") or 0)
         adv = m.get("avg_volume_30d") or 0
+        change_pct = snap.get("change_pct")  # from Massive todaysChangePerc
 
         # vol_x = today's volume / avg 30d volume. Bounded at 0 when ADV unknown.
         vol_x = 0.0
@@ -124,6 +125,11 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "vol_x": vol_x,
             "market_cap": m.get("market_cap"),
             "sector": m.get("sector"),
+            # Real-time % change from Massive snapshot — used as fallback for
+            # gap_pct on tickers not in the movers/losers feed (Perplexity
+            # discoveries, scanner picks, earnings reporters that aren't
+            # gapping enough to make the gainers list, etc.)
+            "change_pct": float(change_pct) if change_pct is not None else None,
         }
     return out
 
@@ -416,11 +422,23 @@ def collect_all() -> list[dict]:
         if sector:
             sector_counts[sector] += 1
 
+        # gap_pct preference order:
+        #   1. movers feed (most authoritative — gainers/losers list)
+        #   2. snapshot change_pct (Massive todaysChangePerc — works for ANY ticker)
+        #   3. 0.0 as last-resort fallback
+        gap_pct = movers_data.get("gap_pct")
+        if gap_pct is None or gap_pct == 0.0:
+            snap_chg = snap.get("change_pct")
+            if snap_chg is not None:
+                gap_pct = float(snap_chg)
+            else:
+                gap_pct = 0.0
+
         candidates.append({
             "ticker": ticker,
             "company": None,
             "price": snap.get("price"),
-            "gap_pct": movers_data.get("gap_pct", 0.0),
+            "gap_pct": gap_pct,
             "vol_x": snap.get("vol_x", 1.0),
             "market_cap": snap.get("market_cap"),
             "sector": sector,
