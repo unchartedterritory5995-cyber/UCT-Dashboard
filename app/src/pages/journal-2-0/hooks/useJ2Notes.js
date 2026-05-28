@@ -50,7 +50,9 @@ export function useJ2Note(noteId) {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail || `${res.status}`)
+        const err = new Error(body.detail || `${res.status}`)
+        err.status = res.status
+        throw err
       }
       const body = await res.json()
       await mutate({ note: body.note }, { revalidate: false })
