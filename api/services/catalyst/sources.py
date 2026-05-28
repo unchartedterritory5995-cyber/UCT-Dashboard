@@ -318,19 +318,39 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     now = _now_et()
     hour = now.hour
     is_premarket = (4 <= hour < 9) or (hour == 9 and now.minute < 30)
+    is_rth = (9 <= hour < 16) and not is_premarket
+    is_after_hours = 16 <= hour < 20
     is_eod_window = 16 <= hour < 20  # 4 PM – 8 PM ET — post-close prep
+    if is_premarket:
+        session_phrase = "in pre-market trading today (before US market open)"
+    elif is_rth:
+        session_phrase = "during regular US trading hours today"
+    elif is_after_hours:
+        session_phrase = "in after-hours trading today"
+    else:
+        session_phrase = "today, including the most recent US trading session"
 
-    # ── A1: always-on broad discovery ──────────────────────────────────
+    # ── A1: always-on broad discovery (finance-locked, recent only) ────
+    # Sharpened 2026-05-27: enumerate every actionable catalyst category
+    # we care about + session-aware so Perplexity stops surfacing stale news.
     a1_query = (
-        "What are the top 15 individual US stocks with breaking catalysts right now? "
-        "Include M&A, earnings beats/misses, FDA approvals, contract wins, halts, "
-        "analyst upgrades/downgrades, or other significant single-stock news. "
-        "For each: ticker symbol (use $TICKER format), one sentence catalyst, and "
-        "approximate time the news broke. Skip macro/index moves. Skip rumors. "
-        "Cite sources."
+        f"What are the top 15 individual US stocks with breaking, actionable "
+        f"catalysts {session_phrase}? Cover: (1) earnings beats/misses with "
+        f"reactions, (2) M&A, takeover bids, spinoffs, (3) FDA approvals/"
+        f"rejections/PDUFA dates, (4) major analyst upgrades or downgrades "
+        f"by Goldman, Morgan Stanley, JPM, Wells, etc., (5) contract wins or "
+        f"government awards, (6) trading halts and volatility events, "
+        f"(7) buyback announcements, (8) management changes or resignations, "
+        f"(9) legal/regulatory settlements or rulings, (10) any other single-"
+        f"stock news moving price meaningfully. For each: ticker in $TICKER "
+        f"format, one sentence catalyst, and approximate time the news broke. "
+        f"Skip index/macro moves. Skip rumors and speculation. Cite sources."
     )
     try:
-        a1_result = perplexity_search.web_search(a1_query, max_tokens=600)
+        a1_result = perplexity_search.web_search(
+            a1_query, max_tokens=600,
+            domain_pack="finance", recency="day",
+        )
         a1_text = (a1_result or {}).get("answer") or ""
         a1_citations = (a1_result or {}).get("citations") or []
         for sym in _extract_tickers_from_text(a1_text):
@@ -361,7 +381,10 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
             "one-sentence reason. Cite sources."
         )
         try:
-            f1_result = perplexity_search.web_search(f1_query, max_tokens=600)
+            f1_result = perplexity_search.web_search(
+                f1_query, max_tokens=600,
+                domain_pack="finance", recency="day",
+            )
             f1_text = (f1_result or {}).get("answer") or ""
             f1_citations = (f1_result or {}).get("citations") or []
             for sym in _extract_tickers_from_text(f1_text):
@@ -377,32 +400,9 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
         except Exception:
             logger.exception("[catalyst-sources] perplexity F1 EOD failed")
 
-    # ── D1: pre-market window only ─────────────────────────────────────
-    if is_premarket:
-        d1_query = (
-            "What are the biggest US stock pre-market movers right now and the "
-            "specific catalysts driving each? Include stocks gapping up or down "
-            "more than 4% with news, earnings, M&A, analyst actions, or other "
-            "events. For each ticker, give symbol ($TICKER format), gap percent "
-            "if available, and one-sentence reason. Cite sources."
-        )
-        try:
-            d1_result = perplexity_search.web_search(d1_query, max_tokens=600)
-            d1_text = (d1_result or {}).get("answer") or ""
-            d1_citations = (d1_result or {}).get("citations") or []
-            for sym in _extract_tickers_from_text(d1_text):
-                # Append rather than overwrite — A1 may have already seen this ticker
-                out[sym].append({
-                    "source": "Perplexity (pre-market)",
-                    "title": d1_text[:400],
-                    "url": d1_citations[0] if d1_citations else "",
-                    "time_published": int(time.time()),
-                })
-            if d1_text:
-                logger.info("[catalyst-sources] perplexity pre-market found %d tickers",
-                            len(_extract_tickers_from_text(d1_text)))
-        except Exception:
-            logger.exception("[catalyst-sources] perplexity D1 pre-market failed")
+    # Note: D1 pre-market query removed 2026-05-27 — overlapped with A1
+    # in the 4-9:30 AM ET window. Session-aware A1 prompt above now covers
+    # the pre-market case directly. Saves ~1 paid query/refresh.
 
     return out
 
