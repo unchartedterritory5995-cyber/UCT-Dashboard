@@ -10,7 +10,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) return 'vendor-react'
+            // React + every package React's runtime depends on MUST live in
+            // the same chunk. `scheduler` and `use-sync-external-store` are
+            // peer deps that touch React internals on import — if they load
+            // from a different chunk than React itself, you get
+            // "Cannot set properties of undefined (setting 'Activity')".
+            if (
+              id.includes('react-dom') ||
+              id.includes('/react/') ||
+              id.includes('react-router') ||
+              id.includes('/scheduler/') ||
+              id.includes('use-sync-external-store')
+            ) return 'vendor-react'
             if (id.includes('swr')) return 'vendor-swr'
             if (id.includes('lightweight-charts')) return 'vendor-charts'
             if (id.includes('echarts')) return 'vendor-echarts'
