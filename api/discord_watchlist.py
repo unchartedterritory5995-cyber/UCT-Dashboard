@@ -307,7 +307,6 @@ def build_messages(
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
         bar = f"{_GREEN_A}{'█' * bull_blocks}{_RED_A}{'█' * bear_blocks}{_RESET}"
-        total_prem = total_bull + total_bear
 
         embeds.append({
             "color": GOLD,
@@ -315,9 +314,8 @@ def build_messages(
             "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
                 f"```ansi\n"
-                f"{_fmt(total_prem)}\n"
+                f"{net_color}{_fmt(net)} net{_RESET}\n"
                 f"{bar}\n"
-                f"{_GREEN_A}{_fmt(total_bull)} bull{_RESET}  {_RED_A}{_fmt(total_bear)} bear{_RESET}\n"
                 f"```"
             ),
         })
