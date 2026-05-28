@@ -1301,30 +1301,27 @@ async def lifespan(app: FastAPI):
             print("[scheduler] tweet poll jobs registered")
 
         # ── Morning Catalyst Engine (spec 2026-05-25) ─────────────────────
-        # Cadence reduced 2026-05-27 emergency cost pass: bursts went 5min→15min,
-        # AMC dropped from 5min→30min. Cuts call volume ~3x.
+        # Schedule v3 2026-05-27 evening (user-defined): two focused windows
+        # mirroring the user's actual trading workflow. Everything outside
+        # these windows is manual-only via the ↻ Refresh button on the tile.
+        #   • 6:00–9:30 AM ET every 30 min — pre-market discovery (8 fires)
+        #   • 4:00–4:30 PM ET every 5 min — AMC earnings burst (7 fires)
+        # Total 15 auto refreshes/day on weekdays (mon-fri).
+        # Scheduler timezone is America/New_York (set at BackgroundScheduler init).
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
 
+            # Pre-market: 6:00, 6:30, 7:00, 7:30, 8:00, 8:30, 9:00, 9:30 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/15"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="0,30"),
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
+
+            # AMC earnings burst: 4:00, 4:05, 4:10, 4:15, 4:20, 4:25, 4:30 PM ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-59/15"),
-                id="catalyst_open", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-59/15"),
-                id="catalyst_close", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/30"),
-                id="catalyst_amc", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="0"),
-                id="catalyst_midday", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(minute="0"),
-                id="catalyst_slow", max_instances=1, replace_existing=True)
-            print("[scheduler] catalyst engine jobs registered (reduced cadence: 15min bursts)")
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0-30/5"),
+                id="catalyst_amc_burst", max_instances=1, replace_existing=True)
+
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m)")
 
         def _check_churn_risk():
             try:
