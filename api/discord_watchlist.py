@@ -302,8 +302,8 @@ def build_messages(
         net_color = _GREEN_A if net > 0 else _RED_A
         title_label = label or "WATCHLIST"
 
-        # Build bull/bear visual bar (15 blocks wide — fits Discord code block)
-        bar_w = 15
+        # Build bull/bear visual bar (12 blocks wide — fits all clients)
+        bar_w = 12
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
         bar = f"{_GREEN_A}{'█' * bull_blocks}{_RED_A}{'█' * bear_blocks}{_RESET}"
