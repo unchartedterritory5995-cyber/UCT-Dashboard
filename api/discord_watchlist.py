@@ -303,7 +303,7 @@ def build_messages(
         title_label = label or "WATCHLIST"
 
         # Build bull/bear visual bar with emoji squares (universal rendering)
-        bar_w = 12
+        bar_w = 8
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
         bar = "🟩" * bull_blocks + "🟥" * bear_blocks
