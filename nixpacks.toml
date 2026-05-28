@@ -1,11 +1,19 @@
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.12"
+
 [phases.setup]
 nixPkgs = ["python312", "nodejs_20", "nodePackages.npm"]
 
+[phases.install]
+cmds = [
+  "python3.12 -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
+]
+
 [phases.build]
 cmds = [
-  "pip install -r requirements.txt",
   "cd app && npm install && NODE_OPTIONS='--max-old-space-size=4096' npm run build"
 ]
 
 [start]
-cmd = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+cmd = ". /opt/venv/bin/activate && uvicorn api.main:app --host 0.0.0.0 --port $PORT"
