@@ -22,6 +22,13 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null })
+  // Latest-callback refs. TipTap's useEditor freezes the `onUpdate` closure
+  // at editor-creation time and React's setTimeout fires whichever closure
+  // was scheduled — both routes capture stale `title`/`subtitle`. Reading
+  // through these refs guarantees every save runs with the latest values
+  // (the refs are updated after every render below).
+  const scheduleAutosaveRef = useRef(() => {})
+  const commitSaveRef = useRef(async () => {})
 
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
@@ -50,7 +57,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       retryTimerRef.current = null
     }
     retryAttemptsRef.current = 0
-    saveTimerRef.current = setTimeout(() => commitSave(), AUTOSAVE_MS)
+    saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
   const handleImageInsert = async (file) => {
@@ -91,7 +98,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
         return false
       },
     },
-    onUpdate: () => scheduleAutosave(),
+    onUpdate: () => scheduleAutosaveRef.current(),
   }, [note?.id])
 
   // Push fresh body into editor when note loads (one-shot per note).
@@ -150,9 +157,17 @@ export default function NoteEditorPage({ noteId, onBack }) {
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
       setSaveStatus('reconnecting')
       setSaveErrorMsg(e?.message || (status ? `HTTP ${status}` : 'Network error'))
-      retryTimerRef.current = setTimeout(() => commitSave(), delay)
+      retryTimerRef.current = setTimeout(() => commitSaveRef.current(), delay)
     }
   }
+
+  // Keep latest-callback refs pointed at the freshest closures every render.
+  // Anything that captured these earlier (TipTap onUpdate, scheduled timeouts,
+  // unmount cleanup) will dereference through the ref and get the current
+  // title/subtitle — fixing the "first keystroke not saved" + "body save
+  // clobbers title" + "unmount saves stale empty values" bugs.
+  scheduleAutosaveRef.current = scheduleAutosave
+  commitSaveRef.current = commitSave
 
   // Save on unmount if dirty.
   useEffect(() => () => {
@@ -162,9 +177,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
     }
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
-      commitSave()
+      commitSaveRef.current()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Slash menu's "Image" option dispatches this event so we can open the
