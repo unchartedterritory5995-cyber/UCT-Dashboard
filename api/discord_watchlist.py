@@ -302,21 +302,18 @@ def build_messages(
         net_color = _GREEN_A if net > 0 else _RED_A
         title_label = label or "WATCHLIST"
 
-        # Build bull/bear visual bar — ANSI for desktop color, block chars for clean look
+        # Build bull/bear visual bar with emoji circles (softer than squares)
         bar_w = 12
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
-        ansi_bar = f"{_GREEN_A}{'█' * bull_blocks}{_RED_A}{'█' * bear_blocks}{_RESET}"
+        bar = "🟢" * bull_blocks + "🔴" * bear_blocks
         net_sign = "+" if net > 0 else ""
 
         embeds.append({
             "color": GOLD,
             "author": {"name": "UCT Options Flow"},
             "title": f"{net_emoji} {title_label} — {date_str}",
-            "description": (
-                f"**{net_sign}{_fmt(net)} NET**\n"
-                f"```ansi\n{ansi_bar}\n```"
-            ),
+            "description": f"**{net_sign}{_fmt(net)} NET**\n{bar}",
         })
 
         # Embed 2: Bull watchlist (green sidebar)
