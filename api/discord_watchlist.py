@@ -302,8 +302,8 @@ def build_messages(
         net_color = _GREEN_A if net > 0 else _RED_A
         title_label = label or "WATCHLIST"
 
-        # Build bull/bear visual bar (20 blocks wide)
-        bar_w = 20
+        # Build bull/bear visual bar (15 blocks wide — fits Discord code block)
+        bar_w = 15
         bull_blocks = max(1, round(bar_w * bull_pct / 100))
         bear_blocks = bar_w - bull_blocks
         bar = f"{_GREEN_A}{'█' * bull_blocks}{_RED_A}{'█' * bear_blocks}{_RESET}"
@@ -314,7 +314,7 @@ def build_messages(
             "title": f"{net_emoji} {title_label} — {date_str}",
             "description": (
                 f"```ansi\n"
-                f"{net_color}{_fmt(net)} net{_RESET}\n"
+                f"{net_color}{_fmt(net)} NET{_RESET}\n"
                 f"{bar}\n"
                 f"```"
             ),
