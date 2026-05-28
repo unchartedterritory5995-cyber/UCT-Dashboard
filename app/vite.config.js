@@ -5,14 +5,20 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   plugins: [react()],
   build: {
+    chunkSizeWarningLimit: 4000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-swr': ['swr'],
-          'vendor-charts': ['lightweight-charts'],
-          'vendor-echarts': ['echarts', 'echarts-for-react'],
-          'vendor-recharts': ['recharts'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) return 'vendor-react'
+            if (id.includes('swr')) return 'vendor-swr'
+            if (id.includes('lightweight-charts')) return 'vendor-charts'
+            if (id.includes('echarts')) return 'vendor-echarts'
+            if (id.includes('recharts')) return 'vendor-recharts'
+            if (id.includes('@tiptap') || id.includes('prosemirror')) return 'vendor-tiptap'
+            if (id.includes('@picovoice')) return 'vendor-picovoice'
+            return 'vendor-misc'
+          }
         },
       },
     },
