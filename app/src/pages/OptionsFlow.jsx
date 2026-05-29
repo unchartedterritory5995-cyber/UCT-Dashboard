@@ -5618,7 +5618,12 @@ export default function OptionsFlowDashboard() {
               </div>
             )}
             {selectedTicker && (() => {
-              const tk = selectedTicker;
+              // Re-resolve against current D each render to avoid stale snapshot.
+              // selectedTicker is captured at setSelectedTicker time (line 5048); if
+              // dateFilter or cap changes after, D regenerates but selectedTicker
+              // still holds the old TICKER_DB entry — which makes tk.n / tk.t /
+              // tk.c reflect a different date window than ccAll / BULL / BEAR.
+              const tk = (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s) || selectedTicker;
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               const ccAll = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
