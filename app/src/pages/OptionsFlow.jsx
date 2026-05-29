@@ -1331,10 +1331,31 @@ export default function OptionsFlowDashboard() {
   const [calStart, setCalStart] = useState(null); // temp start during selection
   const calRef = useRef(null);
   const [D, setD] = useState(null);
+  const [dataVersion, setDataVersion] = useState(null);
 
+  // Fetch DB version on mount + when tab regains focus (so a fresh upload in
+  // another tab is picked up immediately). Version is the row count; when it
+  // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
+  useEffect(() => {
+    const fetchVer = () => {
+      fetch("/api/flow/version", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && d.version != null) setDataVersion(String(d.version)); })
+        .catch(() => {});
+    };
+    fetchVer();
+    const onFocus = () => fetchVer();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
+  // Cache-busting version param — fetched from /api/flow/version on mount &
+  // on tab focus. When new data is uploaded, version bumps and Cloudflare
+  // sees a new URL, busting the stale cache entry.
+  const _vsuffix = dataVersion != null ? `&v=${dataVersion}` : "";
   const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true" : `/api/flow/indexes-data?days=${fetchDays}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true" : `/api/flow/data?days=${fetchDays}`);
+    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true"+_vsuffix : `/api/flow/indexes-data?days=${fetchDays}${_vsuffix}`)
+    : (fetchDays === 0 ? "/api/flow/data?all_data=true"+_vsuffix : `/api/flow/data?days=${fetchDays}${_vsuffix}`);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
