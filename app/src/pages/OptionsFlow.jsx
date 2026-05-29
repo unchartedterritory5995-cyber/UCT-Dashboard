@@ -2318,7 +2318,7 @@ export default function OptionsFlowDashboard() {
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
-          <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:440 }}>
+          <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:320 }}>
             <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0 }}>
               {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label])=>(
                 <button key={val} onClick={()=>setContractChartTf(val)}
@@ -2344,7 +2344,7 @@ export default function OptionsFlowDashboard() {
               />
             </div>
           </div>
-          <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", height:440 }}>
+          <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", height:320 }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6, flexShrink:0 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#6ba3be", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
