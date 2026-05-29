@@ -12,14 +12,21 @@ Endpoints:
 Integration in main.py:
     from api.flow_router import flow_router
     app.include_router(flow_router)
+
+Why streaming gzip:
+  Previously this router collected the CSV generator into one string and
+  gzipped the whole thing in memory. Fine for small windows, but for
+  ?all_data=true (or any wide ?days=N) at multi-million-row scale that
+  buffer was several hundred MB and could OOM the Railway worker. The
+  streaming approach below keeps peak memory flat regardless of size.
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 from api.flow_db import FlowDB
 import os
-import gzip
+import zlib
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -35,18 +42,52 @@ _FLOW_CACHE_HEADERS = {
 }
 
 
+def _gzip_stream(gen):
+    """
+    Wrap an upstream str-or-bytes generator with incremental gzip compression.
+
+    Uses zlib.compressobj with wbits=16+MAX_WBITS to emit gzip-formatted
+    output (not raw deflate). Peak memory is O(chunk size + compressor
+    window) — no full-response buffering.
+    """
+    compressor = zlib.compressobj(level=4, wbits=16 + zlib.MAX_WBITS)
+    for chunk in gen:
+        if not chunk:
+            continue
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8")
+        out = compressor.compress(chunk)
+        if out:
+            yield out
+    tail = compressor.flush()
+    if tail:
+        yield tail
+
+
+def _bytes_stream(gen):
+    """Convert str chunks to utf-8 bytes for non-gzip clients."""
+    for chunk in gen:
+        if not chunk:
+            continue
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8")
+        yield chunk
+
+
 def _gzip_csv_response(gen, request: Request):
-    """Collect CSV generator, gzip if client accepts, return Response."""
-    content = "".join(gen).encode("utf-8")
+    """Stream CSV from a generator, gzip-compressing incrementally if client accepts."""
     accept = (request.headers.get("accept-encoding") or "").lower()
     if "gzip" in accept:
-        compressed = gzip.compress(content, compresslevel=4)
-        return Response(
-            content=compressed,
+        return StreamingResponse(
+            _gzip_stream(gen),
             media_type="text/csv",
             headers={**_FLOW_CACHE_HEADERS, "Content-Encoding": "gzip"},
         )
-    return Response(content=content, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
+    return StreamingResponse(
+        _bytes_stream(gen),
+        media_type="text/csv",
+        headers=_FLOW_CACHE_HEADERS,
+    )
 
 
 @flow_router.post("/upload")
@@ -114,7 +155,7 @@ async def get_flow_data(request: Request):
         return _gzip_csv_response(gen, request)
     except Exception as e:
         return StreamingResponse(
-            iter([f"Error: {e}"]),
+            iter([f"Error: {e}".encode("utf-8")]),
             status_code=500,
             media_type="text/plain",
         )
@@ -143,7 +184,7 @@ async def get_indexes_data(request: Request):
         return _gzip_csv_response(gen, request)
     except Exception as e:
         return StreamingResponse(
-            iter([f"Error: {e}"]),
+            iter([f"Error: {e}".encode("utf-8")]),
             status_code=500,
             media_type="text/plain",
         )
