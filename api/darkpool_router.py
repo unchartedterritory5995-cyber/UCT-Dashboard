@@ -1,43 +1,65 @@
 """
 darkpool_router.py — FastAPI routes for dark pool data.
 Mount in main.py:  app.include_router(darkpool_router.router)
+
+Mirrors the flow_router.py architecture:
+- /data uses streaming SQL cursor → in-memory gzip → cache headers
+- Cache-Control SWR matches flow's policy so CDN behavior is identical
+- ?days=N query param is part of the cache key (each window caches separately)
 """
 
-from fastapi import APIRouter, UploadFile, File, Query, HTTPException
-from fastapi.responses import PlainTextResponse, JSONResponse, Response
+from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
+from fastapi.responses import JSONResponse, Response
 import gzip
 from api.darkpool_db import (
-    insert_csv_rows, get_data_csv, get_available_dates,
+    insert_csv_rows, stream_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
 )
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
 
+# Same caching policy as flow_router — SWR with a 5-min max-age. The
+# ?days=N query string is part of CF's cache key, so each window caches
+# independently and a stale response can serve while a fresh one warms.
+_DARKPOOL_CACHE_HEADERS = {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Vary": "Accept-Encoding",
+}
+
+
+def _gzip_csv_response(gen, request: Request):
+    """Collect CSV generator, gzip if client accepts, return Response."""
+    content = "".join(gen).encode("utf-8")
+    accept = (request.headers.get("accept-encoding") or "").lower()
+    if "gzip" in accept:
+        compressed = gzip.compress(content, compresslevel=4)
+        return Response(
+            content=compressed,
+            media_type="text/csv",
+            headers={**_DARKPOOL_CACHE_HEADERS, "Content-Encoding": "gzip"},
+        )
+    return Response(content=content, media_type="text/csv", headers=_DARKPOOL_CACHE_HEADERS)
+
 
 # ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
 async def get_darkpool_data(
+    request: Request,
     days: int = Query(default=1, ge=0, description="Number of trading days (0 = use all_data)"),
     all_data: bool = Query(default=False, description="Return all data"),
 ):
     """
-    Returns dark pool data as CSV text.
-    Frontend parses this the same way it parsed the static CSV.
+    Returns dark pool data as CSV text (gzipped if client accepts).
+    Frontend (DarkPool.jsx) parses this the same way it parsed the static CSV.
     """
     try:
-        csv_text = get_data_csv(
-            days=days if not all_data else None,
-            all_data=all_data
-        )
-        compressed = gzip.compress(csv_text.encode("utf-8"), compresslevel=6)
-        return Response(
-            content=compressed,
-            media_type="text/csv",
-            headers={
-                "Content-Encoding": "gzip",
-                "Vary": "Accept-Encoding",
-            },
-        )
+        if all_data or days == 0:
+            gen = stream_csv(all_data=True)
+        else:
+            if days > 365:
+                days = 365
+            gen = stream_csv(days=days)
+        return _gzip_csv_response(gen, request)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -56,9 +78,7 @@ async def get_dates():
 # ── Admin: Upload CSV data ────────────────────────────────────────────────────
 @router.post("/upload")
 async def upload_darkpool_csv(file: UploadFile = File(...)):
-    """
-    Upload a BBS dark pool CSV export. Deduplicates automatically.
-    """
+    """Upload a BBS dark pool CSV export. Deduplicates automatically."""
     try:
         content = await file.read()
         csv_text = content.decode("utf-8-sig")  # Handle BOM from Excel exports
@@ -66,7 +86,6 @@ async def upload_darkpool_csv(file: UploadFile = File(...)):
         if not csv_text.strip():
             raise HTTPException(status_code=400, detail="Empty file")
 
-        # Validate it looks like a CSV
         first_line = csv_text.strip().split("\n")[0]
         if "Date" not in first_line or "Ticker" not in first_line:
             raise HTTPException(
