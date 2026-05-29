@@ -78,6 +78,27 @@ def _build_two_col(items, side="bull"):
     return "\n".join(lines)
 
 
+def _resolve_date_str(item: dict) -> str:
+    """Resolve the date label for a watchlist row.
+
+    Falls through: firstDate → date → entryDate → age → today's ET date.
+    The today's-date fallback exists so entries added before the
+    firstDate field was being captured still render uniformly with
+    newer entries (otherwise they'd show no date at all).
+    """
+    for field in ("firstDate", "date", "entryDate"):
+        raw = item.get(field) or ""
+        if raw:
+            fmt = _fmt_exp(raw)
+            if fmt and fmt != "?":
+                return fmt
+    age = item.get("age") or ""
+    if age:
+        return age
+    today = datetime.now(ET)
+    return f"{today.month}/{today.day}"
+
+
 def _build_table_compact(items, side="bull"):
     """Build a table for inline fields — full format: ticker + exp + strike/cp + prem + date."""
     prem_color = _GREEN_A if side == "bull" else _RED_A
@@ -100,20 +121,7 @@ def _build_table_compact(items, side="bull"):
         else:
             row = f"{sym}—"
 
-        # Entry date
-        date_str = ""
-        for field in ("firstDate", "date", "entryDate"):
-            raw = item.get(field) or ""
-            if raw:
-                fmt = _fmt_exp(raw)
-                if fmt and fmt != "?":
-                    date_str = fmt
-                    break
-        if not date_str:
-            age = item.get("age") or ""
-            if age:
-                date_str = age
-
+        date_str = _resolve_date_str(item)
         row = f"{row} {date_str}" if date_str else row
         lines.append(row)
         if i < min(len(items), 10):
@@ -165,19 +173,8 @@ def _build_table(items: list[dict], limit: int = 10, side: str = "bull", compact
             else:
                 contract = "—"
 
-            # Entry date
-            date_str = ""
-            for field in ("firstDate", "date", "entryDate"):
-                raw = item.get(field) or ""
-                if raw:
-                    fmt = _fmt_exp(raw)
-                    if fmt and fmt != "?":
-                        date_str = fmt
-                        break
-            if not date_str:
-                age = item.get("age") or ""
-                if age:
-                    date_str = age
+            # Entry date (today's-date fallback ensures uniform rendering)
+            date_str = _resolve_date_str(item)
 
             row = f"{sym}{contract} {date_str}" if date_str else f"{sym}{contract}"
 
