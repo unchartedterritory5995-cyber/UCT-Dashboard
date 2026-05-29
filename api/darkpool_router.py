@@ -82,6 +82,17 @@ def _gzip_csv_response(gen, request: Request):
     )
 
 
+# Hard cap on response size in trading days. The browser can't reliably
+# Papa.parse + render more than this many days of raw darkpool prints
+# without blowing past Chrome's JS heap limit (~1.5GB). At ~25K rows/day
+# this lands around 1.5M rows / 180MB decompressed CSV — the highest
+# empirically-working window.
+#
+# When this fires for a request, response carries X-Data-Capped-Days so the
+# frontend can show "Showing most recent 60d — DB contains N" if it wants.
+MAX_RESPONSE_DAYS = 60
+
+
 # ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
 async def get_darkpool_data(
@@ -92,15 +103,26 @@ async def get_darkpool_data(
     """
     Returns dark pool data as CSV text (gzipped if client accepts).
     Frontend (DarkPool.jsx) parses this the same way it parsed the static CSV.
+
+    Capped at MAX_RESPONSE_DAYS trading days to keep the browser stable.
+    For full-history views, build a server-side aggregation endpoint instead
+    of shipping raw rows.
     """
     try:
+        capped = False
         if all_data or days == 0:
-            gen = stream_csv(all_data=True)
+            effective_days = MAX_RESPONSE_DAYS
+            capped = True
         else:
-            if days > 365:
-                days = 365
-            gen = stream_csv(days=days)
-        return _gzip_csv_response(gen, request)
+            if days > MAX_RESPONSE_DAYS:
+                capped = True
+            effective_days = min(days, MAX_RESPONSE_DAYS)
+
+        gen = stream_csv(days=effective_days)
+        response = _gzip_csv_response(gen, request)
+        if capped:
+            response.headers["X-Data-Capped-Days"] = str(MAX_RESPONSE_DAYS)
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
