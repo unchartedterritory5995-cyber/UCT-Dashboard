@@ -628,7 +628,7 @@ function buildCharts(cc) {
     // so expired contracts disappear even if DTE in CSV was still positive
     if (c.exp) {
       const p = c.exp.split("/").map(Number);
-      const y = p.length >= 3 ? p[2] : (new Date().getMonth()+1 > p[0] ? new Date().getFullYear()+1 : new Date().getFullYear());
+      const y = p.length >= 3 ? (p[2] < 100 ? p[2] + 2000 : p[2]) : (new Date().getMonth()+1 > p[0] ? new Date().getFullYear()+1 : new Date().getFullYear());  // FIX: 2-digit years from formatExp ("5/21/27") need +2000, else JS Date treats as 1927 and LEAPS get marked "expired"
       const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59); // end of expiry day
       if (expDate < new Date()) return false;
     }
@@ -1454,6 +1454,11 @@ export default function OptionsFlowDashboard() {
   }, [parsedRows, dateFilter, dateFrom, dateTo]);
 
   useEffect(() => {
+    // Wait for dataVersion before fetching — avoids a double-fetch on mount
+    // (once with no &v=, once with the version). Version arrives within ~50ms,
+    // so the UX delay is imperceptible and we save one full CSV download.
+    if (dataVersion == null) return;
+
     let cancelled = false;
     setCsvLoading(true);
     setCsvError(null);
