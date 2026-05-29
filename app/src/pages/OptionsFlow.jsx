@@ -661,7 +661,7 @@ function buildCharts(cc) {
     return { ...c, score: c.score + heatBonus, tickerHeat: th.contracts >= 2 ? { contracts:th.contracts, totalPrem:th.totalPrem, strikes:th.strikes.size, exps:th.exps.size } : null };
   })
   .sort((a,b)=>b.score-a.score)
-  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, DTE:c.DTE, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat, uoa:c.uoa||false,
+  .map(c => ({ sym:c.sym, cp:c.cp, K:c.K, strike:c.strike, exp:c.exp, DTE:c.DTE, hits:c.hits, prem:c.prem, side:c.side, dir:c.dir, grade:c.grade, score:c.score||0, dominantOverride:c.dominantOverride||false, volOI:c.volOI||0, er:c.er||false, mktcap:c.mktcap||0, maxOI:c.maxOI||0, vol:c.vol||0, bullPrem:c.bullPrem||0, bearPrem:c.bearPrem||0, tickerHeat:c.tickerHeat, uoa:c.uoa||false,
     trades:c.trades.map(t=>({ Ty:t.Ty, Si:t.Si, Co:t.Co, V:t.V, P:t.P, DTE:t.DTE, OI:t.OI||0, IV:t.IV||0, time:t.time||"", Dt:t.Dt||"", price:t.price||0, Spot:t.Spot||0 })), patterns:c.patterns||[] }));
   const sectorMap = {};
   const tickerFlowMap = {};
