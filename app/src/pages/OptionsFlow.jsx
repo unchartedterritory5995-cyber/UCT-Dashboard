@@ -1490,16 +1490,6 @@ export default function OptionsFlowDashboard() {
     return { ...D, ...charts };
   }, [D, capFilter]);
 
-  // TEMP DEBUG HOOK — exposes internal state to console for diagnostics.
-  // Remove after watchlist/COIN issue is resolved.
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.__FD = FD; window.__D = D;
-      window.__wlBull = wlBull; window.__wlBear = wlBear;
-      window.__topFlowPicks = topFlowPicks; window.__autoScore = autoScore;
-    }
-  }, [FD, D, wlBull, wlBear, topFlowPicks]);
-
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
   }, [D]);
@@ -1718,6 +1708,17 @@ export default function OptionsFlowDashboard() {
     // Normalize to 10 max (raw max ~12.5)
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
+
+  // TEMP DEBUG HOOK — exposes internal state to console for diagnostics.
+  // Placed after autoScore so all referenced vars are in scope.
+  // Remove after watchlist/COIN issue is resolved.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__FD = FD; window.__D = D;
+      window.__wlBull = wlBull; window.__wlBear = wlBear;
+      window.__topFlowPicks = topFlowPicks; window.__autoScore = autoScore;
+    }
+  }, [FD, D, wlBull, wlBear, topFlowPicks]);
 
   // Helper: extract first/latest date and spot from CONV trades
   const _extractDateSpot = (c, dateMap) => {
