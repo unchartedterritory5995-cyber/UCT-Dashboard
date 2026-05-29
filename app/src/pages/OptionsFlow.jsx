@@ -128,7 +128,7 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {cols.map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -192,7 +192,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {cols.map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:h==="Flow"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -2344,13 +2344,13 @@ export default function OptionsFlowDashboard() {
               />
             </div>
           </div>
-          <div style={{ padding:"12px 14px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6 }}>
+          <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", height:440 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6, flexShrink:0 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#6ba3be", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#c9a84c", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
             </div>
-            <div style={{ width:"100%", height:160 }}>
+            <div style={{ width:"100%", flex:1, minHeight:0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
