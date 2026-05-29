@@ -1184,6 +1184,38 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
     threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
 
+    # ── Darkpool DB: auto-seed from static CSV if available ────────────────
+    def _darkpool_db_seed_background():
+        try:
+            from api import darkpool_db
+            _stats = darkpool_db.get_stats()
+            _public_dir = os.path.join(os.path.dirname(__file__), "..", "app", "public")
+            _dp_csv = os.path.join(_public_dir, "Darkpool-data.csv")
+
+            if _stats["total_rows"] == 0:
+                if os.path.exists(_dp_csv):
+                    with open(_dp_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = darkpool_db.insert_csv_rows(_f.read())
+                    print(f"[startup] Darkpool DB seeded: {_result['inserted']:,} new rows from Darkpool-data.csv ({_result['total']:,} total in file)")
+                else:
+                    print(f"[startup] Darkpool DB: no Darkpool-data.csv found at {_dp_csv}")
+            else:
+                if os.path.exists(_dp_csv):
+                    with open(_dp_csv, "r", encoding="utf-8-sig") as _f:
+                        _result = darkpool_db.insert_csv_rows(_f.read())
+                    if _result["inserted"] > 0:
+                        print(f"[startup] Darkpool DB: +{_result['inserted']:,} new rows, {_result['duplicates']:,} dupes skipped")
+                    else:
+                        print(f"[startup] Darkpool DB: {_stats['total_rows']:,} rows, {_stats['trading_days']} days — up to date")
+
+            # Auto-prune to 120 trading days (matches darkpool retention policy)
+            _pruned = darkpool_db.prune_old_data(keep_days=120)
+            if _pruned:
+                print(f"[startup] Darkpool DB pruned {_pruned} rows beyond 120-day window")
+        except Exception as e:
+            print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
+    threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
+
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
