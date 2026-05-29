@@ -3,14 +3,21 @@ darkpool_router.py — FastAPI routes for dark pool data.
 Mount in main.py:  app.include_router(darkpool_router.router)
 
 Mirrors the flow_router.py architecture:
-- /data uses streaming SQL cursor → in-memory gzip → cache headers
+- /data uses streaming SQL cursor → incremental gzip → chunked response
 - Cache-Control SWR matches flow's policy so CDN behavior is identical
 - ?days=N query param is part of the cache key (each window caches separately)
+
+Why streaming gzip:
+  The previous version buffered the full CSV string in memory before
+  gzip-compressing it ("".join(gen).encode + gzip.compress). That worked
+  for small windows but OOM'd the Railway worker on large responses
+  (e.g. ?all_data=true at 2.7M rows ≈ 600MB peak). The streaming approach
+  here keeps peak memory flat regardless of response size.
 """
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
-import gzip
+from fastapi.responses import JSONResponse, StreamingResponse
+import zlib
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
@@ -27,18 +34,52 @@ _DARKPOOL_CACHE_HEADERS = {
 }
 
 
+def _gzip_stream(gen):
+    """
+    Wrap an upstream str-or-bytes generator with incremental gzip compression.
+
+    Uses zlib.compressobj with wbits=16+MAX_WBITS to emit gzip-formatted
+    output (not raw deflate). Peak memory is O(chunk size + compressor
+    window) — no full-response buffering.
+    """
+    compressor = zlib.compressobj(level=4, wbits=16 + zlib.MAX_WBITS)
+    for chunk in gen:
+        if not chunk:
+            continue
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8")
+        out = compressor.compress(chunk)
+        if out:
+            yield out
+    tail = compressor.flush()
+    if tail:
+        yield tail
+
+
+def _bytes_stream(gen):
+    """Convert str chunks to utf-8 bytes for non-gzip clients."""
+    for chunk in gen:
+        if not chunk:
+            continue
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8")
+        yield chunk
+
+
 def _gzip_csv_response(gen, request: Request):
-    """Collect CSV generator, gzip if client accepts, return Response."""
-    content = "".join(gen).encode("utf-8")
+    """Stream CSV from a generator, gzip-compressing incrementally if client accepts."""
     accept = (request.headers.get("accept-encoding") or "").lower()
     if "gzip" in accept:
-        compressed = gzip.compress(content, compresslevel=4)
-        return Response(
-            content=compressed,
+        return StreamingResponse(
+            _gzip_stream(gen),
             media_type="text/csv",
             headers={**_DARKPOOL_CACHE_HEADERS, "Content-Encoding": "gzip"},
         )
-    return Response(content=content, media_type="text/csv", headers=_DARKPOOL_CACHE_HEADERS)
+    return StreamingResponse(
+        _bytes_stream(gen),
+        media_type="text/csv",
+        headers=_DARKPOOL_CACHE_HEADERS,
+    )
 
 
 # ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
