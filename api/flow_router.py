@@ -6,6 +6,7 @@ Endpoints:
     GET  /api/flow/data            — Query flow data as CSV (cached at CF edge)
     GET  /api/flow/indexes-data    — Query indexes data as CSV (cached at CF edge)
     GET  /api/flow/stats           — DB statistics for admin
+    GET  /api/flow/version         — Cache-busting version key (changes on upload/prune)
     POST /api/flow/prune           — Manually trigger expired contract cleanup
     GET  /api/flow/dates           — Available trading dates
 
@@ -164,6 +165,35 @@ async def get_stats():
         return JSONResponse(db.stats())
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@flow_router.get("/version")
+async def get_version():
+    """Cache-busting version key. Returns DB row count, which changes whenever
+    rows are inserted (uploads) or removed (prune). Clients append this as
+    &v=<version> to /data and /indexes-data requests so CF treats each version
+    as a separate cache entry — old cached responses naturally fall out of use
+    when new data arrives.
+
+    This endpoint itself is never cached (Cache-Control: no-store) so version
+    bumps are seen immediately."""
+    try:
+        stats = db.stats()
+        # Whatever changes on inserts/deletes works; total_rows is the obvious one
+        version = (stats.get("total_rows")
+                   or stats.get("count")
+                   or stats.get("rows")
+                   or 0)
+        return JSONResponse(
+            {"version": version},
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"version": 0, "error": str(e)},
+            status_code=500,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
 
 @flow_router.post("/prune")
