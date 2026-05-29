@@ -617,7 +617,7 @@ function buildCharts(cc) {
     const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
-    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
+    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus + (c.hits<=1 && c.hasSweep && c.askPrem>c.bidPrem && c.oiExceeded && c.prem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
       side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
       strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
@@ -1684,7 +1684,13 @@ export default function OptionsFlowDashboard() {
       else if (isMega ? p >= 2e6 : p >= 500e3) s += 1.5;
       else s += 0.5;
     } else {
-      s += h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5;
+      let hitsScore = h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5;
+      // Mirror the h<=1 massive-premium bonus into the multi-hit branch.
+      // A multi-trade cluster with huge aggregate premium (e.g. COIN $220C
+      // 5/21/27 H=2 $7.76M) deserves at least the same credit a single
+      // trade of that size would get, regardless of repetition count.
+      if (isMega ? p >= 5e6 : p >= 2e6) hitsScore = Math.max(hitsScore, 2);
+      s += hitsScore;
     }
     // Cap-relative premium: 0.5–2
     // (isMega and p already defined above)
@@ -1784,7 +1790,14 @@ export default function OptionsFlowDashboard() {
         const _oiH = _pick ? (_pick.history||[]).filter(h=>(h.oi||0)>0) : [];
         const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
         const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
-        const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
+        const _isExitRaw = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
+        // Override exit penalty when cluster shows fresh accumulation —
+        // V/OI >= 0.3 means today's volume is meaningful vs current OI,
+        // which indicates new entry flow rather than position unwinding.
+        // (Without this, big new sweeps on contracts with prior OI history
+        //  get unfairly penalized and drop out of the top-20 watchlist.)
+        const _hasAccum = c.vol > 0 && (c.maxOI||0) > 0 && (c.vol / c.maxOI) >= 0.3;
+        const _isExit = _isExitRaw && !_hasAccum;
         return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
@@ -4739,7 +4752,7 @@ export default function OptionsFlowDashboard() {
             const volOI = c.maxOI > 0 ? c.volumes / c.maxOI : 0;
             const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
-              score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus,
+              score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus + (c.hits<=1 && c.hasSweep && c.askPrem>c.bidPrem && c.oiExceeded && c.prem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
               side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
               patterns:detectPatterns(c) };
           }).filter(c => c.clean && c.DTE > 7);
