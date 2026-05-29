@@ -3,8 +3,8 @@ flow_router.py — FastAPI router for flow database operations.
 
 Endpoints:
     POST /api/flow/upload          — Upload CSV (stocks or indexes)
-    GET  /api/flow/data            — Query flow data as CSV (streamed)
-    GET  /api/flow/indexes-data    — Query indexes data as CSV (streamed)
+    GET  /api/flow/data            — Query flow data as CSV (cached at CF edge)
+    GET  /api/flow/indexes-data    — Query indexes data as CSV (cached at CF edge)
     GET  /api/flow/stats           — DB statistics for admin
     POST /api/flow/prune           — Manually trigger expired contract cleanup
     GET  /api/flow/dates           — Available trading dates
@@ -13,28 +13,28 @@ Integration in main.py:
     from api.flow_router import flow_router
     app.include_router(flow_router)
 
-Why streaming gzip:
-  Previously this router collected the CSV generator into one string and
-  gzipped the whole thing in memory. Fine for small windows, but for
-  ?all_data=true (or any wide ?days=N) at multi-million-row scale that
-  buffer was several hundred MB and could OOM the Railway worker. The
-  streaming approach below keeps peak memory flat regardless of size.
+Why buffered (not streaming):
+  An earlier version used StreamingResponse for incremental gzip. That kept
+  peak server memory flat but Cloudflare won't cache chunked responses
+  without Content-Length — every request became a Railway origin hit
+  (~10s end-to-end instead of ~100ms edge hits). Buffering is fine here
+  because the flow DB responses stay under ~30MB gzipped, and CF caching
+  is the bigger throughput win.
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from starlette.responses import StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB
 import os
-import zlib
+import gzip
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
-# Same caching policy as the legacy CSV endpoints in main.py — SWR with a
-# 5-min max-age. Query string (?days=N) is part of CF's cache key, so each
+# Same caching policy as the legacy CSV endpoints — SWR with a 5-min
+# max-age. Query string (?days=N) is part of CF's cache key, so each
 # window caches independently.
 _FLOW_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
@@ -42,52 +42,19 @@ _FLOW_CACHE_HEADERS = {
 }
 
 
-def _gzip_stream(gen):
-    """
-    Wrap an upstream str-or-bytes generator with incremental gzip compression.
-
-    Uses zlib.compressobj with wbits=16+MAX_WBITS to emit gzip-formatted
-    output (not raw deflate). Peak memory is O(chunk size + compressor
-    window) — no full-response buffering.
-    """
-    compressor = zlib.compressobj(level=4, wbits=16 + zlib.MAX_WBITS)
-    for chunk in gen:
-        if not chunk:
-            continue
-        if isinstance(chunk, str):
-            chunk = chunk.encode("utf-8")
-        out = compressor.compress(chunk)
-        if out:
-            yield out
-    tail = compressor.flush()
-    if tail:
-        yield tail
-
-
-def _bytes_stream(gen):
-    """Convert str chunks to utf-8 bytes for non-gzip clients."""
-    for chunk in gen:
-        if not chunk:
-            continue
-        if isinstance(chunk, str):
-            chunk = chunk.encode("utf-8")
-        yield chunk
-
-
 def _gzip_csv_response(gen, request: Request):
-    """Stream CSV from a generator, gzip-compressing incrementally if client accepts."""
+    """Collect CSV generator into bytes, gzip if client accepts, return Response
+    with Content-Length set so Cloudflare can cache."""
+    content = "".join(gen).encode("utf-8")
     accept = (request.headers.get("accept-encoding") or "").lower()
     if "gzip" in accept:
-        return StreamingResponse(
-            _gzip_stream(gen),
+        compressed = gzip.compress(content, compresslevel=4)
+        return Response(
+            content=compressed,
             media_type="text/csv",
             headers={**_FLOW_CACHE_HEADERS, "Content-Encoding": "gzip"},
         )
-    return StreamingResponse(
-        _bytes_stream(gen),
-        media_type="text/csv",
-        headers=_FLOW_CACHE_HEADERS,
-    )
+    return Response(content=content, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
 
 
 @flow_router.post("/upload")
@@ -154,8 +121,8 @@ async def get_flow_data(request: Request):
             gen = db.stream_csv(source="stocks", days=days)
         return _gzip_csv_response(gen, request)
     except Exception as e:
-        return StreamingResponse(
-            iter([f"Error: {e}".encode("utf-8")]),
+        return Response(
+            content=f"Error: {e}",
             status_code=500,
             media_type="text/plain",
         )
@@ -183,8 +150,8 @@ async def get_indexes_data(request: Request):
             gen = db.stream_csv(source="indexes", days=days)
         return _gzip_csv_response(gen, request)
     except Exception as e:
-        return StreamingResponse(
-            iter([f"Error: {e}".encode("utf-8")]),
+        return Response(
+            content=f"Error: {e}",
             status_code=500,
             media_type="text/plain",
         )
