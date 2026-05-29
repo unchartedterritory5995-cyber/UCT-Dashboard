@@ -1,18 +1,42 @@
 """
 darkpool_db.py — SQLite persistence for dark pool block trade data.
-Mirrors the flow_db.py pattern: Railway persistent volume, dedup on insert,
-date-range queries, auto-prune for expired/old data.
+
+Mirrors the flow_db.py architecture: Railway persistent volume, dedup on
+insert, date-range queries, streaming CSV output, auto-prune for old data.
+
+Seeding from app/public/Darkpool-data.csv is handled by main.py's startup
+background thread (parallel to the flow DB seed) — it is NOT triggered on
+import here. That keeps app boot fast and the seed observable in logs.
 """
 
 import sqlite3
 import os
 import csv
 import io
-from datetime import datetime, timedelta
 
-# Railway persistent volume path (same as flow_db)
+# Railway persistent volume path (matches flow_db)
 DB_DIR = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data")
 DB_PATH = os.path.join(DB_DIR, "darkpool.db")
+
+# CSV column order — must match what DarkPool.jsx expects from /api/darkpool/data
+CSV_COLUMNS = [
+    "Date", "Timestamp", "Ticker", "Volume", "Price", "Pct_of_Avg30Day",
+    "Notional", "Message", "Type", "SecurityType", "Industry", "Sector",
+    "Avg30Day", "Float", "EarningsDate"
+]
+_HEADER_LINE = ",".join(CSV_COLUMNS) + "\n"
+
+# DB column names in the same logical order (for SELECT)
+_DB_COLS = [
+    "date", "timestamp", "ticker", "volume", "price", "pct_avg30",
+    "notional", "message", "type", "security_type", "industry", "sector",
+    "avg30day", "float_shares", "earnings_date"
+]
+_SELECT_COLS = ", ".join(_DB_COLS)
+
+# Stream batch size: balance ASGI round-trips vs memory.
+# Larger = fewer yields, smaller = lower peak memory.
+_STREAM_BATCH = 2000
 
 
 def get_conn():
@@ -25,7 +49,7 @@ def get_conn():
 
 
 def init_db():
-    """Create tables and indexes if they don't exist."""
+    """Create tables and indexes if they don't exist. Idempotent + fast."""
     conn = get_conn()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS darkpool_trades (
@@ -55,7 +79,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_dp_date_ticker ON darkpool_trades(date, ticker);
     """)
     conn.close()
-    print(f"[darkpool_db] Initialized at {DB_PATH}")
 
 
 def parse_date_to_sortable(date_str):
@@ -70,6 +93,18 @@ def parse_date_to_sortable(date_str):
     except (ValueError, IndexError):
         pass
     return date_str
+
+
+def _resolve_dates(conn, days):
+    """Return date strings for the last N trading days, sorted newest first."""
+    rows = conn.execute(
+        "SELECT DISTINCT date FROM darkpool_trades"
+    ).fetchall()
+    all_dates = [r["date"] for r in rows]
+    all_dates.sort(key=lambda d: parse_date_to_sortable(d), reverse=True)
+    if days is not None:
+        return all_dates[:days]
+    return all_dates
 
 
 def insert_csv_rows(csv_text: str) -> dict:
@@ -141,53 +176,72 @@ def insert_csv_rows(csv_text: str) -> dict:
     return {"inserted": inserted, "duplicates": duplicates, "errors": errors, "total": total}
 
 
-def get_data_csv(days: int = None, all_data: bool = False) -> str:
+# ── Streaming CSV (preferred for /api/darkpool/data) ────────────────────
+
+def stream_csv(days=None, all_data: bool = False):
     """
-    Retrieve dark pool data as CSV text.
-    - days=N: last N trading days
-    - all_data=True: everything
+    Generator that yields CSV chunks from the database.
+
+    Uses cursor iteration (no fetchall) so memory stays flat regardless
+    of result size, and rows ship as soon as the first batch is ready —
+    no server-side wait for a giant string to be built.
+
+    ``days=None`` or ``all_data=True`` means everything.
+    Matches the flow_db.FlowDB.stream_csv pattern.
     """
-    conn = get_conn()
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = sqlite3.Row
+    try:
+        if all_data or days is None:
+            cursor = conn.execute(
+                f"SELECT {_SELECT_COLS} FROM darkpool_trades "
+                f"ORDER BY date DESC, timestamp DESC"
+            )
+        else:
+            selected_dates = _resolve_dates(conn, days)
+            if not selected_dates:
+                yield _HEADER_LINE
+                return
+            placeholders = ",".join(["?"] * len(selected_dates))
+            cursor = conn.execute(
+                f"SELECT {_SELECT_COLS} FROM darkpool_trades "
+                f"WHERE date IN ({placeholders}) "
+                f"ORDER BY date DESC, timestamp DESC",
+                selected_dates,
+            )
 
-    if all_data:
-        rows = conn.execute(
-            "SELECT * FROM darkpool_trades ORDER BY date DESC, timestamp DESC"
-        ).fetchall()
-    elif days and days > 0:
-        # Get unique dates sorted descending, take last N
-        dates = conn.execute(
-            "SELECT DISTINCT date FROM darkpool_trades ORDER BY date DESC"
-        ).fetchall()
-        # Convert to sortable, take top N, then query
-        date_list = sorted(
-            [r["date"] for r in dates],
-            key=lambda d: parse_date_to_sortable(d),
-            reverse=True
-        )[:days]
-        if not date_list:
-            conn.close()
-            return _empty_csv()
+        yield _HEADER_LINE
 
-        placeholders = ",".join("?" * len(date_list))
-        rows = conn.execute(
-            f"SELECT * FROM darkpool_trades WHERE date IN ({placeholders}) ORDER BY date DESC, timestamp DESC",
-            date_list
-        ).fetchall()
-    else:
-        # Default: last 1 trading day
-        latest = conn.execute(
-            "SELECT DISTINCT date FROM darkpool_trades ORDER BY date DESC LIMIT 1"
-        ).fetchone()
-        if not latest:
-            conn.close()
-            return _empty_csv()
-        rows = conn.execute(
-            "SELECT * FROM darkpool_trades WHERE date = ? ORDER BY timestamp DESC",
-            (latest["date"],)
-        ).fetchall()
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        count = 0
 
-    conn.close()
-    return _rows_to_csv(rows)
+        for row in cursor:
+            writer.writerow(list(row))
+            count += 1
+            if count % _STREAM_BATCH == 0:
+                yield buf.getvalue()
+                buf.seek(0)
+                buf.truncate(0)
+
+        remainder = buf.getvalue()
+        if remainder:
+            yield remainder
+    finally:
+        conn.close()
+
+
+# ── Legacy full-string method (kept for backward compat) ────────────────
+
+def get_data_csv(days=None, all_data: bool = False) -> str:
+    """
+    Retrieve dark pool data as CSV text. Kept for backward compat — new
+    code should use stream_csv() to avoid building large strings in memory.
+    """
+    if days is None and not all_data:
+        days = 1
+    return "".join(stream_csv(days=days, all_data=all_data))
 
 
 def get_available_dates() -> list:
@@ -208,6 +262,7 @@ def get_stats() -> dict:
     tickers = conn.execute("SELECT COUNT(DISTINCT ticker) as c FROM darkpool_trades").fetchone()["c"]
     latest = conn.execute("SELECT date FROM darkpool_trades ORDER BY date DESC LIMIT 1").fetchone()
     earliest = conn.execute("SELECT date FROM darkpool_trades ORDER BY date ASC LIMIT 1").fetchone()
+    db_size = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
     conn.close()
     return {
         "total_rows": total,
@@ -216,6 +271,7 @@ def get_stats() -> dict:
         "latest_date": latest["date"] if latest else None,
         "earliest_date": earliest["date"] if earliest else None,
         "db_path": DB_PATH,
+        "db_size_mb": round(db_size / 1e6, 1),
     }
 
 
@@ -223,7 +279,7 @@ def prune_old_data(keep_days: int = 120):
     """Remove data older than keep_days trading days."""
     conn = get_conn()
     dates = conn.execute(
-        "SELECT DISTINCT date FROM darkpool_trades ORDER BY date DESC"
+        "SELECT DISTINCT date FROM darkpool_trades"
     ).fetchall()
     date_list = sorted(
         [r["date"] for r in dates],
@@ -256,7 +312,7 @@ def clear_all():
     print("[darkpool_db] Cleared all data")
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────
 
 def _float(val):
     try:
@@ -265,75 +321,7 @@ def _float(val):
         return None
 
 
-def _empty_csv():
-    return "Date,Timestamp,Ticker,Volume,Price,Pct_of_Avg30Day,Notional,Message,Type,SecurityType,Industry,Sector,Avg30Day,Float,EarningsDate\n"
-
-
-def _rows_to_csv(rows):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "Date", "Timestamp", "Ticker", "Volume", "Price", "Pct_of_Avg30Day",
-        "Notional", "Message", "Type", "SecurityType", "Industry", "Sector",
-        "Avg30Day", "Float", "EarningsDate"
-    ])
-    for r in rows:
-        writer.writerow([
-            r["date"], r["timestamp"], r["ticker"], r["volume"], r["price"],
-            r["pct_avg30"], r["notional"], r["message"], r["type"],
-            r["security_type"], r["industry"], r["sector"], r["avg30day"],
-            r["float_shares"], r["earnings_date"]
-        ])
-    return output.getvalue()
-
-
-def auto_seed_from_csv():
-    """
-    Auto-seed DB from Darkpool-data.csv in the public folder on startup.
-    Ravi uploads new CSV to GitHub → Railway deploys → this runs on import.
-    Dedup via INSERT OR IGNORE means existing rows are skipped.
-    """
-    # Try multiple possible paths for the CSV
-    candidates = [
-        os.path.join(os.getcwd(), "app", "public", "Darkpool-data.csv"),
-        os.path.join(os.getcwd(), "public", "Darkpool-data.csv"),
-        "/app/public/Darkpool-data.csv",
-        "app/public/Darkpool-data.csv",
-        "Darkpool-data.csv",
-    ]
-
-    csv_path = None
-    for p in candidates:
-        if os.path.isfile(p):
-            csv_path = p
-            break
-
-    if not csv_path:
-        print("[darkpool_db] No Darkpool-data.csv found to seed — skipping auto-seed")
-        return
-
-    try:
-        file_size = os.path.getsize(csv_path)
-        print(f"[darkpool_db] Auto-seeding from {csv_path} ({file_size/1024:.0f}KB)…")
-
-        with open(csv_path, "r", encoding="utf-8-sig") as f:
-            csv_text = f.read()
-
-        result = insert_csv_rows(csv_text)
-        print(f"[darkpool_db] Auto-seed complete: {result['inserted']} new, {result['duplicates']} dupes, {result['errors']} errors / {result['total']} total")
-
-        # Log DB state after seed
-        stats = get_stats()
-        print(f"[darkpool_db] DB now has {stats['total_rows']} rows, {stats['trading_days']} trading days, {stats['tickers']} tickers")
-        if stats["latest_date"]:
-            print(f"[darkpool_db] Date range: {stats['earliest_date']} → {stats['latest_date']}")
-
-    except Exception as e:
-        print(f"[darkpool_db] Auto-seed error: {e}")
-
-
-# Auto-init on import
+# Auto-init tables on import (idempotent, fast — just CREATE IF NOT EXISTS).
+# The CSV seed is intentionally NOT triggered here — main.py runs it in a
+# background thread on startup to mirror the flow DB pattern.
 init_db()
-
-# Auto-seed from CSV on startup (dedup handles re-runs)
-auto_seed_from_csv()
