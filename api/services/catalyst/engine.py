@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from typing import Optional
 
 from api.services.catalyst import (
+    filters,
     selection,
     scoring,
     sources,
@@ -120,10 +121,22 @@ _ET = ZoneInfo("America/New_York")
 # survives across requests but not across restarts (recomputed on next refresh).
 _SECTOR_CONTEXT_BY_DATE: dict[str, list[dict]] = {}
 
+# Per-day quality-gate exclusions {market_date: {ticker: reason}}. Populated by
+# run_refresh so the "Why isn't X" explainer can report a precise reason
+# ("excluded: $2.40 below $3 floor") instead of silence. Survives across
+# requests, recomputed each refresh.
+_EXCLUDED_BY_DATE: dict[str, dict[str, str]] = {}
+
 
 def get_sector_contexts(market_date: str) -> list[dict]:
     """Read-only accessor for the catalysts router."""
     return _SECTOR_CONTEXT_BY_DATE.get(market_date, [])
+
+
+def get_exclusion_reason(market_date: str, ticker: str) -> Optional[str]:
+    """Why was this ticker dropped by the quality gate today? None if it
+    wasn't excluded (or the date hasn't been refreshed yet)."""
+    return _EXCLUDED_BY_DATE.get(market_date, {}).get((ticker or "").upper())
 
 
 def _collect_user_watchlist_tickers() -> dict[str, set[str]]:
@@ -485,6 +498,28 @@ def run_refresh() -> dict:
         logger.info("[catalyst-engine] no candidates this tick")
         return summary
 
+    # Two gates run BEFORE scoring + selection, so junk never enters the scored
+    # pool and the forced tag quotas come up short rather than backfilling junk:
+    #   1. quality_gate    — judges the TICKER (price/liquidity/market-cap).
+    #   2. is_real_catalyst — judges the SITUATION (is anything actually
+    #                         happening? real move / volume / hard catalyst).
+    kept: list[dict] = []
+    excluded: dict[str, str] = {}
+    for c in candidates:
+        passed, reason = filters.quality_gate(c)
+        if passed:
+            passed, reason = filters.is_real_catalyst(c)
+        if passed:
+            kept.append(c)
+        else:
+            excluded[(c.get("ticker") or "").upper()] = reason or "excluded"
+    _EXCLUDED_BY_DATE[md] = excluded
+    summary["excluded"] = len(excluded)
+    if excluded:
+        logger.info("[catalyst-engine] gates excluded %d candidates "
+                    "(junk + non-catalysts)", len(excluded))
+    candidates = kept
+
     for c in candidates:
         c["tag"] = tagging.assign_tag(c)
         c["score"] = scoring.score(c)
@@ -532,7 +567,13 @@ def run_refresh() -> dict:
 
     store.clear_ranks_for_date(md)
 
-    for rank, c in enumerate(top_12, start=1):
+    # Synthesize everything first, then hide grade-C rows from the RANKED list.
+    # They still get stored (unranked) for history + the "Why isn't X" explainer.
+    # Big movers with no fresh news are graded B (momentum) by the prompt, so
+    # they survive — only genuine noise lands at C.
+    hide_c = os.environ.get("CATALYST_HIDE_GRADE_C", "1").lower() in ("1", "true", "yes")
+    synthesized: list[tuple[dict, dict]] = []
+    for c in top_12:
         try:
             thesis = synthesize.synthesize_ticker(c, md)
         except Exception as e:
@@ -540,6 +581,18 @@ def run_refresh() -> dict:
                              c.get("ticker"))
             summary["errors"].append(f"synth_{c.get('ticker')}: {e}")
             continue
+        synthesized.append((c, thesis))
+
+    rank = 0
+    hidden_c = 0
+    for c, thesis in synthesized:
+        grade = thesis.get("grade")
+        if hide_c and grade == "C":
+            row_rank = None
+            hidden_c += 1
+        else:
+            rank += 1
+            row_rank = rank
 
         catalyst_at = _compute_catalyst_at(c)
 
@@ -547,7 +600,7 @@ def run_refresh() -> dict:
             store.upsert_catalyst({
                 "market_date": md,
                 "ticker": c["ticker"],
-                "rank": rank,
+                "rank": row_rank,
                 "score": c["score"],
                 "tag": c["tag"],
                 "price": c.get("price"),
@@ -559,6 +612,8 @@ def run_refresh() -> dict:
                 "thesis_model": thesis["thesis_model"],
                 "thesis_at": thesis["thesis_at"],
                 "thesis_sources": thesis["thesis_sources"],
+                "grade": grade,
+                "catalyst_type": thesis.get("catalyst_type"),
                 "signals_hash": thesis["signals_hash"],
                 "catalyst_at": catalyst_at,
                 "raw_signals": json.dumps({
@@ -573,6 +628,10 @@ def run_refresh() -> dict:
             logger.exception("[catalyst-engine] store upsert failed for %s",
                              c.get("ticker"))
             summary["errors"].append(f"store_{c.get('ticker')}: {e}")
+
+    if hidden_c:
+        summary["hidden_grade_c"] = hidden_c
+        logger.info("[catalyst-engine] hid %d grade-C rows from ranked list", hidden_c)
 
     selected_tickers = {c["ticker"] for c in top_12}
     for c in scored:

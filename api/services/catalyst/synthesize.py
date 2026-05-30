@@ -23,17 +23,40 @@ logger = logging.getLogger(__name__)
 OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-haiku-4-5")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
 
-SYSTEM_PROMPT = """You write pre-market trading catalyst summaries for a professional trader's morning dashboard.
+SYSTEM_PROMPT = """You are a SKEPTICAL sell-side analyst writing catalyst summaries for a professional trader's morning dashboard. Your default stance is doubt: most "catalysts" surfaced by news feeds are noise. Your job is to tell the trader, honestly, how real the catalyst is.
 
-Rules:
-  - Output JSON only: {"thesis": "...", "tag": "...", "source_urls": [...]}
-  - thesis is 2-3 sentences, plain factual English, NO buy/sell recommendations
+Output JSON only:
+  {"thesis": "...", "tag": "...", "grade": "A|B|C", "catalyst_type": "...", "source_urls": [...]}
+
+THESIS (2-3 sentences, plain factual English, NO buy/sell recommendations):
   - Bold $AMOUNTS, percentages, and company names with **markdown**
   - Cite source category in parentheses: (Earnings - Tweet - News - Scanner)
-  - If signals are thin or contradictory, the thesis MUST contain the literal phrase "no clear catalyst"
   - Never invent facts. Only synthesize what's in the SIGNALS block.
-  - Pick tag from: Catalyst, Earnings, Gapper, News (matches what the engine already classified)
-  - source_urls: include the URLs from SIGNALS you actually used"""
+  - Do NOT inflate. If the only "news" is a sector-wide rule, a single
+    politician's disclosure, a vague "growth strategy" article, or generic
+    social chatter, SAY SO plainly — do not dress it up as company-specific news.
+  - If there is genuinely no company-specific catalyst but the stock is moving,
+    describe it as momentum/continuation and say "no fresh catalyst" rather than
+    manufacturing one.
+
+GRADE — how strong/actionable is the catalyst:
+  - A = concrete, company-specific, market-moving (earnings beat/miss with
+        guidance, M&A/takeover, FDA approval/rejection/CRL, major analyst PT
+        change, big contract win, index inclusion). The kind of thing that
+        independently explains a real move.
+  - B = real but secondary (single analyst note, minor partnership, sympathy
+        move, OR a strong momentum/continuation move with no fresh news).
+  - C = weak/noise: sector-wide rules not specific to this company, single
+        congressional/insider disclosures, vague strategy pieces, promotional
+        social chatter, contradictory or unverifiable signals, or a flat tape.
+  Be strict. When in doubt between B and C, choose C.
+
+CATALYST_TYPE — pick the single best label:
+  Earnings, M&A, FDA, Analyst, Contract, Guidance, Product, Legal, Insider,
+  Index, Offering, Momentum, Sector-wide, None
+
+TAG: pick from Catalyst, Earnings, Gapper, News (matches engine classification).
+source_urls: include the URLs from SIGNALS you actually used."""
 
 
 def compute_signals_hash(candidate: dict) -> str:
@@ -156,6 +179,52 @@ def _validate_no_sources_phrasing(parsed: dict, has_sources: bool) -> bool:
     return "no clear catalyst" in (parsed.get("thesis") or "").lower()
 
 
+_VALID_GRADES = {"A", "B", "C"}
+
+
+def _normalize_grade(raw) -> Optional[str]:
+    """Coerce the model's grade to A/B/C, or None when unparseable (None means
+    'keep, unknown' downstream — we never hide on a missing grade)."""
+    if not raw:
+        return None
+    g = str(raw).strip().upper()[:1]
+    return g if g in _VALID_GRADES else None
+
+
+def _negative_examples_block() -> str:
+    """Build a few-shot block of rows the user has flagged 👎 as 'not a real
+    catalyst', so the grader learns the user's taste. Bounded + best-effort:
+    returns '' on any error or when there's no feedback yet.
+
+    Gated on CATALYST_FEEDBACK_FEWSHOT (default ON)."""
+    if os.environ.get("CATALYST_FEEDBACK_FEWSHOT", "1").lower() not in ("1", "true", "yes"):
+        return ""
+    try:
+        examples = store.get_recent_bad_examples(limit=6)
+    except Exception:
+        return ""
+    if not examples:
+        return ""
+    lines = []
+    for ex in examples:
+        t = ex.get("ticker")
+        thesis = (ex.get("thesis_text") or "")[:160]
+        gap = ex.get("gap_pct")
+        vol = ex.get("vol_x")
+        bits = []
+        if isinstance(gap, (int, float)):
+            bits.append(f"gap {gap:+.1f}%")
+        if isinstance(vol, (int, float)) and vol:
+            bits.append(f"vol {vol:.1f}×")
+        meta = f" ({', '.join(bits)})" if bits else ""
+        lines.append(f'  - ${t}{meta}: "{thesis}"')
+    return (
+        "\n\nThe trader has flagged rows like these as LOW-QUALITY / not real "
+        "catalysts. Grade rows with similar characteristics as C:\n"
+        + "\n".join(lines)
+    )
+
+
 def synthesize_ticker(candidate: dict, market_date: str) -> dict:
     """Returns dict with thesis_text, thesis_model, thesis_at, thesis_sources,
     signals_hash, was_cached, input_tokens, output_tokens."""
@@ -172,6 +241,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             "thesis_model": prior["thesis_model"],
             "thesis_at": prior["thesis_at"],
             "thesis_sources": prior["thesis_sources"],
+            "grade": prior.get("grade"),
+            "catalyst_type": prior.get("catalyst_type"),
             "signals_hash": h,
             "was_cached": True,
             "input_tokens": 0,
@@ -199,18 +270,21 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                        or candidate.get("earnings_meta")
                        or candidate.get("scanner_setup"))
 
+    # Steer the grader with rows the user has flagged 👎 as low-quality.
+    system_prompt = SYSTEM_PROMPT + _negative_examples_block()
+
     # Primary call: OPUS_MODEL env (defaults to Sonnet 4.6; can be set to Opus 4.7)
     msg = None
     used_model = OPUS_MODEL
     in_tokens = out_tokens = 0
 
     try:
-        msg, in_tokens, out_tokens = _call_anthropic(OPUS_MODEL, prompt, SYSTEM_PROMPT)
+        msg, in_tokens, out_tokens = _call_anthropic(OPUS_MODEL, prompt, system_prompt)
     except Exception as e:
         logger.warning("[catalyst-synth] primary model %s failed for %s: %s. Falling back to Haiku.",
                        OPUS_MODEL, candidate["ticker"], e)
         try:
-            msg, in_tokens, out_tokens = _call_anthropic(HAIKU_FALLBACK, prompt, SYSTEM_PROMPT)
+            msg, in_tokens, out_tokens = _call_anthropic(HAIKU_FALLBACK, prompt, system_prompt)
             used_model = HAIKU_FALLBACK
         except Exception as e2:
             logger.error("[catalyst-synth] Haiku fallback also failed for %s: %s",
@@ -268,7 +342,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                 prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
                         "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
                         "Re-output the JSON.",
-                SYSTEM_PROMPT,
+                system_prompt,
             )
             in_tokens += in2
             out_tokens += out2
@@ -280,12 +354,16 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                 parsed = {
                     "thesis": "No clear catalyst identified. Source pool was thin.",
                     "tag": candidate.get("tag", "Gapper"),
+                    "grade": "C",
+                    "catalyst_type": "None",
                     "source_urls": [],
                 }
         except Exception:
             parsed = {
                 "thesis": "No clear catalyst identified. Source pool was thin.",
                 "tag": candidate.get("tag", "Gapper"),
+                "grade": "C",
+                "catalyst_type": "None",
                 "source_urls": [],
             }
 
@@ -297,6 +375,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
         "thesis_model": used_model,
         "thesis_at": int(time.time()),
         "thesis_sources": json.dumps(parsed.get("source_urls", [])),
+        "grade": _normalize_grade(parsed.get("grade")),
+        "catalyst_type": (parsed.get("catalyst_type") or None),
         "signals_hash": h,
         "was_cached": False,
         "input_tokens": in_tokens,

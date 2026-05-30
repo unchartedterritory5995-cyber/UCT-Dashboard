@@ -36,10 +36,35 @@ CREATE TABLE IF NOT EXISTS catalysts (
   signals_hash    TEXT,
   catalyst_at     INTEGER,
   raw_signals     TEXT,
+  grade           TEXT,
+  catalyst_type   TEXT,
   PRIMARY KEY (market_date, ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_catalysts_date_rank  ON catalysts(market_date, rank);
 CREATE INDEX IF NOT EXISTS idx_catalysts_date_score ON catalysts(market_date, score DESC);
+
+-- User feedback on catalyst rows. The structured replacement for "screenshot
+-- the lame ones": a 👎 captures the full feature vector so we can mine the
+-- shared characteristics of what the trader considers garbage. PK on
+-- (user_id, ticker, market_date) so a row's verdict is updatable, not dupable.
+CREATE TABLE IF NOT EXISTS catalyst_feedback (
+  user_id      TEXT NOT NULL,
+  market_date  TEXT NOT NULL,
+  ticker       TEXT NOT NULL,
+  verdict      TEXT NOT NULL,          -- 'bad' | 'good'
+  tag          TEXT,
+  grade        TEXT,
+  catalyst_type TEXT,
+  gap_pct      REAL,
+  vol_x        REAL,
+  price        REAL,
+  market_cap   REAL,
+  sector       TEXT,
+  thesis_text  TEXT,
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (user_id, ticker, market_date)
+);
+CREATE INDEX IF NOT EXISTS idx_catalyst_feedback_verdict ON catalyst_feedback(verdict, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS catalyst_cost_log (
   ts              INTEGER NOT NULL,
@@ -83,24 +108,30 @@ def _init_db() -> None:
         # Backwards-compat: add catalyst_at column to existing DBs that were
         # created before this column was added to the schema. SQLite doesn't
         # support IF NOT EXISTS on columns, so we try + swallow duplicate-column.
-        try:
-            c.execute("ALTER TABLE catalysts ADD COLUMN catalyst_at INTEGER")
-        except sqlite3.OperationalError as e:
-            if "duplicate column name" not in str(e).lower():
-                raise
+        for col, decl in (("catalyst_at", "INTEGER"),
+                          ("grade", "TEXT"),
+                          ("catalyst_type", "TEXT")):
+            try:
+                c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" not in str(e).lower():
+                    raise
         c.commit()
 
 
 def upsert_catalyst(row: dict) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        row = {"grade": None, "catalyst_type": None, **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
-                thesis_sources, signals_hash, catalyst_at, raw_signals)
+                thesis_sources, signals_hash, catalyst_at, raw_signals,
+                grade, catalyst_type)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
-                       :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals)
+                       :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
+                       :grade, :catalyst_type)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -116,10 +147,102 @@ def upsert_catalyst(row: dict) -> None:
                  thesis_sources = excluded.thesis_sources,
                  signals_hash   = excluded.signals_hash,
                  catalyst_at    = excluded.catalyst_at,
-                 raw_signals    = excluded.raw_signals""",
+                 raw_signals    = excluded.raw_signals,
+                 grade          = excluded.grade,
+                 catalyst_type  = excluded.catalyst_type""",
             row,
         )
         c.commit()
+
+
+def record_feedback(*, user_id: str, market_date: str, ticker: str,
+                    verdict: str, row: Optional[dict] = None) -> None:
+    """Upsert a user's 👍/👎 on a catalyst row, capturing its feature vector.
+    `row` is the stored catalyst dict (from get_ticker_for_date) so we snapshot
+    the numbers as they were when flagged."""
+    row = row or {}
+    payload = {
+        "user_id": user_id,
+        "market_date": market_date,
+        "ticker": ticker.upper(),
+        "verdict": verdict,
+        "tag": row.get("tag"),
+        "grade": row.get("grade"),
+        "catalyst_type": row.get("catalyst_type"),
+        "gap_pct": row.get("gap_pct"),
+        "vol_x": row.get("vol_x"),
+        "price": row.get("price"),
+        "market_cap": row.get("market_cap"),
+        "sector": row.get("sector"),
+        "thesis_text": row.get("thesis_text"),
+        "created_at": int(time.time()),
+    }
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO catalyst_feedback
+               (user_id, market_date, ticker, verdict, tag, grade, catalyst_type,
+                gap_pct, vol_x, price, market_cap, sector, thesis_text, created_at)
+               VALUES (:user_id, :market_date, :ticker, :verdict, :tag, :grade,
+                       :catalyst_type, :gap_pct, :vol_x, :price, :market_cap,
+                       :sector, :thesis_text, :created_at)
+               ON CONFLICT(user_id, ticker, market_date) DO UPDATE SET
+                 verdict       = excluded.verdict,
+                 tag           = excluded.tag,
+                 grade         = excluded.grade,
+                 catalyst_type = excluded.catalyst_type,
+                 gap_pct       = excluded.gap_pct,
+                 vol_x         = excluded.vol_x,
+                 price         = excluded.price,
+                 market_cap    = excluded.market_cap,
+                 sector        = excluded.sector,
+                 thesis_text   = excluded.thesis_text,
+                 created_at    = excluded.created_at""",
+            payload,
+        )
+        c.commit()
+
+
+def get_recent_bad_examples(limit: int = 6) -> list[dict]:
+    """Most-recently flagged 'bad' rows, deduped by ticker, for few-shot
+    steering of the grader."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT ticker, tag, grade, catalyst_type, gap_pct, vol_x,
+                      thesis_text, MAX(created_at) AS created_at
+               FROM catalyst_feedback
+               WHERE verdict = 'bad'
+               GROUP BY ticker
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (int(limit),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def feedback_summary() -> dict:
+    """Aggregate characteristics of 👎 rows so the operator can spot the shared
+    traits of 'lame' catalysts and harden the gates accordingly."""
+    with contextlib.closing(_connect()) as c:
+        totals = dict(c.execute(
+            """SELECT
+                 SUM(CASE WHEN verdict='bad'  THEN 1 ELSE 0 END) AS bad_count,
+                 SUM(CASE WHEN verdict='good' THEN 1 ELSE 0 END) AS good_count,
+                 AVG(CASE WHEN verdict='bad'  THEN ABS(gap_pct) END) AS bad_avg_abs_gap,
+                 AVG(CASE WHEN verdict='bad'  THEN vol_x END)        AS bad_avg_volx
+               FROM catalyst_feedback""").fetchone())
+        by_tag = [dict(r) for r in c.execute(
+            """SELECT tag, COUNT(*) AS n FROM catalyst_feedback
+               WHERE verdict='bad' GROUP BY tag ORDER BY n DESC""").fetchall()]
+        by_type = [dict(r) for r in c.execute(
+            """SELECT catalyst_type, COUNT(*) AS n FROM catalyst_feedback
+               WHERE verdict='bad' GROUP BY catalyst_type ORDER BY n DESC""").fetchall()]
+        recent = [dict(r) for r in c.execute(
+            """SELECT ticker, market_date, tag, grade, catalyst_type, gap_pct,
+                      vol_x, thesis_text
+               FROM catalyst_feedback WHERE verdict='bad'
+               ORDER BY created_at DESC LIMIT 30""").fetchall()]
+        return {"totals": totals, "bad_by_tag": by_tag,
+                "bad_by_type": by_type, "recent_bad": recent}
 
 
 def get_for_date(market_date: str, ranked_only: bool = True) -> list[dict]:

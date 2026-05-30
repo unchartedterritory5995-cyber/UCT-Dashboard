@@ -42,6 +42,40 @@ function RowTagChip({ tag }) {
   return <span className={`${styles.tag} ${cls}`}>{tag || '—'}</span>
 }
 
+function GradeBadge({ grade }) {
+  if (!grade) return null
+  const cls = { A: styles.gradeA, B: styles.gradeB, C: styles.gradeC }[grade] || styles.gradeB
+  return (
+    <span className={`${styles.gradeBadge} ${cls}`} title={`Catalyst strength: grade ${grade}`}>
+      {grade}
+    </span>
+  )
+}
+
+function TypeChip({ type }) {
+  if (!type || type === 'None') return null
+  return <span className={styles.typeChip} title="Catalyst type">{type}</span>
+}
+
+function FeedbackButtons({ ticker, marketDate, verdict, onVote }) {
+  return (
+    <span className={styles.feedbackWrap}>
+      <button
+        type="button"
+        className={`${styles.fbBtn} ${verdict === 'good' ? styles.fbGoodActive : ''}`}
+        title="Good catalyst — show more like this"
+        onClick={() => onVote(ticker, marketDate, 'good')}
+      >👍</button>
+      <button
+        type="button"
+        className={`${styles.fbBtn} ${verdict === 'bad' ? styles.fbBadActive : ''}`}
+        title="Lame / not a real catalyst — learn to exclude these"
+        onClick={() => onVote(ticker, marketDate, 'bad')}
+      >👎</button>
+    </span>
+  )
+}
+
 function fmtPct(v) {
   if (v == null) return '—'
   const sign = v > 0 ? '+' : ''
@@ -207,12 +241,31 @@ export default function CatalystTable() {
   const myTickers = useUserTickerSet()
   const [refreshing, setRefreshing] = useState(false)
   const [activeTags, setActiveTags] = useState(new Set(ALL_TAGS))
+  // Local optimistic record of this session's 👍/👎 votes, keyed by ticker.
+  const [votes, setVotes] = useState({})
 
   if (!UI_ENABLED) return null
 
   const allRows = data?.rows || []
   const generatedAt = data?.generated_at
+  const marketDate = data?.market_date
   const sectorContexts = data?.sector_contexts || []
+
+  async function vote(ticker, md, verdict) {
+    // Toggle off if clicking the same verdict again.
+    const next = votes[ticker] === verdict ? null : verdict
+    setVotes(prev => ({ ...prev, [ticker]: next }))
+    if (!next) return
+    try {
+      await fetch('/api/catalysts/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, market_date: md, verdict: next }),
+      })
+    } catch {
+      /* best-effort — keep optimistic state */
+    }
+  }
 
   // Live prices for the displayed tickers — gives us tick-by-tick % change
   // (2s SWR poll). Backend stored gap_pct is the fallback while live data
@@ -403,10 +456,20 @@ export default function CatalystTable() {
                       {fmtPct(displayChange)}
                     </td>
                     <td className={styles.colVol}>{fmtVolX(r.vol_x)}</td>
-                    <td className={styles.colTag}><RowTagChip tag={r.tag} /></td>
+                    <td className={styles.colTag}>
+                      <RowTagChip tag={r.tag} />
+                      <GradeBadge grade={r.grade} />
+                    </td>
                     <td className={styles.colThesis}>
+                      <TypeChip type={r.catalyst_type} />
                       <HighlightThesis text={r.thesis_text} />
                       <CitationsPopover sources={parseSources(r.thesis_sources)} />
+                      <FeedbackButtons
+                        ticker={r.ticker}
+                        marketDate={marketDate}
+                        verdict={votes[r.ticker]}
+                        onVote={vote}
+                      />
                     </td>
                     <td
                       className={styles.colUpdated}

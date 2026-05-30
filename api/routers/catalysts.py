@@ -7,7 +7,7 @@ import re
 import threading
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Body, Depends, HTTPException, Path
 
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.catalyst import engine, store
@@ -66,15 +66,11 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     if not sym or not sym.isalpha() or len(sym) > 6:
         raise HTTPException(400, "invalid ticker")
 
-    from api.services.catalyst import sources, scoring, tagging
+    from api.services.catalyst import sources, scoring, tagging, filters
     candidates = sources.collect_all()
-    # Score + tag everyone
-    for c in candidates:
-        c["tag"] = tagging.assign_tag(c)
-        c["score"] = scoring.score(c)
-    scored = [c for c in candidates if c.get("tag")]
 
-    # Find our ticker
+    # Find our ticker first — so we can report a quality-gate exclusion before
+    # scoring (excluded candidates never get tagged/scored in the real engine).
     me = next((c for c in candidates if c.get("ticker") == sym), None)
     if me is None:
         return {
@@ -85,6 +81,41 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
             "tag": None,
             "signal_summary": {},
         }
+
+    passed, gate_reason = filters.quality_gate(me)
+    if passed:
+        passed, gate_reason = filters.is_real_catalyst(me)
+    if not passed:
+        return {
+            "ticker": sym,
+            "found": True,
+            "excluded_by_gate": True,
+            "tag": None,
+            "score": None,
+            "rank_among_scored": None,
+            "signal_summary": {
+                "gap_pct": me.get("gap_pct"),
+                "vol_x": me.get("vol_x"),
+                "price": me.get("price"),
+                "market_cap": me.get("market_cap"),
+                "avg_volume_30d": me.get("avg_volume_30d"),
+                "sector": me.get("sector"),
+            },
+            "reason": (
+                f"Filtered out before scoring ({gate_reason}). It's a real "
+                f"source hit but doesn't clear the tradeability + activity "
+                f"floors, so it never enters the scored pool."
+            ),
+        }
+
+    # Score + tag everyone (gate-passers only, to mirror the engine)
+    def _passes(c):
+        return filters.quality_gate(c)[0] and filters.is_real_catalyst(c)[0]
+    candidates = [c for c in candidates if _passes(c)]
+    for c in candidates:
+        c["tag"] = tagging.assign_tag(c)
+        c["score"] = scoring.score(c)
+    scored = [c for c in candidates if c.get("tag")]
 
     # Where does my score rank among scored candidates?
     scored_sorted = sorted(scored, key=lambda c: c.get("score", 0), reverse=True)
@@ -116,6 +147,37 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
             else "Has source signal but tag didn't qualify (e.g. Gapper needs ≥5% gap + ≥3× vol)."
         ),
     }
+
+
+@router.post("/catalysts/feedback")
+def catalysts_feedback(
+    body: dict = Body(...),
+    user=Depends(get_current_user),
+):
+    """Record a 👍/👎 on a catalyst row. The structured replacement for
+    'screenshot the lame ones' — snapshots the row's full feature vector so
+    the engine can learn which characteristics the trader considers garbage."""
+    ticker = str(body.get("ticker") or "").upper().strip()
+    verdict = str(body.get("verdict") or "").lower().strip()
+    market_date = str(body.get("market_date") or _today()).strip()
+    if not ticker or not ticker.isalpha() or len(ticker) > 6:
+        raise HTTPException(400, "invalid ticker")
+    if verdict not in ("bad", "good"):
+        raise HTTPException(400, "verdict must be 'bad' or 'good'")
+    if not _DATE_RE.match(market_date):
+        raise HTTPException(400, "market_date must be YYYY-MM-DD")
+
+    row = store.get_ticker_for_date(ticker, market_date) or {}
+    store.record_feedback(user_id=str(user["id"]), market_date=market_date,
+                          ticker=ticker, verdict=verdict, row=row)
+    return {"ok": True, "ticker": ticker, "verdict": verdict}
+
+
+@router.get("/admin/catalyst-feedback-summary")
+def catalyst_feedback_summary(user=Depends(require_admin)):
+    """Aggregate traits of 👎 rows so the operator can spot what 'lame'
+    catalysts have in common and harden the gates / thresholds."""
+    return store.feedback_summary()
 
 
 @router.get("/admin/catalyst-stats")
