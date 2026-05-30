@@ -73,15 +73,22 @@ def _start_uploader():
                     outcome = "no_credentials"
                 else:
                     ts = data_sync.upload_snapshot()
-                    outcome = "success" if ts else "no_data"
-                    if ts:
+                    if ts == data_sync.SNAPSHOT_UNCHANGED:
+                        outcome = "unchanged"  # source data hasn't moved — no tarball built
+                    elif ts:
+                        outcome = "success"
                         log.info(f"uploaded snapshot {ts}")
+                    else:
+                        outcome = "no_data"
             except Exception as e:
                 log.exception(f"upload error (non-fatal): {e}")
             with _uploader_state_lock:
                 _uploader_state["last_attempt_at"] = int(time.time())
                 _uploader_state["last_outcome"] = outcome
-            time.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
+            # Adaptive cadence: 5 min in the active data window, slow overnight/
+            # weekends. With skip-if-unchanged this drops the round-the-clock
+            # 688 MB upload firehose to near-zero when the market's closed.
+            time.sleep(data_sync.snapshot_interval_seconds())
 
     log.info(
         f"starting R2 uploader thread "

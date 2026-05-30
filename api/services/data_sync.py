@@ -27,9 +27,29 @@ import tarfile
 import tempfile
 import time
 import logging
+import datetime as _dt
+from zoneinfo import ZoneInfo as _ZoneInfo
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+_ET = _ZoneInfo("America/New_York")
+
+
+def in_active_data_window(now: Optional[_dt.datetime] = None) -> bool:
+    """True during the window when market data meaningfully changes:
+    weekdays 4:00 AM - 8:00 PM ET (pre-market open through post-market close).
+
+    Outside this window (overnight + weekends) historical/intraday bars are
+    static, so snapshot uploads and prewarm refreshes are wasted work. Shared
+    by the snapshot cadence, the prewarmer refresh loop, and the keep-warm
+    pinger so all three throttle on the same schedule. Holidays are not
+    special-cased — a holiday inside the window just means a few cheap no-op
+    cycles (skip-if-unchanged + per-entry freshness gates absorb them)."""
+    et = now or _dt.datetime.now(_ET)
+    if et.weekday() >= 5:  # Sat/Sun
+        return False
+    return 4 <= et.hour < 20
 
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 _LATEST_KEY = "latest.txt"
@@ -40,6 +60,57 @@ _SNAPSHOT_PREFIX = "snapshots/"
 # snapshot. Live (today's) bars don't go through the snapshot — the web
 # falls back to direct API fetches when the cache is older than its TTL.
 SNAPSHOT_INTERVAL_SECONDS = 300
+# Slow cadence outside the active data window (overnight/weekends). Bars are
+# static then, so combined with skip-if-unchanged the worker stops shipping
+# the (large) tarball every 5 min around the clock. Override via env.
+SNAPSHOT_INTERVAL_IDLE_SECONDS = int(os.environ.get("SNAPSHOT_INTERVAL_IDLE_SECONDS", "1800"))
+# Force a fresh upload at least this often even when the fingerprint looks
+# unchanged — cheap insurance against a fingerprint edge case leaving the web
+# pod indefinitely stale. 0 disables the force.
+SNAPSHOT_FORCE_UPLOAD_SECONDS = int(os.environ.get("SNAPSHOT_FORCE_UPLOAD_SECONDS", "3600"))
+# How many recent snapshots to retain in the bucket; older ones are pruned
+# after each successful upload. The web always pulls `latest`, so the newest
+# is never at risk; keeping a few covers any in-flight pull.
+SNAPSHOT_KEEP = int(os.environ.get("SNAPSHOT_KEEP", "5"))
+
+# Sentinel returned by upload_snapshot() when the source data is unchanged
+# since the last upload and the force interval hasn't elapsed — distinct from
+# None (failure / nothing to snapshot) so callers can report it honestly.
+SNAPSHOT_UNCHANGED = "unchanged"
+
+# Last-uploaded fingerprint + timestamp (process-local; the worker is long
+# lived so this persists for the life of the pod).
+_last_uploaded_fingerprint: Optional[tuple] = None
+_last_uploaded_at: float = 0.0
+
+
+def snapshot_interval_seconds() -> int:
+    """Adaptive upload cadence — fast inside the active data window, slow
+    outside it. Combined with skip-if-unchanged this makes overnight/weekend
+    uploads near-zero."""
+    return SNAPSHOT_INTERVAL_SECONDS if in_active_data_window() else SNAPSHOT_INTERVAL_IDLE_SECONDS
+
+
+def _snapshot_fingerprint() -> tuple:
+    """Cheap fingerprint of the snapshot source WITHOUT building the tarball.
+
+    Stats bars.db + its WAL/SHM sidecars (every write bumps -wal mtime/size,
+    every checkpoint bumps bars.db) plus the bars_cache dir mtime (atomic
+    write-then-rename bumps it). If this is identical to the last upload's
+    fingerprint, nothing changed and we can skip the expensive tar+gzip+PUT."""
+    parts = []
+    for fn in ("bars.db", "bars.db-wal", "bars.db-shm"):
+        p = os.path.join(_DATA_DIR, fn)
+        try:
+            st = os.stat(p)
+            parts.append((fn, int(st.st_mtime), st.st_size))
+        except OSError:
+            parts.append((fn, 0, 0))
+    try:
+        parts.append(("bars_cache", int(os.stat(os.path.join(_DATA_DIR, "bars_cache")).st_mtime)))
+    except OSError:
+        parts.append(("bars_cache", 0))
+    return tuple(parts)
 
 # Track when the last upload attempt succeeded so the worker's health
 # endpoint can report it. Written by upload_snapshot, read by callers.
@@ -169,14 +240,70 @@ def _make_tarball() -> bytes:
 _empty_snapshot_logged = False
 
 
-def upload_snapshot() -> Optional[str]:
-    """Upload a fresh snapshot. Returns the snapshot timestamp, or None on failure."""
-    global _empty_snapshot_logged
+def _prune_old_snapshots(keep: int = SNAPSHOT_KEEP) -> int:
+    """Delete all but the newest `keep` snapshots from the bucket.
+
+    Snapshots accumulate forever otherwise (one new <ts>.tar.gz per upload).
+    The web always pulls `latest`, which is the newest key, so it's never a
+    prune target — keeping a few extra covers any in-flight download."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return 0
+    try:
+        resp = client.list_objects_v2(Bucket=bucket, Prefix=_SNAPSHOT_PREFIX)
+        objs = resp.get("Contents", []) or []
+
+        def _ts_of(o):
+            try:
+                return int(o["Key"].rsplit("/", 1)[-1].split(".")[0])
+            except (ValueError, IndexError):
+                return 0
+
+        objs.sort(key=_ts_of, reverse=True)  # newest first
+        deleted = 0
+        for o in objs[keep:]:
+            try:
+                client.delete_object(Bucket=bucket, Key=o["Key"])
+                deleted += 1
+            except Exception:
+                pass
+        return deleted
+    except Exception as e:
+        logger.warning(f"[data_sync] prune failed (non-fatal): {e}")
+        return 0
+
+
+def upload_snapshot(force: bool = False) -> Optional[str]:
+    """Upload a fresh snapshot.
+
+    Returns the snapshot timestamp on a real upload, SNAPSHOT_UNCHANGED when
+    the source data is unchanged since the last upload (and the force interval
+    hasn't elapsed), or None on failure / nothing to snapshot.
+
+    The skip-if-unchanged check is the big efficiency win: the 688 MB tarball
+    was previously built + gzipped + PUT every 5 min around the clock even
+    when nothing had changed (overnight, weekends). Now we stat a handful of
+    files first and bail before doing any of that expensive work."""
+    global _empty_snapshot_logged, _last_uploaded_fingerprint, _last_uploaded_at
     client = _client()
     bucket = _bucket()
     if not (client and bucket):
         logger.warning("[data_sync] credentials/bucket missing; skipping upload")
         return None
+
+    # Skip-if-unchanged: cheap stat-based fingerprint, no tarball built.
+    fp = _snapshot_fingerprint()
+    now = time.time()
+    stale_force = (
+        SNAPSHOT_FORCE_UPLOAD_SECONDS > 0
+        and (now - _last_uploaded_at) >= SNAPSHOT_FORCE_UPLOAD_SECONDS
+    )
+    if (not force and not stale_force
+            and _last_uploaded_fingerprint is not None
+            and fp == _last_uploaded_fingerprint):
+        return SNAPSHOT_UNCHANGED
+
     try:
         data = _make_tarball()
     except FileNotFoundError as e:
@@ -196,8 +323,15 @@ def upload_snapshot() -> Optional[str]:
         # endpoint can report it (the worker never downloads, so
         # .last_sync_ts is always empty there).
         _write_marker(_LAST_UPLOAD_MARKER, ts)
+        # Record the fingerprint so the next cycle can skip if unchanged.
+        _last_uploaded_fingerprint = fp
+        _last_uploaded_at = now
         # Clear the noisy-log guard so a future empty state still logs.
         _empty_snapshot_logged = False
+        # Bound bucket growth — best-effort, never fails the upload.
+        pruned = _prune_old_snapshots()
+        if pruned:
+            logger.info(f"[data_sync] pruned {pruned} old snapshot(s)")
         return ts
     except Exception as e:
         logger.exception(f"[data_sync] upload failed: {e}")

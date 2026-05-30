@@ -234,6 +234,16 @@ def run_prewarmer_forever():
                 print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
     print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
     while True:
+        # Market-hours gate: overnight + weekends, bars are static, so the
+        # ~14k-job freshness scan below is pure SQLite-read churn (nothing is
+        # stale, nothing gets fetched). Idle on a long sleep and skip the scan
+        # entirely. The boot warm above already populated the cache; the
+        # per-entry _needs_fresh gate would no-op anyway — this just avoids
+        # spinning the whole scan every 5 min around the clock.
+        from api.services import data_sync as _ds_window
+        if not _ds_window.in_active_data_window():
+            _t.sleep(1800)
+            continue
         _t.sleep(300)
         # Augment the static job list with intraday for the live hot-set —
         # the tickers users are actually flipping through. Without this,
