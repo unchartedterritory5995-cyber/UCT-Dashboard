@@ -742,9 +742,29 @@ def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
     return result
 
 
+# Trailing re-aggregation window for intraday delta fetches (seconds). The old
+# `>= last_ts` filter only ever corrected the NEWEST bar — an interior bar
+# stored mid-formation (partial volume / wrong close) froze forever once a newer
+# bar landed on top, because last_ts (= MAX(ts)) advanced past it and it was
+# never re-requested. Re-emitting a trailing window instead heals those buried
+# partials: put_bars is INSERT OR REPLACE, the full gap_days window is already
+# fetched, and closed bars carry authoritative Massive values (WS still owns the
+# live-tick display), so re-writing the recent window is always safe. 8h covers
+# a full RTH session + buffer; deeper/cross-session poison is handled by the
+# reconciliation worker + one-time heal. Env-tunable.
+_DELTA_HEAL_WINDOW_SECONDS = int(_os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS", str(8 * 3600)))
+
+
 def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
-    """Fetch only intraday bars newer than last_ts (unix seconds)."""
+    """Fetch intraday bars within a trailing heal window of last_ts (unix sec).
+
+    NOT a strict delta: re-aggregates the last _DELTA_HEAL_WINDOW_SECONDS so
+    interior partial bars get corrected (INSERT OR REPLACE), not just the
+    newest one. See _DELTA_HEAL_WINDOW_SECONDS for the full rationale."""
     gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
+    # Floor below which we don't bother re-emitting (already-final history).
+    # last_ts==0 (cold) → floor 0 → return everything fetched (full populate).
+    heal_floor = max(0, last_ts - _DELTA_HEAL_WINDOW_SECONDS) if last_ts else 0
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -771,7 +791,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # "stored partial in-progress bar" bug where a chart loaded mid-hour
             # froze the bucket at half-bar values that the prior > filter could
             # never update (Step 4).
-            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= last_ts]
+            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= heal_floor]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -799,7 +819,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # WS still wins on display via the per-minute AM broadcaster;
             # REST's update only changes the persisted SQLite row, which
             # bar_broadcaster doesn't compete on for in-progress data.
-            if ts >= last_ts:
+            if ts >= heal_floor:
                 new.append({
                     "t": ts,
                     "o": round(bar["o"], 2), "h": round(bar["h"], 2),
