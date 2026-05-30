@@ -1321,6 +1321,11 @@ export default function OptionsFlowDashboard() {
   const [csvLoading, setCsvLoading] = useState(true);
   const [csvError, setCsvError] = useState(null);
   const [parsedRows, setParsedRows] = useState(null);
+  // Tracks which fetchDays value the current parsedRows represents. Used to
+  // skip the processing effect when a new fetch is in flight that will deliver
+  // different data — avoids 1-4s of wasted processFlowData on every range
+  // expansion (Last5 → Last20, Last60 → All, etc).
+  const [loadedFetchDays, setLoadedFetchDays] = useState(null);
   const [dateFilter, setDateFilter] = useState("Last1");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -1420,6 +1425,12 @@ export default function OptionsFlowDashboard() {
   // Process data whenever parsedRows or dateFilter or date range changes
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
+    // Skip processing if a fetch is in-flight that will replace parsedRows.
+    // This is the key perf fix — eliminates wasted intermediate processFlowData
+    // runs when user expands the range (e.g. Last5 → Last20 → Last60 → All).
+    // When the fetch completes, loadedFetchDays catches up to fetchDays and
+    // processing fires once with the fresh data.
+    if (loadedFetchDays !== fetchDays) return;
     const t2 = performance.now();
     let filtered;
     if (dateFrom && dateTo) {
@@ -1451,7 +1462,7 @@ export default function OptionsFlowDashboard() {
       console.error("processFlowData error:", err);
       setCsvError(err.message);
     }
-  }, [parsedRows, dateFilter, dateFrom, dateTo]);
+  }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
 
   useEffect(() => {
     // Wait for dataVersion before fetching — avoids a double-fetch on mount
@@ -1459,6 +1470,9 @@ export default function OptionsFlowDashboard() {
     // so the UX delay is imperceptible and we save one full CSV download.
     if (dataVersion == null) return;
 
+    // Capture fetchDays at fetch initiation so we know what range this fetch
+    // represents — even if user clicks a different range mid-fetch.
+    const fetchDaysAtStart = fetchDays;
     let cancelled = false;
     setCsvLoading(true);
     setCsvError(null);
@@ -1496,7 +1510,7 @@ export default function OptionsFlowDashboard() {
               const rows = parseCSV(text);
               console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
               if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-              if (!cancelled) { setParsedRows(rows); setCsvLoading(false); }
+              if (!cancelled) { setParsedRows(rows); setLoadedFetchDays(fetchDaysAtStart); setCsvLoading(false); }
             } catch(err) {
               if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
             }
@@ -2578,7 +2592,7 @@ export default function OptionsFlowDashboard() {
             <button key={m} onClick={()=>{ if(dataMode!==m) {
               const wasFlow = dataMode === "stocks" || dataMode === "index";
               const toFlow = m === "stocks" || m === "index";
-              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); }
+              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
               setDataMode(m);
             } }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
@@ -2809,7 +2823,7 @@ export default function OptionsFlowDashboard() {
                 // Switching to/from darkpool or gex preserves cached parsedRows+D for instant return
                 const wasFlow = dataMode === "stocks" || dataMode === "index";
                 const toFlow = m === "stocks" || m === "index";
-                if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); }
+                if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
                 setDataMode(m);
               } }} style={{
                 padding:"8px 28px", borderRadius:6, border:(m==="gex"||m==="darkpool")?(dataMode===m?"1px solid "+(m==="darkpool"?"#6ba3be":"#c9a84c"):"1px solid "+(m==="darkpool"?"#6ba3be55":"#c9a84c55")):"none", cursor:"pointer",
