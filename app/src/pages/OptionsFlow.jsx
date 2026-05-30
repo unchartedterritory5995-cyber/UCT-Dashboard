@@ -1333,7 +1333,7 @@ export default function OptionsFlowDashboard() {
   const [D, setD] = useState(null);
   const [dataVersion, setDataVersion] = useState(null);
 
-  // Fetch DB version on mount + when tab regains focus (so a fresh upload in
+// Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
   // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
   useEffect(() => {
@@ -1734,6 +1734,114 @@ export default function OptionsFlowDashboard() {
     // Normalize to 10 max (raw max ~12.5)
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
+
+  // ── ThemeRead: pattern-based theme + optional LLM narrative ──────────────
+  // Self-contained component used by both Market Read and Leaderboard tabs.
+  // Pattern analysis is instant + free. LLM "AI Read" button is opt-in and
+  // server-cached by (version, context) so repeat clicks don't burn API spend.
+  const renderThemeRead = (themeCtx, topBulls, topBears, stats) => {
+    const bulls = (topBulls || []).slice(0, 20);
+    const bears = (topBears || []).slice(0, 20);
+    if (!bulls.length && !bears.length) return null;
+
+    // Sector breakdown
+    const aggBySector = (list) => {
+      const m = {};
+      list.forEach(b => {
+        const s = b.sector || "Unknown";
+        m[s] = (m[s] || 0) + (b.netPrem || 0);
+      });
+      return Object.entries(m).sort((a, b) => b[1] - a[1]);
+    };
+    const bullSectors = aggBySector(bulls);
+    const bearSectors = aggBySector(bears);
+    const totalBullPrem = bulls.reduce((s, b) => s + (b.netPrem || 0), 0);
+    const totalBearPrem = bears.reduce((s, b) => s + (b.netPrem || 0), 0);
+
+    // Pattern detection sentences
+    const sentences = [];
+    if (bullSectors.length && totalBullPrem > 0) {
+      const [topSec, topVal] = bullSectors[0];
+      const pct = Math.round(topVal / totalBullPrem * 100);
+      if (pct >= 50) sentences.push(`Bull flow concentrated in ${topSec} (${pct}% of top bulls).`);
+      else if (bullSectors.length >= 3) sentences.push(`Bull flow diversified across ${bullSectors.slice(0,3).map(s=>s[0]).join(", ")}.`);
+    }
+    if (bearSectors.length && totalBearPrem > 0) {
+      const [topSec, topVal] = bearSectors[0];
+      const pct = Math.round(topVal / totalBearPrem * 100);
+      if (pct >= 40) sentences.push(`Bear flow focused on ${topSec} (${pct}% of top bears).`);
+    }
+    // Cap mix
+    const megaBulls = bulls.filter(b => (b.mktcap || 0) >= 500e9).length;
+    if (megaBulls >= 5) sentences.push(`${megaBulls} of top ${bulls.length} bulls are mega-cap.`);
+    // Direction balance
+    const total = totalBullPrem + totalBearPrem;
+    if (total > 0) {
+      const bullPct = Math.round(totalBullPrem / total * 100);
+      sentences.push(`Net positioning ${bullPct}% bull / ${100-bullPct}% bear across leaders.`);
+    }
+    const patternText = sentences.join(" ");
+
+    // Donut chart — inline SVG, two side-by-side rings
+    const donutColors = [P.bu, "#5b9aed", "#9c6cff", "#ff9b3d", "#ffd450", "#7ec88c", "#888"];
+    const renderDonut = (data, total, label, color) => {
+      const size = 130, r = 50, cx = size/2, cy = size/2, stroke = 18;
+      const C = 2 * Math.PI * r;
+      let offset = 0;
+      const slices = data.slice(0, 6);
+      const otherVal = data.slice(6).reduce((s, [, v]) => s + v, 0);
+      if (otherVal > 0) slices.push(["Other", otherVal]);
+      const sliceTotal = slices.reduce((s, [, v]) => s + v, 0) || 1;
+      return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={P.bd} strokeWidth={stroke} opacity="0.25"/>
+            {slices.map(([name, val], i) => {
+              const frac = val / sliceTotal;
+              const len = frac * C;
+              const dash = `${len} ${C - len}`;
+              const el = (
+                <circle key={name+i} cx={cx} cy={cy} r={r} fill="none"
+                  stroke={i === 0 ? color : donutColors[i % donutColors.length]}
+                  strokeWidth={stroke} strokeDasharray={dash} strokeDashoffset={-offset}
+                  transform={`rotate(-90 ${cx} ${cy})`}/>
+              );
+              offset += len;
+              return el;
+            })}
+            <text x={cx} y={cy-3} textAnchor="middle" fill={color} fontSize="13" fontWeight="800">${(total/1e6).toFixed(1)}M</text>
+            <text x={cx} y={cy+12} textAnchor="middle" fill={P.dm} fontSize="9">{label}</text>
+          </svg>
+          <div style={{ display:"flex", flexDirection:"column", gap:2, fontSize:9, width:"100%" }}>
+            {slices.slice(0, 4).map(([name, val], i) => {
+              const sliceColor = i === 0 ? color : donutColors[i % donutColors.length];
+              const pct = Math.round(val / sliceTotal * 100);
+              return (
+                <div key={name+i} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ width:8, height:8, borderRadius:2, background:sliceColor, flexShrink:0 }}/>
+                  <span style={{ color:P.mt, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</span>
+                  <span style={{ color:P.dm, fontWeight:600 }}>{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <Card>
+        <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:10 }}>🎯 THEME READ</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 200px 200px", gap:16, alignItems:"flex-start" }}>
+          <div style={{ fontSize:12, color:P.mt, lineHeight:1.6 }}>{patternText}</div>
+          {bullSectors.length > 0 && renderDonut(bullSectors, totalBullPrem, "BULL", P.bu)}
+          {bearSectors.length > 0 && renderDonut(bearSectors, totalBearPrem, "BEAR", P.be)}
+        </div>
+      </Card>
+    );
+  };
+
+
 
   // Helper: extract first/latest date and spot from CONV trades
   const _extractDateSpot = (c, dateMap) => {
@@ -3926,6 +4034,42 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </>}
                       </div>
+                      {/* Theme Read — pattern + optional AI narrative */}
+                      {(() => {
+                        // Build top 20 bulls/bears per ticker from clean_confirmed.
+                        // Self-contained so variables don't leak into surrounding scope.
+                        const cc2 = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+                        if (!cc2.length) return null;
+                        const tm = {};
+                        cc2.forEach(t => {
+                          if (!tm[t.S]) tm[t.S] = { sym:t.S, bull:0, bear:0, mktcap:t.mktcap||0, sector:t.sector||"", topPrem:0, topContract:null };
+                          if (t.D === "BULL") tm[t.S].bull += t.P;
+                          if (t.D === "BEAR") tm[t.S].bear += t.P;
+                          if (t.P > tm[t.S].topPrem) {
+                            tm[t.S].topPrem = t.P;
+                            tm[t.S].topContract = `${t.CP} $${t.K} ${t.E}`;
+                          }
+                        });
+                        const tArr = Object.values(tm);
+                        const fmtItem = (tk, dir) => ({
+                          sym: tk.sym, sector: tk.sector, mktcap: tk.mktcap,
+                          netPrem: dir === "BULL" ? (tk.bull - tk.bear) : (tk.bear - tk.bull),
+                          topContract: tk.topContract || ""
+                        });
+                        const topBulls = tArr.filter(t => t.bull > t.bear)
+                          .sort((a,b) => (b.bull - b.bear) - (a.bull - a.bear))
+                          .slice(0, 20).map(t => fmtItem(t, "BULL"));
+                        const topBears = tArr.filter(t => t.bear > t.bull)
+                          .sort((a,b) => (b.bear - b.bull) - (a.bear - a.bull))
+                          .slice(0, 20).map(t => fmtItem(t, "BEAR"));
+                        const totalBullPrem = tArr.reduce((s,t)=>s+t.bull,0);
+                        const totalBearPrem = tArr.reduce((s,t)=>s+t.bear,0);
+                        return renderThemeRead("market_read", topBulls, topBears, {
+                          totalTickers: tArr.length,
+                          bullBreadth: totalBullPrem,
+                          bearBreadth: totalBearPrem
+                        });
+                      })()}
                       {/* Flow Velocity */}
                       {latestDate && avgDailyPrem > 0 && (
                         <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
@@ -4675,6 +4819,27 @@ export default function OptionsFlowDashboard() {
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
               </div>
+              {/* Theme Read — pattern + optional AI narrative */}
+              {(() => {
+                if (!bulls.length && !bears.length) return null;
+                const fmtContract = (tc) => tc ? `${tc.cp || tc.CP || "?"} $${tc.K || tc.k || "?"} ${tc.exp || tc.E || ""}` : "";
+                const top20Bulls = bulls.slice(0, 20).map(tk => ({
+                  sym: tk.sym, sector: tk.sector || "", mktcap: tk.mktcap || 0,
+                  netPrem: (tk.bull || 0) - (tk.bear || 0),
+                  topContract: fmtContract(tk.topContract)
+                }));
+                const top20Bears = bears.slice(0, 20).map(tk => ({
+                  sym: tk.sym, sector: tk.sector || "", mktcap: tk.mktcap || 0,
+                  netPrem: (tk.bear || 0) - (tk.bull || 0),
+                  topContract: fmtContract(tk.topContract)
+                }));
+                return renderThemeRead("leaderboard", top20Bulls, top20Bears, {
+                  totalTickers: bulls.length + bears.length,
+                  bullBreadth: bulls.reduce((s,t) => s + (t.bull||0), 0),
+                  bearBreadth: bears.reduce((s,t) => s + (t.bear||0), 0)
+                });
+              })()}
+
               {/* Two-column leaderboard */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <Card>
