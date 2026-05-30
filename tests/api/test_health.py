@@ -7,7 +7,13 @@ async def test_health():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         r = await ac.get("/api/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    body = r.json()
+    assert body["status"] == "ok"
+    # uptime_seconds lets operators distinguish a healthy long-lived pod from
+    # one that's silently restarting / idle-respawning (the cold-start that
+    # makes the first chart load slow).
+    assert isinstance(body["uptime_seconds"], int)
+    assert body["uptime_seconds"] >= 0
 
 @pytest.mark.asyncio
 async def test_spa_fallback_serves_html():

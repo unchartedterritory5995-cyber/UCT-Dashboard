@@ -30,6 +30,14 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
 )
+# Quiet the per-request httpx/httpcore noise. The prewarmer fires thousands
+# of Massive aggs requests per pass; at INFO each one logs a "GET … 200 OK"
+# line. Railway tags all worker stderr as severity=error, so that firehose
+# masquerades as an "error flood" in the log viewer (it isn't — they're 200s).
+# Mirrors the web service's logging config (api/main.py) so both pods are quiet.
+for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
+               "websockets.protocol", "asyncio", "uvicorn.access"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 log = logging.getLogger("worker")
 
 # Liveness signal for the uploader thread. Updated at the top of every
@@ -80,6 +88,48 @@ def _start_uploader():
         f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)"
     )
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
+
+
+def _start_keepwarm():
+    """Ping the web pod's /api/health on a fixed cadence so Railway never
+    idle-spins it down.
+
+    WHY this lives on the worker: a measured cold web pod adds ~12s to the
+    FIRST request after idle. Stacked under a cold long-tail intraday fetch
+    that's enough to blow Railway's gateway timeout (502) and blank the
+    chart. A pod cannot keep ITSELF warm — when Railway suspends an idle
+    container its own threads freeze too, so the wake-up ping must come from
+    a different, always-active process. The worker is exactly that (it runs
+    the prewarmer + R2 uploader continuously and is never request-idle).
+
+    Pings the public custom domain by default (confirmed reachable); override
+    with KEEPWARM_URL (e.g. a Railway-internal URL). Disable with
+    KEEPWARM_ENABLED=0. Failures are logged and never fatal.
+    """
+    if os.environ.get("KEEPWARM_ENABLED", "1") != "1":
+        log.info("keep-warm pinger disabled (KEEPWARM_ENABLED!=1)")
+        return
+    import urllib.request
+
+    base = (os.environ.get("KEEPWARM_URL") or "https://uctintelligence.com").rstrip("/")
+    url = f"{base}/api/health"
+    try:
+        interval = max(15, int(os.environ.get("KEEPWARM_INTERVAL_SECONDS", "60")))
+    except ValueError:
+        interval = 60
+
+    def loop():
+        while True:
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    r.read(64)  # drain a little so the conn closes cleanly
+            except Exception as e:
+                log.warning(f"keep-warm ping failed ({url}): {type(e).__name__}: {e}")
+            time.sleep(interval)
+
+    log.info(f"starting keep-warm pinger -> {url} every {interval}s")
+    threading.Thread(target=loop, daemon=True, name="keepwarm").start()
 
 
 def _build_app() -> FastAPI:
@@ -154,6 +204,7 @@ def main():
 
     _start_prewarmer()
     _start_uploader()
+    _start_keepwarm()
 
     port = int(os.environ.get("PORT", "8080"))
     log.info(f"worker HTTP listening on :{port} (healthcheck only)")

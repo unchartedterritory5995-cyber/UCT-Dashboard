@@ -2,9 +2,17 @@ import os
 import json
 import logging
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+# Process boot time — exposed via /api/health so an operator can tell a
+# healthy long-lived pod (uptime climbs steadily) from a silently
+# restarting / idle-respawning one (uptime keeps resetting). The 12s
+# cold-start that makes the first chart load slow shows up here as a
+# freshly-reset uptime.
+_APP_BOOT_TS = time.time()
 
 # Configure logging early — before any service imports — so that INFO messages
 # from api.services.* loggers (bar_stream, realtime_stream, etc.) reach stdout.
@@ -1658,7 +1666,11 @@ def health():
     from api.services.cache import cache
     wire = cache.get("wire_data")
     wire_date = wire.get("date") if wire else None
-    return {"status": "ok", "wire_date": wire_date}
+    return {
+        "status": "ok",
+        "wire_date": wire_date,
+        "uptime_seconds": int(time.time() - _APP_BOOT_TS),
+    }
 
 
 @app.get("/api/health/cache")
