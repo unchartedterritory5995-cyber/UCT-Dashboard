@@ -588,8 +588,10 @@ async def lifespan(app: FastAPI):
 
     # Start the reconciliation worker — diffs SQLite vs Polygon canonical
     # periodically, auto-heals any drift. Structural safety net behind every
-    # chart correctness invariant. Only active on the worker pod
-    # (RECONCILE_ENABLED=1) so the web pod doesn't compete on Polygon quota.
+    # chart correctness invariant. Runs HERE on the web pod (on by default;
+    # RECONCILE_ENABLED=0 to disable): the worker→web R2 merge is INSERT OR
+    # IGNORE and can't overwrite bad rows, so the heal must run where users
+    # read. Massive is flat-rate, so canonical fetches cost nothing.
     try:
         from api.services import bars_reconciliation
         bars_reconciliation.start()
@@ -879,7 +881,7 @@ async def lifespan(app: FastAPI):
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
         "delta_intraday_filter=>= idb_cache_logic_version=4 "
-        f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED') == '1' else 'off'}"
+        f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
     )
 
     if os.environ.get("USE_REMOTE_BARS") == "1":

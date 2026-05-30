@@ -23,9 +23,12 @@ rows that diverged from canonical, plus clear the in-memory cache for
 that key. Next fetch repopulates from canonical via the now-relaxed `>=`
 delta path. Does NOT mass-wipe.
 
-Disabled by default — set `RECONCILE_ENABLED=1` on the worker pod (only)
-so audit runs on the dedicated worker service and not against the web
-pod's bars.db (separate /data volumes).
+Enabled by default (2026-05-30) — set `RECONCILE_ENABLED=0` to disable.
+Runs on the WEB pod (started from main.py's lifespan), and that is correct:
+the worker→web R2 merge is INSERT OR IGNORE / newer-wins and cannot overwrite
+an already-stored bad row, so a worker-side heal would never reach the cache
+users actually read. Healing must happen on the web pod. Polygon/Massive is
+flat-rate, so the extra canonical fetches cost nothing.
 """
 import json
 import logging
@@ -45,7 +48,19 @@ _BARS_PER_AUDIT = int(os.environ.get("RECONCILE_BARS_PER_AUDIT", "200"))
 # Intraday is where every known bug class has lived. D/W/M is included
 # but at lower frequency (one TF picked at random per pair means each TF
 # gets ~1/8 of attention). Could weight if we ever see drift bias.
-_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+# Scoped (2026-05-30) to the intraday-minute TFs where (a) the malformed
+# in-progress-partial poison actually lives and (b) audit.py's canonical fetch
+# uses identical standard minute buckets, so a cache-vs-canonical diff is
+# trustworthy. EXCLUDES:
+#   60m — app stores session-anchored ET hourly (9:30-10:30…) but audit.py
+#         fetches Polygon clock-hour native; they don't align, so reconciling
+#         60m would DELETE correct bars. 60m heals indirectly: once its 30m
+#         source is clean, the 60m resample is clean.
+#   D    — audits 100% clean already (native daily matches); no need to spend
+#         audit budget on it.
+#   W/M  — resampled in-app and not yet verified against the canonical fetch;
+#         exclude until audit.py resamples canonical to match (avoid mis-heal).
+_TFS = ("1", "5", "15", "30")
 
 _PRIORITY_TICKERS = (
     "SPY", "QQQ", "IWM", "DIA", "AAPL", "NVDA", "MSFT", "TSLA",
@@ -245,11 +260,16 @@ def _run_cycle():
 def _run_forever():
     """Loop: sleep, run cycle, sleep, repeat. Catches all per-cycle errors so
     one bad iteration cannot kill the daemon."""
-    enabled = os.environ.get("RECONCILE_ENABLED") == "1"
+    # Default ON (2026-05-30): this is the structural healer for the
+    # malformed-partial poison and must run on the WEB pod (main.py lifespan),
+    # because the worker→web R2 merge is INSERT OR IGNORE and cannot overwrite
+    # bad rows — so healing has to happen where users read. Set
+    # RECONCILE_ENABLED=0 to disable.
+    enabled = os.environ.get("RECONCILE_ENABLED", "1") == "1"
     with _state_lock:
         _state["enabled"] = enabled
     if not enabled:
-        _logger.info("[reconcile] disabled (set RECONCILE_ENABLED=1 on worker pod to enable)")
+        _logger.info("[reconcile] disabled (RECONCILE_ENABLED=0)")
         return
 
     with _state_lock:
