@@ -1670,6 +1670,27 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             _inflight.pop(cache_key, None)
         waiter_ev.set()
 
+    # No-blank guard: a COLD intraday ticker (no stored rows, no disk fallback)
+    # whose fetch came back empty because the primary source is circuit-broken
+    # (transient: recent errors/corruption tripped the breaker) would otherwise
+    # paint a blank chart that only self-heals on the next 30s SWR poll. Return
+    # 503 + Retry-After so the frontend's error-retry kicks in within ~5s and
+    # keeps any prior on-screen state, instead of rendering bars:[]. A genuinely
+    # empty ticker (healthy sources, no trades / delisted) still returns 200+[]
+    # so the frontend can show "no data" rather than retry forever.
+    if not result_bars and not date_tf and not stored_rows:
+        try:
+            from api.services import source_circuit_breaker as _scb
+            if not _scb.is_ok("massive"):
+                r = JSONResponse(
+                    status_code=503,
+                    content={"ticker": ticker_up, "tf": tf, "bars": [], "error": "transient"},
+                )
+                r.headers["Retry-After"] = "5"
+                return r
+        except Exception:
+            pass  # breaker unavailable → fall through to the normal empty 200
+
     return JSONResponse(
         content=payload,
         headers={"Cache-Control": f"public, max-age={ttl}"},
