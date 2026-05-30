@@ -125,14 +125,28 @@ def _start_keepwarm():
     except ValueError:
         interval = 60
 
+    from api.services import data_sync as _ds
+
     def loop():
         while True:
-            try:
-                req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
-                with urllib.request.urlopen(req, timeout=20) as r:
-                    r.read(64)  # drain a little so the conn closes cleanly
-            except Exception as e:
-                log.warning(f"keep-warm ping failed ({url}): {type(e).__name__}: {e}")
+            # Only keep the web pod warm during the active data window
+            # (weekday 4am-8pm ET). Outside it, stop pinging so Railway can
+            # idle-sleep the pod and save compute — accepting a one-off ~12s
+            # cold start for the rare overnight/weekend visitor.
+            #
+            # TRADEOFF: a sleeping web pod also freezes its APScheduler, so
+            # overnight/weekend scheduled jobs (e.g. the Sunday 8am weekly
+            # email, overnight Twitter polling) won't fire while it's asleep.
+            # This matches the pre-keep-warm baseline (the pod already slept on
+            # idle). Set KEEPWARM_ALWAYS=1 to ping 24/7 instead — keeps those
+            # crons reliable at the cost of overnight compute.
+            if os.environ.get("KEEPWARM_ALWAYS") == "1" or _ds.in_active_data_window():
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
+                    with urllib.request.urlopen(req, timeout=20) as r:
+                        r.read(64)  # drain a little so the conn closes cleanly
+                except Exception as e:
+                    log.warning(f"keep-warm ping failed ({url}): {type(e).__name__}: {e}")
             time.sleep(interval)
 
     log.info(f"starting keep-warm pinger -> {url} every {interval}s")
