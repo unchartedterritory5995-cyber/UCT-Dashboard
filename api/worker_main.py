@@ -127,20 +127,26 @@ def _start_keepwarm():
 
     from api.services import data_sync as _ds
 
+    # DEFAULT: keep the web pod warm 24/7 so charts are instant whenever the
+    # user sits down — including evening/weekend watchlist scanning, which is a
+    # primary use case (off-hours stock scanning + watchlist prep). Keeping the
+    # pod awake also keeps its APScheduler running (Sunday 8am weekly email,
+    # overnight Twitter polling stay reliable).
+    #
+    # OPT-IN cost saving: set KEEPWARM_MARKET_HOURS_ONLY=1 to ping only during
+    # the active data window (weekday 4am-8pm ET) and let Railway idle-sleep the
+    # pod overnight/weekends — saves compute but reintroduces off-hours cold
+    # starts AND freezes the scheduler while asleep.
+    #
+    # NOTE: the snapshot-upload throttle + prewarmer market-hours gating are
+    # independent of this and stay on — they're background worker→R2 work that
+    # doesn't affect how fast the web pod serves a chart, so the bulk of the
+    # cost savings is retained either way.
+    _market_hours_only = os.environ.get("KEEPWARM_MARKET_HOURS_ONLY") == "1"
+
     def loop():
         while True:
-            # Only keep the web pod warm during the active data window
-            # (weekday 4am-8pm ET). Outside it, stop pinging so Railway can
-            # idle-sleep the pod and save compute — accepting a one-off ~12s
-            # cold start for the rare overnight/weekend visitor.
-            #
-            # TRADEOFF: a sleeping web pod also freezes its APScheduler, so
-            # overnight/weekend scheduled jobs (e.g. the Sunday 8am weekly
-            # email, overnight Twitter polling) won't fire while it's asleep.
-            # This matches the pre-keep-warm baseline (the pod already slept on
-            # idle). Set KEEPWARM_ALWAYS=1 to ping 24/7 instead — keeps those
-            # crons reliable at the cost of overnight compute.
-            if os.environ.get("KEEPWARM_ALWAYS") == "1" or _ds.in_active_data_window():
+            if (not _market_hours_only) or _ds.in_active_data_window():
                 try:
                     req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
                     with urllib.request.urlopen(req, timeout=20) as r:
