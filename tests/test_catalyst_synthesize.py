@@ -54,6 +54,47 @@ def test_signals_hash_changes_when_inputs_change():
     assert synthesize.compute_signals_hash(c1) != synthesize.compute_signals_hash(c2)
 
 
+# ── JSON parsing robustness (the skeptical prompt makes the model chatty) ──
+def test_parse_plain_json():
+    p = synthesize._parse_json_response('{"thesis": "x", "grade": "A"}')
+    assert p["grade"] == "A"
+
+
+def test_parse_fenced_json():
+    p = synthesize._parse_json_response('```json\n{"thesis": "x", "grade": "B"}\n```')
+    assert p["grade"] == "B"
+
+
+def test_parse_json_with_trailing_prose():
+    # The exact failure mode caught live: model appends a Rationale after the
+    # closing fence. Must still recover the object.
+    raw = ('```json\n{"thesis": "**Acme** wins FDA approval.", "grade": "A", '
+           '"catalyst_type": "FDA"}\n```\n\n**Rationale:**\nFDA approval is a '
+           'concrete catalyst, so grade A.')
+    p = synthesize._parse_json_response(raw)
+    assert p is not None
+    assert p["grade"] == "A"
+    assert p["catalyst_type"] == "FDA"
+
+
+def test_parse_json_with_leading_prose():
+    raw = 'Here is the JSON:\n{"thesis": "x", "grade": "C"}'
+    p = synthesize._parse_json_response(raw)
+    assert p["grade"] == "C"
+
+
+def test_parse_json_braces_inside_strings():
+    # A stray brace inside a string value must not confuse the extractor.
+    raw = '{"thesis": "earnings {beat} estimates", "grade": "A"}\n**Rationale:** foo'
+    p = synthesize._parse_json_response(raw)
+    assert p["grade"] == "A"
+    assert p["thesis"] == "earnings {beat} estimates"
+
+
+def test_parse_returns_none_on_no_json():
+    assert synthesize._parse_json_response("no json here at all") is None
+
+
 def test_skip_if_stable_reuses_prior_thesis(s):
     c = _candidate()
     h = synthesize.compute_signals_hash(c)

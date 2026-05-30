@@ -56,7 +56,10 @@ CATALYST_TYPE — pick the single best label:
   Index, Offering, Momentum, Sector-wide, None
 
 TAG: pick from Catalyst, Earnings, Gapper, News (matches engine classification).
-source_urls: include the URLs from SIGNALS you actually used."""
+source_urls: include the URLs from SIGNALS you actually used.
+
+Output ONLY the JSON object — no markdown fences, no commentary, no
+"Rationale" section before or after it."""
 
 
 def compute_signals_hash(candidate: dict) -> str:
@@ -159,15 +162,57 @@ def _extract_text(msg) -> str:
     return "".join(parts).strip()
 
 
+def _extract_first_json_object(text: str) -> Optional[str]:
+    """Return the first balanced {...} object substring, respecting quoted
+    strings + escapes. Lets us recover the JSON even when the model wraps it
+    in ``` fences or appends prose after it (the skeptical prompt makes the
+    model prone to tacking on a 'Rationale:' section after the JSON)."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
 def _parse_json_response(text: str) -> Optional[dict]:
+    if not text:
+        return None
     text = text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
+    # Fast path: clean JSON (optionally after stripping a closing fence).
+    candidate = text
+    if candidate.rstrip().endswith("```"):
+        candidate = candidate.rsplit("```", 1)[0]
     try:
-        return json.loads(text)
+        return json.loads(candidate.strip())
+    except (json.JSONDecodeError, ValueError):
+        pass
+    # Robust path: pull the first balanced object out of fences/prose.
+    obj = _extract_first_json_object(text)
+    if obj is None:
+        return None
+    try:
+        return json.loads(obj)
     except (json.JSONDecodeError, ValueError):
         return None
 
