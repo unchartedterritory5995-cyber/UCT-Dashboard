@@ -14,48 +14,137 @@ Integration in main.py:
     from api.flow_router import flow_router
     app.include_router(flow_router)
 
-Why buffered (not streaming):
-  An earlier version used StreamingResponse for incremental gzip. That kept
-  peak server memory flat but Cloudflare won't cache chunked responses
-  without Content-Length — every request became a Railway origin hit
-  (~10s end-to-end instead of ~100ms edge hits). Buffering is fine here
-  because the flow DB responses stay under ~30MB gzipped, and CF caching
-  is the bigger throughput win.
+Performance design:
+  Three-layer caching pipeline tuned for large CSV responses (90d / All can
+  hit 50-70MB raw) without exceeding Cloudflare's 100s origin timeout:
+
+  1. Stream-compress on the fly via GzipFile rather than buffering then
+     compressing. Peak memory drops from ~75MB (60MB string + 15MB compressed)
+     to ~15MB (compressed only) for the 90-day response.
+
+  2. gzip level 1 instead of 4 — drops compression time ~60% in exchange for
+     ~10% larger output. For CF caching, speed-to-first-byte matters more
+     than absolute size; CF caches the result either way.
+
+  3. In-memory LRU cache (8 entries) keyed by (source, days, version) — if
+     CF cache misses (e.g. after a version bump) and multiple users hit at
+     once, only the first request rebuilds; the rest serve from RAM.
+
+  Buffered Response (not StreamingResponse) is mandatory because Cloudflare
+  won't cache chunked responses lacking Content-Length. The streaming above
+  is internal to the handler; the response itself is sent as a single buffered
+  payload.
 """
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB
+from collections import OrderedDict
 import os
 import gzip
+import io
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
-# Same caching policy as the legacy CSV endpoints — SWR with a 5-min
-# max-age. Query string (?days=N) is part of CF's cache key, so each
-# window caches independently.
 _FLOW_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
     "Vary": "Accept-Encoding",
 }
 
+# ── In-memory response cache ────────────────────────────────────────────────
+# Keyed by (source, days_or_None_for_all). Values: (version, gzipped_bytes).
+# Bounded at 8 entries with LRU eviction. Realistic working set is ~12-14
+# (2 sources × 6-7 ranges) but most users hit ≤4 ranges in practice.
+# At ~15MB per large entry, 8 entries caps cache at ~120MB worst case.
+_RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+_RESPONSE_CACHE_MAX = 8
 
-def _gzip_csv_response(gen, request: Request):
-    """Collect CSV generator into bytes, gzip if client accepts, return Response
-    with Content-Length set so Cloudflare can cache."""
-    content = "".join(gen).encode("utf-8")
+
+def _current_version() -> int:
+    """DB row count — used as the cache invalidation key. Matches /version
+    endpoint so client-side and server-side caches invalidate in sync."""
+    try:
+        stats = db.stats()
+        return stats.get("total_rows") or stats.get("count") or stats.get("rows") or 0
+    except Exception:
+        return 0
+
+
+def _build_gzipped_csv(source: str, days) -> bytes:
+    """Stream the CSV generator through the gzip compressor, returning the
+    full gzipped bytes. Memory stays at compressed-size peak instead of
+    holding the full uncompressed CSV in RAM.
+
+    days=None means "all data" — passed to db.stream_csv without a days arg."""
+    gen = db.stream_csv(source=source, days=days) if days else db.stream_csv(source=source)
+    buf = io.BytesIO()
+    # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
+    # mtime=0: deterministic gzip header — same data → byte-identical output,
+    # which lets HTTP intermediaries (CF) compare-and-skip on revalidation.
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
+        for chunk in gen:
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
+    return buf.getvalue()
+
+
+def _get_cached_or_build(source: str, days) -> bytes:
+    """Returns gzipped CSV bytes for (source, days), using the in-memory cache
+    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries."""
+    version = _current_version()
+    key = (source, days)
+    cached = _RESPONSE_CACHE.get(key)
+    if cached and cached[0] == version:
+        _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
+        return cached[1]
+
+    payload = _build_gzipped_csv(source, days)
+    if len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
+        _RESPONSE_CACHE.popitem(last=False)  # evict LRU
+    _RESPONSE_CACHE[key] = (version, payload)
+    return payload
+
+
+def _serve_csv(source: str, days, request: Request):
+    """Build (or fetch cached) gzipped CSV and return as Response with
+    appropriate encoding header. Always sets Content-Length implicitly via
+    Response so CF can cache."""
+    try:
+        gzipped = _get_cached_or_build(source, days)
+    except Exception as e:
+        return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
+
     accept = (request.headers.get("accept-encoding") or "").lower()
     if "gzip" in accept:
-        compressed = gzip.compress(content, compresslevel=4)
         return Response(
-            content=compressed,
+            content=gzipped,
             media_type="text/csv",
             headers={**_FLOW_CACHE_HEADERS, "Content-Encoding": "gzip"},
         )
+    # Rare path: client doesn't accept gzip. Decompress before sending.
+    content = gzip.decompress(gzipped)
     return Response(content=content, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
+
+
+def _parse_query_days(request: Request):
+    """Returns days int (1-365) or None for all_data=true."""
+    try:
+        all_data = request.query_params.get("all_data", "false").lower() == "true"
+        if all_data:
+            return None
+        days_str = request.query_params.get("days", "1")
+        days = int(days_str)
+        if days < 1:
+            days = 1
+        if days > 365:
+            days = 365
+        return days
+    except (ValueError, TypeError):
+        return 1
 
 
 @flow_router.post("/upload")
@@ -81,6 +170,11 @@ async def upload_flow(request: Request):
         result = db.insert_csv(csv_text, source=source)
         pruned = db.prune_expired()
 
+        # Upload changed the data — invalidate our in-memory cache so the next
+        # request rebuilds against the new version (CF cache also invalidates
+        # via the /version bump on the client side).
+        _RESPONSE_CACHE.clear()
+
         return JSONResponse({
             "status": "ok",
             "inserted": result["inserted"],
@@ -99,63 +193,19 @@ async def upload_flow(request: Request):
 @flow_router.get("/data")
 async def get_flow_data(request: Request):
     """
-    Serve stock flow data as CSV (streamed).
+    Serve stock flow data as gzipped CSV (cached at CF edge).
     ?days=N (default 1) — last N trading days.
     ?all_data=true — all available data (heavy; opt-in only)
     """
-    try:
-        days_str = request.query_params.get("days", "1")
-        all_data = request.query_params.get("all_data", "false").lower() == "true"
-        days = int(days_str)
-        if days < 1:
-            days = 1
-        if days > 365:
-            days = 365
-    except (ValueError, TypeError):
-        days = 1
-        all_data = False
-
-    try:
-        if all_data:
-            gen = db.stream_csv(source="stocks")
-        else:
-            gen = db.stream_csv(source="stocks", days=days)
-        return _gzip_csv_response(gen, request)
-    except Exception as e:
-        return Response(
-            content=f"Error: {e}",
-            status_code=500,
-            media_type="text/plain",
-        )
+    days = _parse_query_days(request)
+    return _serve_csv("stocks", days, request)
 
 
 @flow_router.get("/indexes-data")
 async def get_indexes_data(request: Request):
-    """Serve indexes/ETF flow data as CSV (streamed)."""
-    try:
-        days_str = request.query_params.get("days", "1")
-        all_data = request.query_params.get("all_data", "false").lower() == "true"
-        days = int(days_str)
-        if days < 1:
-            days = 1
-        if days > 365:
-            days = 365
-    except (ValueError, TypeError):
-        days = 1
-        all_data = False
-
-    try:
-        if all_data:
-            gen = db.stream_csv(source="indexes")
-        else:
-            gen = db.stream_csv(source="indexes", days=days)
-        return _gzip_csv_response(gen, request)
-    except Exception as e:
-        return Response(
-            content=f"Error: {e}",
-            status_code=500,
-            media_type="text/plain",
-        )
+    """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge)."""
+    days = _parse_query_days(request)
+    return _serve_csv("indexes", days, request)
 
 
 @flow_router.get("/stats")
@@ -178,12 +228,7 @@ async def get_version():
     This endpoint itself is never cached (Cache-Control: no-store) so version
     bumps are seen immediately."""
     try:
-        stats = db.stats()
-        # Whatever changes on inserts/deletes works; total_rows is the obvious one
-        version = (stats.get("total_rows")
-                   or stats.get("count")
-                   or stats.get("rows")
-                   or 0)
+        version = _current_version()
         return JSONResponse(
             {"version": version},
             headers={"Cache-Control": "no-store, max-age=0"},
@@ -205,6 +250,8 @@ async def prune_expired(request: Request):
     except (ValueError, TypeError):
         buffer_days = 7
     pruned = db.prune_expired(buffer_days=buffer_days)
+    # Prune changed the data — invalidate the in-memory cache
+    _RESPONSE_CACHE.clear()
     return JSONResponse({"pruned": pruned})
 
 
