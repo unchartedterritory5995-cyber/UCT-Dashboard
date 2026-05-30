@@ -6,7 +6,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
-import { prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
 
 const StockChart = lazy(() => import('./StockChart'))
@@ -66,7 +66,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => { setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym) }}
-        onMouseEnter={() => prefetchAllTimeframes(sym)}
+        onMouseEnter={() => prefetchBar(sym, 'D')}
         onContextMenu={e => tickerActions.openMenu(e, sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
