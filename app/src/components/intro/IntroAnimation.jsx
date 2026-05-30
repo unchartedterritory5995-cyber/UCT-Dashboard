@@ -14,7 +14,7 @@ export default function IntroAnimation() {
   const stageRef = useRef(null)
   const timerRef = useRef(null)
 
-  const greetingName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'TRADER'
+  const greetingName = user?.display_name?.trim().split(' ')[0] || user?.email?.split('@')[0] || 'TRADER'
   const reducedMotion = prefersReducedMotion()
 
   const finish = useCallback(() => {

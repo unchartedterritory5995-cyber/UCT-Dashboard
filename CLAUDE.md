@@ -152,7 +152,7 @@ Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title +
 
 ### Personalization
 ```js
-const greetingName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'TRADER'
+const greetingName = user?.display_name?.trim().split(' ')[0] || user?.email?.split('@')[0] || 'TRADER'
 ```
 
 ### Spec
