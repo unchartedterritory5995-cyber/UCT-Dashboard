@@ -76,6 +76,14 @@ def _compute_sector_context(top_n: list[dict]) -> list[dict]:
         if not answer or "error" in (result or {}):
             continue
 
+        # Suppress low-information / hedging answers — when Perplexity admits it
+        # has no specific catalyst and hand-waves to a macro narrative, the
+        # banner is noise, not signal (exactly the fluff the user flagged).
+        if _is_low_info_sector_answer(answer):
+            logger.info("[catalyst-engine] suppressed low-info sector banner for %s",
+                        sector)
+            continue
+
         contexts.append({
             "sector": sector,
             "ticker_count": sector_counts[sector],
@@ -84,6 +92,24 @@ def _compute_sector_context(top_n: list[dict]) -> list[dict]:
         })
 
     return contexts
+
+
+# Phrases that signal Perplexity has no real sector catalyst and is hedging.
+_LOW_INFO_SECTOR_MARKERS = (
+    "i don't have", "i do not have", "i can't see", "i cannot see",
+    "no live", "without live", "almost certainly", "likely ties back",
+    "probably ties", "no specific catalyst", "not available", "no clear",
+    "i'm not able", "unable to",
+)
+
+
+def _is_low_info_sector_answer(answer: str) -> bool:
+    """True when the sector summary is hedging/no-info filler rather than a
+    concrete shared catalyst. Env-disable with CATALYST_SECTOR_STRICT=0."""
+    if os.environ.get("CATALYST_SECTOR_STRICT", "1").lower() not in ("1", "true", "yes"):
+        return False
+    low = answer.lower()
+    return any(m in low for m in _LOW_INFO_SECTOR_MARKERS)
 
 
 def _compute_catalyst_at(c: dict) -> Optional[int]:
@@ -495,7 +521,13 @@ def run_refresh() -> dict:
 
     summary["candidates"] = len(candidates)
     if not candidates:
-        logger.info("[catalyst-engine] no candidates this tick")
+        # Clear today's ranks even on an empty pull (holiday / all sources down)
+        # so stale ranked rows from a prior refresh don't persist indefinitely.
+        try:
+            store.clear_ranks_for_date(md)
+        except Exception:
+            logger.exception("[catalyst-engine] clear_ranks on empty pull failed")
+        logger.info("[catalyst-engine] no candidates this tick — cleared ranks")
         return summary
 
     # Two gates run BEFORE scoring + selection, so junk never enters the scored
@@ -546,25 +578,6 @@ def run_refresh() -> dict:
     # comparables, key levels. These are the rows the user scrutinizes most.
     _enrich_top_3_with_deep_context(top_12)
 
-    # P2-E1: When 3+ selected candidates share a sector, run a Perplexity
-    # sector-framing query. Surfaced as a banner above the table.
-    try:
-        sector_contexts = _compute_sector_context(top_12)
-        _SECTOR_CONTEXT_BY_DATE[md] = sector_contexts
-        if sector_contexts:
-            summary["sector_contexts"] = len(sector_contexts)
-    except Exception:
-        logger.exception("[catalyst-engine] sector context computation failed")
-
-    # Tier B-1: Fire alerts for any top-20 ticker that's on a user's watchlist.
-    # Deduped per (user, ticker, market_date) so a sticky catalyst doesn't spam.
-    try:
-        alerts_fired = _fire_catalyst_alerts(top_12, md)
-        if alerts_fired:
-            summary["alerts_fired"] = alerts_fired
-    except Exception:
-        logger.exception("[catalyst-engine] alert firing failed")
-
     store.clear_ranks_for_date(md)
 
     # Synthesize everything first, then hide grade-C rows from the RANKED list.
@@ -585,6 +598,7 @@ def run_refresh() -> dict:
 
     rank = 0
     hidden_c = 0
+    displayed: list[dict] = []   # ranked, non-grade-C rows actually shown
     for c, thesis in synthesized:
         grade = thesis.get("grade")
         if hide_c and grade == "C":
@@ -593,6 +607,7 @@ def run_refresh() -> dict:
         else:
             rank += 1
             row_rank = rank
+            displayed.append(c)
 
         catalyst_at = _compute_catalyst_at(c)
 
@@ -632,6 +647,28 @@ def run_refresh() -> dict:
     if hidden_c:
         summary["hidden_grade_c"] = hidden_c
         logger.info("[catalyst-engine] hid %d grade-C rows from ranked list", hidden_c)
+
+    # P2-E1: sector-framing banner. Computed from the DISPLAYED rows (ranked,
+    # non-grade-C) — NOT top_12 — so the count matches what's on screen and a
+    # cluster of grade-C noise can't conjure a banner about tickers that were
+    # hidden. Only fires when 3+ REAL catalysts share a sector.
+    try:
+        sector_contexts = _compute_sector_context(displayed)
+        _SECTOR_CONTEXT_BY_DATE[md] = sector_contexts
+        if sector_contexts:
+            summary["sector_contexts"] = len(sector_contexts)
+    except Exception:
+        logger.exception("[catalyst-engine] sector context computation failed")
+
+    # Tier B-1: Fire alerts only for DISPLAYED catalysts on a user's watchlist
+    # (a grade-C row hidden from the table shouldn't trigger an alert). Deduped
+    # per (user, ticker, market_date) so a sticky catalyst doesn't spam.
+    try:
+        alerts_fired = _fire_catalyst_alerts(displayed, md)
+        if alerts_fired:
+            summary["alerts_fired"] = alerts_fired
+    except Exception:
+        logger.exception("[catalyst-engine] alert firing failed")
 
     selected_tickers = {c["ticker"] for c in top_12}
     for c in scored:

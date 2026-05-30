@@ -339,9 +339,13 @@ export default function CatalystTable() {
     setRefreshing(true)
     try {
       await fetch('/api/catalysts/refresh', { method: 'POST' })
-      setTimeout(() => mutate(), 3000)
+      // run_refresh does 8 source pulls + enrichment + up to 20 LLM syntheses
+      // (30–60s). A single 3s refetch showed the pre-refresh list and looked
+      // like "nothing changed" — poll several times across the job's lifetime.
+      const at = [5000, 12000, 20000, 30000, 45000]
+      at.forEach(ms => setTimeout(() => mutate(), ms))
     } finally {
-      setTimeout(() => setRefreshing(false), 4000)
+      setTimeout(() => setRefreshing(false), 47000)
     }
   }
 
