@@ -1735,111 +1735,6 @@ export default function OptionsFlowDashboard() {
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
 
-  // ── ThemeRead: pattern-based theme + optional LLM narrative ──────────────
-  // Self-contained component used by both Market Read and Leaderboard tabs.
-  // Pattern analysis is instant + free. LLM "AI Read" button is opt-in and
-  // server-cached by (version, context) so repeat clicks don't burn API spend.
-  const renderThemeRead = (themeCtx, topBulls, topBears, stats) => {
-    const bulls = (topBulls || []).slice(0, 20);
-    const bears = (topBears || []).slice(0, 20);
-    if (!bulls.length && !bears.length) return null;
-
-    // Sector breakdown
-    const aggBySector = (list) => {
-      const m = {};
-      list.forEach(b => {
-        const s = b.sector || "Unknown";
-        m[s] = (m[s] || 0) + (b.netPrem || 0);
-      });
-      return Object.entries(m).sort((a, b) => b[1] - a[1]);
-    };
-    const bullSectors = aggBySector(bulls);
-    const bearSectors = aggBySector(bears);
-    const totalBullPrem = bulls.reduce((s, b) => s + (b.netPrem || 0), 0);
-    const totalBearPrem = bears.reduce((s, b) => s + (b.netPrem || 0), 0);
-
-    // Pattern detection sentences
-    const sentences = [];
-    if (bullSectors.length && totalBullPrem > 0) {
-      const [topSec, topVal] = bullSectors[0];
-      const pct = Math.round(topVal / totalBullPrem * 100);
-      if (pct >= 50) sentences.push(`Bull flow concentrated in ${topSec} (${pct}% of top bulls).`);
-      else if (bullSectors.length >= 3) sentences.push(`Bull flow diversified across ${bullSectors.slice(0,3).map(s=>s[0]).join(", ")}.`);
-    }
-    if (bearSectors.length && totalBearPrem > 0) {
-      const [topSec, topVal] = bearSectors[0];
-      const pct = Math.round(topVal / totalBearPrem * 100);
-      if (pct >= 40) sentences.push(`Bear flow focused on ${topSec} (${pct}% of top bears).`);
-    }
-    // Cap mix
-    const megaBulls = bulls.filter(b => (b.mktcap || 0) >= 500e9).length;
-    if (megaBulls >= 5) sentences.push(`${megaBulls} of top ${bulls.length} bulls are mega-cap.`);
-    // Direction balance
-    const total = totalBullPrem + totalBearPrem;
-    if (total > 0) {
-      const bullPct = Math.round(totalBullPrem / total * 100);
-      sentences.push(`Net positioning ${bullPct}% bull / ${100-bullPct}% bear across leaders.`);
-    }
-    const patternText = sentences.join(" ");
-
-    // Donut chart — inline SVG, two side-by-side rings
-    const donutColors = [P.bu, "#5b9aed", "#9c6cff", "#ff9b3d", "#ffd450", "#7ec88c", "#888"];
-    const renderDonut = (data, total, label, color) => {
-      const size = 130, r = 50, cx = size/2, cy = size/2, stroke = 18;
-      const C = 2 * Math.PI * r;
-      let offset = 0;
-      const slices = data.slice(0, 6);
-      const otherVal = data.slice(6).reduce((s, [, v]) => s + v, 0);
-      if (otherVal > 0) slices.push(["Other", otherVal]);
-      const sliceTotal = slices.reduce((s, [, v]) => s + v, 0) || 1;
-      return (
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke={P.bd} strokeWidth={stroke} opacity="0.25"/>
-            {slices.map(([name, val], i) => {
-              const frac = val / sliceTotal;
-              const len = frac * C;
-              const dash = `${len} ${C - len}`;
-              const el = (
-                <circle key={name+i} cx={cx} cy={cy} r={r} fill="none"
-                  stroke={i === 0 ? color : donutColors[i % donutColors.length]}
-                  strokeWidth={stroke} strokeDasharray={dash} strokeDashoffset={-offset}
-                  transform={`rotate(-90 ${cx} ${cy})`}/>
-              );
-              offset += len;
-              return el;
-            })}
-            <text x={cx} y={cy-3} textAnchor="middle" fill={color} fontSize="13" fontWeight="800">${(total/1e6).toFixed(1)}M</text>
-            <text x={cx} y={cy+12} textAnchor="middle" fill={P.dm} fontSize="9">{label}</text>
-          </svg>
-          <div style={{ display:"flex", flexDirection:"column", gap:2, fontSize:9, width:"100%" }}>
-            {slices.slice(0, 4).map(([name, val], i) => {
-              const sliceColor = i === 0 ? color : donutColors[i % donutColors.length];
-              const pct = Math.round(val / sliceTotal * 100);
-              return (
-                <div key={name+i} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <span style={{ width:8, height:8, borderRadius:2, background:sliceColor, flexShrink:0 }}/>
-                  <span style={{ color:P.mt, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</span>
-                  <span style={{ color:P.dm, fontWeight:600 }}>{pct}%</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <Card>
-        <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:10 }}>🎯 THEME READ</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 200px 200px", gap:16, alignItems:"flex-start" }}>
-          <div style={{ fontSize:12, color:P.mt, lineHeight:1.6 }}>{patternText}</div>
-          {bullSectors.length > 0 && renderDonut(bullSectors, totalBullPrem, "BULL", P.bu)}
-          {bearSectors.length > 0 && renderDonut(bearSectors, totalBearPrem, "BEAR", P.be)}
-        </div>
-      </Card>
-    );
-  };
 
 
 
@@ -4034,43 +3929,7 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </>}
                       </div>
-                      {/* Theme Read — pattern + optional AI narrative */}
-                      {(() => {
-                        // Build top 20 bulls/bears per ticker from clean_confirmed.
-                        // Self-contained so variables don't leak into surrounding scope.
-                        const cc2 = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
-                        if (!cc2.length) return null;
-                        const tm = {};
-                        cc2.forEach(t => {
-                          if (!tm[t.S]) tm[t.S] = { sym:t.S, bull:0, bear:0, mktcap:t.mktcap||0, sector:t.sector||"", topPrem:0, topContract:null };
-                          if (t.D === "BULL") tm[t.S].bull += t.P;
-                          if (t.D === "BEAR") tm[t.S].bear += t.P;
-                          if (t.P > tm[t.S].topPrem) {
-                            tm[t.S].topPrem = t.P;
-                            tm[t.S].topContract = `${t.CP} $${t.K} ${t.E}`;
-                          }
-                        });
-                        const tArr = Object.values(tm);
-                        const fmtItem = (tk, dir) => ({
-                          sym: tk.sym, sector: tk.sector, mktcap: tk.mktcap,
-                          netPrem: dir === "BULL" ? (tk.bull - tk.bear) : (tk.bear - tk.bull),
-                          topContract: tk.topContract || ""
-                        });
-                        const topBulls = tArr.filter(t => t.bull > t.bear)
-                          .sort((a,b) => (b.bull - b.bear) - (a.bull - a.bear))
-                          .slice(0, 20).map(t => fmtItem(t, "BULL"));
-                        const topBears = tArr.filter(t => t.bear > t.bull)
-                          .sort((a,b) => (b.bear - b.bull) - (a.bear - a.bull))
-                          .slice(0, 20).map(t => fmtItem(t, "BEAR"));
-                        const totalBullPrem = tArr.reduce((s,t)=>s+t.bull,0);
-                        const totalBearPrem = tArr.reduce((s,t)=>s+t.bear,0);
-                        return renderThemeRead("market_read", topBulls, topBears, {
-                          totalTickers: tArr.length,
-                          bullBreadth: totalBullPrem,
-                          bearBreadth: totalBearPrem
-                        });
-                      })()}
-                      {/* Flow Velocity */}
+{/* Flow Velocity */}
                       {latestDate && avgDailyPrem > 0 && (
                         <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
                           <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>FLOW VELOCITY: </span>
@@ -4118,30 +3977,87 @@ export default function OptionsFlowDashboard() {
                           <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:8, marginTop:10 }}>
                             {tfRanges.map(tf => {
                               const tfTrades = cc.filter(t=>t.DTE>=tf.min&&t.DTE<tf.max);
-                              let tfBull=0, tfBear=0;
+                              let tfBull=0, tfBear=0, askCount=0, sweepCount=0;
                               const tfContracts = {};
+                              const tfTickers = new Set();
                               tfTrades.forEach(t => {
                                 if(t.D==="BULL") tfBull+=t.P; if(t.D==="BEAR") tfBear+=t.P;
+                                tfTickers.add(t.S);
                                 const ck=t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
                                 if(!tfContracts[ck]) tfContracts[ck]={sym:t.S,cp:t.CP,K:t.K,exp:t.E,prem:0};
                                 tfContracts[ck].prem+=t.P;
+                                if(t.Si==="A"||t.Si==="AA") askCount++;
+                                if(t.Ty==="SWP") sweepCount++;
                               });
-                              const tfDir = tfBull>=tfBear ? "BULL" : "BEAR";
-                              const tfDirC = tfDir==="BULL" ? P.bu : P.be;
-                              const topC = Object.values(tfContracts).sort((a,b)=>b.prem-a.prem)[0];
                               const tfTotal = tfBull+tfBear;
+                              const bullPct = tfTotal>0 ? Math.round(tfBull/tfTotal*100) : 50;
+                              // Mixed when neither side commands a clear majority
+                              const isMixed = tfTotal > 0 && bullPct >= 45 && bullPct <= 55;
+                              const tfDir = isMixed ? "MIXED" : (tfBull>=tfBear ? "BULL" : "BEAR");
+                              const tfDirC = isMixed ? P.dm : (tfDir==="BULL" ? P.bu : P.be);
+                              const dirPct = isMixed ? 50 : (tfDir==="BULL" ? bullPct : 100-bullPct);
+                              const askPct = tfTrades.length > 0 ? Math.round(askCount/tfTrades.length*100) : 0;
+                              const top3 = Object.values(tfContracts).sort((a,b)=>b.prem-a.prem).slice(0,3);
+                              // Intensity: HIGH = strong conviction + ASK aggression + sweeps; MED = directional only
+                              let intensity = "low";
+                              if (!isMixed && dirPct >= 70 && askPct >= 60 && sweepCount >= 5) intensity = "high";
+                              else if (!isMixed && dirPct >= 55 && askPct >= 50) intensity = "med";
+                              // Dot color: always the direction color (green=bull, red=bear). Intensity is
+                              // communicated through the box-shadow glow, not by switching colors.
+                              const intC = intensity === "low" ? P.dm : tfDirC;
+                              const intGlow = intensity === "high" ? `0 0 8px ${tfDirC}, 0 0 2px ${tfDirC}` : intensity === "med" ? `0 0 4px ${tfDirC}` : "none";
                               return (
-                                <div key={tf.key} style={{ background:P.al, borderRadius:6, padding:"8px 10px", borderLeft:"3px solid "+(tfTotal>0?tfDirC:P.bd) }}>
-                                  <div style={{ fontSize:8, color:P.dm, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{tf.label}</div>
-                                  <div style={{ fontSize:7, color:P.dm, marginBottom:4 }}>{tf.sub}</div>
+                                <div key={tf.key} style={{ background:P.al, borderRadius:6, padding:"10px 11px", borderLeft:"3px solid "+(tfTotal>0?tfDirC:P.bd), display:"flex", flexDirection:"column", gap:6, minHeight:200 }}>
+                                  {/* Header: label + intensity dot */}
+                                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                                    <div>
+                                      <div style={{ fontSize:8, color:P.dm, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{tf.label}</div>
+                                      <div style={{ fontSize:7, color:P.dm }}>{tf.sub}</div>
+                                    </div>
+                                    {tfTotal > 0 && <div title={`Intensity: ${intensity}`} style={{ width:8, height:8, borderRadius:4, background:intC, boxShadow:intGlow, marginTop:4, flexShrink:0 }}/>}
+                                  </div>
                                   {tfTotal > 0 ? <>
-                                    <div style={{ fontSize:16, fontWeight:900, color:tfDirC, lineHeight:1 }}>{tfDir}</div>
-                                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{fmt(tfBull)} vs {fmt(tfBear)}</div>
-                                    {topC && <div style={{ fontSize:8, color:P.wh, marginTop:4, fontWeight:600 }}>
-                                      <span style={{ color:topC.cp==="C"?P.bu:P.be }}>{topC.sym}</span>
-                                      <span style={{ color:P.dm }}> {topC.cp==="C"?"C":"P"} ${topC.K} {topC.exp}</span>
-                                    </div>}
-                                  </> : <div style={{ fontSize:11, color:P.dm, marginTop:4 }}>No flow</div>}
+                                    {/* Direction + conviction % */}
+                                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between" }}>
+                                      <div style={{ fontSize:15, fontWeight:900, color:tfDirC, lineHeight:1 }}>
+                                        {!isMixed && (tfDir==="BULL" ? "▲ " : "▼ ")}{tfDir}
+                                      </div>
+                                      <div style={{ fontSize:13, fontWeight:800, color:tfDirC, fontVariantNumeric:"tabular-nums" }}>{dirPct}%</div>
+                                    </div>
+                                    {/* Bull/bear split bar */}
+                                    <div style={{ height:5, background:P.bd, borderRadius:2, overflow:"hidden", display:"flex" }}>
+                                      <div style={{ width:`${bullPct}%`, background:P.bu }}/>
+                                      <div style={{ width:`${100-bullPct}%`, background:P.be }}/>
+                                    </div>
+                                    {/* Premium breakdown */}
+                                    <div style={{ fontSize:9, color:P.dm }}>
+                                      <span style={{ color:P.bu, fontWeight:600 }}>{fmt(tfBull)}</span>
+                                      {" bull · "}
+                                      <span style={{ color:P.be, fontWeight:600 }}>{fmt(tfBear)}</span>
+                                      {" bear"}
+                                    </div>
+                                    {/* Breadth + aggression */}
+                                    <div style={{ fontSize:9, color:P.dm, lineHeight:1.5 }}>
+                                      <div>{tfTrades.length} trades · {tfTickers.size} tickers</div>
+                                      <div>{askPct}% ASK · {sweepCount} sweeps</div>
+                                    </div>
+                                    {/* Divider */}
+                                    <div style={{ height:1, background:P.bd, margin:"2px 0" }}/>
+                                    {/* Top 3 contracts */}
+                                    <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                                      {top3.map((c, i) => (
+                                        <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", fontSize:9, gap:6 }}>
+                                          <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                            <span style={{ color:c.cp==="C"?P.bu:P.be, fontWeight:700 }}>{c.sym}</span>
+                                            <span style={{ color:P.dm }}> {c.cp} ${c.K} {c.exp}</span>
+                                          </div>
+                                          <span style={{ color:P.mt, fontWeight:600, fontVariantNumeric:"tabular-nums", flexShrink:0 }}>{fmt(c.prem)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </> : (
+                                    <div style={{ fontSize:11, color:P.dm, marginTop:8 }}>No flow</div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -4796,15 +4712,6 @@ export default function OptionsFlowDashboard() {
           );
           return (
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <Card>
-                <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                  <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Leaderboard</div>
-                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Top bullish and bearish tickers ranked by net confirmed premium. Only non-expired, clean flow. Click any row to expand top contracts, click ticker to drill into Search.</div>
-                  </div>
-                </div>
-              </Card>
               {/* Filter rows */}
               <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                 {/* DTE */}
@@ -4819,28 +4726,137 @@ export default function OptionsFlowDashboard() {
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
               </div>
-              {/* Theme Read — pattern + optional AI narrative */}
+              {/* Flow Pulse — bull/bear bar + narrative summary */}
               {(() => {
                 if (!bulls.length && !bears.length) return null;
-                const fmtContract = (tc) => tc ? `${tc.cp || tc.CP || "?"} $${tc.K || tc.k || "?"} ${tc.exp || tc.E || ""}` : "";
-                const top20Bulls = bulls.slice(0, 20).map(tk => ({
-                  sym: tk.sym, sector: tk.sector || "", mktcap: tk.mktcap || 0,
-                  netPrem: (tk.bull || 0) - (tk.bear || 0),
-                  topContract: fmtContract(tk.topContract)
-                }));
-                const top20Bears = bears.slice(0, 20).map(tk => ({
-                  sym: tk.sym, sector: tk.sector || "", mktcap: tk.mktcap || 0,
-                  netPrem: (tk.bear || 0) - (tk.bull || 0),
-                  topContract: fmtContract(tk.topContract)
-                }));
-                return renderThemeRead("leaderboard", top20Bulls, top20Bears, {
-                  totalTickers: bulls.length + bears.length,
-                  bullBreadth: bulls.reduce((s,t) => s + (t.bull||0), 0),
-                  bearBreadth: bears.reduce((s,t) => s + (t.bear||0), 0)
-                });
+                const tb = bulls.slice(0, 20);
+                const tbr = bears.slice(0, 20);
+
+                // Find top contract by total premium across each side's top 20
+                const findTopContract = (list) => {
+                  let topC = null, topPrem = 0;
+                  list.forEach(tk => {
+                    const tc = tk.topContract;
+                    if (!tc) return;
+                    const prem = (tc.askPrem||0) + (tc.bidPrem||0);
+                    if (prem > topPrem) { topPrem = prem; topC = { ...tc, sym: tk.sym, _prem: prem }; }
+                  });
+                  return topC;
+                };
+                const topBullC = findTopContract(tb);
+                const topBearC = findTopContract(tbr);
+
+                // Standouts: multi-strike institutional accumulation (4+ clean contracts), top 3
+                const standouts = (list) => [...list]
+                  .filter(t => (t.contractCount||0) >= 4)
+                  .sort((a,b) => (b.contractCount||0) - (a.contractCount||0))
+                  .slice(0, 3);
+
+                // Small-Cap Heat: mid-small caps (<$10B) with $1M+ net premium on their side.
+                // Not the same as UOA — surfaces SIZE mismatches (small names with institutional flow).
+                const smallCapHeat = (list, dirField) => list.filter(t => {
+                  if ((t.mktcap||0) >= 10e9) return false;
+                  const np = dirField === "bull" ? (t.bull||0)-(t.bear||0) : (t.bear||0)-(t.bull||0);
+                  return np >= 1e6;
+                }).slice(0, 3);
+
+                const bullStand = standouts(tb);
+                const bearStand = standouts(tbr);
+                const bullHeat  = smallCapHeat(tb, "bull");
+                const bearHeat  = smallCapHeat(tbr, "bear");
+
+                // Totals
+                const totalBull = tb.reduce((s,t) => s + ((t.bull||0)-(t.bear||0)), 0);
+                const totalBear = tbr.reduce((s,t) => s + ((t.bear||0)-(t.bull||0)), 0);
+                const grandTotal = totalBull + totalBear;
+                const bullPct = grandTotal > 0 ? Math.round(totalBull/grandTotal*100) : 50;
+                const bearPct = 100 - bullPct;
+
+                const fmtContract = (c) => c ? `${c.sym} ${c.CP||c.cp} $${c.K||c.k} ${c.exp||c.E}` : "";
+
+                // Build per-side narrative parts
+                const buildParts = (topC, stands, heat, color) => {
+                  const parts = [];
+                  if (topC) parts.push(
+                    <span>led by <span style={{color, fontWeight:700}}>{fmtContract(topC)}</span>{" "}
+                      <span style={{color:P.dm}}>(${(topC._prem/1e6).toFixed(1)}M)</span>
+                    </span>
+                  );
+                  if (stands.length) parts.push(
+                    <span><span style={{color:P.wh, fontWeight:600}}>Standouts:</span>{" "}
+                      {stands.map((t,i) => (
+                        <span key={t.sym}>
+                          {i > 0 && ", "}
+                          <span style={{color}}>{t.sym}</span> <span style={{color:P.dm}}>({t.contractCount})</span>
+                        </span>
+                      ))}
+                    </span>
+                  );
+                  if (heat.length) parts.push(
+                    <span><span style={{color:P.wh, fontWeight:600}}>Small-cap heat:</span>{" "}
+                      {heat.map((t,i) => (
+                        <span key={t.sym}>
+                          {i > 0 && ", "}<span style={{color}}>{t.sym}</span>
+                        </span>
+                      ))}
+                    </span>
+                  );
+                  return parts;
+                };
+                const bullParts = buildParts(topBullC, bullStand, bullHeat, P.bu);
+                const bearParts = buildParts(topBearC, bearStand, bearHeat, P.be);
+
+                return (
+                  <Card>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: P.ac, letterSpacing: 1 }}>📊 FLOW PULSE</div>
+                      <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
+                    </div>
+                    {/* Bull/bear ratio bar with premiums */}
+                    {grandTotal > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: P.bu, fontVariantNumeric:"tabular-nums" }}>
+                            ▲ ${(totalBull/1e6).toFixed(1)}M <span style={{ fontSize:10, color:P.dm }}>({bullPct}%)</span>
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: P.be, fontVariantNumeric:"tabular-nums" }}>
+                            <span style={{ fontSize:10, color:P.dm }}>({bearPct}%)</span> ${(totalBear/1e6).toFixed(1)}M ▼
+                          </span>
+                        </div>
+                        <div style={{ height:8, background:P.bd, borderRadius:4, overflow:"hidden", display:"flex" }}>
+                          <div style={{ width:`${bullPct}%`, background:P.bu }}/>
+                          <div style={{ width:`${bearPct}%`, background:P.be }}/>
+                        </div>
+                      </div>
+                    )}
+                    {/* Narrative summary — bull side + bear side */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:12, color:P.mt, lineHeight:1.55 }}>
+                      {bullParts.length > 0 && (
+                        <div>
+                          <span style={{ color:P.bu, fontWeight:800 }}>▲ Bull</span>
+                          <span style={{ color:P.dm }}>: </span>
+                          {bullParts.map((p, i) => (
+                            <span key={i}>{i > 0 && <span style={{color:P.dm}}>. </span>}{p}</span>
+                          ))}
+                          <span style={{color:P.dm}}>.</span>
+                        </div>
+                      )}
+                      {bearParts.length > 0 && (
+                        <div>
+                          <span style={{ color:P.be, fontWeight:800 }}>▼ Bear</span>
+                          <span style={{ color:P.dm }}>: </span>
+                          {bearParts.map((p, i) => (
+                            <span key={i}>{i > 0 && <span style={{color:P.dm}}>. </span>}{p}</span>
+                          ))}
+                          <span style={{color:P.dm}}>.</span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
               })()}
 
-              {/* Two-column leaderboard */}
+                            {/* Two-column leaderboard */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
