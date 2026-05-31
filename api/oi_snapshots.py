@@ -86,7 +86,78 @@ CREATE TABLE IF NOT EXISTS contract_oi_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_oi_snap_date ON contract_oi_snapshots(snap_date);
 CREATE INDEX IF NOT EXISTS idx_oi_snap_contract ON contract_oi_snapshots(contract_key);
+
+CREATE TABLE IF NOT EXISTS oi_snapshot_runs (
+    run_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at   TIMESTAMP NOT NULL,
+    finished_at  TIMESTAMP,
+    status       TEXT NOT NULL,  -- 'running' | 'completed' | 'failed'
+    summary_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_oi_run_started ON oi_snapshot_runs(started_at);
 """
+
+
+# ── Run-state tracking (persisted, multi-worker safe) ────────────────────
+def start_run() -> int:
+    """Mark a run as started. Returns run_id."""
+    import datetime as _dt
+    with _conn() as c:
+        cur = c.execute(
+            "INSERT INTO oi_snapshot_runs (started_at, status) VALUES (?, ?)",
+            (_dt.datetime.utcnow().isoformat() + "Z", "running"),
+        )
+        return cur.lastrowid
+
+
+def finish_run(run_id: int, status: str, summary: Optional[Dict] = None):
+    """Mark a run as completed/failed."""
+    import datetime as _dt
+    import json
+    with _conn() as c:
+        c.execute(
+            "UPDATE oi_snapshot_runs SET finished_at=?, status=?, summary_json=? WHERE run_id=?",
+            (
+                _dt.datetime.utcnow().isoformat() + "Z",
+                status,
+                json.dumps(summary) if summary else None,
+                run_id,
+            ),
+        )
+
+
+def is_run_active() -> Optional[Dict]:
+    """Return info about an active (running) run, or None if no run is active.
+    Used to prevent concurrent kicks across multiple workers."""
+    with _conn() as c:
+        cur = c.execute(
+            "SELECT run_id, started_at FROM oi_snapshot_runs "
+            "WHERE status='running' ORDER BY run_id DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {"run_id": row[0], "started_at": row[1]}
+
+
+def get_last_run() -> Optional[Dict]:
+    """Return the most recent run (running or completed)."""
+    import json
+    with _conn() as c:
+        cur = c.execute(
+            "SELECT run_id, started_at, finished_at, status, summary_json "
+            "FROM oi_snapshot_runs ORDER BY run_id DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "run_id": row[0],
+            "started_at": row[1],
+            "finished_at": row[2],
+            "status": row[3],
+            "summary": json.loads(row[4]) if row[4] else None,
+        }
 
 
 @contextmanager
@@ -342,42 +413,52 @@ def daily_snapshot_job() -> Dict:
     """Cron entry point. Runs once daily.
 
     1. Init DB (idempotent)
-    2. Get distinct contracts from past 30d of trades (stocks only)
-    3. Fetch live OI in batches from Schwab
-    4. Insert results into contract_oi_snapshots with today's date (ISO)
-    5. Prune snapshots older than 90 days
+    2. Record a 'running' row in oi_snapshot_runs
+    3. Get distinct contracts from past 30d of trades (stocks only)
+    4. Fetch live OI in batches from Schwab
+    5. Insert results into contract_oi_snapshots with today's date (ISO)
+    6. Prune snapshots older than 90 days
+    7. Update the run record to 'completed' or 'failed'
     """
     init_db()
     today_iso = _to_iso(date.today())
     logger.info(f"[oi-snapshot] Starting daily snapshot for {today_iso}")
 
-    contracts = get_distinct_contracts()
-    if not contracts:
-        logger.info("[oi-snapshot] No contracts found in past 30 days. Skipping.")
-        return {"date": today_iso, "skipped": True, "reason": "no contracts"}
+    run_id = start_run()
+    try:
+        contracts = get_distinct_contracts()
+        if not contracts:
+            logger.info("[oi-snapshot] No contracts found in past 30 days. Skipping.")
+            summary = {"date": today_iso, "skipped": True, "reason": "no contracts"}
+            finish_run(run_id, "completed", summary)
+            return summary
 
-    logger.info(f"[oi-snapshot] Fetching OI for {len(contracts)} contracts...")
+        logger.info(f"[oi-snapshot] Fetching OI for {len(contracts)} contracts...")
 
-    fetched = _fetch_oi_batch(contracts)
+        fetched = _fetch_oi_batch(contracts)
 
-    insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
-    successes = len(insert_batch)
-    failures = len(fetched) - successes
+        insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
+        successes = len(insert_batch)
+        failures = len(fetched) - successes
 
-    inserted = record_batch(insert_batch, today_iso)
+        inserted = record_batch(insert_batch, today_iso)
+        pruned = prune_old()
 
-    pruned = prune_old()
-
-    summary = {
-        "date": today_iso,
-        "contracts_queried": len(contracts),
-        "successes": successes,
-        "failures": failures,
-        "inserted": inserted,
-        "pruned": pruned,
-    }
-    logger.info(f"[oi-snapshot] Done: {summary}")
-    return summary
+        summary = {
+            "date": today_iso,
+            "contracts_queried": len(contracts),
+            "successes": successes,
+            "failures": failures,
+            "inserted": inserted,
+            "pruned": pruned,
+        }
+        logger.info(f"[oi-snapshot] Done: {summary}")
+        finish_run(run_id, "completed", summary)
+        return summary
+    except Exception as e:
+        logger.exception("[oi-snapshot] Job crashed")
+        finish_run(run_id, "failed", {"error": str(e)})
+        raise
 
 
 # ── Confirmation logic (Phase 2b — used when serving flow data) ──────────
