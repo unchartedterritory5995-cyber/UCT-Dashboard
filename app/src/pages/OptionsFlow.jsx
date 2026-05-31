@@ -1165,7 +1165,33 @@ function processFlowData(rows) {
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
       s:tk.s, b:tk.b, r:tk.r, n:tk.n, mktcap:tk.mktcap, er:tk.er, uoa:tk.uoa, sector:tk.sector||"",
-      t:(()=>{ const seen = new Set(); return tk.topTrades.sort((a,b)=>b.P-a.P).filter(t=>{ const k=t.CP+"|"+t.K+"|"+t.E; if(seen.has(k)) return false; seen.add(k); return true; }); })(),
+      t:(()=>{
+        // Aggregate premium per CONTRACT, not per single trade. The previous
+        // implementation dedupped a top-10 cache of individual trades and kept
+        // only the biggest one per contract — which made a strike like CRWV
+        // 6/18 $117C appear as "$635K" (one sweep) when the contract actually
+        // had 20+ trades totaling several million.
+        //
+        // consMap already sums P and V across all trades per (CP|K|E).
+        // We use the biggest tracked trade as the display representative for
+        // the row (so time, side, type, color tags render correctly), then
+        // override P and V with the consMap totals.
+        const repByContract = {};
+        for (const tr of tk.topTrades) {
+          const k = tr.CP + "|" + tr.K + "|" + tr.E;
+          if (!repByContract[k] || tr.P > repByContract[k].P) repByContract[k] = tr;
+        }
+        return Object.values(tk.consMap)
+          .map(c => {
+            const k = c.CP + "|" + c.K + "|" + c.E;
+            const rep = repByContract[k];
+            if (!rep) return null; // contract whose biggest single trade fell below per-ticker top-10 cutoff
+            return { ...rep, P: c.P, V: c.V };
+          })
+          .filter(x => x !== null)
+          .sort((a, b) => b.P - a.P)
+          .slice(0, 10);
+      })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
         // 80% dominant direction override
@@ -1512,11 +1538,11 @@ export default function OptionsFlowDashboard() {
               if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
               if (!cancelled) { setParsedRows(rows); setLoadedFetchDays(fetchDaysAtStart); setCsvLoading(false); }
             } catch(err) {
-              if (!cancelled) { setCsvError(err.message); setCsvLoading(false); }
+              if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); }
             }
           }, 0);
         })
-        .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); } });
+        .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
     return () => { cancelled = true; };
   }, [csvFile]);
 
