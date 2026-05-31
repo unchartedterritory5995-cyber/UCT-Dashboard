@@ -3169,6 +3169,29 @@ export default function StockChart({
           draggable={false}
         />
       )}
+      {/* Price-scale mode toggle — sits on the right price axis, just above the
+          volume/indicator pane stack (top of the sub-panes = main.bottom frac).
+          26px allows for the time axis below the price-pane drawing area. */}
+      {!showFatalError && chartReady && (
+        <div
+          className={styles.scaleToggle}
+          style={{ bottom: `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0).main.bottom})` }}
+          title="Price scale: Arithmetic / Logarithmic"
+        >
+          <button
+            className={`${styles.scaleToggleBtn} ${!cs.logScale ? styles.scaleToggleActive : ''}`}
+            onClick={() => handleUpdateChartSettings({ ...cs, logScale: false, preset: 'custom' })}
+            title="Arithmetic (linear) scale"
+            aria-label="Arithmetic price scale"
+          >A</button>
+          <button
+            className={`${styles.scaleToggleBtn} ${cs.logScale ? styles.scaleToggleActive : ''}`}
+            onClick={() => handleUpdateChartSettings({ ...cs, logScale: true, preset: 'custom' })}
+            title="Logarithmic scale"
+            aria-label="Logarithmic price scale"
+          >L</button>
+        </div>
+      )}
       {crosshairData && (
         <div className={styles.legend}>
           <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>

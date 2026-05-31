@@ -806,19 +806,6 @@ export default function ChartToolbar({
           </button>
         )}
 
-        {/* Price-scale toggle: logarithmic vs arithmetic (linear) */}
-        {chartSettings && onUpdateSettings && (
-          <button
-            className={`${styles.btn} ${cs?.logScale ? styles.active : ''}`}
-            onClick={() => onUpdateSettings({ ...cs, logScale: !cs?.logScale, preset: 'custom' })}
-            title={cs?.logScale ? 'Price scale: Logarithmic (click for Arithmetic)' : 'Price scale: Arithmetic (click for Logarithmic)'}
-            aria-label="Toggle logarithmic price scale"
-            style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, padding: '2px 6px' }}
-          >
-            {cs?.logScale ? 'LOG' : 'LIN'}
-          </button>
-        )}
-
         {/* ── Compare symbol input ── */}
         {!hideCompare && onCompareChange && (
           <div className={styles.compareWrap}>

@@ -282,6 +282,51 @@
   pointer-events: none;
 }
 
+/* Price-scale mode toggle (A/L) — anchored to the right price axis, resting
+   just above the volume pane. `bottom` is set inline from the pane geometry. */
+.scaleToggle {
+  position: absolute;
+  right: 2px;
+  z-index: 45;
+  display: flex;
+  gap: 1px;
+  padding: 1px;
+  border-radius: 4px;
+  background: rgba(20, 24, 32, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+  pointer-events: auto;
+}
+
+.wrapper:hover .scaleToggle {
+  opacity: 1;
+}
+
+.scaleToggleBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #8b95a5);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.scaleToggleBtn:hover {
+  color: #e2e8f0;
+}
+
+.scaleToggleActive {
+  background: rgba(201, 168, 76, 0.22);
+  color: #c9a84c;
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;
