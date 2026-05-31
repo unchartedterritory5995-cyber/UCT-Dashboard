@@ -9,9 +9,17 @@ directional once OI confirms it.
 
 Architecture:
     contract_oi_snapshots table holds (contract, date, oi) tuples.
+    oi_snapshot_runs table tracks job runs across multiple uvicorn workers.
     Daily 5:30 AM ET cron fetches OI for every contract that had flow in past 30d.
     Confirmation logic compares trade_day_oi → next_day_oi against volume on the
     trade day. If oi_growth / volume >= 50%, the B-side cluster is confirmed.
+
+Schwab integration:
+    Calls api.schwab_router.options_quotes_batch() in-process — same code path
+    the frontend uses for "Fetch Live OI", which includes UW fallback. No HTTP
+    loopback, no port/auth complexity. The router's batch endpoint groups
+    contracts by symbol and uses one chain call per symbol, so several thousand
+    contracts resolves to a few hundred Schwab API calls.
 
 Integration in main.py:
     from api.oi_snapshots import init_db, daily_snapshot_job
@@ -39,7 +47,6 @@ import sqlite3
 import os
 import logging
 import asyncio
-import httpx
 from datetime import date, datetime, timedelta
 from typing import List, Optional, Iterable, Tuple, Dict
 from contextlib import contextmanager
@@ -47,17 +54,6 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-
-# Schwab quotes endpoint — same one frontend uses for "Fetch Live OI"
-SCHWAB_QUOTES_URL = os.environ.get(
-    "SCHWAB_QUOTES_URL",
-    "http://localhost:8000/api/schwab/options-quotes",
-)
-
-# How many contracts per Schwab batch (matches frontend pattern)
-SCHWAB_BATCH_SIZE = 20
-SCHWAB_BATCH_DELAY_SEC = 0.5  # to avoid rate limits
-SCHWAB_TIMEOUT_SEC = 30.0
 
 # How many days back to consider when computing "active contracts"
 DAYS_BACK_TO_SNAPSHOT = 30
@@ -158,6 +154,23 @@ def get_last_run() -> Optional[Dict]:
             "status": row[3],
             "summary": json.loads(row[4]) if row[4] else None,
         }
+
+
+def cancel_active_runs() -> int:
+    """Force-mark any 'running' runs as 'failed'. Use to unstick orphan runs
+    after a Railway restart killed an in-flight job. Returns count cancelled."""
+    import datetime as _dt
+    import json
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE oi_snapshot_runs SET status='failed', finished_at=?, summary_json=? "
+            "WHERE status='running'",
+            (
+                _dt.datetime.utcnow().isoformat() + "Z",
+                json.dumps({"cancelled": True, "reason": "manual cancel"}),
+            ),
+        )
+        return cur.rowcount
 
 
 @contextmanager
@@ -341,12 +354,9 @@ def get_distinct_contracts(days_back: int = DAYS_BACK_TO_SNAPSHOT) -> List[Tuple
         return contracts
 
 
-# ── Schwab fetch (batched HTTP loopback) ─────────────────────────────────
+# ── Schwab fetch (direct in-process call, no HTTP loopback) ──────────────
 def _exp_to_iso_for_schwab(exp: str) -> str:
-    """Convert flow-table 'M/D/YYYY' → 'YYYY-MM-DD' for Schwab API.
-
-    Matches frontend's expToISO() helper so we send Schwab the same format
-    the live frontend does."""
+    """Convert flow-table 'M/D/YYYY' → 'YYYY-MM-DD' for Schwab API."""
     parts = exp.split("/")
     if len(parts) != 3:
         return exp  # let Schwab reject it; safer than guessing
@@ -356,56 +366,65 @@ def _exp_to_iso_for_schwab(exp: str) -> str:
     return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
 
 
-async def _fetch_oi_batch_async(
+async def _fetch_oi_all_async(
     contracts: List[Tuple[str, str, float, str]],
 ) -> List[Tuple[str, Optional[int]]]:
-    """Fetch OI for each contract via the local Schwab endpoint.
-    Returns list of (contract_key, oi_or_None) parallel to input."""
+    """Fetch OI for all contracts via direct schwab service call (in-process).
+    Returns list of (contract_key, oi_or_None) parallel to input.
+
+    Uses api.schwab_router.options_quotes_batch() so we get UW fallback for
+    free. schwab.get_batch_option_quotes internally groups by symbol and
+    does one chain call per ticker — way more efficient than per-contract calls.
+    """
+    # Lazy import — avoid circular deps if main.py imports us at startup
+    from api.schwab_router import options_quotes_batch
+
+    # Build the payload in the shape schwab expects
+    payload = [
+        {
+            "symbol": sym,
+            "cp": "C" if cp.upper() in ("C", "CALL") else "P",
+            "strike": float(strike),
+            "expDate": _exp_to_iso_for_schwab(exp),
+        }
+        for sym, cp, strike, exp in contracts
+    ]
+
+    try:
+        response = await options_quotes_batch(payload)
+    except Exception as e:
+        logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
+        # All-failure fallback
+        return [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
+
+    # Response shape: {"quotes": [...]}, parallel to input
+    quotes = response.get("quotes", []) if isinstance(response, dict) else []
+
     results: List[Tuple[str, Optional[int]]] = []
-    async with httpx.AsyncClient(timeout=SCHWAB_TIMEOUT_SEC) as client:
-        for i in range(0, len(contracts), SCHWAB_BATCH_SIZE):
-            batch = contracts[i : i + SCHWAB_BATCH_SIZE]
-            payload = [
-                {
-                    "symbol": sym,
-                    "cp": "C" if cp.upper() in ("C", "CALL") else "P",
-                    "strike": float(strike),
-                    "expDate": _exp_to_iso_for_schwab(exp),
-                }
-                for sym, cp, strike, exp in batch
-            ]
+    for orig, quote in zip(contracts, quotes):
+        sym, cp, strike, exp = orig
+        ck = make_key(sym, cp, strike, exp)
+        if not isinstance(quote, dict) or quote.get("error") or quote.get("expired"):
+            results.append((ck, None))
+            continue
+        oi = quote.get("openInterest")
+        # Schwab returns 0 for "no data" as well as legit 0-OI contracts.
+        # Treat 0 as None for snapshot purposes — we want signal, not noise.
+        if oi is None or oi == 0:
+            results.append((ck, None))
+        else:
             try:
-                resp = await client.post(SCHWAB_QUOTES_URL, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-                quotes = data.get("quotes", [])
-                # Quotes come back in same order as input
-                for orig, quote in zip(batch, quotes):
-                    sym, cp, strike, exp = orig
-                    ck = make_key(sym, cp, strike, exp)
-                    if quote.get("error") or quote.get("expired"):
-                        results.append((ck, None))
-                    else:
-                        oi = quote.get("openInterest")
-                        results.append((ck, int(oi) if oi is not None else None))
-            except Exception as e:
-                logger.warning(
-                    f"[oi-snapshot] Batch {i // SCHWAB_BATCH_SIZE + 1} failed: {e}"
-                )
-                for orig in batch:
-                    sym, cp, strike, exp = orig
-                    results.append((make_key(sym, cp, strike, exp), None))
-            # Rate-limit pacing
-            if i + SCHWAB_BATCH_SIZE < len(contracts):
-                await asyncio.sleep(SCHWAB_BATCH_DELAY_SEC)
+                results.append((ck, int(oi)))
+            except (ValueError, TypeError):
+                results.append((ck, None))
     return results
 
 
-def _fetch_oi_batch(
+def _fetch_oi_all(
     contracts: List[Tuple[str, str, float, str]],
 ) -> List[Tuple[str, Optional[int]]]:
-    """Synchronous wrapper around the async fetcher (APScheduler expects sync)."""
-    return asyncio.run(_fetch_oi_batch_async(contracts))
+    """Synchronous wrapper (APScheduler expects sync)."""
+    return asyncio.run(_fetch_oi_all_async(contracts))
 
 
 # ── The daily job ────────────────────────────────────────────────────────
@@ -435,7 +454,7 @@ def daily_snapshot_job() -> Dict:
 
         logger.info(f"[oi-snapshot] Fetching OI for {len(contracts)} contracts...")
 
-        fetched = _fetch_oi_batch(contracts)
+        fetched = _fetch_oi_all(contracts)
 
         insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
         successes = len(insert_batch)
