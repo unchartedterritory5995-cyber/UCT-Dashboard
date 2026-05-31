@@ -522,6 +522,7 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
+  const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const overlaySeriesRefs = useRef([])
   const bbUpperRef    = useRef(null)
   const bbMiddleRef   = useRef(null)
@@ -1835,18 +1836,39 @@ export default function StockChart({
       }
     }
 
-    // ── Volume series (pane 0 overlay) — dynamic margins via computePaneMargins ──
-    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0)
+    // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
+    // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
+    // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
+    const volSeparatePane = !!cs.volume.separatePane
+    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane)
     if (showVolume && volData.length) {
+      // If the render mode changed (overlay <-> separate pane), recreate the
+      // series — priceScaleId / paneIndex are fixed at creation time.
+      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeparatePane) {
+        try { chart.removeSeries(volumeSeriesRef.current) } catch {}
+        volumeSeriesRef.current = null
+      }
       if (!volumeSeriesRef.current) {
         const vs = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
-          priceScaleId: '',
-        })
+          priceScaleId: volSeparatePane ? 'volume' : '',
+        }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
+        volumeSeparatePaneRef.current = volSeparatePane
       }
-      const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
-      volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
+      if (volSeparatePane) {
+        // Own pane: small top margin so bars don't kiss the divider; size the
+        // pane to ~22% of the chart via stretch factors (main pane gets the rest).
+        volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } })
+        try {
+          const panes = chart.panes()
+          if (panes[0]) panes[0].setStretchFactor(3.5)
+          if (panes[1]) panes[1].setStretchFactor(1)
+        } catch {}
+      } else {
+        const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
+        volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
+      }
       volumeSeriesRef.current.setData(volData)
     } else if (volumeSeriesRef.current) {
       try { chart.removeSeries(volumeSeriesRef.current) } catch {}

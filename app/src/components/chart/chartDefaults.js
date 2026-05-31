@@ -30,6 +30,7 @@ export const CHART_DEFAULTS = {
     upColor: 'rgba(60,184,104,0.35)',
     downColor: 'rgba(231,76,60,0.35)',
     hvcEnabled: true,
+    separatePane: false,
   },
 
   watermark: {

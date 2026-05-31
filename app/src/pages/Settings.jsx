@@ -612,6 +612,10 @@ function ChartSettingsSection({ prefs, setPref }) {
               <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
               <span>HVC highlight</span>
             </label>
+            <label className={styles.chartToggle} title="Show volume in its own pane below price instead of overlaid on the chart">
+              <input type="checkbox" checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
+              <span>Separate pane</span>
+            </label>
           </div>
           <div className={styles.chartRow} style={{ marginTop: 8 }}>
             <ColorPicker label="Up vol" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />

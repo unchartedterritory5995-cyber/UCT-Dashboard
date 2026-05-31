@@ -297,6 +297,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             <input type="checkbox" checked={cs.volume.hvcEnabled} onChange={e => update('volume.hvcEnabled', e.target.checked)} />
             HVC
           </label>
+          <label className={styles.sCheck} title="Show volume in its own pane below price instead of overlaid on the chart">
+            <input type="checkbox" checked={!!cs.volume.separatePane} onChange={e => update('volume.separatePane', e.target.checked)} />
+            Separate pane
+          </label>
           <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
           <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
         </div>
@@ -799,6 +803,19 @@ export default function ChartToolbar({
             style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, padding: '2px 6px' }}
           >
             {showExtended ? 'EXT' : 'RTH'}
+          </button>
+        )}
+
+        {/* Price-scale toggle: logarithmic vs arithmetic (linear) */}
+        {chartSettings && onUpdateSettings && (
+          <button
+            className={`${styles.btn} ${cs?.logScale ? styles.active : ''}`}
+            onClick={() => onUpdateSettings({ ...cs, logScale: !cs?.logScale, preset: 'custom' })}
+            title={cs?.logScale ? 'Price scale: Logarithmic (click for Arithmetic)' : 'Price scale: Arithmetic (click for Logarithmic)'}
+            aria-label="Toggle logarithmic price scale"
+            style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, padding: '2px 6px' }}
+          >
+            {cs?.logScale ? 'LOG' : 'LIN'}
           </button>
         )}
 
