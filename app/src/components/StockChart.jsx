@@ -566,6 +566,8 @@ export default function StockChart({
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
+  const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
+  const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
@@ -627,7 +629,10 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
-  const buildRegionSections = useCallback((region) => {
+  // addDrawing is created later (useChartDrawings, below); bridge via ref so a
+  // menu item can draw a horizontal line at the clicked price.
+  const addDrawingRef = useRef(null)
+  const buildRegionSections = useCallback((region, clickPrice) => {
     const setCs = (path, value) => {
       const next = { ...cs }
       const parts = path.split('.')
@@ -648,6 +653,28 @@ export default function StockChart({
     const autoScale = () => { try { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }) } catch {} }
     const settingsLink = (id, label) =>
       showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
+
+    // Price-level + picker helpers (used by the price area / axis regions).
+    const hasPrice = Number.isFinite(clickPrice)
+    const fmtPrice = (p) => (p >= 1 ? p.toFixed(2) : p.toFixed(4))
+    const drawLineItem = hasPrice ? {
+      id: 'draw-hline',
+      label: `➖ Draw line at $${fmtPrice(clickPrice)}`,
+      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || '#c9a84c', lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
+    } : null
+    const priceActions = hasPrice
+      ? [{ id: 'priceactions', title: `At $${fmtPrice(clickPrice)}`, items: [drawLineItem] }]
+      : []
+    const TF_OPTS = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M']]
+    const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
+    const tfSection = typeof onTfChange === 'function' ? {
+      id: 'tf', title: 'Timeframe',
+      items: TF_OPTS.map(([code, label]) => ({ id: 'tf-' + code, label, kind: 'toggle', checked: resolvedTf === code, onSelect: () => onTfChange(code) })),
+    } : null
+    const ctSection = {
+      id: 'ctype', title: 'Chart type',
+      items: CT_OPTS.map(([val, label]) => ({ id: 'ct-' + val, label, kind: 'toggle', checked: (cs.chartType || 'candles') === val, onSelect: () => setCs('chartType', val) })),
+    }
 
     const secs = []
 
@@ -681,6 +708,7 @@ export default function StockChart({
       items.push(...settingsLink('o-set', 'Moving averages…'))
       secs.push({ id: 'region', title: label, items })
     } else if (region.type === 'priceAxis') {
+      secs.push(...priceActions)
       secs.push({ id: 'region', title: 'Price scale', items: [
         { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
         { id: 'p-auto', label: 'Auto-scale', onSelect: autoScale },
@@ -689,6 +717,7 @@ export default function StockChart({
       // Reset view comes from the common section below; nothing region-specific.
     } else {
       // Open price area.
+      secs.push(...priceActions)
       const items = [
         { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
       ]
@@ -696,6 +725,8 @@ export default function StockChart({
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
       secs.push({ id: 'region', title: 'Chart', items })
+      if (tfSection) secs.push(tfSection)
+      secs.push(ctSection)
     }
 
     // Common view section — always present.
@@ -704,7 +735,7 @@ export default function StockChart({
     secs.push({ id: 'view', items: viewItems })
 
     return secs
-  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays])
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -807,6 +838,7 @@ export default function StockChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
+  addDrawingRef.current = addDrawing
 
   // ── Position tool price lines ──
   useEffect(() => {
@@ -2493,53 +2525,93 @@ export default function StockChart({
       }).catch(() => {})
     }
 
-    // Default zoom — only set on initial load or sym/tf change, NOT on SWR refetches
-    // (prevents losing user's scroll/zoom position every 15 seconds)
+    // View handling on initial load / timeframe change / ticker switch.
+    // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
+    //
+    // LOCK BEHAVIOR (always on): when ONLY the ticker changes (same timeframe), we carry
+    // the user's current view to the next chart instead of snapping back to a default fit —
+    // both the horizontal scroll/zoom AND the vertical price position.
+    //   • Horizontal: re-anchor the visible logical range to the right edge so the same
+    //     "scrolled-back distance + zoom width" lines up even when the two tickers have
+    //     different history lengths.
+    //   • Vertical: we deliberately do NOT reset the right price scale. If the user dragged
+    //     it (manual mode), the candles stay where they put them; if untouched, it keeps
+    //     auto-fitting each ticker. Double-click the axis (or the "Auto-scale" context-menu
+    //     item) to re-fit a wildly different-priced ticker.
     const zoomKey = `${sym}_${resolvedTf}`
     if (zoomKeyRef.current !== zoomKey) {
+      const isFirstLoad = zoomKeyRef.current === null
+      const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
+      // Capture the outgoing view BEFORE deciding. setData() preserves the logical range
+      // numerically, so this still reflects where the user was on the previous ticker.
+      let oldRange = null
+      try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+      const oldBarCount = lastBarCountRef.current
+
       zoomKeyRef.current = zoomKey
+      lastTfRef.current = resolvedTf
 
-      // Re-enable price-scale auto-fit on ticker/timeframe change. Lightweight-charts
-      // flips the right price scale into manual mode the first time a user drags it,
-      // and stays manual until reset — without this, switching from a $290 ticker to a
-      // $4 ticker leaves the Y-axis stuck and the new candles render below the viewport.
-      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
-
-      // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
-      // center the view on the trade window with 20-bar padding each side.
-      if (entryDate && filteredBars.length > 0) {
-        const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
-        const exitIdx  = exitDate
-          ? filteredBars.findIndex(b => b.t >= exitDate)
-          : -1
-        const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
-        const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
-        chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
-      } else {
-        const defaultVisible = {
-          '1': 390,   // ~1 trading day of 1min bars
-          '5': 78,    // ~1 trading day of 5min bars
-          '15': 78,   // ~3 trading days of 15min bars
-          '30': 65,   // ~5 trading days of 30min bars
-          '60': 65,   // ~10 trading days of 1hr bars
-          'D': 65,    // ~3 months of daily bars
-          'W': 52,    // ~1 year of weekly bars
-          'M': 36,    // ~3 years of monthly bars
+      let didPreserve = false
+      if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
+        const newBarCount = filteredBars.length
+        const barsFromRight = oldBarCount - oldRange.to
+        const width = oldRange.to - oldRange.from
+        const to = newBarCount - barsFromRight
+        const from = to - width
+        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+          try {
+            chart.timeScale().setVisibleLogicalRange({ from, to })
+            didPreserve = true
+          } catch {}
         }
-        const visibleBars = defaultVisible[resolvedTf] || 65
-        if (filteredBars.length > visibleBars) {
-          chart.timeScale().setVisibleLogicalRange({
-            from: filteredBars.length - visibleBars,
-            to: filteredBars.length + 3,
-          })
+      }
+
+      if (!didPreserve) {
+        // Re-enable price-scale auto-fit on initial load / timeframe change. Lightweight-charts
+        // flips the right price scale into manual mode the first time a user drags it,
+        // and stays manual until reset — without this, switching from a $290 ticker to a
+        // $4 ticker leaves the Y-axis stuck and the new candles render below the viewport.
+        try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
+
+        // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
+        // center the view on the trade window with 20-bar padding each side.
+        if (entryDate && filteredBars.length > 0) {
+          const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
+          const exitIdx  = exitDate
+            ? filteredBars.findIndex(b => b.t >= exitDate)
+            : -1
+          const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
+          const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
+          chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
         } else {
-          chart.timeScale().setVisibleLogicalRange({
-            from: 0,
-            to: filteredBars.length + 3,
-          })
+          const defaultVisible = {
+            '1': 390,   // ~1 trading day of 1min bars
+            '5': 78,    // ~1 trading day of 5min bars
+            '15': 78,   // ~3 trading days of 15min bars
+            '30': 65,   // ~5 trading days of 30min bars
+            '60': 65,   // ~10 trading days of 1hr bars
+            'D': 65,    // ~3 months of daily bars
+            'W': 52,    // ~1 year of weekly bars
+            'M': 36,    // ~3 years of monthly bars
+          }
+          const visibleBars = defaultVisible[resolvedTf] || 65
+          if (filteredBars.length > visibleBars) {
+            chart.timeScale().setVisibleLogicalRange({
+              from: filteredBars.length - visibleBars,
+              to: filteredBars.length + 3,
+            })
+          } else {
+            chart.timeScale().setVisibleLogicalRange({
+              from: 0,
+              to: filteredBars.length + 3,
+            })
+          }
         }
       }
     }
+
+    // Track current bar count so the next ticker switch can right-anchor the preserved view.
+    lastBarCountRef.current = filteredBars.length
   }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
