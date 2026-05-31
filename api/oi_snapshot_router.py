@@ -69,6 +69,15 @@ def run_status():
     return {"has_run": True, **last}
 
 
+@router.post("/cancel")
+def cancel_run():
+    """Force-mark any active 'running' run as failed. Use to unstick an
+    orphan run after a Railway restart killed an in-flight job."""
+    oi_snapshots.init_db()
+    cancelled = oi_snapshots.cancel_active_runs()
+    return {"cancelled": cancelled}
+
+
 @router.post("/run-sync")
 def run_snapshot_sync():
     """Synchronous version — blocks until job finishes. Use only when called
