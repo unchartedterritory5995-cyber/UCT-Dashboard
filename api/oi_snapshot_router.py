@@ -17,18 +17,77 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
-from api import oi_snapshots
+import threading
+import datetime as _dt
 import logging
+from api import oi_snapshots
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/oi-snapshot", tags=["oi-snapshot"])
 
+# Track in-flight runs so we don't queue duplicates if user clicks again.
+# Module-level state lives for the lifetime of the worker process.
+_run_state = {"running": False, "started_at": None, "last_result": None}
+_run_lock = threading.Lock()
+
+
+def _run_snapshot_background():
+    """Background worker. Runs the job, stashes result, clears running flag."""
+    try:
+        result = oi_snapshots.daily_snapshot_job()
+        with _run_lock:
+            _run_state["last_result"] = result
+    except Exception as e:
+        logger.exception("OI snapshot background run failed")
+        with _run_lock:
+            _run_state["last_result"] = {"error": str(e)}
+    finally:
+        with _run_lock:
+            _run_state["running"] = False
+
 
 @router.post("/run")
 def run_snapshot():
-    """Manually trigger today's snapshot collection.
-    Long-running (can take 60-120s depending on contract count) — fire and wait."""
+    """Kick off today's snapshot in the background and return immediately.
+    Long jobs (60-180s) would exceed Cloudflare's 100s edge timeout if we
+    waited inline. Poll /run-status to see when it finishes."""
+    with _run_lock:
+        if _run_state["running"]:
+            return {
+                "status": "already_running",
+                "started_at": _run_state["started_at"],
+            }
+        _run_state["running"] = True
+        _run_state["started_at"] = _dt.datetime.utcnow().isoformat() + "Z"
+        _run_state["last_result"] = None
+
+    # Fire and forget — daemon thread so it doesn't block shutdown
+    threading.Thread(target=_run_snapshot_background, daemon=True).start()
+
+    return {
+        "status": "started",
+        "started_at": _run_state["started_at"],
+        "message": "Snapshot running in background. Poll /api/oi-snapshot/run-status in ~2-3 min.",
+    }
+
+
+@router.get("/run-status")
+def run_status():
+    """Check whether the background snapshot is still running and inspect
+    the result from its most recent completion."""
+    with _run_lock:
+        return {
+            "running": _run_state["running"],
+            "started_at": _run_state["started_at"],
+            "last_result": _run_state["last_result"],
+        }
+
+
+@router.post("/run-sync")
+def run_snapshot_sync():
+    """Synchronous version — blocks until job finishes. Use only when called
+    from inside the network (admin server-to-server, not via Cloudflare)."""
     try:
         result = oi_snapshots.daily_snapshot_job()
         return result
