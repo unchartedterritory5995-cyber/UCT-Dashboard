@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useWorkspace } from '../WorkspaceContext'
@@ -13,8 +13,29 @@ const TFS = [
 const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 export default function ChartWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus } = useWorkspace()
   const sym = groupSyms[color] || 'SPY'
+
+  // ── Crosshair sync within the color group ──
+  // Stable per-widget id so we ignore our own broadcasts. Charts sharing a
+  // color group mirror each other's crosshair (same symbol; exact when the
+  // timeframes match, nearest-time when they differ).
+  const widgetIdRef = useRef(null)
+  if (!widgetIdRef.current) widgetIdRef.current = `w${Math.random().toString(36).slice(2, 9)}`
+  const [externalCrosshair, setExternalCrosshair] = useState(null)
+
+  const reportCrosshair = useCallback((payload) => {
+    crosshairBus?.emit(color, widgetIdRef.current, payload)
+  }, [crosshairBus, color])
+
+  useEffect(() => {
+    if (!crosshairBus) return undefined
+    return crosshairBus.subscribe(({ color: c, sourceId, payload }) => {
+      if (c === color && sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
+    })
+  }, [crosshairBus, color])
+  // Drop any stale external crosshair when this widget's own symbol changes.
+  useEffect(() => { setExternalCrosshair(null) }, [sym])
   const tf = opts?.tf || 'D'
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
@@ -81,6 +102,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           tf={tf}
           onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
+          onCrosshairMove={reportCrosshair}
+          externalCrosshair={externalCrosshair}
         />
       </div>
     </div>

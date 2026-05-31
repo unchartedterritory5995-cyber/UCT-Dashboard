@@ -129,7 +129,22 @@ export default function ChartsWorkspace() {
     })
   }, [setPref])
 
-  const workspaceValue = useMemo(() => ({ groupSyms, setGroupSym }), [groupSyms, setGroupSym])
+  // Crosshair sync bus: a stable pub/sub so a hovered chart can broadcast its
+  // crosshair to same-color-group siblings WITHOUT re-rendering the grid at
+  // mouse-move rate (only the receiving widgets re-render via local state).
+  const crosshairBusRef = useRef(null)
+  if (!crosshairBusRef.current) {
+    const listeners = new Set()
+    crosshairBusRef.current = {
+      emit: (color, sourceId, payload) => listeners.forEach((fn) => fn({ color, sourceId, payload })),
+      subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
+    }
+  }
+
+  const workspaceValue = useMemo(
+    () => ({ groupSyms, setGroupSym, crosshairBus: crosshairBusRef.current }),
+    [groupSyms, setGroupSym],
+  )
 
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)

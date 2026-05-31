@@ -593,6 +593,9 @@ export default function StockChart({
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
+  // True while we're applying an externally-synced crosshair, so the resulting
+  // (point-less) crosshair event doesn't echo a clear back to the sync bus.
+  const applyingExternalRef = useRef(false)
   // Refs mirror rapidly-changing values so the crosshair handler can read
   // current data without forcing a tear-down+resubscribe on every tick.
   // Without this, useRealtimeBars updates → bars change → indicatorData
@@ -2991,6 +2994,11 @@ export default function StockChart({
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
         setCrosshairData(null)
+        // Tell the sync bus the local user left the chart — but not when this
+        // empty event was self-induced by applying an external crosshair.
+        if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
+          onCrosshairMoveRef.current(null)
+        }
         return
       }
       crosshairParamRef.current = param
@@ -3050,21 +3058,26 @@ export default function StockChart({
   // create an infinite loop.
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current) return
+    // Suppress clear-echo: applying a crosshair fires a point-less crosshair
+    // event that must not be re-broadcast as a "mouse left" clear.
+    applyingExternalRef.current = true
     if (!externalCrosshair?.time) {
       try { chartRef.current.clearCrosshairPosition() } catch {}
-      return
+    } else {
+      try {
+        const priceVal =
+          externalCrosshair.price?.close ??
+          externalCrosshair.price?.value ??
+          (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0)
+        chartRef.current.setCrosshairPosition(
+          priceVal,
+          externalCrosshair.time,
+          candleSeriesRef.current,
+        )
+      } catch {}
     }
-    try {
-      const priceVal =
-        externalCrosshair.price?.close ??
-        externalCrosshair.price?.value ??
-        (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0)
-      chartRef.current.setCrosshairPosition(
-        priceVal,
-        externalCrosshair.time,
-        candleSeriesRef.current,
-      )
-    } catch {}
+    const raf = requestAnimationFrame(() => { applyingExternalRef.current = false })
+    return () => cancelAnimationFrame(raf)
   }, [externalCrosshair])
 
   // ── Right-click on a bar → fire callback or dispatch global event ──
