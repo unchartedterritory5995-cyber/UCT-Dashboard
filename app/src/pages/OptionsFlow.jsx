@@ -1235,6 +1235,8 @@ export default function OptionsFlowDashboard() {
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
+
+
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
   const [convCpFilter, setConvCpFilter] = useState("All"); // independent C/P for CONV cards
   const [perf, setPerf] = useState([]);
@@ -1363,6 +1365,7 @@ export default function OptionsFlowDashboard() {
   const [calStart, setCalStart] = useState(null); // temp start during selection
   const calRef = useRef(null);
   const [D, setD] = useState(null);
+
   const [dataVersion, setDataVersion] = useState(null);
 
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
@@ -4537,8 +4540,44 @@ export default function OptionsFlowDashboard() {
                             </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:55, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            {lastOI>0 ? <div style={{ color:P.dm }}>OI: {lastOI.toLocaleString()}</div> : <span style={{ color:P.dm+"55" }}>—</span>}
+                          <div style={{ width:80, flexShrink:0, fontSize:8, textAlign:"center" }}>
+                            {(()=>{
+                              // Live OI verdict — uses Schwab live data auto-fetched on Market Read load.
+                              // tradeOI = max OI captured at trade time (from CSV ingestion, day-stale)
+                              // liveOI = current OI from Schwab quote
+                              // Verdict labels:
+                              //   ADDING (≥+20%) / GROWING (+5-20%) — positions actually opened
+                              //   FLAT (-10 to +5%) — churn / profit-taking / MM activity
+                              //   FADING (-10 to -30%) / EXITED (<-30%) — positions closed
+                              const px = tc ? getPrice(p.sym, tc.cp, tc.K, tc.exp) : null;
+                              const liveOI = px ? (px.oi || 0) : 0;
+                              const tradeOI = lastOI || 0;
+                              if (!liveOI || !tradeOI) {
+                                return tradeOI > 0
+                                  ? <div style={{ color:P.dm }}>OI: {tradeOI.toLocaleString()}</div>
+                                  : <span style={{ color:P.dm+"55" }}>—</span>;
+                              }
+                              const delta = liveOI - tradeOI;
+                              const pct = delta / tradeOI;
+                              let vColor, vLabel;
+                              if (pct >= 0.20) { vColor = P.bu; vLabel = "ADDING"; }
+                              else if (pct >= 0.05) { vColor = P.bu+"CC"; vLabel = "GROWING"; }
+                              else if (pct > -0.10) {
+                                // "No real move" range — distinguish real held position from noise.
+                                // 1000 OI ≈ $100K+ notional at typical option prices. Below that,
+                                // there's no meaningful institutional positioning to speak of.
+                                if (liveOI >= 1000) { vColor = P.ac; vLabel = "IN POSITION"; }
+                                else { vColor = P.dm; vLabel = "FLAT"; }
+                              }
+                              else if (pct > -0.30) { vColor = P.be+"CC"; vLabel = "FADING"; }
+                              else { vColor = P.be; vLabel = "EXITED"; }
+                              return (
+                                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
+                                  <div style={{ color:P.dm }}>{tradeOI.toLocaleString()}→{liveOI.toLocaleString()}</div>
+                                  <div style={{ fontWeight:800, color:vColor }}>{(pct>=0?"+":"")+Math.round(pct*100)+"% "+vLabel}</div>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
