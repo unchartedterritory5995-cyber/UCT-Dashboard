@@ -83,35 +83,30 @@ function OnTheTape() {
 
   return (
     <div className={styles.tapeBlock}>
-      <div className={styles.tapeHeader}>
-        <span className={styles.tapeTitle}>📰 On The Tape</span>
-        <span className={styles.tapeSub}>Live feed · curated market accounts</span>
-      </div>
+      <div className={styles.tapeLabel}>📰 ON THE TAPE</div>
       <div className={styles.tapeBody}>
         {tweets == null
           ? <SkeletonTileContent lines={5} />
           : tweets.length === 0
             ? <span className={styles.noData}>No tweets on the tape yet</span>
             : tweets.map((t) => (
-                <a
-                  key={t.id}
-                  className={styles.tapeItem}
-                  href={t.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <div className={styles.tapeItemHead}>
-                    <span className={styles.tapeHandle}>@{t.author_handle}</span>
-                    <span className={styles.tapeTime}>{timeAgo(t.created_at)}</span>
-                    <span className={styles.tapeOpen}>↗</span>
-                  </div>
+                <div key={t.id} className={styles.tweetRow}>
+                  <span className={styles.tweetHandle}>@{t.author_handle}</span>
+                  <span className={styles.tweetTime}>{timeAgo(t.created_at)}</span>
+                  <a
+                    className={styles.tweetLink}
+                    href={t.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="open on X"
+                  >↗</a>
                   <div
-                    className={styles.tapeText}
-                    style={t.is_retweet ? { opacity: 0.75, fontSize: '95%' } : undefined}
+                    className={styles.tweetText}
+                    style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
                   >
                     {t.is_retweet ? 'RT: ' : ''}{renderTweetText(t.text)}
                   </div>
-                </a>
+                </div>
               ))
         }
       </div>
