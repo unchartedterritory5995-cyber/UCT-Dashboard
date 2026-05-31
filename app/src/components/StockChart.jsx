@@ -3077,7 +3077,18 @@ export default function StockChart({
         }
       }
 
-      const sections = buildRegionSections(region)
+      // Price under the cursor (for "draw line here" / "set alert here").
+      // Only meaningful in price/axis regions where y maps to the price scale.
+      let clickPrice = null
+      if (region.type === 'price' || region.type === 'priceAxis') {
+        try {
+          const p = candleSeriesRef.current?.coordinateToPrice(py)
+          if (Number.isFinite(p) && p > 0) clickPrice = p
+        } catch {}
+      }
+      const currentPrice = Number.isFinite(lastPriceRef.current) ? lastPriceRef.current : (closest?.c ?? null)
+
+      const sections = buildRegionSections(region, clickPrice)
 
       // Lazy chart screenshot: only invoked if the consumer actually needs
       // it (e.g. "Save to Notebook"). Lightweight Charts v5 exposes
@@ -3101,6 +3112,8 @@ export default function StockChart({
           getScreenshotBlob,
           region,
           sections,
+          clickPrice,
+          currentPrice,
         })
       } else {
         window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {
@@ -3113,6 +3126,8 @@ export default function StockChart({
             getScreenshotBlob,
             region,
             sections,
+            clickPrice,
+            currentPrice,
           },
         }))
       }

@@ -23,6 +23,7 @@ import AddPositionModal from './components/AddPositionModal'
 import ChartContextMenu from '../../components/chart/ChartContextMenu'
 import Toast from './components/Toast'
 import { money } from '../../lib/journal-2-0'
+import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
 
 async function postPosition(payload) {
   const res = await fetch('/api/j2/positions', {
@@ -47,6 +48,7 @@ export default function GlobalAddPositionProvider() {
   const { settings } = useJ2Settings()
   const { accountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
+  const { createAlert } = useWatchlistAlerts()
 
   const [menu, setMenu] = useState(null)       // { clientX, clientY, sym, bar }
   const [prefill, setPrefill] = useState(null) // { symbol, entryPrice, entryDate }
@@ -67,6 +69,8 @@ export default function GlobalAddPositionProvider() {
         bar: d.bar,
         getScreenshotBlob: d.getScreenshotBlob,
         sections: Array.isArray(d.sections) ? d.sections : [],
+        clickPrice: Number.isFinite(d.clickPrice) ? d.clickPrice : null,
+        currentPrice: Number.isFinite(d.currentPrice) ? d.currentPrice : null,
       })
     }
     window.addEventListener('uct:chart-contextmenu', onEvt)
@@ -154,8 +158,31 @@ export default function GlobalAddPositionProvider() {
 
   // Compose the menu: chart region sections (from StockChart) → portfolio
   // actions (owned here) → the common view section (reset / settings).
-  const regionSections = (menu?.sections || []).filter((s) => s.id !== 'view')
+  let regionSections = (menu?.sections || []).filter((s) => s.id !== 'view')
   const viewSections = (menu?.sections || []).filter((s) => s.id === 'view')
+
+  // "Set alert at $X" lives here (needs auth + createAlert). Merge it into the
+  // price-actions section that StockChart emits alongside "Draw line at $X".
+  if (menu?.clickPrice != null) {
+    const p = menu.clickPrice
+    const fmt = p >= 1 ? p.toFixed(2) : p.toFixed(4)
+    const direction = menu.currentPrice != null && p < menu.currentPrice ? 'below' : 'above'
+    const alertItem = {
+      id: 'set-alert',
+      label: `🔔 Alert when ${direction} $${fmt}`,
+      onSelect: () => {
+        createAlert(menu.sym, p, direction)
+        setToast({ message: `Alert set: ${menu.sym} ${direction} $${fmt}`, tone: 'success' })
+      },
+    }
+    const idx = regionSections.findIndex((s) => s.id === 'priceactions')
+    if (idx >= 0) {
+      regionSections = regionSections.map((s, i) => i === idx ? { ...s, items: [...s.items, alertItem] } : s)
+    } else {
+      regionSections = [{ id: 'priceactions', title: `At $${fmt}`, items: [alertItem] }, ...regionSections]
+    }
+  }
+
   const portfolioSection = {
     id: 'portfolio',
     items: [
