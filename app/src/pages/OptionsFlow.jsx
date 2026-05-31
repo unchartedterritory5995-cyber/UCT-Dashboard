@@ -4571,7 +4571,8 @@ export default function OptionsFlowDashboard() {
                                 if (liveOI >= 1000) { vColor = P.ac; vLabel = "IN POSITION"; vSuffix = ""; }
                                 else { vColor = P.dm; vLabel = "FLAT"; vSuffix = ""; }
                               }
-                              else if (pct > -0.30) { vColor = P.be+"CC"; vLabel = "FADING"; vSuffix = " " + delta.toLocaleString(); }
+                              else if (pct > -0.30) { vColor = P.be+"99"; vLabel = "FADING"; vSuffix = " " + delta.toLocaleString(); }
+                              else if (pct > -0.70) { vColor = P.be+"CC"; vLabel = "PARTIAL EXIT"; vSuffix = " " + delta.toLocaleString(); }
                               else { vColor = P.be; vLabel = "EXITED"; vSuffix = " " + delta.toLocaleString(); }
                               return (
                                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
