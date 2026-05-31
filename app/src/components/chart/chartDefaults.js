@@ -81,6 +81,7 @@ export const CHART_DEFAULTS = {
   countdown: false,
   showPatterns: false,
   hideDrawings: false,  // hide all drawings without deleting them
+  extendedHoursShading: false,  // shade pre/post-market on intraday charts
 
   theme: 'dark', // 'dark' | 'light'
 
@@ -250,6 +251,7 @@ export function mergeChartSettings(userSettings) {
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
+    extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
     theme: parsed?.theme === 'light' ? 'light' : 'dark',
     positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',

@@ -15,6 +15,7 @@ import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
 import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
+import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -508,6 +509,8 @@ export default function StockChart({
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
+  const sessionShadeRef = useRef(null)      // extended-hours shading primitive
+  const sessionShadeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
   useWatermarkDrag({
     containerRef,
@@ -738,6 +741,9 @@ export default function StockChart({
         { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
         { id: 'pr-magnet', label: 'Magnet crosshair', kind: 'toggle', checked: !!cs.crosshair?.magnet, onSelect: () => setCs('crosshair.magnet', !cs.crosshair?.magnet) },
       ]
+      if (['1', '5', '15', '30', '60'].includes(resolvedTf)) {
+        items.push({ id: 'pr-eh', label: 'Extended-hours shading', kind: 'toggle', checked: !!cs.extendedHoursShading, onSelect: () => setCs('extendedHoursShading', !cs.extendedHoursShading) })
+      }
       if (showVolumeProp === undefined && !cs.volume.visible) {
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
@@ -1925,6 +1931,24 @@ export default function StockChart({
         sizeScale: cs.watermark.sizeScale,
         x: cs.watermark.x,
         y: cs.watermark.y,
+      })
+    }
+
+    // ── Extended-hours shading (custom v5 pane primitive, behind series) ──
+    if (!sessionShadeRef.current) {
+      sessionShadeRef.current = createSessionShadingPrimitive({})
+    }
+    if (!sessionShadeAttachedRef.current) {
+      try {
+        chart.panes()[0].attachPrimitive(sessionShadeRef.current.primitive)
+        sessionShadeAttachedRef.current = true
+      } catch { /* older pane API — primitive optional */ }
+    }
+    {
+      const shadeOn = !!cs.extendedHoursShading && isIntraday
+      sessionShadeRef.current.setOptions({
+        enabled: shadeOn,
+        bands: shadeOn ? computeSessionBands(filteredBars) : [],
       })
     }
 
