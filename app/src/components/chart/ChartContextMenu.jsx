@@ -6,18 +6,23 @@
  * array of `sections`, each with `items`, and this component draws them.
  *
  * Section: { id?, title?, items: Item[] }
- * Item:    { id, label, kind?: 'action'|'toggle', checked?: bool,
- *            primary?: bool, danger?: bool, disabled?: bool, onSelect: fn }
+ * Item:    { id, label, kind?: 'action'|'toggle'|'submenu', checked?: bool,
+ *            primary?: bool, danger?: bool, disabled?: bool,
+ *            submenu?: Item[], onSelect: fn }
  *
  * Selecting an item fires onSelect() then onClose() (close-on-select).
+ * A 'submenu' item expands its child items inline (does not close).
  * Closes on outside click or Esc. Position clamped to the viewport.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './ChartContextMenu.module.css'
 
 export default function ChartContextMenu({ open, x, y, sections = [], onClose }) {
   const menuRef = useRef(null)
+  const [expanded, setExpanded] = useState(null)  // id of the open submenu
+
+  useEffect(() => { if (!open) setExpanded(null) }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -70,6 +75,48 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
               item.danger ? styles.itemDanger : '',
               item.disabled ? styles.itemDisabled : '',
             ].filter(Boolean).join(' ')
+
+            if (item.kind === 'submenu') {
+              const isOpen = expanded === (item.id || item.label)
+              const subItems = (item.submenu || []).filter(Boolean)
+              return (
+                <div key={item.id || item.label} className={styles.submenuWrap}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    aria-haspopup="true"
+                    aria-expanded={isOpen}
+                    className={cls}
+                    onClick={() => setExpanded(isOpen ? null : (item.id || item.label))}
+                  >
+                    <span className={styles.label}>{item.label}</span>
+                    <span className={styles.caret} aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+                  </button>
+                  {isOpen && (
+                    <div className={styles.submenu}>
+                      {subItems.length === 0 && <div className={styles.submenuEmpty}>Nothing here</div>}
+                      {subItems.map((sub) => (
+                        <button
+                          key={sub.id || sub.label}
+                          type="button"
+                          role={sub.kind === 'toggle' ? 'menuitemcheckbox' : 'menuitem'}
+                          aria-checked={sub.kind === 'toggle' ? !!sub.checked : undefined}
+                          aria-disabled={sub.disabled || undefined}
+                          className={[styles.item, sub.danger ? styles.itemDanger : '', sub.disabled ? styles.itemDisabled : ''].filter(Boolean).join(' ')}
+                          onClick={() => select(sub)}
+                        >
+                          <span className={styles.check} aria-hidden="true">
+                            {sub.swatch ? <span className={styles.swatchDot} style={{ background: sub.swatch }} /> : (sub.checked ? '✓' : '')}
+                          </span>
+                          <span className={styles.label}>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
             return (
               <button
                 key={item.id || item.label}

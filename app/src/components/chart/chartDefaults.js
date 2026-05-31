@@ -31,6 +31,7 @@ export const CHART_DEFAULTS = {
     downColor: 'rgba(231,76,60,0.35)',
     hvcEnabled: true,
     separatePane: false,
+    paneHeightPct: 22,   // height of the separate volume pane, % of chart (8–45)
   },
 
   watermark: {
@@ -74,6 +75,7 @@ export const CHART_DEFAULTS = {
   },
   heikinAshi: false,
   logScale:   false,
+  percentScale: false,
   comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
   markers: { earnings: false, splits: false, dividends: false, news: false },
   countdown: false,
@@ -240,6 +242,7 @@ export function mergeChartSettings(userSettings) {
     },
     heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
     logScale:   parsed.logScale   ?? CHART_DEFAULTS.logScale,
+    percentScale: parsed.percentScale ?? CHART_DEFAULTS.percentScale,
     comparisonSymbols: Array.isArray(parsed?.comparisonSymbols)
       ? parsed.comparisonSymbols
       : CHART_DEFAULTS.comparisonSymbols,

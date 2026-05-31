@@ -1929,7 +1929,7 @@ export default function StockChart({
     }
 
     // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5)
-    chart.priceScale('right').applyOptions({ mode: cs.logScale ? 1 : 0 })
+    chart.priceScale('right').applyOptions({ mode: cs.percentScale ? 2 : (cs.logScale ? 1 : 0) })
 
     // ── Price series — reuse if chart type unchanged, else swap ──
     // When swapping the candle series, the markers controller is bound to the
@@ -2070,9 +2070,12 @@ export default function StockChart({
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
         volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } })
         try {
+          // Stretch factors are relative, so price=(100-pct) / volume=pct makes
+          // the volume pane occupy exactly pct% of the chart height.
+          const pct = Math.min(45, Math.max(8, cs.volume.paneHeightPct ?? 22))
           const panes = chart.panes()
-          if (panes[0]) panes[0].setStretchFactor(3.5)
-          if (panes[1]) panes[1].setStretchFactor(1)
+          if (panes[0]) panes[0].setStretchFactor(100 - pct)
+          if (panes[1]) panes[1].setStretchFactor(pct)
         } catch {}
       } else {
         const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
@@ -3472,20 +3475,26 @@ export default function StockChart({
         <div
           className={styles.scaleToggle}
           style={{ bottom: `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0).main.bottom})` }}
-          title="Price scale: Arithmetic / Logarithmic"
+          title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button
-            className={`${styles.scaleToggleBtn} ${!cs.logScale ? styles.scaleToggleActive : ''}`}
-            onClick={() => handleUpdateChartSettings({ ...cs, logScale: false, preset: 'custom' })}
+            className={`${styles.scaleToggleBtn} ${!cs.logScale && !cs.percentScale ? styles.scaleToggleActive : ''}`}
+            onClick={() => handleUpdateChartSettings({ ...cs, logScale: false, percentScale: false, preset: 'custom' })}
             title="Arithmetic (linear) scale"
             aria-label="Arithmetic price scale"
           >A</button>
           <button
-            className={`${styles.scaleToggleBtn} ${cs.logScale ? styles.scaleToggleActive : ''}`}
-            onClick={() => handleUpdateChartSettings({ ...cs, logScale: true, preset: 'custom' })}
+            className={`${styles.scaleToggleBtn} ${cs.logScale && !cs.percentScale ? styles.scaleToggleActive : ''}`}
+            onClick={() => handleUpdateChartSettings({ ...cs, logScale: true, percentScale: false, preset: 'custom' })}
             title="Logarithmic scale"
             aria-label="Logarithmic price scale"
           >L</button>
+          <button
+            className={`${styles.scaleToggleBtn} ${cs.percentScale ? styles.scaleToggleActive : ''}`}
+            onClick={() => handleUpdateChartSettings({ ...cs, percentScale: true, logScale: false, preset: 'custom' })}
+            title="Percentage scale"
+            aria-label="Percentage price scale"
+          >%</button>
         </div>
       )}
       {crosshairData && (

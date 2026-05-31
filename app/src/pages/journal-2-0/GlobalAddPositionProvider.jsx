@@ -15,8 +15,11 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { useSWRConfig } from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { useAuth } from '../../context/AuthContext'
+import { useFlagged } from '../../hooks/useFlagged'
+import useTickerTags from '../../hooks/useTickerTags'
+import useTagColors from '../../hooks/useTagColors'
 import useJ2Settings from './hooks/useJ2Settings'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
 import AddPositionModal from './components/AddPositionModal'
@@ -49,6 +52,29 @@ export default function GlobalAddPositionProvider() {
   const { accountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
   const { createAlert } = useWatchlistAlerts()
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
+  const { getTag, setTag, removeTag } = useTickerTags()
+  const { tagColors } = useTagColors()
+  const { data: lists, mutate: mutateLists } = useSWR(
+    user ? '/api/watchlists' : null,
+    (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : [])),
+    { refreshInterval: 60000, revalidateOnFocus: false },
+  )
+
+  const handleAddToList = useCallback(async (listId, sym) => {
+    try {
+      await fetch(`/api/watchlists/${listId}/items`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sym, notes: '' }),
+      })
+      mutateLists()
+      setToast({ message: `Added ${sym} to watchlist`, tone: 'success' })
+    } catch (e) {
+      setToast({ message: `Could not add to list: ${e.message || e}`, tone: 'error' })
+    }
+  }, [mutateLists])
 
   const [menu, setMenu] = useState(null)       // { clientX, clientY, sym, bar }
   const [prefill, setPrefill] = useState(null) // { symbol, entryPrice, entryDate }
@@ -190,7 +216,40 @@ export default function GlobalAddPositionProvider() {
       { id: 'note', label: '📓 Save to Notebook', onSelect: handleSaveToNotebook },
     ],
   }
-  const menuSections = [...regionSections, portfolioSection, ...viewSections]
+
+  // Ticker section: Flag / Tag ▸ / Add to watchlist ▸ for the clicked symbol.
+  const sym = (menu?.sym || '').toUpperCase()
+  const currentTag = sym ? getTag(sym) : null
+  const tickerSection = sym ? {
+    id: 'ticker',
+    title: sym,
+    items: [
+      { id: 'flag', label: isFlagged(sym) ? '⚑ Unflag' : '⚑ Flag', kind: 'toggle', checked: isFlagged(sym), onSelect: () => toggleFlag(sym) },
+      {
+        id: 'tag', label: '🏷 Tag', kind: 'submenu',
+        submenu: [
+          ...(tagColors || []).map((tc) => ({
+            id: 'tag-' + tc.key, label: tc.label, swatch: tc.hex, checked: currentTag === tc.key,
+            onSelect: () => (currentTag === tc.key ? removeTag(sym) : setTag(sym, tc.key)),
+          })),
+          currentTag ? { id: 'tag-clear', label: 'Clear tag', onSelect: () => removeTag(sym) } : null,
+        ].filter(Boolean),
+      },
+      {
+        id: 'addlist', label: '＋ Add to watchlist', kind: 'submenu',
+        submenu: Array.isArray(lists) && lists.length
+          ? lists.map((wl) => ({ id: 'wl-' + wl.id, label: wl.name, onSelect: () => handleAddToList(wl.id, sym) }))
+          : [{ id: 'wl-none', label: 'No watchlists yet', disabled: true, onSelect: () => {} }],
+      },
+    ],
+  } : null
+
+  const menuSections = [
+    ...regionSections,
+    portfolioSection,
+    ...(tickerSection ? [tickerSection] : []),
+    ...viewSections,
+  ]
 
   return (
     <>

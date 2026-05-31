@@ -67,6 +67,26 @@ describe('ChartContextMenu (generic sections)', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 
+  it('submenu expands inline on click without closing the menu', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const onPick = vi.fn()
+    const secs = [{ id: 's', items: [
+      { id: 'tag', label: 'Tag', kind: 'submenu', submenu: [
+        { id: 'green', label: 'Green', onSelect: onPick },
+      ] },
+    ] }]
+    render(<ChartContextMenu {...base} onClose={onClose} sections={secs} />)
+    // Child not visible until expanded
+    expect(screen.queryByRole('menuitem', { name: 'Green' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: /Tag/ }))
+    expect(onClose).not.toHaveBeenCalled()
+    const green = screen.getByRole('menuitem', { name: 'Green' })
+    await user.click(green)
+    expect(onPick).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('Esc closes', () => {
     const onClose = vi.fn()
     render(<ChartContextMenu {...base} onClose={onClose} sections={sections()} />)

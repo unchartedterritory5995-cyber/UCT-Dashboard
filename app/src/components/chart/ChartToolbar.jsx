@@ -304,6 +304,17 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <ColorPicker label="Up" value={cs.volume.upColor} onChange={v => update('volume.upColor', v)} />
           <ColorPicker label="Dn" value={cs.volume.downColor} onChange={v => update('volume.downColor', v)} />
         </div>
+        {cs.volume.separatePane && (
+          <div className={styles.sRow} style={{ marginTop: 6 }}>
+            <label className={styles.sCheck} style={{ gap: 6 }} title="Height of the separate volume pane (% of chart)">
+              Pane height
+              <input type="range" min={8} max={45} step={1}
+                value={cs.volume.paneHeightPct ?? 22}
+                onChange={e => update('volume.paneHeightPct', parseInt(e.target.value))} />
+              <span style={{ minWidth: 28, textAlign: 'right' }}>{cs.volume.paneHeightPct ?? 22}%</span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Technical Indicators */}
