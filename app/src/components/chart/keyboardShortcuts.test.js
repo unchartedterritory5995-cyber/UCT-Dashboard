@@ -52,12 +52,50 @@ describe('matchShortcut', () => {
     expect(matchShortcut(evt('q'))).toBe(null);
   });
 
-  it('ignores when ctrl is held (preserve browser shortcuts)', () => {
+  it('ignores when ctrl is held for non-toggle keys (preserve browser shortcuts)', () => {
     expect(matchShortcut(evt('t', { ctrl: true }))).toBe(null);
+    expect(matchShortcut(evt('f', { ctrl: true }))).toBe(null);
   });
 
-  it('ignores when meta is held', () => {
+  it('ignores when meta is held for non-toggle keys', () => {
     expect(matchShortcut(evt('t', { meta: true }))).toBe(null);
+  });
+
+  it('returns "toggle:rsi" for Ctrl+I', () => {
+    expect(matchShortcut(evt('i', { ctrl: true }))).toBe('toggle:rsi');
+    expect(matchShortcut(evt('I', { ctrl: true }))).toBe('toggle:rsi');
+  });
+
+  it('returns "toggle:macd" for Ctrl+O', () => {
+    expect(matchShortcut(evt('o', { ctrl: true }))).toBe('toggle:macd');
+  });
+
+  it('returns "toggle:bb" for Ctrl+B', () => {
+    expect(matchShortcut(evt('b', { ctrl: true }))).toBe('toggle:bb');
+  });
+
+  it('returns "toggle:ma" for Ctrl+M', () => {
+    expect(matchShortcut(evt('m', { ctrl: true }))).toBe('toggle:ma');
+  });
+
+  it('returns "toggle:volume" for Ctrl+V', () => {
+    expect(matchShortcut(evt('v', { ctrl: true }))).toBe('toggle:volume');
+  });
+
+  it('supports Cmd (meta) for toggles on Mac', () => {
+    expect(matchShortcut(evt('m', { meta: true }))).toBe('toggle:ma');
+    expect(matchShortcut(evt('v', { meta: true }))).toBe('toggle:volume');
+  });
+
+  it('plain i/o/b no longer toggle indicators (now require Ctrl)', () => {
+    expect(matchShortcut(evt('i'))).toBe(null);
+    expect(matchShortcut(evt('o'))).toBe(null);
+    expect(matchShortcut(evt('b'))).toBe(null);
+  });
+
+  it('plain m stays Monthly, plain v stays vertical-line tool', () => {
+    expect(matchShortcut(evt('m'))).toBe('tf:M');
+    expect(matchShortcut(evt('v'))).toBe('tool:vertical');
   });
 
   it('SHORTCUTS array structure', () => {

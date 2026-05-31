@@ -29,10 +29,12 @@ export const SHORTCUTS = [
   { keys: 'Shift+T', command: 'toggle:theme', description: 'Toggle light/dark theme' },
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
 
-  // Indicator toggles
-  { keys: 'I', command: 'toggle:rsi', description: 'Toggle RSI' },
-  { keys: 'O', command: 'toggle:macd', description: 'Toggle MACD' },
-  { keys: 'B', command: 'toggle:bb', description: 'Toggle Bollinger Bands' },
+  // Indicator toggles (Ctrl/Cmd held)
+  { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },
+  { keys: 'Ctrl+O', command: 'toggle:macd', description: 'Toggle MACD' },
+  { keys: 'Ctrl+B', command: 'toggle:bb', description: 'Toggle Bollinger Bands' },
+  { keys: 'Ctrl+M', command: 'toggle:ma', description: 'Toggle moving averages' },
+  { keys: 'Ctrl+V', command: 'toggle:volume', description: 'Toggle volume' },
 
   // Replay
   { keys: 'Space', command: 'replay:playpause', description: 'Replay play/pause' },
@@ -49,9 +51,24 @@ export const SHORTCUTS = [
  * Ignores events with ctrl/meta held (so browser shortcuts like Ctrl+F work).
  */
 export function matchShortcut(event) {
-  if (!event || event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (!event || event.altKey) return null;
   const key = event.key;
   const shift = event.shiftKey;
+  const ctrl = event.ctrlKey || event.metaKey;
+
+  // Ctrl/Cmd held — indicator, moving-average, and volume toggles.
+  // (Other Ctrl/Cmd combos fall through to null so browser shortcuts like
+  //  Ctrl+F / Ctrl+R / Ctrl+T keep working.)
+  if (ctrl) {
+    if (shift) return null;
+    const k = key.toLowerCase();
+    if (k === 'i') return 'toggle:rsi';
+    if (k === 'o') return 'toggle:macd';
+    if (k === 'b') return 'toggle:bb';
+    if (k === 'm') return 'toggle:ma';
+    if (k === 'v') return 'toggle:volume';
+    return null;
+  }
 
   // Direct key match
   if (!shift) {
@@ -70,9 +87,6 @@ export function matchShortcut(event) {
     if (key === 'a' || key === 'A') return 'tool:arrow';
     if (key === 'f' || key === 'F') return 'tool:fib';
     if (key === 'x' || key === 'X') return 'tool:text';
-    if (key === 'i' || key === 'I') return 'toggle:rsi';
-    if (key === 'o' || key === 'O') return 'toggle:macd';
-    if (key === 'b' || key === 'B') return 'toggle:bb';
     if (key === 'Escape') return 'tool:cursor';
     if (key === ' ' || key === 'Spacebar') return 'replay:playpause';
     if (key === 'ArrowLeft') return 'replay:back';

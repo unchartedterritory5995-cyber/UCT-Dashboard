@@ -1150,6 +1150,22 @@ export default function StockChart({
           case 'rsi': updateIndicator('rsi'); break
           case 'macd': updateIndicator('macd'); break
           case 'bb': updateIndicator('bb'); break
+          case 'ma': {
+            // Toggle all moving-average overlays at once. If any are on, turn
+            // them all off; otherwise turn them all on.
+            const overlays = Array.isArray(cs.overlays) ? cs.overlays : []
+            const anyEnabled = overlays.some(o => o?.enabled)
+            const next = overlays.map(o => ({ ...o, enabled: !anyEnabled }))
+            handleUpdateChartSettings({ ...cs, overlays: next, preset: 'custom' })
+            break
+          }
+          case 'volume':
+            handleUpdateChartSettings({
+              ...cs,
+              volume: { ...cs.volume, visible: !cs.volume?.visible },
+              preset: 'custom',
+            })
+            break
           default: break
         }
         return
