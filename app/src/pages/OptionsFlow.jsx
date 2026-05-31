@@ -4317,7 +4317,7 @@ export default function OptionsFlowDashboard() {
             )}
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
-            {/* ⚡ TOP 5 FLOW PICKS */}
+            {/* TOP 10 FLOW PICKS */}
             {D && D.all_directional && (()=>{
               const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
               if (!ad.length) return null;
@@ -4397,7 +4397,7 @@ export default function OptionsFlowDashboard() {
                 : candidates.filter(c=>c.hasUOA || c.volOI>=3 || (c.mktcap>0 && c.mktcap<10e9 && c.net>=c.mktcap*0.001));
               const picks=[]; let megaC=0; const sectorC={};
               for(const c of filtered){
-                if(picks.length>=5) break;
+                if(picks.length>=10) break;
                 if(c.band==="Mega"){ if(megaC>=1) continue; megaC++; }
                 if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>2) continue; }
                 picks.push(c);
@@ -4408,7 +4408,7 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                      <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>⚡ TOP 5 FLOW PICKS</div>
+                      <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>TOP 10 FLOW PICKS</div>
                       <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
                         {["Both","Calls","Puts","Unusual"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
@@ -4849,7 +4849,7 @@ export default function OptionsFlowDashboard() {
                 return (
                   <Card>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: P.ac, letterSpacing: 1 }}>📊 FLOW PULSE</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: P.ac, letterSpacing: 1 }}>FLOW PULSE</div>
                       <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
                     </div>
                     {/* Bull/bear ratio bar with premiums */}
@@ -6807,7 +6807,6 @@ export default function OptionsFlowDashboard() {
 
         <div style={{ marginTop:16, padding:"10px 0", borderTop:"1px solid "+P.bd, display:"flex", justifyContent:"space-between" }}>
           <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
-          <span style={{ fontSize:9, color:P.mt }}>YELLOW/MAG = confirmed · WHITE = check OI · No ML/ · Grades: A+ to D</span>
         </div>
         </>)}
       </div>
