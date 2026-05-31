@@ -73,6 +73,7 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.flow_router import flow_router
+from api.oi_snapshot_router import router as oi_snapshot_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -1507,6 +1508,27 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
 
+        # ── Daily OI snapshot for retroactive flow confirmation ──────────
+        # Captures Schwab live OI for every contract with flow in the past
+        # 30 days. Runs at 5:30 AM ET — well before market open, off-peak
+        # for Schwab API rate limits. Day-over-day OI deltas let us
+        # retroactively confirm B-side trades as real positioning once
+        # OI growth proves they were institutional opens (vs churn).
+        try:
+            from api.oi_snapshots import daily_snapshot_job, init_db as _init_oi_snapshots
+            _init_oi_snapshots()  # ensure table exists
+            _scheduler.add_job(
+                daily_snapshot_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=5, minute=30),
+                id="oi_snapshot_daily",
+                max_instances=1,
+                replace_existing=True,
+                coalesce=True,
+            )
+            print("[scheduler] OI snapshot job registered (5:30 AM ET, Mon-Fri)")
+        except Exception as e:
+            print(f"[scheduler] OI snapshot job registration failed: {e}")
+
         _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
 
         def _compass_eod_job():
@@ -1730,6 +1752,7 @@ app.include_router(admin_patterns_router.router)
 app.include_router(gex_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
+app.include_router(oi_snapshot_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
