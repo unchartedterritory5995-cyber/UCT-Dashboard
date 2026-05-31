@@ -48,6 +48,18 @@ def tape(hours: int = Query(12, ge=1, le=72),
     return filtered[:limit]
 
 
+@router.get("/feed")
+def feed(hours: int = Query(12, ge=1, le=72),
+         limit: int = Query(50, ge=1, le=200),
+         user=Depends(get_current_user)):
+    """Chronological live tweet feed (newest first) from the curated accounts.
+
+    Powers the Morning Wire "ON THE TAPE" feed — a readable stream of the
+    overnight + pre-market tape rather than the ticker-grouped sidebar view.
+    """
+    return tweet_store.feed(hours=hours, limit=limit)
+
+
 @router.get("/has-tweets-batch")
 def has_tweets_batch(tickers: str = Query(..., description="comma-separated tickers"),
                      hours: int = Query(24, ge=1, le=168),

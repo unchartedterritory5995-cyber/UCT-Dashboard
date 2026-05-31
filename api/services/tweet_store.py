@@ -240,6 +240,38 @@ def tape(hours: int = 12, limit: int = 15) -> list[dict]:
         return result
 
 
+def feed(hours: int = 12, limit: int = 50) -> list[dict]:
+    """Raw tweets in the window, newest first, each with its joined tickers.
+
+    Unlike ``tape`` (which groups by ticker), this returns a chronological
+    stream suitable for a live "read the morning tape" feed.
+    """
+    since = int(time.time()) - hours * 3600
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT * FROM tweets
+               WHERE created_at >= ?
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (since, limit),
+        ).fetchall()
+        tweets = [dict(r) for r in rows]
+        if tweets:
+            ids = [t["id"] for t in tweets]
+            placeholders = ",".join("?" * len(ids))
+            links = c.execute(
+                f"""SELECT tweet_id, ticker FROM tweet_tickers
+                    WHERE tweet_id IN ({placeholders})""",
+                ids,
+            ).fetchall()
+            by_id: dict[str, list[str]] = {}
+            for lr in links:
+                by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
+            for t in tweets:
+                t["tickers"] = by_id.get(t["id"], [])
+        return tweets
+
+
 def batch_counts(tickers: Iterable[str], hours: int = 24) -> dict[str, int]:
     """Count of tweets per ticker in window. Returns 0 for tickers with no tweets."""
     tickers = [t.upper() for t in tickers]

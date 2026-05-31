@@ -1,13 +1,17 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
-import useRealtimePrices from '../hooks/useRealtimePrices'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
+import useTweetFeed from '../hooks/useTweetFeed'
+import { timeAgo } from '../utils/timeAgo'
 import styles from './MorningWire.module.css'
+
+// Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
+const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
 
 function htmlToPlainText(html) {
   if (!html) return ''
@@ -61,149 +65,54 @@ function EarningsRow({ row }) {
   )
 }
 
-// ── Analyst Activity ──────────────────────────────────────────────────────────
+// ── On The Tape (live tweet feed) ─────────────────────────────────────────────
 
-const ANALYST_TABS = [
-  { key: 'upgrades',   label: 'Upgrades'   },
-  { key: 'downgrades', label: 'Downgrades' },
-  { key: 'pt_changes', label: 'PT Changes' },
-]
-
-function _badgeClass(action) {
-  const a = (action || '').toLowerCase()
-  if (a === 'upgrade' || a === 'upgraded')    return styles.aeBadgeUp
-  if (a === 'downgrade' || a === 'downgraded') return styles.aeBadgeDown
-  if (a === 'initiates' || a === 'initiated') return styles.aeBadgeInit
-  if (a === 'raises pt')                      return styles.aeBadgePtUp
-  if (a === 'lowers pt')                      return styles.aeBadgePtDn
-  return styles.aeBadgeMuted
-}
-
-function _borderClass(action) {
-  const a = (action || '').toLowerCase()
-  if (a === 'upgrade' || a === 'upgraded' || a === 'initiates' || a === 'initiated') return styles.aeUp
-  if (a === 'downgrade' || a === 'downgraded') return styles.aeDown
-  if (a === 'raises pt') return styles.aePtUp
-  if (a === 'lowers pt') return styles.aePtDn
-  return ''
-}
-
-function AnalystEntry({ item, liveData }) {
-  const { ticker, action, firm, from_rating, to_rating, price_target, implied_upside } = item
-  const hasChange = from_rating && to_rating && from_rating !== to_rating
-  const isPos = implied_upside ? implied_upside.startsWith('+') : null
-  const livePrice = liveData?.price ?? null
-  const liveChg = liveData?.change_pct ?? null
-
-  return (
-    <div className={`${styles.aeEntry} ${_borderClass(action)}`}>
-      <span className={styles.aeTickerCol}>
-        <TickerPopup sym={ticker} className={styles.aeTicker} />
-        {livePrice != null && (
-          <span className={styles.aeLive}>
-            <span className={styles.aeLivePrice}>${livePrice.toFixed(2)}</span>
-            {liveChg != null && (
-              <span className={`${styles.aeLiveChg} ${liveChg >= 0 ? styles.gainText : styles.lossText}`}>
-                {liveChg >= 0 ? '+' : ''}{liveChg.toFixed(1)}%
-              </span>
-            )}
-          </span>
-        )}
-      </span>
-      <span className={`${styles.aeBadge} ${_badgeClass(action)}`}>{action}</span>
-      <span className={styles.aeMid}>
-        {firm && <span className={styles.aeFirm}>{firm}</span>}
-        {hasChange
-          ? <span className={styles.aeRating}>
-              <span className={styles.aeRatingFrom}>{from_rating}</span>
-              <span className={styles.aeRatingArrow}> → </span>
-              <span className={styles.aeRatingTo}>{to_rating}</span>
-            </span>
-          : to_rating
-            ? <span className={`${styles.aeRating} ${styles.aeRatingTo}`}>{to_rating}</span>
-            : null
-        }
-      </span>
-      <span className={styles.aePt}>
-        {price_target ? (price_target.startsWith('$') ? price_target : `$${price_target}`) : ''}
-      </span>
-      {implied_upside
-        ? <span className={`${styles.aeUpside} ${isPos ? styles.aeUpsidePos : styles.aeUpsideNeg}`}>
-            {implied_upside}
-          </span>
-        : <span className={styles.aeUpside} />
-      }
-    </div>
+function renderTweetText(text) {
+  if (!text) return null
+  // Style cashtags ($AAPL) in brand gold while keeping plain text intact.
+  const parts = text.split(/(\$[A-Z]{1,5}\b)/g)
+  return parts.map((p, i) =>
+    /^\$[A-Z]{1,5}$/.test(p)
+      ? <span key={i} className={styles.tapeCashtag}>{p}</span>
+      : <span key={i}>{p}</span>,
   )
 }
 
-function AnalystActivity({ analysts }) {
-  const [tab, setTab] = useState('upgrades')
-  const summary = analysts?.summary || {}
-  const entries = analysts?.[tab] || []
-
-  // Collect all unique tickers across all tabs for live pricing
-  const allTickers = useMemo(() => {
-    if (!analysts) return []
-    const tickers = []
-    for (const key of ['upgrades', 'downgrades', 'pt_changes']) {
-      const items = analysts[key] || []
-      for (const item of items) {
-        if (item.ticker) tickers.push(item.ticker)
-      }
-    }
-    return [...new Set(tickers)]
-  }, [analysts])
-
-  const { prices } = useRealtimePrices(allTickers)
+function OnTheTape() {
+  const { data: tweets } = useTweetFeed({ hours: 12, limit: 50 })
 
   return (
-    <div className={styles.analystBlock}>
-      <div className={styles.analystHeader}>
-        <div className={styles.analystTitleRow}>
-          <span className={styles.analystTitle}>Analyst Activity</span>
-          {summary.upgrades != null && (
-            <span className={styles.analystSummary}>
-              <span className={styles.aSumUp}>↑ {summary.upgrades}</span>
-              <span className={styles.aSumDot}> · </span>
-              <span className={styles.aSumDown}>↓ {summary.downgrades}</span>
-              <span className={styles.aSumDot}> · </span>
-              <span className={styles.aSumPt}>{summary.pt_changes} PT</span>
-            </span>
-          )}
-        </div>
-        <div className={styles.analystTabs}>
-          {ANALYST_TABS.map(t => (
-            <button
-              key={t.key}
-              className={`${styles.analystTab} ${tab === t.key ? styles.analystTabActive : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-              {summary[t.key] != null && summary[t.key] > 0 &&
-                <span className={styles.analystTabCount}>{summary[t.key]}</span>
-              }
-            </button>
-          ))}
-        </div>
+    <div className={styles.tapeBlock}>
+      <div className={styles.tapeHeader}>
+        <span className={styles.tapeTitle}>📰 On The Tape</span>
+        <span className={styles.tapeSub}>Live feed · curated market accounts</span>
       </div>
-      <div className={styles.analystBody}>
-        {entries.length > 0
-          ? <>
-              <div className={styles.aeHeaderRow}>
-                <span>Ticker</span>
-                <span>Action</span>
-                <span>Firm · Rating</span>
-                <span style={{textAlign:'right'}}>Price Target</span>
-                <span style={{textAlign:'right'}}>vs Current</span>
-              </div>
-              {entries.map((a, i) => (
-                <AnalystEntry key={i} item={a} liveData={prices[a.ticker] ?? null} />
-              ))}
-            </>
-          : <span className={styles.noData}>
-              {analysts ? `No ${tab.replace('_', ' ')} today` : <SkeletonTileContent lines={3} />}
-            </span>
+      <div className={styles.tapeBody}>
+        {tweets == null
+          ? <SkeletonTileContent lines={5} />
+          : tweets.length === 0
+            ? <span className={styles.noData}>No tweets on the tape yet</span>
+            : tweets.map((t) => (
+                <a
+                  key={t.id}
+                  className={styles.tapeItem}
+                  href={t.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <div className={styles.tapeItemHead}>
+                    <span className={styles.tapeHandle}>@{t.author_handle}</span>
+                    <span className={styles.tapeTime}>{timeAgo(t.created_at)}</span>
+                    <span className={styles.tapeOpen}>↗</span>
+                  </div>
+                  <div
+                    className={styles.tapeText}
+                    style={t.is_retweet ? { opacity: 0.75, fontSize: '95%' } : undefined}
+                  >
+                    {t.is_retweet ? 'RT: ' : ''}{renderTweetText(t.text)}
+                  </div>
+                </a>
+              ))
         }
       </div>
     </div>
@@ -212,15 +121,14 @@ function AnalystActivity({ analysts }) {
 
 export default function MorningWire() {
   const { mutate } = useSWRConfig()
-  const { data: rundown }  = useSWR('/api/rundown',         fetcher, { refreshInterval: 300000 })
-  const { data: analysts } = useSWR('/api/analyst-actions', fetcher, { refreshInterval: 300000 })
+  const { data: rundown }  = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
 
   // P5-E: hands-free auto-read of today's rundown when proactive_speak is ON
   useHandsFreeMorningWire({ rundownHtml: rundown?.html })
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),
-    mutate('/api/analyst-actions'),
+    mutate('/api/tweets/feed?hours=12&limit=50'),
   ]), [mutate])
 
   return (
@@ -256,8 +164,8 @@ export default function MorningWire() {
         }
       </TileCard>
 
-      {/* ── Analyst Activity ─────────────────────────────────────── */}
-      <AnalystActivity analysts={analysts} />
+      {/* ── On The Tape (live tweet feed) ────────────────────────── */}
+      {TWITTER_UI_ENABLED && <OnTheTape />}
 
     </div>
     </PullToRefresh>
