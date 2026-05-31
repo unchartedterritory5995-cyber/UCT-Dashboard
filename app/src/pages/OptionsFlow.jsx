@@ -1217,6 +1217,7 @@ function processFlowData(rows) {
     ...charts,
     clean_confirmed,
     all_directional: filtered.filter(t => t.D), // all trades with direction for Ideas tab
+    all_trades: filtered, // full filtered list — used where displays need TOTAL contract premium (incl. B-side undirected trades) not just directional flow
     TICKER_DB, ALL_SYMS, WATCH, PERF_INIT,
     UOA_TRADES, darkPool,
     dateRange, totalTrades:filtered.length,
@@ -4321,6 +4322,19 @@ export default function OptionsFlowDashboard() {
             {D && D.all_directional && (()=>{
               const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
               if (!ad.length) return null;
+              // Pre-build TOTAL premium per (ticker,contract) from broader trade list
+              // (includes B-side MAGENTA call buys etc. that don't get a direction
+              // assigned per the strict A/AA-only rule, but are real flow on the strike).
+              // Used for DISPLAY ONLY — scoring/exit detection still use the directional
+              // subset to avoid misclassifying ambiguous flow as conviction.
+              const allTrades = capFilter==="All" ? (D.all_trades||[]) : (D.all_trades||[]).filter(t=>capBand(t.mktcap)===capFilter);
+              const contractTotals = {};
+              for (const t of allTrades) {
+                const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+                if (!contractTotals[k]) contractTotals[k] = {hits:0, prem:0};
+                contractTotals[k].hits++;
+                contractTotals[k].prem += (t.P||0);
+              }
               const _now = new Date();
               const _parseDt = (dt) => { if(!dt) return null; const p=dt.split("/").map(Number); return p.length>=2?new Date(_now.getFullYear(),p[0]-1,p[1]):null; };
               const tkMap = {};
@@ -4354,7 +4368,7 @@ export default function OptionsFlowDashboard() {
                 const hasBoth=tk.swp>0&&tk.blk>0;
                 const swpRatio=tk.swp/(tk.swp+tk.blk);
                 if(purity<70) return;
-                if(tk.confirmed<1) return;
+                if(tk.confirmed<3) return;
                 if(tk.swp<1) return;
                 if(tk.hasER&&tk.minDTE<=14) return;
                 let score=0;
@@ -4387,7 +4401,19 @@ export default function OptionsFlowDashboard() {
                 // Stale with no exit data still gets slight discount
                 if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
                 const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
-                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention});
+                // Look up TOTAL premium/hits for the top contract from the broader
+                // trade list. Falls back to directional-only if no entry (shouldn't happen).
+                let topCDisplayPrem = topC ? topC.prem : 0;
+                let topCDisplayHits = topC ? topC.hits : 0;
+                if (topC) {
+                  const k = tk.sym+"|"+topC.cp+"|"+topC.K+"|"+topC.exp;
+                  const totals = contractTotals[k];
+                  if (totals) {
+                    topCDisplayPrem = totals.prem;
+                    topCDisplayHits = totals.hits;
+                  }
+                }
+                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits});
               });
               candidates.sort((a,b)=>b.score-a.score);
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
@@ -4398,8 +4424,8 @@ export default function OptionsFlowDashboard() {
               const picks=[]; let megaC=0; const sectorC={};
               for(const c of filtered){
                 if(picks.length>=10) break;
-                if(c.band==="Mega"){ if(megaC>=1) continue; megaC++; }
-                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>2) continue; }
+                if(c.band==="Mega"){ if(megaC>=3) continue; megaC++; }
+                if(c.sector){ sectorC[c.sector]=(sectorC[c.sector]||0)+1; if(sectorC[c.sector]>3) continue; }
                 picks.push(c);
               }
               if(!picks.length) return null;
@@ -4444,8 +4470,9 @@ export default function OptionsFlowDashboard() {
                       const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
                       // Auto-generate notes
                       const notes = [];
-                      if(tc&&tc.hits>=5) notes.push({t:`${tc.hits} hits on same strike — repeat buyer`,w:10});
-                      else if(tc&&tc.hits>=3) notes.push({t:`${tc.hits}x same strike — concentrated`,w:6});
+                      // Use broader hit count for notes (matches what user sees in Search/BBS)
+                      if(p.topCDisplayHits>=5) notes.push({t:`${p.topCDisplayHits} hits on same strike — repeat buyer`,w:10});
+                      else if(p.topCDisplayHits>=3) notes.push({t:`${p.topCDisplayHits}x same strike — concentrated`,w:6});
                       if(p.hasBoth) notes.push({t:"Sweeps + blocks — institutional",w:8});
                       else if(p.swp>0&&p.blk===0) notes.push({t:"All sweeps — urgency signal",w:7});
                       const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
@@ -4494,8 +4521,8 @@ export default function OptionsFlowDashboard() {
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
                               <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
-                              <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
-                              <div style={{ fontSize:8, color:P.ye }}>{fmt(tc.prem)}</div>
+                              <span style={{ color:p.topCDisplayHits>=10?P.ac:p.topCDisplayHits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{p.topCDisplayHits}x</span>
+                              <div style={{ fontSize:8, color:P.ye }}>{fmt(p.topCDisplayPrem)}</div>
                             </div>)}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
