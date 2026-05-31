@@ -20,7 +20,7 @@ import { useAuth } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
 import AddPositionModal from './components/AddPositionModal'
-import ChartContextMenu from './components/ChartContextMenu'
+import ChartContextMenu from '../../components/chart/ChartContextMenu'
 import Toast from './components/Toast'
 import { money } from '../../lib/journal-2-0'
 
@@ -66,6 +66,7 @@ export default function GlobalAddPositionProvider() {
         sym: d.sym,
         bar: d.bar,
         getScreenshotBlob: d.getScreenshotBlob,
+        sections: Array.isArray(d.sections) ? d.sections : [],
       })
     }
     window.addEventListener('uct:chart-contextmenu', onEvt)
@@ -151,16 +152,26 @@ export default function GlobalAddPositionProvider() {
   // Nothing to render when logged out or auth still resolving.
   if (loading || !user) return null
 
+  // Compose the menu: chart region sections (from StockChart) → portfolio
+  // actions (owned here) → the common view section (reset / settings).
+  const regionSections = (menu?.sections || []).filter((s) => s.id !== 'view')
+  const viewSections = (menu?.sections || []).filter((s) => s.id === 'view')
+  const portfolioSection = {
+    id: 'portfolio',
+    items: [
+      { id: 'add', label: '+ Add to Portfolio', primary: true, onSelect: handleAddFromBar },
+      { id: 'note', label: '📓 Save to Notebook', onSelect: handleSaveToNotebook },
+    ],
+  }
+  const menuSections = [...regionSections, portfolioSection, ...viewSections]
+
   return (
     <>
       <ChartContextMenu
         open={!!menu}
         x={menu?.clientX || 0}
         y={menu?.clientY || 0}
-        onReset={null}
-        onAddToPortfolio={handleAddFromBar}
-        onSaveToNotebook={handleSaveToNotebook}
-        onOpenSettings={null}
+        sections={menuSections}
         onClose={() => setMenu(null)}
       />
 

@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
@@ -638,7 +638,7 @@ function formatReplayDate(t) {
   return formatETDate(t * 1000)
 }
 
-export default function ChartToolbar({
+function ChartToolbar({
   activeTool, setActiveTool,
   color, setColor,
   lineWidth, setLineWidth,
@@ -670,7 +670,7 @@ export default function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
-}) {
+}, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -681,6 +681,15 @@ export default function ChartToolbar({
   const settingsRef = useRef(null)
   const compareRef = useRef(null)
   const alertRef = useRef(null)
+
+  // Imperative API: lets the chart's right-click menu open the settings panel.
+  useImperativeHandle(ref, () => ({
+    openSettings: () => {
+      setShowColors(false)
+      setShowWidths(false)
+      setShowSettings(true)
+    },
+  }), [])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1045,3 +1054,5 @@ export default function ChartToolbar({
     </>
   )
 }
+
+export default forwardRef(ChartToolbar)

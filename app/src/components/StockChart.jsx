@@ -14,6 +14,7 @@ import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
+import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBars from '../hooks/useRealtimeBars'
@@ -621,6 +622,89 @@ export default function StockChart({
   const handleUpdateChartSettings = useCallback((newSettings) => {
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
+
+  // ── Region-aware right-click menu: build settings sections per region ──
+  // Imperative handle to ChartToolbar so a menu item can open its settings
+  // panel. Refs are stable, so the builder below can stay pure-ish.
+  const toolbarRef = useRef(null)
+  const buildRegionSections = useCallback((region) => {
+    const setCs = (path, value) => {
+      const next = { ...cs }
+      const parts = path.split('.')
+      if (parts.length === 3) {
+        const [a, b, c] = parts
+        next[a] = { ...next[a], [b]: { ...next[a][b], [c]: value } }
+      } else if (parts.length === 2) {
+        const [a, b] = parts
+        next[a] = { ...next[a], [b]: value }
+      } else {
+        next[path] = value
+      }
+      next.preset = 'custom'
+      handleUpdateChartSettings(next)
+    }
+    const openSettings = () => { try { toolbarRef.current?.openSettings() } catch {} }
+    const resetView = () => { try { chartRef.current?.timeScale().resetTimeScale() } catch {} }
+    const autoScale = () => { try { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }) } catch {} }
+    const settingsLink = (id, label) =>
+      showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
+
+    const secs = []
+
+    if (region.type === 'volume') {
+      const items = []
+      if (showVolumeProp === undefined) {
+        items.push({ id: 'v-show', label: 'Show volume', kind: 'toggle', checked: !!cs.volume.visible, onSelect: () => setCs('volume.visible', !cs.volume.visible) })
+      }
+      items.push({ id: 'v-sep', label: 'Separate pane', kind: 'toggle', checked: !!cs.volume.separatePane, onSelect: () => setCs('volume.separatePane', !cs.volume.separatePane) })
+      items.push({ id: 'v-hvc', label: 'HVC highlight', kind: 'toggle', checked: !!cs.volume.hvcEnabled, onSelect: () => setCs('volume.hvcEnabled', !cs.volume.hvcEnabled) })
+      items.push(...settingsLink('v-set', 'Volume settings…'))
+      secs.push({ id: 'region', title: 'Volume', items })
+    } else if (region.type === 'indicator') {
+      const key = region.key
+      const label = INDICATOR_LABELS[key] || key
+      secs.push({ id: 'region', title: label, items: [
+        { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setCs(`indicators.${key}.enabled`, false) },
+        ...settingsLink('i-set', `${label} settings…`),
+      ] })
+    } else if (region.type === 'overlay') {
+      const ov = resolvedOverlays?.[region.index]
+      const label = ov ? `${ov.type} ${ov.period}` : 'Moving average'
+      const csIndex = ov ? cs.overlays.indexOf(ov) : -1
+      const items = []
+      if (csIndex >= 0) {
+        items.push({ id: 'o-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => {
+          const next = { ...cs, overlays: cs.overlays.map((o, i) => i === csIndex ? { ...o, enabled: false } : o), preset: 'custom' }
+          handleUpdateChartSettings(next)
+        } })
+      }
+      items.push(...settingsLink('o-set', 'Moving averages…'))
+      secs.push({ id: 'region', title: label, items })
+    } else if (region.type === 'priceAxis') {
+      secs.push({ id: 'region', title: 'Price scale', items: [
+        { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        { id: 'p-auto', label: 'Auto-scale', onSelect: autoScale },
+      ] })
+    } else if (region.type === 'timeAxis') {
+      // Reset view comes from the common section below; nothing region-specific.
+    } else {
+      // Open price area.
+      const items = [
+        { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+      ]
+      if (showVolumeProp === undefined && !cs.volume.visible) {
+        items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
+      }
+      secs.push({ id: 'region', title: 'Chart', items })
+    }
+
+    // Common view section — always present.
+    const viewItems = [{ id: 'reset', label: 'Reset view', onSelect: resetView }]
+    viewItems.push(...settingsLink('chart-set', 'Chart settings…'))
+    secs.push({ id: 'view', items: viewItems })
+
+    return secs
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -2863,15 +2947,17 @@ export default function StockChart({
     if (!el || !chart || !bars || bars.length === 0) return
 
     const handler = (e) => {
+      const rect = el.getBoundingClientRect()
+      const px = e.clientX - rect.left
+      const py = e.clientY - rect.top
+
       // Prefer the currently-hovered bar (from crosshair tracking). Falls
       // back to coordinateToLogical if crosshair hasn't fired yet (edge
       // case: user right-clicks immediately without moving the mouse).
       let closest = hoveredBarRef.current
       if (!closest) {
-        const rect = el.getBoundingClientRect()
-        const x = e.clientX - rect.left
         let logical = null
-        try { logical = chart.timeScale().coordinateToLogical(x) } catch { return }
+        try { logical = chart.timeScale().coordinateToLogical(px) } catch { return }
         if (logical == null) return
         const idx = Math.max(0, Math.min(bars.length - 1, Math.round(logical)))
         closest = bars[idx]
@@ -2880,6 +2966,46 @@ export default function StockChart({
 
       // Only block the browser default menu once we know we have a bar.
       e.preventDefault()
+
+      // ── Resolve which region of the chart was clicked ──────────────────
+      // Axis widths + pane heights come straight from the chart; band layout
+      // mirrors the render path's computePaneMargins so the menu matches what
+      // the user sees.
+      const separateVolume = showVolume && !!cs.volume.separatePane
+      let axisWidth = 0, timeAxisHeight = 0, pane0Height = rect.height
+      try { axisWidth = chart.priceScale('right').width() } catch {}
+      try { timeAxisHeight = chart.timeScale().height() } catch {}
+      try { pane0Height = chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
+      const paneMargins = computePaneMargins(cs, showVolume && !cs.volume.separatePane)
+      let region = resolveChartRegion({
+        x: px, y: py, width: rect.width, height: rect.height,
+        axisWidth, timeAxisHeight, paneMargins, separateVolume, pane0Height,
+      })
+
+      // Refine the open price area to a specific MA/overlay line when the
+      // click lands within a few px of one. Only when overlays come from
+      // chart settings (not a prop override on embedded charts).
+      if (region.type === 'price' && overlaysProp === undefined) {
+        let logical = null
+        try { logical = chart.timeScale().coordinateToLogical(px) } catch {}
+        if (logical != null) {
+          const idx = Math.round(logical)
+          let best = -1, bestDist = 7
+          const series = overlaySeriesRefs.current || []
+          for (let i = 0; i < series.length; i++) {
+            let val = null, yc = null
+            try { val = series[i].dataByIndex(idx)?.value } catch {}
+            if (val == null) continue
+            try { yc = series[i].priceToCoordinate(val) } catch {}
+            if (yc == null) continue
+            const dist = Math.abs(yc - py)
+            if (dist < bestDist) { bestDist = dist; best = i }
+          }
+          if (best >= 0) region = { type: 'overlay', index: best }
+        }
+      }
+
+      const sections = buildRegionSections(region)
 
       // Lazy chart screenshot: only invoked if the consumer actually needs
       // it (e.g. "Save to Notebook"). Lightweight Charts v5 exposes
@@ -2901,6 +3027,8 @@ export default function StockChart({
           clientY: e.clientY,
           event: e,
           getScreenshotBlob,
+          region,
+          sections,
         })
       } else {
         window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {
@@ -2911,13 +3039,15 @@ export default function StockChart({
             clientX: e.clientX,
             clientY: e.clientY,
             getScreenshotBlob,
+            region,
+            sections,
           },
         }))
       }
     }
     el.addEventListener('contextmenu', handler)
     return () => el.removeEventListener('contextmenu', handler)
-  }, [onBarContextMenu, bars, sym, resolvedTf])
+  }, [onBarContextMenu, bars, sym, resolvedTf, cs, showVolume, showVolumeProp, overlaysProp, resolvedOverlays, showDrawingTools, handleUpdateChartSettings, buildRegionSections])
 
   // ── News marker click handler ──
   // Lightweight Charts doesn't expose a direct marker-click event, so we
@@ -3293,6 +3423,7 @@ export default function StockChart({
             repeatMode={repeatMode}
           />
           <ChartToolbar
+            ref={toolbarRef}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
