@@ -4452,6 +4452,22 @@ export default function OptionsFlowDashboard() {
                     </div>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {/* Column headers — shown once above the picks list */}
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 12px", fontSize:7, color:P.dm, letterSpacing:0.5, fontWeight:700 }}>
+                      <span style={{ width:16, flexShrink:0 }} />
+                      <span style={{ width:50, flexShrink:0 }} />
+                      {/* Spacer matching dir Tag width so columns align */}
+                      <span style={{ display:"inline-block", padding:"2px 7px", fontSize:9, visibility:"hidden", whiteSpace:"nowrap" }}>BULL</span>
+                      <div style={{ width:70, textAlign:"right", flexShrink:0 }}>NET</div>
+                      <div style={{ width:1, flexShrink:0 }} />
+                      <div style={{ width:150, textAlign:"center", flexShrink:0 }}>TOP CONTRACT</div>
+                      <div style={{ width:1, flexShrink:0 }} />
+                      <div style={{ width:130, flexShrink:0 }} />
+                      <div style={{ width:1, flexShrink:0 }} />
+                      <div style={{ width:80, textAlign:"center", flexShrink:0 }}>OPEN INTEREST</div>
+                      <div style={{ width:1, flexShrink:0 }} />
+                      <div style={{ width:140, flexShrink:0 }} />
+                    </div>
                     {picks.map((p,i) => {
                       const dirC=p.dir==="BULL"?P.bu:P.be;
                       const tc=p.topC;
@@ -4507,13 +4523,11 @@ export default function OptionsFlowDashboard() {
                           <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
                           <Tag c={dirC}>{p.dir}</Tag>
                           <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5 }}>NET</div>
                             <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
                             <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
-                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5, marginBottom:2 }}>TOP CONTRACT</div>
                             {tc && (<div>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
                               <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
@@ -4535,7 +4549,6 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:80, flexShrink:0, fontSize:8, textAlign:"center" }}>
-                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5, marginBottom:2 }}>OPEN INTEREST</div>
                             {(()=>{
                               // Option 3: each state surfaces the info that matters for it.
                               //   ADDING / GROWING → show absolute new-contracts (+N), real positioning grew
