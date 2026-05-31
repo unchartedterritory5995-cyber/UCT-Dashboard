@@ -4513,6 +4513,7 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
+                            <div style={{ fontSize:7, color:P.dm, letterSpacing:0.5, marginBottom:2 }}>TOP CONTRACT</div>
                             {tc && (<div>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
                               <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
