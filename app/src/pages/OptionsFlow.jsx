@@ -121,7 +121,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Premium","Flow"].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE","Entry",priceFn?"Now":null,priceFn?"P&L":null].filter(Boolean);
   const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -153,22 +153,15 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }}>{curOI>0?curOI.toLocaleString():csvOI>0?<span title="BBS snapshot (live unavailable)">{csvOI.toLocaleString()}<span style={{ fontSize:7, color:P.dm, marginLeft:2 }}>BBS</span></span>:"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
-              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
-              <td style={{ padding:"5px 4px" }}>
-                <span style={{ display:"flex", gap:2, flexWrap:"wrap", justifyContent:"center" }}>
-                  <Tag c={tc(r.Ty)}>{r.Ty}</Tag>
-                  {r.Si==="BB"?<Tag c={P.be}>BB</Tag>:r.Si==="AA"?<Tag c={P.ac}>AA</Tag>:r.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}
-                  <Tag c={r.Co==="YELLOW"?P.ye:r.Co==="MAGENTA"?P.ma:P.uc}>{r.Co}</Tag>
-                </span>
-              </td>
             </tr>
             {isExpanded && onRowClick && (
               <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
@@ -217,7 +210,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }}>{curOI>0?curOI.toLocaleString():csvOI>0?<span title="BBS snapshot (live unavailable)">{csvOI.toLocaleString()}<span style={{ fontSize:7, color:P.dm, marginLeft:2 }}>BBS</span></span>:"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
