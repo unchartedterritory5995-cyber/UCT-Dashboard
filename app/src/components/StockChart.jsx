@@ -694,6 +694,14 @@ export default function StockChart({
       id: 'ctype', title: 'Chart type',
       items: CT_OPTS.map(([val, label]) => ({ id: 'ct-' + val, label, kind: 'toggle', checked: (cs.chartType || 'candles') === val, onSelect: () => setCs('chartType', val) })),
     }
+    const IND_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['bb', 'Bollinger Bands'], ['vwap', 'VWAP'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['obv', 'OBV'], ['adx', 'ADX']]
+    const indicatorsItem = {
+      id: 'indicators', label: '📊 Indicators', kind: 'submenu',
+      submenu: IND_OPTS.map(([key, label]) => ({
+        id: 'ind-' + key, label, kind: 'toggle', checked: !!cs.indicators?.[key]?.enabled,
+        onSelect: () => setCs(`indicators.${key}.enabled`, !cs.indicators?.[key]?.enabled),
+      })),
+    }
 
     const secs = []
 
@@ -747,6 +755,7 @@ export default function StockChart({
       if (showVolumeProp === undefined && !cs.volume.visible) {
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
+      items.push(indicatorsItem)
       secs.push({ id: 'region', title: 'Chart', items })
       if (tfSection) secs.push(tfSection)
       secs.push(ctSection)
