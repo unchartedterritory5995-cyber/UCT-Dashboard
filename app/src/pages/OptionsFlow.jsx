@@ -4687,8 +4687,28 @@ export default function OptionsFlowDashboard() {
             if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
           });
+          // Build broader contract totals from D.all_trades — used to overlay
+          // displayPrem/displayHits so the "Top Contract" column reflects TOTAL flow
+          // on the strike (matching Search Top Trades), while the directional values
+          // (used for sort/score) stay strict.
+          const lbBroader = {};
+          (D.all_trades || []).forEach(t => {
+            if (capFilter !== "All" && capBand(t.mktcap) !== capFilter) return;
+            if (!dteF(t)) return;
+            const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+            if (!lbBroader[k]) lbBroader[k] = {prem:0, hits:0};
+            lbBroader[k].prem += t.P || 0;
+            lbBroader[k].hits++;
+          });
           Object.values(tkMap).forEach(tk => {
             const sorted = Object.values(tk.contracts).sort((a,b) => b.prem - a.prem);
+            // Overlay broader prem/hits onto each contract entry (for display only)
+            sorted.forEach(c => {
+              const bk = tk.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
+              const b = lbBroader[bk];
+              c.displayPrem = b ? b.prem : c.prem;
+              c.displayHits = b ? b.hits : c.hits;
+            });
             tk.topContracts = sorted.slice(0,3);
             tk.topContract = sorted[0] || null;
             tk.contractCount = Object.keys(tk.contracts).length;
@@ -4781,8 +4801,8 @@ export default function OptionsFlowDashboard() {
                     {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
                     <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc_.K}</span>
                     <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
-                    <span style={{ color:tc_.hits>=10?P.ac:tc_.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.hits}x</span>
-                    {tc_.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.prem)}</span>}
+                    <span style={{ color:(tc_.displayHits||tc_.hits)>=10?P.ac:(tc_.displayHits||tc_.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.displayHits||tc_.hits}x</span>
+                    {(tc_.displayPrem||tc_.prem)>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.displayPrem||tc_.prem)}</span>}
                   </span>)}
                 </td>
               </tr>
@@ -4801,8 +4821,8 @@ export default function OptionsFlowDashboard() {
                           {cSide==="bid" && <span style={{ fontSize:6, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
                           <span style={{ color:P.wh, fontWeight:700, marginLeft:4 }}>${c.K}</span>
                           <span style={{ color:P.ac, marginLeft:4 }}>{c.exp}</span>
-                          <span style={{ color:c.hits>=10?P.ac:c.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.hits}x</span>
-                          <span style={{ color:premC(c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.prem)}</span>
+                          <span style={{ color:(c.displayHits||c.hits)>=10?P.ac:(c.displayHits||c.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.displayHits||c.hits}x</span>
+                          <span style={{ color:premC(c.displayPrem||c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.displayPrem||c.prem)}</span>
                           {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:8 }}>{c.volOI.toFixed(1)}x V/OI</span>}
                         </div>
                       );
@@ -5048,6 +5068,22 @@ export default function OptionsFlowDashboard() {
             if (t.Spot > 0) c.spots.push(t.Spot);
             c.sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
           });
+          // Build broader contract totals from D.all_trades — overlay display values
+          // onto each cluster so Premium / Hits columns reflect TOTAL flow on the strike
+          // (matching Search Top Trades). c.prem/c.hits stay directional for scoring.
+          const tfBroader = {};
+          (D.all_trades || []).forEach(t => {
+            const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+            if (!tfBroader[k]) tfBroader[k] = {prem:0, hits:0};
+            tfBroader[k].prem += t.P || 0;
+            tfBroader[k].hits++;
+          });
+          Object.values(tfClusters).forEach(c => {
+            const bk = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
+            const b = tfBroader[bk];
+            c.displayPrem = b ? b.prem : c.prem;
+            c.displayHits = b ? b.hits : c.hits;
+          });
           const allFlow = Object.values(tfClusters).filter(c=>c.dir).map(c => {
             c.clean = c.dirs.size <= 1;
             // 80% dominant direction override
@@ -5165,8 +5201,8 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px" }}>{r.side==="AA"?<Tag c={P.ac}>AA</Tag>:r.side==="BB"?<Tag c={P.be}>BB</Tag>:<Tag c={P.mt}>ASK</Tag>}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={dirC}>{r.dir}</Tag></td>
                         <td style={{ padding:"5px 5px" }}><Tag c={GRADE_COLORS[r.grade]||P.mt}>{r.grade}</Tag></td>
-                        <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, fontSize:13, color:r.hits>=10?P.ac:r.hits>=5?P.ye:P.dm }}>{r.hits}x</span></td>
-                        <td style={{ padding:"5px 5px", fontWeight:700, color:premC(r.prem) }}>{fmt(r.prem)}</td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontWeight:800, fontSize:13, color:(r.displayHits||r.hits)>=10?P.ac:(r.displayHits||r.hits)>=5?P.ye:P.dm }}>{r.displayHits||r.hits}x</span></td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:premC(r.displayPrem||r.prem) }}>{fmt(r.displayPrem||r.prem)}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
