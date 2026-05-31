@@ -617,6 +617,10 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
           <select className={styles.sMiniSelect} value={cs.crosshair.style} onChange={e => update('crosshair.style', parseInt(e.target.value))}>
             {CROSSHAIR_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
+          <label className={styles.sCheck} title="Snap the crosshair to OHLC values">
+            <input type="checkbox" checked={!!cs.crosshair.magnet} onChange={e => update('crosshair.magnet', e.target.checked)} />
+            Magnet
+          </label>
         </div>
       </div>
 

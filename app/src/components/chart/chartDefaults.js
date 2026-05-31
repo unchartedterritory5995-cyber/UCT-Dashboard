@@ -16,7 +16,7 @@ export const CHART_DEFAULTS = {
   textColor: '#706b5e',
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
 
-  crosshair: { color: '#706b5e', style: 3 }, // 0=solid, 2=dashed, 3=dotted
+  crosshair: { color: '#706b5e', style: 3, magnet: false }, // 0=solid, 2=dashed, 3=dotted; magnet snaps to OHLC
 
   overlays: [
     { enabled: true, type: 'EMA', period: 9,   color: '#4ade80' },
@@ -78,6 +78,7 @@ export const CHART_DEFAULTS = {
   markers: { earnings: false, splits: false, dividends: false, news: false },
   countdown: false,
   showPatterns: false,
+  hideDrawings: false,  // hide all drawings without deleting them
 
   theme: 'dark', // 'dark' | 'light'
 
@@ -245,6 +246,7 @@ export function mergeChartSettings(userSettings) {
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     theme: parsed?.theme === 'light' ? 'light' : 'dark',
     positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',

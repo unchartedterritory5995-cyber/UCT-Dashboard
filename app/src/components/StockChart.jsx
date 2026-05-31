@@ -568,6 +568,8 @@ export default function StockChart({
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
+  const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
@@ -650,7 +652,16 @@ export default function StockChart({
     }
     const openSettings = () => { try { toolbarRef.current?.openSettings() } catch {} }
     const resetView = () => { try { chartRef.current?.timeScale().resetTimeScale() } catch {} }
-    const autoScale = () => { try { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }) } catch {} }
+    const autoScale = () => {
+      try {
+        // Clear any locked vertical placement and restore the default candle band.
+        vertMarginsRef.current = null
+        chartRef.current?.priceScale('right').applyOptions({
+          autoScale: true,
+          scaleMargins: computePaneMargins(cs, showVolume && volData.length > 0).main,
+        })
+      } catch {}
+    }
     const settingsLink = (id, label) =>
       showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
 
@@ -662,8 +673,13 @@ export default function StockChart({
       label: `➖ Draw line at $${fmtPrice(clickPrice)}`,
       onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || '#c9a84c', lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
     } : null
+    const copyPriceItem = hasPrice ? {
+      id: 'copy-price',
+      label: `📋 Copy $${fmtPrice(clickPrice)}`,
+      onSelect: () => { try { navigator.clipboard?.writeText(fmtPrice(clickPrice)) } catch {} },
+    } : null
     const priceActions = hasPrice
-      ? [{ id: 'priceactions', title: `At $${fmtPrice(clickPrice)}`, items: [drawLineItem] }]
+      ? [{ id: 'priceactions', title: `At $${fmtPrice(clickPrice)}`, items: [drawLineItem, copyPriceItem] }]
       : []
     const TF_OPTS = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M']]
     const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
@@ -720,6 +736,7 @@ export default function StockChart({
       secs.push(...priceActions)
       const items = [
         { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        { id: 'pr-magnet', label: 'Magnet crosshair', kind: 'toggle', checked: !!cs.crosshair?.magnet, onSelect: () => setCs('crosshair.magnet', !cs.crosshair?.magnet) },
       ]
       if (showVolumeProp === undefined && !cs.volume.visible) {
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
@@ -731,6 +748,9 @@ export default function StockChart({
 
     // Common view section — always present.
     const viewItems = [{ id: 'reset', label: 'Reset view', onSelect: resetView }]
+    if (showDrawingTools) {
+      viewItems.push({ id: 'hide-draw', label: 'Hide drawings', kind: 'toggle', checked: !!cs.hideDrawings, onSelect: () => setCs('hideDrawings', !cs.hideDrawings) })
+    }
     viewItems.push(...settingsLink('chart-set', 'Chart settings…'))
     secs.push({ id: 'view', items: viewItems })
 
@@ -1788,6 +1808,60 @@ export default function StockChart({
 
     let chart = chartRef.current
 
+    // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
+    // Runs only on a true ticker switch (same timeframe), BEFORE chartOpts re-applies
+    // scaleMargins. We measure where the visible candles sit within the price pane as
+    // top/bottom fractions. If that differs from the default headroom, the user has
+    // dragged the price scale to reposition the candles — remember it so the next stock
+    // lands in the same proportional spot (scaled to its own range). If it matches the
+    // default, treat as "not customized" (null) so volume/indicator pane toggles still
+    // re-flow normally.
+    {
+      const _zoomKey = `${sym}_${resolvedTf}`
+      const _isFirstLoad = zoomKeyRef.current === null
+      const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
+      const _isSymSwitch = !_isFirstLoad && !_tfChanged && zoomKeyRef.current !== _zoomKey
+      if (_isFirstLoad || _tfChanged) {
+        vertMarginsRef.current = null
+      } else if (_isSymSwitch && chart && candleSeriesRef.current) {
+        try {
+          const prevBars = prevBarsRef.current
+          const vr = chart.timeScale().getVisibleLogicalRange()
+          if (prevBars && prevBars.length && vr) {
+            const s = Math.max(0, Math.floor(vr.from))
+            const e = Math.min(prevBars.length - 1, Math.ceil(vr.to))
+            let hi = -Infinity, lo = Infinity
+            for (let i = s; i <= e; i++) {
+              const b = prevBars[i]
+              if (!b) continue
+              if (b.h > hi) hi = b.h
+              if (b.l < lo) lo = b.l
+            }
+            let paneH = 0
+            try { paneH = chart.paneSize().height } catch {}
+            if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - chart.timeScale().height() } catch {} }
+            const series = candleSeriesRef.current
+            if (hi > lo && paneH > 8) {
+              const yHi = series.priceToCoordinate(hi)
+              const yLo = series.priceToCoordinate(lo)
+              if (yHi != null && yLo != null) {
+                let top = Math.min(0.9, Math.max(0, yHi / paneH))
+                let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
+                if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
+                const base = computePaneMargins(cs, showVolume && volData.length > 0).main
+                // Only treat as a custom placement if it meaningfully differs from default.
+                if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
+                  vertMarginsRef.current = null
+                } else {
+                  vertMarginsRef.current = { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
     // ── Create or update chart instance ──
     const chartOpts = {
       layout: {
@@ -1802,13 +1876,16 @@ export default function StockChart({
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
       crosshair: {
-        mode: 0,
+        mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
         vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
         horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
-        scaleMargins: computePaneMargins(cs, showVolume && volData.length > 0).main,
+        // Locked proportional placement (carried across ticker switches) wins over the
+        // default headroom. vertMarginsRef is captured in fractions of the pane, so the
+        // candles land in the same relative spot regardless of the stock's price.
+        scaleMargins: vertMarginsRef.current || computePaneMargins(cs, showVolume && volData.length > 0).main,
       },
       timeScale: {
         borderColor: themeColors.borderColor,
@@ -2529,15 +2606,16 @@ export default function StockChart({
     // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
     //
     // LOCK BEHAVIOR (always on): when ONLY the ticker changes (same timeframe), we carry
-    // the user's current view to the next chart instead of snapping back to a default fit —
-    // both the horizontal scroll/zoom AND the vertical price position.
+    // the user's current view to the next chart instead of snapping back to a default fit:
     //   • Horizontal: re-anchor the visible logical range to the right edge so the same
     //     "scrolled-back distance + zoom width" lines up even when the two tickers have
     //     different history lengths.
-    //   • Vertical: we deliberately do NOT reset the right price scale. If the user dragged
-    //     it (manual mode), the candles stay where they put them; if untouched, it keeps
-    //     auto-fitting each ticker. Double-click the axis (or the "Auto-scale" context-menu
-    //     item) to re-fit a wildly different-priced ticker.
+    //   • Vertical: auto-fit the new ticker into the candle band defined by chartOpts'
+    //     scaleMargins. When the user has dragged the candles to a custom spot, that band
+    //     was captured above (vertMarginsRef), so the new stock lands in the same
+    //     PROPORTIONAL position — scaled to its own price range, never showing the old
+    //     stock's absolute prices. Double-click the axis won't clear it; use the
+    //     "Auto-scale" context-menu item to reset to default headroom.
     const zoomKey = `${sym}_${resolvedTf}`
     if (zoomKeyRef.current !== zoomKey) {
       const isFirstLoad = zoomKeyRef.current === null
@@ -2550,6 +2628,11 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
+
+      // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
+      // already applied that band's scaleMargins (= the captured proportional placement,
+      // or the default headroom), so autoScale fills it with THIS stock's own range.
+      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
 
       let didPreserve = false
       if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
@@ -2567,12 +2650,6 @@ export default function StockChart({
       }
 
       if (!didPreserve) {
-        // Re-enable price-scale auto-fit on initial load / timeframe change. Lightweight-charts
-        // flips the right price scale into manual mode the first time a user drags it,
-        // and stays manual until reset — without this, switching from a $290 ticker to a
-        // $4 ticker leaves the Y-axis stuck and the new candles render below the viewport.
-        try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
-
         // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
         // center the view on the trade window with 20-bar padding each side.
         if (entryDate && filteredBars.length > 0) {
@@ -2610,8 +2687,10 @@ export default function StockChart({
       }
     }
 
-    // Track current bar count so the next ticker switch can right-anchor the preserved view.
+    // Track current bar count + bars so the next ticker switch can right-anchor the
+    // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
+    prevBarsRef.current = filteredBars
   }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
@@ -3501,7 +3580,7 @@ export default function StockChart({
             setActiveTool={setActiveTool}
             color={drawColor}
             lineWidth={drawWidth}
-            drawings={drawings}
+            drawings={cs.hideDrawings ? [] : drawings}
             addDrawing={addDrawing}
             updateDrawing={updateDrawing}
             removeDrawing={removeDrawing}
