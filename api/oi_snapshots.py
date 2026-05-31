@@ -305,14 +305,24 @@ def prune_old(days_keep: int = DAYS_TO_KEEP_SNAPSHOTS) -> int:
 
 
 # ── Read distinct contracts from `flow` table ────────────────────────────
-def get_distinct_contracts(days_back: int = DAYS_BACK_TO_SNAPSHOT) -> List[Tuple[str, str, float, str]]:
+def get_distinct_contracts(
+    days_back: int = DAYS_BACK_TO_SNAPSHOT,
+    min_trade_count: int = 3,
+) -> List[Tuple[str, str, float, str]]:
     """Distinct (Symbol, CallPut, Strike, ExpirationDate) from `flow` table
     for trades in the past N calendar days (stocks source only).
 
     flow table stores CreatedDate as 'M/D/YYYY' strings, so we can't do a
     SQL range comparison directly. We pull distinct dates, parse them in
-    Python, and IN-clause the ones in range. Cheap because there are at
-    most ~30-60 distinct dates.
+    Python, and IN-clause the ones in range.
+
+    Filters:
+      - Only contracts with ≥ `min_trade_count` trades in the window. Drops
+        the long tail of single-trade fluke contracts that aren't part of
+        any cluster anyway — cuts contract universe ~70-90% in practice.
+      - Excludes adjusted/expired symbols ending in a digit (e.g. GME1,
+        TLRY1, SOXS1) — Schwab returns 400 for those, they're just noise.
+      - Drops malformed strike/expiration values.
     """
     cutoff = date.today() - timedelta(days=days_back)
     with _conn() as c:
@@ -333,24 +343,48 @@ def get_distinct_contracts(days_back: int = DAYS_BACK_TO_SNAPSHOT) -> List[Tuple
         if not in_range:
             return []
 
-        # Step 3: pull distinct contracts for those dates
+        # Step 3: pull contracts with trade counts, GROUP BY contract
         placeholders = ",".join(["?"] * len(in_range))
         cur = c.execute(
-            f"""SELECT DISTINCT Symbol, CallPut, Strike, ExpirationDate
+            f"""SELECT Symbol, CallPut, Strike, ExpirationDate, COUNT(*) AS n_trades
                 FROM flow
                 WHERE source = ? AND CreatedDate IN ({placeholders})
                   AND Symbol IS NOT NULL AND Symbol != ''
                   AND CallPut IS NOT NULL AND CallPut != ''
                   AND Strike IS NOT NULL AND Strike != ''
-                  AND ExpirationDate IS NOT NULL AND ExpirationDate != ''""",
-            [SOURCE] + in_range,
+                  AND ExpirationDate IS NOT NULL AND ExpirationDate != ''
+                GROUP BY Symbol, CallPut, Strike, ExpirationDate
+                HAVING COUNT(*) >= ?
+                ORDER BY Symbol""",
+            [SOURCE] + in_range + [min_trade_count],
         )
+
         contracts = []
-        for sym, cp, strike, exp in cur.fetchall():
+        skipped_adjusted = 0
+        skipped_malformed = 0
+        for sym, cp, strike, exp, n in cur.fetchall():
+            # Skip adjusted/when-issued symbols (end in digit). Schwab can't
+            # quote them — they always 400. Real tickers never end in digits
+            # except a tiny set of preferreds we don't need to snapshot.
+            if sym and sym[-1].isdigit():
+                skipped_adjusted += 1
+                continue
             try:
-                contracts.append((sym, cp, float(strike), exp))
+                strike_f = float(strike)
+                # Sanity check expiration parses
+                if _parse_mdy(exp) is None:
+                    skipped_malformed += 1
+                    continue
+                contracts.append((sym, cp, strike_f, exp))
             except (ValueError, TypeError):
-                continue  # malformed row, skip
+                skipped_malformed += 1
+                continue
+
+        logger.info(
+            f"[oi-snapshot] Filtered {len(contracts)} contracts "
+            f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
+            f"{skipped_malformed} malformed)"
+        )
         return contracts
 
 
@@ -428,16 +462,28 @@ def _fetch_oi_all(
 
 
 # ── The daily job ────────────────────────────────────────────────────────
+# Chunked processing — split contracts into chunks, fetch + commit per chunk.
+# Means partial progress is durable: if the job crashes or gets cancelled
+# mid-run, snapshots from completed chunks are already in the DB.
+CHUNK_SIZE = 500
+
+
 def daily_snapshot_job() -> Dict:
     """Cron entry point. Runs once daily.
 
     1. Init DB (idempotent)
     2. Record a 'running' row in oi_snapshot_runs
-    3. Get distinct contracts from past 30d of trades (stocks only)
-    4. Fetch live OI in batches from Schwab
-    5. Insert results into contract_oi_snapshots with today's date (ISO)
-    6. Prune snapshots older than 90 days
-    7. Update the run record to 'completed' or 'failed'
+    3. Get filtered contracts from past 30d of trades (stocks only,
+       min 3 trades, no adjusted symbols)
+    4. Process in CHUNK_SIZE batches:
+         - Fetch OI from Schwab for the chunk
+         - Insert that chunk's results
+         - Heartbeat the run progress
+    5. Prune snapshots older than 90 days
+    6. Update the run record to 'completed' or 'failed'
+
+    Cancellation check: if the run's status changes to 'failed' mid-job
+    (manual cancel), bail out gracefully after current chunk.
     """
     init_db()
     today_iso = _to_iso(date.today())
@@ -452,23 +498,70 @@ def daily_snapshot_job() -> Dict:
             finish_run(run_id, "completed", summary)
             return summary
 
-        logger.info(f"[oi-snapshot] Fetching OI for {len(contracts)} contracts...")
+        total = len(contracts)
+        logger.info(
+            f"[oi-snapshot] Fetching OI for {total} contracts in chunks of {CHUNK_SIZE}..."
+        )
 
-        fetched = _fetch_oi_all(contracts)
+        total_successes = 0
+        total_failures = 0
+        total_inserted = 0
+        chunks_done = 0
 
-        insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
-        successes = len(insert_batch)
-        failures = len(fetched) - successes
+        for chunk_start in range(0, total, CHUNK_SIZE):
+            chunk = contracts[chunk_start : chunk_start + CHUNK_SIZE]
+            chunk_num = chunk_start // CHUNK_SIZE + 1
+            total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
 
-        inserted = record_batch(insert_batch, today_iso)
+            # Cancellation check — if run was manually cancelled, bail out
+            if _is_run_cancelled(run_id):
+                logger.info(f"[oi-snapshot] Cancelled mid-run after chunk {chunks_done}")
+                summary = {
+                    "date": today_iso,
+                    "cancelled": True,
+                    "contracts_queried": chunks_done * CHUNK_SIZE,
+                    "successes": total_successes,
+                    "inserted": total_inserted,
+                }
+                # Don't overwrite the cancel state — leave as 'failed'
+                return summary
+
+            logger.info(f"[oi-snapshot] Chunk {chunk_num}/{total_chunks} ({len(chunk)} contracts)...")
+            fetched = _fetch_oi_all(chunk)
+
+            insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
+            chunk_succ = len(insert_batch)
+            chunk_fail = len(fetched) - chunk_succ
+
+            inserted = record_batch(insert_batch, today_iso)
+            total_successes += chunk_succ
+            total_failures += chunk_fail
+            total_inserted += inserted
+            chunks_done += 1
+
+            # Heartbeat: update run summary so /run-status shows progress
+            _heartbeat_run(run_id, {
+                "chunks_done": chunks_done,
+                "total_chunks": total_chunks,
+                "successes_so_far": total_successes,
+                "failures_so_far": total_failures,
+                "inserted_so_far": total_inserted,
+            })
+
+            logger.info(
+                f"[oi-snapshot] Chunk {chunk_num}/{total_chunks} done: "
+                f"{chunk_succ} ok, {chunk_fail} failed. "
+                f"Running total: {total_successes}/{chunk_start + len(chunk)}"
+            )
+
         pruned = prune_old()
 
         summary = {
             "date": today_iso,
-            "contracts_queried": len(contracts),
-            "successes": successes,
-            "failures": failures,
-            "inserted": inserted,
+            "contracts_queried": total,
+            "successes": total_successes,
+            "failures": total_failures,
+            "inserted": total_inserted,
             "pruned": pruned,
         }
         logger.info(f"[oi-snapshot] Done: {summary}")
@@ -478,6 +571,28 @@ def daily_snapshot_job() -> Dict:
         logger.exception("[oi-snapshot] Job crashed")
         finish_run(run_id, "failed", {"error": str(e)})
         raise
+
+
+def _is_run_cancelled(run_id: int) -> bool:
+    """Check if this specific run has been marked as failed/cancelled externally."""
+    with _conn() as c:
+        cur = c.execute(
+            "SELECT status FROM oi_snapshot_runs WHERE run_id=?",
+            (run_id,),
+        )
+        row = cur.fetchone()
+        return row is not None and row[0] != "running"
+
+
+def _heartbeat_run(run_id: int, progress: Dict):
+    """Update summary_json with current progress (but keep status=running)."""
+    import json
+    with _conn() as c:
+        # Only update if still running — don't overwrite a cancel
+        c.execute(
+            "UPDATE oi_snapshot_runs SET summary_json=? WHERE run_id=? AND status='running'",
+            (json.dumps(progress), run_id),
+        )
 
 
 # ── Confirmation logic (Phase 2b — used when serving flow data) ──────────
