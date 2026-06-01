@@ -4262,12 +4262,16 @@ export default function OptionsFlowDashboard() {
               const _parseDt = (dt) => { if(!dt) return null; const p=dt.split("/").map(Number); return p.length>=2?new Date(_now.getFullYear(),p[0]-1,p[1]):null; };
               const tkMap = {};
               ad.forEach(t => {
-                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,confirmed:0,band:capBand(t.mktcap),
+                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,swpAsk:0,swpBid:0,confirmed:0,band:capBand(t.mktcap),
                   contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
                 const tk=tkMap[t.S];
                 if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
                 tk.n++;
-                if(t.Ty==="SWP") tk.swp++; else if(t.Ty==="BLK") tk.blk++;
+                if(t.Ty==="SWP") {
+                  tk.swp++;
+                  if(t.Si==="A"||t.Si==="AA") tk.swpAsk++;
+                  else if(t.Si==="B"||t.Si==="BB") tk.swpBid++;
+                } else if(t.Ty==="BLK") tk.blk++;
                 if(t.confirmed) tk.confirmed++;
                 if(t.uoa) tk.hasUOA=true;
                 if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
@@ -4389,6 +4393,8 @@ export default function OptionsFlowDashboard() {
                       <div style={{ width:1, flexShrink:0 }} />
                       <div style={{ width:150, textAlign:"center", flexShrink:0 }}>TOP CONTRACT</div>
                       <div style={{ width:1, flexShrink:0 }} />
+                      <div style={{ width:50, textAlign:"center", flexShrink:0 }}>GRADE</div>
+                      <div style={{ width:1, flexShrink:0 }} />
                       <div style={{ width:130, flexShrink:0 }} />
                       <div style={{ width:1, flexShrink:0 }} />
                       <div style={{ width:80, textAlign:"center", flexShrink:0 }}>OPEN INTEREST</div>
@@ -4412,15 +4418,26 @@ export default function OptionsFlowDashboard() {
                       // Use broader hit count for notes (matches what user sees in Search/BBS)
                       if(p.topCDisplayHits>=5) notes.push({t:`${p.topCDisplayHits} hits on same strike — repeat buyer`,w:10});
                       else if(p.topCDisplayHits>=3) notes.push({t:`${p.topCDisplayHits}x same strike — concentrated`,w:6});
-                      if(p.hasBoth) notes.push({t:"Sweeps + blocks — institutional",w:8});
-                      else if(p.swp>0&&p.blk===0) notes.push({t:"All sweeps — urgency signal",w:7});
+                      // Top contract dominates ticker flow
+                      if(p.net>0 && p.topCDisplayPrem>=p.net*0.7) notes.push({t:`${fmt(p.topCDisplayPrem)} of ${fmt(p.net)} on one strike`,w:9});
+                      if(p.hasBoth) {
+                        const askSwpPct = p.swp>0 ? Math.round(p.swpAsk/p.swp*100) : 0;
+                        notes.push({t:`Sweeps + blocks (${askSwpPct}% ask-side sweeps)`,w:8});
+                      }
+                      else if(p.swp>0&&p.blk===0) {
+                        const askSwpPct = Math.round(p.swpAsk/p.swp*100);
+                        notes.push({t:`All sweeps (${askSwpPct}% ask-side) — urgency signal`,w:7});
+                      }
                       const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
                       if(askPct>=90) notes.push({t:"All ask-side — aggressive buying",w:7});
                       if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
                       else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
                       if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
-                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name — outsized`,w:9});
+                      if(p.mktcap>0&&p.mktcap<5e9&&p.net>=1e6) notes.push({t:`${fmt(p.net)} on a $${(p.mktcap/1e9).toFixed(1)}B name`,w:9});
+                      // Purity tiers — tells you how much counter-flow chews the directional read
                       if(p.purity>=95) notes.push({t:`${Math.round(p.purity)}% one-way — minimal hedging`,w:6});
+                      else if(p.purity>=80) notes.push({t:`${Math.round(p.purity)}% directional — modest hedging`,w:5});
+                      else if(p.purity>=60) notes.push({t:`${Math.round(p.purity)}% lean — meaningful hedging`,w:4});
                       if(p.confirmed>=5) notes.push({t:`${p.confirmed} confirmed trades — sustained`,w:7});
                       else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
                       notes.sort((a,b)=>b.w-a.w);
@@ -4436,7 +4453,7 @@ export default function OptionsFlowDashboard() {
                       else if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
                       else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%`;
                       else if(oiGrowth>5) posNote = "📈 Accumulating — OI growing";
-                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — fresh flow, no exits";
+                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — check OI to confirm";
                       else if(p.daysSince>=7 && bidPct<10) posNote = "💤 Holding — no new flow or exits";
                       else if(bidPct<15 && tc&&tc.hits>=5) posNote = "✅ In position — minimal exits";
                       else posNote = "✅ In position";
@@ -4462,6 +4479,10 @@ export default function OptionsFlowDashboard() {
                               <span style={{ color:p.topCDisplayHits>=10?P.ac:p.topCDisplayHits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{p.topCDisplayHits}x</span>
                               <div style={{ fontSize:8, color:P.ye }}>{fmt(p.topCDisplayPrem)}</div>
                             </div>)}
+                          </div>
+                          <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
+                          <div style={{ width:50, display:"flex", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ fontSize:9, width:130, flexShrink:0 }}>
@@ -4513,7 +4534,6 @@ export default function OptionsFlowDashboard() {
                           <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
                             {posNote || <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
-                          <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
                           <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
                             {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
                           </div>
