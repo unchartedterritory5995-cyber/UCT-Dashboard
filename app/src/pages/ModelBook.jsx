@@ -11,7 +11,7 @@ const SETUP_GROUPS = [
   {
     label: 'Swing',
     setups: [
-      'High Tight Flag (Powerplay)', 'Classic Flag/Pullback', 'Bracco Setup', 'VCP',
+      'High Tight Flag (Powerplay)', 'Classic Flag/Pullback', 'VCP',
       'Flat Base Breakout', 'IPO Base', 'Parabolic Short', 'Parabolic Long',
       'Wedge Pop', 'Wedge Drop', 'Episodic Pivot', '2B Reversal',
       'Kicker Candle', 'Power Earnings Gap', 'News Gappers',
