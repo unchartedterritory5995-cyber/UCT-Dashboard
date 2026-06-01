@@ -69,15 +69,6 @@ CONFIRMATION_THRESHOLD = 0.50
 # framework targets single-name stocks.
 SOURCE = "stocks"
 
-# Tracking start date — only consider trading days on or after this date when
-# building the snapshot universe. Set when we switched from the broad
-# "every contract that traded ≥3 times" approach to the focused
-# "top 10 per day by premium" approach.
-TRACKING_START_DATE = date(2026, 5, 29)  # Friday
-
-# How many top contracts per day to track
-TOP_N_PER_DAY = 10
-
 
 # ── Schema ───────────────────────────────────────────────────────────────
 SCHEMA = """
@@ -313,98 +304,7 @@ def prune_old(days_keep: int = DAYS_TO_KEEP_SNAPSHOTS) -> int:
         return cur.rowcount
 
 
-# ── Read top contracts from `flow` table ────────────────────────────────
-def get_top_contracts_to_snapshot(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    top_n_per_day: int = TOP_N_PER_DAY,
-) -> List[Tuple[str, str, float, str]]:
-    """For each trading day in [start_date, end_date], return the top N
-    contracts by total premium on that day. Returns the deduplicated union
-    across all days.
-
-    This is the contract universe we snapshot for confirmation. Approximates
-    the frontend's "Top 10 Flow Picks" ranking using a simpler premium-sum
-    metric — covers ~90% of the same contracts without porting the cluster
-    analysis logic.
-
-    Filters:
-      - Only 'stocks' source (no indexes)
-      - Excludes adjusted symbols ending in a digit (e.g. GME1, TLRY1)
-      - Drops contracts with malformed strike/expiration values
-      - Drops contracts with missing or unparseable premium
-    """
-    if start_date is None:
-        start_date = TRACKING_START_DATE
-    if end_date is None:
-        end_date = date.today()
-
-    # Get all distinct dates in the flow table for stocks
-    with _conn() as c:
-        cur = c.execute(
-            "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
-            (SOURCE,),
-        )
-        all_date_strs = [r[0] for r in cur.fetchall()]
-
-    # Filter to dates within the tracking window
-    in_range: List[Tuple[date, str]] = []
-    for d_str in all_date_strs:
-        d = _parse_mdy(d_str)
-        if d and start_date <= d <= end_date:
-            in_range.append((d, d_str))
-
-    if not in_range:
-        logger.info(
-            f"[oi-snapshot] No flow data in range {start_date} to {end_date}"
-        )
-        return []
-
-    # For each day in range, get top N contracts by total premium
-    contracts_dedup: Dict[str, Tuple[str, str, float, str]] = {}
-    days_processed = 0
-    with _conn() as c:
-        for d, d_str in sorted(in_range):
-            cur = c.execute(
-                """SELECT Symbol, CallPut, Strike, ExpirationDate,
-                          SUM(CAST(Premium AS REAL)) AS total_prem
-                   FROM flow
-                   WHERE source = ? AND CreatedDate = ?
-                     AND Symbol IS NOT NULL AND Symbol != ''
-                     AND CallPut IS NOT NULL AND CallPut != ''
-                     AND Strike IS NOT NULL AND Strike != ''
-                     AND ExpirationDate IS NOT NULL AND ExpirationDate != ''
-                     AND Premium IS NOT NULL AND Premium != ''
-                   GROUP BY Symbol, CallPut, Strike, ExpirationDate
-                   ORDER BY total_prem DESC
-                   LIMIT ?""",
-                (SOURCE, d_str, top_n_per_day),
-            )
-            for sym, cp, strike, exp, prem in cur.fetchall():
-                # Skip adjusted/when-issued symbols
-                if sym and sym[-1].isdigit():
-                    continue
-                try:
-                    strike_f = float(strike)
-                    if _parse_mdy(exp) is None:
-                        continue
-                    key = make_key(sym, cp, strike_f, exp)
-                    contracts_dedup[key] = (sym, cp, strike_f, exp)
-                except (ValueError, TypeError):
-                    continue
-            days_processed += 1
-
-    contracts = list(contracts_dedup.values())
-    logger.info(
-        f"[oi-snapshot] Top-{top_n_per_day} universe: {len(contracts)} unique contracts "
-        f"across {days_processed} trading days (range {start_date} to {end_date})"
-    )
-    return contracts
-
-
-# ── Legacy: broad "every contract that traded ≥3 times" approach ─────────
-# Kept for reference / fallback. No longer used by daily_snapshot_job — too
-# broad (~16K contracts for 100 days of data, vs ~200 for the top-10 approach).
+# ── Read distinct contracts from `flow` table ────────────────────────────
 def get_distinct_contracts(
     days_back: int = DAYS_BACK_TO_SNAPSHOT,
     min_trade_count: int = 3,
@@ -412,8 +312,17 @@ def get_distinct_contracts(
     """Distinct (Symbol, CallPut, Strike, ExpirationDate) from `flow` table
     for trades in the past N calendar days (stocks source only).
 
-    DEPRECATED in favor of get_top_contracts_to_snapshot(). Retained for
-    backward-compat in case we want to switch back to broad capture.
+    flow table stores CreatedDate as 'M/D/YYYY' strings, so we can't do a
+    SQL range comparison directly. We pull distinct dates, parse them in
+    Python, and IN-clause the ones in range.
+
+    Filters:
+      - Only contracts with ≥ `min_trade_count` trades in the window. Drops
+        the long tail of single-trade fluke contracts that aren't part of
+        any cluster anyway — cuts contract universe ~70-90% in practice.
+      - Excludes adjusted/expired symbols ending in a digit (e.g. GME1,
+        TLRY1, SOXS1) — Schwab returns 400 for those, they're just noise.
+      - Drops malformed strike/expiration values.
     """
     cutoff = date.today() - timedelta(days=days_back)
     with _conn() as c:
@@ -448,16 +357,29 @@ def get_distinct_contracts(
         )
 
         contracts = []
+        skipped_adjusted = 0
+        skipped_malformed = 0
         for sym, cp, strike, exp, n in cur.fetchall():
+            # Skip adjusted/when-issued symbols (end in digit). Schwab can't
+            # quote them — they always 400.
             if sym and sym[-1].isdigit():
+                skipped_adjusted += 1
                 continue
             try:
                 strike_f = float(strike)
                 if _parse_mdy(exp) is None:
+                    skipped_malformed += 1
                     continue
                 contracts.append((sym, cp, strike_f, exp))
             except (ValueError, TypeError):
+                skipped_malformed += 1
                 continue
+
+        logger.info(
+            f"[oi-snapshot] Filtered {len(contracts)} contracts "
+            f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
+            f"{skipped_malformed} malformed)"
+        )
         return contracts
 
 
@@ -564,12 +486,10 @@ def daily_snapshot_job() -> Dict:
 
     run_id = start_run()
     try:
-        contracts = get_top_contracts_to_snapshot()
+        contracts = get_distinct_contracts()
         if not contracts:
-            logger.info(
-                f"[oi-snapshot] No flow data in tracking window (from {TRACKING_START_DATE}). Skipping."
-            )
-            summary = {"date": today_iso, "skipped": True, "reason": "no contracts in tracking window"}
+            logger.info("[oi-snapshot] No contracts found in past 30 days. Skipping.")
+            summary = {"date": today_iso, "skipped": True, "reason": "no contracts"}
             finish_run(run_id, "completed", summary)
             return summary
 
