@@ -1967,23 +1967,10 @@ export default function OptionsFlowDashboard() {
     }).then(r=>r.json()).then(()=>{
       fetch("/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
     }).catch(()=>{});
-    // Push top 10 bull + top 10 bear to tracker
-    const today = new Date().toISOString().split("T")[0];
-    const toTracker = (items, dir) => items.slice(0,10).map(item => ({
-      sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
-      exp: item.exp||"", entry: item.entrySpot||0,
-      grade: item.grade||"B", dir, hits: item.hits||1,
-      prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
-      dateSaved: today
-    }));
-    const trackerPicks = [...toTracker(wlBull,"BULL"), ...toTracker(wlBear,"BEAR")];
-    if (trackerPicks.length > 0) {
-      fetch("/api/top-flow/save",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(trackerPicks)
-      }).then(r=>r.ok?r.json():null).then(()=>{
-        fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); });
-      }).catch(()=>{});
-    }
+    // NOTE: removed previous push of watchlist top 10 bull/bear to /api/top-flow/save.
+    // Watchlist saves are now decoupled from Tracker — Tracker is fed only from
+    // the cap-weighted Top 10 Flow Picks via the manual "💾 Save Top 10" button
+    // in Market Read.
   };
 
   // ─── Discord Push ───────────────────────────────────────────────────
@@ -2074,7 +2061,10 @@ export default function OptionsFlowDashboard() {
       const data = await resp.json();
       if (data.ok) {
         setStatus(`✅ Pushed to Discord — ${data.messages_sent} message(s)`);
-        // Also push top 10 bull + top 10 bear to tracker
+        // Push hand-picked watchlist top 10 bull + top 10 bear to Tracker.
+        // Discord push is the curation commit moment — those are the picks
+        // worth tracking. This is intentional (not auto-saved on every CSV
+        // load — only when user explicitly pushes to Discord).
         const todayISO = new Date().toISOString().split("T")[0];
         const toTracker = (items, dir) => items.slice(0,10).map(item => ({
           sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
@@ -2120,75 +2110,12 @@ export default function OptionsFlowDashboard() {
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-save Top Flow picks when CSV loads — save top 20 per CSV date
-  useEffect(() => {
-    if (!D || !D.CONV || D.CONV.length === 0) return;
-    // Tag each CONV entry with its CSV date from trades
-    const convWithDates = D.CONV.map(c => {
-      const trades = c.trades || [];
-      const tradeDates = trades.map(t => (t.date || "").trim()).filter(d => d);
-      const csvDate = tradeDates.length > 0 ? tradeDates[tradeDates.length - 1] : "";
-      // Convert CSV date (4/28/2026) to ISO (2026-04-28)
-      let isoDate = new Date().toISOString().slice(0,10);
-      if (csvDate) {
-        const parts = csvDate.split("/");
-        if (parts.length >= 2) {
-          const m = parseInt(parts[0]), d = parseInt(parts[1]);
-          const y = parts.length >= 3 ? (parseInt(parts[2]) < 100 ? parseInt(parts[2]) + 2000 : parseInt(parts[2])) : new Date().getFullYear();
-          isoDate = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-        }
-      }
-      return { ...c, _csvDate: csvDate, _isoDate: isoDate };
-    });
-
-    // Group by date, take top 20 per date
-    const byDate = {};
-    convWithDates.forEach(c => {
-      const d = c._isoDate;
-      if (!byDate[d]) byDate[d] = [];
-      byDate[d].push(c);
-    });
-
-    const allPicks = [];
-    Object.entries(byDate).forEach(([isoDate, entries]) => {
-      entries.slice(0, 20).forEach(c => {
-        const trades = c.trades || [];
-        const prices = trades.filter(t=>t.V>0).map(t=>t.P/t.V/100).filter(p=>p>0);
-        const sorted = [...prices].sort((a,b)=>a-b);
-        const entry = sorted.length > 0 ? sorted[Math.floor(sorted.length/2)] : 0;
-        allPicks.push({ sym:c.sym, cp:c.cp, strike:parseFloat(c.K), exp:c.exp,
-          entry:Math.round(entry*100)/100, grade:c.grade, dir:c.dir, hits:c.hits, prem:c.prem,
-          cap:capBand(c.mktcap), _dateSaved:isoDate });
-      });
-    });
-
-    // Populate locally immediately
-    const localPicks = allPicks.map(p => ({
-      id: `${p.sym}|${p.cp}|${p.strike}|${p.exp}`,
-      ...p, dateSaved: p._dateSaved, history: []
-    }));
-    setTopFlowPicks(prev => {
-      const existingMap = {};
-      prev.active.forEach(a => { existingMap[a.id] = a; });
-      const merged = localPicks.map(lp => existingMap[lp.id]
-        ? { ...existingMap[lp.id], grade:lp.grade, hits:lp.hits, prem:lp.prem, dir:lp.dir, cap:lp.cap, dateSaved:lp.dateSaved }
-        : lp);
-      // Keep existing picks that aren't in the new set
-      const newIds = new Set(localPicks.map(p=>p.id));
-      const kept = prev.active.filter(a => !newIds.has(a.id));
-      return { ...prev, active: [...merged, ...kept] };
-    });
-    // Save to backend (deferred)
-    setTimeout(() => {
-      const savePicks = allPicks.map(({_dateSaved, ...rest}) => ({...rest, dateSaved: _dateSaved}));
-      fetch("/api/top-flow/save", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(savePicks) })
-        .then(r=>r.ok?r.json():null)
-        .then(()=>{
-          fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{ if(data) setTopFlowPicks(data); }).catch(()=>{});
-        })
-        .catch(()=>{});
-    }, 1000);
-  }, [D]);
+  // NOTE: Auto-save of "top 20 per CSV date from D.CONV" was REMOVED. It
+  // pulled from the broader confirmed-cluster list (D.CONV), which mixed in
+  // weak picks and watchlist-bear noise — caused 700+ active contracts of
+  // mostly losing far-OTM puts. The Tracker is now fed exclusively from
+  // the cap-weighted "Top 10 Flow Picks" via the manual "💾 Save Top 10"
+  // button in Market Read. One click per trading day (or per backfill date).
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
@@ -4444,6 +4371,77 @@ export default function OptionsFlowDashboard() {
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <span style={{ fontSize:9, color:P.dm }}>Cap-weighted · sweep required</span>
+                      <button onClick={()=>{
+                        // Save current Top 10 picks to Tracker. Prompt for date
+                        // so admin can backfill historical days (Option A workflow).
+                        // Default: most recent date in current data, or today.
+                        const lastDate = (FD && FD.dates && FD.dates.length > 0)
+                          ? FD.dates[FD.dates.length-1] : null;
+                        let defaultIso = new Date().toISOString().slice(0,10);
+                        if (lastDate) {
+                          const parts = lastDate.split("/");
+                          if (parts.length >= 2) {
+                            const m = parseInt(parts[0]), d = parseInt(parts[1]);
+                            const y = parts.length >= 3
+                              ? (parseInt(parts[2]) < 100 ? parseInt(parts[2]) + 2000 : parseInt(parts[2]))
+                              : new Date().getFullYear();
+                            defaultIso = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                          }
+                        }
+                        const dateInput = window.prompt(
+                          `Save these ${picks.length} Top Flow picks to Tracker with date:`,
+                          defaultIso
+                        );
+                        if (!dateInput) return;
+                        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+                          alert("Date must be in YYYY-MM-DD format.");
+                          return;
+                        }
+                        const dateSaved = dateInput.trim();
+                        const savePayload = picks.filter(p=>p.topC).map(p => {
+                          const grade = p.purity>=95 && p.hasBoth && p.confirmed>=3 ? "A+"
+                                      : p.purity>=85 && p.hasBoth ? "A"
+                                      : p.purity>=75 && p.confirmed>=2 ? "B+"
+                                      : "B";
+                          return {
+                            sym: p.sym,
+                            cp: p.topC.cp,
+                            strike: parseFloat(p.topC.K)||0,
+                            exp: p.topC.exp || "",
+                            entry: Math.round((p.entry||0)*100)/100,
+                            grade,
+                            dir: p.dir,
+                            hits: p.topCDisplayHits || p.topC.hits || 0,
+                            prem: p.topCDisplayPrem || p.topC.prem || 0,
+                            cap: p.band || "",
+                            dateSaved,
+                          };
+                        });
+                        fetch("/api/top-flow/save", {
+                          method:"POST",
+                          headers:{"Content-Type":"application/json"},
+                          body:JSON.stringify(savePayload)
+                        })
+                          .then(r=>r.ok?r.json():Promise.reject("save failed"))
+                          .then(result=>{
+                            return fetch("/api/top-flow/history")
+                              .then(r=>r.ok?r.json():null)
+                              .then(data=>{
+                                if (data) setTopFlowPicks(data);
+                                setStatus(`✅ Saved ${savePayload.length} picks for ${dateSaved} (added: ${result.added}, updated: ${result.updated})`);
+                                setTimeout(()=>setStatus(""), 4000);
+                              });
+                          })
+                          .catch(err=>{
+                            setStatus(`❌ Save failed: ${err}`);
+                            setTimeout(()=>setStatus(""), 4000);
+                          });
+                      }}
+                        style={{ padding:"3px 10px", borderRadius:6, border:"1px solid "+P.ac, cursor:"pointer",
+                          fontSize:9, fontWeight:700, fontFamily:"inherit", background:P.ac+"22", color:P.ac }}
+                        title="Save these picks to the Tracker tab with a chosen date. Defaults to most recent data date. Change date for backfill.">
+                        💾 Save Top 10 to Tracker
+                      </button>
                       <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                           fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
