@@ -78,6 +78,19 @@ def trigger_archive():
     return {"archived_now": count, "active": len(data["active"]), "archived_total": len(data["archived"])}
 
 
+@router.post("/wipe")
+def wipe_all():
+    """Wipe ALL picks (active + archived). Use carefully — irreversible.
+    Intended for one-time clean-slate before switching tracker data sources."""
+    from api.top_flow_tracker import _data, _save
+    n_active = len(_data.get("active", []))
+    n_archived = len(_data.get("archived", []))
+    _data["active"] = []
+    _data["archived"] = []
+    _save()
+    return {"wiped_active": n_active, "wiped_archived": n_archived}
+
+
 @router.get("/purge-old/{keep_days}")
 def purge_old(keep_days: int = 30):
     """Remove active picks older than keep_days by dateSaved. Moves them to archived."""
