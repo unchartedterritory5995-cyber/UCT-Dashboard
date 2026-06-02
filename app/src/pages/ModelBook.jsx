@@ -7,6 +7,10 @@ import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
+// Year tabs always shown, even before any stocks are curated for them.
+// Any year that has stocks (from the API) is unioned in on top of these.
+const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
+
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
@@ -325,7 +329,11 @@ export default function ModelBook() {
   const isAdmin = user?.role === 'admin'
 
   const { data: yearsData, mutate: mutateYears } = useSWR('/api/modelbook/years', fetcher, { revalidateOnFocus: false })
-  const years = useMemo(() => yearsData?.years || [], [yearsData])
+  // Show the fixed baseline year tabs plus any data-driven years, newest first.
+  const years = useMemo(() => {
+    const set = new Set([...(yearsData?.years || []), ...BASE_YEARS])
+    return [...set].sort((a, b) => b - a)
+  }, [yearsData])
 
   // Derived effective year: the picked year if it still exists, else newest.
   // Avoids a setState-in-effect when years load.
