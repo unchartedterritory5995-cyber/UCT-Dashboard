@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 _ET = ZoneInfo("America/New_York")
 from fastapi import APIRouter, Depends
 from api.services.cache import cache
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import calendar_personalization as _cp
 
 _logger = logging.getLogger(__name__)
@@ -467,6 +467,10 @@ def get_month_calendar(year: int = 0, month: int = 0):
     if not month:
         month = today.month
 
+    # Validate before monthrange (which raises ValueError → 500 on bad input)
+    if not (1 <= month <= 12 and 1900 <= year <= 2100):
+        return {"month": f"{year}-{month}", "days": {}}
+
     cache_key = f"calendar_month_{year}_{month}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -793,7 +797,7 @@ def get_calendar_dividends(
 
 
 @router.post("/api/calendar/refresh")
-def refresh_calendar():
+def refresh_calendar(user: dict = Depends(require_admin)):
     """Rebuild the calendar cache immediately — earnings from EW, actuals from Finnhub, econ from ForexFactory."""
     cache.invalidate("calendar_weekly")
 
@@ -1170,7 +1174,7 @@ def _decode_ics_token(token: str) -> str | None:
     """
     if not token or len(token) < 16:
         return None
-    cache_key = f"ics_token_decode_{token[:16]}"
+    cache_key = f"ics_token_decode_{token}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached if cached != "__miss__" else None

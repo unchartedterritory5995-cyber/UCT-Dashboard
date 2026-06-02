@@ -214,6 +214,43 @@ def test_export_ics_mine_invalid_token():
     assert r.status_code == 403
 
 
+def test_decode_ics_token_uses_full_token_as_cache_key():
+    """_decode_ics_token must cache by the FULL token, not a 16-char prefix
+    (prevents collisions between tokens that share the same prefix)."""
+    mod = _import_router()
+    # Two distinct full-length tokens with the same 16-char prefix
+    prefix = "a" * 16
+    tok_a = prefix + "AAAAAAAAAAAAAAAA"  # 32 chars, same first 16
+    tok_b = prefix + "BBBBBBBBBBBBBBBB"  # same prefix, different suffix
+    cache_keys: list[str] = []
+
+    def fake_cache_get(key):
+        cache_keys.append(key)
+        return None  # always cold so we reach the DB lookup
+
+    def fake_conn_context():
+        class FakeCursor:
+            def fetchall(self): return []
+        class FakeConn:
+            def execute(self, *a, **kw): return FakeCursor()
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+        return FakeConn()
+
+    with mock.patch.object(mod.cache, "get", side_effect=fake_cache_get), \
+         mock.patch.object(mod.cache, "set"), \
+         mock.patch("api.services.auth_db.get_connection", side_effect=fake_conn_context):
+        mod._decode_ics_token(tok_a)
+        mod._decode_ics_token(tok_b)
+
+    # The two lookups must produce DISTINCT cache keys (full token, not prefix)
+    keys_for_a = [k for k in cache_keys if tok_a in k]
+    keys_for_b = [k for k in cache_keys if tok_b in k]
+    assert keys_for_a, "cache key for tok_a not found"
+    assert keys_for_b, "cache key for tok_b not found"
+    assert keys_for_a[0] != keys_for_b[0], "cache key collision: full token not used"
+
+
 def test_export_ics_mine_valid_token():
     """scope=mine with valid token resolves user and returns filtered VCALENDAR."""
     from fastapi.testclient import TestClient

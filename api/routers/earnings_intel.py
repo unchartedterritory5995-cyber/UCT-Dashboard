@@ -11,8 +11,9 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from api.middleware.auth_middleware import get_current_user
 from api.services.call_recap import (
     get_call_recap,
     get_sentiment,
@@ -27,7 +28,7 @@ router = APIRouter()
 
 
 @router.get("/api/earnings/call-recap/{ticker}")
-def call_recap_endpoint(ticker: str):
+def call_recap_endpoint(ticker: str, user: dict = Depends(get_current_user)):
     """AI-synthesized earnings call recap.
 
     Returns {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
@@ -71,7 +72,7 @@ def audio_endpoint(ticker: str):
 
 
 @router.get("/api/earnings/sentiment/{ticker}")
-def sentiment_endpoint(ticker: str):
+def sentiment_endpoint(ticker: str, user: dict = Depends(get_current_user)):
     """AI-derived earnings sentiment.
 
     Returns {score: int(-100..100), label, rationale, drivers[]}
@@ -92,6 +93,7 @@ def sentiment_endpoint(ticker: str):
 def transcript_endpoint(
     ticker: str,
     quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
+    user: dict = Depends(get_current_user),
 ):
     """Verbatim earnings call transcript via AlphaVantage.
 

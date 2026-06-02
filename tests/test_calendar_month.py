@@ -111,4 +111,28 @@ def test_month_empty_safe_on_fh_failure():
     assert body["days"] == {}
 
 
+def test_month_invalid_month_returns_empty():
+    """Out-of-range month returns empty days instead of 500."""
+    r = client.get("/api/calendar/month?year=2026&month=13")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["days"] == {}
+
+
+def test_month_invalid_year_returns_empty():
+    """Out-of-range year returns empty days instead of 500."""
+    r = client.get("/api/calendar/month?year=1800&month=6")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["days"] == {}
+
+
+def test_month_month_zero_returns_empty():
+    """month=0 returns empty days instead of 500."""
+    r = client.get("/api/calendar/month?year=2026&month=0")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["days"] == {}
+
+
 import pytest  # noqa: E402 — placed after test fns to keep pep8 style consistent with existing tests

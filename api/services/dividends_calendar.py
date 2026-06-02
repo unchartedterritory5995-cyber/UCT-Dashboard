@@ -131,6 +131,10 @@ def get_events(syms: list[str]) -> list[dict]:
     if not clean_syms:
         return []
 
+    # Cap at 200 to prevent a large My-Stocks set from hanging the request
+    # with sequential yfinance fetches (each ~1s).
+    clean_syms = clean_syms[:200]
+
     cache_key = _syms_cache_key(clean_syms)
     cached = cache.get(cache_key)
     if cached is not None:

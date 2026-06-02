@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import contextlib
+import threading
 from datetime import datetime, timezone
 
 # ── DB path ────────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ if not os.path.exists(os.path.dirname(_DB_PATH)):
     )
 
 _INIT_DONE = False
+_INIT_LOCK = threading.Lock()
 
 
 # ── Connection ─────────────────────────────────────────────────────────────────
@@ -42,22 +44,25 @@ def _ensure_init() -> None:
     global _INIT_DONE
     if _INIT_DONE:
         return
-    with contextlib.closing(_get_connection()) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS calendar_seen (
-                user_id   TEXT NOT NULL,
-                item_type TEXT NOT NULL,
-                item_key  TEXT NOT NULL,
-                seen_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (user_id, item_type, item_key)
+    with _INIT_LOCK:
+        if _INIT_DONE:
+            return
+        with contextlib.closing(_get_connection()) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS calendar_seen (
+                    user_id   TEXT NOT NULL,
+                    item_type TEXT NOT NULL,
+                    item_key  TEXT NOT NULL,
+                    seen_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, item_type, item_key)
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_calendar_seen_user_type "
+                "ON calendar_seen(user_id, item_type)"
             )
-        """)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_calendar_seen_user_type "
-            "ON calendar_seen(user_id, item_type)"
-        )
-        conn.commit()
-    _INIT_DONE = True
+            conn.commit()
+        _INIT_DONE = True
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────

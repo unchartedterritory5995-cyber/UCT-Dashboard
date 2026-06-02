@@ -37,7 +37,7 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 def may_synthesize(market_date: str) -> bool:
     """Returns False if hard cap exceeded for the day. Logs warning if soft
     cap exceeded but still returns True."""
-    global _SOFT_CAP_LOGGED_FOR_DATE
+    global _SOFT_CAP_LOGGED_FOR_DATE, _HARD_CAP_TRIPPED
     soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "8.00"))
     hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
 
@@ -49,6 +49,7 @@ def may_synthesize(market_date: str) -> bool:
             logger.error("[cost_guard] HARD CAP exceeded for %s: $%.2f >= $%.2f. "
                          "Synthesis disabled for remainder of day.",
                          market_date, spent, hard)
+            _HARD_CAP_TRIPPED = True
         return False
 
     if spent >= soft and _SOFT_CAP_LOGGED_FOR_DATE != market_date:
