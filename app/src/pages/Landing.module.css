@@ -512,17 +512,152 @@
   font-size: 12px;
   margin-top: 14px;
 }
-.priceFree {
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 13px;
-  margin: 28px auto 0;
-  max-width: 520px;
-  line-height: 1.5;
+/* ── Free tier block ───────────────────────────────── */
+.freeBlock {
+  max-width: 1100px;
+  margin: 64px auto 0;
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.04), rgba(74, 222, 128, 0.01));
+  border: 1px solid rgba(74, 222, 128, 0.18);
+  border-radius: 14px;
+  padding: 36px 36px 32px;
+  position: relative;
+  overflow: hidden;
 }
-.priceFree strong {
-  color: var(--cream);
+.freeBlock::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.5), transparent);
+}
+.freeHead {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.freeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.freeBadgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+.freeH3 {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--cream);
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.freeSub {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.freeGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.freeCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 14px;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  position: relative;
+}
+.freeCard::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+}
+.freeCard::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  right: 17px;
+  width: 6px;
+  height: 3px;
+  border-left: 1.5px solid var(--green);
+  border-bottom: 1.5px solid var(--green);
+  transform: rotate(-45deg);
+}
+.freeCard:hover {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.04);
+  transform: translateY(-2px);
+}
+.freeName {
+  color: var(--cream);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  letter-spacing: -0.1px;
+  padding-right: 22px;
+}
+.freeDesc {
+  color: var(--text-mute);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.freeCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto;
+  width: fit-content;
+  padding: 12px 22px;
+  border-radius: 6px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.freeCta::after {
+  content: '→';
+  font-size: 14px;
+}
+.freeCta:hover {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.6);
 }
 
 /* ── Footer ────────────────────────────────────────── */
@@ -590,6 +725,11 @@
   .heroInner { gap: 48px; }
   .heroH1 { font-size: 52px; }
   .grid { grid-template-columns: repeat(2, 1fr); }
+  .freeGrid { grid-template-columns: repeat(3, 1fr); }
+  .freeGrid .freeCard:nth-child(4),
+  .freeGrid .freeCard:nth-child(5) {
+    grid-column: span 1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -622,6 +762,12 @@
   .price { padding: 64px 20px; }
   .priceCard { padding: 26px; }
   .priceAmt { font-size: 40px; }
+
+  .freeBlock { padding: 28px 20px 24px; margin-top: 48px; }
+  .freeH3 { font-size: 22px; }
+  .freeGrid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .freeCard { padding: 14px 12px; }
+  .freeGrid .freeCard:last-child { grid-column: 1 / -1; }
 
   .foot { padding: 32px 20px 24px; }
   .footTop { flex-direction: column; align-items: flex-start; gap: 14px; }

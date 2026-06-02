@@ -342,10 +342,43 @@ export default function Landing() {
           <Link to="/signup?plan=pro" className={styles.priceCta}>Get started</Link>
           <div className={styles.priceNote}>No contracts. Cancel in one click.</div>
         </div>
-        <p className={styles.priceFree}>
-          <strong>Free forever:</strong> Dashboard, Breadth Monitor, Charts Workspace,
-          Journal, and Options Flow. No card required.
-        </p>
+        <div className={styles.freeBlock}>
+          <div className={styles.freeHead}>
+            <span className={styles.freeBadge}>
+              <span className={styles.freeBadgeDot} />
+              Free forever
+            </span>
+            <h3 className={styles.freeH3}>Five tools, no card required.</h3>
+            <p className={styles.freeSub}>
+              Start with these — upgrade only when you want the Pro intelligence layer.
+            </p>
+          </div>
+          <div className={styles.freeGrid}>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Dashboard</div>
+              <div className={styles.freeDesc}>Bento layout for your daily intel.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Breadth Monitor</div>
+              <div className={styles.freeDesc}>20+ internals with the 8-tier heatmap.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Charts Workspace</div>
+              <div className={styles.freeDesc}>Drag-resize tiles, 8 timeframes.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Journal</div>
+              <div className={styles.freeDesc}>Trade log with notes + screenshots.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Options Flow</div>
+              <div className={styles.freeDesc}>Real-time options + dark pool.</div>
+            </div>
+          </div>
+          <Link to="/signup?plan=free" className={styles.freeCta}>
+            Create your free account
+          </Link>
+        </div>
       </section>
 
       {/* ── Footer ── */}
