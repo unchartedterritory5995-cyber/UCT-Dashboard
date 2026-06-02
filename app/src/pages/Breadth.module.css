@@ -525,6 +525,77 @@
 }
 .copyBtn:hover { background: rgba(201,168,76,0.12); }
 .copyBtn:active { background: rgba(201,168,76,0.2); }
+
+/* ── Drill view toggle (List | Grouped) ── */
+.drillViewToggle {
+  display: inline-flex;
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.drillViewBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.drillViewBtn + .drillViewBtn { border-left: 1px solid rgba(201,168,76,0.3); }
+.drillViewBtn:hover { color: var(--text, #e0e0e0); }
+.drillViewBtnActive {
+  background: rgba(201,168,76,0.16);
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* ── Industry group header rows (Grouped view) ── */
+.drillGroupRow { cursor: pointer; }
+.drillGroupRow:hover .drillGroupCell { background: rgba(201,168,76,0.10); }
+.drillGroupCell {
+  background: rgba(201,168,76,0.06);
+  border-top: 1px solid rgba(201,168,76,0.22);
+  border-bottom: 1px solid rgba(201,168,76,0.22);
+  padding: 5px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.drillGroupCaret {
+  display: inline-block;
+  width: 12px;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 10px;
+}
+.drillGroupName {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #e0e0e0);
+  letter-spacing: 0.3px;
+}
+.drillGroupCount {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 18px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  background: rgba(201,168,76,0.14);
+  border-radius: 8px;
+  text-align: center;
+}
+.drillGroupAvgUp, .drillGroupAvgDn {
+  margin-left: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.drillGroupAvgUp { color: #4ade80; }
+.drillGroupAvgDn { color: #f87171; }
 .drillBody {
   overflow-y: auto;
   padding: 12px 20px 20px;

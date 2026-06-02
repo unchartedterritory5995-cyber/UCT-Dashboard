@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Fragment } from 'react'
 import useSWR from 'swr'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -15,6 +15,7 @@ import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import { polarityOf, PAIRS } from './breadth/views/breadthViewShared'
 import BreadthViews from './breadth/BreadthViews'
+import { groupItemsByIndustry } from './breadth/groupByIndustry'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -391,6 +392,59 @@ function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('breadth.drill.viewMode') === 'grouped' ? 'grouped' : 'list' }
+    catch { return 'list' }
+  })
+  const setMode = m => {
+    setViewMode(m)
+    setSelectedIdx(0)
+    try { localStorage.setItem('breadth.drill.viewMode', m) } catch { /* ignore */ }
+  }
+  const [industries, setIndustries] = useState({})
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
+  const toggleGroupCollapse = key => setCollapsedGroups(prev => {
+    const next = new Set(prev)
+    next.has(key) ? next.delete(key) : next.add(key)
+    return next
+  })
+
+  // Fetch GICS industry per ticker for the Grouped view. Non-blocking on the
+  // server: cold-cache tickers return null and warm in the background, so we
+  // do one delayed retry to pull in late arrivals.
+  useEffect(() => {
+    if (!items.length) return
+    let cancelled = false
+    const tickers = items.map(i => i.t).filter(Boolean)
+    const fetchInd = () => fetch('/api/breadth/industries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled || !d?.industries) return false
+        setIndustries(prev => ({ ...prev, ...d.industries }))
+        return Object.values(d.industries).some(v => !v)  // any misses left?
+      })
+      .catch(() => false)
+    fetchInd().then(hadMisses => {
+      if (cancelled || !hadMisses) return
+      setTimeout(() => { if (!cancelled) fetchInd() }, 2500)
+    })
+    return () => { cancelled = true }
+  }, [items])
+
+  const grouped = useMemo(
+    () => (viewMode === 'grouped' ? groupItemsByIndustry(items, industries) : null),
+    [viewMode, items, industries],
+  )
+  // Items in current visual order, excluding collapsed-group rows — drives
+  // selection + ↑/↓ nav so navigation skips hidden rows and stays aligned.
+  const visibleOrder = useMemo(() => {
+    if (!grouped) return items
+    return grouped.groups.flatMap(g => (collapsedGroups.has(g.key) ? [] : g.items))
+  }, [grouped, items, collapsedGroups])
 
   // When the drill list first loads, immediately prefetch ALL tickers into the
   // browser's SWR cache. For tickers already in server SQLite (the vast majority),
@@ -424,15 +478,16 @@ function DrillModal({ drill, onClose }) {
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // Keyboard: Escape closes, arrows navigate, Shift+F flags selected ticker
+  // Keyboard: Escape closes, arrows navigate, Shift+F flags selected ticker.
+  // Nav operates over visibleOrder (grouped order, minus collapsed rows).
   useEffect(() => {
     const handler = e => {
       if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, items.length - 1)) }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, visibleOrder.length - 1)) }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)) }
       if (e.shiftKey && e.key === 'F') {
         setSelectedIdx(cur => {
-          const sym = items[cur]?.t
+          const sym = visibleOrder[cur]?.t
           if (sym) {
             const willFlag = !isFlagged(sym)
             toggleFlag(sym)
@@ -444,14 +499,17 @@ function DrillModal({ drill, onClose }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose, items, isFlagged, toggleFlag])
+  }, [onClose, visibleOrder, isFlagged, toggleFlag])
+
+  // Clamp selection when the visible set shrinks (e.g. a group is collapsed)
+  const safeIdx = Math.min(selectedIdx, Math.max(0, visibleOrder.length - 1))
 
   // Scroll selected row into view
   useEffect(() => {
-    rowRefs.current[selectedIdx]?.scrollIntoView({ block: 'nearest' })
-  }, [selectedIdx])
+    rowRefs.current[safeIdx]?.scrollIntoView({ block: 'nearest' })
+  }, [safeIdx])
 
-  const selected = items[selectedIdx]
+  const selected = visibleOrder[safeIdx]
 
   return (
     <div className={styles.drillOverlay} onClick={onClose} role="dialog" aria-modal="true">
@@ -464,7 +522,20 @@ function DrillModal({ drill, onClose }) {
             </div>
             <div className={styles.drillSubRow}>
               <span className={styles.drillSub}>{drill.date}</span>
-              <CopyTickersButton items={items} />
+              {items.length > 0 && (
+                <div className={styles.drillViewToggle} role="group" aria-label="View mode">
+                  <button
+                    className={`${styles.drillViewBtn} ${viewMode === 'list' ? styles.drillViewBtnActive : ''}`}
+                    onClick={() => setMode('list')}
+                  >List</button>
+                  <button
+                    className={`${styles.drillViewBtn} ${viewMode === 'grouped' ? styles.drillViewBtnActive : ''}`}
+                    onClick={() => setMode('grouped')}
+                    title="Group by industry — most-represented first"
+                  >Grouped</button>
+                </div>
+              )}
+              <CopyTickersButton items={grouped ? grouped.order : items} />
             </div>
           </div>
           <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
@@ -492,42 +563,74 @@ function DrillModal({ drill, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, i) => {
-                    const absPct = Math.abs(item.pct)
-                    const rowHeat = item.pct >= 0
-                      ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
-                      : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
-                    const isSelected = i === selectedIdx
-                    return (
-                      <tr
-                        key={item.t}
-                        ref={el => rowRefs.current[i] = el}
-                        className={`${i % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat} ${isSelected ? styles.drillRowSelected : ''}`}
-                        onClick={() => setSelectedIdx(i)}
-                      >
-                        <td className={styles.drillTdNum}>{i + 1}</td>
-                        <td className={styles.drillTdTicker}>
-                          <TickerPopup sym={item.t} />
-                        </td>
-                        <td className={styles.drillTdName}>{item.n ?? ''}</td>
-                        <td className={styles.drillTdPrice}>
-                          {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
-                        </td>
-                        <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
-                          {item.vr != null ? `${item.vr}x` : '—'}
-                        </td>
-                        <td className={styles.drillTdAtr}>
-                          {item.atr != null ? `${item.atr}%` : '—'}
-                        </td>
-                        <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
-                          {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
-                        </td>
-                        <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
-                          {item.pct > 0 ? '+' : ''}{item.pct}%
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {(() => {
+                    // Shared row renderer. flatIdx = position within visibleOrder
+                    // so selection highlight, refs + ↑/↓ nav stay aligned in
+                    // both List and Grouped modes.
+                    const renderRow = (item, flatIdx) => {
+                      const absPct = Math.abs(item.pct)
+                      const rowHeat = item.pct >= 0
+                        ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
+                        : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
+                      const isSelected = flatIdx === safeIdx
+                      return (
+                        <tr
+                          key={item.t}
+                          ref={el => rowRefs.current[flatIdx] = el}
+                          className={`${flatIdx % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat} ${isSelected ? styles.drillRowSelected : ''}`}
+                          onClick={() => setSelectedIdx(flatIdx)}
+                        >
+                          <td className={styles.drillTdNum}>{flatIdx + 1}</td>
+                          <td className={styles.drillTdTicker}>
+                            <TickerPopup sym={item.t} />
+                          </td>
+                          <td className={styles.drillTdName}>{item.n ?? ''}</td>
+                          <td className={styles.drillTdPrice}>
+                            {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
+                          </td>
+                          <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
+                            {item.vr != null ? `${item.vr}x` : '—'}
+                          </td>
+                          <td className={styles.drillTdAtr}>
+                            {item.atr != null ? `${item.atr}%` : '—'}
+                          </td>
+                          <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
+                            {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
+                          </td>
+                          <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
+                            {item.pct > 0 ? '+' : ''}{item.pct}%
+                          </td>
+                        </tr>
+                      )
+                    }
+
+                    if (!grouped) return items.map((item, i) => renderRow(item, i))
+
+                    // Grouped: industry header rows interleaved; flat counter
+                    // only advances over rendered (non-collapsed) rows.
+                    let flat = -1
+                    return grouped.groups.map(g => {
+                      const isCollapsed = collapsedGroups.has(g.key)
+                      return (
+                        <Fragment key={g.key}>
+                          <tr
+                            className={styles.drillGroupRow}
+                            onClick={() => toggleGroupCollapse(g.key)}
+                          >
+                            <td className={styles.drillGroupCell} colSpan={8}>
+                              <span className={styles.drillGroupCaret}>{isCollapsed ? '▸' : '▾'}</span>
+                              <span className={styles.drillGroupName}>{g.key}</span>
+                              <span className={styles.drillGroupCount}>{g.count}</span>
+                              <span className={g.avgPct >= 0 ? styles.drillGroupAvgUp : styles.drillGroupAvgDn}>
+                                avg {g.avgPct > 0 ? '+' : ''}{g.avgPct.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                          {!isCollapsed && g.items.map(item => { flat += 1; return renderRow(item, flat) })}
+                        </Fragment>
+                      )
+                    })
+                  })()}
                 </tbody>
               </table>
             )}

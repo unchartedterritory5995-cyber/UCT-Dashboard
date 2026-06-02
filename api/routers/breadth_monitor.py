@@ -125,6 +125,35 @@ def get_drill_list(date_str: str, metric_key: str):
     return {"date": date_str, "metric": metric_key, "items": items}
 
 
+@router.post("/api/breadth/industries")
+async def breadth_industries(request: Request):
+    """Map a list of tickers → GICS industry for the drill-down "group by" view.
+
+    Non-blocking: returns cached industries instantly; cold-cache tickers come
+    back null and are warmed in the background for the next call. Read-only,
+    same auth posture as the drill GET.
+
+    Body: {"tickers": ["NVDA", ...]}  →  {"industries": {"NVDA": "Semiconductors", ...}}
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    tickers = body.get("tickers") or []
+    if not isinstance(tickers, list):
+        raise HTTPException(status_code=400, detail="tickers must be a list")
+    tickers = [str(t).upper() for t in tickers if t][:500]  # cap per call
+    try:
+        from api.services.catalyst.ticker_metadata import get_industries_nonblocking
+        industries = get_industries_nonblocking(tickers)
+    except Exception as e:
+        # Never break the drill modal over enrichment — degrade to ungrouped.
+        import logging
+        logging.getLogger(__name__).warning("[breadth] industries lookup failed: %s", e)
+        industries = {t: None for t in tickers}
+    return {"industries": industries}
+
+
 @router.patch("/api/breadth-monitor/{date_str}/field")
 async def patch_breadth_field(date_str: str, request: Request):
     _check_auth(request)
