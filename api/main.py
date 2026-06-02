@@ -72,6 +72,7 @@ from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
+from api.routers import ticker_logos as ticker_logos_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
@@ -1739,6 +1740,7 @@ app.include_router(stream_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
+app.include_router(ticker_logos_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
