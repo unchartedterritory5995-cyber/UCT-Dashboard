@@ -10,8 +10,16 @@ import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
 
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay }) {
-  const bmo = (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' }))
-  const amc = (day.amc || []).map(e => ({ ...e, _timing: 'amc' }))
+  // Memoize bmo/amc so the entries useMemo dep-check isn't always invalidated
+  // by freshly-mapped arrays on every parent render.
+  const bmo = useMemo(
+    () => (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
+    [day.bmo],
+  )
+  const amc = useMemo(
+    () => (day.amc || []).map(e => ({ ...e, _timing: 'amc' })),
+    [day.amc],
+  )
 
   // A3: fetch per-day metrics (price, avg_vol, mc_b) and merge onto entries
   const { data: metricsMap } = useDayMetrics(ds)

@@ -99,7 +99,7 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
             onClick={() => { markSeen(key); onSelect && onSelect(e) }}
           >
             {unseen && <span className={styles.unseenDot} aria-label="New" />}
-            <EarningsCard entry={e} mine={true} onClick={() => { markSeen(key); onSelect && onSelect(e) }} />
+            <EarningsCard entry={e} mine={true} />
           </div>
         )
       })}

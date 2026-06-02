@@ -108,6 +108,13 @@ export default function EarningsModal({ row, label, onClose }) {
       .catch(() => {})
   }, [row?.sym])
 
+  // Reset transcript panel state when the row changes
+  useEffect(() => {
+    if (!row) return
+    setTranscriptState({ loading: false, data: null })
+    setTranscriptOpen(false)
+  }, [row?.sym])
+
   // AI analysis + related news
   useEffect(() => {
     if (!row) return
@@ -129,13 +136,14 @@ export default function EarningsModal({ row, label, onClose }) {
     return () => { controller.abort(); clearTimeout(timer) }
   }, [row?.sym])
 
-  // Transcript (only for reported entries)
+  // Transcript (only for reported entries, only when panel is expanded)
+  // Gate on transcriptOpen so we don't fire eagerly on modal open — the
+  // transcript section is collapsed by default and the fetch is expensive.
   const verdict = row?.verdict?.toLowerCase()
   const isPending = verdict === 'pending'
   useEffect(() => {
-    if (!row || isPending) return
+    if (!row || isPending || !transcriptOpen) return
     setTranscriptState({ loading: true, data: null })
-    setTranscriptOpen(false)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 25_000)
     fetch(`/api/transcripts/${row.sym}`, { signal: controller.signal })
@@ -148,7 +156,7 @@ export default function EarningsModal({ row, label, onClose }) {
       })
       .finally(() => clearTimeout(timer))
     return () => { controller.abort(); clearTimeout(timer) }
-  }, [row?.sym, isPending])
+  }, [row?.sym, isPending, transcriptOpen])
 
   // Escape key
   useEffect(() => {

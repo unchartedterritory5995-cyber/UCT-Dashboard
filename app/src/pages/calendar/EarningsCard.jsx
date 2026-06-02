@@ -2,8 +2,10 @@
 import CompanyLogo from '../../components/CompanyLogo'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
-import { FwdPeChip } from '../../components/calendar/FundamentalsStrip'
 import styles from './Calendar.module.css'
+// NOTE: FwdPeChip (useFundamentals per card) removed — firing ~60 requests on
+// feed load is too expensive. If fwd-P/E is wanted on cards, batch it via the
+// enrichment payload (/api/calendar/enrichment) instead.
 
 function fmtEps(v) { return v == null ? '—' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
 function fmtRev(v) { if (v == null) return '—'; return v >= 1000 ? `$${(v/1000).toFixed(1)}B` : `$${Math.round(v)}M` }
@@ -92,8 +94,6 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               </span>
               {reported && <span className={styles.beatPill}>{
                 surprise(entry.eps_act, entry.eps_est)?.startsWith('-') ? 'MISS' : 'BEAT'}</span>}
-              {/* C1: Fwd P/E chip — lazy via useFundamentals */}
-              <FwdPeChip ticker={entry.sym} />
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>

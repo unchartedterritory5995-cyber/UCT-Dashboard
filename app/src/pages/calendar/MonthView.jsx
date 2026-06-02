@@ -152,29 +152,11 @@ export default function MonthView({
     return rows
   }, [grid, monthDaysMap])
 
-  function prevMonth() {
-    setMonthCursor(c => {
-      const m = c.month === 1 ? 12 : c.month - 1
-      const y = c.month === 1 ? c.year - 1 : c.year
-      return { year: y, month: m }
-    })
-  }
-  function nextMonth() {
-    setMonthCursor(c => {
-      const m = c.month === 12 ? 1 : c.month + 1
-      const y = c.month === 12 ? c.year + 1 : c.year
-      return { year: y, month: m }
-    })
-  }
-
   return (
     <div>
-      {/* Month navigation */}
-      <div className={styles.monthNav}>
-        <button className={styles.monthNavBtn} onClick={prevMonth} aria-label="Previous month">‹</button>
-        <span className={styles.monthNavLbl}>{fmtMonthLabel(year, month)}</span>
-        <button className={styles.monthNavBtn} onClick={nextMonth} aria-label="Next month">›</button>
-      </div>
+      {/* Month nav removed — CalendarHeader renders it in month view to avoid
+          duplicate ‹ Month Year › controls. prevMonth/nextMonth are still
+          passed up via setMonthCursor so CalendarHeader can call them. */}
 
       {/* Desktop grid (hidden on mobile via CSS) */}
       <div className={styles.mgridHd}>

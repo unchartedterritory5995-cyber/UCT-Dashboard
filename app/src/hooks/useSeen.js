@@ -7,6 +7,7 @@
 //   seen.has('AAPL:2026-06-02')   // true/false
 //   markSeen('AAPL:2026-06-02')   // optimistic update + POST
 import useSWR, { useSWRConfig } from 'swr'
+import { useMemo } from 'react'
 
 const fetcher = url =>
   fetch(url).then(r => (r.ok ? r.json() : { seen: [] })).catch(() => ({ seen: [] }))
@@ -24,7 +25,7 @@ export default function useSeen(itemType) {
     revalidateOnFocus: false,
   })
 
-  const seen = new Set(data?.seen ?? [])
+  const seen = useMemo(() => new Set(data?.seen ?? []), [data])
 
   async function markSeen(key) {
     if (!itemType || !key || seen.has(key)) return

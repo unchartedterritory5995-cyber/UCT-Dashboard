@@ -132,9 +132,10 @@ export function useIpos(from, to) {
  * Cached 12 h on the server; client refreshes every 30 min.
  */
 export function useDividends(syms) {
-  const url = syms
-    ? `/api/calendar/dividends?syms=${syms}`
-    : '/api/calendar/dividends'
+  // Null-gate: skip the request entirely when syms is falsy (chip is off or
+  // data not ready). When syms is provided, scope to that sym list; when
+  // truthy but empty string, fall back to server-side My-Stocks default.
+  const url = syms ? `/api/calendar/dividends?syms=${syms}` : null
   return useSWR(url, fetcher, {
     refreshInterval: 30 * 60 * 1000,
     revalidateOnFocus: false,

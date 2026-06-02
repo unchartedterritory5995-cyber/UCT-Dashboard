@@ -15,7 +15,7 @@ export default function WeekView({ weekDates, days, filters, onSelect }) {
           <div key={ds} className={`${styles.wcol} ${day.is_today ? styles.wcolToday : ''}`}>
             <div className={styles.wd}>{day.label || ds}</div>
             {rows.map(e => (
-              <div key={e.sym} className={styles.wrow} onClick={() => onSelect(e, e._timing)}>
+              <div key={`${e.sym}-${e._timing}`} className={styles.wrow} onClick={() => onSelect(e, e._timing)}>
                 <CompanyLogo sym={e.sym} size={20} />
                 <span className={`${styles.t} ${e.mine ? styles.gold : ''}`}>{e.sym}</span>
                 <span className={styles.v}>{e._timing.toUpperCase()}</span>
