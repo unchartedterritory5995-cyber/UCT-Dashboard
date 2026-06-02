@@ -2,6 +2,7 @@
 
 GET /api/earnings/call-recap/{ticker}   → call recap (24h cache, cost-guarded)
 GET /api/earnings/sentiment/{ticker}    → AI sentiment (12h cache, cost-guarded)
+GET /api/earnings/audio/{ticker}        → pluggable audio (env-gated)
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from api.services.call_recap import (
     get_webcast_url,
     get_rating_changes,
 )
+from api.services.earnings_audio import get_audio
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -44,6 +46,24 @@ def call_recap_endpoint(ticker: str):
     except Exception as e:
         _log.warning("[earnings_intel] call-recap failed for %s: %s", sym, e)
         return {"ticker": sym, "recap": None, "webcast_url": None, "rating_changes": []}
+
+
+@router.get("/api/earnings/audio/{ticker}")
+def audio_endpoint(ticker: str):
+    """Pluggable earnings-call audio.
+
+    Returns {stream_url, kind: 'live'|'recorded', transcript_url} when a
+    provider is configured (EARNINGS_AUDIO_PROVIDER env), otherwise null.
+    Never raises.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        return get_audio(sym)
+    except Exception as e:
+        _log.warning("[earnings_intel] audio failed for %s: %s", sym, e)
+        return None
 
 
 @router.get("/api/earnings/sentiment/{ticker}")
