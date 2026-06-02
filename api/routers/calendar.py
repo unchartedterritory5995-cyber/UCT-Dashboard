@@ -762,6 +762,36 @@ def get_calendar_ipos(
     return _get_ipos(from_date, to_date)
 
 
+# ── Dividends / splits forward calendar endpoint ──────────────────────────────
+
+from api.services.dividends_calendar import get_events as _get_div_events  # noqa: E402
+
+
+@router.get("/api/calendar/dividends")
+def get_calendar_dividends(
+    syms: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Return forward dividends + splits for the requested symbols.
+
+    Params:
+        syms  Comma-separated ticker list (optional).
+              When absent, defaults to the authenticated user's My-Stocks set
+              (watchlists + flagged + positions + UCT20 union).
+
+    Response: list of { sym, type: 'dividend'|'split', date, amount?, ratio? }
+    Only forward-looking events (date >= today).  Cached 12 h per sym set.
+    """
+    if syms:
+        sym_list = [s.strip() for s in syms.split(",") if s.strip()]
+    else:
+        # Default: caller's My-Stocks set
+        sets = _cp.get_user_ticker_sets(user["id"])
+        sym_list = sorted(sets.get("all_mine", set()))
+
+    return _get_div_events(sym_list)
+
+
 @router.post("/api/calendar/refresh")
 def refresh_calendar():
     """Rebuild the calendar cache immediately — earnings from EW, actuals from Finnhub, econ from ForexFactory."""
