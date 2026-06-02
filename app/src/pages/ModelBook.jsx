@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import { useAuth } from '../context/AuthContext'
@@ -276,6 +276,7 @@ function StockDetail({ stockId, isAdmin }) {
           showDrawingTools={false}
           entryDate={`${stock.year}-01-01`}
           exitDate={`${stock.year}-12-31`}
+          exactDateRange
           priceScaleTopMargin={0.06}
           markers={markers}
           priceLines={priceLines}
@@ -391,6 +392,30 @@ export default function ModelBook() {
     mutateStocks()
   }
 
+  // Keyboard ↑/↓ to move through the (sorted) stock list. A ref holds the latest
+  // list + selection so the listener is bound once, not re-subscribed per change.
+  const navRef = useRef({ list: [], id: null })
+  useEffect(() => { navRef.current = { list: sortedStocks, id: selectedId } }, [sortedStocks, selectedId])
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const t = e.target
+      const tag = (t?.tagName || '').toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return
+      const { list, id } = navRef.current
+      if (!list.length) return
+      e.preventDefault()
+      const idx = list.findIndex(s => s.id === id)
+      let next = idx === -1 ? 0 : (e.key === 'ArrowDown' ? idx + 1 : idx - 1)
+      next = Math.max(0, Math.min(list.length - 1, next))
+      const target = list[next]
+      setSelectedId(target.id)
+      document.querySelector(`[data-stock-id="${target.id}"]`)?.scrollIntoView({ block: 'nearest' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // Drag-resizable gallery sidebar (persisted), so long company names fit.
   const [panelWidth, setPanelWidth] = useState(() => {
     const v = Number(localStorage.getItem('modelbook_panel_width'))
@@ -455,6 +480,7 @@ export default function ModelBook() {
             return (
               <div
                 key={s.id}
+                data-stock-id={s.id}
                 className={`${styles.stockCard} ${selectedId === s.id ? styles.stockCardActive : ''}`}
                 onClick={() => setSelectedId(s.id)}
               >

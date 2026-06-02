@@ -296,6 +296,7 @@ export default function StockChart({
   entryDate = null,         // ISO date string — zoom centers on trade holding period
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
+  exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -2688,7 +2689,19 @@ export default function StockChart({
       if (!didPreserve) {
         // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
         // center the view on the trade window with 20-bar padding each side.
-        if (entryDate && filteredBars.length > 0) {
+        if (entryDate && exactDateRange && filteredBars.length > 0) {
+          // Exact window: first bar >= entryDate .. last bar <= exitDate, no padding.
+          // Used by Model Book to show exactly one calendar year's move.
+          const startIdx = Math.max(0, filteredBars.findIndex(b => b.t >= entryDate))
+          let endIdx = filteredBars.length - 1
+          if (exitDate) {
+            for (let i = filteredBars.length - 1; i >= 0; i--) {
+              if (filteredBars[i].t <= exitDate) { endIdx = i; break }
+            }
+          }
+          if (endIdx < startIdx) endIdx = filteredBars.length - 1
+          chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
+        } else if (entryDate && filteredBars.length > 0) {
           const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
           const exitIdx  = exitDate
             ? filteredBars.findIndex(b => b.t >= exitDate)
