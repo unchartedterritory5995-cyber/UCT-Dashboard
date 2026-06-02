@@ -5,7 +5,7 @@
  * A net-posture line summarizes the paired board. The Signal of the Day is marked
  * with a gold ★; the notable divergence with a ◆ (and pulses when unpaired).
  */
-import { metricValue, netPosture } from './breadthViewShared'
+import { metricValue, netPosture, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
 function Side({ metric, value, share, align, color, onDrill }) {
@@ -27,14 +27,14 @@ function Side({ metric, value, share, align, color, onDrill }) {
   )
 }
 
-function SingleBar({ metric, norm, value, onDrill, isSignal, isNotable }) {
+function SingleBar({ metric, norm, value, onDrill, isSignal, isNotable, colors }) {
   const clickable = !!metric?.drillKey
   const polarity = metric.polarity === 'bear' ? 'bear' : 'bull'
   const n = norm == null ? 50 : norm
   const effBull = polarity === 'bear' ? (50 - n) : (n - 50)  // -50..50
   const isBull = effBull >= 0
   const mag = Math.min(100, Math.abs(effBull) / 50 * 100)
-  const color = isBull ? '#16a34a' : '#b91c1c'
+  const color = isBull ? colors.bull : colors.bear
   const bar = (
     <div
       role={clickable ? 'button' : undefined}
@@ -61,11 +61,12 @@ function SingleBar({ metric, norm, value, onDrill, isSignal, isNotable }) {
   )
 }
 
-export default function TugView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
+export default function TugView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || metrics.length === 0) return null
   const ups = metrics.filter(m => m.pair && m.pair.side === 'up')
   const unpaired = metrics.filter(m => !m.pair)
   const posture = netPosture(metrics, currentRow)
+  const colors = resolveViewColors(options.palette, options.intensity)
 
   // Prefix the center label of a paired row when either side is a flagged signal.
   const prefixFor = (...keys) => {
@@ -90,20 +91,20 @@ export default function TugView({ currentRow, metrics, normalize, onDrill, signa
           <div key={up.key} style={{ display: 'grid', gridTemplateColumns: '1fr 92px 1fr',
                                       alignItems: 'center', gap: 6 }}>
             <Side metric={down} value={down ? down.getFmt(currentRow) : '—'} share={dShare}
-                  align="right" color="#b91c1c" onDrill={onDrill} />
+                  align="right" color={colors.bear} onDrill={onDrill} />
             <div style={{ textAlign: 'center', font: '700 8px Instrument Sans, sans-serif',
                           letterSpacing: '.5px', color: isGold ? '#c9a84c' : '#94a3b8', textTransform: 'uppercase' }}>
               {prefix}{label}
             </div>
             <Side metric={up} value={up.getFmt(currentRow)} share={uShare}
-                  align="left" color="#16a34a" onDrill={onDrill} />
+                  align="left" color={colors.bull} onDrill={onDrill} />
           </div>
         )
       })}
       {unpaired.map(m => (
         <SingleBar key={m.key} metric={m} value={m.getFmt(currentRow)}
                    norm={normalize ? normalize(m, currentRow) : null} onDrill={onDrill}
-                   isSignal={m.key === signalKey} isNotable={m.key === notableKey} />
+                   isSignal={m.key === signalKey} isNotable={m.key === notableKey} colors={colors} />
       ))}
       {posture != null && (
         <div style={{ textAlign: 'center', marginTop: 10,

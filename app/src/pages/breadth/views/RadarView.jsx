@@ -3,6 +3,8 @@
  * "shape" of the board. A balanced market = big even polygon; a lopsided one =
  * a spiky dent. Signal of the Day axis label is gold ★; notable is amber.
  */
+import { resolveViewColors } from './breadthViewShared'
+
 export default function RadarView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || (metrics?.length ?? 0) < 3) {
     return (
@@ -13,6 +15,7 @@ export default function RadarView({ currentRow, metrics, normalize, onDrill, sig
   }
   const MAX_SPOKES = options.maxSpokes ?? 14
   const asListed = options.spokeSelect === 'listed'
+  const colors = resolveViewColors(options.palette, options.intensity)
   const ext = (m) => Math.abs((normalize(m, currentRow) ?? 50) - 50)
   const capped = metrics.length > MAX_SPOKES
   let shown = metrics
@@ -56,8 +59,8 @@ export default function RadarView({ currentRow, metrics, normalize, onDrill, sig
           const [x, y] = pt(i, R)
           return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#1e293b" />
         })}
-        <polygon points={polyStr} fill="rgba(52,211,153,.18)" stroke="#34d399" strokeWidth="2" />
-        {valPts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r="2.5" fill="#34d399" />)}
+        <polygon points={polyStr} fill={`${colors.bull}2e`} stroke={colors.bull} strokeWidth="2" />
+        {valPts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r="2.5" fill={colors.bull} />)}
         {shown.map((m, i) => {
           const [lx, ly] = pt(i, R + 14)
           const isSignal = m.key === signalKey

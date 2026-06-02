@@ -3,10 +3,10 @@
  * history (color = up/down vs the window start). Signal of the Day card has a
  * gold ★ + border; the notable card pulses.
  */
-import { metricValue, sortVisibleMetrics } from './breadthViewShared'
+import { metricValue, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-function buildSpark(values, polarity) {
+function buildSpark(values, polarity, bull = '#34d399', bear = '#f87171') {
   const vals = values.filter(v => v != null)
   if (vals.length < 2) return null
   const min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1
@@ -19,7 +19,7 @@ function buildSpark(values, polarity) {
   // rising raw value is bearish, so invert.
   const rising = vals[vals.length - 1] >= vals[0]
   const bullish = polarity === 'bear' ? !rising : rising
-  return { pts, color: bullish ? '#34d399' : '#f87171' }
+  return { pts, color: bullish ? bull : bear }
 }
 
 export default function ScoreboardView({ currentRow, recentRows = [], metrics, onDrill, signalKey, notableKey, normalize, options = {} }) {
@@ -28,6 +28,7 @@ export default function ScoreboardView({ currentRow, recentRows = [], metrics, o
   const compact = options.density === 'compact'
   const win = options.sparkWindow ?? 20
   const ordered = normalize ? sortVisibleMetrics(metrics, sort, normalize, currentRow) : metrics
+  const colors = resolveViewColors(options.palette, options.intensity)
   const asc = [...recentRows].slice(0, win).reverse()  // oldest → newest, windowed
   const pad = compact ? 7 : 10
   const minW = compact ? 96 : 120
@@ -38,7 +39,7 @@ export default function ScoreboardView({ currentRow, recentRows = [], metrics, o
           const isSignal = m.key === signalKey
           const isNotable = m.key === notableKey
           const clickable = !!m.drillKey
-          const sp = buildSpark(asc.map(r => metricValue(m, r)), m.polarity)
+          const sp = buildSpark(asc.map(r => metricValue(m, r)), m.polarity, colors.bull, colors.bear)
           return (
             <div key={m.key} onClick={clickable ? () => onDrill(m) : undefined}
                  role={clickable ? 'button' : undefined}
