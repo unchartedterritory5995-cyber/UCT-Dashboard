@@ -131,7 +131,7 @@ def _compute_year_stats(symbol: str, year: int) -> dict:
     if cached is not None:
         return cached
 
-    stats = {"open_close_pct": None, "low_high_pct": None}
+    stats = {"open_close_pct": None, "low_high_pct": None, "avg_vol": None}
     try:
         resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
         body = getattr(resp, "body", None)
@@ -144,10 +144,13 @@ def _compute_year_stats(symbol: str, year: int) -> dict:
             c = yb[-1].get("c")
             lows = [b["l"] for b in yb if b.get("l") is not None]
             highs = [b["h"] for b in yb if b.get("h") is not None]
+            vols = [b["v"] for b in yb if b.get("v") is not None]
             if o:
                 stats["open_close_pct"] = round((c - o) / o * 100, 1)
             if lows and highs and min(lows):
                 stats["low_high_pct"] = round((max(highs) - min(lows)) / min(lows) * 100, 1)
+            if vols:
+                stats["avg_vol"] = round(sum(vols) / len(vols))
     except Exception:
         pass
 
@@ -182,7 +185,7 @@ def _persist_stats_for(stocks, max_workers=2):
             st = _compute_year_stats(s["symbol"], s["year"])
             oc = st.get("open_close_pct")
             if oc is not None:  # don't persist failures
-                svc.save_stats(s["id"], oc, st.get("low_high_pct"))
+                svc.save_stats(s["id"], oc, st.get("low_high_pct"), st.get("avg_vol"))
         except Exception:
             pass
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:

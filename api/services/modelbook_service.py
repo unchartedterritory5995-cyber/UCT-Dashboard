@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   gain_pct    REAL,
   oc_pct      REAL,          -- cached year open->close % (closed years are static)
   lh_pct      REAL,          -- cached year low->high %
+  avg_vol     REAL,          -- cached avg daily volume for the year
   stats_at    INTEGER,       -- epoch when oc_pct/lh_pct were computed
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER,
@@ -86,6 +87,7 @@ def _init_db() -> None:
         for table, col, decl in (
             ("modelbook_stocks", "oc_pct", "REAL"),
             ("modelbook_stocks", "lh_pct", "REAL"),
+            ("modelbook_stocks", "avg_vol", "REAL"),
             ("modelbook_stocks", "stats_at", "INTEGER"),
         ):
             try:
@@ -128,13 +130,13 @@ def get_all_stocks() -> list[dict]:
         return [dict(r) for r in c.execute("SELECT * FROM modelbook_stocks").fetchall()]
 
 
-def save_stats(stock_id: int, oc_pct, lh_pct) -> None:
+def save_stats(stock_id: int, oc_pct, lh_pct, avg_vol=None) -> None:
     """Persist computed year price stats so they survive redeploys (closed-year
     stats are static, so this is a permanent cache)."""
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
-            "UPDATE modelbook_stocks SET oc_pct = ?, lh_pct = ?, stats_at = ? WHERE id = ?",
-            (oc_pct, lh_pct, int(time.time()), int(stock_id)),
+            "UPDATE modelbook_stocks SET oc_pct = ?, lh_pct = ?, avg_vol = ?, stats_at = ? WHERE id = ?",
+            (oc_pct, lh_pct, avg_vol, int(time.time()), int(stock_id)),
         )
         c.commit()
 

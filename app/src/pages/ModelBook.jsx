@@ -34,6 +34,20 @@ function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
 
+function fmtVol(v) {
+  if (v == null) return '—'
+  const n = Number(v)
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+  return String(Math.round(n))
+}
+
+function pctStr(v) {
+  if (v == null) return '—'
+  return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
+}
+
 function riskReward(s) {
   if (s.entry_price == null || s.stop_price == null || s.target_price == null) return null
   const risk = s.entry_price - s.stop_price
@@ -216,6 +230,9 @@ function StockDetail({ stockId, isAdmin }) {
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [editNarr, setEditNarr] = useState(false)
+  const [narrDraft, setNarrDraft] = useState('')
   // Derived: the picked setup if still present, else the first one (so its
   // price lines show by default). Avoids a setState-in-effect on stock change.
   const selectedSetupId = (pickedSetupId != null && setups.some(s => s.id === pickedSetupId))
@@ -245,6 +262,16 @@ function StockDetail({ stockId, isAdmin }) {
     mutate()
   }
 
+  async function saveNarrative() {
+    await fetch(`/api/modelbook/stock/${stock.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ thesis: narrDraft }),
+    })
+    setEditNarr(false)
+    mutate()
+  }
+
   if (!stockId) {
     return <div className={styles.emptyDetail}><p>Select a stock to view its chart and labeled setups.</p></div>
   }
@@ -258,6 +285,12 @@ function StockDetail({ stockId, isAdmin }) {
           <h2 className={styles.detailName}>
             {stock.symbol}
             {stock.company && <span className={styles.detailNameCo}>({stock.company})</span>}
+            <button
+              className={styles.infoToggle}
+              onClick={() => setInfoOpen(v => !v)}
+              title={infoOpen ? 'Hide details' : 'Show details'}
+              aria-label="Toggle stock details"
+            >{infoOpen ? '▾' : '▸'}</button>
             {stock.gain_pct != null && (
               <span className={styles.detailGain}>{stock.gain_pct >= 0 ? '+' : ''}{Math.round(stock.gain_pct)}%</span>
             )}
@@ -265,7 +298,48 @@ function StockDetail({ stockId, isAdmin }) {
         </div>
       </div>
 
-      {stock.thesis && <p className={styles.detailThesis}>{stock.thesis}</p>}
+      {infoOpen && (
+        <div className={styles.infoPanel}>
+          <div className={styles.infoStats}>
+            <div className={styles.infoStat}>
+              <span className={styles.infoStatLabel}>{stock.year} Gain</span>
+              <span className={`${styles.infoStatVal} ${(stock.oc_pct ?? 0) >= 0 ? styles.gain : styles.loss}`}>{pctStr(stock.oc_pct)}</span>
+            </div>
+            <div className={styles.infoStat}>
+              <span className={styles.infoStatLabel}>Low → High</span>
+              <span className={styles.infoStatVal}>{pctStr(stock.lh_pct)}</span>
+            </div>
+            <div className={styles.infoStat}>
+              <span className={styles.infoStatLabel}>Avg Daily Vol</span>
+              <span className={styles.infoStatVal}>{fmtVol(stock.avg_vol)}</span>
+            </div>
+          </div>
+
+          <div className={styles.infoNarrative}>
+            <div className={styles.infoNarrHead}>
+              <span className={styles.sectionLabel}>STORY / NARRATIVE</span>
+              {isAdmin && !editNarr && (
+                <button className={styles.addBtn} onClick={() => { setNarrDraft(stock.thesis || ''); setEditNarr(true) }}>
+                  {stock.thesis ? 'Edit' : '+ Add notes'}
+                </button>
+              )}
+            </div>
+            {editNarr ? (
+              <>
+                <textarea className={styles.textarea} style={{ minHeight: 120 }} value={narrDraft}
+                  placeholder="Performance, earnings, the story behind the move that year, key levels, etc."
+                  onChange={e => setNarrDraft(e.target.value)} />
+                <div className={styles.formActions}>
+                  <button className={styles.saveBtn} onClick={saveNarrative}>Save</button>
+                  <button className={styles.cancelBtn} onClick={() => setEditNarr(false)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <p className={styles.infoNarrText}>{stock.thesis || 'No notes yet.'}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className={styles.chartWrap}>
         <StockChart

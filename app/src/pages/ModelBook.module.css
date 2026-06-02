@@ -68,6 +68,17 @@
 .detailHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .detailName { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: baseline; gap: 10px; }
 .detailNameCo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text-muted); }
+.infoToggle { background: transparent; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.infoToggle:hover { color: var(--ut-gold); }
+
+/* ── Expandable info panel ── */
+.infoPanel { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.02); }
+.infoStats { display: flex; flex-wrap: wrap; gap: 28px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px; }
+.infoStat { display: flex; flex-direction: column; gap: 2px; }
+.infoStatLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+.infoStatVal { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.infoNarrHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.infoNarrText { font-size: 13px; line-height: 1.65; color: var(--text-secondary); margin: 0; white-space: pre-wrap; }
 .detailGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--ut-green, #3cb868); }
 .detailCompany { font-size: 12px; color: var(--text-muted); }
 .detailThesis { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 14px; }
