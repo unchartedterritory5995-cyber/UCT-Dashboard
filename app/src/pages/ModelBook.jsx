@@ -393,6 +393,7 @@ export default function ModelBook() {
               <div className={styles.stockCardTop}>
                 {s.sort_order ? <span className={styles.rank}>#{s.sort_order}</span> : null}
                 <span className={styles.stockSym}>{s.symbol}</span>
+                {s.company && <span className={styles.stockName}>({s.company})</span>}
                 {s.gain_pct != null && (
                   <span className={`${styles.stockGain} ${s.gain_pct >= 0 ? styles.gain : styles.loss}`}>
                     {s.gain_pct >= 0 ? '+' : ''}{s.gain_pct}%
@@ -400,7 +401,6 @@ export default function ModelBook() {
                 )}
                 <span className={styles.setupCount}>{s.setup_count} setup{s.setup_count === 1 ? '' : 's'}</span>
               </div>
-              {s.company && <span className={styles.stockCompany}>{s.company}</span>}
             </div>
           ))}
         </div>
