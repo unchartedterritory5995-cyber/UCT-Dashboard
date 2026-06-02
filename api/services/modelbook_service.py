@@ -261,3 +261,45 @@ def delete_setup(setup_id: int) -> bool:
         cur = c.execute("DELETE FROM modelbook_setups WHERE id = ?", (int(setup_id),))
         c.commit()
         return cur.rowcount > 0
+
+
+# ── One-time bootstrap seed ───────────────────────────────────────────────────
+
+# Initial curated lists. Seeded once at startup so the library isn't empty even
+# before the operator has admin rights to use the in-app curation UI.
+_SEED = {
+    2024: [
+        ("QUBT", "Quantum Computing Inc."), ("QBTS", "D-Wave Quantum"),
+        ("RGTI", "Rigetti Computing"), ("IONQ", "IonQ"),
+        ("ASTS", "AST SpaceMobile"), ("AAOI", "Applied Optoelectronics"),
+        ("APP", "AppLovin"), ("MSTR", "MicroStrategy"),
+        ("OKLO", "Oklo"), ("PLTR", "Palantir Technologies"),
+    ],
+    2025: [
+        ("SNDK", "SanDisk"), ("APLD", "Applied Digital"),
+        ("BE", "Bloom Energy"), ("CIFR", "Cipher Mining"),
+        ("AXTI", "AXT Inc."), ("ASTS", "AST SpaceMobile"),
+        ("CLS", "Celestica"), ("IREN", "IREN Ltd"),
+        ("MU", "Micron Technology"), ("ONDS", "Ondas Holdings"),
+    ],
+}
+
+
+def seed_initial() -> None:
+    """One-time seed of the initial model-book lists. Gated by a flag file
+    (mirrors the DATA_DIR heal-flag idiom) so it runs once ever and never fights
+    future manual curation — once seeded, operator deletions stick across deploys.
+    Upserts on (year, symbol), so it's also safe if some rows already exist."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        ".modelbook_seed_v1")
+    if os.path.exists(flag):
+        return
+    for year, rows in _SEED.items():
+        for i, (symbol, company) in enumerate(rows):
+            create_stock({"year": year, "symbol": symbol,
+                          "company": company, "sort_order": i + 1})
+    try:
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("seeded\n")
+    except OSError:
+        pass
