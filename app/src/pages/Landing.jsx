@@ -1,6 +1,20 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import useInView from '../hooks/useIntersectionObserver'
 import styles from './Landing.module.css'
+
+function FadeIn({ children, delay = 0, className = '' }) {
+  const [ref, isInView] = useInView()
+  return (
+    <div
+      ref={ref}
+      className={`${styles.fadeIn} ${isInView ? styles.fadeInVisible : ''} ${className}`}
+      style={delay ? { transitionDelay: `${delay}ms` } : undefined}
+    >
+      {children}
+    </div>
+  )
+}
 
 const EQUITY_PATH_D =
   'M 90 580 C 150 575, 180 555, 210 540 S 270 510, 310 535 ' +
@@ -23,6 +37,7 @@ const FEATURES = [
 ]
 
 export default function Landing() {
+  const [billing, setBilling] = useState('monthly') // 'monthly' | 'annual'
   const pathRef          = useRef(null)
   const drawnRef         = useRef(null)
   const fillClipRectRef  = useRef(null)
@@ -301,26 +316,34 @@ export default function Landing() {
 
       {/* ── How it works ── */}
       <section className={styles.how}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionH2}>From signup to first trade in 10 minutes.</h2>
-          <p className={styles.sectionP}>No setup, no broker connection, no learning curve.</p>
-        </div>
+        <FadeIn>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionH2}>From signup to first trade in 10 minutes.</h2>
+            <p className={styles.sectionP}>No setup, no broker connection, no learning curve.</p>
+          </div>
+        </FadeIn>
         <div className={styles.howGrid}>
-          <div className={styles.howStep}>
-            <div className={styles.howNum}>1</div>
-            <h3 className={styles.howH3}>Sign up free</h3>
-            <p className={styles.howP}>60 seconds. Dashboard, Breadth, Charts, Journal, and Options Flow unlock immediately. No card required.</p>
-          </div>
-          <div className={styles.howStep}>
-            <div className={styles.howNum}>2</div>
-            <h3 className={styles.howH3}>Read the wire</h3>
-            <p className={styles.howP}>Every weekday at 7:35 AM ET the AI brief lands on your dashboard with regime, exposure, and the top 5 picks with entry triggers.</p>
-          </div>
-          <div className={styles.howStep}>
-            <div className={styles.howNum}>3</div>
-            <h3 className={styles.howH3}>Trade with the coach</h3>
-            <p className={styles.howP}>Compass watches every trade. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews. You stay disciplined.</p>
-          </div>
+          <FadeIn delay={0}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>1</div>
+              <h3 className={styles.howH3}>Sign up free</h3>
+              <p className={styles.howP}>60 seconds. Five core tools unlock immediately — no card required.</p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={120}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>2</div>
+              <h3 className={styles.howH3}>Read the wire</h3>
+              <p className={styles.howP}>Every weekday at 7:35 AM ET, the brief lands with regime, exposure, and the top 5 picks with entry triggers.</p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={240}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>3</div>
+              <h3 className={styles.howH3}>Trade with the coach</h3>
+              <p className={styles.howP}>Compass watches every trade. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews.</p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -382,20 +405,79 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Compass mockup ── */}
+      <section className={styles.compassSec}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>And a coach watching every trade.</h2>
+          <p className={styles.sectionP}>
+            Compass learns your setups, your sizing rules, your tilt patterns. Before
+            you click buy, it gives you a verdict. After the trade, a post-mortem.
+          </p>
+        </div>
+        <div className={styles.compassMock}>
+          <div className={styles.compassHead}>
+            <span className={styles.compassMark} aria-hidden="true">⊕</span>
+            <span className={styles.compassTitle}>Compass</span>
+            <span className={styles.compassStatus}>● Active</span>
+          </div>
+          <div className={`${styles.compassMsg} ${styles.compassMsgUser}`}>
+            Thinking about NVDA above $1,142 here — 200 shares, stop at $1,108. What do you think?
+          </div>
+          <div className={styles.compassMsg}>
+            You've taken 3 trades this morning and 2 were stopped. Per your profile, after 2 stops in a session you wait for a clean A+ setup. This one is B+ at best — chasing breakout, no clean base.
+          </div>
+          <div className={styles.compassVerdict}>
+            <span className={styles.compassBadge}>SKIP</span>
+            <span className={styles.compassVerdictText}>
+              Risk = $6,800 against your $400 daily R limit. Sit this one out — Compass will alert if a cleaner setup forms.
+            </span>
+          </div>
+          <div className={styles.compassFoot}>
+            Pre-trade verdicts · post-mortems · weekly reviews · talk to it by voice
+          </div>
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
       <section id="pricing" className={styles.price}>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionH2}>One plan. Everything included.</h2>
-          <p className={styles.sectionP}>$20 a month — less than $1/day. Cancel anytime.</p>
+          <p className={styles.sectionP}>Less than $1 a day. Cancel anytime, in one click.</p>
+        </div>
+        <div className={styles.billingToggle} role="tablist" aria-label="Billing period">
+          <button
+            role="tab"
+            aria-selected={billing === 'monthly'}
+            className={`${styles.billingBtn} ${billing === 'monthly' ? styles.billingBtnActive : ''}`}
+            onClick={() => setBilling('monthly')}
+          >
+            Monthly
+          </button>
+          <button
+            role="tab"
+            aria-selected={billing === 'annual'}
+            className={`${styles.billingBtn} ${billing === 'annual' ? styles.billingBtnActive : ''}`}
+            onClick={() => setBilling('annual')}
+          >
+            Annual
+            <span className={styles.billingSave}>Save $40</span>
+          </button>
         </div>
         <div className={styles.priceCard}>
           <div className={styles.priceTop}>
             <div>
               <div className={styles.priceBadge}>Pro</div>
               <div className={styles.priceAmt}>
-                $20<span className={styles.pricePer}>/month</span>
+                {billing === 'monthly' ? '$20' : '$200'}
+                <span className={styles.pricePer}>
+                  {billing === 'monthly' ? '/month' : '/year'}
+                </span>
               </div>
-              <div className={styles.priceValueLine}>Less than $1 a day.</div>
+              <div className={styles.priceValueLine}>
+                {billing === 'monthly'
+                  ? 'Less than $1 a day.'
+                  : '$16.67/month, billed annually. Save $40.'}
+              </div>
             </div>
           </div>
           <ul className={styles.priceUl}>
@@ -408,7 +490,12 @@ export default function Landing() {
             <li>Charts Workspace + 8 timeframes</li>
             <li>Voice Assistant + real-time streaming</li>
           </ul>
-          <Link to="/signup?plan=pro" className={styles.priceCta}>Get started</Link>
+          <Link
+            to={`/signup?plan=pro&billing=${billing}`}
+            className={styles.priceCta}
+          >
+            Get started
+          </Link>
           <div className={styles.priceNote}>No contracts. Cancel in one click.</div>
         </div>
         <div className={styles.freeBlock}>
@@ -559,10 +646,20 @@ export default function Landing() {
           Built on the methodologies of Qullamaggie, Minervini, O'Neil, Kell, and Bonde.
           Not investment advice — trade at your own risk.
         </div>
+        <div className={styles.footMade}>
+          Hand-built by a trader, for traders.
+        </div>
         <div className={styles.footCopy}>
           &copy; {new Date().getFullYear()} Uncharted Territory
         </div>
       </footer>
+
+      {/* ── Sticky mobile CTA (visible on phones only) ── */}
+      <Link to="/signup?plan=free" className={styles.stickyCta}>
+        <span className={styles.stickyCtaText}>Start free</span>
+        <span className={styles.stickyCtaSub}>5 tools · no card required</span>
+        <span className={styles.stickyCtaArrow} aria-hidden="true">→</span>
+      </Link>
     </div>
   )
 }
