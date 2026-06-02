@@ -119,6 +119,26 @@ def rundown(type: Optional[str] = Query(None)):
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/rundown/speech-text")
+def rundown_speech_text():
+    """Canonical Read-Aloud text for today's rundown: the briefing (Today's
+    Focus + narrative), widgets stripped. The frontend speaks THIS so it matches
+    the pre-warmed audio exactly; the `sentences` list drives follow-along
+    highlighting. Returns empty strings (not an error) when no rundown is loaded."""
+    from api.services.rundown_speech import extract_rundown_speech_text, split_sentences
+    try:
+        r = get_rundown()
+    except Exception:
+        r = None
+    html = (r or {}).get("html", "") if isinstance(r, dict) else ""
+    text = extract_rundown_speech_text(html)
+    return {
+        "date": (r or {}).get("date", "") if isinstance(r, dict) else "",
+        "text": text,
+        "sentences": split_sentences(text),
+    }
+
+
 @router.get("/api/uct20/portfolio")
 def uct20_portfolio():
     try:

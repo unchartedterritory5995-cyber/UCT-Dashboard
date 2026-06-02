@@ -27,6 +27,7 @@ from api.services.voice_usage import (
     MODE_A_DEFAULT_CAP_SECONDS,
 )
 from api.services.voice_audio_cache import get_cached, put_cached, cached_file_path
+from api.services.voice_text_normalize import normalize_for_speech
 from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
 
 # Per-request OpenAI limit is MAX_INPUT_CHARS (~4k); the synth layer auto-chunks
@@ -129,6 +130,7 @@ def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
     """Return cached audio or a StreamingResponse that synthesizes + caches.
     Long text is auto-chunked by the synth layer and streamed progressively, so
     the browser starts playing the first chunk while later ones synthesize."""
+    text = normalize_for_speech(text)  # tickers/%/abbreviations → spoken form
     cached = get_cached(text, voice=voice, speed=speed)
     if cached is not None:
         return Response(content=cached, media_type="audio/mpeg")
@@ -223,6 +225,7 @@ def tts_stream(request: Request, token: str, user: dict = Depends(requires_voice
     # Keep the token (don't pop) so the <audio> element may re-request within TTL
     # (e.g. when the user seeks — the browser re-issues a ranged GET).
     text, voice, speed = entry["text"], entry["voice"], entry["speed"]
+    text = normalize_for_speech(text)  # same normalization as the pre-warm job
 
     # Serve a real file so FileResponse advertises Accept-Ranges and answers
     # range requests → the <audio> element is seekable (scrub / fast-forward).

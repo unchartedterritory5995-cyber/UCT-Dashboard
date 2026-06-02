@@ -60,6 +60,15 @@ def push_wire_data(
     except Exception:
         pass
 
+    # Pre-synthesize today's read-aloud so the first listener gets instant audio.
+    try:
+        from api.services.voice_prewarm import prewarm_rundown_async
+        rundown_html = payload.get("rundown_html") or ""
+        if rundown_html:
+            prewarm_rundown_async(rundown_html)
+    except Exception:
+        pass
+
     return {"ok": True, "date": payload.get("date", "")}
 
 

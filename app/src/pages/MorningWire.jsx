@@ -132,7 +132,19 @@ export default function MorningWire() {
           <ReadAloudButton
             trackId={`morning-wire-${rundown?.date || 'today'}`}
             label="Morning Wire"
-            textProvider={() => rundownToSpeechText(rundown?.html)}
+            textProvider={async () => {
+              // Prefer the server's canonical briefing text so it matches the
+              // pre-warmed audio exactly (instant cache hit). Fall back to
+              // client-side extraction if the endpoint is unavailable.
+              try {
+                const r = await fetch('/api/rundown/speech-text', { credentials: 'include' })
+                if (r.ok) {
+                  const d = await r.json()
+                  if (d && d.text) return d.text
+                }
+              } catch { /* fall through */ }
+              return rundownToSpeechText(rundown?.html)
+            }}
             size="md"
           >
             Read aloud
