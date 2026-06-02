@@ -103,6 +103,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
                 "rev_act": _to_m(c.get("rev_act")),
                 "ew":      int(c.get("ew", c.get("ew_total", 0)) or 0),
                 "mc_b":    c.get("mc_b"),   # market cap in billions (for client-side filtering)
+                "time_et": c.get("time_et"),  # A5: precise report time (ISO string in ET or None)
             }
 
         def _keep(c: dict) -> bool:
@@ -282,6 +283,9 @@ def _build_live(week_dates: list[date], today: date) -> dict:
         for item in raw:
             sym = item["symbol"]
             seen.add(sym)
+            # A5: thread any precise report time (EW doesn't provide one yet;
+            # placeholder for future enrichment — field is None by default)
+            time_et = item.get("report_time_et") or item.get("time_et") or None
             entry = {
                 "sym":     sym,
                 "eps_est": _clean_eps_live(item.get("eps_estimate")),
@@ -289,6 +293,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
                 "rev_est": item.get("rev_estimate"),  # already in millions from _fetch_ew_live
                 "rev_act": item.get("rev_actual"),    # already in millions from _fetch_ew_live
                 "ew":      int(item.get("ew_total", 0) or 0),
+                "time_et": time_et,   # A5: ISO datetime string in ET, or None
             }
             (bmo if item["hour"] == "bmo" else amc).append(entry)
 
