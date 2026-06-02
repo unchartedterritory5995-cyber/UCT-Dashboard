@@ -155,20 +155,22 @@ function computeHVC(bars) {
   return hvcSet
 }
 
-function computePaneMargins(cs, hasVolume) {
+function computePaneMargins(cs, hasVolume, excludeKeys) {
   const ind = cs.indicators || {}
+  // Indicators overlaid into the volume pane no longer reserve a pane-0 band.
+  const ex = excludeKeys instanceof Set ? excludeKeys : new Set(excludeKeys || [])
   // Define all possible sub-panes in stacking order (bottom of chart → top)
   // Each entry: key (used in returned object), enabled flag, base height fraction
   const PANES = [
-    { key: 'obv',       enabled: !!ind.obv?.enabled,       baseH: 0.13 },
-    { key: 'atr',       enabled: !!ind.atr?.enabled,       baseH: 0.13 },
-    { key: 'adx',       enabled: !!ind.adx?.enabled,       baseH: 0.15 },
-    { key: 'macd',      enabled: !!ind.macd?.enabled,      baseH: 0.17 },
-    { key: 'cci',       enabled: !!ind.cci?.enabled,       baseH: 0.15 },
-    { key: 'williamsR', enabled: !!ind.williamsR?.enabled, baseH: 0.15 },
-    { key: 'mfi',       enabled: !!ind.mfi?.enabled,       baseH: 0.15 },
-    { key: 'stoch',     enabled: !!ind.stoch?.enabled,     baseH: 0.15 },
-    { key: 'rsi',       enabled: !!ind.rsi?.enabled,       baseH: 0.15 },
+    { key: 'obv',       enabled: !!ind.obv?.enabled       && !ex.has('obv'),       baseH: 0.13 },
+    { key: 'atr',       enabled: !!ind.atr?.enabled       && !ex.has('atr'),       baseH: 0.13 },
+    { key: 'adx',       enabled: !!ind.adx?.enabled       && !ex.has('adx'),       baseH: 0.15 },
+    { key: 'macd',      enabled: !!ind.macd?.enabled      && !ex.has('macd'),      baseH: 0.17 },
+    { key: 'cci',       enabled: !!ind.cci?.enabled       && !ex.has('cci'),       baseH: 0.15 },
+    { key: 'williamsR', enabled: !!ind.williamsR?.enabled && !ex.has('williamsR'), baseH: 0.15 },
+    { key: 'mfi',       enabled: !!ind.mfi?.enabled       && !ex.has('mfi'),       baseH: 0.15 },
+    { key: 'stoch',     enabled: !!ind.stoch?.enabled     && !ex.has('stoch'),     baseH: 0.15 },
+    { key: 'rsi',       enabled: !!ind.rsi?.enabled       && !ex.has('rsi'),       baseH: 0.15 },
     { key: 'volume',    enabled: hasVolume,                baseH: 0.15 },
   ]
   const active = PANES.filter(p => p.enabled)
@@ -527,6 +529,7 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
+  const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
   const bbUpperRef    = useRef(null)
   const bbMiddleRef   = useRef(null)
@@ -705,6 +708,19 @@ export default function StockChart({
         onSelect: () => setCs(`indicators.${key}.enabled`, !cs.indicators?.[key]?.enabled),
       })),
     }
+    // "Overlay on volume": move an enabled oscillator into the volume pane
+    // (left axis) instead of its own band. Only oscillators currently ON appear.
+    const volOverlayCur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+    const enabledOsc = IND_OPTS.filter(([key]) => !!cs.indicators?.[key]?.enabled)
+    const volumeOverlayItem = (showVolumeProp === undefined && cs.volume?.visible && enabledOsc.length) ? {
+      id: 'voloverlay', label: '🔗 Overlay on volume', kind: 'submenu',
+      submenu: enabledOsc.map(([key, label]) => ({
+        id: 'vo-' + key, label, kind: 'toggle', checked: volOverlayCur.includes(key),
+        onSelect: () => setCs('volumeOverlayIndicators', volOverlayCur.includes(key)
+          ? volOverlayCur.filter((k) => k !== key)
+          : [...volOverlayCur, key]),
+      })),
+    } : null
 
     const secs = []
 
@@ -759,6 +775,7 @@ export default function StockChart({
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
       items.push(indicatorsItem)
+      if (volumeOverlayItem) items.push(volumeOverlayItem)
       secs.push({ id: 'region', title: 'Chart', items })
       if (tfSection) secs.push(tfSection)
       secs.push(ctSection)
@@ -2081,30 +2098,69 @@ export default function StockChart({
       }
     }
 
+    // ── Volume-pane indicator overlay ──
+    // Chosen oscillators render INSIDE the volume pane on its left axis (volume
+    // keeps the right axis) instead of their own stacked band. This requires a
+    // real volume pane, so any overlay forces separate-pane mode.
+    const volOverlaySet = new Set(
+      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
+    )
+
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
-    const volSeparatePane = !!cs.volume.separatePane
-    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane)
+    const volSeparatePane = !!cs.volume.separatePane || volOverlaySet.size > 0
+    const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
+    const VOL_PANE_INDEX = 1
+    // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
+    // pane's left axis; otherwise its own named scale in pane 0 (= today).
+    const indTarget = (key) => (volSeparatePane && volOverlaySet.has(key))
+      ? { pane: VOL_PANE_INDEX, scaleId: 'left' }
+      : { pane: 0, scaleId: key }
+    // Recreate the series when its target scale changes (scale id / pane are
+    // fixed at creation). refs = the series ref(s) for that indicator.
+    const ensureIndTarget = (key, refs) => {
+      const tgt = indTarget(key)
+      if (indScaleRef.current[key] != null && indScaleRef.current[key] !== tgt.scaleId) {
+        for (const r of refs) { if (r.current) { try { chart.removeSeries(r.current) } catch {}; r.current = null } }
+      }
+      indScaleRef.current[key] = tgt.scaleId
+      return tgt
+    }
+    // Apply the scale options for an indicator given its target. Overlaid uses a
+    // visible, autoscaled left axis; non-overlaid keeps its pane-0 band config.
+    const applyIndScale = (key, series, tgt, bandExtra) => {
+      try {
+        if (tgt.scaleId === 'left') {
+          series.priceScale().applyOptions({ borderVisible: false, visible: true, autoScale: true, scaleMargins: { top: 0.12, bottom: 0.04 } })
+        } else {
+          series.priceScale().applyOptions({ borderVisible: false, scaleMargins: paneMargins[key] || { top: 0.82, bottom: 0 }, ...(bandExtra || {}) })
+        }
+      } catch {}
+    }
     if (showVolume && volData.length) {
-      // If the render mode changed (overlay <-> separate pane), recreate the
-      // series — priceScaleId / paneIndex are fixed at creation time.
-      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeparatePane) {
+      // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
+      // overlaid indicator can take the LEFT axis. Overlay mode keeps the
+      // invisible overlay scale ('').
+      const volScaleId = volSeparatePane ? 'right' : ''
+      // priceScaleId / paneIndex are fixed at creation, so recreate when the
+      // target scale changes (overlay <-> separate pane, or legacy migration).
+      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volScaleId) {
         try { chart.removeSeries(volumeSeriesRef.current) } catch {}
         volumeSeriesRef.current = null
       }
       if (!volumeSeriesRef.current) {
         const vs = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
-          priceScaleId: volSeparatePane ? 'volume' : '',
+          priceScaleId: volScaleId,
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
-        volumeSeparatePaneRef.current = volSeparatePane
+        volumeSeparatePaneRef.current = volScaleId
       }
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
-        volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } })
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.1, bottom: 0 } })
         try {
           // Stretch factors are relative, so price=(100-pct) / volume=pct makes
           // the volume pane occupy exactly pct% of the chart height.
@@ -2200,28 +2256,23 @@ export default function StockChart({
     // ── RSI sub-pane ──
     if (indicatorData.rsi.length) {
       const rsiColor = cs.indicators?.rsi?.color || '#7b68ee'
+      const rsiTgt = ensureIndTarget('rsi', [rsiSeriesRef])
       if (!rsiSeriesRef.current) {
         rsiSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'rsi',
+          priceScaleId: rsiTgt.scaleId,
           color: rsiColor,
           lineWidth: 1,
           priceLineVisible: false,
           lastValueVisible: false,
           crosshairMarkerVisible: false,
-        })
-        chart.priceScale('rsi').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.rsi || { top: 0.82, bottom: 0 },
-          autoScale: false,
-          minimum: 0,
-          maximum: 100,
-        })
+        }, rsiTgt.pane)
+        applyIndScale('rsi', rsiSeriesRef.current, rsiTgt, { autoScale: false, minimum: 0, maximum: 100 })
         rsiSeriesRef.current.createPriceLine({ price: 70, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
         rsiSeriesRef.current.createPriceLine({ price: 50, color: 'rgba(123,104,238,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
         rsiSeriesRef.current.createPriceLine({ price: 30, color: 'rgba(123,104,238,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         rsiSeriesRef.current.applyOptions({ color: rsiColor })
-        chart.priceScale('rsi').applyOptions({ scaleMargins: paneMargins.rsi || { top: 0.82, bottom: 0 } })
+        applyIndScale('rsi', rsiSeriesRef.current, rsiTgt)
       }
       rsiSeriesRef.current.setData(indicatorData.rsi)
     } else if (rsiSeriesRef.current) {
@@ -2233,33 +2284,28 @@ export default function StockChart({
     const stochCfg = cs.indicators?.stoch
     const stochD   = indicatorData.stoch
     if (stochD.k.length) {
+      const stochTgt = ensureIndTarget('stoch', [stochKRef, stochDRef])
       if (!stochKRef.current) {
         stochKRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'stoch',
+          priceScaleId: stochTgt.scaleId,
           color: stochCfg?.kColor || '#FF6B6B',
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
+        }, stochTgt.pane)
         stochDRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'stoch',
+          priceScaleId: stochTgt.scaleId,
           color: stochCfg?.dColor || '#4ECDC4',
           lineWidth: 1,
           lineStyle: 2,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('stoch').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.stoch || { top: 0.82, bottom: 0 },
-          autoScale: false,
-          minimum: 0,
-          maximum: 100,
-        })
+        }, stochTgt.pane)
+        applyIndScale('stoch', stochKRef.current, stochTgt, { autoScale: false, minimum: 0, maximum: 100 })
         stochKRef.current.createPriceLine({ price: 80, color: 'rgba(255,107,107,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
         stochKRef.current.createPriceLine({ price: 20, color: 'rgba(78,205,196,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         stochKRef.current.applyOptions({ color: stochCfg?.kColor || '#FF6B6B' })
         stochDRef.current.applyOptions({ color: stochCfg?.dColor || '#4ECDC4' })
-        chart.priceScale('stoch').applyOptions({ scaleMargins: paneMargins.stoch || { top: 0.82, bottom: 0 } })
+        applyIndScale('stoch', stochKRef.current, stochTgt)
       }
       stochKRef.current.setData(stochD.k)
       stochDRef.current.setData(stochD.d)
@@ -2273,34 +2319,31 @@ export default function StockChart({
     const macdCfg = cs.indicators?.macd
     const macdD   = indicatorData.macd
     if (macdD.macd.length) {
+      const macdTgt = ensureIndTarget('macd', [macdLineRef, macdSignalRef, macdHistRef])
       if (!macdLineRef.current) {
         macdLineRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'macd',
+          priceScaleId: macdTgt.scaleId,
           color: macdCfg?.macdColor || '#2196F3',
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
+        }, macdTgt.pane)
         macdSignalRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'macd',
+          priceScaleId: macdTgt.scaleId,
           color: macdCfg?.signalColor || '#FF9800',
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
+        }, macdTgt.pane)
         macdHistRef.current = chart.addSeries(HistogramSeries, {
-          priceScaleId: 'macd',
+          priceScaleId: macdTgt.scaleId,
           priceFormat: { type: 'price', precision: 5 },
           priceLineVisible: false, lastValueVisible: false,
-        })
-        chart.priceScale('macd').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.macd || { top: 0.80, bottom: 0 },
-          autoScale: true,
-        })
+        }, macdTgt.pane)
+        applyIndScale('macd', macdLineRef.current, macdTgt, { autoScale: true })
         macdLineRef.current.createPriceLine({ price: 0, color: 'rgba(255,255,255,0.12)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
       } else {
         macdLineRef.current.applyOptions({ color: macdCfg?.macdColor || '#2196F3' })
         macdSignalRef.current.applyOptions({ color: macdCfg?.signalColor || '#FF9800' })
-        chart.priceScale('macd').applyOptions({ scaleMargins: paneMargins.macd || { top: 0.80, bottom: 0 } })
+        applyIndScale('macd', macdLineRef.current, macdTgt)
       }
       macdLineRef.current.setData(macdD.macd)
       macdSignalRef.current.setData(macdD.signal)
@@ -2314,23 +2357,20 @@ export default function StockChart({
     // ── ATR sub-pane ──
     if (indicatorData.atr.length) {
       const atrColor = cs.indicators?.atr?.color || '#FFA726'
+      const atrTgt = ensureIndTarget('atr', [atrSeriesRef])
       if (!atrSeriesRef.current) {
         atrSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'atr',
+          priceScaleId: atrTgt.scaleId,
           color: atrColor,
           lineWidth: 1,
           priceLineVisible: false,
           lastValueVisible: false,
           crosshairMarkerVisible: false,
-        })
-        chart.priceScale('atr').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.atr || { top: 0.86, bottom: 0 },
-          autoScale: true,
-        })
+        }, atrTgt.pane)
+        applyIndScale('atr', atrSeriesRef.current, atrTgt, { autoScale: true })
       } else {
         atrSeriesRef.current.applyOptions({ color: atrColor })
-        chart.priceScale('atr').applyOptions({ scaleMargins: paneMargins.atr || { top: 0.86, bottom: 0 } })
+        applyIndScale('atr', atrSeriesRef.current, atrTgt)
       }
       atrSeriesRef.current.setData(indicatorData.atr)
     } else if (atrSeriesRef.current) {
@@ -2397,25 +2437,20 @@ export default function StockChart({
     // ── MFI sub-pane (0-100, 80/20 reference lines) ──
     if (indicatorData.mfi.length) {
       const mfiColor = cs.indicators?.mfi?.color || '#c084fc'
+      const mfiTgt = ensureIndTarget('mfi', [mfiSeriesRef])
       if (!mfiSeriesRef.current) {
         mfiSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'mfi',
+          priceScaleId: mfiTgt.scaleId,
           color: mfiColor,
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('mfi').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.mfi || { top: 0.82, bottom: 0 },
-          autoScale: false,
-          minimum: 0,
-          maximum: 100,
-        })
+        }, mfiTgt.pane)
+        applyIndScale('mfi', mfiSeriesRef.current, mfiTgt, { autoScale: false, minimum: 0, maximum: 100 })
         mfiSeriesRef.current.createPriceLine({ price: 80, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
         mfiSeriesRef.current.createPriceLine({ price: 20, color: 'rgba(192,132,252,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         mfiSeriesRef.current.applyOptions({ color: mfiColor })
-        chart.priceScale('mfi').applyOptions({ scaleMargins: paneMargins.mfi || { top: 0.82, bottom: 0 } })
+        applyIndScale('mfi', mfiSeriesRef.current, mfiTgt)
       }
       mfiSeriesRef.current.setData(indicatorData.mfi)
     } else if (mfiSeriesRef.current) {
@@ -2426,24 +2461,21 @@ export default function StockChart({
     // ── CCI sub-pane (±300 typical, +100/0/-100 reference lines) ──
     if (indicatorData.cci.length) {
       const cciColor = cs.indicators?.cci?.color || '#fbbf24'
+      const cciTgt = ensureIndTarget('cci', [cciSeriesRef])
       if (!cciSeriesRef.current) {
         cciSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'cci',
+          priceScaleId: cciTgt.scaleId,
           color: cciColor,
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('cci').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.cci || { top: 0.82, bottom: 0 },
-          autoScale: true,
-        })
+        }, cciTgt.pane)
+        applyIndScale('cci', cciSeriesRef.current, cciTgt, { autoScale: true })
         cciSeriesRef.current.createPriceLine({ price:  100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
         cciSeriesRef.current.createPriceLine({ price:    0, color: 'rgba(251,191,36,0.2)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false })
         cciSeriesRef.current.createPriceLine({ price: -100, color: 'rgba(251,191,36,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         cciSeriesRef.current.applyOptions({ color: cciColor })
-        chart.priceScale('cci').applyOptions({ scaleMargins: paneMargins.cci || { top: 0.82, bottom: 0 } })
+        applyIndScale('cci', cciSeriesRef.current, cciTgt)
       }
       cciSeriesRef.current.setData(indicatorData.cci)
     } else if (cciSeriesRef.current) {
@@ -2454,25 +2486,20 @@ export default function StockChart({
     // ── Williams %R sub-pane (-100..0, -20/-80 reference lines) ──
     if (indicatorData.williamsR.length) {
       const wrColor = cs.indicators?.williamsR?.color || '#60a5fa'
+      const wrTgt = ensureIndTarget('williamsR', [williamsRSeriesRef])
       if (!williamsRSeriesRef.current) {
         williamsRSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'williamsR',
+          priceScaleId: wrTgt.scaleId,
           color: wrColor,
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('williamsR').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.williamsR || { top: 0.82, bottom: 0 },
-          autoScale: false,
-          minimum: -100,
-          maximum: 0,
-        })
+        }, wrTgt.pane)
+        applyIndScale('williamsR', williamsRSeriesRef.current, wrTgt, { autoScale: false, minimum: -100, maximum: 0 })
         williamsRSeriesRef.current.createPriceLine({ price: -20, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
         williamsRSeriesRef.current.createPriceLine({ price: -80, color: 'rgba(96,165,250,0.4)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         williamsRSeriesRef.current.applyOptions({ color: wrColor })
-        chart.priceScale('williamsR').applyOptions({ scaleMargins: paneMargins.williamsR || { top: 0.82, bottom: 0 } })
+        applyIndScale('williamsR', williamsRSeriesRef.current, wrTgt)
       }
       williamsRSeriesRef.current.setData(indicatorData.williamsR)
     } else if (williamsRSeriesRef.current) {
@@ -2484,38 +2511,33 @@ export default function StockChart({
     const adxCfg = cs.indicators?.adx
     const adxD = indicatorData.adx
     if (adxD.adx.length) {
+      const adxTgt = ensureIndTarget('adx', [adxSeriesRef, adxPlusDIRef, adxMinusDIRef])
       if (!adxSeriesRef.current) {
         adxSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'adx',
+          priceScaleId: adxTgt.scaleId,
           color: adxCfg?.adxColor || '#e5e7eb',
           lineWidth: 2,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
+        }, adxTgt.pane)
         adxPlusDIRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'adx',
+          priceScaleId: adxTgt.scaleId,
           color: adxCfg?.plusDIColor || '#22c55e',
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
+        }, adxTgt.pane)
         adxMinusDIRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'adx',
+          priceScaleId: adxTgt.scaleId,
           color: adxCfg?.minusDIColor || '#ef4444',
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('adx').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.adx || { top: 0.80, bottom: 0 },
-          autoScale: false,
-          minimum: 0,
-          maximum: 100,
-        })
+        }, adxTgt.pane)
+        applyIndScale('adx', adxSeriesRef.current, adxTgt, { autoScale: false, minimum: 0, maximum: 100 })
         adxSeriesRef.current.createPriceLine({ price: 25, color: 'rgba(229,231,235,0.3)', lineWidth: 1, lineStyle: 2, axisLabelVisible: false })
       } else {
         adxSeriesRef.current.applyOptions({  color: adxCfg?.adxColor     || '#e5e7eb' })
         adxPlusDIRef.current.applyOptions({  color: adxCfg?.plusDIColor  || '#22c55e' })
         adxMinusDIRef.current.applyOptions({ color: adxCfg?.minusDIColor || '#ef4444' })
-        chart.priceScale('adx').applyOptions({ scaleMargins: paneMargins.adx || { top: 0.80, bottom: 0 } })
+        applyIndScale('adx', adxSeriesRef.current, adxTgt)
       }
       adxSeriesRef.current.setData(adxD.adx)
       adxPlusDIRef.current.setData(adxD.plusDI)
@@ -2529,21 +2551,18 @@ export default function StockChart({
     // ── OBV sub-pane (cumulative, autoscale — values can be huge) ──
     if (indicatorData.obv.length) {
       const obvColor = cs.indicators?.obv?.color || '#9ca3af'
+      const obvTgt = ensureIndTarget('obv', [obvSeriesRef])
       if (!obvSeriesRef.current) {
         obvSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'obv',
+          priceScaleId: obvTgt.scaleId,
           color: obvColor,
           lineWidth: 1,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        })
-        chart.priceScale('obv').applyOptions({
-          borderVisible: false,
-          scaleMargins: paneMargins.obv || { top: 0.86, bottom: 0 },
-          autoScale: true,
-        })
+        }, obvTgt.pane)
+        applyIndScale('obv', obvSeriesRef.current, obvTgt, { autoScale: true })
       } else {
         obvSeriesRef.current.applyOptions({ color: obvColor })
-        chart.priceScale('obv').applyOptions({ scaleMargins: paneMargins.obv || { top: 0.86, bottom: 0 } })
+        applyIndScale('obv', obvSeriesRef.current, obvTgt)
       }
       obvSeriesRef.current.setData(indicatorData.obv)
     } else if (obvSeriesRef.current) {
@@ -3171,12 +3190,12 @@ export default function StockChart({
       // Axis widths + pane heights come straight from the chart; band layout
       // mirrors the render path's computePaneMargins so the menu matches what
       // the user sees.
-      const separateVolume = showVolume && !!cs.volume.separatePane
+      const separateVolume = showVolume && (!!cs.volume.separatePane || (Array.isArray(cs.volumeOverlayIndicators) && cs.volumeOverlayIndicators.length > 0))
       let axisWidth = 0, timeAxisHeight = 0, pane0Height = rect.height
       try { axisWidth = chart.priceScale('right').width() } catch {}
       try { timeAxisHeight = chart.timeScale().height() } catch {}
       try { pane0Height = chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
-      const paneMargins = computePaneMargins(cs, showVolume && !cs.volume.separatePane)
+      const paneMargins = computePaneMargins(cs, showVolume && !separateVolume, cs.volumeOverlayIndicators)
       let region = resolveChartRegion({
         x: px, y: py, width: rect.width, height: rect.height,
         axisWidth, timeAxisHeight, paneMargins, separateVolume, pane0Height,
