@@ -981,6 +981,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    try:
+        from api.services.ticker_logos_prewarm import start_async as _logos_start
+        _logos_start()
+        print("[startup] ticker-logos prewarm scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
 
