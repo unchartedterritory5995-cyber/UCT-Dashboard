@@ -16,8 +16,11 @@ from fastapi.testclient import TestClient
 def client():
     from fastapi import FastAPI
     from api.routers.earnings_intel import router
+    from api.middleware.auth_middleware import get_current_user
     app = FastAPI()
     app.include_router(router)
+    # Endpoints now require auth — bypass with a fake user for these tests.
+    app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
     return TestClient(app)
 
 

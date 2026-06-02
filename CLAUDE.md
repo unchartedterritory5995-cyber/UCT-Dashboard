@@ -724,13 +724,22 @@ ECharts treemap rendering curated breadth metrics as color-coded tiles. Clicking
   - Requires Finnhub premium — section hides when unavailable
 - Cache keys: `earnings_preview_{sym}` / `earnings_analysis_{sym}` / `transcript_summary_{sym}`
 
-### Calendar Page (`app/src/pages/Calendar.jsx`)
-- Two panels: Earnings (left) + Macro Events (right, ForexFactory)
-- Earnings: HTML `<table>` layout, 5 day tabs (Mon–Fri), BMO/AMC sections
-- Data: live EW+Finviz primary, wire_data fallback, cap_universe server-side filter ($300M+)
-- No-data entries filtered client-side (no estimates AND no actuals = noise)
-- 10min cache TTL, 2min SWR poll, Finnhub actuals patch on every cache rebuild
-- Click ticker → EarningsModal (same component as dashboard CatalystFlow)
+### Calendar — Dominant Feed + EarningsHub Competitor (rebuilt 2026-06-01/02)
+`/calendar` was rebuilt from the old 2-panel table into a personalized, logo-forward
+earnings hub. Full detail: `docs/superpowers/specs/2026-06-01-calendar-dominant-feed-design.md`
++ `…-calendar-phase2-competitor-design.md` (+ matching plans). Memory:
+`project_calendar_dominant_feed_2026_06_01` + `project_calendar_phase2_competitor_2026_06_02`.
+
+- **Views:** Feed (default) / Week / Month (`app/src/pages/calendar/*` + `Calendar.jsx`), view persisted via `usePreferences('calendar_view')`. Month uses `/api/calendar/month` (Finnhub range).
+- **Personalization:** "My Stocks" = customizable union of watchlists + flagged + J2 positions + UCT20 (`/api/calendar/my-sets`, `calendar_personalization.py`); ⚙ source picker; audience + vol/price/mcap filters + sort (`filterLogic.js`).
+- **Logos:** `CompanyLogo.jsx` → `/api/ticker-logo/{sym}` proxy-and-cache on /data volume; **logo.dev primary** source (publishable token in `ticker_logos.py`, env `LOGODEV_TOKEN`), then Parqet/FMP/Finnhub/Clearbit. ~99.5% coverage; monogram fallback (detected via `naturalWidth<=2`). Prewarmer + `POST /api/logos/prewarm[?misses=1]`, coverage in `/api/logos/status`.
+- **Enrichment overlay** (`/api/calendar/enrichment`): per-sym expected move (`get_implied_move`), 4Q beat history, `hist_stats` — fetched via single `useWeekEnrichment` hook (NEVER hooks-in-loop). Live reactions per DayGroup; extended-hours via Massive `lastTrade.p`.
+- **Per-ticker depth (EarningsModal):** fundamentals/fwd-PE (`/api/fundamentals`), SEC filings (`/api/filings`, free EDGAR), AI call recap + sentiment + guidance + rating changes (`call_recap.py`, Opus+Perplexity, cost-guarded), **free verbatim transcripts** (`av_transcripts.py` via AlphaVantage `EARNINGS_CALL_TRANSCRIPT`, lazy/25-day-budgeted) + keyword search + 🔊 TTS Listen.
+- **Pluggable live/recorded audio** (`earnings_audio.py`): env `EARNINGS_AUDIO_PROVIDER`(`none`|`earningsapi`|`earningscall`|`quartr`) + `EARNINGS_AUDIO_API_KEY`. EarningsAPI adapter concrete (URL assumed-verify); **Quartr/EarningsCall = stubs** (Quartr needs real wiring + hls.js when contracted).
+- **IPO + dividends/splits** event calendars (`ipo_calendar.py` Finnhub, `dividends_calendar.py` yfinance) as event-type chips/cards. **My Stocks hub** at `/calendar/mystocks` (Earnings/News/Calls/Filings/Insights + read-unseen via `calendar_seen.py`).
+- **Alerts:** pre-report (`calendar_alerts.py`, APScheduler 7am=today / 6pm=tomorrow ET, dedup table) — gated `CALENDAR_ALERTS_ENABLED=1`. **iCal/webcal export** `/api/calendar/export.ics` + `/export-token` (HMAC(PUSH_SECRET,user_id)).
+- Routers: `calendar.py` (refresh is admin-gated), `earnings_intel.py` (recap/sentiment/transcript/audio — auth-required), `fundamentals.py`, `filings.py`, `ticker_logos.py`. EarningsModal still the click-through detail.
+- LOCKED invariants: enrichment endpoint must `return out` (cold-cache bug 2026-06-02); LLM features cost-guarded+cached; AV transcripts lazy-only (25/day free tier); never fetch per-card fundamentals (60-req storm — batch via enrichment if needed).
 
 ### API: Breadth (`api/services/engine.py` → `_normalize_breadth()`)
 - Fields: `pct_above_5ma`, `pct_above_50ma`, `pct_above_200ma`, `advancing`, `declining`, `new_highs`, `new_lows`, `new_highs_list`, `new_lows_list`, `breadth_score`, `distribution_days`, `market_phase`
