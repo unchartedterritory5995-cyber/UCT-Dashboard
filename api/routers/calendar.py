@@ -19,8 +19,10 @@ from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from api.services.cache import cache
+from api.middleware.auth_middleware import get_current_user
+from api.services import calendar_personalization as _cp
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -784,3 +786,12 @@ def get_day_metrics(date: str | None = None):
 
     cache.set(cache_key, result, ttl=_METRICS_TTL)
     return result
+
+
+# ── Personalization endpoint ───────────────────────────────────────────────────
+
+@router.get("/api/calendar/my-sets")
+def calendar_my_sets(user: dict = Depends(get_current_user)):
+    """Return the logged-in user's personalization ticker sets for the calendar."""
+    sets = _cp.get_user_ticker_sets(user["id"])
+    return _cp.to_payload(sets)
