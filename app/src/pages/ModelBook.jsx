@@ -490,7 +490,7 @@ export default function ModelBook() {
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
-          {sortedStocks.map(s => {
+          {sortedStocks.map((s, i) => {
             const st = yearStats[s.symbol]
             return (
               <div
@@ -500,7 +500,7 @@ export default function ModelBook() {
                 onClick={() => setSelectedId(s.id)}
               >
                 <div className={styles.stockCardTop}>
-                  {s.sort_order ? <span className={styles.rank}>#{s.sort_order}</span> : null}
+                  <span className={styles.rank}>#{i + 1}</span>
                   <span className={styles.stockSym}>{s.symbol}</span>
                   {s.company && <span className={styles.stockName}>({s.company})</span>}
                   <div className={styles.cardStats}>
