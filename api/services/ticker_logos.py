@@ -47,6 +47,42 @@ def _recent_miss(sym: str) -> bool:
         return False
 
 
+def _is_ssrf_safe_url(url: str) -> bool:
+    """Return True only for https:// URLs with a non-private hostname.
+
+    Blocks: http://, localhost, 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x
+    Simple prefix check — good enough for logo URLs which should be CDN hosts.
+    """
+    if not url or not url.startswith("https://"):
+        return False
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(url).hostname or ""
+    except Exception:
+        return False
+    host_lower = host.lower()
+    # Reject localhost variants
+    if host_lower in ("localhost", "localhost."):
+        return False
+    # Reject private/link-local IP prefixes
+    _BLOCKED_PREFIXES = (
+        "127.", "10.", "169.254.",
+        "192.168.",
+    )
+    for prefix in _BLOCKED_PREFIXES:
+        if host_lower.startswith(prefix):
+            return False
+    # Reject 172.16.0.0/12 (172.16.x.x – 172.31.x.x)
+    if host_lower.startswith("172."):
+        try:
+            second_octet = int(host_lower.split(".")[1])
+            if 16 <= second_octet <= 31:
+                return False
+        except (ValueError, IndexError):
+            pass
+    return True
+
+
 def _finnhub_logo_bytes(sym: str):
     key = os.environ.get("FINNHUB_API_KEY", "")
     if not key:
@@ -55,7 +91,7 @@ def _finnhub_logo_bytes(sym: str):
         j = requests.get("https://finnhub.io/api/v1/stock/profile2",
                          params={"symbol": sym, "token": key}, timeout=_TIMEOUT).json() or {}
         url = j.get("logo") or ""
-        if url:
+        if url and _is_ssrf_safe_url(url):
             r = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
             if r.ok and r.content:
                 return r.content
@@ -190,7 +226,8 @@ def resolve_and_cache(sym: str):
     os.makedirs(_CACHE_DIR, exist_ok=True)
     if not png:
         try:
-            open(_miss_path(s), "w").close()
+            with open(_miss_path(s), "w"):
+                pass
         except OSError:
             pass
         return None

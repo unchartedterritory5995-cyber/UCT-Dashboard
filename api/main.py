@@ -1416,22 +1416,34 @@ async def lifespan(app: FastAPI):
         #   • Evening ~6 PM ET — alert for tomorrow's BMO reporters
         #   • Morning ~7 AM ET — alert for today's BMO reporters (pre-open)
         if os.environ.get("CALENDAR_ALERTS_ENABLED", "0").lower() in ("1", "true", "yes"):
-            def _calendar_alert_job():
+            def _calendar_alert_job_evening():
+                # Evening job: alert for TOMORROW's reporters (next trading day)
                 try:
                     from api.services.calendar_alerts import run_prereport_alerts
-                    run_prereport_alerts()
+                    from datetime import date as _date, timedelta as _td
+                    tomorrow = (_date.today() + _td(days=1)).isoformat()
+                    run_prereport_alerts(tomorrow)
                 except Exception as _e:
-                    print(f"[scheduler] calendar alert job error: {_e}")
+                    print(f"[scheduler] calendar alert job (evening) error: {_e}")
+
+            def _calendar_alert_job_morning():
+                # Morning job: alert for TODAY's reporters (pre-market)
+                try:
+                    from api.services.calendar_alerts import run_prereport_alerts
+                    from datetime import date as _date
+                    run_prereport_alerts(_date.today().isoformat())
+                except Exception as _e:
+                    print(f"[scheduler] calendar alert job (morning) error: {_e}")
 
             _scheduler.add_job(
-                _calendar_alert_job,
+                _calendar_alert_job_evening,
                 trigger=CronTrigger(hour=18, minute=0),
                 id="calendar_alerts_evening",
                 max_instances=1,
                 replace_existing=True,
             )
             _scheduler.add_job(
-                _calendar_alert_job,
+                _calendar_alert_job_morning,
                 trigger=CronTrigger(hour=7, minute=0),
                 id="calendar_alerts_morning",
                 max_instances=1,

@@ -269,6 +269,30 @@ class TestThrottleHandling:
         assert result is None
 
 
+    def test_probe_stops_immediately_on_throttle(self):
+        """Auto-resolve probe STOPS after the first throttle response (fix #3).
+
+        Previous behavior: `continue` on None result → probe all 4 candidates
+        (burns up to 4 of 25 daily AV calls). Fixed behavior: `break` → stops
+        after the FIRST throttle/miss so at most 1 live call is made.
+        """
+        from api.services.av_transcripts import get_transcript
+
+        mock_cache = _fresh_cache()
+        with patch("api.services.av_transcripts.cache", mock_cache), \
+             patch("api.services.av_transcripts.requests") as mock_req:
+            # Every probe returns a throttle response
+            mock_req.get.return_value = _mock_requests_get(_AV_THROTTLE_INFORMATION)
+            result = get_transcript("AAPL")  # no quarter → auto-probe
+
+        # Must stop after 1 call, not probe all 4 candidates
+        assert result is None
+        assert mock_req.get.call_count == 1, (
+            f"Expected 1 AV call on throttle but got {mock_req.get.call_count} "
+            "(stop-on-throttle not working)"
+        )
+
+
 # ── Error handling / never raises ─────────────────────────────────────────────
 
 class TestErrorHandling:
@@ -330,8 +354,11 @@ class TestTranscriptEndpoint:
     def client(self):
         from fastapi import FastAPI
         from api.routers.earnings_intel import router
+        from api.middleware.auth_middleware import get_current_user
         app = FastAPI()
         app.include_router(router)
+        # Bypass auth for these unit tests (they test the service logic, not auth)
+        app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
         from fastapi.testclient import TestClient
         return TestClient(app)
 

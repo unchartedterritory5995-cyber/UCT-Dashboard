@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import requests as _requests_module
 from datetime import date, timedelta
 from typing import Optional
@@ -32,6 +33,15 @@ cache = _cache_singleton
 _CACHE_TTL_HIT      = 86_400   # 24h — transcripts don't change
 _CACHE_TTL_THROTTLE = 300      # 5 min — don't hammer on quota exhaustion
 _MAX_PROBE          = 4        # candidates to try before giving up
+
+# Sentinel returned by _fetch_quarter when AV rate-limits (Information/Note key)
+# so the caller can distinguish "throttled" from "genuine miss" and stop probing.
+_THROTTLED = object()
+
+# Per-ticker locks: prevent two concurrent cold-requests from both probing
+# up to 4 AV calls (25/day budget) for the same ticker simultaneously.
+_ticker_locks: dict[str, threading.Lock] = {}
+_ticker_locks_mu = threading.Lock()
 
 
 def _av_key() -> str:
@@ -98,14 +108,14 @@ def _fetch_quarter(ticker: str, quarter: str) -> Optional[dict]:
         _log.warning("[av_transcripts] JSON parse error for %s %s: %s", ticker, quarter, exc)
         return None
 
-    # Throttle / quota response detection
+    # Throttle / quota response detection — return sentinel so caller stops probing
     if "Information" in data or "Note" in data:
         _log.info("[av_transcripts] AV throttle/quota response for %s %s", ticker, quarter)
-        return None  # caller short-caches
+        return _THROTTLED  # distinct from None (genuine miss)
 
     raw_segments = data.get("transcript")
     if not raw_segments or not isinstance(raw_segments, list):
-        return None  # empty / wrong shape — treat as miss
+        return None  # empty / wrong shape — genuine miss, try next quarter
 
     segments = []
     for seg in raw_segments:
@@ -167,15 +177,13 @@ def get_transcript(
         cache_key = f"av_transcript_{ticker}_{quarter}"
         cached = cache.get(cache_key)
         if cached is not None:
-            # Cached sentinel: {"_throttle": True} means a throttle miss
+            # Cached sentinel: {"_throttle": True} means a throttle or miss
             if cached.get("_throttle"):
                 return None
             return cached
 
         result = _fetch_quarter(ticker, quarter)
-        if result is None:
-            # We don't know if it was a throttle or a genuine miss; short-cache
-            # to be safe (avoids hammering on legitimate misses too).
+        if result is None or result is _THROTTLED:
             cache.set(cache_key, {"_throttle": True}, ttl=_CACHE_TTL_THROTTLE)
             return None
 
@@ -197,35 +205,54 @@ def get_transcript(
         # We know which quarter had a transcript; fetch it (from cache if warm)
         return get_transcript(ticker, quarter=resolved_quarter)
 
-    # Probe newest-first
-    candidates = _probe_quarters(_MAX_PROBE)
-    for candidate in candidates:
-        cand_key = f"av_transcript_{ticker}_{candidate}"
-        cached_cand = cache.get(cand_key)
-        if cached_cand is not None:
-            if cached_cand.get("_throttle"):
-                # This candidate previously throttled — stop probing
-                return None
-            # Found a valid cached transcript
+    # Acquire a per-ticker lock so two concurrent cold-requests don't both
+    # probe up to 4 AV calls (25/day budget) for the same ticker.
+    with _ticker_locks_mu:
+        if ticker not in _ticker_locks:
+            _ticker_locks[ticker] = threading.Lock()
+        lock = _ticker_locks[ticker]
+
+    with lock:
+        # Re-check latest_key inside the lock — a parallel caller may have
+        # already resolved and cached the result while we waited.
+        resolved_quarter = cache.get(latest_key)
+        if resolved_quarter:
+            return get_transcript(ticker, quarter=resolved_quarter)
+
+        # Probe newest-first — STOP immediately on AV throttle (Information/Note key).
+        # A genuine miss (empty transcript for that quarter) tries the next one.
+        candidates = _probe_quarters(_MAX_PROBE)
+        for candidate in candidates:
+            cand_key = f"av_transcript_{ticker}_{candidate}"
+            cached_cand = cache.get(cand_key)
+            if cached_cand is not None:
+                if cached_cand.get("_throttle"):
+                    # Previously throttled — stop probing entirely
+                    return None
+                # Found a valid cached transcript
+                cache.set(latest_key, candidate, ttl=_CACHE_TTL_HIT)
+                return cached_cand
+
+            # Live fetch
+            result = _fetch_quarter(ticker, candidate)
+            if result is _THROTTLED:
+                # AV rate-limited — stop probing immediately to conserve quota
+                cache.set(cand_key, {"_throttle": True}, ttl=_CACHE_TTL_THROTTLE)
+                break
+            if result is None:
+                # Genuine miss for this quarter — short-cache and try next
+                cache.set(cand_key, {"_throttle": True}, ttl=_CACHE_TTL_THROTTLE)
+                continue
+
+            payload = {
+                "symbol":   ticker,
+                "quarter":  candidate,
+                "segments": result["segments"],
+                "resolved": True,
+            }
+            cache.set(cand_key, payload, ttl=_CACHE_TTL_HIT)
             cache.set(latest_key, candidate, ttl=_CACHE_TTL_HIT)
-            return cached_cand
+            return payload
 
-        # Live fetch
-        result = _fetch_quarter(ticker, candidate)
-        if result is None:
-            # Could be throttle or genuine miss — short-cache and try next
-            cache.set(cand_key, {"_throttle": True}, ttl=_CACHE_TTL_THROTTLE)
-            continue
-
-        payload = {
-            "symbol":   ticker,
-            "quarter":  candidate,
-            "segments": result["segments"],
-            "resolved": True,
-        }
-        cache.set(cand_key, payload, ttl=_CACHE_TTL_HIT)
-        cache.set(latest_key, candidate, ttl=_CACHE_TTL_HIT)
-        return payload
-
-    # All candidates exhausted with no result
+    # All candidates exhausted / throttled with no result
     return None
