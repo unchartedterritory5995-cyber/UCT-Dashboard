@@ -15,7 +15,8 @@ describe('filterLogic', () => {
   })
 
   it('minMcap drops sub-threshold names', () => {
-    const out = applyFilters(rows, { ...DEFAULT_FILTERS, minMcap: 1 })
+    // audience:'all' isolates the market-cap filter from the default mine filter
+    const out = applyFilters(rows, { ...DEFAULT_FILTERS, audience: 'all', minMcap: 1 })
     expect(out.map(r => r.sym)).toEqual(['AAA', 'BBB'])
   })
 

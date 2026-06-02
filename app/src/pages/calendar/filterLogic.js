@@ -1,6 +1,6 @@
 // app/src/pages/calendar/filterLogic.js
 export const DEFAULT_FILTERS = {
-  audience: 'all',    // 'mine' | 'watchlist' | 'positions' | 'uct20' | 'all'
+  audience: 'mine',   // 'mine' | 'watchlist' | 'positions' | 'uct20' | 'all'
   minMcap: 0,         // billions
   sort: 'mine',       // 'mine' | 'time' | 'mcap' | 'move'
 }
