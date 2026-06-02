@@ -4,6 +4,8 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
+import secrets
+import time
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -97,9 +99,9 @@ def _estimate_seconds(text: str, speed: float) -> int:
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
 
-@router.post("/tts")
-@limiter.limit("30/minute")
-def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
+def _resolve_tts_params(user: dict, body: "TtsRequest"):
+    """Validate + resolve (text, voice, speed, is_admin). Raises HTTPException.
+    Shared by POST /tts and POST /tts/prepare so both gate identically."""
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -120,7 +122,13 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
     is_admin = user.get("role") == "admin"
     if not is_within_mode_a_cap(user["id"], is_admin=is_admin):
         raise HTTPException(status_code=429, detail="monthly read-aloud cap reached")
+    return text, voice, speed, is_admin
 
+
+def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
+    """Return cached audio or a StreamingResponse that synthesizes + caches.
+    Long text is auto-chunked by the synth layer and streamed progressively, so
+    the browser starts playing the first chunk while later ones synthesize."""
     cached = get_cached(text, voice=voice, speed=speed)
     if cached is not None:
         return Response(content=cached, media_type="audio/mpeg")
@@ -133,7 +141,6 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
         raise HTTPException(status_code=503, detail=str(e))
 
     accumulated = bytearray()
-    user_id = user["id"]
 
     def streamer():
         try:
@@ -154,6 +161,67 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
         media_type="audio/mpeg",
         background=BackgroundTask(on_complete),
     )
+
+
+@router.post("/tts")
+@limiter.limit("30/minute")
+def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
+    """POST audio. Kept for backwards compat; the frontend prefers the
+    prepare→stream flow below for low-latency progressive playback."""
+    text, voice, speed, _is_admin = _resolve_tts_params(user, body)
+    return _tts_audio_response(text, voice, speed, user["id"])
+
+
+# ── Progressive read-aloud (prepare → native <audio> stream) ────────────────
+#
+# A POST can't be the src of an <audio> element, so streaming a long rundown
+# progressively (start playing chunk 1 while chunk 3 synthesizes) needs a GET.
+# /tts/prepare validates + stashes the text under a short-lived per-user token;
+# /tts/stream?token=… streams the audio so the browser plays it natively as
+# bytes arrive — first audio in ~1-2s instead of buffering the whole ~11-min
+# narration first. Tokens are single-day, in-memory, 5-min TTL.
+
+_TTS_PREPARED: dict[str, dict] = {}
+_TTS_TOKEN_TTL_SECONDS = 300
+
+
+def _purge_prepared(now: float) -> None:
+    for tok in [t for t, v in _TTS_PREPARED.items() if v["expires"] < now]:
+        _TTS_PREPARED.pop(tok, None)
+
+
+@router.post("/tts/prepare")
+@limiter.limit("30/minute")
+def tts_prepare(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
+    text, voice, speed, _is_admin = _resolve_tts_params(user, body)
+    # Fail fast on misconfig BEFORE the user hits play (only matters on a miss).
+    if get_cached(text, voice=voice, speed=speed) is None:
+        try:
+            from api.services.voice_openai import _get_client
+            _get_client()
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+
+    now = time.time()
+    _purge_prepared(now)
+    token = secrets.token_urlsafe(24)
+    _TTS_PREPARED[token] = {
+        "text": text, "voice": voice, "speed": speed,
+        "user_id": user["id"], "expires": now + _TTS_TOKEN_TTL_SECONDS,
+    }
+    return {"token": token}
+
+
+@router.get("/tts/stream")
+@limiter.limit("60/minute")
+def tts_stream(request: Request, token: str, user: dict = Depends(requires_voice_access)):
+    now = time.time()
+    _purge_prepared(now)
+    entry = _TTS_PREPARED.get(token)
+    if not entry or entry["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="invalid or expired token")
+    # Keep the token (don't pop) so the <audio> element may re-request within TTL.
+    return _tts_audio_response(entry["text"], entry["voice"], entry["speed"], user["id"])
 
 
 @router.get("/settings")

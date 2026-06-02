@@ -85,6 +85,53 @@ def test_tts_rejects_empty_text(client):
     assert r.status_code == 400
 
 
+def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypatch):
+    """The progressive flow: POST /prepare -> token, GET /stream?token -> audio."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"\xFF\xFB\x90\x00STREAMED"
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ):
+        long_rundown = ("Markets are moving today. " * 500).strip()  # ~12k chars
+        p = client.post("/api/voice/tts/prepare", json={"text": long_rundown})
+        assert p.status_code == 200
+        token = p.json()["token"]
+        assert token
+
+        s = client.get(f"/api/voice/tts/stream?token={token}")
+    assert s.status_code == 200
+    assert s.headers["content-type"].startswith("audio/mpeg")
+    assert s.content == fake_audio
+
+
+def test_tts_prepare_requires_paid_plan(client):
+    _login(client, plan="free")
+    r = client.post("/api/voice/tts/prepare", json={"text": "hi"})
+    assert r.status_code == 402
+
+
+def test_tts_stream_rejects_unknown_token(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/tts/stream?token=does-not-exist")
+    assert r.status_code == 404
+
+
+def test_tts_stream_token_is_user_scoped(client, tmp_path, monkeypatch):
+    """A token minted by one user must not be streamable by another."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    with patch("api.services.voice_openai._get_client", return_value=object()):
+        token = client.post("/api/voice/tts/prepare", json={"text": "hello there"}).json()["token"]
+    # Switch to a different user in the same client.
+    _login(client, plan="pro")
+    r = client.get(f"/api/voice/tts/stream?token={token}")
+    assert r.status_code == 404
+
+
 def test_tts_accepts_full_morning_wire_length(client, tmp_path, monkeypatch):
     """Regression: an ~11k-char Morning Wire rundown must NOT be rejected as
     'too long' — the synth layer chunks it. Previously a 4000-char cap made

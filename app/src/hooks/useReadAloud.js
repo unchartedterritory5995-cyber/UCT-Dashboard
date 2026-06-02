@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useVoice } from '../context/VoiceContext'
 
 /**
@@ -17,7 +17,6 @@ import { useVoice } from '../context/VoiceContext'
  */
 export default function useReadAloud() {
   const voice = useVoice()
-  const activeBlobUrl = useRef(null)
 
   const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride }) => {
     if (voice.trackId === trackId && voice.status === 'playing') {
@@ -42,9 +41,13 @@ export default function useReadAloud() {
     if (voiceOverride) body.voice = voiceOverride
     if (speedOverride !== undefined) body.speed = speedOverride
 
-    let blobUrl
+    // Two-step so playback can stream natively: POST the text to /prepare (which
+    // validates + returns a short-lived token), then point the <audio> element
+    // at GET /stream?token=…. The browser plays the MP3 progressively as bytes
+    // arrive — audio starts in ~1-2s instead of waiting for the whole rundown.
+    let streamUrl
     try {
-      const r = await fetch('/api/voice/tts', {
+      const r = await fetch('/api/voice/tts/prepare', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -63,26 +66,22 @@ export default function useReadAloud() {
         } else {
           alert('Read Aloud failed. Please try again.')
         }
-        console.error('[useReadAloud] TTS request failed', r.status)
+        console.error('[useReadAloud] TTS prepare failed', r.status)
         return
       }
-      const blob = await r.blob()
-      if (!blob || blob.size === 0) {
+      const data = await r.json()
+      if (!data || !data.token) {
         alert('Read Aloud failed. Please try again.')
         return
       }
-      blobUrl = URL.createObjectURL(blob)
-      if (activeBlobUrl.current) {
-        URL.revokeObjectURL(activeBlobUrl.current)
-      }
-      activeBlobUrl.current = blobUrl
+      streamUrl = `/api/voice/tts/stream?token=${encodeURIComponent(data.token)}`
     } catch (e) {
       console.error('[useReadAloud] fetch failed', e)
       alert('Read Aloud failed — could not reach the server. Please try again.')
       return
     }
 
-    await voice.playUrl({ url: blobUrl, trackId, trackLabel: label })
+    await voice.playUrl({ url: streamUrl, trackId, trackLabel: label })
   }, [voice])
 
   const isPlayingTrack = (trackId) =>
