@@ -14,6 +14,7 @@ import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
+import { polarityOf, PAIRS } from './breadth/views/breadthViewShared'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -575,16 +576,16 @@ const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
 
 // ── ECharts matrix heatmap ─────────────────────────────────────────────────
 // Maps tier string → numeric score for visualMap
-const TIER_SCORES = { g3: 6, g2: 5, g1: 4, a: 3, r1: 2, r2: 1, r3: 0 }
+export const TIER_SCORES = { g3: 6, g2: 5, g1: 4, a: 3, r1: 2, r2: 1, r3: 0 }
 
 // Human-readable tier labels (shown in tooltip)
-const TIER_LABELS = {
+export const TIER_LABELS = {
   6: 'Extreme Bullish', 5: 'Bullish', 4: 'Mild Bullish',
   3: 'Caution', 2: 'Mild Bearish', 1: 'Bearish', 0: 'Extreme Bearish',
 }
 
 // Bright colors for tooltip text readability
-const TIER_TIP_COLORS = {
+export const TIER_TIP_COLORS = {
   6: '#4ade80', 5: '#22c55e', 4: '#86efac',
   3: '#f59e0b', 2: '#fca5a5', 1: '#f87171', 0: '#ef4444',
 }
@@ -597,7 +598,7 @@ const HM_GROUP_COLORS = {
 
 // Flat metric list with group-header separators
 // Each real metric has getTier(row)→tier and getFmt(row)→string
-const HM_METRICS = [
+export const HM_METRICS = [
   { key: '__h_score',   label: 'SCORE',           isHeader: true, group: 'Score' },
   { key: 'breadth_score', label: 'Health',         group: 'Score',
     getTier: r => { const v = r.breadth_score; return v == null ? '' : v >= 80 ? 'g3' : v >= 65 ? 'g2' : v >= 52 ? 'g1' : v >= 45 ? 'a' : v >= 35 ? 'r1' : v >= 20 ? 'r2' : 'r3' },
@@ -732,10 +733,10 @@ const HM_METRICS = [
 
 // Keys that are weekly/sparse and should be forward-filled so rows don't show
 // black "no data" cells on off-survey days
-const FFILL_KEYS = ['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim', 'cboe_putcall']
+export const FFILL_KEYS = ['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim', 'cboe_putcall']
 
 // Keys that have a single numeric field we can compute percentile rank on
-const PCTILE_KEYS = new Set([
+export const PCTILE_KEYS = new Set([
   'breadth_score', 'uct_exposure',
   'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day', 'magna_up', 'magna_down',
   'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
@@ -745,7 +746,7 @@ const PCTILE_KEYS = new Set([
 ])
 
 // Solid tile fill colors per tier (used in treemap cells)
-const TIER_CELL_COLORS = {
+export const TIER_CELL_COLORS = {
   g3: '#0a3216',
   g2: '#166030',
   g1: '#1a3d24',
@@ -757,12 +758,23 @@ const TIER_CELL_COLORS = {
 }
 
 // Fast lookup: metricKey → HM_METRICS entry
-const HM_METRICS_BY_KEY = Object.fromEntries(
+export const HM_METRICS_BY_KEY = Object.fromEntries(
   HM_METRICS.filter(m => !m.isHeader).map(m => [m.key, m])
 )
 
+// Attach view metadata (polarity + tug pairing) to the registry once at load.
+// Kept here so the metric definitions stay the single source of truth.
+for (const m of HM_METRICS) {
+  if (m.isHeader) continue
+  m.polarity = polarityOf(m.key)
+}
+for (const [up, down] of PAIRS) {
+  if (HM_METRICS_BY_KEY[up])   HM_METRICS_BY_KEY[up].pair   = { partnerKey: down, side: 'up' }
+  if (HM_METRICS_BY_KEY[down]) HM_METRICS_BY_KEY[down].pair = { partnerKey: up, side: 'down' }
+}
+
 // Treemap layout definition: groups → weighted metric tiles
-const TREEMAP_DEF = [
+export const TREEMAP_DEF = [
   { key: 'main', label: '', weight: 100,
     bgColor: 'transparent', borderColor: '#0a0f1a', labelColor: 'transparent',
     items: [
