@@ -51,9 +51,40 @@ const VIEW_TIER_COLOR = {
   g3: '#22c55e', g2: '#4ade80', g1: '#86efac', a: '#fbbf24',
   r1: '#fca5a5', r2: '#f87171', r3: '#ef4444', '': '#475569',
 }
-export function metricColor(metric, row) {
+
+// Per-view selectable palettes. `classic` reproduces the historical look exactly
+// (bull #34d399 / bear #f87171 match the pre-theming Radar/Scoreboard colors).
+export const PALETTES = {
+  classic: { tier: VIEW_TIER_COLOR, bull: '#34d399', bear: '#f87171' },
+  colorblind: {
+    tier: { g3: '#1d4ed8', g2: '#3b82f6', g1: '#93c5fd', a: '#facc15', r1: '#fdba74', r2: '#fb923c', r3: '#ea580c', '': '#475569' },
+    bull: '#3b82f6', bear: '#f97316',
+  },
+  mono: {
+    tier: { g3: '#d4af37', g2: '#c9a84c', g1: '#e8d8a0', a: '#9c8a4e', r1: '#9aa0a6', r2: '#6b7280', r3: '#4b5563', '': '#475569' },
+    bull: '#d4af37', bear: '#6b7280',
+  },
+  ocean: {
+    tier: { g3: '#0891b2', g2: '#22d3ee', g1: '#a5f3fc', a: '#fbbf24', r1: '#fecaca', r2: '#fb7185', r3: '#e11d48', '': '#475569' },
+    bull: '#22d3ee', bear: '#fb7185',
+  },
+}
+
+// Resolve a view's color context from its palette + intensity options.
+// intensity: 'subtle' (lower opacity, no glow) | 'normal' (current look) | 'bold' (glow).
+export function resolveViewColors(paletteKey = 'classic', intensityKey = 'normal') {
+  const p = PALETTES[paletteKey] ?? PALETTES.classic
+  return {
+    tier: p.tier, bull: p.bull, bear: p.bear,
+    fillOpacity: intensityKey === 'subtle' ? 0.6 : 1,
+    glow: intensityKey === 'bold',
+    dim: intensityKey === 'subtle',
+  }
+}
+
+export function metricColor(metric, row, tierMap = VIEW_TIER_COLOR) {
   const tier = metric.getTier ? (metric.getTier(row) || '') : ''
-  return VIEW_TIER_COLOR[tier] ?? VIEW_TIER_COLOR['']
+  return tierMap[tier] ?? tierMap[''] ?? VIEW_TIER_COLOR['']
 }
 
 // Metrics where a HIGH reading is bearish (everything else is bullish).

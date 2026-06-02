@@ -1,7 +1,7 @@
 // app/src/pages/breadth/views/viewMetricConfig.test.js
 import { describe, it, expect } from 'vitest'
 import {
-  VIEW_CONFIG, STYLES, isPairMetric, resolveDefaultVisible, optionDefaults,
+  VIEW_CONFIG, STYLES, isPairMetric, resolveDefaultVisible, optionDefaults, optionsSchema,
 } from './viewMetricConfig'
 import { PAIRS } from './breadthViewShared'
 
@@ -53,7 +53,22 @@ describe('viewMetricConfig', () => {
   })
 
   it('optionDefaults merges schema defaults', () => {
-    expect(optionDefaults('radar')).toEqual({ maxSpokes: 14, spokeSelect: 'auto' })
-    expect(optionDefaults('treemap')).toEqual({})
+    expect(optionDefaults('radar')).toEqual({ maxSpokes: 14, spokeSelect: 'auto', palette: 'classic', intensity: 'normal' })
+    expect(optionDefaults('treemap')).toEqual({ weightBy: 'curated' })
+  })
+})
+
+import { optionsSchema as optsSchema } from './viewMetricConfig'
+
+describe('theming + treemap options', () => {
+  const names = (style) => optsSchema(style).map(o => o.name)
+  it('the 7 chart views expose palette + intensity', () => {
+    for (const s of ['rings','tug','meters','timeline','radar','scoreboard','equalizer']) {
+      expect(names(s), s).toEqual(expect.arrayContaining(['palette', 'intensity']))
+    }
+  })
+  it('treemap exposes weightBy but not palette', () => {
+    expect(names('treemap')).toContain('weightBy')
+    expect(names('treemap')).not.toContain('palette')
   })
 })

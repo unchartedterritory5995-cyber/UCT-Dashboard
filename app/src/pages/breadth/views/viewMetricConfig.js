@@ -66,15 +66,31 @@ const TIMELINE_OPTIONS = [
     choices: [10, 20, 30].map(v => ({ value: v, label: `${v} days` })) },
 ]
 
+const THEME_OPTIONS = [
+  { name: 'palette', label: 'Color palette', type: 'select', default: 'classic',
+    choices: [
+      { value: 'classic', label: 'Classic (green/red)' },
+      { value: 'colorblind', label: 'Colorblind (blue/orange)' },
+      { value: 'mono', label: 'Mono (gold)' },
+      { value: 'ocean', label: 'Ocean (cyan/rose)' },
+    ] },
+  { name: 'intensity', label: 'Intensity', type: 'select', default: 'normal',
+    choices: [{ value: 'subtle', label: 'Subtle' }, { value: 'normal', label: 'Normal' }, { value: 'bold', label: 'Bold' }] },
+]
+const TREEMAP_OPTIONS = [
+  { name: 'weightBy', label: 'Size tiles by', type: 'select', default: 'curated',
+    choices: [{ value: 'curated', label: 'Curated' }, { value: 'equal', label: 'Equal' }, { value: 'extremity', label: 'Extremity' }] },
+]
+
 export const VIEW_CONFIG = {
-  treemap:    { label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: [] },
-  rings:      { label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: [] },
-  tug:        { label: 'Tug',        eligibleKeys: pairsOnly, defaultVisible: TUG_DEFAULT, options: [] },
-  meters:     { label: 'Meters',     eligibleKeys: all,       defaultVisible: HEADLINE, options: METERS_OPTIONS },
-  timeline:   { label: 'Timeline',   eligibleKeys: all,       defaultVisible: TIMELINE_DEFAULT, options: TIMELINE_OPTIONS },
-  radar:      { label: 'Radar',      eligibleKeys: all,       defaultVisible: RADAR_DEFAULT, options: RADAR_OPTIONS },
-  scoreboard: { label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: SCOREBOARD_OPTIONS },
-  equalizer:  { label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: LEVELS_OPTIONS },
+  treemap:    { label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
+  rings:      { label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
+  tug:        { label: 'Tug',        eligibleKeys: pairsOnly, defaultVisible: TUG_DEFAULT, options: THEME_OPTIONS },
+  meters:     { label: 'Meters',     eligibleKeys: all,       defaultVisible: HEADLINE, options: [...METERS_OPTIONS, ...THEME_OPTIONS] },
+  timeline:   { label: 'Timeline',   eligibleKeys: all,       defaultVisible: TIMELINE_DEFAULT, options: [...TIMELINE_OPTIONS, ...THEME_OPTIONS] },
+  radar:      { label: 'Radar',      eligibleKeys: all,       defaultVisible: RADAR_DEFAULT, options: [...RADAR_OPTIONS, ...THEME_OPTIONS] },
+  scoreboard: { label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: [...SCOREBOARD_OPTIONS, ...THEME_OPTIONS] },
+  equalizer:  { label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).

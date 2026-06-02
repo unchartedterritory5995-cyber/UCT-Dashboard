@@ -166,7 +166,7 @@ describe('pickSignals', () => {
   })
 })
 
-import { sortVisibleMetrics } from './breadthViewShared'
+import { sortVisibleMetrics, PALETTES, resolveViewColors, metricColor as metricColorFn } from './breadthViewShared'
 
 describe('sortVisibleMetrics', () => {
   const row = {}
@@ -190,5 +190,39 @@ describe('sortVisibleMetrics', () => {
   })
   it('tier mode ranks bullish tiers first', () => {
     expect(sortVisibleMetrics(metrics, 'tier', norm, row).map(m => m.key)).toEqual(['b','c','a'])
+  })
+})
+
+describe('palettes + resolveViewColors', () => {
+  it('exposes the four palettes each with a full tier map + accents', () => {
+    for (const key of ['classic', 'colorblind', 'mono', 'ocean']) {
+      const p = PALETTES[key]
+      expect(p, key).toBeTruthy()
+      for (const tier of ['g3','g2','g1','a','r1','r2','r3','']) expect(typeof p.tier[tier]).toBe('string')
+      expect(typeof p.bull).toBe('string')
+      expect(typeof p.bear).toBe('string')
+    }
+  })
+  it('classic palette preserves the current look (bull #34d399 / bear #f87171)', () => {
+    expect(PALETTES.classic.bull).toBe('#34d399')
+    expect(PALETTES.classic.bear).toBe('#f87171')
+  })
+  it('resolveViewColors merges palette + intensity', () => {
+    const subtle = resolveViewColors('ocean', 'subtle')
+    expect(subtle.bull).toBe(PALETTES.ocean.bull)
+    expect(subtle.fillOpacity).toBeLessThan(1)
+    expect(subtle.dim).toBe(true)
+    const bold = resolveViewColors('classic', 'bold')
+    expect(bold.fillOpacity).toBe(1)
+    expect(bold.glow).toBe(true)
+    const normal = resolveViewColors()  // defaults
+    expect(normal.tier).toBe(PALETTES.classic.tier)
+    expect(normal.fillOpacity).toBe(1)
+    expect(normal.glow).toBe(false)
+  })
+  it('metricColor honors a passed tier map', () => {
+    const m = { getTier: () => 'g3' }
+    expect(metricColorFn(m, {}, PALETTES.ocean.tier)).toBe(PALETTES.ocean.tier.g3)
+    expect(metricColorFn(m, {})).toBe(PALETTES.classic.tier.g3)  // default
   })
 })
