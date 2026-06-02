@@ -74,6 +74,7 @@ from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
+from api.notable_flow_router import router as notable_flow_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -1753,6 +1754,7 @@ app.include_router(gex_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
 app.include_router(oi_snapshot_router)
+app.include_router(notable_flow_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
