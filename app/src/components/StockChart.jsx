@@ -1905,8 +1905,10 @@ export default function StockChart({
         borderColor: themeColors.borderColor,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 3,
-        rightBarStaysOnScroll: true,
+        // Exact-range (Model Book) locks to a historical window, so don't pin the
+        // latest bar to the right edge — that re-expands the view to "now".
+        rightOffset: exactDateRange ? 0 : 3,
+        rightBarStaysOnScroll: exactDateRange ? false : true,
       },
     }
 
