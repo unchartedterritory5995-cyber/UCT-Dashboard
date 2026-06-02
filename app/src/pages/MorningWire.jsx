@@ -7,18 +7,12 @@ import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
 import useTweetFeed from '../hooks/useTweetFeed'
+import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
 import styles from './MorningWire.module.css'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
-
-function htmlToPlainText(html) {
-  if (!html) return ''
-  const tmp = document.createElement('div')
-  tmp.innerHTML = html
-  return tmp.textContent.replace(/\s+/g, ' ').trim()
-}
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -138,7 +132,7 @@ export default function MorningWire() {
           <ReadAloudButton
             trackId={`morning-wire-${rundown?.date || 'today'}`}
             label="Morning Wire"
-            textProvider={() => htmlToPlainText(rundown?.html)}
+            textProvider={() => rundownToSpeechText(rundown?.html)}
             size="md"
           >
             Read aloud

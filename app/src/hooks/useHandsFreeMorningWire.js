@@ -17,19 +17,12 @@
  */
 import { useEffect, useRef, useContext } from 'react'
 import { VoiceContext } from '../context/VoiceContext'
+import { rundownToSpeechText } from '../utils/htmlToSpeech'
 
 
 function todayUTC() {
   // Use UTC date for the local-storage key (timezone-neutral).
   return new Date().toISOString().slice(0, 10)
-}
-
-
-function htmlToPlainText(html) {
-  if (!html || typeof window === 'undefined') return ''
-  const tmp = document.createElement('div')
-  tmp.innerHTML = html
-  return tmp.textContent.replace(/\s+/g, ' ').trim()
 }
 
 
@@ -65,7 +58,7 @@ export default function useHandsFreeMorningWire({ rundownHtml }) {
             && voice.status !== 'idle'
             && voice.status !== 'error') return
 
-        const body = htmlToPlainText(rundownHtml).slice(0, 4000)
+        const body = rundownToSpeechText(rundownHtml)
         if (!body) return
         const text = `Morning Wire briefing. ${body}`
 
