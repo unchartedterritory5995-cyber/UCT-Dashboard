@@ -234,7 +234,7 @@ function StockDetail({ stockId, isAdmin }) {
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
-  const [infoOpen, setInfoOpen] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [storyDraft, setStoryDraft] = useState('')
