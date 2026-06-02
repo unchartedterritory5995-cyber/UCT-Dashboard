@@ -67,7 +67,7 @@
 .detailCompany { font-size: 12px; color: var(--text-muted); }
 .detailThesis { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 14px; }
 
-.chartWrap { height: calc(100vh - 220px); min-height: 700px; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
+.chartWrap { height: calc(100vh - 290px); min-height: 520px; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
 .chart { height: 100%; }
 
 /* ── Setup list ── */
