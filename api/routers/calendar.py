@@ -9,9 +9,11 @@ Economic events: always fetched live from ForexFactory (real data, never AI).
 Finnhub actuals patch: applied to today's pending tickers on every cache miss.
 POST /api/calendar/refresh — rebuild cache immediately
 GET  /api/calendar/reactions?date=YYYY-MM-DD — live gap % for reported tickers (Massive)
+GET  /api/calendar/month?year=&month= — full-month earnings via Finnhub
 """
 
 from __future__ import annotations
+import calendar as _cal_module
 import logging
 import os
 import threading
@@ -393,6 +395,138 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
             _logger.info("Calendar: Finnhub patched %d actuals for %s", patched, today_str)
     except Exception as exc:
         _logger.warning("Calendar: Finnhub actuals patch failed: %s", exc)
+
+
+# ── Month-range helpers ────────────────────────────────────────────────────────
+
+def _load_cap_universe() -> set[str]:
+    """Load the static cap_universe ticker set.  Never raises — returns empty set."""
+    try:
+        # Try wire_data first (most up-to-date)
+        from api.services.engine import _load_wire_data
+        wire = _load_wire_data()
+        if wire and wire.get("cap_universe"):
+            return set(wire["cap_universe"])
+    except Exception:
+        pass
+    # Fallback: load from static JSON file
+    try:
+        import json
+        path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
+        with open(path) as f:
+            return set(json.load(f))
+    except Exception:
+        return set()
+
+
+def _fh_get_month(from_date: str, to_date: str) -> dict | None:
+    """Fetch Finnhub /calendar/earnings for a full date range.
+
+    Mirrors the _fh_get pattern from earnings_estimates.py.
+    Returns the raw JSON dict or None on failure.
+    """
+    fh_key = os.environ.get("FINNHUB_API_KEY")
+    if not fh_key:
+        _logger.warning("Calendar month: FINNHUB_API_KEY not set")
+        return None
+    try:
+        import requests
+        r = requests.get(
+            "https://finnhub.io/api/v1/calendar/earnings",
+            params={"from": from_date, "to": to_date, "token": fh_key},
+            timeout=15,
+        )
+        if not r.ok:
+            _logger.warning("Calendar month: Finnhub HTTP %d", r.status_code)
+            return None
+        return r.json()
+    except Exception as exc:
+        _logger.warning("Calendar month: Finnhub fetch failed: %s", exc)
+        return None
+
+
+_MONTH_CACHE_TTL = 1800  # 30 minutes
+
+
+@router.get("/api/calendar/month")
+def get_month_calendar(year: int = 0, month: int = 0):
+    """Return full-month earnings bucketed by date.
+
+    Response: { month: "YYYY-MM", days: { YYYY-MM-DD: { bmo: [...], amc: [...] } } }
+    Each entry: { sym, eps_est, eps_act, rev_est, rev_act, timing }
+    Filtered to cap_universe.  Cached 30 min.  Never raises — returns {} days on failure.
+    """
+    today = _today_et()
+    if not year:
+        year = today.year
+    if not month:
+        month = today.month
+
+    cache_key = f"calendar_month_{year}_{month}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Compute first and last day of the requested month
+    _, last_day = _cal_module.monthrange(year, month)
+    from_date = f"{year:04d}-{month:02d}-01"
+    to_date   = f"{year:04d}-{month:02d}-{last_day:02d}"
+
+    cap_uni = _load_cap_universe()
+
+    raw = _fh_get_month(from_date, to_date)
+    days: dict[str, dict] = {}
+
+    if raw:
+        _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+        def _clean_eps(v):
+            if v is None:
+                return None
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv in _EPS_SENTINELS or abs(fv) > 200:
+                return None
+            return round(fv, 2)
+
+        for row in raw.get("earningsCalendar", []):
+            sym = (row.get("symbol") or "").strip().upper()
+            if not sym:
+                continue
+            # Filter to cap_universe when available
+            if cap_uni and sym not in cap_uni:
+                continue
+
+            ds = (row.get("date") or "").strip()
+            if not ds or not ds.startswith(f"{year:04d}-{month:02d}"):
+                continue
+
+            # hour field: "bmo" | "amc" | "dmh" → dmh goes to amc bucket
+            hour = (row.get("hour") or "amc").lower()
+            timing = "bmo" if hour == "bmo" else "amc"
+
+            rev_est_raw = row.get("revenueEstimate")
+            rev_act_raw = row.get("revenueActual")
+
+            entry = {
+                "sym":     sym,
+                "timing":  timing,
+                "eps_est": _clean_eps(row.get("epsEstimate")),
+                "eps_act": _clean_eps(row.get("epsActual")),
+                # Store in millions (Finnhub returns raw dollars)
+                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+            }
+
+            if ds not in days:
+                days[ds] = {"bmo": [], "amc": []}
+            days[ds][timing].append(entry)
+
+    result = {"month": f"{year:04d}-{month:02d}", "days": days}
+    cache.set(cache_key, result, ttl=_MONTH_CACHE_TTL)
+    return result
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
