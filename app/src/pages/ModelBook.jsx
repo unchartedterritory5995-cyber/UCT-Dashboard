@@ -285,6 +285,7 @@ function StockDetail({ stockId, isAdmin }) {
 
   return (
     <div className={styles.detail}>
+      <div className={styles.dvTop}>
       <div className={styles.detailHeader}>
         <div>
           <h2 className={styles.detailName}>
@@ -370,6 +371,7 @@ function StockDetail({ stockId, isAdmin }) {
           priceLines={priceLines}
           className={styles.chart}
         />
+      </div>
       </div>
 
       <div className={styles.setupSection}>
@@ -582,20 +584,19 @@ export default function ModelBook() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>MODEL BOOK</h1>
-        <span className={styles.count}>Top stocks in history · setups labeled on every chart</span>
+        <div className={styles.yearTabs}>
+          {years.map(y => (
+            <button key={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
+              onClick={() => selectYear(y)}>{y}</button>
+          ))}
+          {years.length === 0 && (
+            <span className={styles.emptyYears}>
+              No years curated yet.{isAdmin ? ' Use “+ Add Stock” to start.' : ''}
+            </span>
+          )}
+        </div>
+        <span className={styles.count}>Top stocks in history</span>
         {isAdmin && <AddStockForm year={year ?? new Date().getFullYear()} onAdded={onStockAdded} />}
-      </div>
-
-      <div className={styles.yearTabs}>
-        {years.map(y => (
-          <button key={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
-            onClick={() => selectYear(y)}>{y}</button>
-        ))}
-        {years.length === 0 && (
-          <span className={styles.emptyYears}>
-            No years curated yet.{isAdmin ? ' Use “+ Add Stock” to start.' : ''}
-          </span>
-        )}
       </div>
 
       <div className={styles.layout}>
