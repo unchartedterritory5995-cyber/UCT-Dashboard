@@ -540,10 +540,11 @@ export default function ModelBook() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Drag-resizable gallery sidebar (persisted), so long company names fit.
+  // Drag-resizable gallery sidebar (persisted). v2 key resets the old wider
+  // default now that company names no longer live in the list.
   const [panelWidth, setPanelWidth] = useState(() => {
-    const v = Number(localStorage.getItem('modelbook_panel_width'))
-    return v >= 220 && v <= 760 ? v : 340
+    const v = Number(localStorage.getItem('modelbook_panel_width_v2'))
+    return v >= 170 && v <= 760 ? v : 200
   })
   function startResize(e) {
     e.preventDefault()
@@ -551,13 +552,13 @@ export default function ModelBook() {
     const startW = panelWidth
     let finalW = startW
     const onMove = ev => {
-      finalW = Math.min(760, Math.max(220, startW + (ev.clientX - startX)))
+      finalW = Math.min(760, Math.max(170, startW + (ev.clientX - startX)))
       setPanelWidth(finalW)
     }
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      try { localStorage.setItem('modelbook_panel_width', String(finalW)) } catch { /* ignore */ }
+      try { localStorage.setItem('modelbook_panel_width_v2', String(finalW)) } catch { /* ignore */ }
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -610,7 +611,6 @@ export default function ModelBook() {
                 <div className={styles.stockCardTop}>
                   <span className={styles.rank}>#{i + 1}</span>
                   <span className={styles.stockSym}>{s.symbol}</span>
-                  {s.company && <span className={styles.stockName}>({s.company})</span>}
                   <div className={styles.cardStats}>
                     {st?.open_close_pct != null
                       ? <span className={`${styles.yearGain} ${st.open_close_pct >= 0 ? styles.gain : styles.loss}`}>
