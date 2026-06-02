@@ -1,120 +1,129 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import useBreadthViews, {
-  STORAGE_KEY, DEFAULT_PRESET, DEFAULT_STYLE, STYLES,
-} from './useBreadthViews'
+import useBreadthViews, { STORAGE_KEY, DEFAULT_PRESET, DEFAULT_STYLE, STYLES } from './useBreadthViews'
+
+const ALL = [
+  'breadth_score','uct_exposure','up_4pct_today','down_4pct_today','pct_above_50sma',
+  'pct_above_200sma','new_52w_highs','new_52w_lows','mcclellan_osc','stage2_count',
+  'pct_above_20ema','vix',
+].map(k => ({ key: k, label: k, group: 'G', polarity: 'bull' }))
+
+const render = () => renderHook(() => useBreadthViews(ALL))
 
 beforeEach(() => localStorage.clear())
 
-describe('useBreadthViews', () => {
-  it('starts on Default preset with the default style', () => {
-    const { result } = renderHook(() => useBreadthViews())
+describe('useBreadthViews v2', () => {
+  it('starts on Default with the default style and a non-empty resolved visible set', () => {
+    const { result } = render()
     expect(result.current.activePreset).toBe(DEFAULT_PRESET)
     expect(result.current.viewStyle).toBe(DEFAULT_STYLE)
-    expect(result.current.hidden.size).toBe(0)
+    expect(result.current.isDefaultActive).toBe(true)
+    expect(result.current.visibleKeys.size).toBeGreaterThan(0)
   })
 
-  it('setViewStyle changes the live style even on Default', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.setViewStyle('rings'))
-    expect(result.current.viewStyle).toBe('rings')
+  it('exposes per-view storage key v2', () => {
+    expect(STORAGE_KEY).toBe('uct.breadth.views.v2')
   })
 
-  it('ignores an unknown style', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.setViewStyle('bogus'))
-    expect(result.current.viewStyle).toBe(DEFAULT_STYLE)
-  })
-
-  it('savePreset stores style + hidden and switches to it', () => {
-    const { result } = renderHook(() => useBreadthViews())
+  it('setViewStyle switches the active style and its Default resolves independently', () => {
+    const { result } = render()
+    act(() => result.current.setViewStyle('radar'))
+    expect(result.current.viewStyle).toBe('radar')
+    const radarDefault = new Set(result.current.visibleKeys)
     act(() => result.current.setViewStyle('tug'))
-    act(() => result.current.savePreset('My Tug', ['vix']))
-    expect(result.current.activePreset).toBe('My Tug')
-    expect(result.current.viewStyle).toBe('tug')
-    expect(result.current.hidden.has('vix')).toBe(true)
+    // tug default is pairs-only; radar default includes non-pair keys → different sets
+    expect(result.current.visibleKeys).not.toEqual(radarDefault)
   })
 
-  it('switching to a saved preset restores its style', () => {
-    const { result } = renderHook(() => useBreadthViews())
+  it('savePreset on a view captures resolved visible + options and is per-view', () => {
+    const { result } = render()
+    act(() => result.current.setViewStyle('radar'))
+    act(() => result.current.savePreset('Tight'))
+    expect(result.current.activePreset).toBe('Tight')
+    // toggle a metric off in the saved preset
+    const someKey = [...result.current.visibleKeys][0]
+    act(() => result.current.toggleVisible(someKey))
+    expect(result.current.visibleKeys.has(someKey)).toBe(false)
+    // switching views does not carry the radar preset over
+    act(() => result.current.setViewStyle('scoreboard'))
+    expect(result.current.activePreset).toBe(DEFAULT_PRESET)
+    act(() => result.current.setViewStyle('radar'))
+    expect(result.current.activePreset).toBe('Tight')
+    expect(result.current.visibleKeys.has(someKey)).toBe(false)
+  })
+
+  it('toggleVisible / setOption are no-ops on Default (immutable)', () => {
+    const { result } = render()
+    act(() => result.current.setViewStyle('radar'))
+    const before = new Set(result.current.visibleKeys)
+    act(() => result.current.toggleVisible([...before][0]))
+    expect(result.current.visibleKeys).toEqual(before)
+    act(() => result.current.setOption('maxSpokes', 8))
+    expect(result.current.options.maxSpokes).toBe(14)
+  })
+
+  it('options resolve schema defaults then preset overrides', () => {
+    const { result } = render()
+    act(() => result.current.setViewStyle('radar'))
+    expect(result.current.options).toEqual({ maxSpokes: 14, spokeSelect: 'auto' })
+    act(() => result.current.savePreset('Eight'))
+    act(() => result.current.setOption('maxSpokes', 8))
+    expect(result.current.options.maxSpokes).toBe(8)
+    expect(result.current.options.spokeSelect).toBe('auto')
+  })
+
+  it('resetActive restores the view default visible + default options', () => {
+    const { result } = render()
+    act(() => result.current.setViewStyle('radar'))
+    act(() => result.current.savePreset('Edited'))
+    const k = [...result.current.visibleKeys][0]
+    act(() => result.current.toggleVisible(k))
+    act(() => result.current.setOption('maxSpokes', 8))
+    act(() => result.current.resetActive())
+    expect(result.current.visibleKeys.has(k)).toBe(true)
+    expect(result.current.options.maxSpokes).toBe(14)
+  })
+
+  it('rename and delete are scoped to the active view', () => {
+    const { result } = render()
     act(() => result.current.setViewStyle('meters'))
-    act(() => result.current.savePreset('Meters View', []))
-    act(() => result.current.switchPreset(DEFAULT_PRESET))
-    expect(result.current.viewStyle).toBe(DEFAULT_STYLE)
-    act(() => result.current.switchPreset('Meters View'))
-    expect(result.current.viewStyle).toBe('meters')
+    act(() => result.current.savePreset('A'))
+    act(() => result.current.renamePreset('A', 'B'))
+    expect(result.current.presetNames).toContain('B')
+    expect(result.current.presetNames).not.toContain('A')
+    act(() => result.current.deletePreset('B'))
+    expect(result.current.activePreset).toBe(DEFAULT_PRESET)
+    expect(result.current.presetNames).toEqual([DEFAULT_PRESET])
   })
 
   it('persists across remount', () => {
-    const first = renderHook(() => useBreadthViews())
-    act(() => first.result.current.setViewStyle('rings'))
-    act(() => first.result.current.savePreset('Persisted', ['vix']))
+    const first = render()
+    act(() => first.result.current.setViewStyle('radar'))
+    act(() => first.result.current.savePreset('Persisted'))
     first.unmount()
-    const second = renderHook(() => useBreadthViews())
+    const second = render()
+    expect(second.result.current.viewStyle).toBe('radar')
     expect(second.result.current.activePreset).toBe('Persisted')
-    expect(second.result.current.viewStyle).toBe('rings')
-    expect(second.result.current.hidden.has('vix')).toBe(true)
   })
 
-  it('uses a distinct storage key from the Monitor sheet', () => {
-    expect(STORAGE_KEY).toBe('uct.breadth.views.v1')
-    expect(STYLES).toContain('treemap')
+  it('migrates a v1 blob into per-view presets', () => {
+    localStorage.setItem('uct.breadth.views.v1', JSON.stringify({
+      activePreset: 'Old', viewStyle: 'radar',
+      presets: { Old: { viewStyle: 'radar', hidden: ['vix'] } },
+    }))
+    const { result } = render()
+    expect(result.current.viewStyle).toBe('radar')
+    act(() => result.current.switchPreset('Old'))
+    expect(result.current.activePreset).toBe('Old')
+    // migrated preset = all eligible minus hidden 'vix'
+    expect(result.current.visibleKeys.has('vix')).toBe(false)
+    expect(result.current.visibleKeys.has('breadth_score')).toBe(true)
   })
 
-  it('recovers from corrupt JSON', () => {
-    localStorage.setItem(STORAGE_KEY, '{ bad json')
-    const { result } = renderHook(() => useBreadthViews())
+  it('falls back to clean state on a corrupt blob', () => {
+    localStorage.setItem(STORAGE_KEY, '{not json')
+    const { result } = render()
     expect(result.current.activePreset).toBe(DEFAULT_PRESET)
-    expect(result.current.viewStyle).toBe(DEFAULT_STYLE)
-  })
-
-  it('toggleHidden flips a key on a custom preset and is a no-op on Default', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.toggleHidden('vix'))         // Default: no-op
-    expect(result.current.hidden.size).toBe(0)
-    act(() => result.current.savePreset('P', []))
-    act(() => result.current.toggleHidden('vix'))
-    expect(result.current.hidden.has('vix')).toBe(true)
-    act(() => result.current.toggleHidden('vix'))
-    expect(result.current.hidden.has('vix')).toBe(false)
-  })
-
-  it('renamePreset renames a custom preset and keeps its style + hidden', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.setViewStyle('tug'))
-    act(() => result.current.savePreset('Old', ['vix']))
-    act(() => result.current.renamePreset('Old', 'New'))
-    expect(result.current.activePreset).toBe('New')
-    expect(result.current.viewStyle).toBe('tug')
-    expect(result.current.hidden.has('vix')).toBe(true)
-    expect(result.current.presetNames).toEqual(['Default', 'New'])
-  })
-
-  it('deletePreset of the active preset resets to Default + default style', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.setViewStyle('rings'))
-    act(() => result.current.savePreset('Doomed', ['vix']))
-    act(() => result.current.deletePreset('Doomed'))
-    expect(result.current.activePreset).toBe('Default')
-    expect(result.current.viewStyle).toBe('treemap')
-    expect(result.current.presetNames).toEqual(['Default'])
-  })
-
-  it('deletePreset of an inactive preset keeps the active one', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.savePreset('A', []))
-    act(() => result.current.savePreset('B', []))
-    act(() => result.current.switchPreset('A'))
-    act(() => result.current.deletePreset('B'))
-    expect(result.current.activePreset).toBe('A')
-  })
-
-  it('resetActive clears the hidden set but preserves the style', () => {
-    const { result } = renderHook(() => useBreadthViews())
-    act(() => result.current.setViewStyle('meters'))
-    act(() => result.current.savePreset('A', ['vix', 'cnn_fear_greed']))
-    act(() => result.current.resetActive())
-    expect(result.current.hidden.size).toBe(0)
-    expect(result.current.viewStyle).toBe('meters')
+    expect(STYLES.length).toBe(8)
   })
 })
