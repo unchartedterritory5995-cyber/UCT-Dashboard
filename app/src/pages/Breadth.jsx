@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import useSWR from 'swr'
-import ReactECharts from 'echarts-for-react'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
@@ -15,6 +14,7 @@ import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import { polarityOf, PAIRS } from './breadth/views/breadthViewShared'
+import BreadthViews from './breadth/BreadthViews'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -808,238 +808,6 @@ export const TREEMAP_DEF = [
   },
 ]
 
-// ── BreadthHeatmap (ECharts treemap) ────────────────────────────────────────
-// Spatial treemap: groups as containers, metrics as colored tiles.
-// Tile color = 8-tier bull/bear system. Navigate by date with ←/→ or arrow keys.
-// Tooltip shows value + tier label + percentile rank.
-// Trend arrows (▲/▼) compare current day vs 3 days prior.
-function BreadthHeatmap({ rows, onDrill }) {
-  const [rowIdx, setRowIdx] = useState(0)  // 0 = latest row (rows[0])
-
-  // Arrow-key date navigation
-  useEffect(() => {
-    const handler = e => {
-      if (e.key === 'ArrowLeft')  setRowIdx(p => Math.min(p + 1, rows.length - 1))
-      if (e.key === 'ArrowRight') setRowIdx(p => Math.max(p - 1, 0))
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [rows.length])
-
-  // Forward-fill weekly/sparse fields (AAII, NAAIM, CBOE)
-  const filledRows = useMemo(() => {
-    const asc   = [...rows].reverse()
-    const carry = {}
-    const result = []
-    for (const row of asc) {
-      const filled = { ...row }
-      for (const k of FFILL_KEYS) {
-        if (filled[k] == null && carry[k] != null) filled[k] = carry[k]
-        else if (filled[k] != null) carry[k] = filled[k]
-      }
-      result.push(filled)
-    }
-    return result.reverse()  // newest-first
-  }, [rows])
-
-  const currentRow = filledRows[rowIdx] ?? filledRows[0]
-  const prevRow    = filledRows[rowIdx + 3]  // ~3 trading days ago for trend arrows
-
-  // Sorted value arrays per key for percentile rank in tooltip
-  const pctileByKey = useMemo(() => {
-    const out = {}
-    for (const k of PCTILE_KEYS) {
-      const vals = rows.map(r => r[k]).filter(v => v != null && !isNaN(Number(v)))
-      if (vals.length > 1) out[k] = vals.map(Number).sort((a, b) => a - b)
-    }
-    return out
-  }, [rows])
-
-  // Tier helpers for score strip
-  const healthTier = currentRow?.breadth_score == null ? '' :
-    currentRow.breadth_score >= 80 ? 'g3' : currentRow.breadth_score >= 65 ? 'g2' :
-    currentRow.breadth_score >= 52 ? 'g1' : currentRow.breadth_score >= 45 ? 'a'  :
-    currentRow.breadth_score >= 35 ? 'r1' : currentRow.breadth_score >= 20 ? 'r2' : 'r3'
-  const expTier = currentRow?.uct_exposure == null ? '' :
-    currentRow.uct_exposure >= 110 ? 'g3' : currentRow.uct_exposure >= 90 ? 'g2' :
-    currentRow.uct_exposure >= 70 ? 'g1' : currentRow.uct_exposure >= 50 ? 'a'  :
-    currentRow.uct_exposure >= 30 ? 'r1' : currentRow.uct_exposure >= 15 ? 'r2' : 'r3'
-
-  const option = useMemo(() => {
-    if (!currentRow) return {}
-
-    // Build treemap nodes: groups → children (metric tiles)
-    const treeData = TREEMAP_DEF.map(group => {
-      const children = group.items.map(item => {
-        const metric = HM_METRICS_BY_KEY[item.metricKey]
-        if (!metric) return null
-        const tier  = metric.getTier(currentRow)
-        const val   = metric.getFmt(currentRow)
-        const color = TIER_CELL_COLORS[tier] ?? TIER_CELL_COLORS['']
-
-        // Trend arrow: current tier score vs 3 days ago
-        let arrow = ''
-        if (prevRow && tier) {
-          const prevTier  = metric.getTier(prevRow)
-          const currScore = TIER_SCORES[tier]     ?? 3
-          const prevScore = TIER_SCORES[prevTier] ?? 3
-          if (currScore > prevScore) arrow = ' ▲'
-          else if (currScore < prevScore) arrow = ' ▼'
-        }
-
-        return {
-          name:      item.metricKey,
-          value:     item.weight,
-          labelText: metric.label,
-          valText:   val + arrow,
-          tier,
-          itemStyle: { color, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-        }
-      }).filter(Boolean)
-
-      return {
-        name:       group.key,
-        value:      group.weight,
-        labelText:  group.label,
-        labelColor: group.labelColor,
-        itemStyle:  { color: group.bgColor, borderColor: '#0a0f1a', borderWidth: 0 },
-        children,
-      }
-    })
-
-    return {
-      backgroundColor: 'transparent',
-      animation: false,
-      tooltip: {
-        trigger: 'item',
-        backgroundColor: 'rgba(8,8,8,0.96)',
-        borderColor: '#c9a84c',
-        borderWidth: 1,
-        padding: [8, 12],
-        textStyle: { color: '#e0e0e0', fontFamily: 'Instrument Sans, sans-serif', fontSize: 11 },
-        formatter: params => {
-          const d = params.data
-          if (!d || !d.tier) return ''
-          const metric = HM_METRICS_BY_KEY[d.name]
-          if (!metric) return ''
-          const score     = TIER_SCORES[d.tier]
-          const tierLabel = score != null ? (TIER_LABELS[score] ?? '') : 'No signal'
-          const tierColor = score != null ? (TIER_TIP_COLORS[score] ?? '#666') : '#666'
-          let pctileStr = ''
-          const rawVal = currentRow[d.name]
-          const sorted = pctileByKey[d.name]
-          if (sorted && rawVal != null && !isNaN(Number(rawVal))) {
-            const v   = Number(rawVal)
-            const pct = Math.round(sorted.filter(x => x <= v).length / sorted.length * 100)
-            pctileStr = `p${pct} of ${sorted.length}d`
-          }
-          return (
-            `<div style="min-width:145px;font-family:Instrument Sans,sans-serif">` +
-            `<div style="color:#c9a84c;font-weight:700;margin-bottom:3px">${metric.label}</div>` +
-            `<div style="color:#555;font-size:10px;margin-bottom:6px">${currentRow.date}</div>` +
-            `<div style="font-size:16px;font-weight:700;margin-bottom:4px">${metric.getFmt(currentRow)}</div>` +
-            `<div style="color:${tierColor};font-size:10px;letter-spacing:0.5px${pctileStr ? ';margin-bottom:3px' : ''}">${tierLabel}</div>` +
-            (pctileStr ? `<div style="color:#555;font-size:10px">${pctileStr}</div>` : '') +
-            `</div>`
-          )
-        },
-      },
-      label: {
-        show:      true,
-        formatter: params => {
-          if (!params.data.labelText) return ''
-          return `{lbl|${params.data.labelText.toUpperCase()}}\n{val|${params.data.valText ?? '—'}}`
-        },
-        rich: {
-          lbl: {
-            fontSize:   11,
-            fontFamily: 'Instrument Sans, sans-serif',
-            fontWeight: 700,
-            color:      'rgba(255,255,255,0.60)',
-            lineHeight: 18,
-          },
-          val: {
-            fontSize:   30,
-            fontFamily: 'Instrument Sans, sans-serif',
-            fontWeight: 700,
-            color:      '#ffffff',
-            lineHeight: 40,
-          },
-        },
-        position:      'inside',
-        align:         'center',
-        verticalAlign: 'middle',
-        overflow:      'truncate',
-      },
-      upperLabel: { show: false },
-      series: [{
-        type:      'treemap',
-        data:      treeData,
-        width:     '100%',
-        height:    '100%',
-        top: 0, bottom: 0, left: 0, right: 0,
-        roam:      false,
-        nodeClick: false,
-        breadcrumb: { show: false },
-        visibleMin: 200,
-        levels: [
-          {
-            // single group container — no border, no label
-            itemStyle: { borderWidth: 0, gapWidth: 1, borderColor: '#0a0f1a' },
-            upperLabel: { show: false },
-            label:      { show: false },
-          },
-          {
-            // metric tiles — hairline border
-            itemStyle: { borderWidth: 1, gapWidth: 0, borderColor: '#0a0f1a' },
-            emphasis:  { itemStyle: { borderColor: '#c9a84c', borderWidth: 2 } },
-          },
-        ],
-      }],
-    }
-  }, [currentRow, prevRow, pctileByKey])
-
-  if (!currentRow) return null
-
-  return (
-    <div className={styles.tmOuter} style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* ── Date navigation ─────────────────────────────────────────────── */}
-      <div className={styles.tmDateNav}>
-        <button
-          className={styles.tmNavBtn}
-          onClick={() => setRowIdx(p => Math.min(p + 1, rows.length - 1))}
-          disabled={rowIdx >= rows.length - 1}
-        >←</button>
-        <span className={styles.tmNavDate}>{currentRow.date}</span>
-        <button
-          className={styles.tmNavBtn}
-          onClick={() => setRowIdx(p => Math.max(p - 1, 0))}
-          disabled={rowIdx === 0}
-        >→</button>
-        {rowIdx > 0 && (
-          <button className={styles.tmNavLatest} onClick={() => setRowIdx(0)}>LATEST</button>
-        )}
-      </div>
-      {/* ── ECharts treemap ─────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <ReactECharts
-          option={option}
-          style={{ width: '100%', height: '100%' }}
-          opts={{ renderer: 'canvas' }}
-          notMerge
-          onEvents={{
-            click: params => {
-              if (!onDrill || !currentRow) return
-              const metric = HM_METRICS_BY_KEY[params.data?.name]
-              if (metric?.drillKey) onDrill(currentRow.date, metric)
-            },
-          }}
-        />
-      </div>
-    </div>
-  )
-}
-
 // ── Analogues labels ──────────────────────────────────────────────────────
 const ANALOGUE_METRIC_LABELS = {
   breadth_score: 'Health Score',
@@ -1297,7 +1065,7 @@ export default function Breadth() {
           <h1 className={styles.heading}>Breadth</h1>
           <div className={styles.tabs}>
             <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
             <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
             {isAdmin && (
@@ -1317,7 +1085,7 @@ export default function Breadth() {
           <h1 className={styles.heading}>Breadth</h1>
           <div className={styles.tabs}>
             <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
             <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>Data Charts</button>
             {isAdmin && (
@@ -1337,7 +1105,7 @@ export default function Breadth() {
           <h1 className={styles.heading}>Breadth</h1>
           <div className={styles.tabs}>
             <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
             <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
             <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
             <button className={`${styles.tab} ${styles.tabActive}`}>Analogues</button>
@@ -1354,7 +1122,7 @@ export default function Breadth() {
         <h1 className={styles.heading}>Breadth</h1>
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${activeTab === 'breadth' ? styles.tabActive : ''}`} onClick={() => setActiveTab('breadth')}>Monitor</button>
-          <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Heatmap</button>
+          <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Views</button>
           <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
           <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
           {isAdmin && (
@@ -1432,7 +1200,7 @@ export default function Breadth() {
 
 
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthHeatmap rows={rows} onDrill={openDrill} />
+        <BreadthViews rows={rows} onDrill={openDrill} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

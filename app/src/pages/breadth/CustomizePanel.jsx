@@ -24,6 +24,7 @@ function groupCols(cols) {
 }
 
 export default function CustomizePanel({
+  title = 'Customize Breadth Sheet',
   cols,
   activePreset,
   hidden,
@@ -121,9 +122,9 @@ export default function CustomizePanel({
   const grouped = groupCols(cols)
 
   return (
-    <div className={styles.panel} ref={panelRef} role="dialog" aria-label="Customize Breadth Sheet">
+    <div className={styles.panel} ref={panelRef} role="dialog" aria-label={title}>
       <div className={styles.header}>
-        <h2 className={styles.title}>Customize Breadth Sheet</h2>
+        <h2 className={styles.title}>{title}</h2>
         <button className={styles.xBtn} onClick={onClose} aria-label="Close">✕</button>
       </div>
 
