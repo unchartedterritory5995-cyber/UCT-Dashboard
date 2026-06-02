@@ -346,6 +346,13 @@ export default function ModelBook() {
   )
   const stocks = stocksData?.stocks || []
 
+  // Per-stock year price stats (open→close %, low→high %), keyed by symbol.
+  const { data: statsData } = useSWR(
+    year != null ? `/api/modelbook/year-stats?year=${year}` : null, fetcher,
+    { revalidateOnFocus: false },
+  )
+  const yearStats = statsData?.stats || {}
+
   const [selectedId, setSelectedId] = useState(null)
 
   function selectYear(y) {
@@ -384,25 +391,38 @@ export default function ModelBook() {
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
-          {stocks.map(s => (
-            <div
-              key={s.id}
-              className={`${styles.stockCard} ${selectedId === s.id ? styles.stockCardActive : ''}`}
-              onClick={() => setSelectedId(s.id)}
-            >
-              <div className={styles.stockCardTop}>
-                {s.sort_order ? <span className={styles.rank}>#{s.sort_order}</span> : null}
-                <span className={styles.stockSym}>{s.symbol}</span>
-                {s.company && <span className={styles.stockName}>({s.company})</span>}
-                {s.gain_pct != null && (
-                  <span className={`${styles.stockGain} ${s.gain_pct >= 0 ? styles.gain : styles.loss}`}>
-                    {s.gain_pct >= 0 ? '+' : ''}{s.gain_pct}%
-                  </span>
-                )}
-                <span className={styles.setupCount}>{s.setup_count} setup{s.setup_count === 1 ? '' : 's'}</span>
+          {stocks.map(s => {
+            const st = yearStats[s.symbol]
+            return (
+              <div
+                key={s.id}
+                className={`${styles.stockCard} ${selectedId === s.id ? styles.stockCardActive : ''}`}
+                onClick={() => setSelectedId(s.id)}
+              >
+                <div className={styles.stockCardTop}>
+                  {s.sort_order ? <span className={styles.rank}>#{s.sort_order}</span> : null}
+                  <span className={styles.stockSym}>{s.symbol}</span>
+                  {s.company && <span className={styles.stockName}>({s.company})</span>}
+                  <div className={styles.cardStats}>
+                    <span className={styles.statChip}>
+                      <span className={styles.statLabel}>O→C</span>
+                      {st?.open_close_pct != null
+                        ? <span className={st.open_close_pct >= 0 ? styles.gain : styles.loss}>
+                            {st.open_close_pct >= 0 ? '+' : ''}{st.open_close_pct}%
+                          </span>
+                        : <span className={styles.statMuted}>—</span>}
+                    </span>
+                    <span className={styles.statChip}>
+                      <span className={styles.statLabel}>L→H</span>
+                      {st?.low_high_pct != null
+                        ? <span className={styles.range}>+{st.low_high_pct}%</span>
+                        : <span className={styles.statMuted}>—</span>}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Right — chart + setups */}
