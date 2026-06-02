@@ -1,5 +1,6 @@
 // app/src/pages/calendar/CalendarHeader.jsx
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import styles from './Calendar.module.css'
 
 const AUDIENCE = [
@@ -139,6 +140,9 @@ export default function CalendarHeader({
             <button className={styles.monthNavBtn} onClick={nextMonth} aria-label="Next month">›</button>
           </span>
         )}
+        <Link to="/calendar/mystocks" className={styles.hubLink} title="My Stocks Hub">
+          ⭐ Hub
+        </Link>
         <span className={styles.gearWrap}>
           <button className={styles.mystk} onClick={() => setGear(g => !g)}>★ My Stocks ⚙</button>
           {gear && (

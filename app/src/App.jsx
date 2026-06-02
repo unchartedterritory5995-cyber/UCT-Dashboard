@@ -29,6 +29,7 @@ const UCT20 = lazy(() => import('./pages/UCT20'))
 const Breadth = lazy(() => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazy(() => import('./pages/Calendar'))
+const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
@@ -154,6 +155,7 @@ export default function App() {
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/calendar" element={<Calendar />} />
+                <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
                 <Route path="/dark-pool" element={<DarkPool />} />

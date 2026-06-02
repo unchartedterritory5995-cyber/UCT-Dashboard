@@ -1073,4 +1073,249 @@
   .mgridMobile {
     display: block;
   }
+
+  /* D2: My Stocks Hub — mobile stacked */
+  .hubTabs {
+    flex-wrap: wrap;
+  }
+  .hubTab {
+    flex: 1 1 40%;
+  }
+  .hubCardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── D2: My Stocks Hub ──────────────────────────────────────────────────── */
+
+.hubPage {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px;
+  background: var(--cal-bg);
+  color: var(--cal-txt);
+}
+
+.hubHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.hubBack {
+  color: var(--cal-dim);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.15s;
+}
+.hubBack:hover { color: var(--cal-gold); }
+
+.hubLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cal-gold);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.hubLink:hover { background: rgba(201, 168, 76, 0.1); }
+
+.hubTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  flex: 1;
+}
+
+/* Tabs */
+.hubTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--cal-line);
+  margin-bottom: 16px;
+}
+
+.hubTab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cal-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.hubTab:hover { color: var(--cal-txt); }
+.hubTabActive {
+  color: var(--cal-gold);
+  border-bottom-color: var(--cal-gold);
+}
+
+.hubPanel {
+  flex: 1;
+}
+
+/* Empty state */
+.hubEmpty {
+  padding: 32px;
+  text-align: center;
+  color: var(--cal-muted);
+  font-size: 14px;
+}
+
+/* Unseen indicator */
+.hubUnseen {
+  position: relative;
+}
+.unseenDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cal-blue);
+  display: block;
+  pointer-events: none;
+}
+
+/* ── Earnings tab ── */
+.hubCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.hubCardWrap {
+  position: relative;
+}
+
+/* ── News tab ── */
+.hubNewsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hubNewsRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 90px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--cal-txt);
+  position: relative;
+  transition: border-color 0.12s;
+}
+.hubNewsRow:hover { border-color: var(--cal-line2); }
+.hubNewsSource {
+  font-size: 11px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hubNewsHeadline {
+  font-size: 13px;
+  color: var(--cal-txt);
+  line-height: 1.3;
+}
+.hubNewsTime {
+  font-size: 11px;
+  color: var(--cal-muted);
+  text-align: right;
+}
+
+/* ── Calls tab ── */
+.hubSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.hubCallRow {
+  position: relative;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.hubCallRow:hover { border-color: var(--cal-line2); }
+.hubCallSym {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 10px;
+}
+.hubCallLoading {
+  font-size: 12px;
+  color: var(--cal-muted);
+  padding: 8px 0;
+}
+
+/* ── Filings tab ── */
+.hubFilingGroup {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 12px;
+}
+.hubFilingSym {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 8px;
+}
+.hubFilingRow {
+  display: grid;
+  grid-template-columns: 70px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--cal-line);
+  text-decoration: none;
+  color: var(--cal-txt);
+  position: relative;
+  font-size: 13px;
+}
+.hubFilingRow:first-of-type { border-top: none; }
+.hubFilingForm {
+  color: var(--cal-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+.hubFilingDate {
+  color: var(--cal-dim);
+  font-size: 12px;
+}
+.hubFilingLink {
+  font-size: 12px;
+  color: var(--cal-gold);
+  text-align: right;
+}
+
+/* ── Insights tab ── */
+.hubInsightRow {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 14px;
+}
+.hubInsightSym {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 10px;
 }
