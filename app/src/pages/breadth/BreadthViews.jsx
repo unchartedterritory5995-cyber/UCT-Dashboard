@@ -9,7 +9,9 @@ import useBreadthViews from './useBreadthViews'
 import { normalizeMetric, pickSignals } from './views/breadthViewShared'
 import BreadthSignalStrip from './views/BreadthSignalStrip'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
-import CustomizePanel from './CustomizePanel'
+import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
+import QuickPresetSwitcher from './QuickPresetSwitcher'
+import { VIEW_CONFIG, optionsSchema } from './views/viewMetricConfig'
 import customizeStyles from './CustomizePanel.module.css'
 import TreemapView from './views/TreemapView'
 import RingsView from './views/RingsView'
@@ -25,9 +27,12 @@ export default function BreadthViews({ rows, onDrill }) {
   // Breadth.jsx ⇆ BreadthViews circular-import TDZ: HM_METRICS is only
   // initialized by render time, not during module evaluation.
   const ALL_METRICS = useMemo(() => HM_METRICS.filter(m => !m.isHeader), [])
-  const views = useBreadthViews()
+  const views = useBreadthViews(ALL_METRICS)
   const [rowIdx, setRowIdx] = useState(0)
   const [customizeOpen, setCustomizeOpen] = useState(false)
+
+  const viewLabel = VIEW_CONFIG[views.viewStyle]?.label ?? views.viewStyle
+  const panelMetrics = useMemo(() => views.eligibleMetrics(), [views])
 
   useEffect(() => {
     const handler = e => {
@@ -59,7 +64,7 @@ export default function BreadthViews({ rows, onDrill }) {
   const prevRow = filledRows[rowIdx + 3]
   // Newest-first window up to the current cursor, for time-series styles
   // (Timeline grid, Scoreboard sparklines).
-  const recentRows = useMemo(() => filledRows.slice(rowIdx, rowIdx + 20), [filledRows, rowIdx])
+  const recentRows = useMemo(() => filledRows.slice(rowIdx, rowIdx + 30), [filledRows, rowIdx])
 
   const pctileByKey = useMemo(() => {
     const out = {}
@@ -71,8 +76,8 @@ export default function BreadthViews({ rows, onDrill }) {
   }, [rows])
 
   const visibleMetrics = useMemo(
-    () => ALL_METRICS.filter(m => !views.hidden.has(m.key)),
-    [ALL_METRICS, views.hidden],
+    () => ALL_METRICS.filter(m => views.visibleKeys.has(m.key)),
+    [ALL_METRICS, views.visibleKeys],
   )
   const visibleKeys = useMemo(() => new Set(visibleMetrics.map(m => m.key)), [visibleMetrics])
   const normalize = useMemo(
@@ -100,7 +105,7 @@ export default function BreadthViews({ rows, onDrill }) {
 
   const common = {
     currentRow, prevRow, recentRows, metrics: visibleMetrics, normalize, onDrill: drill,
-    signalKey: signals.signalKey, notableKey: signals.notableKey,
+    signalKey: signals.signalKey, notableKey: signals.notableKey, options: views.options,
   }
 
   return (
@@ -115,28 +120,36 @@ export default function BreadthViews({ rows, onDrill }) {
                   disabled={rowIdx === 0} aria-label="Next day">→</button>
           {rowIdx > 0 && <button onClick={() => setRowIdx(0)}>LATEST</button>}
         </div>
-        <div className={customizeStyles.anchor} style={{ marginLeft: 'auto' }}>
-          <button className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
-                  onClick={() => setCustomizeOpen(o => !o)} title="Customize which metrics show">
-            <span className={customizeStyles.triggerIcon}>⚙</span> Customize
-          </button>
-          {customizeOpen && (
-            <CustomizePanel
-              title="Customize Breadth Views"
-              cols={ALL_METRICS}
-              activePreset={views.activePreset}
-              hidden={views.hidden}
-              presetNames={views.presetNames}
-              isDefaultActive={views.isDefaultActive}
-              onToggleHidden={views.toggleHidden}
-              onSavePreset={views.savePreset}
-              onRenamePreset={views.renamePreset}
-              onDeletePreset={views.deletePreset}
-              onSwitchPreset={views.switchPreset}
-              onResetActive={views.resetActive}
-              onClose={() => setCustomizeOpen(false)}
-            />
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          <QuickPresetSwitcher presetNames={views.presetNames}
+                               activePreset={views.activePreset} onSwitch={views.switchPreset} />
+          <div className={customizeStyles.anchor}>
+            <button className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
+                    onClick={() => setCustomizeOpen(o => !o)} title="Customize this view">
+              <span className={customizeStyles.triggerIcon}>⚙</span> {viewLabel}
+              {!views.isDefaultActive ? ` · ${views.activePreset}` : ''}
+            </button>
+            {customizeOpen && (
+              <BreadthViewsCustomizePanel
+                viewLabel={viewLabel}
+                metrics={panelMetrics}
+                optionsSchema={optionsSchema(views.viewStyle)}
+                options={views.options}
+                activePreset={views.activePreset}
+                visibleKeys={views.visibleKeys}
+                presetNames={views.presetNames}
+                isDefaultActive={views.isDefaultActive}
+                onToggleVisible={views.toggleVisible}
+                onSetOption={views.setOption}
+                onSavePreset={views.savePreset}
+                onRenamePreset={views.renamePreset}
+                onDeletePreset={views.deletePreset}
+                onSwitchPreset={views.switchPreset}
+                onResetActive={views.resetActive}
+                onClose={() => setCustomizeOpen(false)}
+              />
+            )}
+          </div>
         </div>
       </div>
 
