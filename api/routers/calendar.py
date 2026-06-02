@@ -816,6 +816,9 @@ def get_enrichment(date: str | None = None):
     target = date or _today_et().isoformat()
 
     ck = f"calendar_enrichment_{target}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
 
     cal = cache.get("calendar_weekly")
     if not cal:

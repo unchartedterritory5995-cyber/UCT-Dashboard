@@ -8,7 +8,14 @@ client = TestClient(app)
 def test_enrichment_returns_per_sym_move_and_history():
     cal = {"days": {"2026-06-02": {
         "bmo": [{"sym": "CRWD"}], "amc": [{"sym": "HPE"}]}}}
-    with mock.patch("api.routers.calendar.cache.get", return_value=cal), \
+
+    # Key-aware mock: enrichment cache is cold (None) so the compute path runs;
+    # only the calendar_weekly key returns the calendar payload.
+    def _cache_get(key):
+        return cal if key == "calendar_weekly" else None
+
+    with mock.patch("api.routers.calendar.cache.get", side_effect=_cache_get), \
+         mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.services.earnings_enrichment.get_implied_move",
                     side_effect=lambda s, earnings_date=None: {"pct": 9.1} if s == "CRWD" else None), \
          mock.patch("api.services.earnings_estimates.get_earnings_intel",
