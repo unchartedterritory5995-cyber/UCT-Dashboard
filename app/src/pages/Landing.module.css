@@ -61,6 +61,20 @@
   font-size: 10px;
   color: var(--gold);
 }
+.navLinks {
+  display: flex;
+  gap: 26px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+}
+.navLinks a {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.navLinks a:hover { color: var(--cream); }
+
 .navCta {
   display: flex;
   gap: 16px;
@@ -292,17 +306,28 @@
   transform: translateY(-1px);
 }
 .ctaGhost {
-  color: var(--text-dim);
-  padding: 14px 8px;
+  color: var(--cream);
+  padding: 14px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.1px;
   text-decoration: none;
-  transition: color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
-.ctaGhost:hover { color: var(--cream); }
-.ctaGhost::after {
-  content: ' →';
-  color: var(--gold);
+.ctaGhost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.ctaSubnote {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-mute);
+  letter-spacing: 0.1px;
 }
 
 /* ── Live engine strip ─────────────────────────────── */
@@ -660,6 +685,102 @@
   border-color: rgba(74, 222, 128, 0.6);
 }
 
+/* ── FAQ ───────────────────────────────────────────── */
+.faq {
+  padding: 96px 40px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.faqList {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.faqItem {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+.faqItem[open] {
+  border-color: rgba(201, 168, 76, 0.3);
+  background: rgba(201, 168, 76, 0.03);
+}
+.faqItem summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cream);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  user-select: none;
+}
+.faqItem summary::-webkit-details-marker { display: none; }
+.faqItem summary::after {
+  content: '+';
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--gold);
+  line-height: 1;
+  transition: transform 0.2s;
+}
+.faqItem[open] summary::after {
+  content: '−';
+  transform: rotate(0deg);
+}
+.faqItem > div {
+  padding: 0 22px 20px;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── Final close ───────────────────────────────────── */
+.close {
+  padding: 96px 40px 110px;
+  background: var(--bg2);
+  border-top: 1px solid var(--line);
+  position: relative;
+  text-align: center;
+}
+.close::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(201, 168, 76, 0.06), transparent 70%);
+  pointer-events: none;
+}
+.closeInner {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.closeH2 {
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cream);
+  margin: 0 0 14px;
+  letter-spacing: -1px;
+}
+.closeP {
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0 0 32px;
+}
+.close .ctas {
+  justify-content: center;
+}
+
 /* ── Footer ────────────────────────────────────────── */
 .foot {
   padding: 40px 40px 28px;
@@ -724,12 +845,14 @@
   .hero { padding: 80px 32px 90px; }
   .heroInner { gap: 48px; }
   .heroH1 { font-size: 52px; }
+  .navLinks { gap: 18px; font-size: 12px; }
   .grid { grid-template-columns: repeat(2, 1fr); }
   .freeGrid { grid-template-columns: repeat(3, 1fr); }
   .freeGrid .freeCard:nth-child(4),
   .freeGrid .freeCard:nth-child(5) {
     grid-column: span 1;
   }
+  .closeH2 { font-size: 32px; }
 }
 
 @media (max-width: 640px) {
@@ -772,6 +895,16 @@
   .foot { padding: 32px 20px 24px; }
   .footTop { flex-direction: column; align-items: flex-start; gap: 14px; }
   .footLinks { flex-wrap: wrap; gap: 14px 20px; }
+
+  .navLinks { display: none; }
+
+  .faq { padding: 64px 20px; }
+  .faqItem summary { padding: 16px 18px; font-size: 14px; }
+  .faqItem > div { padding: 0 18px 18px; font-size: 13px; }
+
+  .close { padding: 64px 20px 80px; }
+  .closeH2 { font-size: 26px; }
+  .closeP { font-size: 15px; }
 }
 
 /* ── Reduced motion ────────────────────────────────── */

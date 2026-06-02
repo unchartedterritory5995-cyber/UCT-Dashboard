@@ -135,9 +135,9 @@ export default function Landing() {
     }
   }, [])
 
-  const scrollToFeatures = (e) => {
+  const scrollTo = (id) => (e) => {
     e.preventDefault()
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
@@ -147,6 +147,11 @@ export default function Landing() {
         <div className={styles.navBrand}>
           <span className={styles.navMark} aria-hidden="true">⊕</span>
           UCT Intelligence
+        </div>
+        <div className={styles.navLinks}>
+          <a href="#features" onClick={scrollTo('features')}>Features</a>
+          <a href="#pricing"  onClick={scrollTo('pricing')}>Pricing</a>
+          <a href="#faq"      onClick={scrollTo('faq')}>FAQ</a>
         </div>
         <div className={styles.navCta}>
           <Link to="/login" className={styles.navLogin}>Log in</Link>
@@ -265,9 +270,12 @@ export default function Landing() {
               <Link to="/signup?plan=pro" className={styles.ctaGold}>
                 Get started — $20/mo
               </Link>
-              <a href="#features" onClick={scrollToFeatures} className={styles.ctaGhost}>
-                See what's included
-              </a>
+              <Link to="/signup?plan=free" className={styles.ctaGhost}>
+                Try it free
+              </Link>
+            </div>
+            <div className={styles.ctaSubnote}>
+              Free forever for the core tools · No card required · Cancel Pro anytime
             </div>
           </div>
         </div>
@@ -315,7 +323,7 @@ export default function Landing() {
       </section>
 
       {/* ── Pricing ── */}
-      <section className={styles.price}>
+      <section id="pricing" className={styles.price}>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionH2}>One plan. Everything included.</h2>
           <p className={styles.sectionP}>$20 a month. Cancel anytime.</p>
@@ -378,6 +386,92 @@ export default function Landing() {
           <Link to="/signup?plan=free" className={styles.freeCta}>
             Create your free account
           </Link>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section id="faq" className={styles.faq}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>Common questions.</h2>
+          <p className={styles.sectionP}>Most things people ask before they sign up.</p>
+        </div>
+        <div className={styles.faqList}>
+          <details className={styles.faqItem}>
+            <summary>Is this investment advice?</summary>
+            <div>
+              No — UCT Intelligence is research and pattern detection software.
+              Every pick, signal, and chart is information to investigate, not a
+              recommendation to trade. You make your own decisions; we provide
+              the work product of a research desk.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>Do I need to connect a broker?</summary>
+            <div>
+              No. The app runs entirely as research, journaling, and analytics.
+              If you use Charles Schwab, the Journal can sync trades automatically,
+              but it's optional — no broker connection is required to use any feature.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>How is this different from a screener like Finviz?</summary>
+            <div>
+              Screeners give you 200 tickers and leave you to figure out which
+              are real. We give you 5–20 vetted picks per day with the entry
+              trigger, stop, target, invalidation, and the catalyst behind each —
+              synthesized by an AI that read 8 sources overnight. Less searching,
+              more deciding.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>What's the difference between Free and Pro?</summary>
+            <div>
+              Free includes the Dashboard, Breadth Monitor, Charts Workspace,
+              Journal, and Options Flow — forever, no card required. Pro adds
+              the Morning Wire, UCT 20 portfolio, AI Compass coach, Stock
+              Catalysts engine, 85-detector pattern engine, 99-theme tracker,
+              Voice Assistant, and real-time streaming for $20/month.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>What is the AI Compass coach?</summary>
+            <div>
+              A trading coach that learns your setups, sizing rules, and tilt
+              patterns. Before you take a trade, it gives a GO / HOLD / SKIP
+              verdict. After the trade, it writes a post-mortem with data
+              citations. Every Sunday, it briefs you on the week. You can talk
+              to it by text or voice.
+            </div>
+          </details>
+          <details className={styles.faqItem}>
+            <summary>Can I cancel anytime?</summary>
+            <div>
+              Yes — one click from your dashboard. No contracts, no retention
+              calls, no friction. Your free-tier access stays active even after
+              you cancel Pro.
+            </div>
+          </details>
+        </div>
+      </section>
+
+      {/* ── Final close ── */}
+      <section className={styles.close}>
+        <div className={styles.closeInner}>
+          <h2 className={styles.closeH2}>Ready to navigate the market effectively?</h2>
+          <p className={styles.closeP}>
+            Five tools free forever. Pro is $20/month — cancel anytime, no questions asked.
+          </p>
+          <div className={styles.ctas}>
+            <Link to="/signup?plan=pro" className={styles.ctaGold}>
+              Get started — $20/mo
+            </Link>
+            <Link to="/signup?plan=free" className={styles.ctaGhost}>
+              Try it free
+            </Link>
+          </div>
+          <div className={styles.ctaSubnote}>
+            Free forever for the core tools · No card required · Cancel Pro anytime
+          </div>
         </div>
       </section>
 
