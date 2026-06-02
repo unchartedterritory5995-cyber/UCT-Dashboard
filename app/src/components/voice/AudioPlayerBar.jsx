@@ -36,49 +36,53 @@ export default function AudioPlayerBar() {
   }, [voice])
 
   const visible = voice.status !== 'idle'
-  if (!visible) {
-    // Still mount the <audio> element so it's ready when needed
-    return <audio ref={audioRef} preload="auto" hidden />
-  }
-
   const isPlaying = voice.status === 'playing'
   const isLoading = voice.status === 'loading'
   const isError = voice.status === 'error'
 
+  // The <audio> element is rendered ONCE, unconditionally, and never moves in
+  // the tree. If it were swapped between an idle node and a node nested in the
+  // bar (as it was before), the idle→loading re-render would remove the element
+  // mid-play(), throwing "the play() request was interrupted because the media
+  // was removed from the document". Keep it stable; toggle only the controls.
   return (
-    <div className={styles.bar} role="region" aria-label="Audio playback">
-      <audio ref={audioRef} preload="auto" />
-      <button
-        type="button"
-        className={styles.iconBtn}
-        onClick={() => (isPlaying ? voice.pause() : voice.resume())}
-        disabled={isLoading || isError}
-        aria-label={isPlaying ? 'Pause' : 'Play'}
-      >
-        {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
-      </button>
-      <div className={styles.label}>
-        {voice.trackLabel || 'Audio'}
-        {isError && <span className={styles.errorTag}> · {voice.errorMessage || 'Error'}</span>}
-      </div>
-      <select
-        className={styles.speedSel}
-        value={voice.speed}
-        onChange={(e) => voice.setSpeed(parseFloat(e.target.value))}
-        aria-label="Playback speed"
-      >
-        {SPEEDS.map((s) => (
-          <option key={s} value={s}>{s}×</option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className={styles.iconBtn}
-        onClick={voice.stop}
-        aria-label="Stop"
-      >
-        ✕
-      </button>
-    </div>
+    <>
+      <audio ref={audioRef} preload="auto" hidden />
+      {visible && (
+        <div className={styles.bar} role="region" aria-label="Audio playback">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => (isPlaying ? voice.pause() : voice.resume())}
+            disabled={isLoading || isError}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
+          </button>
+          <div className={styles.label}>
+            {voice.trackLabel || 'Audio'}
+            {isError && <span className={styles.errorTag}> · {voice.errorMessage || 'Error'}</span>}
+          </div>
+          <select
+            className={styles.speedSel}
+            value={voice.speed}
+            onChange={(e) => voice.setSpeed(parseFloat(e.target.value))}
+            aria-label="Playback speed"
+          >
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>{s}×</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={voice.stop}
+            aria-label="Stop"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
   )
 }
