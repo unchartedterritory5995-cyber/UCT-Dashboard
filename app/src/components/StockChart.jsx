@@ -344,6 +344,20 @@ export default function StockChart({
     }
   }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor])
 
+  // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
+  // the user's global chart-settings pref. A per-instance override lets the
+  // A/L/% toggle still switch locally. 'arith' | 'log' | 'pct' | null. ──
+  const [scaleOverride, setScaleOverride] = useState(null)
+  const effectiveScale = scaleOverride
+    || (forceLogScale ? 'log' : (cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith')))
+  const setScale = (kind) => {
+    if (forceLogScale) {
+      setScaleOverride(kind)  // local only — don't rewrite the global pref
+    } else {
+      handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
+    }
+  }
+
   // ── Keyboard help overlay state ──
   const [helpOpen, setHelpOpen] = useState(false)
   // Flips true once the LWC chart instance is first created (in updateChart).
@@ -1963,10 +1977,9 @@ export default function StockChart({
       })
     }
 
-    // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5).
-    // forceLogScale (Model Book) defaults to log so a full-year % move reads
-    // proportionally; an explicit percent-scale pref still wins.
-    chart.priceScale('right').applyOptions({ mode: cs.percentScale ? 2 : ((forceLogScale || cs.logScale) ? 1 : 0) })
+    // Price-scale mode (Normal/Log/Percent) is applied by a dedicated effect
+    // keyed on `effectiveScale`, so the A/L/% toggle and the forceLogScale
+    // default both take effect immediately (and survive data updates).
 
     // ── Price series — reuse if chart type unchanged, else swap ──
     // When swapping the candle series, the markers controller is bound to the
@@ -2789,6 +2802,16 @@ export default function StockChart({
     } catch { /* range can be out of bounds mid-load; next update re-pins */ }
   }, [exactDateRange, entryDate, exitDate, filteredBars, sym])
 
+  // Apply the price-scale mode from effectiveScale (Normal/Log/Percent).
+  // Owns the right scale's mode so the A/L/% toggle + forceLogScale default
+  // both take effect immediately and persist across data updates.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    try { chart.priceScale('right').applyOptions({ mode }) } catch { /* pre-init */ }
+  }, [effectiveScale, chartReady])
+
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
   // Runs whenever `comparisonSeries` changes (sym list, fetched data, or colors).
@@ -3576,20 +3599,20 @@ export default function StockChart({
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button
-            className={`${styles.scaleToggleBtn} ${!cs.logScale && !cs.percentScale ? styles.scaleToggleActive : ''}`}
-            onClick={() => handleUpdateChartSettings({ ...cs, logScale: false, percentScale: false, preset: 'custom' })}
+            className={`${styles.scaleToggleBtn} ${effectiveScale === 'arith' ? styles.scaleToggleActive : ''}`}
+            onClick={() => setScale('arith')}
             title="Arithmetic (linear) scale"
             aria-label="Arithmetic price scale"
           >A</button>
           <button
-            className={`${styles.scaleToggleBtn} ${cs.logScale && !cs.percentScale ? styles.scaleToggleActive : ''}`}
-            onClick={() => handleUpdateChartSettings({ ...cs, logScale: true, percentScale: false, preset: 'custom' })}
+            className={`${styles.scaleToggleBtn} ${effectiveScale === 'log' ? styles.scaleToggleActive : ''}`}
+            onClick={() => setScale('log')}
             title="Logarithmic scale"
             aria-label="Logarithmic price scale"
           >L</button>
           <button
-            className={`${styles.scaleToggleBtn} ${cs.percentScale ? styles.scaleToggleActive : ''}`}
-            onClick={() => handleUpdateChartSettings({ ...cs, percentScale: true, logScale: false, preset: 'custom' })}
+            className={`${styles.scaleToggleBtn} ${effectiveScale === 'pct' ? styles.scaleToggleActive : ''}`}
+            onClick={() => setScale('pct')}
             title="Percentage scale"
             aria-label="Percentage price scale"
           >%</button>
