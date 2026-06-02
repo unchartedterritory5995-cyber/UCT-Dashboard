@@ -174,12 +174,24 @@ export default function Support() {
   }
 
   // ── Reopen ticket ──
+  // Posting any user message to a resolved ticket reopens it server-side, so
+  // we just send one immediately (using whatever's typed, or a default line).
   async function handleReopen() {
-    if (!activeTicketId) return
-    // User sends a message to reopen
-    if (!reply.trim()) {
-      setReply('I would like to reopen this ticket.')
-    }
+    if (!activeTicketId || replying) return
+    const msg = reply.trim() || 'I would like to reopen this ticket.'
+    setReplying(true)
+    try {
+      const res = await fetch(`/api/auth/tickets/${activeTicketId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg }),
+      })
+      if (res.ok) {
+        setReply('')
+        fetchThread(activeTicketId)
+      }
+    } catch { /* silent */ }
+    finally { setReplying(false) }
   }
 
   // ── Ticket List View ──

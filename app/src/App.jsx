@@ -29,6 +29,7 @@ const UCT20 = lazy(() => import('./pages/UCT20'))
 const Breadth = lazy(() => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazy(() => import('./pages/Calendar'))
+const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
@@ -51,6 +52,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
 const PatternAdmin = lazy(() => import('./pages/admin/PatternAdmin'))
+const LandingAnalytics = lazy(() => import('./pages/admin/LandingAnalytics'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
@@ -153,6 +155,7 @@ export default function App() {
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/calendar" element={<Calendar />} />
+                <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
@@ -169,6 +172,7 @@ export default function App() {
                 <Route path="/catalysts/history" element={<CatalystsHistory />} />
                 <Route path="/admin/chart-health" element={<ChartHealth />} />
                 <Route path="/admin/patterns" element={<PatternAdmin />} />
+                <Route path="/admin/landing-analytics" element={<LandingAnalytics />} />
               </Route>
             </Route>
 

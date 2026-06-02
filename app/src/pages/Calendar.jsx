@@ -1,15 +1,31 @@
 // app/src/pages/Calendar.jsx
+// Dominant-feed calendar: Feed / Week / Month views with logo cards, enrichment overlay,
+// and My Stocks personalization. Route stays at this path so nav is unchanged.
 import { useState, useMemo } from 'react'
-import useMobileSWR from '../hooks/useMobileSWR'
-import useRealtimePrices from '../hooks/useRealtimePrices'
-import TickerPopup from '../components/TickerPopup'
-import EarningsModal from '../components/tiles/EarningsModal'
 import ErrorBoundary from '../components/ErrorBoundary'
-import styles from './Calendar.module.css'
+import EarningsModal from '../components/tiles/EarningsModal'
+import usePreferences from '../hooks/usePreferences'
+import {
+  useCalendar,
+  useCalendarMySets,
+  useWeekEnrichment,
+  buildWeekDates,
+  mergeEnrichment,
+  isMine,
+  useIpos,
+  useDividends,
+} from './calendar/useCalendarData'
+import { DEFAULT_FILTERS } from './calendar/filterLogic'
+import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
+import FeedView from './calendar/FeedView'
+import WeekView from './calendar/WeekView'
+import MonthView from './calendar/MonthView'
+import DayDetailDrawer from './calendar/DayDetailDrawer'
+import WeekSummary from './calendar/WeekSummary'
+import styles from './calendar/Calendar.module.css'
 
-const fetcher = (url) => fetch(url).then(r => r.json())
-
-// ── Formatters ────────────────────────────────────────────────────────────────
+// ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
+// These keep EarningsModal rendering identical to the old page.
 
 function fmtEps(v) {
   if (v == null) return null
@@ -37,7 +53,7 @@ function calcSurprise(act, est) {
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
 }
 
-// Normalize calendar entry → EarningsModal row format
+// Normalize calendar entry → EarningsModal row format (ported from old Calendar.jsx)
 function toModalRow(entry) {
   const v = verdict(entry.eps_act, entry.eps_est)
   return {
@@ -52,305 +68,164 @@ function toModalRow(entry) {
   }
 }
 
-function pillClass(v, styles) {
-  if (v === 'beat')     return `${styles.verdictPill} ${styles.pillBeat}`
-  if (v === 'miss')     return `${styles.verdictPill} ${styles.pillMiss}`
-  if (v === 'meet')     return `${styles.verdictPill} ${styles.pillMixed}`
-  if (v === 'reported') return `${styles.verdictPill} ${styles.pillMixed}`
-  if (v === 'pending')  return `${styles.verdictPill} ${styles.pillPending}`
-  return `${styles.verdictPill} ${styles.pillPending}`
+function fmtWeekRange(start, end) {
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end   + 'T00:00:00')
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  if (s.getMonth() === e.getMonth()) {
+    return `${months[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
+  }
+  return `${months[s.getMonth()]} ${s.getDate()} – ${months[e.getMonth()]} ${e.getDate()}, ${s.getFullYear()}`
 }
 
-function pillLabel(v) {
-  if (v === 'beat')     return 'BEAT'
-  if (v === 'miss')     return 'MISS'
-  if (v === 'meet')     return 'MIXED'
-  if (v === 'reported') return 'RPTD'
-  return null
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const ALL_SOURCES = ['watchlist', 'flagged', 'positions', 'uct20']
+
+// ── Default month cursor (current month) ─────────────────────────────────────
+
+function currentMonthCursor() {
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth() + 1 }
 }
 
-function epsActClass(v, eps_est, styles) {
-  if (v == null || eps_est == null) return styles.tdDim
-  if (v > eps_est) return `${styles.tdMono} ${styles.epsPos}`
-  if (v < eps_est) return `${styles.tdMono} ${styles.epsNeg}`
-  return `${styles.tdMono} ${styles.epsMixed}`
-}
-
-// Filtering is done server-side via cap_universe ($300M+ tickers).
-// No client-side filtering needed — render what the API returns.
-
-// ── Earnings table ────────────────────────────────────────────────────────────
-
-function EarningsTable({ entries, reactions, livePrices, onSelect, label }) {
-  if (!entries.length) return null
-
-  return (
-    <table className={styles.earningsTable}>
-      <thead>
-        <tr>
-          <th className={styles.thLeft}>Ticker</th>
-          <th className={styles.hideOnMobile}>Price</th>
-          <th className={styles.hideOnMobile}>EPS Est</th>
-          <th className={styles.hideOnMobile}>EPS Act</th>
-          <th>Surp %</th>
-          <th className={styles.hideOnMobile}>Revenue</th>
-          <th>Gap %</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map(entry => (
-          <EarningsRow
-            key={entry.sym}
-            entry={entry}
-            reaction={reactions?.[entry.sym]}
-            livePrice={livePrices[entry.sym]?.price}
-            onClick={() => onSelect(entry, label)}
-          />
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-function EarningsRow({ entry, reaction, livePrice, onClick }) {
-  const v         = verdict(entry.eps_act, entry.eps_est)
-  const pill      = pillLabel(v)
-  const reported  = entry.eps_act != null
-
-  const estFmt    = fmtEps(entry.eps_est)   ?? '—'
-  const actFmt    = fmtEps(entry.eps_act)   ?? '—'
-  const surprFmt  = calcSurprise(entry.eps_act, entry.eps_est)
-
-  const revFmt = entry.rev_act != null
-    ? fmtRev(entry.rev_act)
-    : entry.rev_est != null
-      ? `${fmtRev(entry.rev_est)} est`
-      : '—'
-
-  const reactionFmt = reaction != null
-    ? `${reaction >= 0 ? '+' : ''}${reaction.toFixed(1)}%`
-    : null
-
-  const surprClass = surprFmt == null
-    ? styles.reactionNeutral
-    : surprFmt.startsWith('+') ? styles.reactionPos : styles.reactionNeg
-
-  const priceFmt = livePrice != null
-    ? `$${livePrice.toFixed(2)}`
-    : '—'
-
-  return (
-    <tr className={styles.earningsRow} onClick={onClick}>
-      <td className={styles.tdTicker}><TickerPopup sym={entry.sym} /></td>
-      <td className={`${styles.tdMono} ${styles.hideOnMobile}`}>{priceFmt}</td>
-      <td className={`${styles.tdDim} ${styles.hideOnMobile}`}>{estFmt}</td>
-      <td className={`${reported ? epsActClass(entry.eps_act, entry.eps_est, styles) : styles.tdDim} ${styles.hideOnMobile}`}>
-        {reported ? actFmt : '—'}
-      </td>
-      <td className={surprFmt != null ? surprClass : styles.reactionNeutral}>
-        {surprFmt ?? '—'}
-      </td>
-      <td className={`${styles.tdDim} ${styles.hideOnMobile}`}>{revFmt}</td>
-      <td className={reactionFmt ? (reaction >= 0 ? styles.reactionPos : styles.reactionNeg) : styles.reactionNeutral}>
-        {reactionFmt ?? '—'}
-      </td>
-      <td>
-        {pill ? (
-          <span className={pillClass(v, styles)}>{pill}</span>
-        ) : null}
-      </td>
-    </tr>
-  )
-}
-
-// ── Earnings panel ─────────────────────────────────────────────────────────────
-
-function EarningsPanel({ days, weekDates, onSelectEntry }) {
-  const [activeDate, setActiveDate] = useState(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    return weekDates.includes(today) ? today : weekDates[0]
-  })
-
-  // Live price reactions for reported tickers (30s)
-  const { data: reactions } = useMobileSWR(
-    `/api/calendar/reactions?date=${activeDate}`,
-    fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: false, marketHoursOnly: true }
-  )
-
-  const dayData = days[activeDate] || {}
-  // Filter out entries with zero coverage (no estimates, no actuals = pure noise)
-  const _filterNoise = entries => entries.filter(e =>
-    e.eps_est != null || e.eps_act != null || e.rev_est != null || e.rev_act != null
-  )
-  const bmo = _filterNoise(dayData.bmo || [])
-  const amc = _filterNoise(dayData.amc || [])
-
-  // Extract tickers for the active day and fetch live prices
-  const todayTickers = useMemo(
-    () => [...bmo, ...amc].map(e => e.sym),
-    [bmo, amc]
-  )
-  const { prices: livePrices } = useRealtimePrices(todayTickers)
-
-  return (
-    <div className={styles.earningsPanel}>
-      <div className={styles.panelHeader}>
-        <div className={styles.panelLabel}>Earnings Calendar</div>
-
-        {/* Day tabs */}
-        <div className={styles.dayTabs}>
-          {weekDates.map(ds => {
-            const d = days[ds]
-            if (!d) return null
-            const isActive = ds === activeDate
-            const isToday  = d.is_today
-            return (
-              <button
-                key={ds}
-                className={[
-                  styles.dayTab,
-                  isActive ? styles.dayTabActive : '',
-                ].filter(Boolean).join(' ')}
-                onClick={() => setActiveDate(ds)}
-              >
-                {d.label}
-                {isToday && <span className={styles.todayDot} />}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className={styles.earningsList}>
-        {/* BMO */}
-        <div className={styles.timingSection}>
-          <div className={`${styles.sectionLabel} ${styles.bmoLabel}`}>
-            ▲ Before Market Open — {bmo.length} reporters
-          </div>
-          {bmo.length === 0 ? (
-            <div className={styles.emptyBucket}>No reporters</div>
-          ) : (
-            <EarningsTable
-              entries={bmo}
-              reactions={reactions}
-              livePrices={livePrices}
-              onSelect={onSelectEntry}
-              label="BEFORE MARKET OPEN"
-            />
-          )}
-        </div>
-
-        {/* AMC */}
-        <div className={styles.timingSection}>
-          <div className={`${styles.sectionLabel} ${styles.amcLabel}`}>
-            ▼ After Market Close — {amc.length} reporters
-          </div>
-          {amc.length === 0 ? (
-            <div className={styles.emptyBucket}>No reporters</div>
-          ) : (
-            <EarningsTable
-              entries={amc}
-              reactions={reactions}
-              livePrices={livePrices}
-              onSelect={onSelectEntry}
-              label="AFTER MARKET CLOSE"
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Economic events panel ──────────────────────────────────────────────────────
-
-function EconPanel({ days, weekDates }) {
-  return (
-    <div className={styles.econPanel}>
-      <div className={styles.econHeader}>
-        <div className={styles.panelLabel}>Macro Events — Full Week</div>
-      </div>
-      <div className={styles.econList}>
-        {weekDates.map(ds => {
-          const d = days[ds]
-          if (!d) return null
-          const econ = d.econ || []
-          const fed  = d.fed  || []
-          const hasEvents = econ.length > 0 || fed.length > 0
-
-          return (
-            <div key={ds} className={styles.econDay}>
-              <div className={[
-                styles.econDayHeader,
-                d.is_today ? styles.econDayToday : '',
-              ].filter(Boolean).join(' ')}>
-                {d.label}
-                {d.is_today && <span className={styles.econTodayBadge}>TODAY</span>}
-              </div>
-
-              {!hasEvents && (
-                <div className={styles.econEmpty}>No major events</div>
-              )}
-
-              {econ.map((ev, i) => (
-                <div key={i} className={styles.econEvent}>
-                  <span className={styles.econTime}>{ev.time || '—'}</span>
-                  {ev.is_key ? (
-                    <span className={styles.econStar}>★</span>
-                  ) : (
-                    <span className={styles.econStar} style={{ opacity: 0 }}>★</span>
-                  )}
-                  <span className={[
-                    styles.econEventName,
-                    ev.is_key ? styles.econEventNameKey : '',
-                  ].filter(Boolean).join(' ')}>
-                    {ev.event}
-                  </span>
-                  {(ev.actual || ev.estimate || ev.prior) && (
-                    <span className={styles.econMeta}>
-                      {ev.actual && (
-                        <span className={styles.econActual}>A: {ev.actual}</span>
-                      )}
-                      {ev.estimate && (
-                        <span>{ev.actual ? ' · ' : ''}est {ev.estimate}</span>
-                      )}
-                      {ev.prior && (
-                        <span> · prev {ev.prior}</span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              ))}
-
-              {fed.map((ev, i) => (
-                <div key={`fed-${i}`} className={styles.fedEvent}>
-                  <span className={styles.fedTime}>{ev.time || '—'}</span>
-                  <span className={styles.econStar} style={{ opacity: 0 }}>★</span>
-                  <span className={styles.fedEventName}>{ev.event}</span>
-                  {ev.note && <span className={styles.fedNote}>{ev.note}</span>}
-                </div>
-              ))}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Page ───────────────────────────────────────────────────────────────────────
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Calendar() {
-  const { data, error } = useMobileSWR('/api/calendar', fetcher, {
-    refreshInterval: 2 * 60 * 1000,  // 2 min — pick up reported actuals quickly
-    revalidateOnFocus: false,
-    marketHoursOnly: true,
-  })
-
+  const { data, error } = useCalendar()
+  const { data: mySets } = useCalendarMySets()
+  const { prefs, setPref } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
+  const [openDay, setOpenDay] = useState(null)      // ds string for DayDetailDrawer
 
+  // Month cursor — component state (not persisted; resets to current month on page mount)
+  const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
+
+  // Persisted view / filter preferences
+  const view = prefs.calendar_view || 'feed'
+  const filters = { ...DEFAULT_FILTERS, ...(prefs.calendar_filters || {}) }
+  const mySources = prefs.calendar_mystocks_sources || ALL_SOURCES
+  const setView = v => setPref('calendar_view', v)
+  const setFilters = f => setPref('calendar_filters', f)
+  const setMySources = s => setPref('calendar_mystocks_sources', s)
+
+  // B3: event type filter — persisted as array (Set not JSON-serializable)
+  const _savedEventTypes = prefs.calendar_event_types
+  const eventTypes = useMemo(
+    () => _savedEventTypes ? new Set(_savedEventTypes) : DEFAULT_EVENT_TYPES,
+    [_savedEventTypes],
+  )
+  const setEventTypes = next => setPref('calendar_event_types', [...next])
+
+  // Build stable weekDates array from API data
+  const weekDates = useMemo(() => {
+    if (!data) return []
+    return data.week_start
+      ? buildWeekDates(data.week_start)
+      : Object.keys(data.days || {}).sort()
+  }, [data])
+
+  // B3: fetch IPOs for the visible week range (only when chip enabled)
+  const weekFrom = weekDates.length ? weekDates[0] : null
+  const weekTo   = weekDates.length ? weekDates[weekDates.length - 1] : null
+  const { data: iposRaw } = useIpos(
+    eventTypes.has('ipos') ? weekFrom : null,
+    eventTypes.has('ipos') ? weekTo   : null,
+  )
+
+  // B3: Group IPOs by date for quick lookup in DayGroup
+  const iposByDate = useMemo(() => {
+    if (!iposRaw) return {}
+    const out = {}
+    for (const ev of iposRaw) {
+      const ds = ev.date
+      if (!ds) continue
+      if (!out[ds]) out[ds] = []
+      out[ds].push(ev)
+    }
+    return out
+  }, [iposRaw])
+
+  // B3: fetch dividends/splits for current week's visible tickers
+  // Use a stable comma-separated list of mySets tickers to avoid unbounded requests
+  const mySymsList = useMemo(() => {
+    if (!mySets) return null
+    const all = new Set()
+    for (const src of ALL_SOURCES) {
+      for (const s of (mySets[src] || [])) all.add(s)
+    }
+    return [...all].sort().join(',') || null
+  }, [mySets])
+  const { data: dividendsRaw } = useDividends(
+    eventTypes.has('dividends') ? mySymsList : null,
+  )
+
+  // B3: Group dividends/splits by date for quick lookup in DayGroup
+  const dividendsByDate = useMemo(() => {
+    if (!dividendsRaw) return {}
+    const out = {}
+    for (const ev of dividendsRaw) {
+      const ds = ev.date
+      if (!ds) continue
+      if (!out[ds]) out[ds] = []
+      out[ds].push(ev)
+    }
+    return out
+  }, [dividendsRaw])
+
+  // ── Enrichment overlay (CORRECTION 1: single stable hook, never in a loop) ──
+  // One SWR call fans out to all days and returns { [ds]: { SYM: {...} } }.
+  // weekDates is [] before data loads → key is null → SWR skips. Length never
+  // changes between renders within the same data version, so hook count is stable.
+  const { data: enrichmentByDate } = useWeekEnrichment(weekDates)
+
+  // Tag every entry with mine/sources flags and merge enrichment overlay
+  const days = useMemo(() => {
+    if (!data) return {}
+    const out = {}
+    for (const ds of weekDates) {
+      const d = data.days?.[ds]
+      if (!d) continue
+      const dayEnrich = enrichmentByDate?.[ds] || {}
+      const tag = list => (list || []).map(entry => {
+        const mine = isMine(entry.sym, mySets, mySources)
+        const sources = ALL_SOURCES.filter(
+          s => (mySets?.[s] || []).includes(entry.sym?.toUpperCase())
+        )
+        return { ...mergeEnrichment(entry, dayEnrich), mine, _sources: sources }
+      })
+      out[ds] = { ...d, bmo: tag(d.bmo), amc: tag(d.amc) }
+    }
+    return out
+  }, [data, weekDates, mySets, mySources, enrichmentByDate])
+
+  // Week summary stats for WeekSummary banner
+  const summary = useMemo(() => {
+    let mineCount = 0, total = 0, macroCount = 0, biggest = null
+    for (const ds of weekDates) {
+      const d = days[ds]
+      if (!d) continue
+      const all = [...(d.bmo || []), ...(d.amc || [])]
+      total += all.length
+      mineCount += all.filter(e => e.mine).length
+      macroCount += (d.econ?.filter(e => e.is_key).length || 0) + (d.fed?.length || 0)
+      for (const e of all) {
+        const pct = e.expected_move?.pct
+        if (pct != null && (!biggest || pct > biggest.pct)) biggest = { sym: e.sym, pct }
+      }
+    }
+    return { mineCount, total, macroCount, biggestMove: biggest }
+  }, [days, weekDates])
+
+  // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
+  const onSelect = (entry, timing) => {
+    const label = timing === 'bmo' || timing === 'BEFORE MARKET OPEN'
+      ? 'BEFORE MARKET OPEN'
+      : 'AFTER MARKET CLOSE'
+    setSelected({ row: toModalRow(entry), label })
+  }
+
+  // ── Loading / error states ───────────────────────────────────────────────
   if (error) {
     return (
       <div className={styles.page}>
@@ -367,55 +242,76 @@ export default function Calendar() {
     )
   }
 
-  const weekDates = data.week_start
-    ? (() => {
-        const dates = []
-        const start = new Date(data.week_start + 'T00:00:00')
-        for (let i = 0; i < 5; i++) {
-          const d = new Date(start)
-          d.setDate(start.getDate() + i)
-          dates.push(d.toISOString().slice(0, 10))
-        }
-        return dates
-      })()
-    : Object.keys(data.days || {}).sort()
-
   const weekLabel = data.week_start && data.week_end
     ? `Week of ${fmtWeekRange(data.week_start, data.week_end)}`
     : ''
 
-  const sourceLabel = data.source === 'wire' ? 'WIRE' : data.source === 'live' ? 'LIVE' : null
-
   return (
-    <>
-      <div className={styles.page}>
-        <div className={styles.pageHeader}>
-          <span className={styles.pageTitle}>Calendar</span>
-          {weekLabel && <span className={styles.weekRange}>{weekLabel}</span>}
-          {sourceLabel && (
-            <span className={[
-              styles.sourceBadge,
-              data.source === 'wire' ? styles.sourceWire : styles.sourceLive,
-            ].join(' ')}>
-              {sourceLabel}
-            </span>
-          )}
-        </div>
-        <div className={styles.body}>
-          <EarningsPanel
-            days={data.days}
+    <div className={styles.page}>
+      <CalendarHeader
+        view={view}
+        setView={setView}
+        weekLabel={weekLabel}
+        filters={filters}
+        setFilters={setFilters}
+        mySources={mySources}
+        setMySources={setMySources}
+        monthCursor={monthCursor}
+        setMonthCursor={setMonthCursor}
+        eventTypes={eventTypes}
+        setEventTypes={setEventTypes}
+      />
+
+      {view !== 'month' && <WeekSummary stats={summary} />}
+
+      <div className={styles.body}>
+        {view === 'feed' && (
+          <FeedView
             weekDates={weekDates}
-            onSelectEntry={(entry, timingLabel) =>
-              setSelected({ row: toModalRow(entry), label: timingLabel })
-            }
+            days={days}
+            filters={filters}
+            onSelect={onSelect}
+            eventTypes={eventTypes}
+            iposByDate={iposByDate}
+            dividendsByDate={dividendsByDate}
           />
-          <EconPanel days={data.days} weekDates={weekDates} />
-        </div>
+        )}
+        {view === 'week' && (
+          <WeekView
+            weekDates={weekDates}
+            days={days}
+            filters={filters}
+            onSelect={onSelect}
+          />
+        )}
+        {view === 'month' && (
+          <MonthView
+            weeklyDays={days}
+            mySets={mySets}
+            mySources={mySources}
+            monthCursor={monthCursor}
+            setMonthCursor={setMonthCursor}
+            onOpenDay={setOpenDay}
+          />
+        )}
       </div>
+
+      {openDay && (
+        <DayDetailDrawer
+          ds={openDay}
+          day={days[openDay]}
+          onClose={() => setOpenDay(null)}
+          onSelect={onSelect}
+        />
+      )}
 
       {selected && (
         <ErrorBoundary
-          fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>Unable to load — click a ticker to retry.</div>}
+          fallback={
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>
+              Unable to load — click a ticker to retry.
+            </div>
+          }
           key={selected.row.sym}
         >
           <EarningsModal
@@ -425,16 +321,6 @@ export default function Calendar() {
           />
         </ErrorBoundary>
       )}
-    </>
+    </div>
   )
-}
-
-function fmtWeekRange(start, end) {
-  const s = new Date(start + 'T00:00:00')
-  const e = new Date(end   + 'T00:00:00')
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  if (s.getMonth() === e.getMonth()) {
-    return `${months[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
-  }
-  return `${months[s.getMonth()]} ${s.getDate()} – ${months[e.getMonth()]} ${e.getDate()}, ${s.getFullYear()}`
 }

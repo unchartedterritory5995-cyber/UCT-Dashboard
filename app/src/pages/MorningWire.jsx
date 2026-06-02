@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
@@ -6,19 +6,14 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
+import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
+import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
 import styles from './MorningWire.module.css'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
 const TWITTER_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
-
-function htmlToPlainText(html) {
-  if (!html) return ''
-  const tmp = document.createElement('div')
-  tmp.innerHTML = html
-  return tmp.textContent.replace(/\s+/g, ' ').trim()
-}
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -121,6 +116,13 @@ export default function MorningWire() {
   // P5-E: hands-free auto-read of today's rundown when proactive_speak is ON
   useHandsFreeMorningWire({ rundownHtml: rundown?.html })
 
+  // Follow-along: highlight + scroll to the briefing block being read aloud.
+  const rundownRef = useRef(null)
+  useReadAloudFollow({
+    containerRef: rundownRef,
+    trackId: `morning-wire-${rundown?.date || 'today'}`,
+  })
+
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),
     mutate('/api/tweets/feed?hours=12&limit=50'),
@@ -138,7 +140,19 @@ export default function MorningWire() {
           <ReadAloudButton
             trackId={`morning-wire-${rundown?.date || 'today'}`}
             label="Morning Wire"
-            textProvider={() => htmlToPlainText(rundown?.html)}
+            textProvider={async () => {
+              // Prefer the server's canonical briefing text so it matches the
+              // pre-warmed audio exactly (instant cache hit). Fall back to
+              // client-side extraction if the endpoint is unavailable.
+              try {
+                const r = await fetch('/api/rundown/speech-text', { credentials: 'include' })
+                if (r.ok) {
+                  const d = await r.json()
+                  if (d && d.text) return d.text
+                }
+              } catch { /* fall through */ }
+              return rundownToSpeechText(rundown?.html)
+            }}
             size="md"
           >
             Read aloud
@@ -151,6 +165,7 @@ export default function MorningWire() {
         {rundown?.html
           ? (
             <div
+              ref={rundownRef}
               className={styles.rundownWrap}
               dangerouslySetInnerHTML={{ __html: rundown.html }}
             />

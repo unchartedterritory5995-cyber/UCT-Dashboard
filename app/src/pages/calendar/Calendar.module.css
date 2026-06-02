@@ -1,0 +1,1321 @@
+/* Calendar.module.css — shared stylesheet for all Calendar presentational components.
+   Colors from feed-polished.html mockup. CSS variable tokens used where the app provides them.
+   ----------------------------------------------------------
+   Task 9: card classes
+   Task 10: macroband + summary classes (appended)
+   Task 11: feed + day-group + cards @container grid (appended)
+   Task 12: week/month/drawer classes (appended)
+*/
+
+/* ── Design tokens (local fallbacks matching mockup) ─────────────────────── */
+:root {
+  --cal-bg: #0c0e11;
+  --cal-panel: #14171c;
+  --cal-panel2: #191d24;
+  --cal-line: #252a33;
+  --cal-line2: #2e343e;
+  --cal-txt: #e8ebf0;
+  --cal-dim: #8b93a0;
+  --cal-muted: #5c6470;
+  --cal-gold: #c9a84c;
+  --cal-green: #4ade80;
+  --cal-red: #f87171;
+  --cal-blue: #60a5fa;
+}
+
+/* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
+
+.card {
+  position: relative;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 12px;
+  padding: 12px;
+  transition: border-color 0.12s, transform 0.12s;
+  cursor: pointer;
+  container-type: inline-size;
+}
+
+.card:hover {
+  border-color: var(--cal-line2);
+  transform: translateY(-2px);
+}
+
+.cardMine {
+  border-color: rgba(201, 168, 76, 0.55);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.06), var(--cal-panel));
+}
+
+.star {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  color: var(--cal-gold);
+  font-size: 12px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sym {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--cal-txt);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.nm {
+  font-size: 10px;
+  color: var(--cal-muted);
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+/* BMO / AMC timing pills */
+.tpill {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.4px;
+  background: #222833;
+  color: var(--cal-dim);
+}
+
+.bmo {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.amc {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--cal-blue);
+}
+
+/* BEAT / MISS pill */
+.beatPill {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(74, 222, 128, 0.16);
+  color: var(--cal-green);
+}
+
+/* metric rows */
+.met {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 3px 0;
+  color: var(--cal-txt);
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+  font-weight: 700;
+}
+
+.dim {
+  color: var(--cal-dim);
+}
+
+.pos {
+  color: var(--cal-green);
+}
+
+.neg {
+  color: var(--cal-red);
+}
+
+/* Expected move box */
+.emv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 7px 9px;
+  background: #0f1217;
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+}
+
+.emvLbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--cal-muted);
+}
+
+.emvBig {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cal-gold);
+}
+
+/* Beat / miss history bars */
+.hist {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  margin-top: 9px;
+}
+
+.hist i {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  display: block;
+}
+
+.histPos {
+  background: rgba(74, 222, 128, 0.75);
+}
+
+.histNeg {
+  background: rgba(248, 113, 113, 0.75);
+}
+
+.histLbl {
+  font-size: 8px;
+  color: var(--cal-muted);
+  align-self: center;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* Post-print reaction row (reported state) */
+.react {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--cal-line2);
+  font-size: 11px;
+}
+
+/* ── Task 10: MacroBand + WeekSummary ───────────────────────────────────── */
+
+.macroband {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 11px;
+  padding: 8px 10px;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-left: 2px solid var(--cal-blue);
+  border-radius: 9px;
+}
+
+.mtag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--cal-dim);
+  padding: 1px 4px;
+}
+
+.mtagTm {
+  color: var(--cal-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mtagKey {
+  color: var(--cal-gold);
+  font-weight: 700;
+}
+
+.mtagFed {
+  color: var(--cal-blue);
+}
+
+.summary {
+  display: flex;
+  gap: 18px;
+  padding: 11px 18px;
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.07), transparent);
+  border-bottom: 1px solid var(--cal-line);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.scol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scolLbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--cal-muted);
+}
+
+.gold {
+  color: var(--cal-gold);
+}
+
+.blue {
+  color: var(--cal-blue);
+}
+
+.summary b {
+  font-size: 15px;
+  display: block;
+  font-weight: 800;
+}
+
+/* ── Task 11: FeedView + DayGroup + @container cards grid ───────────────── */
+
+.feed {
+  padding: 16px 18px;
+}
+
+.daygrp {
+  margin-bottom: 20px;
+}
+
+.dayhd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  position: sticky;
+  top: 0;
+  background: var(--cal-bg);
+  padding: 6px 0;
+  z-index: 2;
+}
+
+.d1 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  letter-spacing: 0.4px;
+}
+
+.d2 {
+  font-size: 11px;
+  color: var(--cal-muted);
+}
+
+.ln {
+  flex: 1;
+  height: 1px;
+  background: var(--cal-line);
+}
+
+.mineN {
+  font-size: 10px;
+  color: var(--cal-gold);
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 20px;
+  padding: 2px 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The cards container — uses @container query so it works both on the calendar
+   page body AND inside the DayDetailDrawer, regardless of viewport width. */
+.body {
+  container-type: inline-size;
+  container-name: calBody;
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@container calBody (max-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@container calBody (max-width: 580px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Task 12: WeekView + MonthView + DayDetailDrawer ────────────────────── */
+
+/* WeekView */
+.weekgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.wcol {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 120px;
+}
+
+.wcolToday {
+  border-color: rgba(201, 168, 76, 0.5);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), var(--cal-panel));
+}
+
+.wd {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.wrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.1s;
+}
+
+.wrow:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.t {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  flex: 1;
+}
+
+.v {
+  font-size: 8px;
+  color: var(--cal-muted);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.emptyBucket {
+  color: var(--cal-muted);
+  font-size: 11px;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* MonthView */
+.mgridHd {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 12px 18px 4px;
+  text-align: center;
+}
+
+.mgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 0 18px 16px;
+}
+
+.gcell {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  padding: 7px 8px;
+  min-height: 72px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.gcell:hover {
+  border-color: var(--cal-line2);
+}
+
+.gcellToday {
+  border-color: rgba(201, 168, 76, 0.55);
+}
+
+.gcellOff {
+  opacity: 0.35;
+}
+
+.dn {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--cal-dim);
+  margin-bottom: 4px;
+}
+
+.glogos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.mineRing {
+  display: inline-flex;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--cal-gold);
+}
+
+.gmore {
+  font-size: 8px;
+  color: var(--cal-muted);
+  font-weight: 700;
+  padding: 1px 3px;
+}
+
+/* DayDetailDrawer */
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: min(480px, 92vw);
+  background: var(--cal-bg);
+  border-left: 1px solid var(--cal-line);
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  container-name: calBody;
+}
+
+.drawerHd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  border-bottom: 1px solid var(--cal-line);
+  position: sticky;
+  top: 0;
+  background: var(--cal-bg);
+  z-index: 2;
+}
+
+.drawerHd button {
+  background: none;
+  border: none;
+  color: var(--cal-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.drawerHd button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cal-txt);
+}
+
+/* Page scaffold */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--cal-bg);
+  color: var(--cal-txt);
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+}
+
+.error {
+  padding: 32px;
+  color: var(--cal-red);
+  text-align: center;
+}
+
+.loading {
+  padding: 32px;
+  color: var(--cal-dim);
+  text-align: center;
+}
+
+/* Header (defined here so all header classes resolve for CalendarHeader in Task 13) */
+.header {
+  background: linear-gradient(90deg, #13161b, #0e1115);
+  border-bottom: 1px solid var(--cal-line);
+  padding: 0;
+}
+
+.hrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.ttl {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.view {
+  display: inline-flex;
+  border: 1px solid var(--cal-line2);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.view span {
+  font-size: 11px;
+  padding: 5px 13px;
+  color: var(--cal-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.viewOn {
+  background: var(--cal-gold);
+  color: #1a1408;
+  font-weight: 800;
+}
+
+.wk {
+  font-size: 12px;
+  color: var(--cal-dim);
+}
+
+.gearWrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.mystk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  color: var(--cal-gold);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.gearPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  z-index: 50;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.gearRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cal-txt);
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.fb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--cal-line);
+  flex-wrap: wrap;
+  background: #0e1014;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid var(--cal-line2);
+  color: var(--cal-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background 0.1s, color 0.1s;
+}
+
+.chipOn {
+  background: var(--cal-gold);
+  color: #1a1408;
+  border-color: var(--cal-gold);
+  font-weight: 800;
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  background: var(--cal-line2);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.sel {
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-dim);
+  font-size: 11px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.sel:focus {
+  outline: none;
+  border-color: var(--cal-gold);
+}
+
+/* ── A4: Extended-hours price row on EarningsCard ───────────────────────── */
+
+.extRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--cal-line2);
+  font-size: 11px;
+}
+
+.extLbl {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--cal-blue);
+  background: rgba(96, 165, 250, 0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ── A5: Countdown + session label on EarningsCard ───────────────────────── */
+
+.countdown {
+  font-size: 10px;
+  color: var(--cal-gold);
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+.sessionLbl {
+  font-size: 9px;
+  color: var(--cal-muted);
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}
+
+/* ── A3: FiltersPopover ──────────────────────────────────────────────────── */
+
+.filterWrap {
+  position: relative;
+  margin-left: 4px;
+}
+
+.filterBtn {
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-dim);
+  font-size: 11px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.filterBtn:hover {
+  border-color: var(--cal-gold);
+  color: var(--cal-txt);
+}
+
+.filterBtnActive {
+  border-color: var(--cal-gold);
+  color: var(--cal-gold);
+  font-weight: 700;
+}
+
+.filterPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  z-index: 50;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.filterPopHd {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--cal-muted);
+  margin-bottom: 10px;
+}
+
+.filterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.filterLbl {
+  font-size: 10px;
+  color: var(--cal-dim);
+  font-weight: 600;
+}
+
+.filterInput {
+  background: #0e1014;
+  border: 1px solid var(--cal-line2);
+  border-radius: 6px;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 5px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: var(--cal-gold);
+}
+
+.filterClear {
+  width: 100%;
+  margin-top: 4px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 7px;
+  color: var(--cal-red);
+  font-size: 11px;
+  padding: 5px 0;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.1s;
+}
+
+.filterClear:hover {
+  background: rgba(248, 113, 113, 0.22);
+}
+
+/* ── Month navigation (header inline + MonthView internal) ──────────────── */
+
+/* Used in CalendarHeader for inline month nav in the header row */
+.monthNavHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Shared nav button style (used both in header + MonthView standalone) */
+.monthNavBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--cal-line2);
+  border-radius: 7px;
+  color: var(--cal-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.monthNavBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--cal-txt);
+}
+
+.monthNavLbl {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cal-txt);
+  min-width: 120px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+/* Standalone nav row inside MonthView (hidden — nav is in header) */
+.monthNav {
+  display: none;
+}
+
+/* ── macroStar (month cell star for key macro day) ───────────────────────── */
+.macroStar {
+  color: var(--cal-gold);
+  font-size: 9px;
+  margin-left: 1px;
+}
+
+/* ── Month grid desktop/mobile toggle ───────────────────────────────────── */
+.mgridDesktop {
+  display: grid; /* shown by default */
+}
+
+.mgridMobile {
+  display: none;
+}
+
+/* ── Mobile agenda list ─────────────────────────────────────────────────── */
+.agenda {
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agendaDay {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+
+.agendaDay:hover {
+  border-color: var(--cal-line2);
+}
+
+.agendaDate {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.agendaSyms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.agendaSym {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--cal-line2);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+/* ── B3: EventCard (IPO / Dividend / Split) ──────────────────────────────── */
+
+/* Shared base — overlays on top of .card */
+.evtCard {
+  position: relative;
+}
+
+/* IPO — subtle blue tint */
+.evtCardIpo {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.05), var(--cal-panel));
+}
+
+/* Dividend — subtle green tint */
+.evtCardDiv {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.04), var(--cal-panel));
+}
+
+/* Split — subtle gold tint */
+.evtCardSplit {
+  border-color: rgba(201, 168, 76, 0.3);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), var(--cal-panel));
+}
+
+/* Type tag badge (top-right corner) */
+.evtTypeTag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--cal-dim);
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* IPO status pills */
+.evtStatusPriced {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--cal-green);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.evtStatusExpected {
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--cal-gold);
+  border-color: rgba(201, 168, 76, 0.25);
+}
+
+.evtStatusFiled {
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--cal-blue);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+.evtStatusDefault {
+  background: rgba(255,255,255,0.06);
+  color: var(--cal-dim);
+  border-color: var(--cal-line2);
+}
+
+/* Event-type filter chips (in CalendarHeader fb row) — inherit .chip style */
+.chipEvtIpo:is(.chipOn) {
+  background: var(--cal-blue);
+  color: #051428;
+  border-color: var(--cal-blue);
+}
+.chipEvtDiv:is(.chipOn) {
+  background: var(--cal-green);
+  color: #051408;
+  border-color: var(--cal-green);
+}
+
+/* ── C6: Historical reaction stats row on EarningsCard ─────────────────────── */
+
+.histStats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--cal-line2);
+  font-size: 10px;
+}
+
+.histStatsVal {
+  font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  color: var(--cal-gold);
+  font-weight: 600;
+}
+
+/* Mobile: force single column cards on narrow screens */
+@media (max-width: 640px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .weekgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mgrid,
+  .mgridHd {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .hrow {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .view span {
+    padding: 5px 9px;
+  }
+
+  /* Month view: swap 5-col grid → scrollable agenda list on mobile */
+  .mgridDesktop,
+  .mgridHd {
+    display: none;
+  }
+
+  .mgridMobile {
+    display: block;
+  }
+
+  /* D2: My Stocks Hub — mobile stacked */
+  .hubTabs {
+    flex-wrap: wrap;
+  }
+  .hubTab {
+    flex: 1 1 40%;
+  }
+  .hubCardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── D2: My Stocks Hub ──────────────────────────────────────────────────── */
+
+.hubPage {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px;
+  background: var(--cal-bg);
+  color: var(--cal-txt);
+}
+
+.hubHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.hubBack {
+  color: var(--cal-dim);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.15s;
+}
+.hubBack:hover { color: var(--cal-gold); }
+
+.hubLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cal-gold);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.hubLink:hover { background: rgba(201, 168, 76, 0.1); }
+
+.hubTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  flex: 1;
+}
+
+/* Tabs */
+.hubTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--cal-line);
+  margin-bottom: 16px;
+}
+
+.hubTab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cal-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.hubTab:hover { color: var(--cal-txt); }
+.hubTabActive {
+  color: var(--cal-gold);
+  border-bottom-color: var(--cal-gold);
+}
+
+.hubPanel {
+  flex: 1;
+}
+
+/* Empty state */
+.hubEmpty {
+  padding: 32px;
+  text-align: center;
+  color: var(--cal-muted);
+  font-size: 14px;
+}
+
+/* Unseen indicator */
+.hubUnseen {
+  position: relative;
+}
+.unseenDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cal-blue);
+  display: block;
+  pointer-events: none;
+}
+
+/* ── Earnings tab ── */
+.hubCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.hubCardWrap {
+  position: relative;
+}
+
+/* ── News tab ── */
+.hubNewsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hubNewsRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 90px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--cal-txt);
+  position: relative;
+  transition: border-color 0.12s;
+}
+.hubNewsRow:hover { border-color: var(--cal-line2); }
+.hubNewsSource {
+  font-size: 11px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hubNewsHeadline {
+  font-size: 13px;
+  color: var(--cal-txt);
+  line-height: 1.3;
+}
+.hubNewsTime {
+  font-size: 11px;
+  color: var(--cal-muted);
+  text-align: right;
+}
+
+/* ── Calls tab ── */
+.hubSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.hubCallRow {
+  position: relative;
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.hubCallRow:hover { border-color: var(--cal-line2); }
+.hubCallSym {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 10px;
+}
+.hubCallLoading {
+  font-size: 12px;
+  color: var(--cal-muted);
+  padding: 8px 0;
+}
+
+/* ── Filings tab ── */
+.hubFilingGroup {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 12px;
+}
+.hubFilingSym {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 8px;
+}
+.hubFilingRow {
+  display: grid;
+  grid-template-columns: 70px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--cal-line);
+  text-decoration: none;
+  color: var(--cal-txt);
+  position: relative;
+  font-size: 13px;
+}
+.hubFilingRow:first-of-type { border-top: none; }
+.hubFilingForm {
+  color: var(--cal-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+.hubFilingDate {
+  color: var(--cal-dim);
+  font-size: 12px;
+}
+.hubFilingLink {
+  font-size: 12px;
+  color: var(--cal-gold);
+  text-align: right;
+}
+
+/* ── Insights tab ── */
+.hubInsightRow {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  padding: 14px;
+}
+.hubInsightSym {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 10px;
+}

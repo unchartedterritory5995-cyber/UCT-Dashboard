@@ -1,0 +1,43 @@
+/* Shared signal styling for Breadth Views — the gold "Signal of the Day"
+   callout and the pulsing "notable" highlight, used by the strip and views. */
+
+@keyframes breadthPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.pulse { animation: breadthPulse 1.8s ease-in-out infinite; }
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 0 4px 6px;
+  border-radius: 9px;
+  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 11px 'Instrument Sans', sans-serif;
+}
+
+.chipClickable { cursor: pointer; }
+.chipClickable:hover .chipLabel { text-decoration: underline; }
+
+.kicker {
+  font: 800 9px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.kickerSignal  { color: #c9a84c; }
+.kickerNotable { color: #fbbf24; }
+
+.chipLabel { color: #e2e8f0; font-weight: 700; }
+.chipValue { color: #fff; font-weight: 800; }
+.chipReason { color: #64748b; font-size: 10px; }

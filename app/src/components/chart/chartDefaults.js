@@ -82,6 +82,7 @@ export const CHART_DEFAULTS = {
   showPatterns: false,
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: false,  // shade pre/post-market on intraday charts
+  volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
 
   theme: 'dark', // 'dark' | 'light'
 
@@ -252,6 +253,9 @@ export function mergeChartSettings(userSettings) {
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
+    volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)
+      ? parsed.volumeOverlayIndicators
+      : CHART_DEFAULTS.volumeOverlayIndicators,
     theme: parsed?.theme === 'light' ? 'light' : 'dark',
     positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',

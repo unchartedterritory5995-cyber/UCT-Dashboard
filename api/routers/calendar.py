@@ -9,9 +9,11 @@ Economic events: always fetched live from ForexFactory (real data, never AI).
 Finnhub actuals patch: applied to today's pending tickers on every cache miss.
 POST /api/calendar/refresh — rebuild cache immediately
 GET  /api/calendar/reactions?date=YYYY-MM-DD — live gap % for reported tickers (Massive)
+GET  /api/calendar/month?year=&month= — full-month earnings via Finnhub
 """
 
 from __future__ import annotations
+import calendar as _cal_module
 import logging
 import os
 import threading
@@ -19,8 +21,10 @@ from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from api.services.cache import cache
+from api.middleware.auth_middleware import get_current_user
+from api.services import calendar_personalization as _cp
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -99,6 +103,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
                 "rev_act": _to_m(c.get("rev_act")),
                 "ew":      int(c.get("ew", c.get("ew_total", 0)) or 0),
                 "mc_b":    c.get("mc_b"),   # market cap in billions (for client-side filtering)
+                "time_et": c.get("time_et"),  # A5: precise report time (ISO string in ET or None)
             }
 
         def _keep(c: dict) -> bool:
@@ -278,6 +283,9 @@ def _build_live(week_dates: list[date], today: date) -> dict:
         for item in raw:
             sym = item["symbol"]
             seen.add(sym)
+            # A5: thread any precise report time (EW doesn't provide one yet;
+            # placeholder for future enrichment — field is None by default)
+            time_et = item.get("report_time_et") or item.get("time_et") or None
             entry = {
                 "sym":     sym,
                 "eps_est": _clean_eps_live(item.get("eps_estimate")),
@@ -285,6 +293,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
                 "rev_est": item.get("rev_estimate"),  # already in millions from _fetch_ew_live
                 "rev_act": item.get("rev_actual"),    # already in millions from _fetch_ew_live
                 "ew":      int(item.get("ew_total", 0) or 0),
+                "time_et": time_et,   # A5: ISO datetime string in ET, or None
             }
             (bmo if item["hour"] == "bmo" else amc).append(entry)
 
@@ -391,6 +400,138 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
             _logger.info("Calendar: Finnhub patched %d actuals for %s", patched, today_str)
     except Exception as exc:
         _logger.warning("Calendar: Finnhub actuals patch failed: %s", exc)
+
+
+# ── Month-range helpers ────────────────────────────────────────────────────────
+
+def _load_cap_universe() -> set[str]:
+    """Load the static cap_universe ticker set.  Never raises — returns empty set."""
+    try:
+        # Try wire_data first (most up-to-date)
+        from api.services.engine import _load_wire_data
+        wire = _load_wire_data()
+        if wire and wire.get("cap_universe"):
+            return set(wire["cap_universe"])
+    except Exception:
+        pass
+    # Fallback: load from static JSON file
+    try:
+        import json
+        path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
+        with open(path) as f:
+            return set(json.load(f))
+    except Exception:
+        return set()
+
+
+def _fh_get_month(from_date: str, to_date: str) -> dict | None:
+    """Fetch Finnhub /calendar/earnings for a full date range.
+
+    Mirrors the _fh_get pattern from earnings_estimates.py.
+    Returns the raw JSON dict or None on failure.
+    """
+    fh_key = os.environ.get("FINNHUB_API_KEY")
+    if not fh_key:
+        _logger.warning("Calendar month: FINNHUB_API_KEY not set")
+        return None
+    try:
+        import requests
+        r = requests.get(
+            "https://finnhub.io/api/v1/calendar/earnings",
+            params={"from": from_date, "to": to_date, "token": fh_key},
+            timeout=15,
+        )
+        if not r.ok:
+            _logger.warning("Calendar month: Finnhub HTTP %d", r.status_code)
+            return None
+        return r.json()
+    except Exception as exc:
+        _logger.warning("Calendar month: Finnhub fetch failed: %s", exc)
+        return None
+
+
+_MONTH_CACHE_TTL = 1800  # 30 minutes
+
+
+@router.get("/api/calendar/month")
+def get_month_calendar(year: int = 0, month: int = 0):
+    """Return full-month earnings bucketed by date.
+
+    Response: { month: "YYYY-MM", days: { YYYY-MM-DD: { bmo: [...], amc: [...] } } }
+    Each entry: { sym, eps_est, eps_act, rev_est, rev_act, timing }
+    Filtered to cap_universe.  Cached 30 min.  Never raises — returns {} days on failure.
+    """
+    today = _today_et()
+    if not year:
+        year = today.year
+    if not month:
+        month = today.month
+
+    cache_key = f"calendar_month_{year}_{month}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Compute first and last day of the requested month
+    _, last_day = _cal_module.monthrange(year, month)
+    from_date = f"{year:04d}-{month:02d}-01"
+    to_date   = f"{year:04d}-{month:02d}-{last_day:02d}"
+
+    cap_uni = _load_cap_universe()
+
+    raw = _fh_get_month(from_date, to_date)
+    days: dict[str, dict] = {}
+
+    if raw:
+        _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+        def _clean_eps(v):
+            if v is None:
+                return None
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv in _EPS_SENTINELS or abs(fv) > 200:
+                return None
+            return round(fv, 2)
+
+        for row in raw.get("earningsCalendar", []):
+            sym = (row.get("symbol") or "").strip().upper()
+            if not sym:
+                continue
+            # Filter to cap_universe when available
+            if cap_uni and sym not in cap_uni:
+                continue
+
+            ds = (row.get("date") or "").strip()
+            if not ds or not ds.startswith(f"{year:04d}-{month:02d}"):
+                continue
+
+            # hour field: "bmo" | "amc" | "dmh" → dmh goes to amc bucket
+            hour = (row.get("hour") or "amc").lower()
+            timing = "bmo" if hour == "bmo" else "amc"
+
+            rev_est_raw = row.get("revenueEstimate")
+            rev_act_raw = row.get("revenueActual")
+
+            entry = {
+                "sym":     sym,
+                "timing":  timing,
+                "eps_est": _clean_eps(row.get("epsEstimate")),
+                "eps_act": _clean_eps(row.get("epsActual")),
+                # Store in millions (Finnhub returns raw dollars)
+                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+            }
+
+            if ds not in days:
+                days[ds] = {"bmo": [], "amc": []}
+            days[ds][timing].append(entry)
+
+    result = {"month": f"{year:04d}-{month:02d}", "days": days}
+    cache.set(cache_key, result, ttl=_MONTH_CACHE_TTL)
+    return result
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -586,6 +727,69 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
         _logger.info("Calendar: FF econ loaded %d events across %d days", total, len(ff))
     except Exception as exc:
         _logger.warning("Calendar: FF econ fetch failed: %s", exc)
+
+
+# ── IPO calendar endpoint ──────────────────────────────────────────────────────
+
+from api.services.ipo_calendar import get_ipos as _get_ipos  # noqa: E402
+from fastapi import Query as _Query  # noqa: E402
+
+
+@router.get("/api/calendar/ipos")
+def get_calendar_ipos(
+    from_: str | None = _Query(default=None, alias="from"),
+    to:    str | None = _Query(default=None, alias="to"),
+):
+    """Return normalized IPO calendar entries for the given date range.
+
+    Params (both optional):
+        from  YYYY-MM-DD  (defaults to this Monday)
+        to    YYYY-MM-DD  (defaults to this Friday)
+
+    Response: list of { sym, name, date, exchange, price_range, shares, value, status }
+    Cached 6 h per (from, to) key inside the service.  Never raises — returns [].
+    """
+    today = _today_et()
+    from_date = from_
+    to_date   = to
+    if from_date is None:
+        dow = today.weekday()
+        monday = today - timedelta(days=dow) if dow < 5 else today + timedelta(days=7 - dow)
+        from_date = monday.strftime("%Y-%m-%d")
+    if to_date is None:
+        from_dt = date.fromisoformat(from_date)
+        to_date = (from_dt + timedelta(days=4)).strftime("%Y-%m-%d")
+    return _get_ipos(from_date, to_date)
+
+
+# ── Dividends / splits forward calendar endpoint ──────────────────────────────
+
+from api.services.dividends_calendar import get_events as _get_div_events  # noqa: E402
+
+
+@router.get("/api/calendar/dividends")
+def get_calendar_dividends(
+    syms: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Return forward dividends + splits for the requested symbols.
+
+    Params:
+        syms  Comma-separated ticker list (optional).
+              When absent, defaults to the authenticated user's My-Stocks set
+              (watchlists + flagged + positions + UCT20 union).
+
+    Response: list of { sym, type: 'dividend'|'split', date, amount?, ratio? }
+    Only forward-looking events (date >= today).  Cached 12 h per sym set.
+    """
+    if syms:
+        sym_list = [s.strip() for s in syms.split(",") if s.strip()]
+    else:
+        # Default: caller's My-Stocks set
+        sets = _cp.get_user_ticker_sets(user["id"])
+        sym_list = sorted(sets.get("all_mine", set()))
+
+    return _get_div_events(sym_list)
 
 
 @router.post("/api/calendar/refresh")
@@ -784,3 +988,149 @@ def get_day_metrics(date: str | None = None):
 
     cache.set(cache_key, result, ttl=_METRICS_TTL)
     return result
+
+
+# ── Personalization endpoint ───────────────────────────────────────────────────
+
+@router.get("/api/calendar/my-sets")
+def calendar_my_sets(user: dict = Depends(get_current_user)):
+    """Return the logged-in user's personalization ticker sets for the calendar."""
+    sets = _cp.get_user_ticker_sets(user["id"])
+    return _cp.to_payload(sets)
+
+
+# ── Enrichment overlay endpoint ────────────────────────────────────────────────
+
+_ENRICH_TTL = 300  # 5 min — options move is itself 60s-cached upstream
+
+
+@router.get("/api/calendar/enrichment")
+def get_enrichment(date: str | None = None):
+    """Per-ticker expected move + 4-quarter beat history + hist_stats for a given day.
+
+    Bounded + cached so the core /api/calendar paints instantly and this
+    overlays on top. Empty dict if the calendar cache isn't warm yet.
+
+    hist_stats shape: {avg_abs_move, up_count, total, last_n}
+      avg_abs_move — average absolute post-earnings move over last N reports
+      up_count     — number of those reports where the stock gapped up
+      total        — total number of reports measured
+      last_n       — last N individual moves (pct, newest first, capped at 8)
+    """
+    import re as _re
+    from concurrent.futures import ThreadPoolExecutor
+    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        return {}
+    target = date or _today_et().isoformat()
+
+    ck = f"calendar_enrichment_{target}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+
+    cal = cache.get("calendar_weekly")
+    if not cal:
+        return {}
+    day = cal.get("days", {}).get(target, {})
+    syms = [e["sym"] for e in (day.get("bmo", []) + day.get("amc", [])) if e.get("sym")]
+    if not syms:
+        cache.set(ck, {}, ttl=_ENRICH_TTL)
+        return {}
+
+    from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
+    from api.services.earnings_estimates import get_earnings_intel
+
+    def _compute_hist_stats(sym: str) -> dict | None:
+        """Return compact hist_stats from get_historical_earnings_moves.
+
+        Uses _fetch_quarterly_history (FMP → AV fallback) to get the AV-shaped
+        quarters list required by get_historical_earnings_moves, then computes
+        avg_abs_move, up_count, total, and last_n (newest first, capped at 8).
+        """
+        try:
+            from api.services.engine import _fetch_quarterly_history
+            av_quarters = _fetch_quarterly_history(sym)
+            raw = get_historical_earnings_moves(sym, av_quarters)
+            if not raw:
+                return None
+            moves = raw.get("moves_pct") or []
+            n = raw.get("n_quarters") or len(moves)
+            up = sum(1 for m in moves if m > 0)
+            return {
+                "avg_abs_move": raw.get("avg_abs_move_pct"),
+                "up_count":     up,
+                "total":        n,
+                "last_n":       list(reversed(moves[:8])),   # newest first, capped 8
+            }
+        except Exception:
+            return None
+
+    def _one(sym):
+        move = None
+        hist = None
+        hist_stats = None
+        try:
+            move = get_implied_move(sym, earnings_date=target)
+        except Exception:
+            pass
+        try:
+            intel = get_earnings_intel(sym)
+            hist = intel.get("beat_history") if intel else None
+        except Exception:
+            pass
+        try:
+            hist_stats = _compute_hist_stats(sym)
+        except Exception:
+            pass
+        return sym, {"expected_move": move, "beat_history": hist, "hist_stats": hist_stats}
+
+    out: dict = {}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        for sym, data in ex.map(_one, syms):
+            out[sym] = data
+
+    cache.set(ck, out, ttl=_ENRICH_TTL)
+
+
+# ── D1: Read/unseen state endpoints ───────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+
+class _SeenPayload(_BaseModel):
+    item_type: str
+    item_key: str
+
+
+@router.get("/api/calendar/seen")
+def get_calendar_seen(
+    item_type: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Return the set of item_keys seen by the authenticated user.
+
+    Optional query param ``item_type`` scopes the result to a single type
+    (earnings | filing | ipo | recap | insight | news).  Omit to get all seen
+    keys across every type.
+
+    Response: { "seen": ["key1", "key2", ...] }
+    """
+    from api.services.calendar_seen import get_seen
+    seen = get_seen(user["id"], item_type=item_type)
+    return {"seen": list(seen)}
+
+
+@router.post("/api/calendar/seen")
+def post_calendar_seen(
+    payload: _SeenPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Mark a single calendar item as seen (idempotent).
+
+    Body: { "item_type": "earnings", "item_key": "AAPL:2026-06-02" }
+    Response: { "ok": true }
+    """
+    from api.services.calendar_seen import mark_seen
+    mark_seen(user["id"], payload.item_type, payload.item_key)
+    return {"ok": True}
+    return out

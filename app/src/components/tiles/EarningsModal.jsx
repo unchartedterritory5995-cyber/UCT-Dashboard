@@ -4,6 +4,12 @@ import TickerPopup from '../TickerPopup'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import useTickerTweets from '../../hooks/useTickerTweets'
 import { timeAgo } from '../../utils/timeAgo'
+import FundamentalsStrip from '../calendar/FundamentalsStrip'
+import CallRecapSection from '../calendar/CallRecapSection'
+import SentimentGauge from '../calendar/SentimentGauge'
+import useFilings from '../../hooks/useFilings'
+import useCallRecap from '../../hooks/useCallRecap'
+import useEarningsAudio from '../../hooks/useEarningsAudio'
 import styles from './EarningsModal.module.css'
 
 const TWEETS_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
@@ -79,6 +85,13 @@ export default function EarningsModal({ row, label, onClose }) {
   const [aiState, setAiState]               = useState({ loading: true, data: null })
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
+
+  // C1: Fundamentals strip — fetched by FundamentalsStrip itself (null-safe, lazy)
+  // C2: SEC Filings
+  const { data: filingsData } = useFilings(row?.sym)
+  // C5: Call recap + audio
+  const { data: recapData } = useCallRecap(row?.sym)
+  const { data: audioData } = useEarningsAudio(row?.sym)
 
   // Live gap % + Earnings intel (analyst consensus + price targets)
   useEffect(() => {
@@ -344,6 +357,61 @@ export default function EarningsModal({ row, label, onClose }) {
                 <span className={styles.muted}>${intel.price_target.targetHigh?.toFixed(0)}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── C1: Fundamentals strip ───────────────────────────────────── */}
+        <FundamentalsStrip ticker={row.sym} />
+
+        {/* ── C5: Sentiment gauge ──────────────────────────────────────── */}
+        <SentimentGauge ticker={row.sym} />
+
+        {/* ── C5: Call recap + audio ───────────────────────────────────── */}
+        {recapData && (
+          <CallRecapSection recap={recapData} audio={audioData ?? null} />
+        )}
+
+        {/* ── C2: SEC Filings section ──────────────────────────────────── */}
+        {filingsData?.filings?.length > 0 && (
+          <div className={styles.filingsSection}>
+            <div className={styles.watchLabel}>SEC FILINGS</div>
+            <div className={styles.filingsList}>
+              {filingsData.filings.slice(0, 8).map((f, i) => (
+                <a
+                  key={i}
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.filingItem}
+                >
+                  <span className={styles.filingForm}>{f.form}</span>
+                  <span className={styles.filingDate}>{f.filed}</span>
+                  <span className={styles.filingArrow}>↗</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── C6: Historical reaction stats in modal ───────────────────── */}
+        {row.hist_stats?.avg_abs_move != null && (
+          <div className={styles.statsStrip}>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>HIST REACTIONS</span>
+              <span className={styles.statVal}>
+                avg ±{row.hist_stats.avg_abs_move.toFixed(1)}%
+                {row.hist_stats.total != null && (
+                  <span className={styles.muted}>
+                    {' '}over {row.hist_stats.last_n ?? row.hist_stats.total}
+                  </span>
+                )}
+                {row.hist_stats.up_count != null && row.hist_stats.total != null && (
+                  <span className={styles.muted}>
+                    {' '}· up {row.hist_stats.up_count}/{row.hist_stats.total}
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
         )}
 

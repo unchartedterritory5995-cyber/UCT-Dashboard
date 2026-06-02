@@ -21,29 +21,84 @@ def test_synthesize_returns_bytes_from_sdk():
     assert out == b"chunk1chunk2"
     fake_client.audio.speech.with_streaming_response.create.assert_called_once()
     kwargs = fake_client.audio.speech.with_streaming_response.create.call_args.kwargs
-    assert kwargs["model"] == "tts-1-hd"
+    assert kwargs["model"] == "tts-1"
     assert kwargs["voice"] == "verse"
     assert kwargs["input"] == "hello"
     assert kwargs["speed"] == 1.0
     assert kwargs["response_format"] == "mp3"
 
 
-def test_synthesize_truncates_oversize_text():
-    fake_resp = MagicMock()
-    fake_resp.iter_bytes.return_value = iter([b"x"])
-    fake_ctx = MagicMock()
-    fake_ctx.__enter__.return_value = fake_resp
-    fake_ctx.__exit__.return_value = False
-
+def _make_fake_client_per_chunk():
+    """A fake OpenAI client whose create() returns a fresh streaming ctx each
+    call, yielding one byte-marker per call so we can count chunk requests."""
     fake_client = MagicMock()
-    fake_client.audio.speech.with_streaming_response.create.return_value = fake_ctx
+    call_counter = {"n": 0}
 
-    long_text = "a" * (voice_openai.MAX_INPUT_CHARS + 500)
+    def make_ctx(*args, **kwargs):
+        call_counter["n"] += 1
+        marker = f"<{call_counter['n']}>".encode()
+        fake_resp = MagicMock()
+        fake_resp.iter_bytes.return_value = iter([marker])
+        fake_ctx = MagicMock()
+        fake_ctx.__enter__.return_value = fake_resp
+        fake_ctx.__exit__.return_value = False
+        return fake_ctx
+
+    fake_client.audio.speech.with_streaming_response.create.side_effect = make_ctx
+    return fake_client
+
+
+def test_synthesize_chunks_oversize_text_into_multiple_requests():
+    """Oversize text (e.g. an 11k-char Morning Wire rundown) must be SYNTHESIZED
+    IN FULL via multiple <=MAX_INPUT_CHARS requests — never truncated."""
+    fake_client = _make_fake_client_per_chunk()
+
+    # ~3 chunks worth, with sentence boundaries to split on.
+    long_text = ("This is a sentence. " * 600).strip()  # ~12000 chars
+    assert len(long_text) > 2 * voice_openai.MAX_INPUT_CHARS
+
     with patch.object(voice_openai, "_get_client", return_value=fake_client):
-        voice_openai.synthesize_speech(long_text, voice="verse", speed=1.0)
+        out = voice_openai.synthesize_speech(long_text, voice="verse", speed=1.0)
 
-    sent = fake_client.audio.speech.with_streaming_response.create.call_args.kwargs["input"]
-    assert len(sent) <= voice_openai.MAX_INPUT_CHARS
+    create = fake_client.audio.speech.with_streaming_response.create
+    assert create.call_count >= 3, "long text should be split into multiple TTS calls"
+    # Every individual request must respect OpenAI's per-call char limit.
+    for call in create.call_args_list:
+        assert len(call.kwargs["input"]) <= voice_openai.MAX_INPUT_CHARS
+    # Audio from every chunk is concatenated, in order.
+    assert out == b"".join(f"<{i}>".encode() for i in range(1, create.call_count + 1))
+
+
+def test_synthesize_stream_chunks_oversize_text():
+    """The streaming path (used by /api/voice/tts) must also chunk, not truncate."""
+    fake_client = _make_fake_client_per_chunk()
+    long_text = ("Another full sentence here. " * 500).strip()  # ~14000 chars
+
+    with patch.object(voice_openai, "_get_client", return_value=fake_client):
+        pieces = list(voice_openai.synthesize_speech_stream(long_text, voice="verse", speed=1.0))
+
+    create = fake_client.audio.speech.with_streaming_response.create
+    assert create.call_count >= 3
+    for call in create.call_args_list:
+        assert len(call.kwargs["input"]) <= voice_openai.MAX_INPUT_CHARS
+    # Streamed bytes span all chunks.
+    assert b"".join(pieces) == b"".join(f"<{i}>".encode() for i in range(1, create.call_count + 1))
+
+
+def test_chunk_text_respects_max_and_preserves_content():
+    long_text = ("Sentence number test. " * 700).strip()
+    chunks = voice_openai._chunk_text(long_text, max_chars=voice_openai.MAX_INPUT_CHARS)
+    assert len(chunks) >= 3
+    for c in chunks:
+        assert len(c) <= voice_openai.MAX_INPUT_CHARS
+        assert c == c.strip()
+    # No words lost: token multiset is preserved across the split.
+    assert " ".join(chunks).split() == long_text.split()
+
+
+def test_chunk_text_short_returns_single_chunk():
+    assert voice_openai._chunk_text("hello world") == ["hello world"]
+    assert voice_openai._chunk_text("   ") == []
 
 
 def test_synthesize_rejects_empty_text():

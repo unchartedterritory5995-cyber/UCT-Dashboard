@@ -1158,7 +1158,10 @@ def get_all_tickets(status_filter: str = None, limit: int = 50) -> list[dict]:
             "SELECT t.*, u.email, u.display_name, "
             "(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = t.id) as message_count, "
             "(SELECT sender_role FROM ticket_messages WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1) as last_sender "
-            "FROM support_tickets t JOIN users u ON t.user_id = u.id "
+            # LEFT JOIN (not INNER) so a ticket whose user row is missing — e.g. a
+            # deleted account that left an orphaned row — still surfaces in the admin
+            # list instead of silently vanishing. Matches get_ticket_thread/get_user_tickets.
+            "FROM support_tickets t LEFT JOIN users u ON t.user_id = u.id "
         )
         params = []
         if status_filter:

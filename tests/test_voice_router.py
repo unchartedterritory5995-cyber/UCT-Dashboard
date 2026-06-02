@@ -85,6 +85,89 @@ def test_tts_rejects_empty_text(client):
     assert r.status_code == 400
 
 
+def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypatch):
+    """The flow: POST /prepare -> token, GET /stream?token -> SEEKABLE audio file."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"\xFF\xFB\x90\x00STREAMED"
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch("api.routers.voice.synthesize_speech", return_value=fake_audio) as synth:
+        long_rundown = ("Markets are moving today. " * 500).strip()  # ~12k chars
+        p = client.post("/api/voice/tts/prepare", json={"text": long_rundown})
+        assert p.status_code == 200
+        token = p.json()["token"]
+        assert token
+
+        s = client.get(f"/api/voice/tts/stream?token={token}")
+        # Second request serves from the cached file — no re-synthesis.
+        s2 = client.get(f"/api/voice/tts/stream?token={token}")
+    assert s.status_code == 200
+    assert s.headers["content-type"].startswith("audio/mpeg")
+    # FileResponse advertises range support so the player can scrub/fast-forward.
+    assert s.headers.get("accept-ranges") == "bytes"
+    assert s.content == fake_audio
+    assert s2.content == fake_audio
+    assert synth.call_count == 1  # cached on the second hit
+
+
+def test_tts_stream_supports_range_requests(client, tmp_path, monkeypatch):
+    """A ranged GET returns 206 Partial Content — proves the audio is seekable."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"0123456789ABCDEF"
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.synthesize_speech", return_value=fake_audio):
+        token = client.post("/api/voice/tts/prepare", json={"text": "seek me"}).json()["token"]
+        r = client.get(f"/api/voice/tts/stream?token={token}", headers={"Range": "bytes=4-9"})
+    assert r.status_code == 206
+    assert r.content == b"456789"
+
+
+def test_tts_prepare_requires_paid_plan(client):
+    _login(client, plan="free")
+    r = client.post("/api/voice/tts/prepare", json={"text": "hi"})
+    assert r.status_code == 402
+
+
+def test_tts_stream_rejects_unknown_token(client):
+    _login(client, plan="pro")
+    r = client.get("/api/voice/tts/stream?token=does-not-exist")
+    assert r.status_code == 404
+
+
+def test_tts_stream_token_is_user_scoped(client, tmp_path, monkeypatch):
+    """A token minted by one user must not be streamable by another."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    with patch("api.services.voice_openai._get_client", return_value=object()):
+        token = client.post("/api/voice/tts/prepare", json={"text": "hello there"}).json()["token"]
+    # Switch to a different user in the same client.
+    _login(client, plan="pro")
+    r = client.get(f"/api/voice/tts/stream?token={token}")
+    assert r.status_code == 404
+
+
+def test_tts_accepts_full_morning_wire_length(client, tmp_path, monkeypatch):
+    """Regression: an ~11k-char Morning Wire rundown must NOT be rejected as
+    'too long' — the synth layer chunks it. Previously a 4000-char cap made
+    Read Aloud silently fail on the entire Morning Wire."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    long_rundown = ("The market opened higher today. " * 400).strip()  # ~12k chars
+    assert len(long_rundown) > 10_000
+    fake_audio = b"\xFF\xFB\x90\x00FULLWIRE"
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ):
+        r = client.post("/api/voice/tts", json={"text": long_rundown})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("audio/mpeg")
+
+
 # ── Settings + Usage ────────────────────────────────────────────────────────
 
 def test_settings_get_returns_defaults_for_new_paid_user(client):

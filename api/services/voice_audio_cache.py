@@ -71,6 +71,18 @@ def put_cached(text: str, voice: str, speed: float, audio_bytes: bytes) -> None:
             pass
 
 
+def cached_file_path(text: str, *, voice: str, speed: float) -> str | None:
+    """Return the on-disk path of fresh cached audio, or None if missing/expired.
+    Serving this file directly (e.g. via FileResponse) gives HTTP Range support,
+    so the browser <audio> element can seek/scrub."""
+    p = _path_for(text, voice, speed)
+    if not os.path.exists(p):
+        return None
+    if time.time() - os.path.getmtime(p) > CACHE_TTL_SECONDS:
+        return None
+    return p
+
+
 def purge_expired() -> int:
     """Remove cache files older than CACHE_TTL_SECONDS. Returns count removed."""
     removed = 0

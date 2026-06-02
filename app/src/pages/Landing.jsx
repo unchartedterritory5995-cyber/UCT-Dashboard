@@ -1,140 +1,68 @@
-import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import useInView from '../hooks/useIntersectionObserver'
+import { track } from '../utils/landingTrack'
 import styles from './Landing.module.css'
 
-const FEATURES = [
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-        <polyline points="10 9 9 9 8 9" />
-      </svg>
-    ),
-    title: 'Morning Wire',
-    desc: 'AI-powered pre-market intelligence delivered daily at 7:35 AM ET. Regime analysis, breadth, risk appetite, and exposure model.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-      </svg>
-    ),
-    title: 'UCT 20',
-    desc: 'The 20 highest-conviction leadership stocks — tracked with entry/exit signals, stop losses, and real-time P&L.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-    ),
-    title: 'Breadth Monitor',
-    desc: '20+ market internals with 8-tier heatmap, historical overlays, COT data, and drilldown to individual stocks.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-    title: 'Scanner',
-    desc: 'Pullback MA, Remount, and Gapper setups scored on 7 criteria — pattern detection, volume, EMA proximity, and more.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="2" y1="12" x2="22" y2="12" />
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-      </svg>
-    ),
-    title: 'Theme Tracker',
-    desc: '63 ETF themes with live intraday returns across 6 periods. See where institutional money is rotating.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-      </svg>
-    ),
-    title: 'Calendar',
-    desc: 'Earnings + macro events for the week. EarningsWhispers data with AI-generated pre-earnings previews.',
-  },
-]
+// Returns the current US-market session label for the hero eyebrow.
+// Honest, time-aware, no fake data — purely based on the visitor's clock
+// projected into America/New_York.
+function getMarketStatus(now = new Date()) {
+  // Convert "now" to ET wall-clock parts.
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour12: false,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const parts = fmt.formatToParts(now).reduce((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value
+    return acc
+  }, {})
+  const weekday = parts.weekday              // e.g. "Mon"
+  const hour    = parseInt(parts.hour, 10)
+  const minute  = parseInt(parts.minute, 10)
+  const mins    = hour * 60 + minute
 
-const PLAN_FEATURES = [
-  'AI Morning Wire (daily 7:35 AM ET)',
-  'Real-time data (15s refresh)',
-  'UCT 20 Portfolio Tracker + Backtest',
-  'Scanner (Pullback MA, Remount, Gappers)',
-  'Breadth Monitor + Heatmap + COT',
-  '63 Theme Tracker with live returns',
-  'Trade Journal + Watchlists',
-  'Options Flow + Dark Pool',
-  'AI earnings previews',
-  'Intraday regime alerts',
-]
+  const PREMARKET_OPEN = 4 * 60          // 04:00 ET
+  const REG_OPEN       = 9 * 60 + 30     // 09:30 ET
+  const REG_CLOSE      = 16 * 60         // 16:00 ET
+  const POSTMARKET_END = 20 * 60         // 20:00 ET
 
-const STEPS = [
-  {
-    num: '01',
-    title: 'Subscribe',
-    desc: 'Join for $20/month. Cancel anytime.',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="8.5" cy="7" r="4" />
-        <line x1="20" y1="8" x2="20" y2="14" />
-        <line x1="23" y1="11" x2="17" y2="11" />
-      </svg>
-    ),
-  },
-  {
-    num: '02',
-    title: 'Get the Morning Wire',
-    desc: 'AI-generated briefing at 7:35 AM ET every trading day.',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-        <polyline points="22,6 12,13 2,6" />
-      </svg>
-    ),
-  },
-  {
-    num: '03',
-    title: 'Trade with an Edge',
-    desc: 'Real-time data, scanner alerts, and portfolio tracking.',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-        <polyline points="17 6 23 6 23 12" />
-      </svg>
-    ),
-  },
-]
+  const isWeekend = weekday === 'Sat' || weekday === 'Sun'
+  if (isWeekend) return { label: 'Markets closed · Reopen Monday', tone: 'closed' }
 
-const METRICS = [
-  { value: '63', label: 'ETF Themes' },
-  { value: '20+', label: 'Breadth Metrics' },
-  { value: '7:35 AM', label: 'Daily AI Wire' },
-  { value: '15s', label: 'Real-Time Refresh' },
-]
+  if (mins < PREMARKET_OPEN || mins >= POSTMARKET_END) {
+    const tilOpen = mins < PREMARKET_OPEN
+      ? PREMARKET_OPEN - mins
+      : (24 * 60 - mins) + PREMARKET_OPEN
+    const h = Math.floor(tilOpen / 60)
+    const m = tilOpen % 60
+    return { label: `Markets closed · Pre-market in ${h}h ${m}m`, tone: 'closed' }
+  }
+  if (mins < REG_OPEN) {
+    const tilOpen = REG_OPEN - mins
+    const h = Math.floor(tilOpen / 60)
+    const m = tilOpen % 60
+    return { label: `Pre-market · Open in ${h}h ${m}m`, tone: 'pre' }
+  }
+  if (mins < REG_CLOSE) {
+    const tilClose = REG_CLOSE - mins
+    const h = Math.floor(tilClose / 60)
+    const m = tilClose % 60
+    return { label: `Markets open · Close in ${h}h ${m}m`, tone: 'open' }
+  }
+  // Post-market
+  return { label: 'Post-market · Closed at 4:00 PM ET', tone: 'post' }
+}
 
-function FadeInSection({ children, className = '', delay = 0 }) {
+function FadeIn({ children, delay = 0, className = '' }) {
   const [ref, isInView] = useInView()
   return (
     <div
       ref={ref}
-      className={`${styles.fadeInUp} ${isInView ? styles.visible : ''} ${className}`}
+      className={`${styles.fadeIn} ${isInView ? styles.fadeInVisible : ''} ${className}`}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}
@@ -142,205 +70,827 @@ function FadeInSection({ children, className = '', delay = 0 }) {
   )
 }
 
-export default function Landing() {
-  const [showNav, setShowNav] = useState(false)
-
-  const handleScroll = useCallback(() => {
-    setShowNav(window.scrollY > 500)
-  }, [])
+// Animates a number from 0 to `to` over `duration`ms when the element
+// scrolls into view. Honors prefers-reduced-motion by skipping the
+// animation and rendering the final value immediately.
+function CountUp({ to, duration = 1200, format = (n) => n.toLocaleString('en-US'), className = '' }) {
+  const [ref, isInView] = useInView()
+  const [value, setValue] = useState(0)
+  const reduceMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+    if (!isInView) return
+    if (reduceMotion) { setValue(to); return }
+    let raf = null
+    let start = null
+    const tick = (ts) => {
+      if (start === null) start = ts
+      const progress = Math.min(1, (ts - start) / duration)
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(Math.round(to * eased))
+      if (progress < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => raf !== null && cancelAnimationFrame(raf)
+  }, [isInView, to, duration, reduceMotion])
 
-  const scrollToFeatures = (e) => {
-    e.preventDefault()
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+  return <span ref={ref} className={className}>{format(value)}</span>
+}
+
+const EQUITY_PATH_D =
+  'M 90 580 C 150 575, 180 555, 210 540 S 270 510, 310 535 ' +
+  'C 350 560, 390 565, 430 525 S 510 460, 560 475 ' +
+  'C 610 490, 640 470, 680 430 S 760 370, 810 395 ' +
+  'C 860 420, 890 380, 930 320 S 1010 230, 1060 200 ' +
+  'C 1095 180, 1115 130, 1130 90'
+
+const EQUITY_FILL_D = EQUITY_PATH_D + ' L 1130 640 L 90 640 Z'
+
+const FEATURES = [
+  { name: 'Morning Wire',     desc: 'Daily AI brief at 7:35 AM ET. Regime, exposure, top 5 picks with triggers, stops, and invalidation levels.' },
+  { name: 'UCT 20',           desc: 'The 20 highest-conviction leadership stocks. Entry and exit signals, stop losses, live P&L.' },
+  { name: 'AI Compass',       desc: 'A trading coach that learns your setups. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews.', isNew: true },
+  { name: 'Stock Catalysts',  desc: 'A pre-market intelligence desk. 20 vetted picks synthesized from 8 sources every refresh.', isNew: true },
+  { name: 'Breadth Monitor',  desc: '20+ market internals, eight-tier heatmap, COT positioning, 500-day analogue matching.' },
+  { name: 'Theme Tracker',    desc: '99 themes across 12 sectors. 1,928 stocks. Live intraday returns across six periods.' },
+  { name: 'Charts Workspace', desc: 'TradingView-grade workspace. Drag-resize tiles, four color groups for linking, eight timeframes.' },
+  { name: 'Voice Assistant',  desc: 'Ask Compass anything by voice. 88 tools, persistent memory, regime-aware risk engine.', isNew: true },
+]
+
+export default function Landing() {
+  const [billing, setBilling] = useState('monthly') // 'monthly' | 'annual'
+  const [marketStatus, setMarketStatus] = useState(() => getMarketStatus())
+
+  // Refresh market status every 60s so the countdown stays accurate
+  // without re-rendering more than necessary.
+  useEffect(() => {
+    const id = setInterval(() => setMarketStatus(getMarketStatus()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Fire a single landing_view event per page mount.
+  useEffect(() => { track('landing_view') }, [])
+
+  // FAQ open handler — track which questions visitors actually look at.
+  const handleFaqOpen = (e) => {
+    if (!e.target.open) return
+    const q = e.target.querySelector('summary')?.textContent?.trim()
+    if (q) track('faq_open', { question: q })
   }
+
+  const pathRef          = useRef(null)
+  const drawnRef         = useRef(null)
+  const fillClipRectRef  = useRef(null)
+  const markerGroupRef   = useRef(null)
+  const counterValueRef  = useRef(null)
+  const counterDeltaRef  = useRef(null)
+  const counterBgRef     = useRef(null)
+  const markerRectRef    = useRef(null)
+  const needleRef        = useRef(null)
+
+  useEffect(() => {
+    const path         = pathRef.current
+    const drawn        = drawnRef.current
+    const fillClipRect = fillClipRectRef.current
+    const markerGroup  = markerGroupRef.current
+    const counterVal   = counterValueRef.current
+    const counterDel   = counterDeltaRef.current
+    const counterBg    = counterBgRef.current
+    const markerRect   = markerRectRef.current
+    if (!path || !drawn || !markerGroup) return
+
+    // Approximate viewBox coords for the compass center (it lives over the
+    // left side of the hero). Used by the needle-tracks-marker effect.
+    const COMPASS_X = 220
+    const COMPASS_Y = 320
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) {
+      fillClipRect.setAttribute('width', '1200')
+      drawn.style.strokeDasharray = 'none'
+      drawn.style.strokeDashoffset = '0'
+      markerGroup.setAttribute('transform', 'translate(1130 90)')
+      counterVal.textContent = '$36,000'
+      counterDel.textContent = '+$28,000 · 350%'
+      if (needleRef.current) {
+        const dx = 1130 - COMPASS_X
+        const dy = 90 - COMPASS_Y
+        const deg = Math.atan2(dx, -dy) * (180 / Math.PI)
+        needleRef.current.style.transform = `rotate(${deg}deg)`
+      }
+      return
+    }
+
+    const START_VAL = 8000
+    const END_VAL   = 36000
+    const RUN_MS    = 18000
+    const HOLD_MS   = 1500
+    const RESET_MS  = 500
+    const TOTAL_MS  = RUN_MS + HOLD_MS + RESET_MS
+
+    const pathLen = path.getTotalLength()
+    drawn.style.strokeDasharray  = `${pathLen} ${pathLen}`
+    drawn.style.strokeDashoffset = String(pathLen)
+
+    let startTime = null
+    let lastY     = null
+    let rafId     = null
+
+    const fmt = (n) => `$${(Math.round(n / 10) * 10).toLocaleString('en-US')}`
+    const fmtDelta = (delta) => {
+      const rounded = Math.round(delta / 10) * 10
+      const pct = Math.round((rounded / START_VAL) * 100)
+      return `+$${rounded.toLocaleString('en-US')} · ${pct.toLocaleString('en-US')}%`
+    }
+
+    const tick = (ts) => {
+      if (startTime === null) startTime = ts
+      const elapsed = (ts - startTime) % TOTAL_MS
+
+      let progress, opacity
+      if (elapsed < RUN_MS) {
+        progress = elapsed / RUN_MS
+        opacity = 1
+      } else if (elapsed < RUN_MS + HOLD_MS) {
+        progress = 1
+        opacity = 1
+      } else {
+        progress = 1
+        opacity = 0
+        drawn.style.strokeDashoffset = String(pathLen)
+        fillClipRect.setAttribute('width', '0')
+      }
+
+      const drawnLen = pathLen * progress
+      drawn.style.strokeDashoffset = String(pathLen - drawnLen)
+
+      const pt = path.getPointAtLength(drawnLen)
+      fillClipRect.setAttribute('width', String(Math.max(0, pt.x)))
+
+      const isDrawdown = lastY !== null && pt.y > lastY + 0.4
+      lastY = pt.y
+
+      markerGroup.setAttribute('transform', `translate(${pt.x} ${pt.y})`)
+      markerGroup.setAttribute('opacity', String(opacity))
+
+      // Needle points at the marker — unifies compass + equity curve
+      if (needleRef.current && opacity > 0) {
+        const dx = pt.x - COMPASS_X
+        const dy = pt.y - COMPASS_Y
+        const deg = Math.atan2(dx, -dy) * (180 / Math.PI)
+        needleRef.current.style.transform = `rotate(${deg}deg)`
+      }
+
+      const val = START_VAL + (END_VAL - START_VAL) * progress
+      counterVal.textContent = fmt(val)
+      counterDel.textContent = fmtDelta(val - START_VAL)
+
+      if (isDrawdown) {
+        counterVal.setAttribute('fill', '#f87171')
+        counterDel.setAttribute('fill', 'rgba(248,113,113,0.6)')
+        counterBg.setAttribute('stroke', 'rgba(248,113,113,0.35)')
+        markerRect.setAttribute('fill', '#f87171')
+      } else {
+        counterVal.setAttribute('fill', '#4ade80')
+        counterDel.setAttribute('fill', 'rgba(74,222,128,0.6)')
+        counterBg.setAttribute('stroke', 'rgba(74,222,128,0.3)')
+        markerRect.setAttribute('fill', 'url(#markerGrad)')
+      }
+
+      rafId = requestAnimationFrame(tick)
+    }
+
+    const startTimeout = setTimeout(() => {
+      rafId = requestAnimationFrame(tick)
+    }, 200)
+
+    return () => {
+      clearTimeout(startTimeout)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+  }, [])
+
+  const scrollTo = (id) => (e) => {
+    e.preventDefault()
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Hide the sticky mobile CTA once the footer enters the viewport.
+  const [footerRef, footerInView] = useInView({ threshold: 0.05 })
 
   return (
     <div className={styles.page}>
-      {/* ── Sticky Nav ──────────────────────────────────── */}
-      <nav className={`${styles.stickyNav} ${showNav ? styles.stickyNavVisible : ''}`}>
-        <div className={styles.navInner}>
-          <span className={styles.navBrand}>UCT</span>
-          <div className={styles.navActions}>
-            <Link to="/login" className={styles.navGhost}>Log In</Link>
-            <Link to="/signup?plan=pro" className={styles.navCta}>Get Started</Link>
-          </div>
+      <a href="#main" className={styles.skipLink}>Skip to main content</a>
+
+      {/* ── Nav ── */}
+      <nav className={styles.nav}>
+        <div className={styles.navBrand}>
+          <span className={styles.navMark} aria-hidden="true">⊕</span>
+          UCT Intelligence
+        </div>
+        <div className={styles.navLinks}>
+          <a href="#features" onClick={scrollTo('features')}>Features</a>
+          <a href="#pricing"  onClick={scrollTo('pricing')}>Pricing</a>
+          <a href="#faq"      onClick={scrollTo('faq')}>FAQ</a>
+        </div>
+        <div className={styles.navCta}>
+          <Link to="/login" className={styles.navLogin}>Log in</Link>
+          <Link
+            to="/signup?plan=pro"
+            className={styles.navSignup}
+            onClick={() => track('nav_cta_click')}
+          >
+            Get started
+          </Link>
         </div>
       </nav>
 
-      {/* ── Hero ────────────────────────────────────────── */}
-      <header className={styles.hero}>
-        <div className={styles.heroGradient} aria-hidden="true" />
-        <div className={styles.heroContent}>
-          <div className={styles.heroPill}>Institutional-Grade Intelligence</div>
-          <h1 className={styles.heroHeadline}>
-            <span className={styles.gradientText}>Your Edge in</span>
-            <br />
-            <span className={styles.gradientText}>Every Market</span>
-          </h1>
-          <p className={styles.heroSubtitle}>
-            AI-powered morning wire, 20-stock leadership portfolio, real-time
-            breadth monitoring, and 63 theme ETFs — delivered daily at 7:35 AM ET.
-          </p>
-          <div className={styles.heroCtas}>
-            <Link to="/signup?plan=pro" className={styles.ctaGold}>
-              Get Started — $20/mo
-            </Link>
-            <a href="#features" onClick={scrollToFeatures} className={styles.ctaGhost}>
-              See Features
-            </a>
-          </div>
-        </div>
-        <div className={styles.heroArrow} aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
+      {/* ── Hero ── */}
+      <main id="main">
+      <section className={styles.hero}>
+        {/* Equity-curve background */}
+        <div className={styles.equity} aria-hidden="true">
+          <svg viewBox="0 0 1200 640" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="eqGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%"   stopColor="#9c7d2a" stopOpacity="0.4"  />
+                <stop offset="40%"  stopColor="#c9a84c" stopOpacity="0.65" />
+                <stop offset="100%" stopColor="#4ade80" stopOpacity="0.75" />
+              </linearGradient>
+              <linearGradient id="eqFillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%"   stopColor="#c9a84c" stopOpacity="0.16" />
+                <stop offset="100%" stopColor="#c9a84c" stopOpacity="0"    />
+              </linearGradient>
+              <radialGradient id="markerGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%"   stopColor="#fff4d6" />
+                <stop offset="60%"  stopColor="#c9a84c" />
+                <stop offset="100%" stopColor="#9c7d2a" />
+              </radialGradient>
+              <clipPath id="fillClip">
+                <rect ref={fillClipRectRef} x="0" y="0" width="0" height="640" />
+              </clipPath>
+              <path ref={pathRef} id="equity-path" d={EQUITY_PATH_D} />
+            </defs>
+
+            <line className={styles.gridLine} x1="60" y1="500" x2="1170" y2="500" />
+            <line className={styles.gridLine} x1="60" y1="360" x2="1170" y2="360" />
+            <line className={styles.gridLine} x1="60" y1="220" x2="1170" y2="220" />
+
+            <text className={styles.axisLabel} x="1148" y="586" textAnchor="end">$8K</text>
+            <text className={styles.axisLabel} x="1148" y="364" textAnchor="end">$18K</text>
+            <text className={styles.axisLabel} x="1148" y="224" textAnchor="end">$28K</text>
+            <text className={styles.axisLabel} x="1148" y="94"  textAnchor="end">$36K</text>
+
+            <use href="#equity-path" className={styles.equityGhost} />
+            <g clipPath="url(#fillClip)">
+              <path className={styles.equityFill} d={EQUITY_FILL_D} />
+            </g>
+            <use href="#equity-path" className={styles.equityCurve} ref={drawnRef} />
+
+            <g ref={markerGroupRef} transform="translate(90 580)" opacity="1">
+              <circle r="5" fill="none" stroke="#c9a84c" strokeWidth="1" opacity="0.5">
+                <animate attributeName="r"       from="5"   to="13" dur="1.8s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.6" to="0"  dur="1.8s" repeatCount="indefinite" />
+              </circle>
+              <circle r="9" fill="#4ade80" opacity="0.1" />
+              <circle r="6" fill="#c9a84c" opacity="0.28" />
+              <rect
+                ref={markerRectRef}
+                x="-5.5" y="-5.5" width="11" height="11"
+                fill="url(#markerGrad)"
+                transform="rotate(45)"
+                rx="1.5"
+              />
+              <g transform="translate(12 -44)">
+                <rect
+                  ref={counterBgRef}
+                  x="0" y="0" width="130" height="46" rx="3"
+                  fill="rgba(10,6,4,0.78)"
+                  stroke="rgba(74,222,128,0.3)" strokeWidth="1"
+                />
+                <text
+                  x="9" y="14"
+                  fill="rgba(201,168,76,0.6)"
+                  fontFamily="'IBM Plex Mono', Consolas, monospace"
+                  fontSize="7.5" fontWeight="600" letterSpacing="2"
+                >ACCOUNT P&amp;L</text>
+                <text
+                  ref={counterValueRef}
+                  x="9" y="31"
+                  fill="#4ade80"
+                  fontFamily="'IBM Plex Mono', Consolas, monospace"
+                  fontSize="17" fontWeight="700" letterSpacing="-0.3"
+                  style={{ filter: 'drop-shadow(0 0 3px rgba(74,222,128,0.4))' }}
+                >$8,000</text>
+                <text
+                  ref={counterDeltaRef}
+                  x="9" y="42"
+                  fill="rgba(74,222,128,0.6)"
+                  fontFamily="'IBM Plex Mono', Consolas, monospace"
+                  fontSize="9" letterSpacing="0.2"
+                >+$0 · 0%</text>
+              </g>
+            </g>
           </svg>
         </div>
-      </header>
 
-      {/* ── Metrics Bar ─────────────────────────────────── */}
-      <FadeInSection>
-        <section className={styles.metricsBar}>
-          {METRICS.map((m, i) => (
-            <div key={m.label} className={styles.metric}>
-              {i > 0 && <div className={styles.metricDivider} />}
-              <span className={styles.metricValue}>{m.value}</span>
-              <span className={styles.metricLabel}>{m.label}</span>
-            </div>
-          ))}
-        </section>
-      </FadeInSection>
-
-      {/* ── Product Showcase ────────────────────────────── */}
-      <FadeInSection>
-        <section className={styles.showcase}>
-          <div className={styles.mockupFrame}>
-            <div className={styles.mockupChrome}>
-              <div className={styles.mockupDots}>
-                <span /><span /><span />
-              </div>
-              <div className={styles.mockupUrl}>app.uctintelligence.com</div>
-            </div>
-            <div className={styles.mockupBody}>
-              <div className={styles.mockupPlaceholder}>
-                Dashboard Preview
-              </div>
+        <div className={styles.heroInner}>
+          <div className={`${styles.compassWrap} ${styles.enter} ${styles.enter0}`}>
+            <div className={styles.compass}>
+              <div ref={needleRef} className={styles.needle} />
             </div>
           </div>
-        </section>
-      </FadeInSection>
 
-      {/* ── Features ────────────────────────────────────── */}
-      <section id="features" className={styles.features}>
-        <FadeInSection>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Everything You Need</h2>
-            <p className={styles.sectionSubtitle}>
-              Six integrated tools built for swing traders who take the craft seriously.
+          <div className={styles.heroBody}>
+            <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]} ${styles.enter} ${styles.enter1}`}>
+              <span className={styles.eyebrowDot} />
+              {marketStatus.label}
+            </div>
+            <h1 className={`${styles.heroH1} ${styles.enter} ${styles.enter2}`}>UCT Intelligence</h1>
+            <p className={`${styles.heroTagline} ${styles.enter} ${styles.enter3}`}>Navigate the market, effectively.</p>
+            <p className={`${styles.heroSub} ${styles.enter} ${styles.enter4}`}>
+              A complete trading desk in one app — pre-market AI brief, 20-stock
+              leadership portfolio, an AI coach that watches your trades, and a
+              live catalyst engine that reads 8 sources every morning.
             </p>
+            <div className={`${styles.ctas} ${styles.enter} ${styles.enter5}`}>
+              <Link
+                to="/signup?plan=pro"
+                className={styles.ctaGold}
+                onClick={() => track('hero_cta_pro_click')}
+              >
+                Get started — $20/mo
+              </Link>
+              <Link
+                to="/signup?plan=free"
+                className={styles.ctaGhost}
+                onClick={() => track('hero_cta_free_click')}
+              >
+                Try it free
+              </Link>
+            </div>
+            <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter6}`}>
+              Free forever for the core tools · No card required · Cancel Pro anytime
+            </div>
           </div>
-        </FadeInSection>
-        <div className={styles.featureGrid}>
+        </div>
+      </section>
+
+      {/* ── Live engine strip ── */}
+      <div className={styles.strip}>
+        <span className={styles.stripPulse}>
+          <span className={styles.stripDot} />
+          Engine live
+        </span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}><CountUp to={20} /> catalysts</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}><CountUp to={347} /> patterns</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}><CountUp to={99} /> themes</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}><CountUp to={3685} /> tickers</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}>SPY <span className={styles.stripUp}>+0.42%</span></span>
+      </div>
+
+      {/* ── How it works ── */}
+      <section className={styles.how}>
+        <FadeIn>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionH2}>From signup to first trade in 10 minutes.</h2>
+            <p className={styles.sectionP}>No setup, no broker connection, no learning curve.</p>
+          </div>
+        </FadeIn>
+        <div className={styles.howGrid}>
+          <FadeIn delay={0}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>1</div>
+              <h3 className={styles.howH3}>Sign up free</h3>
+              <p className={styles.howP}>60 seconds. Five core tools unlock immediately — no card required.</p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={120}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>2</div>
+              <h3 className={styles.howH3}>Read the wire</h3>
+              <p className={styles.howP}>Every weekday at 7:35 AM ET, the brief lands with regime, exposure, and the top 5 picks with entry triggers.</p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={240}>
+            <div className={styles.howStep}>
+              <div className={styles.howNum}>3</div>
+              <h3 className={styles.howH3}>Trade with the coach</h3>
+              <p className={styles.howP}>Compass watches every trade. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews.</p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section id="features" className={styles.features}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>Everything you need to find an edge.</h2>
+          <p className={styles.sectionP}>
+            Eight integrated tools. Pre-market intelligence, live breadth, an AI
+            coach, pattern detection, real-time streaming.
+          </p>
+        </div>
+        <div className={styles.grid}>
           {FEATURES.map((f, i) => (
-            <FadeInSection key={f.title} delay={i * 80}>
-              <div className={styles.featureCard}>
-                <div className={styles.featureIconWrap}>{f.icon}</div>
-                <h3 className={styles.featureTitle}>{f.title}</h3>
-                <p className={styles.featureDesc}>{f.desc}</p>
-              </div>
-            </FadeInSection>
+            <div key={f.name} className={styles.feat}>
+              <div className={styles.featNum}>{String(i + 1).padStart(2, '0')}</div>
+              <h3 className={styles.featH3}>
+                {f.name}
+                {f.isNew && <span className={styles.featNew}>New</span>}
+              </h3>
+              <p className={styles.featP}>{f.desc}</p>
+            </div>
           ))}
         </div>
       </section>
 
-      {/* ── How It Works ────────────────────────────────── */}
-      <section className={styles.howItWorks}>
-        <FadeInSection>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>How It Works</h2>
-            <p className={styles.sectionSubtitle}>
-              Three steps to better trading decisions.
-            </p>
+      {/* ── Sample preview ── */}
+      <section className={styles.sample}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>See what lands on your dashboard.</h2>
+          <p className={styles.sectionP}>An example of what the Morning Wire looks like on any given Tuesday.</p>
+        </div>
+        <div className={styles.sampleMock}>
+          <div className={styles.sampleHead}>
+            <span className={styles.sampleTitle}>Morning Wire</span>
+            <span className={styles.sampleTime}>07:35 EDT</span>
           </div>
-        </FadeInSection>
-        <FadeInSection>
-          <div className={styles.stepsRow}>
-            {STEPS.map((s, i) => (
-              <div key={s.num} className={styles.step}>
-                <div className={styles.stepIconWrap}>{s.icon}</div>
-                <div className={styles.stepNum}>{s.num}</div>
-                <h3 className={styles.stepTitle}>{s.title}</h3>
-                <p className={styles.stepDesc}>{s.desc}</p>
-                {i < STEPS.length - 1 && (
-                  <div className={styles.stepConnector} aria-hidden="true">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                      <polyline points="12 5 19 12 12 19" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className={styles.sampleRegime}>
+            <span className={styles.sampleRegimeLabel}>Regime</span>
+            <span className={styles.sampleRegimeVal}>Green · Uptrend confirmed</span>
           </div>
-        </FadeInSection>
+          <div className={styles.sampleStats}>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Exposure</div><div className={styles.sampleStatVal}>115</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Breadth</div><div className={styles.sampleStatVal}>68</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Dist days</div><div className={styles.sampleStatVal}>2</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>VIX</div><div className={styles.sampleStatVal}>14.2</div></div>
+          </div>
+          <div className={styles.samplePicksHead}>Top 5 picks · entry / stop / setup</div>
+          <div className={styles.samplePicks}>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>NVDA</span><span className={styles.samplePickSetup}>Base breakout</span><span className={styles.samplePickNote}>above $1,142 on volume · stop $1,108</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>PLTR</span><span className={styles.samplePickSetup}>Pullback MA</span><span className={styles.samplePickNote}>tag of 21EMA · entry $24.80 · stop $23.95</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>CRWD</span><span className={styles.samplePickSetup}>Prev high break</span><span className={styles.samplePickNote}>above $338 · stop $329</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>APP</span><span className={styles.samplePickSetup}>Red to green</span><span className={styles.samplePickNote}>reclaim $312 prev close · stop $304</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>HOOD</span><span className={styles.samplePickSetup}>High tight flag</span><span className={styles.samplePickNote}>breakout $58.40 · stop $54.90</span></div>
+          </div>
+          <div className={styles.sampleFoot}>
+            Every weekday · synthesized from 8 sources by Opus 4.7 · briefed by the Compass coach
+          </div>
+        </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────── */}
-      <section className={styles.pricing}>
-        <FadeInSection>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Simple Pricing</h2>
-            <p className={styles.sectionSubtitle}>
-              One plan. Everything included.
-            </p>
+      {/* ── Compass mockup ── */}
+      <section className={styles.compassSec}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>And a coach watching every trade.</h2>
+          <p className={styles.sectionP}>
+            Compass learns your setups, your sizing rules, your tilt patterns. Before
+            you click buy, it gives you a verdict. After the trade, a post-mortem.
+          </p>
+        </div>
+        <div className={styles.compassMock}>
+          <div className={styles.compassHead}>
+            <span className={styles.compassMark} aria-hidden="true">⊕</span>
+            <span className={styles.compassTitle}>Compass</span>
+            <span className={styles.compassStatus}>● Active</span>
           </div>
-        </FadeInSection>
-        <FadeInSection>
-          <div className={styles.pricingCenter}>
-            <div className={styles.pricingCard}>
-              <div className={styles.proBadge}>PRO</div>
-              <div className={styles.priceRow}>
-                <span className={styles.priceAmount}>$20</span>
-                <span className={styles.pricePeriod}>/month</span>
+          <div className={`${styles.compassMsg} ${styles.compassMsgUser}`}>
+            Thinking about NVDA above $1,142 here — 200 shares, stop at $1,108. What do you think?
+          </div>
+          <div className={styles.compassMsg}>
+            You've taken 3 trades this morning and 2 were stopped. Per your profile, after 2 stops in a session you wait for a clean A+ setup. This one is B+ at best — chasing breakout, no clean base.
+          </div>
+          <div className={styles.compassVerdict}>
+            <span className={styles.compassBadge}>SKIP</span>
+            <span className={styles.compassVerdictText}>
+              Risk = $6,800 against your $400 daily R limit. Sit this one out — Compass will alert if a cleaner setup forms.
+            </span>
+          </div>
+          <div className={styles.compassFoot}>
+            Pre-trade verdicts · post-mortems · weekly reviews · talk to it by voice
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who this is for ── */}
+      <section className={styles.who}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>Built for traders who take it seriously.</h2>
+          <p className={styles.sectionP}>Whether you swing, day trade, or invest — UCT fits.</p>
+        </div>
+        <div className={styles.whoGrid}>
+          <FadeIn delay={0}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Swing traders</div>
+              <h3 className={styles.whoH3}>You want to compound, not gamble.</h3>
+              <p className={styles.whoP}>
+                Multi-day to multi-week holds on the leaders. Use the Wire, UCT 20, and the
+                85-detector pattern engine. Compass keeps you patient.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={120}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Day traders</div>
+              <h3 className={styles.whoH3}>You want an edge before the bell.</h3>
+              <p className={styles.whoP}>
+                Pre-market catalysts, gap scanner, live breadth, Twitter feed, and Options
+                Flow. Everything you'd build a routine around — in one screen.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={240}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Active investors</div>
+              <h3 className={styles.whoH3}>You want to know what's rotating.</h3>
+              <p className={styles.whoP}>
+                99 themes across 12 sectors. Breadth Monitor, COT positioning, 500-day
+                analogue matching. See where the money's actually moving.
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── Pricing ── */}
+      <section id="pricing" className={styles.price}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>One plan. Everything included.</h2>
+          <p className={styles.sectionP}>Less than $1 a day. Cancel anytime, in one click.</p>
+        </div>
+        <div className={styles.billingToggle} role="tablist" aria-label="Billing period">
+          <button
+            role="tab"
+            aria-selected={billing === 'monthly'}
+            className={`${styles.billingBtn} ${billing === 'monthly' ? styles.billingBtnActive : ''}`}
+            onClick={() => { setBilling('monthly'); track('billing_toggle', { billing: 'monthly' }) }}
+          >
+            Monthly
+          </button>
+          <button
+            role="tab"
+            aria-selected={billing === 'annual'}
+            className={`${styles.billingBtn} ${billing === 'annual' ? styles.billingBtnActive : ''}`}
+            onClick={() => { setBilling('annual'); track('billing_toggle', { billing: 'annual' }) }}
+          >
+            Annual
+            <span className={styles.billingSave}>Save $40</span>
+          </button>
+        </div>
+        <div className={styles.priceCard}>
+          <div className={styles.priceTop}>
+            <div>
+              <div className={styles.priceBadge}>Pro</div>
+              <div className={styles.priceAmt}>
+                {billing === 'monthly' ? '$20' : '$200'}
+                <span className={styles.pricePer}>
+                  {billing === 'monthly' ? '/month' : '/year'}
+                </span>
               </div>
-              <ul className={styles.planFeatures}>
-                {PLAN_FEATURES.map((f) => (
-                  <li key={f}>
-                    <svg className={styles.checkIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/signup?plan=pro" className={styles.pricingCta}>
-                Get Started Now
-              </Link>
-              <p className={styles.pricingNote}>Cancel anytime. No contracts.</p>
+              <div className={styles.priceValueLine}>
+                {billing === 'monthly'
+                  ? 'Less than $1 a day.'
+                  : '$16.67/month, billed annually. Save $40.'}
+              </div>
             </div>
           </div>
-        </FadeInSection>
+          <ul className={styles.priceUl}>
+            <li>Morning Wire — daily AI brief</li>
+            <li>UCT 20 portfolio + live signals</li>
+            <li>AI Compass coach</li>
+            <li>Stock Catalysts (20 picks per refresh)</li>
+            <li>85-detector pattern engine</li>
+            <li>99-theme rotation tracker</li>
+            <li>Charts Workspace + 8 timeframes</li>
+            <li>Voice Assistant + real-time streaming</li>
+          </ul>
+          <Link
+            to={`/signup?plan=pro&billing=${billing}`}
+            className={styles.priceCta}
+            onClick={() => track('pricing_cta_pro_click', { billing })}
+          >
+            Get started
+          </Link>
+          <div className={styles.priceNote}>No contracts. Cancel in one click.</div>
+        </div>
+        <div className={styles.freeBlock}>
+          <div className={styles.freeHead}>
+            <span className={styles.freeBadge}>
+              <span className={styles.freeBadgeDot} />
+              Free forever
+            </span>
+            <h3 className={styles.freeH3}>Five tools, no card required.</h3>
+            <p className={styles.freeSub}>
+              Start with these — upgrade only when you want the Pro intelligence layer.
+            </p>
+          </div>
+          <div className={styles.freeGrid}>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Dashboard</div>
+              <div className={styles.freeDesc}>Bento layout for your daily intel.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Breadth Monitor</div>
+              <div className={styles.freeDesc}>20+ internals with the 8-tier heatmap.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Charts Workspace</div>
+              <div className={styles.freeDesc}>Drag-resize tiles, 8 timeframes.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Journal</div>
+              <div className={styles.freeDesc}>Trade log with notes + screenshots.</div>
+            </div>
+            <div className={styles.freeCard}>
+              <div className={styles.freeName}>Options Flow</div>
+              <div className={styles.freeDesc}>Real-time options + dark pool.</div>
+            </div>
+          </div>
+          <Link
+            to="/signup?plan=free"
+            className={styles.freeCta}
+            onClick={() => track('free_tier_cta_click')}
+          >
+            Create your free account
+          </Link>
+        </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────── */}
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <div className={styles.footerBrand}>UCT Intelligence</div>
-          <div className={styles.footerLinks}>
-            <Link to="/terms">Terms</Link>
-            <span className={styles.footerDot} aria-hidden="true" />
-            <Link to="/privacy">Privacy</Link>
-          </div>
-          <p className={styles.footerAttribution}>
-            Built on the methodologies of Qullamaggie, Minervini, O'Neil, Kell, and Bonde.
+      {/* ── FAQ ── */}
+      <section id="faq" className={styles.faq}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>Common questions.</h2>
+          <p className={styles.sectionP}>Most things people ask before they sign up.</p>
+        </div>
+        <div className={styles.faqList}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>Is this investment advice?</summary>
+            <div>
+              No — UCT Intelligence is research and pattern detection software.
+              Every pick, signal, and chart is information to investigate, not a
+              recommendation to trade. You make your own decisions; we provide
+              the work product of a research desk.
+            </div>
+          </details>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>Do I need to connect a broker?</summary>
+            <div>
+              No. The app runs entirely as research, journaling, and analytics.
+              If you use Charles Schwab, the Journal can sync trades automatically,
+              but it's optional — no broker connection is required to use any feature.
+            </div>
+          </details>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>How is this different from a screener like Finviz?</summary>
+            <div>
+              Screeners give you 200 tickers and leave you to figure out which
+              are real. We give you 5–20 vetted picks per day with the entry
+              trigger, stop, target, invalidation, and the catalyst behind each —
+              synthesized by an AI that read 8 sources overnight. Less searching,
+              more deciding.
+            </div>
+          </details>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>What's the difference between Free and Pro?</summary>
+            <div>
+              Free includes the Dashboard, Breadth Monitor, Charts Workspace,
+              Journal, and Options Flow — forever, no card required. Pro adds
+              the Morning Wire, UCT 20 portfolio, AI Compass coach, Stock
+              Catalysts engine, 85-detector pattern engine, 99-theme tracker,
+              Voice Assistant, and real-time streaming for $20/month.
+            </div>
+          </details>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>What is the AI Compass coach?</summary>
+            <div>
+              A trading coach that learns your setups, sizing rules, and tilt
+              patterns. Before you take a trade, it gives a GO / HOLD / SKIP
+              verdict. After the trade, it writes a post-mortem with data
+              citations. Every Sunday, it briefs you on the week. You can talk
+              to it by text or voice.
+            </div>
+          </details>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
+            <summary>Can I cancel anytime?</summary>
+            <div>
+              Yes — one click from your dashboard. No contracts, no retention
+              calls, no friction. Your free-tier access stays active even after
+              you cancel Pro.
+            </div>
+          </details>
+        </div>
+      </section>
+
+      {/* ── Final close ── */}
+      <section className={styles.close}>
+        <div className={styles.closeInner}>
+          <h2 className={styles.closeH2}>Ready to navigate the market effectively?</h2>
+          <p className={styles.closeP}>
+            Five tools free forever. Pro is $20/month — cancel anytime, no questions asked.
           </p>
-          <p className={styles.footerCopy}>&copy; {new Date().getFullYear()} UCT Intelligence</p>
+          <div className={styles.ctas}>
+            <Link
+              to="/signup?plan=pro"
+              className={styles.ctaGold}
+              onClick={() => track('close_cta_pro_click')}
+            >
+              Get started — $20/mo
+            </Link>
+            <Link
+              to="/signup?plan=free"
+              className={styles.ctaGhost}
+              onClick={() => track('close_cta_free_click')}
+            >
+              Try it free
+            </Link>
+          </div>
+          <div className={styles.ctaSubnote}>
+            Free forever for the core tools · No card required · Cancel Pro anytime
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trust signals ── */}
+      <div className={styles.trust}>
+        <div className={styles.trustInner}>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">●</span>
+            Real-time market data via Polygon
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">⊕</span>
+            AI synthesis by Anthropic Claude
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">🔒</span>
+            TLS secured · payments by Stripe
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">✓</span>
+            Not investment advice
+          </span>
+        </div>
+      </div>
+
+      </main>
+
+      {/* ── Footer ── */}
+      <footer ref={footerRef} className={styles.foot}>
+        <div className={styles.footTop}>
+          <div className={styles.footBrand}>
+            <span className={styles.footBrandMark} aria-hidden="true">⊕</span>
+            UCT Intelligence
+          </div>
+          <div className={styles.footMid}>
+            <Link
+              to="/signup?plan=free"
+              className={styles.footCta}
+              onClick={() => track('footer_cta_click')}
+            >
+              Start free →
+            </Link>
+          </div>
+          <div className={styles.footLinks}>
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/settings">Disclaimers</Link>
+            <a href="mailto:contact@uctintelligence.com">Contact</a>
+          </div>
+        </div>
+        <div className={styles.footAttr}>
+          Built on the methodologies of Qullamaggie, Minervini, O'Neil, Kell, and Bonde.
+          Not investment advice — trade at your own risk.
+        </div>
+        <div className={styles.footMade}>
+          Hand-built by a trader, for traders.
+        </div>
+        <div className={styles.footCopy}>
+          &copy; {new Date().getFullYear()} Uncharted Territory
         </div>
       </footer>
+
+      {/* ── Sticky mobile CTA (visible on phones, hides over the footer) ── */}
+      <Link
+        to="/signup?plan=free"
+        className={`${styles.stickyCta} ${footerInView ? styles.stickyCtaHidden : ''}`}
+        aria-hidden={footerInView}
+        onClick={() => track('sticky_cta_click')}
+      >
+        <span className={styles.stickyCtaText}>Start free</span>
+        <span className={styles.stickyCtaSub}>5 tools · no card required</span>
+        <span className={styles.stickyCtaArrow} aria-hidden="true">→</span>
+      </Link>
     </div>
   )
 }

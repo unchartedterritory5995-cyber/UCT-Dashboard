@@ -11,7 +11,7 @@ describe('ReadAloudButton', () => {
   beforeEach(() => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      blob: () => Promise.resolve(new Blob(['audio'], { type: 'audio/mpeg' })),
+      json: () => Promise.resolve({ token: 'tok123' }),
     })
     global.URL.createObjectURL = vi.fn(() => 'blob:fake')
     // jsdom <audio> doesn't implement play/pause — stub them.
@@ -24,12 +24,12 @@ describe('ReadAloudButton', () => {
     expect(screen.getByRole('button')).toBeTruthy()
   })
 
-  it('fires a TTS fetch on click', async () => {
+  it('fires a TTS prepare fetch on click', async () => {
     wrap(<ReadAloudButton trackId="t1" label="Test" textProvider={() => 'hello'} />)
     fireEvent.click(screen.getByRole('button'))
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        '/api/voice/tts',
+        '/api/voice/tts/prepare',
         expect.objectContaining({ method: 'POST' })
       )
     })

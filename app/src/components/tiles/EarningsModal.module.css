@@ -621,6 +621,53 @@
   font-weight: 600;
 }
 
+/* ── C2: SEC Filings section ─────────────────────────────────────────────── */
+.filingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.filingItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+
+.filingItem:last-child { border-bottom: none; }
+.filingItem:hover { background: rgba(255,255,255,0.03); }
+
+.filingForm {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gain, #4ade80);
+  min-width: 52px;
+}
+
+.filingDate {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.filingArrow {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .close {

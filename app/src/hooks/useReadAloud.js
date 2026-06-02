@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useVoice } from '../context/VoiceContext'
 
 /**
@@ -17,16 +17,19 @@ import { useVoice } from '../context/VoiceContext'
  */
 export default function useReadAloud() {
   const voice = useVoice()
-  const activeBlobUrl = useRef(null)
 
-  const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride }) => {
-    if (voice.trackId === trackId && voice.status === 'playing') {
-      voice.pause()
-      return
-    }
-    if (voice.trackId === trackId && voice.status === 'paused') {
-      await voice.resume()
-      return
+  const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride, force }) => {
+    // `force` bypasses the play/pause toggle — used when the player re-reads in
+    // a new voice (we want a fresh read, not a pause).
+    if (!force) {
+      if (voice.trackId === trackId && voice.status === 'playing') {
+        voice.pause()
+        return
+      }
+      if (voice.trackId === trackId && voice.status === 'paused') {
+        await voice.resume()
+        return
+      }
     }
 
     let text
@@ -42,37 +45,58 @@ export default function useReadAloud() {
     if (voiceOverride) body.voice = voiceOverride
     if (speedOverride !== undefined) body.speed = speedOverride
 
-    let blobUrl
+    // Two-step so playback can stream natively: POST the text to /prepare (which
+    // validates + returns a short-lived token), then point the <audio> element
+    // at GET /stream?token=…. The browser plays the MP3 progressively as bytes
+    // arrive — audio starts in ~1-2s instead of waiting for the whole rundown.
+    let streamUrl
     try {
-      const r = await fetch('/api/voice/tts', {
+      const r = await fetch('/api/voice/tts/prepare', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (!r.ok) {
+        // Surface every failure — a silent no-op makes the button look "broken".
         if (r.status === 402) {
           alert('Voice features require a paid plan.')
-          return
-        }
-        if (r.status === 429) {
+        } else if (r.status === 429) {
           alert('Monthly read-aloud cap reached.')
-          return
+        } else if (r.status === 401) {
+          alert('Please sign in to use Read Aloud.')
+        } else if (r.status === 503) {
+          alert('Read Aloud is temporarily unavailable. Please try again shortly.')
+        } else {
+          alert('Read Aloud failed. Please try again.')
         }
-        throw new Error(`TTS failed: ${r.status}`)
+        console.error('[useReadAloud] TTS prepare failed', r.status)
+        return
       }
-      const blob = await r.blob()
-      blobUrl = URL.createObjectURL(blob)
-      if (activeBlobUrl.current) {
-        URL.revokeObjectURL(activeBlobUrl.current)
+      const data = await r.json()
+      if (!data || !data.token) {
+        alert('Read Aloud failed. Please try again.')
+        return
       }
-      activeBlobUrl.current = blobUrl
+      streamUrl = `/api/voice/tts/stream?token=${encodeURIComponent(data.token)}`
     } catch (e) {
       console.error('[useReadAloud] fetch failed', e)
+      alert('Read Aloud failed — could not reach the server. Please try again.')
       return
     }
 
-    await voice.playUrl({ url: blobUrl, trackId, trackLabel: label })
+    // Register a replay closure so the player's voice/speed pickers can
+    // re-read THIS track with a different voice (which requires re-synthesis).
+    voice.registerReadAloud((overrides = {}) => play({
+      trackId,
+      label,
+      textProvider,
+      voiceOverride: overrides.voice ?? voiceOverride,
+      speedOverride: overrides.speed ?? speedOverride,
+      force: true,
+    }))
+
+    await voice.playUrl({ url: streamUrl, trackId, trackLabel: label })
   }, [voice])
 
   const isPlayingTrack = (trackId) =>

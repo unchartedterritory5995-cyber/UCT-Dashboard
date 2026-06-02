@@ -148,6 +148,19 @@ export function VoiceProvider({ children }) {
     audioRef.current = el
   }, [])
 
+  // Read-aloud replay: useReadAloud registers a closure that re-reads the
+  // current track (optionally overriding voice/speed). The AudioPlayerBar's
+  // voice picker calls it so changing the reader's voice re-synthesizes the
+  // same text. Kept in a ref so registering doesn't trigger re-renders.
+  const readAloudReplayRef = useRef(null)
+  const registerReadAloud = useCallback((fn) => {
+    readAloudReplayRef.current = fn
+  }, [])
+  const replayReadAloud = useCallback((overrides) => {
+    const fn = readAloudReplayRef.current
+    if (typeof fn === 'function') fn(overrides || {})
+  }, [])
+
   const playUrl = useCallback(async ({ url, trackId, trackLabel }) => {
     dispatch({ type: 'load', trackId, trackLabel })
     const el = audioRef.current
@@ -202,6 +215,7 @@ export function VoiceProvider({ children }) {
       el.pause()
       el.src = ''
     }
+    readAloudReplayRef.current = null
     dispatch({ type: 'stop' })
   }, [])
 
@@ -235,12 +249,14 @@ export function VoiceProvider({ children }) {
   const value = useMemo(() => ({
     ...state,
     attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+    registerReadAloud, replayReadAloud,
     startListening, startThinking, startResponding,
     beginRealtime, realtimeConnected, realtimeUserTurn,
     realtimeAssistantPartial, realtimeAssistantDone,
     realtimeDisconnect, realtimeError,
     setWakeEnabled,
   }), [state, attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+       registerReadAloud, replayReadAloud,
        startListening, startThinking, startResponding,
        beginRealtime, realtimeConnected, realtimeUserTurn,
        realtimeAssistantPartial, realtimeAssistantDone,

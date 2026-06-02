@@ -1,0 +1,48 @@
+/* FundamentalsStrip.module.css */
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lbl {
+  font-family: var(--font-mono, monospace);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.val {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #e8ebf0);
+}
+
+/* Compact P/E chip for EarningsCard */
+.peChip {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(201, 168, 76, 0.12);
+  color: #c9a84c;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}

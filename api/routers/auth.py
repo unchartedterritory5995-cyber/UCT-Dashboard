@@ -961,7 +961,30 @@ def post_ticket_message(ticket_id: str, req: TicketMessageRequest, user: dict = 
     thread = get_ticket_thread(ticket_id, user_id=user["id"])
     if not thread:
         raise HTTPException(404, "Ticket not found")
-    return add_ticket_message(ticket_id, user["id"], req.message.strip(), sender_role="user")
+
+    # A user replying to a resolved ticket reopens it, otherwise the reply is
+    # invisible to admins (their open/in-progress filters never resurface it).
+    reopened = thread["ticket"]["status"] == "resolved"
+    if reopened:
+        update_ticket_status(ticket_id, "open")
+
+    result = add_ticket_message(ticket_id, user["id"], req.message.strip(), sender_role="user")
+
+    # Notify admins so a user reply never sits unseen until someone happens to
+    # open the admin panel. New-ticket creation already pings Discord; this
+    # closes the gap for every subsequent reply.
+    try:
+        from api.services.discord_notify import _send_webhook
+        _send_webhook({
+            "title": "\U0001F501 Ticket Reopened" if reopened else "\U0001F4AC Ticket Reply",
+            "description": f"**{user['email']}** replied to: {thread['ticket']['subject']}",
+            "fields": [{"name": "Category", "value": thread["ticket"].get("category") or "general", "inline": True}],
+            "color": 0xC9A84C,
+        })
+    except Exception:
+        pass
+
+    return result
 
 
 # ── Support ticket endpoints (admin) ───────────────────────────────────────
