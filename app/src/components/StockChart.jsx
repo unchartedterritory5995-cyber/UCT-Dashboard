@@ -2012,6 +2012,9 @@ export default function StockChart({
           })
       }
       candleSeriesRef.current = priceSeries
+      // Model Book studies a past year — the current (latest) price line is
+      // irrelevant there, so hide the dotted last-price line for exact-range.
+      try { priceSeries.applyOptions({ priceLineVisible: !exactDateRange }) } catch { /* older LWC */ }
       prevChartTypeRef.current = cs.chartType
     }
 
