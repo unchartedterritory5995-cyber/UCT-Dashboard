@@ -7,9 +7,10 @@ import { Fragment } from 'react'
 import { metricColor } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-export default function TimelineView({ recentRows = [], metrics, onDrill, signalKey, notableKey }) {
+export default function TimelineView({ recentRows = [], metrics, onDrill, signalKey, notableKey, options = {} }) {
   if (!metrics?.length || !recentRows.length) return null
-  const days = [...recentRows].slice(0, 12).reverse()  // oldest → newest, up to 12
+  const win = options.windowDays ?? 20
+  const days = [...recentRows].slice(0, win).reverse()  // oldest → newest, up to `win`
   const cols = days.length
   return (
     <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>

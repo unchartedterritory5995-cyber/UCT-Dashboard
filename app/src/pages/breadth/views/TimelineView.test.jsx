@@ -32,3 +32,28 @@ describe('TimelineView', () => {
     expect(container.firstChild).toBeNull()
   })
 })
+
+// Task 9: windowDays option
+const singleMetric = [{ key: 'a', label: 'a', drillKey: null, getFmt: () => 'x', getTier: () => 'g1' }]
+const manyRows = Array.from({ length: 25 }, (_, i) => ({ date: `d${i}` }))
+
+describe('TimelineView windowDays', () => {
+  it('renders windowDays day-cells (plus the label cell)', () => {
+    const { container } = render(
+      <TimelineView recentRows={manyRows} metrics={singleMetric} onDrill={() => {}}
+                    signalKey={null} notableKey={null} options={{ windowDays: 10 }} />,
+    )
+    // grid children = 1 label + N day cells for the single metric row
+    const grid = container.querySelector('div[style*="grid-template-columns"]')
+    expect(grid.children.length).toBe(1 + 10)
+  })
+
+  it('defaults to 20 when no option given', () => {
+    const { container } = render(
+      <TimelineView recentRows={manyRows} metrics={singleMetric} onDrill={() => {}}
+                    signalKey={null} notableKey={null} />,
+    )
+    const grid = container.querySelector('div[style*="grid-template-columns"]')
+    expect(grid.children.length).toBe(1 + 20)
+  })
+})
