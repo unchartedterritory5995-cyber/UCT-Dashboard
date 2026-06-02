@@ -729,6 +729,39 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
         _logger.warning("Calendar: FF econ fetch failed: %s", exc)
 
 
+# ── IPO calendar endpoint ──────────────────────────────────────────────────────
+
+from api.services.ipo_calendar import get_ipos as _get_ipos  # noqa: E402
+from fastapi import Query as _Query  # noqa: E402
+
+
+@router.get("/api/calendar/ipos")
+def get_calendar_ipos(
+    from_: str | None = _Query(default=None, alias="from"),
+    to:    str | None = _Query(default=None, alias="to"),
+):
+    """Return normalized IPO calendar entries for the given date range.
+
+    Params (both optional):
+        from  YYYY-MM-DD  (defaults to this Monday)
+        to    YYYY-MM-DD  (defaults to this Friday)
+
+    Response: list of { sym, name, date, exchange, price_range, shares, value, status }
+    Cached 6 h per (from, to) key inside the service.  Never raises — returns [].
+    """
+    today = _today_et()
+    from_date = from_
+    to_date   = to
+    if from_date is None:
+        dow = today.weekday()
+        monday = today - timedelta(days=dow) if dow < 5 else today + timedelta(days=7 - dow)
+        from_date = monday.strftime("%Y-%m-%d")
+    if to_date is None:
+        from_dt = date.fromisoformat(from_date)
+        to_date = (from_dt + timedelta(days=4)).strftime("%Y-%m-%d")
+    return _get_ipos(from_date, to_date)
+
+
 @router.post("/api/calendar/refresh")
 def refresh_calendar():
     """Rebuild the calendar cache immediately — earnings from EW, actuals from Finnhub, econ from ForexFactory."""
