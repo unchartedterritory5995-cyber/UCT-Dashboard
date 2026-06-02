@@ -427,16 +427,33 @@ export default function ModelBook() {
     mutateStocks()
   }
 
-  // Keyboard ↑/↓ to move through the (sorted) stock list. A ref holds the latest
-  // list + selection so the listener is bound once, not re-subscribed per change.
-  const navRef = useRef({ list: [], id: null })
-  useEffect(() => { navRef.current = { list: sortedStocks, id: activeId } }, [sortedStocks, activeId])
+  // Keyboard nav: ↑/↓ moves through the stock list, ←/→ switches years.
+  // A ref holds the latest list/selection/years so the listener is bound once.
+  const navRef = useRef({ list: [], id: null, years: [], year: null })
+  useEffect(() => { navRef.current = { list: sortedStocks, id: activeId, years, year } }, [sortedStocks, activeId, years, year])
   useEffect(() => {
     const onKey = e => {
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
       const t = e.target
       const tag = (t?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return
+
+      // ←/→ : switch year (years are newest→oldest, so Left = newer, Right = older)
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const { years: ys, year: cur } = navRef.current
+        if (!ys.length) return
+        const idx = ys.indexOf(cur)
+        let ni = idx === -1 ? 0 : (e.key === 'ArrowLeft' ? idx - 1 : idx + 1)
+        ni = Math.max(0, Math.min(ys.length - 1, ni))
+        if (ys[ni] !== cur) {
+          e.preventDefault()
+          setPickedYear(ys[ni])
+          setSelectedId(null)
+        }
+        return
+      }
+
+      // ↑/↓ : move through the stock list
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
       const { list, id } = navRef.current
       if (!list.length) return
       e.preventDefault()
