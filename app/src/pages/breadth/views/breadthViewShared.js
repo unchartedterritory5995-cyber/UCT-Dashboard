@@ -76,6 +76,75 @@ export const PAIRS = [
   ['new_20d_highs', 'new_20d_lows'],
 ]
 
+// Bullishness on a 0..100 scale regardless of polarity (bear metrics inverted),
+// so signals can be compared across metrics. null when the metric has no value.
+export function bullishness(metric, row, pctileByKey) {
+  const n = normalizeMetric(metric, row, pctileByKey)
+  if (n == null) return null
+  return metric.polarity === 'bear' ? (100 - n) : n
+}
+
+// Minimum divergence (points off the board mean, on the 0..100 bullishness scale)
+// before a metric is flagged "notable". Below this, nothing pulses — no fake alarms.
+export const NOTABLE_MIN_DEV = 20
+
+// A move (vs prevRow) below this counts as "nothing happened" → signal falls back
+// to the most-extreme reading instead of the biggest mover.
+export const SIGNAL_MIN_MOVE = 5
+
+/**
+ * Pick the two cross-cutting callouts for the day:
+ *  - signalKey  : "Signal of the Day" — the metric that moved most vs prevRow
+ *                 (~3 trading days ago); falls back to the most extreme reading
+ *                 when nothing moved meaningfully.
+ *  - notableKey : the metric most diverging from the board's overall tilt
+ *                 (leaning against the crowd), only when |dev| >= NOTABLE_MIN_DEV.
+ * Returns { signalKey, notableKey, signalReason, notableReason } — keys may be null.
+ */
+export function pickSignals(metrics, currentRow, prevRow, pctileByKey) {
+  const stats = []
+  for (const m of metrics) {
+    const cur = bullishness(m, currentRow, pctileByKey)
+    if (cur == null) continue
+    const prev = prevRow ? bullishness(m, prevRow, pctileByKey) : null
+    const move = prev == null ? 0 : Math.abs(cur - prev)
+    stats.push({ key: m.key, cur, move, extreme: Math.abs(cur - 50) })
+  }
+  if (stats.length === 0) {
+    return { signalKey: null, notableKey: null, signalReason: '', notableReason: '' }
+  }
+
+  // Signal: biggest mover; if nothing moved meaningfully, the most extreme reading.
+  const maxMove = Math.max(...stats.map(s => s.move))
+  let signal, signalReason
+  if (maxMove >= SIGNAL_MIN_MOVE) {
+    signal = stats.reduce((a, b) => (b.move > a.move ? b : a))
+    signalReason = 'biggest move'
+  } else {
+    signal = stats.reduce((a, b) => (b.extreme > a.extreme ? b : a))
+    signalReason = 'most extreme'
+  }
+
+  // Notable: largest divergence from the board mean, leaning against the tilt.
+  const mean = stats.reduce((s, x) => s + x.cur, 0) / stats.length
+  const tilt = mean - 50  // >0 board bullish, <0 board bearish
+  let notable = null, maxDev = 0
+  for (const s of stats) {
+    if (s.key === signal.key) continue
+    const dev = s.cur - mean
+    const opposing = tilt === 0 ? true : (Math.sign(dev) !== Math.sign(tilt))
+    if (opposing && Math.abs(dev) > maxDev) { maxDev = Math.abs(dev); notable = s }
+  }
+  if (maxDev < NOTABLE_MIN_DEV) notable = null
+
+  return {
+    signalKey: signal.key,
+    notableKey: notable ? notable.key : null,
+    signalReason,
+    notableReason: notable ? (tilt >= 0 ? 'lagging the board' : 'leading the board') : '',
+  }
+}
+
 // Signed net bull share across visible pairs, -100..100. null if none usable.
 export function netPosture(metrics, row) {
   const ups = metrics.filter(m => m.pair && m.pair.side === 'up')

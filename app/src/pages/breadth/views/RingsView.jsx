@@ -1,10 +1,12 @@
 /**
  * Vitals Rings — the first visible metric renders as a large hero ring; the rest
  * orbit as smaller rings. Fill arc = normalize(metric,row); color = metricColor.
+ * The Signal of the Day gets a gold ★; the notable divergence pulses.
  */
 import { metricColor } from './breadthViewShared'
+import signalStyles from './signals.module.css'
 
-function Ring({ metric, row, norm, size, onDrill }) {
+function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable }) {
   const stroke = size >= 110 ? 11 : 7
   const r = (size - stroke) / 2 - 2
   const c = 2 * Math.PI * r
@@ -14,7 +16,9 @@ function Ring({ metric, row, norm, size, onDrill }) {
   const clickable = !!metric.drillKey
   const cx = size / 2
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className={isNotable ? signalStyles.pulse : undefined}
+         style={{ textAlign: 'center', borderRadius: 12, padding: 4,
+                  boxShadow: isSignal ? '0 0 0 1px #c9a84c, 0 0 14px rgba(201,168,76,.35)' : 'none' }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
            role={clickable ? 'button' : undefined}
            aria-label={clickable ? `${metric.label} details` : undefined}
@@ -30,23 +34,25 @@ function Ring({ metric, row, norm, size, onDrill }) {
               fontSize={size >= 110 ? 30 : 15}>{metric.getFmt(row)}</text>
       </svg>
       <div style={{ font: '700 9px Instrument Sans, sans-serif', letterSpacing: '.6px',
-                    textTransform: 'uppercase', color: '#94a3b8', marginTop: 2 }}>
-        {metric.label}
+                    textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8', marginTop: 2 }}>
+        {isSignal ? '★ ' : ''}{metric.label}
       </div>
     </div>
   )
 }
 
-export default function RingsView({ currentRow, metrics, normalize, onDrill }) {
+export default function RingsView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
   if (!currentRow || metrics.length === 0) return null
   const [hero, ...rest] = metrics
+  const ringFor = (m, size) => (
+    <Ring key={m.key} metric={m} row={currentRow} norm={normalize(m, currentRow)} size={size}
+          onDrill={onDrill} isSignal={m.key === signalKey} isNotable={m.key === notableKey} />
+  )
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center',
                   justifyContent: 'center', padding: '24px 18px' }}>
-      <Ring metric={hero} row={currentRow} norm={normalize(hero, currentRow)} size={140} onDrill={onDrill} />
-      {rest.map(m => (
-        <Ring key={m.key} metric={m} row={currentRow} norm={normalize(m, currentRow)} size={84} onDrill={onDrill} />
-      ))}
+      {ringFor(hero, 140)}
+      {rest.map(m => ringFor(m, 84))}
     </div>
   )
 }

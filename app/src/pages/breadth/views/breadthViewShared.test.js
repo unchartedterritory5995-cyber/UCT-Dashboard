@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   clamp, metricValue, percentileRank, normalizeMetric,
   metricColor, polarityOf, netPosture, PAIRS,
+  bullishness, pickSignals, NOTABLE_MIN_DEV,
 } from './breadthViewShared'
 
 const M = (key, getTier = () => '') => ({ key, getTier })
@@ -101,5 +102,66 @@ describe('netPosture', () => {
   it('skips pairs whose values sum to zero', () => {
     const m = [up('up_4pct_today', 'down_4pct_today'), down('down_4pct_today')]
     expect(netPosture(m, { up_4pct_today: 0, down_4pct_today: 0 })).toBeNull()
+  })
+})
+
+describe('bullishness', () => {
+  const bull = { key: 'pct_above_50sma', polarity: 'bull' }
+  const bear = { key: 'vix', polarity: 'bear' }
+  it('passes through normalized value for bull metrics', () => {
+    expect(bullishness(bull, { pct_above_50sma: 58 }, {})).toBe(58)
+  })
+  it('inverts for bear metrics (high reading = low bullishness)', () => {
+    expect(bullishness(bear, { vix: 16 }, { vix: [10, 12, 14, 16, 18, 20] })).toBe(33) // 100 - 67
+  })
+  it('returns null when the metric has no value', () => {
+    expect(bullishness(bull, {}, {})).toBeNull()
+  })
+})
+
+describe('pickSignals', () => {
+  // pct_above_* use raw value as bullishness directly (native pct, bull polarity)
+  const mk = (key) => ({ key, polarity: 'bull' })
+  const metrics = [mk('pct_above_5sma'), mk('pct_above_50sma'), mk('pct_above_200sma')]
+
+  it('picks the biggest mover as the signal when something moved', () => {
+    const cur = { pct_above_5sma: 45, pct_above_50sma: 58, pct_above_200sma: 60 }
+    const prev = { pct_above_5sma: 70, pct_above_50sma: 57, pct_above_200sma: 59 } // 5sma moved 25
+    const r = pickSignals(metrics, cur, prev, {})
+    expect(r.signalKey).toBe('pct_above_5sma')
+    expect(r.signalReason).toBe('biggest move')
+  })
+
+  it('falls back to most extreme when nothing moved', () => {
+    const cur = { pct_above_5sma: 12, pct_above_50sma: 52, pct_above_200sma: 55 }
+    const prev = { pct_above_5sma: 12, pct_above_50sma: 52, pct_above_200sma: 55 }
+    const r = pickSignals(metrics, cur, prev, {})
+    expect(r.signalKey).toBe('pct_above_5sma') // furthest from 50
+    expect(r.signalReason).toBe('most extreme')
+  })
+
+  it('flags a metric diverging against a bullish board as notable', () => {
+    // board mostly bullish (~75), one metric far below
+    const cur = { pct_above_5sma: 30, pct_above_50sma: 78, pct_above_200sma: 80 }
+    const prev = cur
+    const r = pickSignals(metrics, cur, prev, {})
+    expect(r.notableKey).toBe('pct_above_5sma')
+    expect(r.notableReason).toBe('lagging the board')
+  })
+
+  it('returns no notable when the board is tightly clustered', () => {
+    const cur = { pct_above_5sma: 52, pct_above_50sma: 54, pct_above_200sma: 53 }
+    const r = pickSignals(metrics, cur, cur, {})
+    expect(r.notableKey).toBeNull()
+  })
+
+  it('returns nulls when no metric has a value', () => {
+    const r = pickSignals(metrics, {}, {}, {})
+    expect(r.signalKey).toBeNull()
+    expect(r.notableKey).toBeNull()
+  })
+
+  it('exposes a sane NOTABLE_MIN_DEV threshold', () => {
+    expect(NOTABLE_MIN_DEV).toBeGreaterThanOrEqual(10)
   })
 })

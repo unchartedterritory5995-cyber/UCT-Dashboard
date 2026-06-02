@@ -6,7 +6,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from '../Breadth'
 import useBreadthViews from './useBreadthViews'
-import { normalizeMetric } from './views/breadthViewShared'
+import { normalizeMetric, pickSignals } from './views/breadthViewShared'
+import BreadthSignalStrip from './views/BreadthSignalStrip'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
 import CustomizePanel from './CustomizePanel'
 import customizeStyles from './CustomizePanel.module.css'
@@ -72,6 +73,15 @@ export default function BreadthViews({ rows, onDrill }) {
     [pctileByKey],
   )
 
+  // Signal of the Day + auto-notable divergence, computed once and shared across
+  // every style (rendered consistently in the strip + highlighted inline per view).
+  const signals = useMemo(
+    () => pickSignals(visibleMetrics, currentRow, prevRow, pctileByKey),
+    [visibleMetrics, currentRow, prevRow, pctileByKey],
+  )
+  const signalMetric  = useMemo(() => visibleMetrics.find(m => m.key === signals.signalKey) ?? null, [visibleMetrics, signals.signalKey])
+  const notableMetric = useMemo(() => visibleMetrics.find(m => m.key === signals.notableKey) ?? null, [visibleMetrics, signals.notableKey])
+
   // Views call onDrill(metric); Breadth's openDrill expects (date, metric). Bridge
   // here so view components stay date-agnostic.
   const drill = useMemo(
@@ -81,7 +91,10 @@ export default function BreadthViews({ rows, onDrill }) {
 
   if (!currentRow) return null
 
-  const common = { currentRow, prevRow, metrics: visibleMetrics, normalize, onDrill: drill }
+  const common = {
+    currentRow, prevRow, metrics: visibleMetrics, normalize, onDrill: drill,
+    signalKey: signals.signalKey, notableKey: signals.notableKey,
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -120,10 +133,17 @@ export default function BreadthViews({ rows, onDrill }) {
         </div>
       </div>
 
+      <BreadthSignalStrip
+        signalMetric={signalMetric} signalReason={signals.signalReason}
+        notableMetric={notableMetric} notableReason={signals.notableReason}
+        currentRow={currentRow} onDrill={drill}
+      />
+
       <div style={{ flex: 1, minHeight: 0 }}>
         {views.viewStyle === 'treemap' && (
           <TreemapView currentRow={currentRow} prevRow={prevRow} pctileByKey={pctileByKey}
-                       visibleKeys={visibleKeys} onDrill={drill} />
+                       visibleKeys={visibleKeys} signalKey={signals.signalKey}
+                       notableKey={signals.notableKey} onDrill={drill} />
         )}
         {views.viewStyle === 'rings'  && <RingsView  {...common} />}
         {views.viewStyle === 'tug'    && <TugView    {...common} />}

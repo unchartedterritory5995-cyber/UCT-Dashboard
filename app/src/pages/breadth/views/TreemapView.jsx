@@ -10,7 +10,7 @@ import {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS,
 } from '../../Breadth'
 
-export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, onDrill }) {
+export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill }) {
   const option = useMemo(() => {
     if (!currentRow) return {}
     const items = TREEMAP_DEF[0].items.filter(it => visibleKeys.has(it.metricKey))
@@ -27,10 +27,18 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         const prev = TIER_SCORES[prevTier] ?? 3
         if (cur > prev) arrow = ' ▲'; else if (cur < prev) arrow = ' ▼'
       }
+      // Canvas treemap can't pulse, so signal/notable get a colored accent border.
+      const isSignal = item.metricKey === signalKey
+      const isNotable = item.metricKey === notableKey
+      const itemStyle = isSignal
+        ? { color, borderColor: '#c9a84c', borderWidth: 2 }
+        : isNotable
+        ? { color, borderColor: '#fbbf24', borderWidth: 2 }
+        : { color, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 }
       return {
-        name: item.metricKey, value: item.weight, labelText: metric.label,
-        valText: val + arrow, tier,
-        itemStyle: { color, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
+        name: item.metricKey, value: item.weight,
+        labelText: (isSignal ? '★ ' : '') + metric.label,
+        valText: val + arrow, tier, itemStyle,
       }
     }).filter(Boolean)
 
@@ -90,7 +98,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         ],
       }],
     }
-  }, [currentRow, prevRow, pctileByKey, visibleKeys])
+  }, [currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey])
 
   if (!currentRow) return null
   return (

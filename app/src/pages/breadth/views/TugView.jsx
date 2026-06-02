@@ -2,9 +2,11 @@
  * Bull/Bear Tug — paired metrics oppose around a center spine; bar length is the
  * pair's share of the combined total. Unpaired metrics render as a single signed
  * bar from center (direction by polarity, magnitude by deviation from neutral).
- * A net-posture line summarizes the paired board.
+ * A net-posture line summarizes the paired board. The Signal of the Day is marked
+ * with a gold ★; the notable divergence with a ◆ (and pulses when unpaired).
  */
 import { metricValue, netPosture } from './breadthViewShared'
+import signalStyles from './signals.module.css'
 
 function Side({ metric, value, share, align, color, onDrill }) {
   const clickable = !!metric?.drillKey
@@ -25,7 +27,7 @@ function Side({ metric, value, share, align, color, onDrill }) {
   )
 }
 
-function SingleBar({ metric, norm, value, onDrill }) {
+function SingleBar({ metric, norm, value, onDrill, isSignal, isNotable }) {
   const clickable = !!metric?.drillKey
   const polarity = metric.polarity === 'bear' ? 'bear' : 'bull'
   const n = norm == null ? 50 : norm
@@ -38,6 +40,7 @@ function SingleBar({ metric, norm, value, onDrill }) {
       role={clickable ? 'button' : undefined}
       aria-label={clickable ? `${metric.label} details` : undefined}
       onClick={clickable ? () => onDrill(metric) : undefined}
+      className={isNotable ? signalStyles.pulse : undefined}
       style={{ width: `${mag}%`, minWidth: 24, height: 18, background: color, borderRadius: 3,
                display: 'flex', alignItems: 'center',
                justifyContent: isBull ? 'flex-start' : 'flex-end',
@@ -50,19 +53,26 @@ function SingleBar({ metric, norm, value, onDrill }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 92px 1fr', alignItems: 'center', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{!isBull && bar}</div>
       <div style={{ textAlign: 'center', font: '700 8px Instrument Sans, sans-serif',
-                    letterSpacing: '.5px', color: '#94a3b8', textTransform: 'uppercase' }}>
-        {metric.label}
+                    letterSpacing: '.5px', color: isSignal ? '#c9a84c' : '#94a3b8', textTransform: 'uppercase' }}>
+        {isSignal ? '★ ' : isNotable ? '◆ ' : ''}{metric.label}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-start' }}>{isBull && bar}</div>
     </div>
   )
 }
 
-export default function TugView({ currentRow, metrics, normalize, onDrill }) {
+export default function TugView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
   if (!currentRow || metrics.length === 0) return null
   const ups = metrics.filter(m => m.pair && m.pair.side === 'up')
   const unpaired = metrics.filter(m => !m.pair)
   const posture = netPosture(metrics, currentRow)
+
+  // Prefix the center label of a paired row when either side is a flagged signal.
+  const prefixFor = (...keys) => {
+    if (keys.includes(signalKey)) return '★ '
+    if (keys.includes(notableKey)) return '◆ '
+    return ''
+  }
 
   return (
     <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -74,14 +84,16 @@ export default function TugView({ currentRow, metrics, normalize, onDrill }) {
         const uShare = u / total * 100
         const dShare = d / total * 100
         const label = up.label.replace(/^Up\s*/i, '').replace(/^Dn\s*/i, '')
+        const prefix = prefixFor(up.key, down?.key)
+        const isGold = prefix === '★ '
         return (
           <div key={up.key} style={{ display: 'grid', gridTemplateColumns: '1fr 92px 1fr',
                                       alignItems: 'center', gap: 6 }}>
             <Side metric={down} value={down ? down.getFmt(currentRow) : '—'} share={dShare}
                   align="right" color="#b91c1c" onDrill={onDrill} />
             <div style={{ textAlign: 'center', font: '700 8px Instrument Sans, sans-serif',
-                          letterSpacing: '.5px', color: '#94a3b8', textTransform: 'uppercase' }}>
-              {label}
+                          letterSpacing: '.5px', color: isGold ? '#c9a84c' : '#94a3b8', textTransform: 'uppercase' }}>
+              {prefix}{label}
             </div>
             <Side metric={up} value={up.getFmt(currentRow)} share={uShare}
                   align="left" color="#16a34a" onDrill={onDrill} />
@@ -90,7 +102,8 @@ export default function TugView({ currentRow, metrics, normalize, onDrill }) {
       })}
       {unpaired.map(m => (
         <SingleBar key={m.key} metric={m} value={m.getFmt(currentRow)}
-                   norm={normalize ? normalize(m, currentRow) : null} onDrill={onDrill} />
+                   norm={normalize ? normalize(m, currentRow) : null} onDrill={onDrill}
+                   isSignal={m.key === signalKey} isNotable={m.key === notableKey} />
       ))}
       {posture != null && (
         <div style={{ textAlign: 'center', marginTop: 10,

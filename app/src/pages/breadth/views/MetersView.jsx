@@ -1,10 +1,12 @@
 /**
  * Tactical Readout — each metric as a marker on a shared oversold→overbought
  * track with 30/70 reference ticks. Marker color = metricColor (tier-driven).
+ * The Signal of the Day gets a gold ★ label; the notable divergence pulses.
  */
 import { metricColor } from './breadthViewShared'
+import signalStyles from './signals.module.css'
 
-export default function MetersView({ currentRow, metrics, normalize, onDrill }) {
+export default function MetersView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
   if (!currentRow || metrics.length === 0) return null
   return (
     <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -14,6 +16,8 @@ export default function MetersView({ currentRow, metrics, normalize, onDrill }) 
         const norm = normalize(m, currentRow)
         const color = metricColor(m, currentRow)
         const clickable = !!m.drillKey
+        const isSignal = m.key === signalKey
+        const isNotable = m.key === notableKey
         return (
           <div key={m.key}
                role={clickable ? 'button' : undefined}
@@ -22,8 +26,8 @@ export default function MetersView({ currentRow, metrics, normalize, onDrill }) 
                style={{ display: 'grid', gridTemplateColumns: '84px 1fr 52px',
                         alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default' }}>
             <span style={{ font: '700 9px Instrument Sans, sans-serif', letterSpacing: '.5px',
-                           textTransform: 'uppercase', color: '#94a3b8', textAlign: 'right' }}>
-              {m.label}
+                           textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8', textAlign: 'right' }}>
+              {isSignal ? '★ ' : ''}{m.label}
             </span>
             <div style={{ height: 10, borderRadius: 6, position: 'relative',
                           background: 'linear-gradient(90deg,#14532d,#3f6212,#713f12,#7f1d1d)' }}>
@@ -33,6 +37,7 @@ export default function MetersView({ currentRow, metrics, normalize, onDrill }) 
                             background: 'rgba(255,255,255,.25)' }} />
               {norm != null && (
                 <div data-testid={`marker-${m.key}`}
+                     className={isNotable ? signalStyles.pulse : undefined}
                      style={{ position: 'absolute', top: -3, left: `${norm}%`, width: 4, height: 16,
                               borderRadius: 2, background: color, transform: 'translateX(-2px)',
                               boxShadow: `0 0 8px ${color}`, transition: 'left .4s ease' }} />
