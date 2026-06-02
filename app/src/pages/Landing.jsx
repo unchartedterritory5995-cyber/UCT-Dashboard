@@ -299,6 +299,31 @@ export default function Landing() {
         <span className={styles.stripStat}>SPY <span className={styles.stripUp}>+0.42%</span></span>
       </div>
 
+      {/* ── How it works ── */}
+      <section className={styles.how}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>From signup to first trade in 10 minutes.</h2>
+          <p className={styles.sectionP}>No setup, no broker connection, no learning curve.</p>
+        </div>
+        <div className={styles.howGrid}>
+          <div className={styles.howStep}>
+            <div className={styles.howNum}>1</div>
+            <h3 className={styles.howH3}>Sign up free</h3>
+            <p className={styles.howP}>60 seconds. Dashboard, Breadth, Charts, Journal, and Options Flow unlock immediately. No card required.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howNum}>2</div>
+            <h3 className={styles.howH3}>Read the wire</h3>
+            <p className={styles.howP}>Every weekday at 7:35 AM ET the AI brief lands on your dashboard with regime, exposure, and the top 5 picks with entry triggers.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howNum}>3</div>
+            <h3 className={styles.howH3}>Trade with the coach</h3>
+            <p className={styles.howP}>Compass watches every trade. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews. You stay disciplined.</p>
+          </div>
+        </div>
+      </section>
+
       {/* ── Features ── */}
       <section id="features" className={styles.features}>
         <div className={styles.sectionHead}>
@@ -322,11 +347,46 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Sample preview ── */}
+      <section className={styles.sample}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>See what lands on your dashboard.</h2>
+          <p className={styles.sectionP}>An example of what the Morning Wire looks like on any given Tuesday.</p>
+        </div>
+        <div className={styles.sampleMock}>
+          <div className={styles.sampleHead}>
+            <span className={styles.sampleTitle}>Morning Wire</span>
+            <span className={styles.sampleTime}>07:35 EDT</span>
+          </div>
+          <div className={styles.sampleRegime}>
+            <span className={styles.sampleRegimeLabel}>Regime</span>
+            <span className={styles.sampleRegimeVal}>Green · Uptrend confirmed</span>
+          </div>
+          <div className={styles.sampleStats}>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Exposure</div><div className={styles.sampleStatVal}>115</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Breadth</div><div className={styles.sampleStatVal}>68</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>Dist days</div><div className={styles.sampleStatVal}>2</div></div>
+            <div className={styles.sampleStat}><div className={styles.sampleStatLbl}>VIX</div><div className={styles.sampleStatVal}>14.2</div></div>
+          </div>
+          <div className={styles.samplePicksHead}>Top 5 picks · entry / stop / setup</div>
+          <div className={styles.samplePicks}>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>NVDA</span><span className={styles.samplePickSetup}>Base breakout</span><span className={styles.samplePickNote}>above $1,142 on volume · stop $1,108</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>PLTR</span><span className={styles.samplePickSetup}>Pullback MA</span><span className={styles.samplePickNote}>tag of 21EMA · entry $24.80 · stop $23.95</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>CRWD</span><span className={styles.samplePickSetup}>Prev high break</span><span className={styles.samplePickNote}>above $338 · stop $329</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>APP</span><span className={styles.samplePickSetup}>Red to green</span><span className={styles.samplePickNote}>reclaim $312 prev close · stop $304</span></div>
+            <div className={styles.samplePick}><span className={styles.samplePickSym}>HOOD</span><span className={styles.samplePickSetup}>High tight flag</span><span className={styles.samplePickNote}>breakout $58.40 · stop $54.90</span></div>
+          </div>
+          <div className={styles.sampleFoot}>
+            Every weekday · synthesized from 8 sources by Opus 4.7 · briefed by the Compass coach
+          </div>
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
       <section id="pricing" className={styles.price}>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionH2}>One plan. Everything included.</h2>
-          <p className={styles.sectionP}>$20 a month. Cancel anytime.</p>
+          <p className={styles.sectionP}>$20 a month — less than $1/day. Cancel anytime.</p>
         </div>
         <div className={styles.priceCard}>
           <div className={styles.priceTop}>
@@ -335,6 +395,7 @@ export default function Landing() {
               <div className={styles.priceAmt}>
                 $20<span className={styles.pricePer}>/month</span>
               </div>
+              <div className={styles.priceValueLine}>Less than $1 a day.</div>
             </div>
           </div>
           <ul className={styles.priceUl}>
@@ -481,6 +542,11 @@ export default function Landing() {
           <div className={styles.footBrand}>
             <span className={styles.footBrandMark} aria-hidden="true">⊕</span>
             UCT Intelligence
+          </div>
+          <div className={styles.footMid}>
+            <Link to="/signup?plan=free" className={styles.footCta}>
+              Start free →
+            </Link>
           </div>
           <div className={styles.footLinks}>
             <Link to="/terms">Terms</Link>
