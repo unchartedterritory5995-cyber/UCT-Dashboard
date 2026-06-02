@@ -9,12 +9,55 @@ function fmtRev(v) { if (v == null) return '—'; return v >= 1000 ? `$${(v/1000
 function surprise(a, e) { if (a == null || e == null || e === 0) return null
   const p = ((a - e) / Math.abs(e)) * 100; return `${p >= 0 ? '+' : ''}${p.toFixed(1)}%` }
 
-export default function EarningsCard({ entry, timing, livePrice, reaction, onSelect }) {
+// A4: Format extended-hours change vs regular-session close
+function fmtExtChange(extPrice, closePrice) {
+  if (extPrice == null || closePrice == null || closePrice === 0) return null
+  const pct = ((extPrice - closePrice) / Math.abs(closePrice)) * 100
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
+}
+
+// A5: Format countdown from now to a report time
+function fmtCountdown(timeEt) {
+  if (!timeEt) return null
+  try {
+    const reportDate = new Date(timeEt)
+    const now = new Date()
+    const diffMs = reportDate - now
+    if (diffMs <= 0) return null
+    const diffH = diffMs / (1000 * 60 * 60)
+    const h = Math.floor(diffH)
+    const m = Math.floor((diffH - h) * 60)
+    // Format time in ET (display only — we just show the time string as-is)
+    const timeStr = reportDate.toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York',
+    })
+    if (h >= 1) {
+      return `⏱ in ~${h}h · ${timeStr} ET`
+    }
+    return `⏱ in ~${m}m · ${timeStr} ET`
+  } catch {
+    return null
+  }
+}
+
+export default function EarningsCard({ entry, timing, livePrice, liveSnap, reaction, onSelect }) {
   const reported = entry.eps_act != null
   const beats = (entry.beat_history || []).slice(0, 4).reverse()
   const beatCount = beats.filter(b => b.beat === true).length
   const em = entry.expected_move?.pct
   const px = livePrice != null ? `$${livePrice.toFixed(2)}` : '—'
+
+  // A4: Extended-hours price — only shown when regular session is closed
+  const extPrice   = liveSnap?.ext_price ?? null
+  const extSession = liveSnap?.ext_session ?? null
+  const closePrice = liveSnap?.price ?? livePrice ?? null
+  const extChange  = fmtExtChange(extPrice, closePrice)
+  const showExt    = extPrice != null && extSession != null
+
+  // A5: Countdown
+  const countdown = fmtCountdown(entry.time_et)
+  // Fallback timing label when no countdown
+  const sessionLabel = timing === 'bmo' ? 'BMO' : 'AMC'
 
   const { menu, openMenu, closeMenu } = useTickerActions()
 
@@ -46,6 +89,27 @@ export default function EarningsCard({ entry, timing, livePrice, reaction, onSel
             <div className={styles.met}><span className={styles.dim}>EPS est</span><span className={styles.mono}>{fmtEps(entry.eps_est)}</span></div>
             <div className={styles.met}><span className={styles.dim}>Rev est</span><span className={styles.mono}>{fmtRev(entry.rev_est)}</span></div>
             <div className={styles.met}><span className={styles.dim}>Price</span><span className={styles.mono}>{px}</span></div>
+
+            {/* A4: Extended-hours price line */}
+            {showExt && (
+              <div className={styles.extRow}>
+                <span className={styles.extLbl}>EXT</span>
+                <span className={styles.mono}>${extPrice.toFixed(2)}</span>
+                {extChange && (
+                  <span className={extChange.startsWith('+') ? styles.pos : styles.neg}>
+                    ({extChange})
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* A5: Countdown or session label */}
+            {countdown ? (
+              <div className={styles.countdown}>{countdown}</div>
+            ) : (
+              <div className={styles.sessionLbl}>{sessionLabel}</div>
+            )}
+
             {em != null && (
               <div className={styles.emv}><span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
             )}
@@ -71,6 +135,18 @@ export default function EarningsCard({ entry, timing, livePrice, reaction, onSel
               <div className={styles.react}><span className={styles.dim}>Post-print gap</span>
                 <span className={reaction >= 0 ? styles.pos : styles.neg}>
                   {reaction >= 0 ? '▲ +' : '▼ '}{reaction.toFixed(1)}%</span></div>
+            )}
+            {/* A4: EXT price also shown on reported cards during ext hours */}
+            {showExt && (
+              <div className={styles.extRow}>
+                <span className={styles.extLbl}>EXT</span>
+                <span className={styles.mono}>${extPrice.toFixed(2)}</span>
+                {extChange && (
+                  <span className={extChange.startsWith('+') ? styles.pos : styles.neg}>
+                    ({extChange})
+                  </span>
+                )}
+              </div>
             )}
           </>
         )}

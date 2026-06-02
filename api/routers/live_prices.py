@@ -7,7 +7,7 @@ import hashlib
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import cache
-from api.services.massive import _get_client
+from api.services.massive import _get_client, _detect_session
 
 router = APIRouter()
 
@@ -60,6 +60,7 @@ def get_live_prices(
     except Exception:
         return JSONResponse(status_code=503, content={"error": "Pricing service unavailable"})
 
+    session = _detect_session()
     result = {}
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
@@ -73,6 +74,15 @@ def get_live_prices(
         price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         volume = int(day.get("v") or 0)
 
+        # A4: Extended-hours fields — null when in regular session
+        ext_price = None
+        ext_session = None
+        if session != "regular":
+            lt_price = last_trade.get("p")
+            if lt_price and float(lt_price) > 0:
+                ext_price = round(float(lt_price), 2)
+                ext_session = session
+
         result[ticker] = {
             "price": round(float(price), 2),
             "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
@@ -83,6 +93,9 @@ def get_live_prices(
             "day_high": round(float(day.get("h") or 0), 2),
             "day_low": round(float(day.get("l") or 0), 2),
             "prev_close": round(float(prev_day.get("c") or 0), 2),
+            # A4: Extended-hours price
+            "ext_price":   ext_price,
+            "ext_session": ext_session,
         }
 
     cache.set(cache_key, result, ttl=_CACHE_TTL)

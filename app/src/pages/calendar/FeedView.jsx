@@ -52,7 +52,9 @@ function DayGroup({ ds, day, filters, onSelect }) {
       <div className={styles.cards}>
         {entries.map(e => (
           <EarningsCard key={e.sym} entry={e} timing={e._timing}
-            livePrice={prices[e.sym]?.price} reaction={reactions?.[e.sym]}
+            livePrice={prices[e.sym]?.price}
+            liveSnap={prices[e.sym] ?? null}
+            reaction={reactions?.[e.sym]}
             onSelect={onSelect} />
         ))}
       </div>

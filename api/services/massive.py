@@ -118,11 +118,24 @@ class _MassiveRestClient:
         # Pre-market: day.c == 0 (no regular-session trades yet).
         # Fall back to lastTrade.p (last extended-hours print) then prevDay.c.
         close = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
+
+        # A4: Extended-hours fields
+        session = _detect_session()
+        ext_price = None
+        ext_session = None
+        if session != "regular":
+            lt_price = last_trade.get("p")
+            if lt_price and float(lt_price) > 0:
+                ext_price = round(float(lt_price), 2)
+                ext_session = session  # "pre_market" | "post_market"
+
         return {
-            "close":      close,
-            "vwap":       day.get("vw", 0.0),
-            "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
-            "change":     round(float(t.get("todaysChange", 0.0)), 4),
+            "close":       close,
+            "vwap":        day.get("vw", 0.0),
+            "change_pct":  round(float(t.get("todaysChangePerc", 0.0)), 4),
+            "change":      round(float(t.get("todaysChange", 0.0)), 4),
+            "ext_price":   ext_price,
+            "ext_session": ext_session,
         }
 
 
@@ -168,6 +181,7 @@ class _MassiveRestClient:
             data = self._get(url)
         except Exception:
             return {}
+        session = _detect_session()
         result = {}
         for t in data.get("tickers", []):
             ticker = t.get("ticker", "")
@@ -178,12 +192,24 @@ class _MassiveRestClient:
             last     = t.get("lastTrade", {})
             close    = day.get("c") or last.get("p") or prev_day.get("c") or 0.0
             vol      = int(prev_day.get("v") or day.get("v") or 0)
+
+            # A4: Extended-hours fields
+            ext_price = None
+            ext_session = None
+            if session != "regular":
+                lt_price = last.get("p")
+                if lt_price and float(lt_price) > 0:
+                    ext_price = round(float(lt_price), 2)
+                    ext_session = session
+
             result[ticker] = {
-                "price":      round(float(close), 2),
-                "vol":        vol,
-                "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
-                "day_open":   round(float(day.get("o") or 0.0), 2),
-                "prev_close": round(float(prev_day.get("c") or 0.0), 2),
+                "price":       round(float(close), 2),
+                "vol":         vol,
+                "change_pct":  round(float(t.get("todaysChangePerc", 0.0)), 4),
+                "day_open":    round(float(day.get("o") or 0.0), 2),
+                "prev_close":  round(float(prev_day.get("c") or 0.0), 2),
+                "ext_price":   ext_price,
+                "ext_session": ext_session,
             }
         return result
 

@@ -706,6 +706,44 @@
   border-color: var(--cal-gold);
 }
 
+/* ── A4: Extended-hours price row on EarningsCard ───────────────────────── */
+
+.extRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--cal-line2);
+  font-size: 11px;
+}
+
+.extLbl {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--cal-blue);
+  background: rgba(96, 165, 250, 0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ── A5: Countdown + session label on EarningsCard ───────────────────────── */
+
+.countdown {
+  font-size: 10px;
+  color: var(--cal-gold);
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+.sessionLbl {
+  font-size: 9px;
+  color: var(--cal-muted);
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}
+
 /* ── A3: FiltersPopover ──────────────────────────────────────────────────── */
 
 .filterWrap {
