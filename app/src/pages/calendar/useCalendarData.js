@@ -77,3 +77,14 @@ export function useWeekEnrichment(weekDates) {
     { refreshInterval: 300000, revalidateOnFocus: false }
   )
 }
+
+// Full-month earnings from /api/calendar/month
+export function useMonthCalendar(year, month) {
+  return useSWR(
+    year && month ? `/api/calendar/month?year=${year}&month=${month}` : null,
+    fetcher,
+    { refreshInterval: _MONTH_REFRESH, revalidateOnFocus: false },
+  )
+}
+
+const _MONTH_REFRESH = 30 * 60 * 1000 // 30 min — matches backend TTL

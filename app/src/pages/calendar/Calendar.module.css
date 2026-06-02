@@ -706,6 +706,108 @@
   border-color: var(--cal-gold);
 }
 
+/* ── Month navigation (header inline + MonthView internal) ──────────────── */
+
+/* Used in CalendarHeader for inline month nav in the header row */
+.monthNavHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Shared nav button style (used both in header + MonthView standalone) */
+.monthNavBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--cal-line2);
+  border-radius: 7px;
+  color: var(--cal-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.monthNavBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--cal-txt);
+}
+
+.monthNavLbl {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cal-txt);
+  min-width: 120px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+/* Standalone nav row inside MonthView (hidden — nav is in header) */
+.monthNav {
+  display: none;
+}
+
+/* ── macroStar (month cell star for key macro day) ───────────────────────── */
+.macroStar {
+  color: var(--cal-gold);
+  font-size: 9px;
+  margin-left: 1px;
+}
+
+/* ── Month grid desktop/mobile toggle ───────────────────────────────────── */
+.mgridDesktop {
+  display: grid; /* shown by default */
+}
+
+.mgridMobile {
+  display: none;
+}
+
+/* ── Mobile agenda list ─────────────────────────────────────────────────── */
+.agenda {
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agendaDay {
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+
+.agendaDay:hover {
+  border-color: var(--cal-line2);
+}
+
+.agendaDate {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.agendaSyms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.agendaSym {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--cal-line2);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
 /* Mobile: force single column cards on narrow screens */
 @media (max-width: 640px) {
   .cards {
@@ -728,5 +830,15 @@
 
   .view span {
     padding: 5px 9px;
+  }
+
+  /* Month view: swap 5-col grid → scrollable agenda list on mobile */
+  .mgridDesktop,
+  .mgridHd {
+    display: none;
+  }
+
+  .mgridMobile {
+    display: block;
   }
 }

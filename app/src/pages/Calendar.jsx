@@ -80,25 +80,11 @@ function fmtWeekRange(start, end) {
 
 const ALL_SOURCES = ['watchlist', 'flagged', 'positions', 'uct20']
 
-// ── Month grid builder ───────────────────────────────────────────────────────
+// ── Default month cursor (current month) ─────────────────────────────────────
 
-function buildMonthGrid(days, weekDates) {
-  return weekDates.map(ds => {
-    const d = days[ds] || {}
-    const syms = [...(d.bmo || []), ...(d.amc || [])].map(e => e.sym)
-    const mineSyms = new Set(
-      [...(d.bmo || []), ...(d.amc || [])].filter(e => e.mine).map(e => e.sym)
-    )
-    return {
-      ds,
-      dayNum: ds.slice(8),
-      inMonth: true,
-      isToday: !!d.is_today,
-      syms,
-      mineSyms,
-      hasMacro: !!(d.econ?.some(e => e.is_key) || d.fed?.length),
-    }
-  })
+function currentMonthCursor() {
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth() + 1 }
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -109,6 +95,9 @@ export default function Calendar() {
   const { prefs, setPref } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
   const [openDay, setOpenDay] = useState(null)      // ds string for DayDetailDrawer
+
+  // Month cursor — component state (not persisted; resets to current month on page mount)
+  const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
 
   // Persisted view / filter preferences
   const view = prefs.calendar_view || 'feed'
@@ -209,6 +198,8 @@ export default function Calendar() {
         setFilters={setFilters}
         mySources={mySources}
         setMySources={setMySources}
+        monthCursor={monthCursor}
+        setMonthCursor={setMonthCursor}
       />
 
       {view !== 'month' && <WeekSummary stats={summary} />}
@@ -232,7 +223,11 @@ export default function Calendar() {
         )}
         {view === 'month' && (
           <MonthView
-            monthDays={buildMonthGrid(days, weekDates)}
+            weeklyDays={days}
+            mySets={mySets}
+            mySources={mySources}
+            monthCursor={monthCursor}
+            setMonthCursor={setMonthCursor}
             onOpenDay={setOpenDay}
           />
         )}

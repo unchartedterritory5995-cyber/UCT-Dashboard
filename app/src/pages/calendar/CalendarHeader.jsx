@@ -9,12 +9,38 @@ const AUDIENCE = [
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
 const SOURCES = [['watchlist','Watchlists'],['flagged','Flagged'],['positions','Positions'],['uct20','UCT20']]
 
-export default function CalendarHeader({ view, setView, weekLabel, filters, setFilters,
-                                         mySources, setMySources }) {
+export default function CalendarHeader({
+  view, setView, weekLabel, filters, setFilters,
+  mySources, setMySources,
+  // Month nav (only shown when view === 'month')
+  monthCursor, setMonthCursor,
+}) {
   const [gear, setGear] = useState(false)
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
+
+  const MONTH_NAMES = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
+  ]
+
+  function prevMonth() {
+    if (!setMonthCursor) return
+    setMonthCursor(c => {
+      const m = c.month === 1 ? 12 : c.month - 1
+      const y = c.month === 1 ? c.year - 1 : c.year
+      return { year: y, month: m }
+    })
+  }
+  function nextMonth() {
+    if (!setMonthCursor) return
+    setMonthCursor(c => {
+      const m = c.month === 12 ? 1 : c.month + 1
+      const y = c.month === 12 ? c.year + 1 : c.year
+      return { year: y, month: m }
+    })
+  }
 
   return (
     <div className={styles.header}>
@@ -26,7 +52,18 @@ export default function CalendarHeader({ view, setView, weekLabel, filters, setF
                   onClick={() => setView(v.toLowerCase())}>{v}</span>
           ))}
         </span>
-        <span className={styles.wk}>{weekLabel}</span>
+        {/* Show week label in feed/week; show month nav in month view */}
+        {view !== 'month' ? (
+          <span className={styles.wk}>{weekLabel}</span>
+        ) : (
+          <span className={styles.monthNavHeader}>
+            <button className={styles.monthNavBtn} onClick={prevMonth} aria-label="Previous month">‹</button>
+            <span className={styles.monthNavLbl}>
+              {monthCursor ? `${MONTH_NAMES[monthCursor.month - 1]} ${monthCursor.year}` : ''}
+            </span>
+            <button className={styles.monthNavBtn} onClick={nextMonth} aria-label="Next month">›</button>
+          </span>
+        )}
         <span className={styles.gearWrap}>
           <button className={styles.mystk} onClick={() => setGear(g => !g)}>★ My Stocks ⚙</button>
           {gear && (
