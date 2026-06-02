@@ -92,7 +92,11 @@
    the header + info panel leave, so info + full chart stay on screen together
    (the setups list scrolls below). */
 .dvTop { display: flex; flex-direction: column; height: calc(100vh - 104px); }
-.chartWrap { flex: 1 1 auto; min-height: 300px; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
+/* chart on the left, vertical info panel on the right */
+.dvBody { flex: 1 1 auto; min-height: 0; display: flex; gap: 14px; }
+.chartWrap { flex: 1 1 auto; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
+.infoSide { width: 340px; flex: none; overflow-y: auto; padding-left: 14px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.infoStatsV { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .chart { height: 100%; }
 
 /* ── Setup list ── */
@@ -158,6 +162,8 @@
   .resizer { display: none; }
   .detailPanel { padding: 12px 0 0; }
   .dvTop { height: auto; }
+  .dvBody { flex-direction: column; }
+  .infoSide { width: 100%; border-left: none; padding-left: 0; }
   .chartWrap { flex: none; height: 380px; min-height: 0; }
   .input { width: 100%; }
 }
