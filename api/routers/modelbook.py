@@ -176,7 +176,9 @@ def _persist_stats_for(stocks, max_workers=2):
     Only valid (non-None) results are persisted, so transient fetch failures
     retry on the next pass instead of sticking as a blank '—' forever."""
     import concurrent.futures
-    pending = [s for s in stocks if s.get("oc_pct") is None]
+    # Recompute when the gain OR the (newer) avg_vol stat is missing — so adding
+    # a new stat backfills existing rows instead of leaving them blank.
+    pending = [s for s in stocks if s.get("oc_pct") is None or s.get("avg_vol") is None]
     if not pending:
         return
 
@@ -219,15 +221,16 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
     stocks = svc.get_stocks_for_year(year)
     final = _is_final_year(year)
     out = {}
-    missing = False
+    needWarm = False
     for s in stocks:
         oc = s.get("oc_pct")
         if oc is not None:
             out[s["symbol"]] = {"open_close_pct": oc, "low_high_pct": s.get("lh_pct")}
         else:
             out[s["symbol"]] = {"open_close_pct": None, "low_high_pct": None}
-            missing = True
-    if missing and final:
+        if oc is None or s.get("avg_vol") is None:  # backfill gain and/or volume
+            needWarm = True
+    if needWarm and final:
         _warm_year_async(year)
     return {"year": year, "stats": out}
 
@@ -244,7 +247,7 @@ def warm_all_stats() -> None:
             stocks = [s for s in svc.get_all_stocks() if _is_final_year(s["year"])]
         except Exception:
             continue
-        if all(s.get("oc_pct") is not None for s in stocks):
+        if all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks):
             return  # fully warmed
         _persist_stats_for(stocks, max_workers=2)
 
