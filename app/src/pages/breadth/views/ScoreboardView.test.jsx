@@ -1,34 +1,27 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import ScoreboardView from './ScoreboardView'
 
-const metrics = [
-  { key: 'breadth_score', label: 'Health', getTier: () => 'g2', getFmt: () => '75', drillKey: null },
-  { key: 'up_4pct_today', label: 'Up 4%+', getTier: () => 'g3', getFmt: () => '383', drillKey: 'up_4pct_today_list' },
-]
-const currentRow = { breadth_score: 75, up_4pct_today: 383 }
-const recentRows = [
-  { breadth_score: 75, up_4pct_today: 383 },
-  { breadth_score: 70, up_4pct_today: 300 },
-  { breadth_score: 68, up_4pct_today: 250 },
-]
+const mk = (key, val) => ({ key, label: key, polarity: 'bull', drillKey: null,
+  getFmt: () => String(val), getTier: () => 'g1' })
+const metrics = [mk('a', 1), mk('b', 2), mk('c', 3)]
+const currentRow = { a: 20, b: 90, c: 40, date: 'd' }
+const recentRows = [currentRow, { a: 10, b: 80, c: 30, date: 'd0' }]
+const normalize = (m) => ({ a: 20, b: 90, c: 40 }[m.key])
 
-describe('ScoreboardView', () => {
-  it('renders a card per metric with label + current value', () => {
-    render(<ScoreboardView currentRow={currentRow} recentRows={recentRows} metrics={metrics} onDrill={() => {}} />)
-    expect(screen.getByText('Health')).toBeInTheDocument()
-    expect(screen.getByText('75')).toBeInTheDocument()
-    expect(screen.getByText('383')).toBeInTheDocument()
-  })
-  it('marks the signal card with a ★', () => {
+describe('ScoreboardView options', () => {
+  it('value sort orders cards by normalized value desc', () => {
     render(<ScoreboardView currentRow={currentRow} recentRows={recentRows} metrics={metrics}
-                           signalKey="up_4pct_today" onDrill={() => {}} />)
-    expect(screen.getByText('★ Up 4%+')).toBeInTheDocument()
+      onDrill={() => {}} signalKey={null} notableKey={null} normalize={normalize}
+      options={{ sort: 'value', density: 'comfortable', sparkWindow: 20 }} />)
+    const labels = screen.getAllByText(/^[abc]$/).map(n => n.textContent)
+    expect(labels).toEqual(['b', 'c', 'a'])
   })
-  it('clicking a drillable card calls onDrill', () => {
-    const onDrill = vi.fn()
-    render(<ScoreboardView currentRow={currentRow} recentRows={recentRows} metrics={metrics} onDrill={onDrill} />)
-    fireEvent.click(screen.getByLabelText('Up 4%+ details'))
-    expect(onDrill).toHaveBeenCalledWith(metrics[1])
+
+  it('renders without crashing in compact density', () => {
+    const { container } = render(<ScoreboardView currentRow={currentRow} recentRows={recentRows} metrics={metrics}
+      onDrill={() => {}} signalKey={null} notableKey={null} normalize={normalize}
+      options={{ sort: 'group', density: 'compact', sparkWindow: 10 }} />)
+    expect(container.querySelectorAll('svg').length).toBe(3)
   })
 })

@@ -3,7 +3,7 @@
  * history (color = up/down vs the window start). Signal of the Day card has a
  * gold ★ + border; the notable card pulses.
  */
-import { metricValue } from './breadthViewShared'
+import { metricValue, sortVisibleMetrics } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
 function buildSpark(values, polarity) {
@@ -22,13 +22,19 @@ function buildSpark(values, polarity) {
   return { pts, color: bullish ? '#34d399' : '#f87171' }
 }
 
-export default function ScoreboardView({ currentRow, recentRows = [], metrics, onDrill, signalKey, notableKey }) {
+export default function ScoreboardView({ currentRow, recentRows = [], metrics, onDrill, signalKey, notableKey, normalize, options = {} }) {
   if (!currentRow || !metrics?.length) return null
-  const asc = [...recentRows].reverse()  // oldest → newest
+  const sort = options.sort ?? 'group'
+  const compact = options.density === 'compact'
+  const win = options.sparkWindow ?? 20
+  const ordered = normalize ? sortVisibleMetrics(metrics, sort, normalize, currentRow) : metrics
+  const asc = [...recentRows].slice(0, win).reverse()  // oldest → newest, windowed
+  const pad = compact ? 7 : 10
+  const minW = compact ? 96 : 120
   return (
     <div style={{ overflow: 'auto', height: '100%', padding: '14px 18px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
-        {metrics.map(m => {
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${minW}px, 1fr))`, gap: 10 }}>
+        {ordered.map(m => {
           const isSignal = m.key === signalKey
           const isNotable = m.key === notableKey
           const clickable = !!m.drillKey
@@ -38,14 +44,14 @@ export default function ScoreboardView({ currentRow, recentRows = [], metrics, o
                  role={clickable ? 'button' : undefined}
                  aria-label={clickable ? `${m.label} details` : undefined}
                  className={isNotable ? signalStyles.pulse : undefined}
-                 style={{ background: '#0e131a', borderRadius: 8, padding: 10,
+                 style={{ background: '#0e131a', borderRadius: 8, padding: pad,
                           border: isSignal ? '1px solid #c9a84c' : '1px solid rgba(255,255,255,0.05)',
                           cursor: clickable ? 'pointer' : 'default' }}>
               <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.5px',
                             textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8' }}>
                 {isSignal ? '★ ' : ''}{m.label}
               </div>
-              <div style={{ font: '800 22px Instrument Sans, sans-serif', color: '#e8e8ea',
+              <div style={{ font: `800 ${compact ? 18 : 22}px Instrument Sans, sans-serif`, color: '#e8e8ea',
                             lineHeight: 1.15, marginTop: 2 }}>
                 {m.getFmt(currentRow)}
               </div>

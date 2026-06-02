@@ -145,6 +145,29 @@ export function pickSignals(metrics, currentRow, prevRow, pctileByKey) {
   }
 }
 
+const TIER_RANK = { g3: 0, g2: 1, g1: 2, a: 3, r1: 4, r2: 5, r3: 6, '': 7 }
+
+/**
+ * Order visible metrics for the value/tier/bullishness sorts shared by Scoreboard,
+ * Levels, and Meters. Unknown/`group`/`board` modes preserve the incoming order.
+ *   normalize(metric,row) → 0..100 or null.
+ */
+export function sortVisibleMetrics(metrics, mode, normalize, row) {
+  if (mode === 'value' || mode === 'bull') {
+    const score = (m) => {
+      const n = normalize(m, row)
+      if (n == null) return -1
+      return mode === 'bull' && m.polarity === 'bear' ? 100 - n : n
+    }
+    return [...metrics].sort((a, b) => score(b) - score(a))
+  }
+  if (mode === 'tier') {
+    const rank = (m) => TIER_RANK[(m.getTier ? m.getTier(row) : '') || ''] ?? 7
+    return [...metrics].sort((a, b) => rank(a) - rank(b))
+  }
+  return metrics  // group / board / undefined → original order
+}
+
 // Signed net bull share across visible pairs, -100..100. null if none usable.
 export function netPosture(metrics, row) {
   const ups = metrics.filter(m => m.pair && m.pair.side === 'up')

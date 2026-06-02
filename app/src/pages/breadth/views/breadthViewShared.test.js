@@ -165,3 +165,30 @@ describe('pickSignals', () => {
     expect(NOTABLE_MIN_DEV).toBeGreaterThanOrEqual(10)
   })
 })
+
+import { sortVisibleMetrics } from './breadthViewShared'
+
+describe('sortVisibleMetrics', () => {
+  const row = {}
+  const metrics = [
+    { key: 'a', polarity: 'bull', getTier: () => 'r3' },
+    { key: 'b', polarity: 'bull', getTier: () => 'g3' },
+    { key: 'c', polarity: 'bear', getTier: () => 'a' },
+  ]
+  const norm = (m) => ({ a: 20, b: 90, c: 40 }[m.key])
+
+  it('group/board mode preserves original order', () => {
+    expect(sortVisibleMetrics(metrics, 'group', norm, row).map(m => m.key)).toEqual(['a','b','c'])
+    expect(sortVisibleMetrics(metrics, 'board', norm, row).map(m => m.key)).toEqual(['a','b','c'])
+  })
+  it('value mode sorts by normalized value desc', () => {
+    expect(sortVisibleMetrics(metrics, 'value', norm, row).map(m => m.key)).toEqual(['b','c','a'])
+  })
+  it('bull mode inverts bearish metrics', () => {
+    // bullishness: a=20, b=90, c=100-40=60 → b,c,a
+    expect(sortVisibleMetrics(metrics, 'bull', norm, row).map(m => m.key)).toEqual(['b','c','a'])
+  })
+  it('tier mode ranks bullish tiers first', () => {
+    expect(sortVisibleMetrics(metrics, 'tier', norm, row).map(m => m.key)).toEqual(['b','c','a'])
+  })
+})
