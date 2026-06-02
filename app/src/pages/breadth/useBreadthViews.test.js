@@ -68,7 +68,9 @@ describe('useBreadthViews v2', () => {
   it('options resolve schema defaults then preset overrides', () => {
     const { result } = render()
     act(() => result.current.setViewStyle('radar'))
-    expect(result.current.options).toEqual({ maxSpokes: 14, spokeSelect: 'auto' })
+    // Radar's schema also includes palette/intensity theme options; assert the
+    // metric-specific defaults without pinning the full set.
+    expect(result.current.options).toMatchObject({ maxSpokes: 14, spokeSelect: 'auto' })
     act(() => result.current.savePreset('Eight'))
     act(() => result.current.setOption('maxSpokes', 8))
     expect(result.current.options.maxSpokes).toBe(8)
