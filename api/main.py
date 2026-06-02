@@ -1382,6 +1382,34 @@ async def lifespan(app: FastAPI):
 
             print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m)")
 
+        # ── Pre-report Earnings Alerts (Phase E1) ─────────────────────────
+        # Gated on CALENDAR_ALERTS_ENABLED=1. Fires two windows:
+        #   • Evening ~6 PM ET — alert for tomorrow's BMO reporters
+        #   • Morning ~7 AM ET — alert for today's BMO reporters (pre-open)
+        if os.environ.get("CALENDAR_ALERTS_ENABLED", "0").lower() in ("1", "true", "yes"):
+            def _calendar_alert_job():
+                try:
+                    from api.services.calendar_alerts import run_prereport_alerts
+                    run_prereport_alerts()
+                except Exception as _e:
+                    print(f"[scheduler] calendar alert job error: {_e}")
+
+            _scheduler.add_job(
+                _calendar_alert_job,
+                trigger=CronTrigger(hour=18, minute=0),
+                id="calendar_alerts_evening",
+                max_instances=1,
+                replace_existing=True,
+            )
+            _scheduler.add_job(
+                _calendar_alert_job,
+                trigger=CronTrigger(hour=7, minute=0),
+                id="calendar_alerts_morning",
+                max_instances=1,
+                replace_existing=True,
+            )
+            print("[scheduler] calendar pre-report alert jobs registered (7 AM + 6 PM ET daily)")
+
         def _check_churn_risk():
             try:
                 from api.services.auth_db import get_connection
