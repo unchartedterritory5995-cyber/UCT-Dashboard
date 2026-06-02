@@ -48,5 +48,5 @@ def prewarm_logos(misses: int = 0):
 
 @router.get("/api/logos/status")
 def logos_status():
-    """Live progress of the logo warm pass."""
-    return pw.get_progress()
+    """Live progress of the logo warm pass + real disk coverage."""
+    return {**pw.get_progress(), "coverage": pw.coverage()}

@@ -29,6 +29,26 @@ def get_progress() -> dict:
     return dict(_PROGRESS)
 
 
+def coverage() -> dict:
+    """Real disk coverage: how many cap_universe tickers have a cached .png,
+    plus the count of .miss sentinels (tickers with no logo at any source)."""
+    from api.services import ticker_logos as tl
+    uni = _load_universe()
+    cached = sum(1 for t in uni if tl.get_logo_path(t))
+    miss = 0
+    try:
+        if os.path.isdir(tl._CACHE_DIR):
+            miss = sum(1 for f in os.listdir(tl._CACHE_DIR) if f.endswith(".miss"))
+    except OSError:
+        pass
+    return {
+        "universe": len(uni),
+        "cached": cached,
+        "pct": round(100 * cached / len(uni), 1) if uni else 0.0,
+        "misses": miss,
+    }
+
+
 def _resolve_universe_path() -> str:
     here = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
     return here if os.path.exists(here) else os.path.join("api", "data", "cap_universe.json")
