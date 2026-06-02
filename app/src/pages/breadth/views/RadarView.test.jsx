@@ -31,3 +31,28 @@ describe('RadarView', () => {
     expect(screen.getByText('★ Health')).toBeInTheDocument()
   })
 })
+
+const mk = (key) => ({ key, label: key, drillKey: `${key}_list`, polarity: 'bull' })
+const bigMetrics = Array.from({ length: 16 }, (_, i) => mk(`m${i}`))
+const currentRow = { date: '2026-06-01' }
+const normalize = (m) => 50 + (Number(m.key.slice(1)) % 5) * 8  // deterministic spread
+
+describe('RadarView spoke cap', () => {
+  it('renders at most maxSpokes axis labels', () => {
+    const { container } = render(
+      <RadarView currentRow={currentRow} metrics={bigMetrics} normalize={normalize}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{ maxSpokes: 8, spokeSelect: 'auto' }} />,
+    )
+    // axis labels are <text> nodes
+    expect(container.querySelectorAll('text').length).toBe(8)
+  })
+
+  it('as-listed pick keeps the first N metrics in order', () => {
+    const { container } = render(
+      <RadarView currentRow={currentRow} metrics={bigMetrics} normalize={normalize}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{ maxSpokes: 10, spokeSelect: 'listed' }} />,
+    )
+    const labels = [...container.querySelectorAll('text')].map(t => t.textContent.replace('★ ', ''))
+    expect(labels).toEqual(['m0','m1','m2','m3','m4','m5','m6','m7','m8','m9'])
+  })
+})

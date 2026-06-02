@@ -3,7 +3,7 @@
  * "shape" of the board. A balanced market = big even polygon; a lopsided one =
  * a spiky dent. Signal of the Day axis label is gold ★; notable is amber.
  */
-export default function RadarView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
+export default function RadarView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || (metrics?.length ?? 0) < 3) {
     return (
       <div style={{ padding: 24, color: '#94a3b8', font: '600 12px Instrument Sans, sans-serif' }}>
@@ -11,22 +11,24 @@ export default function RadarView({ currentRow, metrics, normalize, onDrill, sig
       </div>
     )
   }
-  // Radar gets illegible past ~14 spokes (labels overlap). When the visible set
-  // is larger, keep the most shape-defining metrics (furthest from neutral),
-  // always retaining the signal + notable so their highlights stay on screen.
-  const MAX_SPOKES = 14
+  const MAX_SPOKES = options.maxSpokes ?? 14
+  const asListed = options.spokeSelect === 'listed'
   const ext = (m) => Math.abs((normalize(m, currentRow) ?? 50) - 50)
   const capped = metrics.length > MAX_SPOKES
   let shown = metrics
   if (capped) {
-    const top = [...metrics].sort((a, b) => ext(b) - ext(a)).slice(0, MAX_SPOKES)
-    for (const key of [signalKey, notableKey]) {
-      if (key && !top.some(m => m.key === key)) {
-        const m = metrics.find(x => x.key === key)
-        if (m) { top.pop(); top.push(m) }
+    if (asListed) {
+      shown = metrics.slice(0, MAX_SPOKES)
+    } else {
+      const top = [...metrics].sort((a, b) => ext(b) - ext(a)).slice(0, MAX_SPOKES)
+      for (const key of [signalKey, notableKey]) {
+        if (key && !top.some(m => m.key === key)) {
+          const m = metrics.find(x => x.key === key)
+          if (m) { top.pop(); top.push(m) }
+        }
       }
+      shown = top
     }
-    shown = top
   }
 
   const N = shown.length
