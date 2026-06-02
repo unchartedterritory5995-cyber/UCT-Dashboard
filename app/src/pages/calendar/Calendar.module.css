@@ -1021,6 +1021,25 @@
   border-color: var(--cal-green);
 }
 
+/* ── C6: Historical reaction stats row on EarningsCard ─────────────────────── */
+
+.histStats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--cal-line2);
+  font-size: 10px;
+}
+
+.histStatsVal {
+  font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  color: var(--cal-gold);
+  font-weight: 600;
+}
+
 /* Mobile: force single column cards on narrow screens */
 @media (max-width: 640px) {
   .cards {

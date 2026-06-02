@@ -19,7 +19,13 @@ export function buildWeekDates(weekStart) {
 export function mergeEnrichment(entry, enrichment) {
   const e = enrichment?.[entry.sym]
   if (!e) return entry
-  return { ...entry, expected_move: e.expected_move, beat_history: e.beat_history }
+  // C6: also carry hist_stats for post-earnings reaction display
+  return {
+    ...entry,
+    expected_move: e.expected_move,
+    beat_history:  e.beat_history,
+    hist_stats:    e.hist_stats ?? null,
+  }
 }
 
 export function isMine(sym, sets, sources) {
