@@ -2742,6 +2742,39 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
   }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
 
+  // Exact-range pin (Model Book): keep the view locked to [entryDate, exitDate]
+  // whenever the CURRENT ticker's bars update. The main zoom block above only
+  // fires on a sym/tf change, which can run before async bars arrive (cold
+  // cache) and then never re-applies — leaving the chart on the full range.
+  // This re-pins once data lands, and compares by epoch so it's robust to `t`
+  // being a 'YYYY-MM-DD' string OR a unix timestamp number.
+  useEffect(() => {
+    if (!exactDateRange || !entryDate) return
+    const chart = chartRef.current
+    if (!chart || !filteredBars || filteredBars.length === 0) return
+    const toMs = v => {
+      if (v == null) return NaN
+      if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
+      const s = String(v)
+      return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+    }
+    const lo = toMs(entryDate)
+    const hi = toMs(exitDate)
+    let startIdx = filteredBars.findIndex(b => toMs(b.t) >= lo)
+    if (startIdx < 0) startIdx = 0
+    let endIdx = filteredBars.length - 1
+    if (!Number.isNaN(hi)) {
+      for (let i = filteredBars.length - 1; i >= 0; i--) {
+        if (toMs(filteredBars[i].t) <= hi) { endIdx = i; break }
+      }
+    }
+    if (endIdx < startIdx) endIdx = filteredBars.length - 1
+    try {
+      chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
+      chart.priceScale('right').applyOptions({ autoScale: true })
+    } catch { /* range can be out of bounds mid-load; next update re-pins */ }
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym])
+
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
