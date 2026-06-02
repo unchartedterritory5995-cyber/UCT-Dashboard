@@ -1319,3 +1319,63 @@
   color: var(--cal-gold);
   margin-bottom: 10px;
 }
+
+/* E2: Export menu */
+.exportWrap {
+  position: relative;
+  margin-left: 4px;
+}
+
+.exportBtn {
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-dim);
+  font-size: 11px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.exportBtn:hover {
+  border-color: var(--cal-gold);
+  color: var(--cal-txt);
+}
+
+.exportPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 50;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exportItem {
+  background: transparent;
+  border: none;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.exportItem:hover:not(:disabled) {
+  background: var(--cal-line2);
+}
+
+.exportItem:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -1,5 +1,5 @@
 // app/src/pages/calendar/CalendarHeader.jsx
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import styles from './Calendar.module.css'
 
@@ -73,6 +73,58 @@ function FiltersPopover({ filters, setFilters, onClose }) {
   )
 }
 
+// E2: ExportMenu — Download .ics / Copy webcal URL
+function ExportMenu({ onClose }) {
+  const [copying, setCopying] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  const download = useCallback(async () => {
+    setDownloading(true)
+    try {
+      // Fetch token then trigger download
+      const tr = await fetch('/api/calendar/export-token', { credentials: 'include' })
+      const { token } = tr.ok ? await tr.json() : {}
+      const url = token
+        ? `/api/calendar/export.ics?scope=mine&token=${token}`
+        : '/api/calendar/export.ics?scope=all'
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'uct-earnings.ics'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } catch (_) { /* silent */ }
+    setDownloading(false)
+    onClose()
+  }, [onClose])
+
+  const copyWebcal = useCallback(async () => {
+    setCopying(true)
+    try {
+      const tr = await fetch('/api/calendar/export-token', { credentials: 'include' })
+      const { subscribe_url } = tr.ok ? await tr.json() : {}
+      if (subscribe_url) {
+        await navigator.clipboard.writeText(subscribe_url)
+        setCopied(true)
+        setTimeout(() => { setCopied(false); onClose() }, 1500)
+      }
+    } catch (_) { /* silent */ }
+    setCopying(false)
+  }, [onClose])
+
+  return (
+    <div className={styles.exportPop}>
+      <button className={styles.exportItem} onClick={download} disabled={downloading}>
+        {downloading ? 'Downloading…' : '⬇ Download .ics'}
+      </button>
+      <button className={styles.exportItem} onClick={copyWebcal} disabled={copying}>
+        {copied ? '✓ Copied!' : copying ? 'Copying…' : '🔗 Copy webcal URL'}
+      </button>
+    </div>
+  )
+}
+
 export default function CalendarHeader({
   view, setView, weekLabel, filters, setFilters,
   mySources, setMySources,
@@ -83,6 +135,7 @@ export default function CalendarHeader({
 }) {
   const [gear, setGear] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
@@ -143,8 +196,19 @@ export default function CalendarHeader({
         <Link to="/calendar/mystocks" className={styles.hubLink} title="My Stocks Hub">
           ⭐ Hub
         </Link>
+        {/* E2: Export menu */}
+        <span className={styles.exportWrap}>
+          <button
+            className={styles.exportBtn}
+            onClick={() => { setExportOpen(o => !o); setGear(false); setFilterOpen(false) }}
+            aria-label="Export calendar"
+          >
+            Export ▾
+          </button>
+          {exportOpen && <ExportMenu onClose={() => setExportOpen(false)} />}
+        </span>
         <span className={styles.gearWrap}>
-          <button className={styles.mystk} onClick={() => setGear(g => !g)}>★ My Stocks ⚙</button>
+          <button className={styles.mystk} onClick={() => { setGear(g => !g); setExportOpen(false) }}>★ My Stocks ⚙</button>
           {gear && (
             <div className={styles.gearPop}>
               <div className={styles.scolLbl}>Count toward &ldquo;My Stocks&rdquo;:</div>

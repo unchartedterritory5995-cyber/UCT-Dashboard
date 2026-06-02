@@ -1133,4 +1133,232 @@ def post_calendar_seen(
     from api.services.calendar_seen import mark_seen
     mark_seen(user["id"], payload.item_type, payload.item_key)
     return {"ok": True}
-    return out
+
+
+# ── E2: iCal / webcal export ─────────────────────────────────────────────────
+# Token strategy: HMAC-SHA256 keyed on PUSH_SECRET (always present in prod).
+# token = hmac_hex(PUSH_SECRET, user_id). Stable per user (no TTL) so webcal
+# subscribe URLs continue to work forever. decode_ics_token() reverses it by
+# iterating all users and checking HMAC equality.
+
+import hashlib as _hashlib
+import hmac as _hmac
+from fastapi import Response as _Response  # noqa: E402
+
+
+def _ics_secret() -> bytes:
+    s = os.environ.get("PUSH_SECRET", "") or os.environ.get("VOICE_ACTION_SECRET", "")
+    if s:
+        return s.encode("utf-8")
+    # Deterministic fallback so tokens survive restarts (not great, but non-null)
+    return b"uct_ics_fallback_secret"
+
+
+def _make_ics_token(user_id: str) -> str:
+    """Return a stable per-user HMAC token for webcal subscribe URLs."""
+    sig = _hmac.new(_ics_secret(), user_id.encode("utf-8"), _hashlib.sha256).hexdigest()
+    return sig
+
+
+def _decode_ics_token(token: str) -> str | None:
+    """Resolve a token back to a user_id. Returns None if invalid.
+
+    Strategy: pull all user IDs from auth.db, compute expected token for each,
+    and return the matching one. O(N users) but called only on subscribe fetches.
+    Result is cached for 5 minutes to avoid hammering auth.db.
+    """
+    if not token or len(token) < 16:
+        return None
+    cache_key = f"ics_token_decode_{token[:16]}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached if cached != "__miss__" else None
+    try:
+        from api.services.auth_db import get_connection
+        with get_connection() as conn:
+            rows = conn.execute("SELECT id FROM users").fetchall()
+        for row in rows:
+            uid = str(row[0] if not isinstance(row, dict) else row["id"])
+            if _hmac.compare_digest(_make_ics_token(uid), token):
+                cache.set(cache_key, uid, ttl=300)
+                return uid
+    except Exception as e:
+        _logger.warning("[ics] token decode failed: %s", e)
+    cache.set(cache_key, "__miss__", ttl=300)
+    return None
+
+
+def _build_vevent(sym: str, report_date: str, timing: str) -> str:
+    """Build a single VEVENT block for an earnings reporter.
+
+    report_date: YYYY-MM-DD
+    timing: 'bmo' | 'amc'
+    """
+    # DTSTART: BMO → 7 AM ET (12:00 UTC), AMC → 4 PM ET (21:00 UTC)
+    # Using floating local-time form (TZID=America/New_York) so calendar apps
+    # display it correctly in the user's local zone.
+    hour = "07" if timing == "bmo" else "16"
+    dtstart = f"TZID=America/New_York:{report_date.replace('-', '')}T{hour}0000"
+    dtend_hour = "08" if timing == "bmo" else "17"
+    dtend = f"TZID=America/New_York:{report_date.replace('-', '')}T{dtend_hour}0000"
+    session_label = "BMO" if timing == "bmo" else "AMC"
+    uid = f"{sym}-{report_date}-earnings@uctintelligence.com"
+    summary = f"{sym} earnings ({session_label})"
+    return (
+        "BEGIN:VEVENT\r\n"
+        f"UID:{uid}\r\n"
+        f"DTSTART;{dtstart}\r\n"
+        f"DTEND;{dtend}\r\n"
+        f"SUMMARY:{summary}\r\n"
+        "CATEGORIES:EARNINGS\r\n"
+        "END:VEVENT\r\n"
+    )
+
+
+def _build_vcalendar(vevents: list[str]) -> str:
+    body = "".join(vevents)
+    return (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//UCT Intelligence//Earnings Calendar//EN\r\n"
+        "CALSCALE:GREGORIAN\r\n"
+        "METHOD:PUBLISH\r\n"
+        "X-WR-CALNAME:UCT Earnings Calendar\r\n"
+        "X-WR-TIMEZONE:America/New_York\r\n"
+        + body
+        + "END:VCALENDAR\r\n"
+    )
+
+
+def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[str, str, str]]:
+    """Return list of (sym, date, timing) tuples for the iCal export.
+
+    scope='mine': filter to user's My-Stocks set.
+    scope='all': all reporters from calendar_weekly cache.
+
+    Pulls from the weekly calendar cache; if absent falls back to month
+    calendar for current + next month.
+    """
+    result: list[tuple[str, str, str]] = []
+
+    # Get mine set when scope=mine
+    mine: set[str] = set()
+    if scope == "mine" and user_id:
+        try:
+            sets = _cp.get_user_ticker_sets(user_id)
+            mine = sets.get("all_mine") or set()
+        except Exception:
+            pass
+
+    def _add_from_days(days: dict) -> None:
+        for ds, day in days.items():
+            for entry in day.get("bmo", []):
+                sym = (entry.get("sym") or "").upper()
+                if sym and (scope == "all" or sym in mine):
+                    result.append((sym, ds, "bmo"))
+            for entry in day.get("amc", []):
+                sym = (entry.get("sym") or "").upper()
+                if sym and (scope == "all" or sym in mine):
+                    result.append((sym, ds, "amc"))
+
+    # Try weekly cache first
+    cal = cache.get("calendar_weekly")
+    if cal and cal.get("days"):
+        _add_from_days(cal["days"])
+
+    # Supplement with current month and next month (Finnhub, 30-min cached)
+    today = _today_et()
+    for yr, mo in [(today.year, today.month),
+                   ((today.year if today.month < 12 else today.year + 1),
+                    (today.month + 1 if today.month < 12 else 1))]:
+        try:
+            month_data = get_month_calendar(year=yr, month=mo)
+            for ds, day in month_data.get("days", {}).items():
+                for entry in day.get("bmo", []):
+                    sym = (entry.get("sym") or "").upper()
+                    if sym and (scope == "all" or sym in mine):
+                        if not any(t[0] == sym and t[1] == ds for t in result):
+                            result.append((sym, ds, "bmo"))
+                for entry in day.get("amc", []):
+                    sym = (entry.get("sym") or "").upper()
+                    if sym and (scope == "all" or sym in mine):
+                        if not any(t[0] == sym and t[1] == ds for t in result):
+                            result.append((sym, ds, "amc"))
+        except Exception:
+            pass
+
+    # Dedupe + sort by date then ticker
+    seen: set[tuple[str, str]] = set()
+    deduped: list[tuple[str, str, str]] = []
+    for sym, ds, timing in sorted(result, key=lambda x: (x[1], x[0])):
+        key = (sym, ds)
+        if key not in seen:
+            seen.add(key)
+            deduped.append((sym, ds, timing))
+    return deduped
+
+
+@router.get("/api/calendar/export-token")
+def get_calendar_export_token(user: dict = Depends(get_current_user)):
+    """Return the stable per-user iCal token for webcal subscribe URLs.
+
+    The token is HMAC(PUSH_SECRET, user_id) — stable across restarts so a
+    subscribed Google/Apple Calendar URL continues to work indefinitely.
+    Response: { token: "<hex>", subscribe_url: "webcal://..." }
+    """
+    token = _make_ics_token(user["id"])
+    base_url = os.environ.get("DASHBOARD_URL", "https://uctintelligence.com")
+    subscribe_url = f"webcal://{base_url.replace('https://', '').replace('http://', '')}/api/calendar/export.ics?scope=mine&token={token}"
+    return {"token": token, "subscribe_url": subscribe_url}
+
+
+@router.get("/api/calendar/export.ics")
+def export_calendar_ics(
+    scope: str = "all",
+    token: str | None = None,
+    user: dict | None = Depends(lambda: None),  # optional auth
+):
+    """Generate a VCALENDAR .ics file for downloading or webcal subscription.
+
+    Query params:
+        scope   'mine' (user's My Stocks) | 'all' (all reporters)
+        token   per-user HMAC token (from /api/calendar/export-token); required for scope=mine
+
+    Returns text/calendar with Content-Disposition attachment.
+    Empty-safe: returns a valid VCALENDAR with zero VEVENTs on a cache miss.
+    Never raises.
+    """
+    # Resolve user_id from token for scope=mine
+    user_id: str | None = None
+    if scope == "mine":
+        if not token:
+            return _Response(
+                content="scope=mine requires a token parameter",
+                status_code=400,
+                media_type="text/plain",
+            )
+        user_id = _decode_ics_token(token)
+        if not user_id:
+            return _Response(
+                content="Invalid or expired token",
+                status_code=403,
+                media_type="text/plain",
+            )
+
+    try:
+        reporters = _collect_reporters_for_ics(scope, user_id)
+    except Exception as e:
+        _logger.warning("[ics] collect reporters failed: %s", e)
+        reporters = []
+
+    vevents = [_build_vevent(sym, ds, timing) for sym, ds, timing in reporters]
+    body = _build_vcalendar(vevents)
+
+    return _Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="uct-earnings.ics"',
+            "Cache-Control": "no-cache",
+        },
+    )
