@@ -1006,10 +1006,16 @@ _ENRICH_TTL = 300  # 5 min — options move is itself 60s-cached upstream
 
 @router.get("/api/calendar/enrichment")
 def get_enrichment(date: str | None = None):
-    """Per-ticker expected move + 4-quarter beat history for a given day.
+    """Per-ticker expected move + 4-quarter beat history + hist_stats for a given day.
 
     Bounded + cached so the core /api/calendar paints instantly and this
     overlays on top. Empty dict if the calendar cache isn't warm yet.
+
+    hist_stats shape: {avg_abs_move, up_count, total, last_n}
+      avg_abs_move — average absolute post-earnings move over last N reports
+      up_count     — number of those reports where the stock gapped up
+      total        — total number of reports measured
+      last_n       — last N individual moves (pct, newest first, capped at 8)
     """
     import re as _re
     from concurrent.futures import ThreadPoolExecutor
@@ -1031,12 +1037,38 @@ def get_enrichment(date: str | None = None):
         cache.set(ck, {}, ttl=_ENRICH_TTL)
         return {}
 
-    from api.services.earnings_enrichment import get_implied_move
+    from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
     from api.services.earnings_estimates import get_earnings_intel
+
+    def _compute_hist_stats(sym: str) -> dict | None:
+        """Return compact hist_stats from get_historical_earnings_moves.
+
+        Uses _fetch_quarterly_history (FMP → AV fallback) to get the AV-shaped
+        quarters list required by get_historical_earnings_moves, then computes
+        avg_abs_move, up_count, total, and last_n (newest first, capped at 8).
+        """
+        try:
+            from api.services.engine import _fetch_quarterly_history
+            av_quarters = _fetch_quarterly_history(sym)
+            raw = get_historical_earnings_moves(sym, av_quarters)
+            if not raw:
+                return None
+            moves = raw.get("moves_pct") or []
+            n = raw.get("n_quarters") or len(moves)
+            up = sum(1 for m in moves if m > 0)
+            return {
+                "avg_abs_move": raw.get("avg_abs_move_pct"),
+                "up_count":     up,
+                "total":        n,
+                "last_n":       list(reversed(moves[:8])),   # newest first, capped 8
+            }
+        except Exception:
+            return None
 
     def _one(sym):
         move = None
         hist = None
+        hist_stats = None
         try:
             move = get_implied_move(sym, earnings_date=target)
         except Exception:
@@ -1046,7 +1078,11 @@ def get_enrichment(date: str | None = None):
             hist = intel.get("beat_history") if intel else None
         except Exception:
             pass
-        return sym, {"expected_move": move, "beat_history": hist}
+        try:
+            hist_stats = _compute_hist_stats(sym)
+        except Exception:
+            pass
+        return sym, {"expected_move": move, "beat_history": hist, "hist_stats": hist_stats}
 
     out: dict = {}
     with ThreadPoolExecutor(max_workers=6) as ex:
