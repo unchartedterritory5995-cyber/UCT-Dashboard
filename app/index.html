@@ -31,10 +31,76 @@
     <meta name="twitter:description" content="A complete trading desk in one app. AI Morning Wire, leadership portfolio, AI coach, live catalyst engine. $20/month, free tier included." />
     <meta name="twitter:image" content="https://uctintelligence.com/og-image.svg" />
 
-    <!-- ── Inter variable font (preconnected for speed) ── -->
+    <!-- ── Fonts: preconnect + preload for LCP ── -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+    />
+
+    <!-- ── JSON-LD: SoftwareApplication schema for rich search results ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "UCT Intelligence",
+      "alternateName": "Uncharted Territory Intelligence",
+      "url": "https://uctintelligence.com/",
+      "image": "https://uctintelligence.com/og-image.svg",
+      "description": "A complete trading desk in one app — AI Morning Wire, 20-stock leadership portfolio, an AI coach that watches every trade, and a live catalyst engine reading 8 sources every morning.",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web, iOS, Android",
+      "browserRequirements": "Requires JavaScript. Requires a modern browser.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Free tier",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Dashboard, Breadth Monitor, Charts Workspace, Journal, and Options Flow. No card required."
+        },
+        {
+          "@type": "Offer",
+          "name": "Pro — monthly",
+          "price": "20",
+          "priceCurrency": "USD",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "20.00",
+            "priceCurrency": "USD",
+            "billingDuration": "P1M"
+          },
+          "description": "Full access: Morning Wire, UCT 20, AI Compass coach, Stock Catalysts, Pattern Engine, Theme Tracker, Voice Assistant, real-time streaming."
+        },
+        {
+          "@type": "Offer",
+          "name": "Pro — annual",
+          "price": "200",
+          "priceCurrency": "USD",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "200.00",
+            "priceCurrency": "USD",
+            "billingDuration": "P1Y"
+          },
+          "description": "Full Pro access, billed annually. Saves $40 vs monthly."
+        }
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "Uncharted Territory",
+        "url": "https://uctintelligence.com/"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

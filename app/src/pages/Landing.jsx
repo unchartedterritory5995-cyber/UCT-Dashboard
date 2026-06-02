@@ -266,8 +266,13 @@ export default function Landing() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // Hide the sticky mobile CTA once the footer enters the viewport.
+  const [footerRef, footerInView] = useInView({ threshold: 0.05 })
+
   return (
     <div className={styles.page}>
+      <a href="#main" className={styles.skipLink}>Skip to main content</a>
+
       {/* ── Nav ── */}
       <nav className={styles.nav}>
         <div className={styles.navBrand}>
@@ -286,6 +291,7 @@ export default function Landing() {
       </nav>
 
       {/* ── Hero ── */}
+      <main id="main">
       <section className={styles.hero}>
         {/* Equity-curve background */}
         <div className={styles.equity} aria-hidden="true">
@@ -374,25 +380,25 @@ export default function Landing() {
         </div>
 
         <div className={styles.heroInner}>
-          <div className={styles.compassWrap}>
+          <div className={`${styles.compassWrap} ${styles.enter} ${styles.enter0}`}>
             <div className={styles.compass}>
               <div ref={needleRef} className={styles.needle} />
             </div>
           </div>
 
           <div className={styles.heroBody}>
-            <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]}`}>
+            <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]} ${styles.enter} ${styles.enter1}`}>
               <span className={styles.eyebrowDot} />
               {marketStatus.label}
             </div>
-            <h1 className={styles.heroH1}>UCT Intelligence</h1>
-            <p className={styles.heroTagline}>Navigate the market, effectively.</p>
-            <p className={styles.heroSub}>
+            <h1 className={`${styles.heroH1} ${styles.enter} ${styles.enter2}`}>UCT Intelligence</h1>
+            <p className={`${styles.heroTagline} ${styles.enter} ${styles.enter3}`}>Navigate the market, effectively.</p>
+            <p className={`${styles.heroSub} ${styles.enter} ${styles.enter4}`}>
               A complete trading desk in one app — pre-market AI brief, 20-stock
               leadership portfolio, an AI coach that watches your trades, and a
               live catalyst engine that reads 8 sources every morning.
             </p>
-            <div className={styles.ctas}>
+            <div className={`${styles.ctas} ${styles.enter} ${styles.enter5}`}>
               <Link to="/signup?plan=pro" className={styles.ctaGold}>
                 Get started — $20/mo
               </Link>
@@ -400,7 +406,7 @@ export default function Landing() {
                 Try it free
               </Link>
             </div>
-            <div className={styles.ctaSubnote}>
+            <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter6}`}>
               Free forever for the core tools · No card required · Cancel Pro anytime
             </div>
           </div>
@@ -799,8 +805,10 @@ export default function Landing() {
         </div>
       </div>
 
+      </main>
+
       {/* ── Footer ── */}
-      <footer className={styles.foot}>
+      <footer ref={footerRef} className={styles.foot}>
         <div className={styles.footTop}>
           <div className={styles.footBrand}>
             <span className={styles.footBrandMark} aria-hidden="true">⊕</span>
@@ -830,8 +838,12 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* ── Sticky mobile CTA (visible on phones only) ── */}
-      <Link to="/signup?plan=free" className={styles.stickyCta}>
+      {/* ── Sticky mobile CTA (visible on phones, hides over the footer) ── */}
+      <Link
+        to="/signup?plan=free"
+        className={`${styles.stickyCta} ${footerInView ? styles.stickyCtaHidden : ''}`}
+        aria-hidden={footerInView}
+      >
         <span className={styles.stickyCtaText}>Start free</span>
         <span className={styles.stickyCtaSub}>5 tools · no card required</span>
         <span className={styles.stickyCtaArrow} aria-hidden="true">→</span>

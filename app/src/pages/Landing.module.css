@@ -37,6 +37,48 @@
   border-radius: 4px;
 }
 
+/* Skip-to-content link (visible when focused via keyboard) */
+.skipLink {
+  position: absolute;
+  top: -40px;
+  left: 12px;
+  z-index: 1000;
+  background: var(--gold);
+  color: var(--ink);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.2px;
+  transition: top 0.2s ease;
+}
+.skipLink:focus-visible {
+  top: 12px;
+  outline: 2px solid var(--cream);
+  outline-offset: 2px;
+}
+
+/* Hero first-paint entrance choreography */
+.enter {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: heroEnter 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.enter0 { animation-delay: 0.05s; }
+.enter1 { animation-delay: 0.15s; }
+.enter2 { animation-delay: 0.25s; }
+.enter3 { animation-delay: 0.35s; }
+.enter4 { animation-delay: 0.45s; }
+.enter5 { animation-delay: 0.55s; }
+.enter6 { animation-delay: 0.65s; }
+@keyframes heroEnter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Reusable fade-in for scroll reveals */
 .fadeIn {
   opacity: 0;
@@ -1491,6 +1533,12 @@
     font-size: 18px;
     font-weight: 700;
   }
+  .stickyCtaHidden {
+    transform: translateY(140%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s ease, opacity 0.2s ease;
+  }
   /* Add bottom padding to the page so the sticky CTA doesn't cover the footer */
   .foot { padding-bottom: 90px; }
 }
@@ -1502,10 +1550,11 @@
   .stripDot,
   .freeBadgeDot,
   .stickyCta,
-  .fadeIn {
+  .fadeIn,
+  .enter {
     animation: none !important;
     transition: none !important;
   }
   .needle { transform: rotate(22deg); }
-  .fadeIn { opacity: 1; transform: none; }
+  .fadeIn, .enter { opacity: 1; transform: none; }
 }
