@@ -3,16 +3,17 @@
  * track with 30/70 reference ticks. Marker color = metricColor (tier-driven).
  * The Signal of the Day gets a gold ★ label; the notable divergence pulses.
  */
-import { metricColor } from './breadthViewShared'
+import { metricColor, sortVisibleMetrics } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-export default function MetersView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
+export default function MetersView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || metrics.length === 0) return null
+  const ordered = sortVisibleMetrics(metrics, options.sort ?? 'group', normalize, currentRow)
   return (
     <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 9 }}>
       <div style={{ font: '600 10px Instrument Sans, sans-serif', color: '#64748b',
                     textAlign: 'right', marginBottom: 2 }}>oversold ◄ ► overbought</div>
-      {metrics.map(m => {
+      {ordered.map(m => {
         const norm = normalize(m, currentRow)
         const color = metricColor(m, currentRow)
         const clickable = !!m.drillKey

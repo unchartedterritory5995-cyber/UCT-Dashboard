@@ -3,15 +3,16 @@
  * sits on its range (normalize), color = tier. Signal of the Day column is gold
  * ★ + outlined; the notable column pulses.
  */
-import { metricColor } from './breadthViewShared'
+import { metricColor, sortVisibleMetrics } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-export default function EqualizerView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
+export default function EqualizerView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || !metrics?.length) return null
+  const ordered = sortVisibleMetrics(metrics, options.sort ?? 'board', normalize, currentRow)
   return (
     <div style={{ height: '100%', overflowX: 'auto', overflowY: 'hidden', padding: '18px 18px 8px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: '100%', minHeight: 160 }}>
-        {metrics.map(m => {
+        {ordered.map(m => {
           const norm = normalize(m, currentRow)
           const h = norm == null ? 2 : Math.max(2, norm)
           const color = metricColor(m, currentRow)
