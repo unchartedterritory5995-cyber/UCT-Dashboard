@@ -349,9 +349,19 @@ export default function ModelBook() {
   const stocks = useMemo(() => stocksData?.stocks || [], [stocksData])
 
   // Per-stock year price stats (open→close %, low→high %), keyed by symbol.
+  // The endpoint returns instantly (persisted values); any not-yet-computed
+  // stat comes back null and is warmed server-side — so poll every few seconds
+  // while something is missing, then stop once everything has landed.
   const { data: statsData } = useSWR(
     year != null ? `/api/modelbook/year-stats?year=${year}` : null, fetcher,
-    { revalidateOnFocus: false },
+    {
+      revalidateOnFocus: false,
+      refreshInterval: (d) => {
+        const st = d?.stats
+        if (!st) return 4000
+        return Object.values(st).some(v => v?.open_close_pct == null) ? 4000 : 0
+      },
+    },
   )
   const yearStats = useMemo(() => statsData?.stats || {}, [statsData])
 

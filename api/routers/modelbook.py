@@ -162,63 +162,88 @@ def _is_final_year(year: int) -> bool:
     return int(year) < datetime.now(timezone.utc).year
 
 
-@router.get("/year-stats")
-def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
-    """Per-stock year price stats (open→close %, low→high %), keyed by symbol.
+import threading as _threading
+_warm_lock = _threading.Lock()
+_warming_years = set()  # years with a background warm in flight (dedupe)
 
-    Fast path: closed-year stats persisted on the stock row are returned instantly.
-    Cold path: compute the missing ones in PARALLEL (not one-by-one) and persist."""
+
+def _persist_stats_for(stocks, max_workers=2):
+    """Compute + persist stats for the given stock rows that lack them.
+    Low concurrency to avoid bars-SQLite write contention on the web pod.
+    Only valid (non-None) results are persisted, so transient fetch failures
+    retry on the next pass instead of sticking as a blank '—' forever."""
     import concurrent.futures
-
-    stocks = svc.get_stocks_for_year(year)
-    final = _is_final_year(year)
-    out = {}
-    to_compute = []
-    for s in stocks:
-        if final and s.get("oc_pct") is not None:
-            out[s["symbol"]] = {"open_close_pct": s["oc_pct"], "low_high_pct": s.get("lh_pct")}
-        else:
-            to_compute.append(s)
-
-    if to_compute:
-        def _work(s):
-            return s, _compute_year_stats(s["symbol"], year)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(6, len(to_compute))) as ex:
-            for s, st in ex.map(_work, to_compute):
-                out[s["symbol"]] = st
-                if final:
-                    try:
-                        svc.save_stats(s["id"], st.get("open_close_pct"), st.get("low_high_pct"))
-                    except Exception:
-                        pass
-
-    return {"year": year, "stats": out}
-
-
-def warm_all_stats() -> None:
-    """Background pre-warm: compute + persist year stats for every curated stock
-    in a closed year that doesn't have them yet, in parallel. Run at startup so
-    the gallery's gain column is instant for users instead of ~30s on first open.
-    A short delay lets the bars infrastructure settle first."""
-    import concurrent.futures
-    import time as _time
-    _time.sleep(20)
-    try:
-        stocks = svc.get_all_stocks()
-    except Exception:
-        return
-    pending = [s for s in stocks if _is_final_year(s["year"]) and s.get("oc_pct") is None]
+    pending = [s for s in stocks if s.get("oc_pct") is None]
     if not pending:
         return
 
     def _work(s):
         try:
             st = _compute_year_stats(s["symbol"], s["year"])
-            svc.save_stats(s["id"], st.get("open_close_pct"), st.get("low_high_pct"))
+            oc = st.get("open_close_pct")
+            if oc is not None:  # don't persist failures
+                svc.save_stats(s["id"], oc, st.get("low_high_pct"))
         except Exception:
             pass
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         list(ex.map(_work, pending))
+
+
+def _warm_year_async(year: int):
+    """Kick off a deduped background warm for one year. Non-blocking."""
+    with _warm_lock:
+        if year in _warming_years:
+            return
+        _warming_years.add(year)
+
+    def _run():
+        try:
+            _persist_stats_for(svc.get_stocks_for_year(year))
+        finally:
+            with _warm_lock:
+                _warming_years.discard(year)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-warm-{year}").start()
+
+
+@router.get("/year-stats")
+def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
+    """Per-stock year price stats (open→close %, low→high %), keyed by symbol.
+
+    ALWAYS instant: returns whatever is persisted on the stock rows (a plain DB
+    read). Anything not yet computed comes back null and is filled by a deduped
+    background warm — the frontend polls until it lands, then it's persisted
+    permanently (closed-year stats never change)."""
+    stocks = svc.get_stocks_for_year(year)
+    final = _is_final_year(year)
+    out = {}
+    missing = False
+    for s in stocks:
+        oc = s.get("oc_pct")
+        if oc is not None:
+            out[s["symbol"]] = {"open_close_pct": oc, "low_high_pct": s.get("lh_pct")}
+        else:
+            out[s["symbol"]] = {"open_close_pct": None, "low_high_pct": None}
+            missing = True
+    if missing and final:
+        _warm_year_async(year)
+    return {"year": year, "stats": out}
+
+
+def warm_all_stats() -> None:
+    """Background pre-warm at startup: compute + persist stats for every curated
+    stock in a closed year that lacks them. Low concurrency + a delay past the
+    startup bars-resync window so the gallery's gain column is ready before users
+    open the page. Re-checks once more after a longer delay to catch transients."""
+    import time as _time
+    for delay in (35, 120):
+        _time.sleep(delay)
+        try:
+            stocks = [s for s in svc.get_all_stocks() if _is_final_year(s["year"])]
+        except Exception:
+            continue
+        if all(s.get("oc_pct") is not None for s in stocks):
+            return  # fully warmed
+        _persist_stats_for(stocks, max_workers=2)
 
 
 # ── Writes (admin only) ───────────────────────────────────────────────────────
