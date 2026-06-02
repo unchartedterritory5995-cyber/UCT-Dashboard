@@ -365,6 +365,29 @@ export default function ModelBook() {
     mutateStocks()
   }
 
+  // Drag-resizable gallery sidebar (persisted), so long company names fit.
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const v = Number(localStorage.getItem('modelbook_panel_width'))
+    return v >= 220 && v <= 760 ? v : 340
+  })
+  function startResize(e) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = panelWidth
+    let finalW = startW
+    const onMove = ev => {
+      finalW = Math.min(760, Math.max(220, startW + (ev.clientX - startX)))
+      setPanelWidth(finalW)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try { localStorage.setItem('modelbook_panel_width', String(finalW)) } catch { /* ignore */ }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -387,7 +410,7 @@ export default function ModelBook() {
 
       <div className={styles.layout}>
         {/* Left — stock gallery */}
-        <div className={styles.listPanel}>
+        <div className={styles.listPanel} style={{ width: panelWidth, minWidth: panelWidth }}>
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
@@ -404,26 +427,26 @@ export default function ModelBook() {
                   <span className={styles.stockSym}>{s.symbol}</span>
                   {s.company && <span className={styles.stockName}>({s.company})</span>}
                   <div className={styles.cardStats}>
-                    <span className={styles.statChip}>
-                      <span className={styles.statLabel}>O→C</span>
-                      {st?.open_close_pct != null
-                        ? <span className={st.open_close_pct >= 0 ? styles.gain : styles.loss}>
-                            {st.open_close_pct >= 0 ? '+' : ''}{st.open_close_pct}%
-                          </span>
-                        : <span className={styles.statMuted}>—</span>}
-                    </span>
-                    <span className={styles.statChip}>
-                      <span className={styles.statLabel}>L→H</span>
-                      {st?.low_high_pct != null
-                        ? <span className={styles.range}>+{st.low_high_pct}%</span>
-                        : <span className={styles.statMuted}>—</span>}
-                    </span>
+                    {st?.open_close_pct != null
+                      ? <span className={`${styles.yearGain} ${st.open_close_pct >= 0 ? styles.gain : styles.loss}`}>
+                          {st.open_close_pct >= 0 ? '+' : ''}{st.open_close_pct}%
+                        </span>
+                      : <span className={styles.statMuted}>—</span>}
                   </div>
                 </div>
               </div>
             )
           })}
         </div>
+
+        {/* Drag to resize the gallery so long company names fit */}
+        <div
+          className={styles.resizer}
+          onMouseDown={startResize}
+          role="separator"
+          aria-orientation="vertical"
+          title="Drag to resize"
+        />
 
         {/* Right — chart + setups */}
         <div className={styles.detailPanel}>
