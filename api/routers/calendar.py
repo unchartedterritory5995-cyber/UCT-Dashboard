@@ -1090,4 +1090,47 @@ def get_enrichment(date: str | None = None):
             out[sym] = data
 
     cache.set(ck, out, ttl=_ENRICH_TTL)
+
+
+# ── D1: Read/unseen state endpoints ───────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+
+class _SeenPayload(_BaseModel):
+    item_type: str
+    item_key: str
+
+
+@router.get("/api/calendar/seen")
+def get_calendar_seen(
+    item_type: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Return the set of item_keys seen by the authenticated user.
+
+    Optional query param ``item_type`` scopes the result to a single type
+    (earnings | filing | ipo | recap | insight | news).  Omit to get all seen
+    keys across every type.
+
+    Response: { "seen": ["key1", "key2", ...] }
+    """
+    from api.services.calendar_seen import get_seen
+    seen = get_seen(user["id"], item_type=item_type)
+    return {"seen": list(seen)}
+
+
+@router.post("/api/calendar/seen")
+def post_calendar_seen(
+    payload: _SeenPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Mark a single calendar item as seen (idempotent).
+
+    Body: { "item_type": "earnings", "item_key": "AAPL:2026-06-02" }
+    Response: { "ok": true }
+    """
+    from api.services.calendar_seen import mark_seen
+    mark_seen(user["id"], payload.item_type, payload.item_key)
+    return {"ok": True}
     return out
