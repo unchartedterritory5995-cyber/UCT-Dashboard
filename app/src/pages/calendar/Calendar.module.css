@@ -945,6 +945,82 @@
   padding: 2px 7px;
 }
 
+/* ── B3: EventCard (IPO / Dividend / Split) ──────────────────────────────── */
+
+/* Shared base — overlays on top of .card */
+.evtCard {
+  position: relative;
+}
+
+/* IPO — subtle blue tint */
+.evtCardIpo {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.05), var(--cal-panel));
+}
+
+/* Dividend — subtle green tint */
+.evtCardDiv {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.04), var(--cal-panel));
+}
+
+/* Split — subtle gold tint */
+.evtCardSplit {
+  border-color: rgba(201, 168, 76, 0.3);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), var(--cal-panel));
+}
+
+/* Type tag badge (top-right corner) */
+.evtTypeTag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--cal-dim);
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* IPO status pills */
+.evtStatusPriced {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--cal-green);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.evtStatusExpected {
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--cal-gold);
+  border-color: rgba(201, 168, 76, 0.25);
+}
+
+.evtStatusFiled {
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--cal-blue);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+.evtStatusDefault {
+  background: rgba(255,255,255,0.06);
+  color: var(--cal-dim);
+  border-color: var(--cal-line2);
+}
+
+/* Event-type filter chips (in CalendarHeader fb row) — inherit .chip style */
+.chipEvtIpo:is(.chipOn) {
+  background: var(--cal-blue);
+  color: #051428;
+  border-color: var(--cal-blue);
+}
+.chipEvtDiv:is(.chipOn) {
+  background: var(--cal-green);
+  color: #051408;
+  border-color: var(--cal-green);
+}
+
 /* Mobile: force single column cards on narrow screens */
 @media (max-width: 640px) {
   .cards {

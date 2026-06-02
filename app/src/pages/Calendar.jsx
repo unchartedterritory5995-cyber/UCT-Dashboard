@@ -12,9 +12,11 @@ import {
   buildWeekDates,
   mergeEnrichment,
   isMine,
+  useIpos,
+  useDividends,
 } from './calendar/useCalendarData'
 import { DEFAULT_FILTERS } from './calendar/filterLogic'
-import CalendarHeader from './calendar/CalendarHeader'
+import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
@@ -107,6 +109,14 @@ export default function Calendar() {
   const setFilters = f => setPref('calendar_filters', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
 
+  // B3: event type filter — persisted as array (Set not JSON-serializable)
+  const _savedEventTypes = prefs.calendar_event_types
+  const eventTypes = useMemo(
+    () => _savedEventTypes ? new Set(_savedEventTypes) : DEFAULT_EVENT_TYPES,
+    [_savedEventTypes],
+  )
+  const setEventTypes = next => setPref('calendar_event_types', [...next])
+
   // Build stable weekDates array from API data
   const weekDates = useMemo(() => {
     if (!data) return []
@@ -114,6 +124,54 @@ export default function Calendar() {
       ? buildWeekDates(data.week_start)
       : Object.keys(data.days || {}).sort()
   }, [data])
+
+  // B3: fetch IPOs for the visible week range (only when chip enabled)
+  const weekFrom = weekDates.length ? weekDates[0] : null
+  const weekTo   = weekDates.length ? weekDates[weekDates.length - 1] : null
+  const { data: iposRaw } = useIpos(
+    eventTypes.has('ipos') ? weekFrom : null,
+    eventTypes.has('ipos') ? weekTo   : null,
+  )
+
+  // B3: Group IPOs by date for quick lookup in DayGroup
+  const iposByDate = useMemo(() => {
+    if (!iposRaw) return {}
+    const out = {}
+    for (const ev of iposRaw) {
+      const ds = ev.date
+      if (!ds) continue
+      if (!out[ds]) out[ds] = []
+      out[ds].push(ev)
+    }
+    return out
+  }, [iposRaw])
+
+  // B3: fetch dividends/splits for current week's visible tickers
+  // Use a stable comma-separated list of mySets tickers to avoid unbounded requests
+  const mySymsList = useMemo(() => {
+    if (!mySets) return null
+    const all = new Set()
+    for (const src of ALL_SOURCES) {
+      for (const s of (mySets[src] || [])) all.add(s)
+    }
+    return [...all].sort().join(',') || null
+  }, [mySets])
+  const { data: dividendsRaw } = useDividends(
+    eventTypes.has('dividends') ? mySymsList : null,
+  )
+
+  // B3: Group dividends/splits by date for quick lookup in DayGroup
+  const dividendsByDate = useMemo(() => {
+    if (!dividendsRaw) return {}
+    const out = {}
+    for (const ev of dividendsRaw) {
+      const ds = ev.date
+      if (!ds) continue
+      if (!out[ds]) out[ds] = []
+      out[ds].push(ev)
+    }
+    return out
+  }, [dividendsRaw])
 
   // ── Enrichment overlay (CORRECTION 1: single stable hook, never in a loop) ──
   // One SWR call fans out to all days and returns { [ds]: { SYM: {...} } }.
@@ -200,6 +258,8 @@ export default function Calendar() {
         setMySources={setMySources}
         monthCursor={monthCursor}
         setMonthCursor={setMonthCursor}
+        eventTypes={eventTypes}
+        setEventTypes={setEventTypes}
       />
 
       {view !== 'month' && <WeekSummary stats={summary} />}
@@ -211,6 +271,9 @@ export default function Calendar() {
             days={days}
             filters={filters}
             onSelect={onSelect}
+            eventTypes={eventTypes}
+            iposByDate={iposByDate}
+            dividendsByDate={dividendsByDate}
           />
         )}
         {view === 'week' && (

@@ -9,6 +9,16 @@ const AUDIENCE = [
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
 const SOURCES = [['watchlist','Watchlists'],['flagged','Flagged'],['positions','Positions'],['uct20','UCT20']]
 
+// B3: event-type chips — Earnings + Macro are always on (baseline); IPOs + Dividends are toggleable
+// eventTypes is a Set of enabled types: always includes 'earnings' and 'macro'.
+export const DEFAULT_EVENT_TYPES = new Set(['earnings', 'macro'])
+const EVENT_TYPE_CHIPS = [
+  ['earnings', 'Earnings'],
+  ['macro',    'Macro'],
+  ['ipos',     'IPOs'],
+  ['dividends','Dividends'],
+]
+
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
@@ -67,12 +77,25 @@ export default function CalendarHeader({
   mySources, setMySources,
   // Month nav (only shown when view === 'month')
   monthCursor, setMonthCursor,
+  // B3: event type filter (Set of enabled types)
+  eventTypes, setEventTypes,
 }) {
   const [gear, setGear] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
+
+  // B3: toggle an event type; 'earnings' and 'macro' cannot be disabled
+  const toggleEventType = type => {
+    if (!setEventTypes) return
+    const locked = type === 'earnings' || type === 'macro'
+    if (locked) return  // always on
+    const next = new Set(eventTypes || DEFAULT_EVENT_TYPES)
+    if (next.has(type)) next.delete(type)
+    else next.add(type)
+    setEventTypes(next)
+  }
 
   // A3: check if any metric filters are active
   const hasMetricFilters = !!(filters.minAvgVol || filters.priceMin || filters.priceMax)
@@ -131,6 +154,27 @@ export default function CalendarHeader({
         </span>
       </div>
       <div className={styles.fb}>
+        {/* B3: event-type chips — always show in feed/week view */}
+        {view !== 'month' && (
+          <>
+            {EVENT_TYPE_CHIPS.map(([type, lbl]) => {
+              const active = (eventTypes || DEFAULT_EVENT_TYPES).has(type)
+              const locked = type === 'earnings' || type === 'macro'
+              return (
+                <span
+                  key={type}
+                  className={`${styles.chip} ${active ? styles.chipOn : ''}`}
+                  style={locked ? { opacity: 1, cursor: 'default' } : {}}
+                  onClick={() => toggleEventType(type)}
+                  title={locked ? 'Always on' : active ? `Hide ${lbl}` : `Show ${lbl}`}
+                >
+                  {lbl}
+                </span>
+              )
+            })}
+            <span className={styles.sep} />
+          </>
+        )}
         {AUDIENCE.map(([k, lbl]) => (
           <span key={k} className={`${styles.chip} ${filters.audience === k ? styles.chipOn : ''}`}
                 onClick={() => set('audience', k)}>{lbl}</span>

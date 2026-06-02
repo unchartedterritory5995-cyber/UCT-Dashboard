@@ -98,3 +98,39 @@ export function useMonthCalendar(year, month) {
 }
 
 const _MONTH_REFRESH = 30 * 60 * 1000 // 30 min — matches backend TTL
+
+// ── B3: IPO calendar hook ─────────────────────────────────────────────────────
+
+/**
+ * useIpos(from, to) — SWR hook for GET /api/calendar/ipos?from=&to=
+ *
+ * Returns { data: [{ sym, name, date, exchange, price_range, shares, value, status }], ... }
+ * Null key when from/to are not yet known → SWR skips.
+ * Cached 6 h on the server; client refreshes every 30 min.
+ */
+export function useIpos(from, to) {
+  const key = from && to ? `/api/calendar/ipos?from=${from}&to=${to}` : null
+  return useSWR(key, fetcher, {
+    refreshInterval: 30 * 60 * 1000,
+    revalidateOnFocus: false,
+  })
+}
+
+// ── B3: Dividends/splits hook ─────────────────────────────────────────────────
+
+/**
+ * useDividends(syms) — SWR hook for GET /api/calendar/dividends?syms=A,B,...
+ *
+ * syms: comma-separated string OR null (→ uses server-side My-Stocks default).
+ * Returns { data: [{ sym, type, date, amount?, ratio? }], ... }
+ * Cached 12 h on the server; client refreshes every 30 min.
+ */
+export function useDividends(syms) {
+  const url = syms
+    ? `/api/calendar/dividends?syms=${syms}`
+    : '/api/calendar/dividends'
+  return useSWR(url, fetcher, {
+    refreshInterval: 30 * 60 * 1000,
+    revalidateOnFocus: false,
+  })
+}

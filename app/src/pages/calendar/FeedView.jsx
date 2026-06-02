@@ -2,12 +2,14 @@
 import { useMemo } from 'react'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import EarningsCard from './EarningsCard'
+import EventCard from './EventCard'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
 import { useReactions, useDayMetrics } from './useCalendarData'
+import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
 
-function DayGroup({ ds, day, filters, onSelect }) {
+function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay }) {
   const bmo = (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' }))
   const amc = (day.amc || []).map(e => ({ ...e, _timing: 'amc' }))
 
@@ -37,7 +39,27 @@ function DayGroup({ ds, day, filters, onSelect }) {
   const syms = useMemo(() => entries.map(e => e.sym), [entries])
   const { prices } = useRealtimePrices(syms)
   const { data: reactions } = useReactions(ds)
-  if (!entries.length && !(day.econ?.length || day.fed?.length)) return null
+
+  // B3: effective event types (default set when prop not provided)
+  const activeTypes = eventTypes || DEFAULT_EVENT_TYPES
+
+  // B3: IPO events for this day (only when chip is on)
+  const ipoEvents = useMemo(() => {
+    if (!activeTypes.has('ipos') || !iposForDay) return []
+    return iposForDay.map(ev => ({ ...ev, type: 'ipo' }))
+  }, [activeTypes, iposForDay])
+
+  // B3: dividend + split events for this day (only when chip is on)
+  const divEvents = useMemo(() => {
+    if (!activeTypes.has('dividends') || !dividendsForDay) return []
+    return dividendsForDay
+  }, [activeTypes, dividendsForDay])
+
+  const hasEarnings = entries.length > 0
+  const hasMacro    = !!(day.econ?.length || day.fed?.length)
+  const hasEvents   = ipoEvents.length > 0 || divEvents.length > 0
+
+  if (!hasEarnings && !hasMacro && !hasEvents) return null
 
   const mineN = entries.filter(e => e.mine).length
   return (
@@ -51,23 +73,39 @@ function DayGroup({ ds, day, filters, onSelect }) {
       <MacroBand econ={day.econ} fed={day.fed} />
       <div className={styles.cards}>
         {entries.map(e => (
-          <EarningsCard key={e.sym} entry={e} timing={e._timing}
+          <EarningsCard key={`earn-${e.sym}`} entry={e} timing={e._timing}
             livePrice={prices[e.sym]?.price}
             liveSnap={prices[e.sym] ?? null}
             reaction={reactions?.[e.sym]}
             onSelect={onSelect} />
+        ))}
+        {/* B3: IPO event cards interleaved */}
+        {ipoEvents.map((ev, i) => (
+          <EventCard key={`ipo-${ev.sym || i}`} event={ev} />
+        ))}
+        {/* B3: dividend + split event cards interleaved */}
+        {divEvents.map((ev, i) => (
+          <EventCard key={`div-${ev.sym}-${ev.type}-${i}`} event={ev} />
         ))}
       </div>
     </div>
   )
 }
 
-export default function FeedView({ weekDates, days, filters, onSelect }) {
+export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate }) {
   return (
     <div className={styles.feed}>
       {weekDates.map(ds => days[ds]
-        ? <DayGroup key={ds} ds={ds} day={days[ds]} filters={filters}
-            onSelect={onSelect} /> : null)}
+        ? <DayGroup
+            key={ds}
+            ds={ds}
+            day={days[ds]}
+            filters={filters}
+            onSelect={onSelect}
+            eventTypes={eventTypes}
+            iposForDay={iposByDate?.[ds] || null}
+            dividendsForDay={dividendsByDate?.[ds] || null}
+          /> : null)}
     </div>
   )
 }
