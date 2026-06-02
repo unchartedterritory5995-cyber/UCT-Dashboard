@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import useBreadthViews, { STORAGE_KEY, DEFAULT_PRESET, DEFAULT_STYLE, STYLES } from './useBreadthViews'
 
 const ALL = [
@@ -8,7 +8,10 @@ const ALL = [
   'pct_above_20ema','vix',
 ].map(k => ({ key: k, label: k, group: 'G', polarity: 'bull' }))
 
-const render = () => renderHook(() => useBreadthViews(ALL))
+// Default: a logged-out-style stub (empty server, no-op writer) so existing
+// behavioral tests stay hermetic and deterministic.
+const stubPrefs = (over = {}) => () => ({ prefs: {}, setPref: () => {}, loading: false, ...over })
+const render = (usePrefs = stubPrefs()) => renderHook(() => useBreadthViews(ALL, usePrefs))
 
 beforeEach(() => localStorage.clear())
 
@@ -125,5 +128,47 @@ describe('useBreadthViews v2', () => {
     const { result } = render()
     expect(result.current.activePreset).toBe(DEFAULT_PRESET)
     expect(STYLES.length).toBe(8)
+  })
+})
+
+describe('useBreadthViews server sync', () => {
+  it('adopts the server config on first load (server wins)', () => {
+    const serverCfg = {
+      viewStyle: 'radar',
+      byView: { radar: { activePreset: 'Srv', presets: { Srv: { visible: ['breadth_score'], options: {} } } } },
+    }
+    const usePrefs = () => ({ prefs: { breadth_views_config: serverCfg }, setPref: () => {}, loading: false })
+    const { result } = render(usePrefs)
+    expect(result.current.viewStyle).toBe('radar')
+    expect(result.current.presetNames).toContain('Srv')
+  })
+
+  it('does not adopt while prefs are still loading', () => {
+    const usePrefs = () => ({ prefs: {}, setPref: () => {}, loading: true })
+    const { result } = render(usePrefs)
+    // stays on local default; no crash
+    expect(result.current.viewStyle).toBe('treemap')
+  })
+
+  it('pushes local presets up to the server when the server is empty', () => {
+    // seed a local custom preset first
+    localStorage.setItem('uct.breadth.views.v2', JSON.stringify({
+      viewStyle: 'meters',
+      byView: { meters: { activePreset: 'Local', presets: { Local: { visible: ['vix'], options: {} } } } },
+    }))
+    const setPref = vi.fn()
+    const usePrefs = () => ({ prefs: {}, setPref, loading: false })
+    render(usePrefs)
+    expect(setPref).toHaveBeenCalledWith('breadth_views_config', expect.objectContaining({ viewStyle: 'meters' }))
+  })
+
+  it('writes saves through to the server after hydration', async () => {
+    const setPref = vi.fn()
+    const usePrefs = () => ({ prefs: {}, setPref, loading: false })
+    const { result } = render(usePrefs)
+    setPref.mockClear()  // ignore any migrate-up call
+    act(() => result.current.setViewStyle('radar'))
+    act(() => result.current.savePreset('New'))
+    await waitFor(() => expect(setPref).toHaveBeenCalledWith('breadth_views_config', expect.objectContaining({ viewStyle: 'radar' })))
   })
 })

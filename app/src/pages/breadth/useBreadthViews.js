@@ -10,12 +10,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   STYLES, VIEW_CONFIG, resolveDefaultVisible, optionDefaults,
 } from './views/viewMetricConfig'
+import usePreferences from '../../hooks/usePreferences'
 
 export const STORAGE_KEY = 'uct.breadth.views.v2'
 export const V1_KEY = 'uct.breadth.views.v1'
 export const DEFAULT_PRESET = 'Default'
 export const DEFAULT_STYLE = 'treemap'
 export const NAME_MAX = 40
+export const PREF_KEY = 'breadth_views_config'
 export { STYLES }
 
 const isStyle = (s) => STYLES.includes(s)
@@ -97,39 +99,67 @@ function loadFromStorage() {
   }
 }
 
-function writeToStorage(state) {
-  try {
-    const byView = {}
-    for (const s of STYLES) {
-      const v = state.byView[s]
-      const presets = {}
-      for (const [name, p] of Object.entries(v.presets)) {
-        const out = { options: p.options ?? {} }
-        if (p.visible) out.visible = p.visible           // materialized preset
-        else if (p.hidden) out.hidden = p.hidden          // migrated, not yet edited
-        else out.visible = []
-        presets[name] = out
-      }
-      byView[s] = { activePreset: v.activePreset, presets }
+function serializeState(state) {
+  const byView = {}
+  for (const s of STYLES) {
+    const v = state.byView[s]
+    const presets = {}
+    for (const [name, p] of Object.entries(v.presets)) {
+      const out = { options: p.options ?? {} }
+      if (p.visible) out.visible = p.visible
+      else if (p.hidden) out.hidden = p.hidden
+      else out.visible = []
+      presets[name] = out
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ viewStyle: state.viewStyle, byView }))
-  } catch { /* best-effort */ }
+    byView[s] = { activePreset: v.activePreset, presets }
+  }
+  return { viewStyle: state.viewStyle, byView }
 }
 
-export default function useBreadthViews(allMetrics = []) {
+function writeToStorage(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state))) } catch { /* best-effort */ }
+}
+
+export default function useBreadthViews(allMetrics = [], usePrefs = usePreferences) {
   const [state, setState] = useState(() => loadFromStorage())
+  const { prefs, setPref, loading } = usePrefs()
 
   const stateRef = useRef(state)
+  const hydratedRef = useRef(false)
   const writeTimer = useRef(null)
+
+  // Persist on change: localStorage always; server once hydrated.
   useEffect(() => {
     stateRef.current = state
     if (writeTimer.current) clearTimeout(writeTimer.current)
-    writeTimer.current = setTimeout(() => writeToStorage(stateRef.current), 150)
-  }, [state])
+    writeTimer.current = setTimeout(() => {
+      writeToStorage(stateRef.current)
+      if (hydratedRef.current) {
+        try { setPref(PREF_KEY, serializeState(stateRef.current)) } catch { /* best-effort */ }
+      }
+    }, 150)
+  }, [state, setPref])
+
+  // Flush local on unmount (server flush skipped to avoid post-unmount writes).
   useEffect(() => () => {
     if (writeTimer.current) clearTimeout(writeTimer.current)
     writeToStorage(stateRef.current)
   }, [])
+
+  // Hydrate once from the server (server wins); else migrate local presets up.
+  useEffect(() => {
+    if (hydratedRef.current || loading) return
+    hydratedRef.current = true
+    const remote = prefs?.[PREF_KEY]
+    if (remote && typeof remote === 'object' && remote.byView) {
+      const viewStyle = isStyle(remote.viewStyle) ? remote.viewStyle : DEFAULT_STYLE
+      setState({ viewStyle, byView: sanitizeByView(remote.byView) })
+    } else {
+      const serial = serializeState(stateRef.current)
+      const hasCustom = STYLES.some(s => Object.keys(serial.byView[s].presets).length > 0)
+      if (hasCustom) { try { setPref(PREF_KEY, serial) } catch { /* best-effort */ } }
+    }
+  }, [loading, prefs, setPref])
 
   const viewStyle = state.viewStyle
   const view = state.byView[viewStyle] ?? { activePreset: DEFAULT_PRESET, presets: {} }
