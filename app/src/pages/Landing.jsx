@@ -3,6 +3,59 @@ import { useEffect, useRef, useState } from 'react'
 import useInView from '../hooks/useIntersectionObserver'
 import styles from './Landing.module.css'
 
+// Returns the current US-market session label for the hero eyebrow.
+// Honest, time-aware, no fake data — purely based on the visitor's clock
+// projected into America/New_York.
+function getMarketStatus(now = new Date()) {
+  // Convert "now" to ET wall-clock parts.
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour12: false,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const parts = fmt.formatToParts(now).reduce((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value
+    return acc
+  }, {})
+  const weekday = parts.weekday              // e.g. "Mon"
+  const hour    = parseInt(parts.hour, 10)
+  const minute  = parseInt(parts.minute, 10)
+  const mins    = hour * 60 + minute
+
+  const PREMARKET_OPEN = 4 * 60          // 04:00 ET
+  const REG_OPEN       = 9 * 60 + 30     // 09:30 ET
+  const REG_CLOSE      = 16 * 60         // 16:00 ET
+  const POSTMARKET_END = 20 * 60         // 20:00 ET
+
+  const isWeekend = weekday === 'Sat' || weekday === 'Sun'
+  if (isWeekend) return { label: 'Markets closed · Reopen Monday', tone: 'closed' }
+
+  if (mins < PREMARKET_OPEN || mins >= POSTMARKET_END) {
+    const tilOpen = mins < PREMARKET_OPEN
+      ? PREMARKET_OPEN - mins
+      : (24 * 60 - mins) + PREMARKET_OPEN
+    const h = Math.floor(tilOpen / 60)
+    const m = tilOpen % 60
+    return { label: `Markets closed · Pre-market in ${h}h ${m}m`, tone: 'closed' }
+  }
+  if (mins < REG_OPEN) {
+    const tilOpen = REG_OPEN - mins
+    const h = Math.floor(tilOpen / 60)
+    const m = tilOpen % 60
+    return { label: `Pre-market · Open in ${h}h ${m}m`, tone: 'pre' }
+  }
+  if (mins < REG_CLOSE) {
+    const tilClose = REG_CLOSE - mins
+    const h = Math.floor(tilClose / 60)
+    const m = tilClose % 60
+    return { label: `Markets open · Close in ${h}h ${m}m`, tone: 'open' }
+  }
+  // Post-market
+  return { label: 'Post-market · Closed at 4:00 PM ET', tone: 'post' }
+}
+
 function FadeIn({ children, delay = 0, className = '' }) {
   const [ref, isInView] = useInView()
   return (
@@ -38,6 +91,15 @@ const FEATURES = [
 
 export default function Landing() {
   const [billing, setBilling] = useState('monthly') // 'monthly' | 'annual'
+  const [marketStatus, setMarketStatus] = useState(() => getMarketStatus())
+
+  // Refresh market status every 60s so the countdown stays accurate
+  // without re-rendering more than necessary.
+  useEffect(() => {
+    const id = setInterval(() => setMarketStatus(getMarketStatus()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   const pathRef          = useRef(null)
   const drawnRef         = useRef(null)
   const fillClipRectRef  = useRef(null)
@@ -46,6 +108,7 @@ export default function Landing() {
   const counterDeltaRef  = useRef(null)
   const counterBgRef     = useRef(null)
   const markerRectRef    = useRef(null)
+  const needleRef        = useRef(null)
 
   useEffect(() => {
     const path         = pathRef.current
@@ -58,6 +121,11 @@ export default function Landing() {
     const markerRect   = markerRectRef.current
     if (!path || !drawn || !markerGroup) return
 
+    // Approximate viewBox coords for the compass center (it lives over the
+    // left side of the hero). Used by the needle-tracks-marker effect.
+    const COMPASS_X = 220
+    const COMPASS_Y = 320
+
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduceMotion) {
       fillClipRect.setAttribute('width', '1200')
@@ -66,6 +134,12 @@ export default function Landing() {
       markerGroup.setAttribute('transform', 'translate(1130 90)')
       counterVal.textContent = '$36,000'
       counterDel.textContent = '+$28,000 · 350%'
+      if (needleRef.current) {
+        const dx = 1130 - COMPASS_X
+        const dy = 90 - COMPASS_Y
+        const deg = Math.atan2(dx, -dy) * (180 / Math.PI)
+        needleRef.current.style.transform = `rotate(${deg}deg)`
+      }
       return
     }
 
@@ -120,6 +194,14 @@ export default function Landing() {
 
       markerGroup.setAttribute('transform', `translate(${pt.x} ${pt.y})`)
       markerGroup.setAttribute('opacity', String(opacity))
+
+      // Needle points at the marker — unifies compass + equity curve
+      if (needleRef.current && opacity > 0) {
+        const dx = pt.x - COMPASS_X
+        const dy = pt.y - COMPASS_Y
+        const deg = Math.atan2(dx, -dy) * (180 / Math.PI)
+        needleRef.current.style.transform = `rotate(${deg}deg)`
+      }
 
       const val = START_VAL + (END_VAL - START_VAL) * progress
       counterVal.textContent = fmt(val)
@@ -265,14 +347,14 @@ export default function Landing() {
         <div className={styles.heroInner}>
           <div className={styles.compassWrap}>
             <div className={styles.compass}>
-              <div className={styles.needle} />
+              <div ref={needleRef} className={styles.needle} />
             </div>
           </div>
 
           <div className={styles.heroBody}>
-            <div className={styles.heroEyebrow}>
+            <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]}`}>
               <span className={styles.eyebrowDot} />
-              Trading intelligence
+              {marketStatus.label}
             </div>
             <h1 className={styles.heroH1}>UCT Intelligence</h1>
             <p className={styles.heroTagline}>Navigate the market, effectively.</p>

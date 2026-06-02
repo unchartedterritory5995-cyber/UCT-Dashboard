@@ -232,13 +232,11 @@
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
   z-index: 2;
   position: relative;
-  transform: rotate(22deg);
+  transform: rotate(20deg);
   transform-origin: center;
-  animation: needleWobble 8s ease-in-out infinite;
-}
-@keyframes needleWobble {
-  0%, 100% { transform: rotate(22deg); }
-  50%      { transform: rotate(19deg); }
+  /* Smoothly interpolates between JS-driven angles each frame, so reset
+     and small jitters glide instead of snapping. */
+  transition: transform 0.18s ease-out;
 }
 .needle::after {
   content: '';
@@ -260,16 +258,58 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  font-weight: 500;
-  color: var(--gold);
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   margin-bottom: 18px;
-  padding: 4px 10px 4px 8px;
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  padding: 5px 12px 5px 10px;
   border-radius: 999px;
+  /* Tone-specific colors set by tone modifiers below */
+  color: var(--gold);
+  border: 1px solid rgba(201, 168, 76, 0.3);
   background: rgba(201, 168, 76, 0.06);
 }
+
+/* Markets open — green */
+.heroEyebrow_open {
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.08);
+}
+.heroEyebrow_open .eyebrowDot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+/* Pre-market — gold (the default) */
+.heroEyebrow_pre {
+  color: var(--gold);
+  border-color: rgba(201, 168, 76, 0.35);
+  background: rgba(201, 168, 76, 0.08);
+}
+.heroEyebrow_pre .eyebrowDot { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+/* Post-market — cooler gold/dim */
+.heroEyebrow_post {
+  color: var(--gold-dim);
+  border-color: rgba(154, 138, 90, 0.3);
+  background: rgba(154, 138, 90, 0.06);
+}
+.heroEyebrow_post .eyebrowDot {
+  background: var(--gold-dim);
+  box-shadow: 0 0 4px var(--gold-dim);
+  animation: none;
+}
+
+/* Markets closed — muted, no pulse */
+.heroEyebrow_closed {
+  color: var(--text-mute);
+  border-color: rgba(107, 114, 128, 0.3);
+  background: rgba(107, 114, 128, 0.06);
+}
+.heroEyebrow_closed .eyebrowDot {
+  background: var(--text-mute);
+  box-shadow: none;
+  animation: none;
+}
+
 .eyebrowDot {
   width: 6px;
   height: 6px;
