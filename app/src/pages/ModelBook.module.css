@@ -52,6 +52,10 @@
 .stockName { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .stockGain { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
 .cardStats { margin-left: auto; flex: none; display: flex; align-items: center; }
+.cardAdmin { display: flex; gap: 4px; margin-left: 8px; flex: none; }
+.cardAdminBtn { font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 2px 6px; border-radius: 3px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
+.cardAdminBtn:hover { color: var(--ut-gold); border-color: rgba(201,168,76,0.4); }
+.cardAdminDel:hover { color: #e74c3c; border-color: rgba(231,76,60,0.4); }
 .yearGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
 .statMuted { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; }
 .stockCompany { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }

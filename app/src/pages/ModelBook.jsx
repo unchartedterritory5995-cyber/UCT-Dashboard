@@ -408,6 +408,25 @@ export default function ModelBook() {
     mutateStocks()
   }
 
+  async function deleteStock(id) {
+    if (!window.confirm('Remove this stock from the Model Book?')) return
+    await fetch(`/api/modelbook/stock/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (id === selectedId) setSelectedId(null)
+    mutateStocks()
+    mutateYears()
+  }
+
+  async function editCompany(s) {
+    const name = window.prompt(`Company name for ${s.symbol}:`, s.company || '')
+    if (name == null) return
+    await fetch(`/api/modelbook/stock/${s.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company: name.trim() }),
+    })
+    mutateStocks()
+  }
+
   // Keyboard ↑/↓ to move through the (sorted) stock list. A ref holds the latest
   // list + selection so the listener is bound once, not re-subscribed per change.
   const navRef = useRef({ list: [], id: null })
@@ -511,6 +530,14 @@ export default function ModelBook() {
                         </span>
                       : <span className={styles.statMuted}>—</span>}
                   </div>
+                  {isAdmin && (
+                    <span className={styles.cardAdmin}>
+                      <button className={styles.cardAdminBtn} title="Edit company name"
+                        onClick={e => { e.stopPropagation(); editCompany(s) }}>✎</button>
+                      <button className={`${styles.cardAdminBtn} ${styles.cardAdminDel}`} title="Remove stock"
+                        onClick={e => { e.stopPropagation(); deleteStock(s.id) }}>✕</button>
+                    </span>
+                  )}
                 </div>
               </div>
             )
