@@ -2,6 +2,7 @@
 import CompanyLogo from '../../components/CompanyLogo'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
+import { FwdPeChip } from '../../components/calendar/FundamentalsStrip'
 import styles from './Calendar.module.css'
 
 function fmtEps(v) { return v == null ? '—' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
@@ -40,12 +41,24 @@ function fmtCountdown(timeEt) {
   }
 }
 
+// C6: Format hist_stats for display on card
+function fmtHistStats(hs) {
+  if (!hs) return null
+  const { avg_abs_move, up_count, total, last_n } = hs
+  if (avg_abs_move == null || total == null) return null
+  const n = last_n ?? total
+  const upStr = up_count != null ? ` · up ${up_count}/${total}` : ''
+  return `avg ±${avg_abs_move.toFixed(1)}% over ${n}${upStr}`
+}
+
 export default function EarningsCard({ entry, timing, livePrice, liveSnap, reaction, onSelect }) {
   const reported = entry.eps_act != null
   const beats = (entry.beat_history || []).slice(0, 4).reverse()
   const beatCount = beats.filter(b => b.beat === true).length
   const em = entry.expected_move?.pct
   const px = livePrice != null ? `$${livePrice.toFixed(2)}` : '—'
+  // C6: hist_stats from enrichment
+  const histStatsLabel = fmtHistStats(entry.hist_stats)
 
   // A4: Extended-hours price — only shown when regular session is closed
   const extPrice   = liveSnap?.ext_price ?? null
@@ -79,6 +92,8 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               </span>
               {reported && <span className={styles.beatPill}>{
                 surprise(entry.eps_act, entry.eps_est)?.startsWith('-') ? 'MISS' : 'BEAT'}</span>}
+              {/* C1: Fwd P/E chip — lazy via useFundamentals */}
+              <FwdPeChip ticker={entry.sym} />
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>
@@ -113,6 +128,13 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {em != null && (
               <div className={styles.emv}><span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
             )}
+            {/* C6: Historical post-earnings reaction stats (pending cards too) */}
+            {histStatsLabel && (
+              <div className={styles.histStats}>
+                <span className={styles.dim}>Hist reactions</span>
+                <span className={styles.histStatsVal}>{histStatsLabel}</span>
+              </div>
+            )}
             {beats.length > 0 && (
               <div className={styles.hist}>
                 {beats.map((b, i) => (
@@ -135,6 +157,13 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               <div className={styles.react}><span className={styles.dim}>Post-print gap</span>
                 <span className={reaction >= 0 ? styles.pos : styles.neg}>
                   {reaction >= 0 ? '▲ +' : '▼ '}{reaction.toFixed(1)}%</span></div>
+            )}
+            {/* C6: Historical post-earnings reaction stats */}
+            {histStatsLabel && (
+              <div className={styles.histStats}>
+                <span className={styles.dim}>Hist reactions</span>
+                <span className={styles.histStatsVal}>{histStatsLabel}</span>
+              </div>
             )}
             {/* A4: EXT price also shown on reported cards during ext hours */}
             {showExt && (
