@@ -33,6 +33,7 @@
 .stockCardTop { display: flex; align-items: center; gap: 8px; }
 .rank { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .stockSym { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.stockName { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .stockGain { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
 .setupCount { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .stockCompany { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
