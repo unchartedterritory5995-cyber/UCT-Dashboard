@@ -1,0 +1,120 @@
+/* SentimentGauge.module.css */
+
+.wrap {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.7;
+  flex: 1;
+}
+
+.scoreNum {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.labelPill {
+  font-family: var(--font-mono, monospace);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 5px);
+  border: 1px solid;
+}
+
+.labelBull {
+  color: var(--gain, #4ade80);
+  border-color: var(--gain-border, rgba(74,222,128,0.3));
+  background: var(--gain-bg, rgba(74,222,128,0.08));
+}
+
+.labelBear {
+  color: var(--loss, #f87171);
+  border-color: var(--loss-border, rgba(248,113,113,0.3));
+  background: var(--loss-bg, rgba(248,113,113,0.08));
+}
+
+.labelNeutral {
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: rgba(255,255,255,0.04);
+}
+
+/* Gauge bar */
+.barTrack {
+  position: relative;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barCenter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(255,255,255,0.2);
+}
+
+.barFill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.barBull { background: var(--gain, #4ade80); opacity: 0.75; }
+.barBear { background: var(--loss, #f87171); opacity: 0.75; }
+.barNeutral { background: rgba(201,168,76,0.6); }
+
+.barLabels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono, monospace);
+  font-size: 8px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.rationale {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.drivers {
+  list-style: disc;
+  padding-left: 14px;
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
