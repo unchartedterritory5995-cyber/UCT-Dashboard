@@ -127,11 +127,12 @@ def get_drill_list(date_str: str, metric_key: str):
 
 @router.post("/api/breadth/industries")
 async def breadth_industries(request: Request):
-    """Map a list of tickers → GICS industry for the drill-down "group by" view.
+    """Map a list of tickers → industry for the drill-down "group by" view.
 
-    Non-blocking: returns cached industries instantly; cold-cache tickers come
-    back null and are warmed in the background for the next call. Read-only,
-    same auth posture as the drill GET.
+    Backed by the universe-wide industry_map (Finviz-seeded, persisted) so the
+    whole market is classified — not just the lazy catalyst cache. Non-blocking:
+    returns the persisted map instantly; rare stragglers come back null and are
+    warmed in the background. Read-only, same posture as the drill GET.
 
     Body: {"tickers": ["NVDA", ...]}  →  {"industries": {"NVDA": "Semiconductors", ...}}
     """
@@ -144,14 +145,36 @@ async def breadth_industries(request: Request):
         raise HTTPException(status_code=400, detail="tickers must be a list")
     tickers = [str(t).upper() for t in tickers if t][:500]  # cap per call
     try:
-        from api.services.catalyst.ticker_metadata import get_industries_nonblocking
-        industries = get_industries_nonblocking(tickers)
+        from api.services import industry_map
+        industries = industry_map.get_industries(tickers)
     except Exception as e:
         # Never break the drill modal over enrichment — degrade to ungrouped.
         import logging
         logging.getLogger(__name__).warning("[breadth] industries lookup failed: %s", e)
         industries = {t: None for t in tickers}
     return {"industries": industries}
+
+
+@router.get("/api/breadth/industries/status")
+def breadth_industries_status():
+    """Coverage diagnostics for the universe industry map."""
+    try:
+        from api.services import industry_map
+        return industry_map.status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/breadth/industries/refresh")
+def breadth_industries_refresh(request: Request):
+    """Force a full Finviz bulk refresh of the industry map (admin)."""
+    _check_auth(request)
+    try:
+        from api.services import industry_map
+        n = industry_map.bulk_refresh_from_finviz()
+        return {"refreshed": n}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/api/breadth-monitor/{date_str}/field")

@@ -481,6 +481,25 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
+def _start_industry_map_background(delay_seconds: int = 75) -> None:
+    """Prewarm the universe industry map (Finviz bulk) so the breadth drill
+    "group by industry" view classifies every mover from the first open.
+
+    One Finviz Elite export (~11k rows) populates the persisted map. Delayed so
+    it doesn't compete with bar warmers at boot; self-heals on request if empty.
+    """
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        try:
+            from api.services import industry_map
+            industry_map.prewarm()
+        except Exception:
+            logging.getLogger(__name__).exception("[startup] industry-map prewarm failed")
+    threading.Thread(target=_delayed, daemon=True, name="industry-map-warmer").start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -617,6 +636,12 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
+
+    try:
+        _start_industry_map_background()
+        logging.getLogger(__name__).info("[startup] industry-map prewarm scheduled (~75s after boot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
 
     try:
         _start_deploy_smoke_background()

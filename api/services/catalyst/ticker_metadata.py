@@ -12,7 +12,6 @@ import os
 import sqlite3
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -148,61 +147,3 @@ def get_metadata_batch(tickers: list[str]) -> dict[str, dict]:
     calls aren't reliable, and we only enrich ~30-50 tickers per refresh).
     """
     return {t.upper(): get_metadata(t) for t in tickers}
-
-
-# ── Non-blocking industry lookup (breadth drill grouping) ───────────────────
-# Drill lists can hold 90+ tickers; get_metadata() blocks on cold yfinance
-# .info calls (~1-2s each, rate-limited). For the breadth "group by industry"
-# view we read cache-only and warm misses on a bounded background pool so the
-# drill modal never stalls. Mirrors api/routers/ticker_search.py's name
-# backfill. Misses resolve on the next modal open (frontend also retries once).
-_INDUSTRY_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ind-bf")
-_INDUSTRY_INFLIGHT: set = set()
-_INDUSTRY_BF_LOCK = threading.Lock()
-_INDUSTRY_BF_CAP = 8  # max in-flight backfills at once
-
-
-def _enqueue_industry_backfill(ticker: str) -> None:
-    """Fire-and-forget: warm the metadata cache so the next lookup sees an industry."""
-    with _INDUSTRY_BF_LOCK:
-        if ticker in _INDUSTRY_INFLIGHT or len(_INDUSTRY_INFLIGHT) >= _INDUSTRY_BF_CAP:
-            return
-        _INDUSTRY_INFLIGHT.add(ticker)
-
-    def _job():
-        try:
-            get_metadata(ticker)  # fetches + caches; safe + idempotent
-        except Exception as e:
-            logger.info("[ticker_metadata] industry backfill %s failed: %s", ticker, e)
-        finally:
-            with _INDUSTRY_BF_LOCK:
-                _INDUSTRY_INFLIGHT.discard(ticker)
-
-    try:
-        _INDUSTRY_POOL.submit(_job)
-    except Exception:
-        with _INDUSTRY_BF_LOCK:
-            _INDUSTRY_INFLIGHT.discard(ticker)
-
-
-def get_industries_nonblocking(tickers: list[str]) -> dict[str, Optional[str]]:
-    """Return {TICKER: industry|None} for a list of tickers WITHOUT blocking.
-
-    Reads cache only — cache-misses come back None and are queued to a bounded
-    background pool that warms them for the next call. Safe to call on large
-    drill lists; never hits the network on the request path.
-    """
-    out: dict[str, Optional[str]] = {}
-    for raw in tickers:
-        if not raw:
-            continue
-        t = str(raw).upper()
-        if t in out:
-            continue
-        cached = _get_cached(t)
-        if cached:
-            out[t] = cached.get("industry")
-        else:
-            out[t] = None
-            _enqueue_industry_backfill(t)
-    return out

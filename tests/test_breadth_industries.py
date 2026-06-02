@@ -1,7 +1,9 @@
-"""Tests for the breadth drill-down "group by industry" enrichment.
+"""Tests for the universe industry map behind the breadth "group by industry"
+drill view, plus the POST /api/breadth/industries endpoint.
 
-Covers the non-blocking industry lookup (cache-only read + bounded backfill)
-and the POST /api/breadth/industries endpoint shape + 500-ticker cap.
+The Finviz bulk fetch is stubbed — no network. Verifies the map seeds from a
+bulk source, classifies the whole list, returns None + warms a fallback for
+stragglers, and never blocks on the request path.
 """
 import os
 import tempfile
@@ -10,56 +12,93 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.services.catalyst import ticker_metadata as tm
+from api.services import industry_map as im
+
+
+FAKE_FINVIZ = [
+    {"Ticker": "NVDA", "Company": "NVIDIA Corp", "Sector": "Technology", "Industry": "Semiconductors"},
+    {"Ticker": "AMD", "Company": "Advanced Micro Devices", "Sector": "Technology", "Industry": "Semiconductors"},
+    {"Ticker": "XOM", "Company": "Exxon Mobil", "Sector": "Energy", "Industry": "Oil & Gas Integrated"},
+    {"Ticker": "", "Company": "junk row", "Sector": "X", "Industry": "Y"},  # skipped
+]
 
 
 @pytest.fixture
-def meta(monkeypatch):
-    """Point ticker_metadata at a fresh temp DB."""
+def imap(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
-        monkeypatch.setattr(tm, "_DB_PATH", os.path.join(d, "meta.db"))
-        monkeypatch.setattr(tm, "_INIT_DONE", False)
-        # Never hit the network in tests.
-        monkeypatch.setattr(tm, "_fetch_via_yfinance",
-                            lambda t: {"sector": None, "industry": None,
-                                       "market_cap": None, "avg_volume_30d": None})
-        tm._init_db()
-        yield tm
+        monkeypatch.setattr(im, "_DB_PATH", os.path.join(d, "industry_map.db"))
+        monkeypatch.setattr(im, "_INIT_DONE", False)
+        monkeypatch.setattr(im, "_LAST_REFRESH_AT", 0.0)
+        # Stub the bulk source + fallback so nothing hits the network.
+        monkeypatch.setattr(im, "_fetch_finviz_universe", lambda: list(FAKE_FINVIZ))
+        monkeypatch.setattr(im, "_maybe_self_heal", lambda: None)
+        im._init_db()
+        yield im
 
 
-def test_cached_industry_returned(meta):
-    meta._put_cache("NVDA", "Technology", "Semiconductors", None, None)
-    out = meta.get_industries_nonblocking(["NVDA"])
+def test_bulk_refresh_seeds_map(imap):
+    n = imap.bulk_refresh_from_finviz()
+    assert n == 3  # junk empty-ticker row skipped
+    assert imap._count() == 3
+
+
+def test_get_industries_classifies_from_map(imap):
+    imap.bulk_refresh_from_finviz()
+    out = imap.get_industries(["NVDA", "AMD", "XOM"])
+    assert out == {
+        "NVDA": "Semiconductors",
+        "AMD": "Semiconductors",
+        "XOM": "Oil & Gas Integrated",
+    }
+
+
+def test_miss_returns_none_and_enqueues_fallback(imap, monkeypatch):
+    imap.bulk_refresh_from_finviz()
+    enq = []
+    monkeypatch.setattr(imap, "_enqueue_fallback", lambda t: enq.append(t))
+    out = imap.get_industries(["NVDA", "ZZZZ"])
+    assert out["NVDA"] == "Semiconductors"
+    assert out["ZZZZ"] is None
+    assert enq == ["ZZZZ"]
+
+
+def test_request_path_does_not_block(imap, monkeypatch):
+    imap.bulk_refresh_from_finviz()
+    calls = []
+    monkeypatch.setattr(imap, "_fetch_fallback",
+                        lambda t: calls.append(t) or (None, None, None))
+    monkeypatch.setattr(imap, "_enqueue_fallback", lambda t: None)  # don't spawn pool
+    imap.get_industries(["COLD"])
+    assert calls == []  # no synchronous fetch on the request path
+
+
+def test_uppercases_and_dedupes(imap):
+    imap.bulk_refresh_from_finviz()
+    out = imap.get_industries(["nvda", "NVDA", ""])
     assert out == {"NVDA": "Semiconductors"}
 
 
-def test_miss_returns_none_and_enqueues(meta):
-    enqueued = []
-    # Spy on the backfill so we don't depend on pool timing.
-    meta._enqueue_industry_backfill = lambda t: enqueued.append(t)  # type: ignore
-    out = meta.get_industries_nonblocking(["ZZZZ"])
-    assert out == {"ZZZZ": None}
-    assert enqueued == ["ZZZZ"]
+def test_prewarm_bulk_loads_when_empty(imap):
+    assert imap._count() == 0
+    imap.prewarm()
+    assert imap._count() == 3
 
 
-def test_uppercases_and_dedupes(meta):
-    meta._put_cache("AMD", "Technology", "Semiconductors", None, None)
-    out = meta.get_industries_nonblocking(["amd", "AMD", ""])
-    assert out == {"AMD": "Semiconductors"}
+def test_fallback_persists_industry(imap, monkeypatch):
+    imap.bulk_refresh_from_finviz()
+    monkeypatch.setattr(imap, "_fetch_fallback",
+                        lambda t: ("Healthcare", "Biotechnology", "yfinance"))
+    # Run the fallback job inline rather than via the pool.
+    monkeypatch.setattr(imap._FALLBACK_POOL, "submit", lambda fn: fn())
+    imap._enqueue_fallback("NEWCO")
+    assert imap.get_industries(["NEWCO"])["NEWCO"] == "Biotechnology"
 
 
-def test_cache_only_does_not_block(meta):
-    # A cold ticker must return immediately (None) without a synchronous
-    # yfinance call on the request path. We assert the network stub is never
-    # invoked by the lookup itself.
-    calls = []
-    meta._fetch_via_yfinance = lambda t: calls.append(t) or {  # type: ignore
-        "sector": None, "industry": None, "market_cap": None, "avg_volume_30d": None}
-    # Stub the pool so the background job doesn't run during the test.
-    meta._enqueue_industry_backfill = lambda t: None  # type: ignore
-    out = meta.get_industries_nonblocking(["COLD"])
-    assert out == {"COLD": None}
-    assert calls == []  # request path never fetched
+def test_status_shape(imap):
+    imap.bulk_refresh_from_finviz()
+    s = imap.status()
+    assert s["rows"] == 3
+    assert s["stale"] is False
 
 
 # ── Endpoint ────────────────────────────────────────────────────────────────
@@ -67,10 +106,11 @@ def test_cache_only_does_not_block(meta):
 @pytest.fixture
 def client(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
-        monkeypatch.setattr(tm, "_DB_PATH", os.path.join(d, "meta.db"))
-        monkeypatch.setattr(tm, "_INIT_DONE", False)
-        monkeypatch.setattr(tm, "_enqueue_industry_backfill", lambda t: None)
-        tm._init_db()
+        monkeypatch.setattr(im, "_DB_PATH", os.path.join(d, "industry_map.db"))
+        monkeypatch.setattr(im, "_INIT_DONE", False)
+        monkeypatch.setattr(im, "_maybe_self_heal", lambda: None)
+        monkeypatch.setattr(im, "_enqueue_fallback", lambda t: None)
+        im._init_db()
         from api.routers import breadth_monitor
         app = FastAPI()
         app.include_router(breadth_monitor.router)
@@ -78,17 +118,16 @@ def client(monkeypatch):
 
 
 def test_endpoint_shape(client):
-    tm._put_cache("MSFT", "Technology", "Software", None, None)
+    im._upsert_many([("MSFT", "Technology", "Software - Infrastructure", "finviz", 1)])
     r = client.post("/api/breadth/industries", json={"tickers": ["MSFT", "NOPE"]})
     assert r.status_code == 200
     body = r.json()
-    assert body["industries"]["MSFT"] == "Software"
+    assert body["industries"]["MSFT"] == "Software - Infrastructure"
     assert body["industries"]["NOPE"] is None
 
 
 def test_endpoint_caps_at_500(client):
-    many = [f"T{i}" for i in range(900)]
-    r = client.post("/api/breadth/industries", json={"tickers": many})
+    r = client.post("/api/breadth/industries", json={"tickers": [f"T{i}" for i in range(900)]})
     assert r.status_code == 200
     assert len(r.json()["industries"]) == 500
 
@@ -96,3 +135,10 @@ def test_endpoint_caps_at_500(client):
 def test_endpoint_bad_body(client):
     r = client.post("/api/breadth/industries", json={"tickers": "notalist"})
     assert r.status_code == 400
+
+
+def test_status_endpoint(client):
+    im._upsert_many([("AAPL", "Technology", "Consumer Electronics", "finviz", 1)])
+    r = client.get("/api/breadth/industries/status")
+    assert r.status_code == 200
+    assert r.json()["rows"] == 1
