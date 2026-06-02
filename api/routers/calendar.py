@@ -795,3 +795,58 @@ def calendar_my_sets(user: dict = Depends(get_current_user)):
     """Return the logged-in user's personalization ticker sets for the calendar."""
     sets = _cp.get_user_ticker_sets(user["id"])
     return _cp.to_payload(sets)
+
+
+# ── Enrichment overlay endpoint ────────────────────────────────────────────────
+
+_ENRICH_TTL = 300  # 5 min — options move is itself 60s-cached upstream
+
+
+@router.get("/api/calendar/enrichment")
+def get_enrichment(date: str | None = None):
+    """Per-ticker expected move + 4-quarter beat history for a given day.
+
+    Bounded + cached so the core /api/calendar paints instantly and this
+    overlays on top. Empty dict if the calendar cache isn't warm yet.
+    """
+    import re as _re
+    from concurrent.futures import ThreadPoolExecutor
+    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        return {}
+    target = date or _today_et().isoformat()
+
+    ck = f"calendar_enrichment_{target}"
+
+    cal = cache.get("calendar_weekly")
+    if not cal:
+        return {}
+    day = cal.get("days", {}).get(target, {})
+    syms = [e["sym"] for e in (day.get("bmo", []) + day.get("amc", [])) if e.get("sym")]
+    if not syms:
+        cache.set(ck, {}, ttl=_ENRICH_TTL)
+        return {}
+
+    from api.services.earnings_enrichment import get_implied_move
+    from api.services.earnings_estimates import get_earnings_intel
+
+    def _one(sym):
+        move = None
+        hist = None
+        try:
+            move = get_implied_move(sym, earnings_date=target)
+        except Exception:
+            pass
+        try:
+            intel = get_earnings_intel(sym)
+            hist = intel.get("beat_history") if intel else None
+        except Exception:
+            pass
+        return sym, {"expected_move": move, "beat_history": hist}
+
+    out: dict = {}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        for sym, data in ex.map(_one, syms):
+            out[sym] = data
+
+    cache.set(ck, out, ttl=_ENRICH_TTL)
+    return out
