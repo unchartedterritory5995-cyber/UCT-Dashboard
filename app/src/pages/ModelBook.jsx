@@ -259,7 +259,7 @@ function StockDetail({ stockId, isAdmin }) {
             {stock.symbol}
             {stock.company && <span className={styles.detailNameCo}>({stock.company})</span>}
             {stock.gain_pct != null && (
-              <span className={styles.detailGain}>{stock.gain_pct >= 0 ? '+' : ''}{stock.gain_pct}%</span>
+              <span className={styles.detailGain}>{stock.gain_pct >= 0 ? '+' : ''}{Math.round(stock.gain_pct)}%</span>
             )}
           </h2>
         </div>
@@ -526,7 +526,7 @@ export default function ModelBook() {
                   <div className={styles.cardStats}>
                     {st?.open_close_pct != null
                       ? <span className={`${styles.yearGain} ${st.open_close_pct >= 0 ? styles.gain : styles.loss}`}>
-                          {st.open_close_pct >= 0 ? '+' : ''}{st.open_close_pct}%
+                          {st.open_close_pct >= 0 ? '+' : ''}{Math.round(st.open_close_pct)}%
                         </span>
                       : <span className={styles.statMuted}>—</span>}
                   </div>
