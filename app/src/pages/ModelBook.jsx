@@ -276,6 +276,7 @@ function StockDetail({ stockId, isAdmin }) {
           showDrawingTools={false}
           entryDate={`${stock.year}-01-01`}
           exitDate={`${stock.year}-12-31`}
+          priceScaleTopMargin={0.06}
           markers={markers}
           priceLines={priceLines}
           className={styles.chart}

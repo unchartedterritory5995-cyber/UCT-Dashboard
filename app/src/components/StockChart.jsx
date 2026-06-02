@@ -273,6 +273,13 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Main price-scale margins, with an optional caller override of the top margin
+// (the global default reserves 0.30 headroom; some surfaces want a tighter fit).
+function _mainMargins(cs, hasVol, topOverride) {
+  const m = computePaneMargins(cs, hasVol).main
+  return topOverride != null ? { top: topOverride, bottom: m.bottom } : m
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -288,6 +295,7 @@ export default function StockChart({
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
   exitDate = null,          // ISO date string — end of holding period zoom
+  priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -634,7 +642,7 @@ export default function StockChart({
         vertMarginsRef.current = null
         chartRef.current?.priceScale('right').applyOptions({
           autoScale: true,
-          scaleMargins: computePaneMargins(cs, showVolume && volData.length > 0).main,
+          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin),
         })
       } catch {}
     }
@@ -1853,7 +1861,7 @@ export default function StockChart({
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = computePaneMargins(cs, showVolume && volData.length > 0).main
+                const base = _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin)
                 // Only treat as a custom placement if it meaningfully differs from default.
                 if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
                   vertMarginsRef.current = null
@@ -1890,7 +1898,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || computePaneMargins(cs, showVolume && volData.length > 0).main,
+        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin),
       },
       timeScale: {
         borderColor: themeColors.borderColor,
