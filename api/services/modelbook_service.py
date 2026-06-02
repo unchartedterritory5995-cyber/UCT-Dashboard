@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   sort_order  INTEGER NOT NULL DEFAULT 0,
   thesis      TEXT,
   gain_pct    REAL,
+  oc_pct      REAL,          -- cached year open->close % (closed years are static)
+  lh_pct      REAL,          -- cached year low->high %
+  stats_at    INTEGER,       -- epoch when oc_pct/lh_pct were computed
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER,
   UNIQUE(year, symbol)
@@ -81,7 +84,9 @@ def _init_db() -> None:
         # Forward-compat: add new columns to existing DBs. SQLite has no
         # IF NOT EXISTS on columns, so try + swallow duplicate-column.
         for table, col, decl in (
-            # (e.g. ("modelbook_stocks", "new_col", "TEXT"),)
+            ("modelbook_stocks", "oc_pct", "REAL"),
+            ("modelbook_stocks", "lh_pct", "REAL"),
+            ("modelbook_stocks", "stats_at", "INTEGER"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -115,6 +120,23 @@ def get_stocks_for_year(year: int) -> list[dict]:
             (int(year),),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def get_all_stocks() -> list[dict]:
+    """Every curated stock across all years (used for background stat warming)."""
+    with contextlib.closing(_connect()) as c:
+        return [dict(r) for r in c.execute("SELECT * FROM modelbook_stocks").fetchall()]
+
+
+def save_stats(stock_id: int, oc_pct, lh_pct) -> None:
+    """Persist computed year price stats so they survive redeploys (closed-year
+    stats are static, so this is a permanent cache)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE modelbook_stocks SET oc_pct = ?, lh_pct = ?, stats_at = ? WHERE id = ?",
+            (oc_pct, lh_pct, int(time.time()), int(stock_id)),
+        )
+        c.commit()
 
 
 def get_stock_detail(stock_id: int) -> Optional[dict]:

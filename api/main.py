@@ -551,6 +551,11 @@ async def lifespan(app: FastAPI):
         modelbook_service._init_db()
         modelbook_service.seed_initial()  # one-time bootstrap (flag-gated)
         print("[startup] modelbook.db initialized")
+        # Background pre-warm of year-gain stats so the gallery loads instantly.
+        import threading as _mb_threading
+        from api.routers import modelbook as _mb_router
+        _mb_threading.Thread(target=_mb_router.warm_all_stats, daemon=True,
+                             name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
 
