@@ -262,7 +262,6 @@ function StockDetail({ stockId, isAdmin }) {
               <span className={styles.detailGain}>{stock.gain_pct >= 0 ? '+' : ''}{stock.gain_pct}%</span>
             )}
           </h2>
-          <span className={styles.detailCompany}>{stock.year}</span>
         </div>
       </div>
 
