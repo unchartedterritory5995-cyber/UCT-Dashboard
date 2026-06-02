@@ -3,19 +3,20 @@
  * sits on its range (normalize), color = tier. Signal of the Day column is gold
  * ★ + outlined; the notable column pulses.
  */
-import { metricColor, sortVisibleMetrics } from './breadthViewShared'
+import { metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
 export default function EqualizerView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || !metrics?.length) return null
   const ordered = sortVisibleMetrics(metrics, options.sort ?? 'board', normalize, currentRow)
+  const colors = resolveViewColors(options.palette, options.intensity)
   return (
     <div style={{ height: '100%', overflowX: 'auto', overflowY: 'hidden', padding: '18px 18px 8px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: '100%', minHeight: 160 }}>
         {ordered.map(m => {
           const norm = normalize(m, currentRow)
           const h = norm == null ? 2 : Math.max(2, norm)
-          const color = metricColor(m, currentRow)
+          const color = metricColor(m, currentRow, colors.tier)
           const isSignal = m.key === signalKey
           const isNotable = m.key === notableKey
           const clickable = !!m.drillKey
@@ -29,10 +30,12 @@ export default function EqualizerView({ currentRow, metrics, normalize, onDrill,
               <div style={{ font: '800 9px Instrument Sans, sans-serif', color: '#cbd5e1', marginBottom: 3 }}>
                 {m.getFmt(currentRow)}
               </div>
-              <div className={isNotable ? signalStyles.pulse : undefined}
+              <div data-testid={`level-${m.key}`}
+                   className={isNotable ? signalStyles.pulse : undefined}
                    style={{ width: '100%', height: `${h}%`, borderRadius: '3px 3px 0 0',
                             background: `linear-gradient(${color}, ${color}99)`,
-                            boxShadow: isSignal ? '0 0 0 1px #c9a84c, 0 0 10px rgba(201,168,76,.4)' : 'none',
+                            opacity: colors.fillOpacity,
+                            boxShadow: isSignal ? '0 0 0 1px #c9a84c, 0 0 10px rgba(201,168,76,.4)' : (colors.glow ? `0 0 10px ${color}` : 'none'),
                             transition: 'height .4s ease' }} />
               <div style={{ font: '700 7px Instrument Sans, sans-serif', color: isSignal ? '#c9a84c' : '#94a3b8',
                             marginTop: 4, textTransform: 'uppercase', whiteSpace: 'nowrap',

@@ -3,16 +3,16 @@
  * orbit as smaller rings. Fill arc = normalize(metric,row); color = metricColor.
  * The Signal of the Day gets a gold ★; the notable divergence pulses.
  */
-import { metricColor } from './breadthViewShared'
+import { metricColor, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable }) {
+function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable, colors }) {
   const stroke = size >= 110 ? 11 : 7
   const r = (size - stroke) / 2 - 2
   const c = 2 * Math.PI * r
   const pct = norm == null ? 0 : norm
   const offset = c * (1 - pct / 100)
-  const color = metricColor(metric, row)
+  const color = metricColor(metric, row, colors.tier)
   const clickable = !!metric.drillKey
   const cx = size / 2
   return (
@@ -27,8 +27,9 @@ function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable }) {
         <circle cx={cx} cy={cx} r={r} fill="none" stroke="#1e293b" strokeWidth={stroke} />
         <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={stroke}
                 strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+                opacity={colors.fillOpacity}
                 transform={`rotate(-90 ${cx} ${cx})`}
-                style={{ filter: `drop-shadow(0 0 5px ${color}66)`, transition: 'stroke-dashoffset .4s ease' }} />
+                style={{ filter: colors.dim ? 'none' : `drop-shadow(0 0 ${colors.glow ? 9 : 5}px ${color}66)`, transition: 'stroke-dashoffset .4s ease' }} />
         <text x={cx} y={cx + 4} textAnchor="middle" fill="#e2e8f0"
               fontFamily="Instrument Sans, sans-serif" fontWeight="800"
               fontSize={size >= 110 ? 30 : 15}>{metric.getFmt(row)}</text>
@@ -41,12 +42,13 @@ function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable }) {
   )
 }
 
-export default function RingsView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey }) {
+export default function RingsView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || metrics.length === 0) return null
+  const colors = resolveViewColors(options.palette, options.intensity)
   const [hero, ...rest] = metrics
   const ringFor = (m, size) => (
     <Ring key={m.key} metric={m} row={currentRow} norm={normalize(m, currentRow)} size={size}
-          onDrill={onDrill} isSignal={m.key === signalKey} isNotable={m.key === notableKey} />
+          onDrill={onDrill} isSignal={m.key === signalKey} isNotable={m.key === notableKey} colors={colors} />
   )
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center',

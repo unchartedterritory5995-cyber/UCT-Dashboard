@@ -4,13 +4,14 @@
  * dimension. Signal of the Day row label is gold ★; notable pulses.
  */
 import { Fragment } from 'react'
-import { metricColor } from './breadthViewShared'
+import { metricColor, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
 export default function TimelineView({ recentRows = [], metrics, onDrill, signalKey, notableKey, options = {} }) {
   if (!metrics?.length || !recentRows.length) return null
   const win = options.windowDays ?? 20
   const days = [...recentRows].slice(0, win).reverse()  // oldest → newest, up to `win`
+  const colors = resolveViewColors(options.palette, options.intensity)
   const cols = days.length
   return (
     <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>
@@ -32,8 +33,8 @@ export default function TimelineView({ recentRows = [], metrics, onDrill, signal
                 {isSignal ? '★ ' : ''}{m.label}
               </div>
               {days.map((row, i) => (
-                <div key={i} title={`${m.label} · ${row.date}: ${m.getFmt(row)}`}
-                     style={{ height: 16, borderRadius: 2, background: metricColor(m, row) }} />
+                <div key={i} data-testid={`cell-${m.key}-${i}`} title={`${m.label} · ${row.date}: ${m.getFmt(row)}`}
+                     style={{ height: 16, borderRadius: 2, background: metricColor(m, row, colors.tier), opacity: colors.fillOpacity }} />
               ))}
             </Fragment>
           )
