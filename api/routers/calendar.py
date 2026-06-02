@@ -1090,6 +1090,7 @@ def get_enrichment(date: str | None = None):
             out[sym] = data
 
     cache.set(ck, out, ttl=_ENRICH_TTL)
+    return out
 
 
 # ── D1: Read/unseen state endpoints ───────────────────────────────────────────
