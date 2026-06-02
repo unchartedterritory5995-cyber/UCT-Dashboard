@@ -1570,16 +1570,26 @@ export default function OptionsFlowDashboard() {
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
 
-  // ─── Notable Flow Discord Alerts (admin-gated on public) ────────────
-  // The 🚨 manual push button only renders when the auth probe confirms
-  // the current viewer is an admin. The auth probe is defensive: it tries
-  // /api/auth/me and accepts any of several common shapes. If your auth
-  // returns a different shape, adjust the parser below.
-  const [isAdmin, setIsAdmin] = useState(false);
+  // ─── Notable Flow Discord Alerts ─────────────────────────────────────
+  // Admin gating is DISABLED for now (default isAdmin = true so all viewers
+  // see the controls). When you're ready to add real admin gating, set the
+  // default to false and uncomment the probe useEffect below to restore the
+  // URL-param / localStorage / /api/auth/me lookup.
+  const [isAdmin, setIsAdmin] = useState(true);
   const [notableEnabled, setNotableEnabled] = useState(true);
   const [notableHasWebhook, setNotableHasWebhook] = useState(true);
   const [notableLastResult, setNotableLastResult] = useState(null);
   const [notableRowBusy, setNotableRowBusy] = useState({});
+  const [notableBusy, setNotableBusy] = useState(false);
+  // Set true in handleCSV; the auto-fire effect waits for FD to rebuild
+  // from new data, then POSTs once and resets the flag.
+  const [pendingNotableAlert, setPendingNotableAlert] = useState(false);
+
+  // ─── CSV Upload state (admin-equivalent functionality on public) ────
+  const [uploadDragOver, setUploadDragOver] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(null); // {type:"ok"|"error", msg:string}
+
 
   // ─── Watchlist State ─────────────────────────────────────────────────
   const [wlBull, setWlBull] = useState([]);
@@ -2121,26 +2131,37 @@ export default function OptionsFlowDashboard() {
     return () => clearTimeout(t);
   }, []);
 
-  // ─── Admin probe + Notable Flow settings (defensive) ────────────────
-  // Tries /api/auth/me and accepts any of these shapes:
-  //   { is_admin: true } | { admin: true } | { role: "admin" }
-  //   | { roles: ["admin", ...] } | { user: { ... above ... } }
-  // If your auth uses a different shape, adjust the parser below.
-  useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(raw => {
-        if (!raw) return;
-        const data = raw.user || raw;
-        const admin =
-          data.is_admin === true ||
-          data.admin === true ||
-          data.role === "admin" ||
-          (Array.isArray(data.roles) && data.roles.includes("admin"));
-        setIsAdmin(!!admin);
-      })
-      .catch(() => {});
-  }, []);
+  // ─── Admin probe (currently disabled — see isAdmin default above) ───
+  // To restore admin gating: flip the isAdmin default to false and
+  // uncomment this useEffect. The probe handles URL param ?admin=1,
+  // localStorage 'uct_admin', and /api/auth/me as a final fallback.
+  //
+  // useEffect(() => {
+  //   try {
+  //     const params = new URLSearchParams(window.location.search);
+  //     const adminParam = params.get("admin");
+  //     if (adminParam === "1") {
+  //       localStorage.setItem("uct_admin", "1"); setIsAdmin(true); return;
+  //     }
+  //     if (adminParam === "0") {
+  //       localStorage.removeItem("uct_admin"); setIsAdmin(false); return;
+  //     }
+  //     if (localStorage.getItem("uct_admin") === "1") { setIsAdmin(true); return; }
+  //   } catch {}
+  //   fetch("/api/auth/me", { credentials: "include" })
+  //     .then(r => r.ok ? r.json() : null)
+  //     .then(raw => {
+  //       if (!raw) return;
+  //       const data = raw.user || raw;
+  //       const admin =
+  //         data.is_admin === true ||
+  //         data.admin === true ||
+  //         data.role === "admin" ||
+  //         (Array.isArray(data.roles) && data.roles.includes("admin"));
+  //       setIsAdmin(!!admin);
+  //     })
+  //     .catch(() => {});
+  // }, []);
 
   // Settings probe only matters when we're actually going to show the
   // controls — gate behind isAdmin so anonymous users never hit it.
@@ -2152,6 +2173,227 @@ export default function OptionsFlowDashboard() {
       setNotableHasWebhook(!!d.has_webhook);
     }).catch(()=>{});
   }, [isAdmin]);
+
+  // ─── CSV Upload (ported from admin) ─────────────────────────────────
+  // Sends the raw CSV to /api/flow/upload for DB persistence, and locally
+  // parses + sets parsedRows so the dashboard reflects the upload
+  // immediately without waiting for a re-fetch. The existing useEffect on
+  // [parsedRows, dateFilter] then rebuilds D, and FD rebuilds from D.
+  async function uploadToDb(text) {
+    const source = dataMode === "index" ? "indexes" : "stocks";
+    setUploadStatus({ type: "loading", msg: "Saving to database..." });
+    try {
+      const resp = await fetch(`/api/flow/upload?source=${source}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: text,
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        setUploadStatus({ type: "error", msg: `DB error (${resp.status}): ${errText.slice(0, 200)}` });
+        return;
+      }
+      const data = await resp.json();
+      if (data.status === "ok") {
+        setUploadStatus({ type: "ok", msg: `+${data.inserted.toLocaleString()} new, ${data.skipped.toLocaleString()} dup${data.pruned ? `, ${data.pruned} pruned` : ""}` });
+      } else {
+        setUploadStatus({ type: "error", msg: "DB error: " + (data.message || "unknown") });
+      }
+    } catch (e) {
+      setUploadStatus({ type: "error", msg: "Upload failed: " + e.message });
+    }
+  }
+
+  function handleCSV(text) {
+    setUploadBusy(true);
+    setCsvError(null);
+    setUploadStatus(null);
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+      setCsvError("Got HTML instead of CSV.");
+      setUploadBusy(false);
+      return;
+    }
+    if (!trimmed.includes(",") || trimmed.length < 100) {
+      setCsvError("File appears empty or invalid (no CSV data found).");
+      setUploadBusy(false);
+      return;
+    }
+    setTimeout(() => {
+      try {
+        const rows = parseCSV(text);
+        if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+        setParsedRows(rows);
+        setDateFilter("All");
+        // Persist to DB in background — refreshes from server next time the page loads
+        uploadToDb(text);
+        // Queue the Notable Flow alert — auto-fire effect waits for FD to
+        // rebuild from new data, then POSTs once.
+        if (notableEnabled) setPendingNotableAlert(true);
+      } catch(err) {
+        setCsvError(err.message);
+      }
+      setUploadBusy(false);
+    }, 0);
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    setUploadDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+  }
+
+  function onFileInput(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+    // Reset so re-uploading the same file works
+    e.target.value = "";
+  }
+
+  // ─── Notable Flow: compute alert payload from current view ─────────
+  function computeNotableAlertPayload(dataD, dataFD) {
+    if (!dataFD || !dataFD.TICKER_DB || dataFD.TICKER_DB.length === 0) return null;
+
+    // Find latest trading date in current view
+    const dates = [...new Set((dataD.clean_confirmed||[]).map(t=>t.Dt).filter(Boolean))].sort((a,b)=>{
+      const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
+      const ya=pa.length>=3?(pa[2]<100?pa[2]+2000:pa[2]):2026;
+      const yb=pb.length>=3?(pb[2]<100?pb[2]+2000:pb[2]):2026;
+      return new Date(ya,pa[0]-1,pa[1]||1) - new Date(yb,pb[0]-1,pb[1]||1);
+    });
+    const latestDate = dates[dates.length-1] || "";
+    let dateLabel = latestDate;
+    if (latestDate) {
+      const parts = latestDate.split("/").map(Number);
+      const y = parts.length>=3 ? (parts[2]<100?parts[2]+2000:parts[2]) : new Date().getFullYear();
+      const dObj = new Date(y, (parts[0]||1)-1, parts[1]||1);
+      if (!isNaN(dObj.getTime())) {
+        dateLabel = dObj.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
+      }
+    }
+
+    // Tier 1: aggregate pulse stats
+    let totalBull = 0, totalBear = 0;
+    const tickerSet = new Set();
+    dataFD.TICKER_DB.forEach(tk => {
+      totalBull += tk.b || 0;
+      totalBear += tk.r || 0;
+      if ((tk.b||0) + (tk.r||0) > 0) tickerSet.add(tk.s);
+    });
+
+    const byAbsNet = [...dataFD.TICKER_DB].sort((a,b)=>Math.abs((b.b||0)-(b.r||0))-Math.abs((a.b||0)-(a.r||0)));
+    const lead = byAbsNet[0] || null;
+    const standouts = byAbsNet.slice(0, 5).map(tk => {
+      const topC = (tk.c||[])[0] || (tk.t||[])[0] || null;
+      return {
+        sym: tk.s,
+        net: (tk.b||0) - (tk.r||0),
+        grade: topC ? (topC.grade || "") : "",
+      };
+    });
+
+    // Tier 2: hot ticker detection
+    const tickerDateMap = {};
+    (dataD.clean_confirmed||[]).forEach(t => {
+      if (!t.S || !t.Dt) return;
+      if (!tickerDateMap[t.S]) tickerDateMap[t.S] = new Set();
+      tickerDateMap[t.S].add(t.Dt);
+    });
+
+    function outsizedThreshold(mktcap) {
+      if (!mktcap) return Infinity;
+      if (mktcap >= 500e9) return 10e6;   // Mega
+      if (mktcap >= 100e9) return 5e6;    // Large
+      if (mktcap >= 10e9)  return 2e6;    // Mid
+      return 0.5e6;                       // Small / Micro
+    }
+
+    const hotCandidates = [];
+    dataFD.TICKER_DB.forEach(tk => {
+      const bull = tk.b || 0, bear = tk.r || 0;
+      const net = bull - bear;
+      const absNet = Math.abs(net);
+      if (bull + bear <= 0) return;
+
+      const topC = (tk.c||[])[0] || (tk.t||[])[0] || null;
+      if (!topC) return;
+      const prem = topC.P || 0;
+      const grade = topC.grade || "";
+
+      let trigger = null;
+      const tkDates = tickerDateMap[tk.s] || new Set();
+      const isNew = latestDate && tkDates.size === 1 && tkDates.has(latestDate);
+
+      if (isNew && absNet >= 1e6) trigger = "NEW";
+      else if (absNet >= 5e6 && (grade === "A" || grade === "A+")) trigger = "BIG_A";
+      else if (prem >= outsizedThreshold(tk.mktcap)) trigger = "OUTSIZED";
+      if (!trigger) return;
+
+      hotCandidates.push({
+        sym: tk.s,
+        dir: net >= 0 ? "BULL" : "BEAR",
+        topContract: {
+          cp: topC.CP || topC.cp || "",
+          K: topC.K || topC.strike || 0,
+          exp: topC.E || topC.exp || "",
+          prem,
+          hits: topC.H || topC.hits || 1,
+          grade,
+          side: topC.Si || topC.side || "",
+        },
+        tickerBull: bull,
+        tickerBear: bear,
+        trigger,
+        patterns: topC.patterns || [],
+        er: !!tk.er,
+        sector: tk.sector || "",
+        mktcap: tk.mktcap || 0,
+      });
+    });
+
+    hotCandidates.sort((a,b)=>Math.abs(b.tickerBull-b.tickerBear)-Math.abs(a.tickerBull-a.tickerBear));
+    const hotTickers = hotCandidates.slice(0, 10);
+
+    return {
+      pulse: {
+        totalBull,
+        totalBear,
+        tickerCount: tickerSet.size,
+        leadTicker: lead ? { sym: lead.s, net: (lead.b||0)-(lead.r||0) } : null,
+        standouts,
+        dateLabel,
+      },
+      hotTickers,
+    };
+  }
+
+  // Auto-fire effect: when handleCSV sets pendingNotableAlert, this watches
+  // FD to rebuild from the new upload, then posts once.
+  useEffect(() => {
+    if (!pendingNotableAlert || !FD || !notableEnabled || notableBusy) return;
+    const payload = computeNotableAlertPayload(D, FD);
+    if (!payload) return;
+    setPendingNotableAlert(false);
+    setNotableBusy(true);
+    fetch("/api/notable-flow/post", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload),
+    }).then(r=>r.json()).then(d => {
+      setNotableLastResult(d);
+    }).catch(e => {
+      setNotableLastResult({ok:false, error:e.message});
+    }).finally(()=>{
+      setNotableBusy(false);
+    });
+  }, [FD, pendingNotableAlert, notableEnabled]);
 
   // Manual 🚨 — push a single Top Flow row's ticker to Discord.
   // Always force=true (bypasses 24h dedupe on intentional press).
@@ -3801,6 +4043,43 @@ export default function OptionsFlowDashboard() {
           </span>
         </div>
 
+        {/* ── CSV Upload strip (admin-equivalent on public) ──────────────── */}
+        {(dataMode === "stocks" || dataMode === "index") && (
+          <div
+            onDragOver={e=>{e.preventDefault();setUploadDragOver(true);}}
+            onDragLeave={()=>setUploadDragOver(false)}
+            onDrop={onDrop}
+            onClick={()=>{ if(!uploadBusy) document.getElementById("csv-upload-input")?.click(); }}
+            style={{
+              display:"flex", alignItems:"center", gap:10,
+              padding:"6px 12px", marginBottom:8,
+              border:"1px dashed "+(uploadDragOver?P.bu:P.bd),
+              borderRadius:6,
+              background:uploadDragOver?P.bu+"15":P.al,
+              cursor:uploadBusy?"wait":"pointer",
+              transition:"all 0.15s",
+              fontSize:10,
+            }}
+            title="Drag a BBS CSV here, or click to pick a file. Persists to DB and fires Notable Flow alerts.">
+            <span style={{ fontSize:14 }}>{uploadBusy ? "⏳" : uploadDragOver ? "📥" : "📂"}</span>
+            <span style={{ color:uploadDragOver?P.bu:P.mt, fontWeight:600 }}>
+              {uploadBusy ? "Processing…" : uploadDragOver ? "Drop CSV here" : `Upload ${dataMode==="index"?"index/ETF":"stock"} flow CSV`}
+            </span>
+            {uploadStatus && (
+              <span style={{ marginLeft:8, fontSize:9, fontWeight:600,
+                color: uploadStatus.type==="ok" ? P.bu : uploadStatus.type==="error" ? P.be : P.dm }}>
+                {uploadStatus.msg}
+              </span>
+            )}
+            {csvError && (
+              <span style={{ marginLeft:8, fontSize:9, fontWeight:600, color:P.be }} title={csvError}>
+                ✗ {csvError.slice(0,60)}
+              </span>
+            )}
+            <input id="csv-upload-input" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+          </div>
+        )}
+
         {/* ── Market Pulse — compact ticker strip ────────────────────────── */}
         {tab==="Market Read" && (
           <div style={{ marginBottom:12 }}>
@@ -5173,29 +5452,30 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>All confirmed clean flow ranked by conviction score across all timeframes. Grade + Hits + Premium weighted. Click any row for full detail.</div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  {isAdmin && (<>
-                    <button
-                      onClick={toggleNotableEnabled}
-                      title={notableHasWebhook
-                        ? `Notable Flow Discord alerts ${notableEnabled?"ON":"OFF"}. Auto-fires on CSV upload (admin only).`
-                        : "DISCORD_NOTABLE_WEBHOOK_URL not configured on Railway"}
-                      disabled={!notableHasWebhook}
-                      style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+(notableEnabled?P.ac:P.bd), cursor:notableHasWebhook?"pointer":"not-allowed",
-                        fontSize:10, fontWeight:700, fontFamily:"inherit",
-                        background:notableEnabled?P.ac+"22":"transparent",
-                        color:notableEnabled?P.ac:P.dm,
-                        opacity:notableHasWebhook?1:0.5 }}>
-                      🔔 Notable {notableEnabled ? "ON" : "OFF"}
-                    </button>
-                    {notableLastResult && (
-                      <span style={{ fontSize:9, color:notableLastResult.ok?P.bu:P.be }}
-                        title={notableLastResult.ok
-                          ? `Fired: ${notableLastResult.sym || (notableLastResult.fired||[]).join(",") || "pulse only"}`
-                          : notableLastResult.error||"error"}>
-                        {notableLastResult.ok ? "✓ sent" : `✗ ${(notableLastResult.error||"error").slice(0,40)}`}
-                      </span>
-                    )}
-                  </>)}
+                  <button
+                    onClick={toggleNotableEnabled}
+                    title={notableHasWebhook
+                      ? `Notable Flow Discord alerts ${notableEnabled?"ON":"OFF"}. Tier 1 (Flow Pulse) and Tier 2 (Hot Tickers) auto-fire on CSV upload.`
+                      : "DISCORD_NOTABLE_WEBHOOK_URL not configured on Railway"}
+                    disabled={!notableHasWebhook}
+                    style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+(notableEnabled?P.ac:P.bd), cursor:notableHasWebhook?"pointer":"not-allowed",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit",
+                      background:notableEnabled?P.ac+"22":"transparent",
+                      color:notableEnabled?P.ac:P.dm,
+                      opacity:notableHasWebhook?1:0.5 }}>
+                    🔔 Notable {notableEnabled ? "ON" : "OFF"}
+                  </button>
+                  {notableBusy && <span style={{ fontSize:9, color:P.ac }}>Posting…</span>}
+                  {notableLastResult && !notableBusy && (
+                    <span style={{ fontSize:9, color:notableLastResult.ok?P.bu:P.be }}
+                      title={notableLastResult.ok
+                        ? `Fired: ${notableLastResult.sym || (notableLastResult.fired||[]).join(",") || "pulse only"} · Deduped: ${(notableLastResult.deduped||[]).join(",") || "none"}`
+                        : notableLastResult.error||"error"}>
+                      {notableLastResult.ok
+                        ? (notableLastResult.sym ? `✓ ${notableLastResult.sym}` : `✓ ${notableLastResult.fired?.length||0} fired, ${notableLastResult.deduped?.length||0} deduped`)
+                        : `✗ ${(notableLastResult.error||"error").slice(0,40)}`}
+                    </span>
+                  )}
                   <button onClick={()=>fetchPrices(ranked.map(c=>({sym:c.sym,cp:c.cp,strike:c.K,exp:c.exp})))} disabled={fetchLoading}
                     style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                       fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
@@ -5232,7 +5512,7 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {[...["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"], ...(isAdmin?["Alert"]:[])].map(h=>(
+                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE","Alert"].map(h=>(
                       <th key={h} style={{ padding:"5px 5px", textAlign:h==="Alert"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":h==="Alert"?"Push this ticker to Discord (#notable-flow). Bypasses 24h dedupe.":undefined}>{h}</th>
                     ))}
                   </tr>
@@ -5276,18 +5556,16 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
-                        {isAdmin && (
-                          <td style={{ padding:"5px 5px", textAlign:"center" }} onClick={e=>e.stopPropagation()}>
-                            <button
-                              onClick={()=>fireNotableSingle(r)}
-                              disabled={!!notableRowBusy[r.sym] || !notableHasWebhook}
-                              title={!notableHasWebhook ? "DISCORD_NOTABLE_WEBHOOK_URL not configured" : "Push this ticker to Discord (bypasses 24h dedupe)"}
-                              style={{ padding:"2px 6px", border:"none", borderRadius:4, cursor:notableRowBusy[r.sym]||!notableHasWebhook?"not-allowed":"pointer",
-                                background:notableRowBusy[r.sym]?P.bd:P.al, color:notableHasWebhook?P.wh:P.dm, fontSize:11, fontFamily:"inherit", opacity:notableHasWebhook?1:0.4 }}>
-                              {notableRowBusy[r.sym] ? "…" : "🚨"}
-                            </button>
-                          </td>
-                        )}
+                        <td style={{ padding:"5px 5px", textAlign:"center" }} onClick={e=>e.stopPropagation()}>
+                          <button
+                            onClick={()=>fireNotableSingle(r)}
+                            disabled={!!notableRowBusy[r.sym] || !notableHasWebhook}
+                            title={!notableHasWebhook ? "DISCORD_NOTABLE_WEBHOOK_URL not configured" : "Push this ticker to Discord (bypasses 24h dedupe)"}
+                            style={{ padding:"2px 6px", border:"none", borderRadius:4, cursor:notableRowBusy[r.sym]||!notableHasWebhook?"not-allowed":"pointer",
+                              background:notableRowBusy[r.sym]?P.bd:P.al, color:notableHasWebhook?P.wh:P.dm, fontSize:11, fontFamily:"inherit", opacity:notableHasWebhook?1:0.4 }}>
+                            {notableRowBusy[r.sym] ? "…" : "🚨"}
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
