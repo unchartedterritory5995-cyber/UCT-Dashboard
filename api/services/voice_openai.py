@@ -21,7 +21,10 @@ _log = logging.getLogger(__name__)
 # are concatenated — the browser <audio> element plays them back-to-back.
 MAX_INPUT_CHARS = 4000
 
-_TTS_MODEL = "tts-1-hd"
+# tts-1 (standard) is ~2x faster to synthesize than tts-1-hd with negligible
+# quality loss for spoken news/long-form — read-aloud is served as a seekable
+# file synthesized on first play, so synth latency is user-visible. Speed wins.
+_TTS_MODEL = "tts-1"
 
 _client = None
 

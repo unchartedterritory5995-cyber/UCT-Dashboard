@@ -18,14 +18,18 @@ import { useVoice } from '../context/VoiceContext'
 export default function useReadAloud() {
   const voice = useVoice()
 
-  const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride }) => {
-    if (voice.trackId === trackId && voice.status === 'playing') {
-      voice.pause()
-      return
-    }
-    if (voice.trackId === trackId && voice.status === 'paused') {
-      await voice.resume()
-      return
+  const play = useCallback(async ({ trackId, label, textProvider, voiceOverride, speedOverride, force }) => {
+    // `force` bypasses the play/pause toggle — used when the player re-reads in
+    // a new voice (we want a fresh read, not a pause).
+    if (!force) {
+      if (voice.trackId === trackId && voice.status === 'playing') {
+        voice.pause()
+        return
+      }
+      if (voice.trackId === trackId && voice.status === 'paused') {
+        await voice.resume()
+        return
+      }
     }
 
     let text
@@ -80,6 +84,17 @@ export default function useReadAloud() {
       alert('Read Aloud failed — could not reach the server. Please try again.')
       return
     }
+
+    // Register a replay closure so the player's voice/speed pickers can
+    // re-read THIS track with a different voice (which requires re-synthesis).
+    voice.registerReadAloud((overrides = {}) => play({
+      trackId,
+      label,
+      textProvider,
+      voiceOverride: overrides.voice ?? voiceOverride,
+      speedOverride: overrides.speed ?? speedOverride,
+      force: true,
+    }))
 
     await voice.playUrl({ url: streamUrl, trackId, trackLabel: label })
   }, [voice])

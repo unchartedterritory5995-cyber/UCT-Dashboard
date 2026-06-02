@@ -7,7 +7,7 @@ import logging
 import secrets
 import time
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
@@ -26,7 +26,7 @@ from api.services.voice_usage import (
     is_within_mode_a_cap,
     MODE_A_DEFAULT_CAP_SECONDS,
 )
-from api.services.voice_audio_cache import get_cached, put_cached
+from api.services.voice_audio_cache import get_cached, put_cached, cached_file_path
 from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
 
 # Per-request OpenAI limit is MAX_INPUT_CHARS (~4k); the synth layer auto-chunks
@@ -220,8 +220,31 @@ def tts_stream(request: Request, token: str, user: dict = Depends(requires_voice
     entry = _TTS_PREPARED.get(token)
     if not entry or entry["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="invalid or expired token")
-    # Keep the token (don't pop) so the <audio> element may re-request within TTL.
-    return _tts_audio_response(entry["text"], entry["voice"], entry["speed"], user["id"])
+    # Keep the token (don't pop) so the <audio> element may re-request within TTL
+    # (e.g. when the user seeks — the browser re-issues a ranged GET).
+    text, voice, speed = entry["text"], entry["voice"], entry["speed"]
+
+    # Serve a real file so FileResponse advertises Accept-Ranges and answers
+    # range requests → the <audio> element is seekable (scrub / fast-forward).
+    path = cached_file_path(text, voice=voice, speed=speed)
+    if path is None:
+        # Synthesize the whole clip (auto-chunked), cache it, then serve the file.
+        try:
+            audio = synthesize_speech(text, voice=voice, speed=speed)
+        except RuntimeError as e:  # OPENAI_API_KEY not set
+            raise HTTPException(status_code=503, detail=str(e))
+        except Exception as e:
+            _log.exception("voice synth failed: %s", e)
+            raise HTTPException(status_code=502, detail="speech synthesis failed")
+        if not audio:
+            raise HTTPException(status_code=502, detail="speech synthesis produced no audio")
+        put_cached(text, voice, speed, audio)
+        record_mode_a_seconds(user["id"], _estimate_seconds(text, speed))
+        path = cached_file_path(text, voice=voice, speed=speed)
+        if path is None:  # cache write failed — fall back to a non-seekable body
+            return Response(content=audio, media_type="audio/mpeg")
+
+    return FileResponse(path, media_type="audio/mpeg")
 
 
 @router.get("/settings")

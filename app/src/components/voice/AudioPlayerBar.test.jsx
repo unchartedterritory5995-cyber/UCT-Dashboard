@@ -53,4 +53,17 @@ describe('AudioPlayerBar', () => {
     expect(after).toBe(before) // exact same DOM node — not unmounted/recreated
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
   })
+
+  it('shows seek bar, voice picker, and speed control while reading aloud', async () => {
+    render(
+      <VoiceProvider><AudioPlayerBar /><PlayHarness /></VoiceProvider>
+    )
+    fireEvent.click(screen.getByText('go'))
+    await waitFor(() => expect(screen.queryByRole('region')).toBeTruthy())
+
+    expect(screen.getByLabelText('Seek')).toBeTruthy()
+    expect(screen.getByLabelText('Reader voice')).toBeTruthy()
+    expect(screen.getByLabelText('Playback speed')).toBeTruthy()
+    expect(screen.getByLabelText('Pause')).toBeTruthy() // playing → pause control
+  })
 })

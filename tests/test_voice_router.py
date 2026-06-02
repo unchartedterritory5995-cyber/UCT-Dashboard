@@ -86,16 +86,13 @@ def test_tts_rejects_empty_text(client):
 
 
 def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypatch):
-    """The progressive flow: POST /prepare -> token, GET /stream?token -> audio."""
+    """The flow: POST /prepare -> token, GET /stream?token -> SEEKABLE audio file."""
     monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
     _login(client, plan="pro")
     fake_audio = b"\xFF\xFB\x90\x00STREAMED"
     fake_client = object()
     with patch("api.services.voice_openai._get_client", return_value=fake_client), \
-         patch(
-             "api.routers.voice.synthesize_speech_stream",
-             side_effect=lambda *a, **k: iter([fake_audio]),
-         ):
+         patch("api.routers.voice.synthesize_speech", return_value=fake_audio) as synth:
         long_rundown = ("Markets are moving today. " * 500).strip()  # ~12k chars
         p = client.post("/api/voice/tts/prepare", json={"text": long_rundown})
         assert p.status_code == 200
@@ -103,9 +100,28 @@ def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypat
         assert token
 
         s = client.get(f"/api/voice/tts/stream?token={token}")
+        # Second request serves from the cached file — no re-synthesis.
+        s2 = client.get(f"/api/voice/tts/stream?token={token}")
     assert s.status_code == 200
     assert s.headers["content-type"].startswith("audio/mpeg")
+    # FileResponse advertises range support so the player can scrub/fast-forward.
+    assert s.headers.get("accept-ranges") == "bytes"
     assert s.content == fake_audio
+    assert s2.content == fake_audio
+    assert synth.call_count == 1  # cached on the second hit
+
+
+def test_tts_stream_supports_range_requests(client, tmp_path, monkeypatch):
+    """A ranged GET returns 206 Partial Content — proves the audio is seekable."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"0123456789ABCDEF"
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.synthesize_speech", return_value=fake_audio):
+        token = client.post("/api/voice/tts/prepare", json={"text": "seek me"}).json()["token"]
+        r = client.get(f"/api/voice/tts/stream?token={token}", headers={"Range": "bytes=4-9"})
+    assert r.status_code == 206
+    assert r.content == b"456789"
 
 
 def test_tts_prepare_requires_paid_plan(client):
