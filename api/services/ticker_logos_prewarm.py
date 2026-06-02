@@ -117,3 +117,22 @@ def start_async() -> None:
         _safe_run()
 
     threading.Thread(target=_runner, daemon=True, name="logo-prewarm").start()
+
+
+def run_miss_retry_now() -> dict:
+    """Kick a miss-retry pass on a background thread. Returns immediately with
+    progress-like dict. Use POST /api/logos/prewarm?misses=1 to trigger via API."""
+    from api.services import ticker_logos as tl
+
+    result: dict = {}
+
+    def _job():
+        try:
+            r = tl.run_miss_retry()
+            result.update(r)
+        except Exception as e:
+            _logger.warning("[logo-prewarm] miss retry error: %s", e)
+
+    t = threading.Thread(target=_job, daemon=True, name="logo-miss-retry-now")
+    t.start()
+    return {"started": True, "note": "miss-retry running in background"}

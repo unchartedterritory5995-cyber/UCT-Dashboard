@@ -74,6 +74,37 @@ def _url_bytes(url: str):
     return None
 
 
+def _clearbit_logo_bytes(sym: str):
+    """Fetch logo from Clearbit Logo API using the company's domain.
+
+    Derives the domain from yfinance fundamentals website field (e.g.
+    "https://www.apple.com" → "apple.com"). Returns image bytes or None.
+    Free public API — no key required; rate-limited so use only as a miss-retry
+    source (≤2 concurrent callers).
+    """
+    try:
+        import yfinance as yf
+        info = yf.Ticker(sym).info or {}
+        website = info.get("website") or ""
+        if not website:
+            return None
+        # Strip scheme + www prefix to get bare domain
+        domain = website.strip()
+        for prefix in ("https://", "http://"):
+            if domain.startswith(prefix):
+                domain = domain[len(prefix):]
+        if domain.startswith("www."):
+            domain = domain[4:]
+        # Strip trailing path
+        domain = domain.split("/")[0].strip()
+        if not domain or "." not in domain:
+            return None
+        url = f"https://logo.clearbit.com/{domain}"
+        return _url_bytes(url)
+    except Exception:
+        return None
+
+
 def _fetch_sources(sym: str):
     """Try each source in priority order; return raw image bytes or None.
 
@@ -81,12 +112,26 @@ def _fetch_sources(sym: str):
     concurrency, which keeps the universe-wide bulk warm fast. Finnhub's
     profile2 logo is the last resort because its free tier is rate-limited
     (~60/min) and would throttle a bulk pass if it ran first.
+    Clearbit-by-domain is NOT included here — it's only used by run_miss_retry()
+    at low concurrency (≤2 workers) to avoid hammering yfinance in bulk passes.
     """
     s = _safe(sym)
     return (
         _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
         or _finnhub_logo_bytes(s)
+    )
+
+
+def _fetch_sources_with_clearbit(sym: str):
+    """Extended source chain that adds Clearbit as a final fallback.
+    Used only by run_miss_retry() at low concurrency."""
+    s = _safe(sym)
+    return (
+        _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
+        or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
+        or _finnhub_logo_bytes(s)
+        or _clearbit_logo_bytes(s)
     )
 
 
@@ -173,3 +218,89 @@ def schedule_resolve(sym: str) -> None:
                 _INFLIGHT.discard(s)
 
     _POOL.submit(_job)
+
+
+# ── Miss-retry pass: re-attempt .miss tickers via extended source chain ───────
+
+_MISS_RETRY_LOCK = threading.Lock()
+_MISS_RETRY_WORKERS = 2       # ≤2 — Finnhub/Clearbit/yfinance are rate-limited
+_MISS_RETRY_SLEEP  = 1.0      # seconds between attempts per worker
+
+
+def run_miss_retry() -> dict:
+    """Re-attempt every .miss ticker using the extended source chain (includes
+    Clearbit-by-domain). Only touches tickers with a .miss sentinel — never
+    overwrites existing .png files.
+
+    Runs at low concurrency (≤2 workers) with inter-attempt sleeps to respect
+    Finnhub/Clearbit/yfinance rate limits. Removes the .miss file and writes
+    a .png on success. Returns a dict with stats.
+
+    Safe to call concurrently — a second call while one is running returns
+    immediately with {"skipped": True}.
+    """
+    if not _MISS_RETRY_LOCK.acquire(blocking=False):
+        _logger.info("[logo-miss-retry] already running — skipping")
+        return {"skipped": True}
+
+    stats = {"total": 0, "resolved": 0, "still_miss": 0}
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        # Collect all .miss files that are NOT already resolved
+        miss_syms = []
+        try:
+            for fname in os.listdir(_CACHE_DIR):
+                if fname.endswith(".miss"):
+                    sym = fname[:-5]  # strip .miss
+                    if not get_logo_path(sym):  # skip if .png already exists
+                        miss_syms.append(sym)
+        except OSError as e:
+            _logger.warning("[logo-miss-retry] listdir failed: %s", e)
+            return stats
+
+        stats["total"] = len(miss_syms)
+        if not miss_syms:
+            _logger.info("[logo-miss-retry] no .miss tickers — nothing to do")
+            return stats
+
+        _logger.info("[logo-miss-retry] starting: %d .miss tickers to retry", len(miss_syms))
+
+        def _retry_one(sym: str) -> bool:
+            """Retry a single .miss ticker with the extended source chain.
+            Returns True if resolved, False if still a miss."""
+            s = _safe(sym)
+            try:
+                time.sleep(_MISS_RETRY_SLEEP)
+                raw = _fetch_sources_with_clearbit(s)
+                png = _normalize_png(raw) if raw else None
+                if not png:
+                    return False
+                tmp = _png_path(s) + ".tmp"
+                with open(tmp, "wb") as fh:
+                    fh.write(png)
+                os.replace(tmp, _png_path(s))
+                # Remove .miss sentinel
+                try:
+                    os.remove(_miss_path(s))
+                except OSError:
+                    pass
+                _logger.debug("[logo-miss-retry] resolved: %s", s)
+                return True
+            except Exception as e:
+                _logger.debug("[logo-miss-retry] %s still failed: %s", s, e)
+                return False
+
+        with ThreadPoolExecutor(max_workers=_MISS_RETRY_WORKERS,
+                                thread_name_prefix="logo-miss") as ex:
+            from concurrent.futures import as_completed
+            futs = {ex.submit(_retry_one, sym): sym for sym in miss_syms}
+            for fut in as_completed(futs):
+                ok = fut.result()
+                stats["resolved" if ok else "still_miss"] += 1
+
+        _logger.info("[logo-miss-retry] done: resolved=%d still_miss=%d",
+                     stats["resolved"], stats["still_miss"])
+    finally:
+        _MISS_RETRY_LOCK.release()
+
+    return stats
