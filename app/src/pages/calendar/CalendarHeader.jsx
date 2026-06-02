@@ -9,6 +9,59 @@ const AUDIENCE = [
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
 const SOURCES = [['watchlist','Watchlists'],['flagged','Flagged'],['positions','Positions'],['uct20','UCT20']]
 
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+]
+
+// A3: FiltersPopover — compact numeric filter controls
+// Persisted via the main setFilters → calendar_filters pref
+function FiltersPopover({ filters, setFilters, onClose }) {
+  const set = (k, v) => setFilters({ ...filters, [k]: v === '' ? null : Number(v) })
+  return (
+    <div className={styles.filterPop}>
+      <div className={styles.filterPopHd}>Filters</div>
+      <div className={styles.filterRow}>
+        <label className={styles.filterLbl}>Min avg vol</label>
+        <input
+          className={styles.filterInput}
+          type="number"
+          min={0}
+          placeholder="e.g. 500000"
+          value={filters.minAvgVol ?? ''}
+          onChange={e => set('minAvgVol', e.target.value)}
+        />
+      </div>
+      <div className={styles.filterRow}>
+        <label className={styles.filterLbl}>Price min ($)</label>
+        <input
+          className={styles.filterInput}
+          type="number"
+          min={0}
+          placeholder="e.g. 5"
+          value={filters.priceMin ?? ''}
+          onChange={e => set('priceMin', e.target.value)}
+        />
+      </div>
+      <div className={styles.filterRow}>
+        <label className={styles.filterLbl}>Price max ($)</label>
+        <input
+          className={styles.filterInput}
+          type="number"
+          min={0}
+          placeholder="e.g. 500"
+          value={filters.priceMax ?? ''}
+          onChange={e => set('priceMax', e.target.value)}
+        />
+      </div>
+      <button className={styles.filterClear} onClick={() => {
+        setFilters({ ...filters, minAvgVol: null, priceMin: null, priceMax: null })
+        onClose()
+      }}>Clear</button>
+    </div>
+  )
+}
+
 export default function CalendarHeader({
   view, setView, weekLabel, filters, setFilters,
   mySources, setMySources,
@@ -16,14 +69,13 @@ export default function CalendarHeader({
   monthCursor, setMonthCursor,
 }) {
   const [gear, setGear] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
 
-  const MONTH_NAMES = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-  ]
+  // A3: check if any metric filters are active
+  const hasMetricFilters = !!(filters.minAvgVol || filters.priceMin || filters.priceMax)
 
   function prevMonth() {
     if (!setMonthCursor) return
@@ -92,6 +144,24 @@ export default function CalendarHeader({
         <select className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
           {SORTS.map(([k, lbl]) => <option key={k} value={k}>Sort: {lbl}</option>)}
         </select>
+
+        {/* A3: Filters popover button */}
+        <span className={styles.filterWrap}>
+          <button
+            className={`${styles.filterBtn} ${hasMetricFilters ? styles.filterBtnActive : ''}`}
+            onClick={() => { setFilterOpen(o => !o); setGear(false) }}
+            aria-label="Open metric filters"
+          >
+            Filters {hasMetricFilters ? '●' : '▾'}
+          </button>
+          {filterOpen && (
+            <FiltersPopover
+              filters={filters}
+              setFilters={setFilters}
+              onClose={() => setFilterOpen(false)}
+            />
+          )}
+        </span>
       </div>
     </div>
   )

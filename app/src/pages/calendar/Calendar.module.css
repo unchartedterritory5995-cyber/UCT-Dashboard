@@ -706,6 +706,105 @@
   border-color: var(--cal-gold);
 }
 
+/* ── A3: FiltersPopover ──────────────────────────────────────────────────── */
+
+.filterWrap {
+  position: relative;
+  margin-left: 4px;
+}
+
+.filterBtn {
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-dim);
+  font-size: 11px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.filterBtn:hover {
+  border-color: var(--cal-gold);
+  color: var(--cal-txt);
+}
+
+.filterBtnActive {
+  border-color: var(--cal-gold);
+  color: var(--cal-gold);
+  font-weight: 700;
+}
+
+.filterPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  z-index: 50;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.filterPopHd {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--cal-muted);
+  margin-bottom: 10px;
+}
+
+.filterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.filterLbl {
+  font-size: 10px;
+  color: var(--cal-dim);
+  font-weight: 600;
+}
+
+.filterInput {
+  background: #0e1014;
+  border: 1px solid var(--cal-line2);
+  border-radius: 6px;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 5px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: var(--cal-gold);
+}
+
+.filterClear {
+  width: 100%;
+  margin-top: 4px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 7px;
+  color: var(--cal-red);
+  font-size: 11px;
+  padding: 5px 0;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.1s;
+}
+
+.filterClear:hover {
+  background: rgba(248, 113, 113, 0.22);
+}
+
 /* ── Month navigation (header inline + MonthView internal) ──────────────── */
 
 /* Used in CalendarHeader for inline month nav in the header row */

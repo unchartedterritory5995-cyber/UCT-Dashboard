@@ -78,6 +78,16 @@ export function useWeekEnrichment(weekDates) {
   )
 }
 
+// Day-level metrics: price, avg_vol, mc_b — consumed by FeedView DayGroup
+// to enable A3 vol/price/mcap filtering on entries.
+export function useDayMetrics(ds) {
+  return useMobileSWR(
+    ds ? `/api/calendar/day-metrics?date=${ds}` : null,
+    fetcher,
+    { refreshInterval: 2 * 60 * 1000, revalidateOnFocus: false, marketHoursOnly: true },
+  )
+}
+
 // Full-month earnings from /api/calendar/month
 export function useMonthCalendar(year, month) {
   return useSWR(

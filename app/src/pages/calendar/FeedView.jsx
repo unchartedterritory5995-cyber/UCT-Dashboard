@@ -4,15 +4,35 @@ import useRealtimePrices from '../../hooks/useRealtimePrices'
 import EarningsCard from './EarningsCard'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
-import { useReactions } from './useCalendarData'
+import { useReactions, useDayMetrics } from './useCalendarData'
 import styles from './Calendar.module.css'
 
 function DayGroup({ ds, day, filters, onSelect }) {
   const bmo = (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' }))
   const amc = (day.amc || []).map(e => ({ ...e, _timing: 'amc' }))
-  let entries = [...bmo, ...amc]
-  entries = applyFilters(entries, filters)
-  entries = sortEntries(entries, filters.sort)
+
+  // A3: fetch per-day metrics (price, avg_vol, mc_b) and merge onto entries
+  const { data: metricsMap } = useDayMetrics(ds)
+  const entries = useMemo(() => {
+    let all = [...bmo, ...amc]
+    // Merge _price and _avg_vol from metricsMap (null-safe: if no metric, field stays undefined)
+    if (metricsMap) {
+      all = all.map(e => {
+        const m = metricsMap[e.sym]
+        if (!m) return e
+        return {
+          ...e,
+          _price:   m.price   ?? e._price,
+          _avg_vol: m.avg_vol ?? e._avg_vol,
+          // mc_b already on entry from wire; override only if metricsMap has a better value
+          mc_b: e.mc_b ?? m.mc_b,
+        }
+      })
+    }
+    all = applyFilters(all, filters)
+    all = sortEntries(all, filters.sort)
+    return all
+  }, [bmo, amc, metricsMap, filters])
 
   const syms = useMemo(() => entries.map(e => e.sym), [entries])
   const { prices } = useRealtimePrices(syms)
