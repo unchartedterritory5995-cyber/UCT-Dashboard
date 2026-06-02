@@ -1570,22 +1570,6 @@ export default function OptionsFlowDashboard() {
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
 
-  // ─── Notable Flow Discord Alerts ─────────────────────────────────────
-  // Admin gating is DISABLED for now (default isAdmin = true so all viewers
-  // see the controls). When you're ready to add real admin gating, set the
-  // default to false and uncomment the probe useEffect below to restore the
-  // URL-param / localStorage / /api/auth/me lookup.
-  //
-  // NOTE: CSV upload and auto-fire-on-upload live ONLY in OptionsFlow_admin.jsx.
-  // On public, the only Notable Flow controls are the manual 🔔 toggle and
-  // the 🚨 per-row button — no upload UI here.
-  const [isAdmin, setIsAdmin] = useState(true);
-  const [notableEnabled, setNotableEnabled] = useState(true);
-  const [notableHasWebhook, setNotableHasWebhook] = useState(true);
-  const [notableLastResult, setNotableLastResult] = useState(null);
-  const [notableRowBusy, setNotableRowBusy] = useState({});
-
-
   // ─── Watchlist State ─────────────────────────────────────────────────
   const [wlBull, setWlBull] = useState([]);
   const [wlBear, setWlBear] = useState([]);
@@ -2125,103 +2109,6 @@ export default function OptionsFlowDashboard() {
     }, 500);
     return () => clearTimeout(t);
   }, []);
-
-  // ─── Admin probe (currently disabled — see isAdmin default above) ───
-  // To restore admin gating: flip the isAdmin default to false and
-  // uncomment this useEffect. The probe handles URL param ?admin=1,
-  // localStorage 'uct_admin', and /api/auth/me as a final fallback.
-  //
-  // useEffect(() => {
-  //   try {
-  //     const params = new URLSearchParams(window.location.search);
-  //     const adminParam = params.get("admin");
-  //     if (adminParam === "1") {
-  //       localStorage.setItem("uct_admin", "1"); setIsAdmin(true); return;
-  //     }
-  //     if (adminParam === "0") {
-  //       localStorage.removeItem("uct_admin"); setIsAdmin(false); return;
-  //     }
-  //     if (localStorage.getItem("uct_admin") === "1") { setIsAdmin(true); return; }
-  //   } catch {}
-  //   fetch("/api/auth/me", { credentials: "include" })
-  //     .then(r => r.ok ? r.json() : null)
-  //     .then(raw => {
-  //       if (!raw) return;
-  //       const data = raw.user || raw;
-  //       const admin =
-  //         data.is_admin === true ||
-  //         data.admin === true ||
-  //         data.role === "admin" ||
-  //         (Array.isArray(data.roles) && data.roles.includes("admin"));
-  //       setIsAdmin(!!admin);
-  //     })
-  //     .catch(() => {});
-  // }, []);
-
-  // Settings probe only matters when we're actually going to show the
-  // controls — gate behind isAdmin so anonymous users never hit it.
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch("/api/notable-flow/settings").then(r=>r.ok?r.json():null).then(d=>{
-      if (!d) return;
-      setNotableEnabled(!!d.enabled);
-      setNotableHasWebhook(!!d.has_webhook);
-    }).catch(()=>{});
-  }, [isAdmin]);
-
-  // Manual 🚨 — push a single Top Flow row's ticker to Discord.
-  // Always force=true (bypasses 24h dedupe on intentional press).
-  function fireNotableSingle(row) {
-    if (!row || !row.sym) return;
-    const sym = row.sym;
-    setNotableRowBusy(prev => ({...prev, [sym]: true}));
-    const bull = row.bullPrem || 0;
-    const bear = row.bearPrem || 0;
-    const payload = {
-      sym,
-      dir: row.dir || (row.cp==="C" ? "BULL" : "BEAR"),
-      topContract: {
-        cp: row.cp,
-        K: row.K,
-        exp: row.exp,
-        prem: row.displayPrem || row.prem || 0,
-        hits: row.displayHits || row.hits || 1,
-        grade: row.grade || "",
-        side: row.side || "",
-      },
-      tickerBull: bull,
-      tickerBear: bear,
-      trigger: "MANUAL",
-      patterns: row.patterns || [],
-      er: !!row.er,
-      sector: row.sector || "",
-      mktcap: row.mktcap || 0,
-      force: true,
-    };
-    fetch("/api/notable-flow/post-single", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      credentials: "include",
-      body: JSON.stringify(payload),
-    }).then(r=>r.json()).then(d => {
-      setNotableLastResult(d);
-    }).catch(e => {
-      setNotableLastResult({ok:false, error:e.message});
-    }).finally(()=>{
-      setNotableRowBusy(prev => { const n={...prev}; delete n[sym]; return n; });
-    });
-  }
-
-  function toggleNotableEnabled() {
-    const next = !notableEnabled;
-    setNotableEnabled(next);
-    fetch("/api/notable-flow/settings", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      credentials: "include",
-      body: JSON.stringify({ enabled: next }),
-    }).catch(()=>{ setNotableEnabled(!next); });
-  }
 
   // NOTE: Auto-save of "top 20 per CSV date from D.CONV" was REMOVED. It
   // pulled from the broader confirmed-cluster list (D.CONV), which mixed in
@@ -5189,29 +5076,6 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>All confirmed clean flow ranked by conviction score across all timeframes. Grade + Hits + Premium weighted. Click any row for full detail.</div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <button
-                    onClick={toggleNotableEnabled}
-                    title={notableHasWebhook
-                      ? `Notable Flow Discord alerts ${notableEnabled?"ON":"OFF"}. Tier 1 (Flow Pulse) and Tier 2 (Hot Tickers) auto-fire on CSV upload.`
-                      : "DISCORD_NOTABLE_WEBHOOK_URL not configured on Railway"}
-                    disabled={!notableHasWebhook}
-                    style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+(notableEnabled?P.ac:P.bd), cursor:notableHasWebhook?"pointer":"not-allowed",
-                      fontSize:10, fontWeight:700, fontFamily:"inherit",
-                      background:notableEnabled?P.ac+"22":"transparent",
-                      color:notableEnabled?P.ac:P.dm,
-                      opacity:notableHasWebhook?1:0.5 }}>
-                    🔔 Notable {notableEnabled ? "ON" : "OFF"}
-                  </button>
-                  {notableLastResult && (
-                    <span style={{ fontSize:9, color:notableLastResult.ok?P.bu:P.be }}
-                      title={notableLastResult.ok
-                        ? `Fired: ${notableLastResult.sym || (notableLastResult.fired||[]).join(",") || "pulse only"} · Deduped: ${(notableLastResult.deduped||[]).join(",") || "none"}`
-                        : notableLastResult.error||"error"}>
-                      {notableLastResult.ok
-                        ? (notableLastResult.sym ? `✓ ${notableLastResult.sym}` : `✓ ${notableLastResult.fired?.length||0} fired, ${notableLastResult.deduped?.length||0} deduped`)
-                        : `✗ ${(notableLastResult.error||"error").slice(0,40)}`}
-                    </span>
-                  )}
                   <button onClick={()=>fetchPrices(ranked.map(c=>({sym:c.sym,cp:c.cp,strike:c.K,exp:c.exp})))} disabled={fetchLoading}
                     style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                       fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
@@ -5248,8 +5112,8 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE","Alert"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:h==="Alert"?"center":"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":h==="Alert"?"Push this ticker to Discord (#notable-flow). Bypasses 24h dedupe.":undefined}>{h}</th>
+                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"].map(h=>(
+                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -5292,16 +5156,6 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
-                        <td style={{ padding:"5px 5px", textAlign:"center" }} onClick={e=>e.stopPropagation()}>
-                          <button
-                            onClick={()=>fireNotableSingle(r)}
-                            disabled={!!notableRowBusy[r.sym] || !notableHasWebhook}
-                            title={!notableHasWebhook ? "DISCORD_NOTABLE_WEBHOOK_URL not configured" : "Push this ticker to Discord (bypasses 24h dedupe)"}
-                            style={{ padding:"2px 6px", border:"none", borderRadius:4, cursor:notableRowBusy[r.sym]||!notableHasWebhook?"not-allowed":"pointer",
-                              background:notableRowBusy[r.sym]?P.bd:P.al, color:notableHasWebhook?P.wh:P.dm, fontSize:11, fontFamily:"inherit", opacity:notableHasWebhook?1:0.4 }}>
-                            {notableRowBusy[r.sym] ? "…" : "🚨"}
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
