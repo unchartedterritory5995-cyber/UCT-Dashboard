@@ -118,6 +118,53 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     return stock
 
 
+def _compute_year_stats(symbol: str, year: int) -> dict:
+    """For a (symbol, year): % move from year open→close, and from year
+    low→high. Computed from daily bars and cached (closed-year stats are
+    static). Returns {open_close_pct, low_high_pct} (None when unavailable)."""
+    import json
+    from api.services.cache import cache
+    from api.services import bars_fetch
+
+    ckey = f"modelbook_yearstats_{symbol.upper()}_{year}"
+    cached = cache.get(ckey)
+    if cached is not None:
+        return cached
+
+    stats = {"open_close_pct": None, "low_high_pct": None}
+    try:
+        resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
+        body = getattr(resp, "body", None)
+        data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
+        ystr = str(year)
+        yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
+        yb.sort(key=lambda b: b.get("t", ""))  # 'YYYY-MM-DD' sorts chronologically
+        if yb:
+            o = yb[0].get("o")
+            c = yb[-1].get("c")
+            lows = [b["l"] for b in yb if b.get("l") is not None]
+            highs = [b["h"] for b in yb if b.get("h") is not None]
+            if o:
+                stats["open_close_pct"] = round((c - o) / o * 100, 1)
+            if lows and highs and min(lows):
+                stats["low_high_pct"] = round((max(highs) - min(lows)) / min(lows) * 100, 1)
+    except Exception:
+        pass
+
+    cache.set(ckey, stats, ttl=86400)  # 24h; full-year stats don't change
+    return stats
+
+
+@router.get("/year-stats")
+def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
+    """Per-stock year price stats for all curated stocks in a year:
+    open→close % and low→high %. Keyed by symbol."""
+    out = {}
+    for s in svc.get_stocks_for_year(year):
+        out[s["symbol"]] = _compute_year_stats(s["symbol"], year)
+    return {"year": year, "stats": out}
+
+
 # ── Writes (admin only) ───────────────────────────────────────────────────────
 
 @router.post("/stocks")
