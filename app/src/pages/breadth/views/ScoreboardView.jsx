@@ -6,7 +6,7 @@
 import { metricValue } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
-function buildSpark(values) {
+function buildSpark(values, polarity) {
   const vals = values.filter(v => v != null)
   if (vals.length < 2) return null
   const min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1
@@ -15,8 +15,11 @@ function buildSpark(values) {
     const y = 15 - ((v - min) / range) * 13
     return `${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
-  const up = vals[vals.length - 1] >= vals[0]
-  return { pts, color: up ? '#34d399' : '#f87171' }
+  // Color by *bullish* direction: for bearish metrics (e.g. VIX, 52w lows) a
+  // rising raw value is bearish, so invert.
+  const rising = vals[vals.length - 1] >= vals[0]
+  const bullish = polarity === 'bear' ? !rising : rising
+  return { pts, color: bullish ? '#34d399' : '#f87171' }
 }
 
 export default function ScoreboardView({ currentRow, recentRows = [], metrics, onDrill, signalKey, notableKey }) {
@@ -29,7 +32,7 @@ export default function ScoreboardView({ currentRow, recentRows = [], metrics, o
           const isSignal = m.key === signalKey
           const isNotable = m.key === notableKey
           const clickable = !!m.drillKey
-          const sp = buildSpark(asc.map(r => metricValue(m, r)))
+          const sp = buildSpark(asc.map(r => metricValue(m, r)), m.polarity)
           return (
             <div key={m.key} onClick={clickable ? () => onDrill(m) : undefined}
                  role={clickable ? 'button' : undefined}
