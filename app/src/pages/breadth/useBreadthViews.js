@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export const STORAGE_KEY = 'uct.breadth.views.v1'
 export const DEFAULT_PRESET = 'Default'
-export const STYLES = ['treemap', 'rings', 'tug', 'meters']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer']
 export const DEFAULT_STYLE = 'treemap'
 export const NAME_MAX = 40
 

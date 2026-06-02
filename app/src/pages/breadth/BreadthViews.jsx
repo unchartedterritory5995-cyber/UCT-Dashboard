@@ -15,6 +15,10 @@ import TreemapView from './views/TreemapView'
 import RingsView from './views/RingsView'
 import TugView from './views/TugView'
 import MetersView from './views/MetersView'
+import TimelineView from './views/TimelineView'
+import RadarView from './views/RadarView'
+import ScoreboardView from './views/ScoreboardView'
+import EqualizerView from './views/EqualizerView'
 
 export default function BreadthViews({ rows, onDrill }) {
   // Computed inside the component (not module top-level) to dodge the
@@ -53,6 +57,9 @@ export default function BreadthViews({ rows, onDrill }) {
 
   const currentRow = filledRows[rowIdx] ?? filledRows[0]
   const prevRow = filledRows[rowIdx + 3]
+  // Newest-first window up to the current cursor, for time-series styles
+  // (Timeline grid, Scoreboard sparklines).
+  const recentRows = useMemo(() => filledRows.slice(rowIdx, rowIdx + 20), [filledRows, rowIdx])
 
   const pctileByKey = useMemo(() => {
     const out = {}
@@ -92,7 +99,7 @@ export default function BreadthViews({ rows, onDrill }) {
   if (!currentRow) return null
 
   const common = {
-    currentRow, prevRow, metrics: visibleMetrics, normalize, onDrill: drill,
+    currentRow, prevRow, recentRows, metrics: visibleMetrics, normalize, onDrill: drill,
     signalKey: signals.signalKey, notableKey: signals.notableKey,
   }
 
@@ -145,9 +152,13 @@ export default function BreadthViews({ rows, onDrill }) {
                        visibleKeys={visibleKeys} signalKey={signals.signalKey}
                        notableKey={signals.notableKey} onDrill={drill} />
         )}
-        {views.viewStyle === 'rings'  && <RingsView  {...common} />}
-        {views.viewStyle === 'tug'    && <TugView    {...common} />}
-        {views.viewStyle === 'meters' && <MetersView {...common} />}
+        {views.viewStyle === 'rings'      && <RingsView      {...common} />}
+        {views.viewStyle === 'tug'        && <TugView        {...common} />}
+        {views.viewStyle === 'meters'     && <MetersView     {...common} />}
+        {views.viewStyle === 'timeline'   && <TimelineView   {...common} />}
+        {views.viewStyle === 'radar'      && <RadarView      {...common} />}
+        {views.viewStyle === 'scoreboard' && <ScoreboardView {...common} />}
+        {views.viewStyle === 'equalizer'  && <EqualizerView  {...common} />}
       </div>
     </div>
   )

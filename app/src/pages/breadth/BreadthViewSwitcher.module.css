@@ -1,4 +1,4 @@
-.switcher { display: inline-flex; gap: 4px; padding: 3px; border-radius: 9px;
+.switcher { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 9px;
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
 .btn { padding: 5px 14px; border: none; background: transparent; color: #94a3b8;
   font: 700 11px 'Instrument Sans', sans-serif; letter-spacing: .4px; border-radius: 6px;
