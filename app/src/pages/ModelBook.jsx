@@ -344,14 +344,39 @@ export default function ModelBook() {
     year != null ? `/api/modelbook/stocks?year=${year}` : null, fetcher,
     { revalidateOnFocus: false },
   )
-  const stocks = stocksData?.stocks || []
+  const stocks = useMemo(() => stocksData?.stocks || [], [stocksData])
 
   // Per-stock year price stats (open→close %, low→high %), keyed by symbol.
   const { data: statsData } = useSWR(
     year != null ? `/api/modelbook/year-stats?year=${year}` : null, fetcher,
     { revalidateOnFocus: false },
   )
-  const yearStats = statsData?.stats || {}
+  const yearStats = useMemo(() => statsData?.stats || {}, [statsData])
+
+  // Sortable gallery: by curated rank (default) or by yearly gain, asc/desc.
+  const [sort, setSort] = useState({ key: 'rank', dir: 'asc' })
+  function toggleSort(key) {
+    setSort(s => s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'gain' ? 'desc' : 'asc' })  // gain defaults to top-gainers
+  }
+  const sortedStocks = useMemo(() => {
+    const gain = sym => yearStats[sym]?.open_close_pct
+    const arr = [...stocks]
+    arr.sort((a, b) => {
+      if (sort.key === 'gain') {
+        const ga = gain(a.symbol), gb = gain(b.symbol)
+        if (ga == null && gb == null) return (a.sort_order || 0) - (b.sort_order || 0)
+        if (ga == null) return 1   // missing gains sink to the bottom
+        if (gb == null) return -1
+        return sort.dir === 'asc' ? ga - gb : gb - ga
+      }
+      const ra = a.sort_order || 0, rb = b.sort_order || 0
+      return sort.dir === 'asc' ? ra - rb : rb - ra
+    })
+    return arr
+  }, [stocks, yearStats, sort])
+  const sortArrow = key => (sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '')
 
   const [selectedId, setSelectedId] = useState(null)
 
@@ -411,10 +436,20 @@ export default function ModelBook() {
       <div className={styles.layout}>
         {/* Left — stock gallery */}
         <div className={styles.listPanel} style={{ width: panelWidth, minWidth: panelWidth }}>
+          {stocks.length > 0 && (
+            <div className={styles.galleryHead}>
+              <button className={styles.colHead} onClick={() => toggleSort('rank')}>
+                Stock{sortArrow('rank')}
+              </button>
+              <button className={`${styles.colHead} ${styles.colHeadRight}`} onClick={() => toggleSort('gain')}>
+                {year} Gain{sortArrow('gain')}
+              </button>
+            </div>
+          )}
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
-          {stocks.map(s => {
+          {sortedStocks.map(s => {
             const st = yearStats[s.symbol]
             return (
               <div
