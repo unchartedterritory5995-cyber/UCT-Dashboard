@@ -366,8 +366,8 @@ export default function ModelBook() {
   )
   const yearStats = useMemo(() => statsData?.stats || {}, [statsData])
 
-  // Sortable gallery: by curated rank (default) or by yearly gain, asc/desc.
-  const [sort, setSort] = useState({ key: 'rank', dir: 'asc' })
+  // Sortable gallery — defaults to top gainers (highest yearly gain first).
+  const [sort, setSort] = useState({ key: 'gain', dir: 'desc' })
   function toggleSort(key) {
     setSort(s => s.key === key
       ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
