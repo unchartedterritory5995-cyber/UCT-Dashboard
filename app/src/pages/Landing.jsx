@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import useInView from '../hooks/useIntersectionObserver'
+import { track } from '../utils/landingTrack'
 import styles from './Landing.module.css'
 
 // Returns the current US-market session label for the hero eyebrow.
@@ -128,6 +129,16 @@ export default function Landing() {
     const id = setInterval(() => setMarketStatus(getMarketStatus()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  // Fire a single landing_view event per page mount.
+  useEffect(() => { track('landing_view') }, [])
+
+  // FAQ open handler — track which questions visitors actually look at.
+  const handleFaqOpen = (e) => {
+    if (!e.target.open) return
+    const q = e.target.querySelector('summary')?.textContent?.trim()
+    if (q) track('faq_open', { question: q })
+  }
 
   const pathRef          = useRef(null)
   const drawnRef         = useRef(null)
@@ -286,7 +297,13 @@ export default function Landing() {
         </div>
         <div className={styles.navCta}>
           <Link to="/login" className={styles.navLogin}>Log in</Link>
-          <Link to="/signup?plan=pro" className={styles.navSignup}>Get started</Link>
+          <Link
+            to="/signup?plan=pro"
+            className={styles.navSignup}
+            onClick={() => track('nav_cta_click')}
+          >
+            Get started
+          </Link>
         </div>
       </nav>
 
@@ -399,10 +416,18 @@ export default function Landing() {
               live catalyst engine that reads 8 sources every morning.
             </p>
             <div className={`${styles.ctas} ${styles.enter} ${styles.enter5}`}>
-              <Link to="/signup?plan=pro" className={styles.ctaGold}>
+              <Link
+                to="/signup?plan=pro"
+                className={styles.ctaGold}
+                onClick={() => track('hero_cta_pro_click')}
+              >
                 Get started — $20/mo
               </Link>
-              <Link to="/signup?plan=free" className={styles.ctaGhost}>
+              <Link
+                to="/signup?plan=free"
+                className={styles.ctaGhost}
+                onClick={() => track('hero_cta_free_click')}
+              >
                 Try it free
               </Link>
             </div>
@@ -606,7 +631,7 @@ export default function Landing() {
             role="tab"
             aria-selected={billing === 'monthly'}
             className={`${styles.billingBtn} ${billing === 'monthly' ? styles.billingBtnActive : ''}`}
-            onClick={() => setBilling('monthly')}
+            onClick={() => { setBilling('monthly'); track('billing_toggle', { billing: 'monthly' }) }}
           >
             Monthly
           </button>
@@ -614,7 +639,7 @@ export default function Landing() {
             role="tab"
             aria-selected={billing === 'annual'}
             className={`${styles.billingBtn} ${billing === 'annual' ? styles.billingBtnActive : ''}`}
-            onClick={() => setBilling('annual')}
+            onClick={() => { setBilling('annual'); track('billing_toggle', { billing: 'annual' }) }}
           >
             Annual
             <span className={styles.billingSave}>Save $40</span>
@@ -650,6 +675,7 @@ export default function Landing() {
           <Link
             to={`/signup?plan=pro&billing=${billing}`}
             className={styles.priceCta}
+            onClick={() => track('pricing_cta_pro_click', { billing })}
           >
             Get started
           </Link>
@@ -688,7 +714,11 @@ export default function Landing() {
               <div className={styles.freeDesc}>Real-time options + dark pool.</div>
             </div>
           </div>
-          <Link to="/signup?plan=free" className={styles.freeCta}>
+          <Link
+            to="/signup?plan=free"
+            className={styles.freeCta}
+            onClick={() => track('free_tier_cta_click')}
+          >
             Create your free account
           </Link>
         </div>
@@ -701,7 +731,7 @@ export default function Landing() {
           <p className={styles.sectionP}>Most things people ask before they sign up.</p>
         </div>
         <div className={styles.faqList}>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>Is this investment advice?</summary>
             <div>
               No — UCT Intelligence is research and pattern detection software.
@@ -710,7 +740,7 @@ export default function Landing() {
               the work product of a research desk.
             </div>
           </details>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>Do I need to connect a broker?</summary>
             <div>
               No. The app runs entirely as research, journaling, and analytics.
@@ -718,7 +748,7 @@ export default function Landing() {
               but it's optional — no broker connection is required to use any feature.
             </div>
           </details>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>How is this different from a screener like Finviz?</summary>
             <div>
               Screeners give you 200 tickers and leave you to figure out which
@@ -728,7 +758,7 @@ export default function Landing() {
               more deciding.
             </div>
           </details>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>What's the difference between Free and Pro?</summary>
             <div>
               Free includes the Dashboard, Breadth Monitor, Charts Workspace,
@@ -738,7 +768,7 @@ export default function Landing() {
               Voice Assistant, and real-time streaming for $20/month.
             </div>
           </details>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>What is the AI Compass coach?</summary>
             <div>
               A trading coach that learns your setups, sizing rules, and tilt
@@ -748,7 +778,7 @@ export default function Landing() {
               to it by text or voice.
             </div>
           </details>
-          <details className={styles.faqItem}>
+          <details className={styles.faqItem} onToggle={handleFaqOpen}>
             <summary>Can I cancel anytime?</summary>
             <div>
               Yes — one click from your dashboard. No contracts, no retention
@@ -767,10 +797,18 @@ export default function Landing() {
             Five tools free forever. Pro is $20/month — cancel anytime, no questions asked.
           </p>
           <div className={styles.ctas}>
-            <Link to="/signup?plan=pro" className={styles.ctaGold}>
+            <Link
+              to="/signup?plan=pro"
+              className={styles.ctaGold}
+              onClick={() => track('close_cta_pro_click')}
+            >
               Get started — $20/mo
             </Link>
-            <Link to="/signup?plan=free" className={styles.ctaGhost}>
+            <Link
+              to="/signup?plan=free"
+              className={styles.ctaGhost}
+              onClick={() => track('close_cta_free_click')}
+            >
               Try it free
             </Link>
           </div>
@@ -815,7 +853,11 @@ export default function Landing() {
             UCT Intelligence
           </div>
           <div className={styles.footMid}>
-            <Link to="/signup?plan=free" className={styles.footCta}>
+            <Link
+              to="/signup?plan=free"
+              className={styles.footCta}
+              onClick={() => track('footer_cta_click')}
+            >
               Start free →
             </Link>
           </div>
@@ -843,6 +885,7 @@ export default function Landing() {
         to="/signup?plan=free"
         className={`${styles.stickyCta} ${footerInView ? styles.stickyCtaHidden : ''}`}
         aria-hidden={footerInView}
+        onClick={() => track('sticky_cta_click')}
       >
         <span className={styles.stickyCtaText}>Start free</span>
         <span className={styles.stickyCtaSub}>5 tools · no card required</span>

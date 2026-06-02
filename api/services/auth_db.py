@@ -386,6 +386,24 @@ CREATE TABLE IF NOT EXISTS voice_prompt_variants (
 );
 
 CREATE INDEX IF NOT EXISTS idx_voice_prompt_variants_user ON voice_prompt_variants(user_id, variant_id, created_at DESC);
+
+-- Landing page conversion analytics. Anonymous; visitor_id is a
+-- localStorage-stable UUID that lets us session-scope without auth.
+CREATE TABLE IF NOT EXISTS landing_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    visitor_id  TEXT NOT NULL,
+    event       TEXT NOT NULL,
+    props       TEXT,                -- JSON blob
+    referrer    TEXT,
+    path        TEXT,
+    user_agent  TEXT,
+    ip_prefix   TEXT,                -- /24 prefix only (privacy)
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_landing_events_visitor ON landing_events(visitor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_landing_events_event   ON landing_events(event, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_landing_events_day     ON landing_events(date(created_at));
 """
 
 
