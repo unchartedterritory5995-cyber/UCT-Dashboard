@@ -42,6 +42,7 @@
   white-space: nowrap;
 }
 .errorTag { color: #f87171; }
+.loadingTag { color: #b8b4a8; font-style: italic; }
 
 .seek {
   flex: 1 1 160px;

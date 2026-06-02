@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
@@ -6,6 +6,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
+import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
@@ -115,6 +116,13 @@ export default function MorningWire() {
   // P5-E: hands-free auto-read of today's rundown when proactive_speak is ON
   useHandsFreeMorningWire({ rundownHtml: rundown?.html })
 
+  // Follow-along: highlight + scroll to the briefing block being read aloud.
+  const rundownRef = useRef(null)
+  useReadAloudFollow({
+    containerRef: rundownRef,
+    trackId: `morning-wire-${rundown?.date || 'today'}`,
+  })
+
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),
     mutate('/api/tweets/feed?hours=12&limit=50'),
@@ -157,6 +165,7 @@ export default function MorningWire() {
         {rundown?.html
           ? (
             <div
+              ref={rundownRef}
               className={styles.rundownWrap}
               dangerouslySetInnerHTML={{ __html: rundown.html }}
             />
