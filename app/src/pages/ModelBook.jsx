@@ -226,7 +226,11 @@ function AddSetupForm({ stockId, year, onAdded }) {
 function StockDetail({ stockId, isAdmin }) {
   const { data: stock, mutate } = useSWR(
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
-    { revalidateOnFocus: false },
+    {
+      revalidateOnFocus: false,
+      // Poll briefly while the year stats (incl. avg volume) are still warming.
+      refreshInterval: (d) => (d && !d.error && d.avg_vol == null) ? 5000 : 0,
+    },
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
