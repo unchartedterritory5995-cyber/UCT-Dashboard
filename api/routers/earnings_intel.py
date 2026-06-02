@@ -1,14 +1,17 @@
-"""Earnings intelligence router — call recap, sentiment, webcast, audio, rating changes.
+"""Earnings intelligence router — call recap, sentiment, webcast, audio, rating changes,
+and verbatim AV transcripts.
 
 GET /api/earnings/call-recap/{ticker}   → call recap (24h cache, cost-guarded)
 GET /api/earnings/sentiment/{ticker}    → AI sentiment (12h cache, cost-guarded)
 GET /api/earnings/audio/{ticker}        → pluggable audio (env-gated)
+GET /api/earnings/transcript/{ticker}   → verbatim transcript via AlphaVantage (lazy, cached)
 """
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from api.services.call_recap import (
     get_call_recap,
@@ -17,6 +20,7 @@ from api.services.call_recap import (
     get_rating_changes,
 )
 from api.services.earnings_audio import get_audio
+from api.services.av_transcripts import get_transcript
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -81,4 +85,29 @@ def sentiment_endpoint(ticker: str):
         return get_sentiment(sym)
     except Exception as e:
         _log.warning("[earnings_intel] sentiment failed for %s: %s", sym, e)
+        return None
+
+
+@router.get("/api/earnings/transcript/{ticker}")
+def transcript_endpoint(
+    ticker: str,
+    quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
+):
+    """Verbatim earnings call transcript via AlphaVantage.
+
+    Lazy / on-demand only to respect the 25 req/day free-tier quota.
+    Results are cached 24h; throttle responses are short-cached 5 min.
+
+    Returns:
+        {symbol, quarter, segments: [{speaker, title, content, sentiment}], resolved}
+        or null when unavailable.
+    Never raises.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        return get_transcript(sym, quarter=quarter or None)
+    except Exception as e:
+        _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
         return None
