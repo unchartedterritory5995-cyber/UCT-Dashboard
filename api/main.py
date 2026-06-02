@@ -497,6 +497,29 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Auth DB init error (non-fatal): {e}")
 
+    # Promote any ADMIN_EMAILS user already in the DB to role='admin' on boot,
+    # so admin grants take effect immediately without requiring the user to
+    # log out and back in (login/signup auto-promote is the other path).
+    try:
+        from api.routers.auth import ADMIN_EMAILS
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            cur = conn.execute(
+                "UPDATE users SET role = 'admin' "
+                "WHERE email IN ({}) AND (role IS NULL OR role != 'admin')".format(
+                    ",".join("?" * len(ADMIN_EMAILS))
+                ),
+                tuple(ADMIN_EMAILS),
+            )
+            conn.commit()
+            if cur.rowcount:
+                print(f"[startup] Promoted {cur.rowcount} ADMIN_EMAILS user(s) to admin")
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[startup] Admin promotion (non-fatal): {e}")
+
     # Initialize tweets.db schema unconditionally — the schema is tiny and
     # idempotent. Frontend tweet UI (VITE_TWITTER_UI_ENABLED, default ON)
     # fires requests on every page load; without a schema, the read
