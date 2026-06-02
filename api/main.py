@@ -72,6 +72,7 @@ from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
+from api.routers import modelbook as modelbook_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.darkpool_router import router as darkpool_router
@@ -513,6 +514,16 @@ async def lifespan(app: FastAPI):
         print("[startup] catalysts.db initialized")
     except Exception as e:
         print(f"[startup] catalyst_store init failed (non-fatal): {e}")
+
+    # Initialize modelbook.db schema unconditionally (same pattern as above).
+    # The Model Book page fires /api/modelbook/years on load; without a schema
+    # the read endpoints would 500 on "no such table".
+    try:
+        from api.services import modelbook_service
+        modelbook_service._init_db()
+        print("[startup] modelbook.db initialized")
+    except Exception as e:
+        print(f"[startup] modelbook init failed (non-fatal): {e}")
 
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
@@ -1714,7 +1725,11 @@ app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
 app.include_router(screener.router)
-app.include_router(trades.router)
+# DEPRECATED 2026-06-02 — Model Book is no longer a trade log (rebuilt as a
+# curated library of top stocks; see api/routers/modelbook.py). The /api/trades
+# endpoints + data/trades.json are kept as a rollback backup; schedule a manual
+# removal after ~30d of green prod. No UI references /api/trades anymore.
+# app.include_router(trades.router)
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)
@@ -1758,6 +1773,7 @@ app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
+app.include_router(modelbook_router.router)
 
 # Discord flow watchlist — manual trigger endpoint
 register_discord_routes(app)

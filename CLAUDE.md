@@ -970,29 +970,51 @@ Three chart modes toggled via tabs centered in the chart header. **Default: Trad
 - Other groups (Score, Primary Breadth, Regime, Highs/Lows, Sentiment): buttons are no-op placeholders pending readings to be defined later
 - Active button style: amber glow (`.extremesBtnActive`)
 
-## Model Book — Setup Taxonomy (2026-03-21)
+## Model Book — Curated Library of Top Stocks (rebuilt 2026-06-02)
+
+`/model-book` is a **curated library of the best stocks in history**, organized
+by year, where clicking a stock opens its chart with the firm's playbook setups
+labeled on it (markers + entry/stop/target price lines + grade + teaching notes).
+Global single library (like UCT20), admin-curated, viewable by all logged-in
+users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note).
 
 ### Files
-- `app/src/pages/ModelBook.jsx` — full-page trade log
-- `app/src/pages/ModelBook.module.css` — styles
-- `api/routers/trades.py` — GET/POST /api/trades (JSON file storage)
-- `data/trades.json` — Railway persistent volume
+- `app/src/pages/ModelBook.jsx` — year pills → stock gallery (left) → stock detail (right: StockChart + labeled setups)
+- `app/src/pages/ModelBook.module.css` — two-pane styles (mirrors SetupLibrary)
+- `app/src/constants/setupGroups.js` — shared `SETUP_GROUPS` / `SETUPS` / `GRADES` (lifted out of the old page)
+- `api/routers/modelbook.py` — REST API (reads = `get_current_user`, writes = `require_admin`)
+- `api/services/modelbook_service.py` — dashboard-OWNED SQLite store
+- `/data/modelbook.db` — Railway persistent volume (NOT the uct_intelligence `model_examples` table, which is unreachable on Railway). Mirrors the cot.db / catalysts.db pattern.
 
-### Setup Groups
-Setups are organized into two groups (`SETUP_GROUPS` in `ModelBook.jsx`):
+### Data model (`/data/modelbook.db`)
+- `modelbook_stocks(id, year, symbol, company, sort_order, thesis, gain_pct, created_at, updated_at, UNIQUE(year, symbol))`
+- `modelbook_setups(id, stock_id→stocks ON DELETE CASCADE, setup_type, label_date 'YYYY-MM-DD', timeframe, entry_price, stop_price, target_price, grade, notes, marker_side, marker_shape, created_at)`
+- `label_date` is ISO TEXT so it maps 1:1 to lightweight-charts daily marker `time` (no conversion). `PRAGMA foreign_keys=ON` on every connection (cascade).
 
-**Swing:**
-High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
+### Endpoints (`/api/modelbook/*`)
+- `GET /years`, `GET /stocks?year=`, `GET /stock/{id}` (stock + setups[]) — any logged-in user
+- `POST /stocks`, `PUT|DELETE /stock/{id}`, `POST /stock/{id}/setups`, `PUT|DELETE /setup/{id}` — `require_admin`
+- Validation: grade∈{A+,A,B,C,F}, timeframe∈{D,W}, label_date=YYYY-MM-DD, marker enums.
 
-**Intraday:**
-Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green to Red, 30min Pivot, Mean Reversion L/S
+### Chart integration
+- Reuses `StockChart` (`tf="D"`, `liveUpdates={false}`, `entryDate=year-01-01` / `exitDate=year-12-31` to frame the calendar year).
+- `markers` from setups (`{time: label_date, position: marker_side, color by grade, shape, text: "Setup Grade"}`); `priceLines` (entry/stop/target dashed) rendered for the **selected** setup only (click a setup row to switch).
 
-### Architecture Notes
-- `SETUP_GROUPS` array drives both the nav sidebar (group headers + buttons) and the form select (`<optgroup>`)
-- `SETUPS` flat array derived via `SETUP_GROUPS.flatMap(g => g.setups)` — used for filtering logic
-- Nav renders `.navGroupLabel` header (muted caps) before each group's buttons
-- Trade data shape: `{ sym, entry, stop, target, size_pct, notes, setup, date, id, status }`
-- Status: "open" only (close/exit tracking not yet implemented)
+### Setup taxonomy (now in `app/src/constants/setupGroups.js`)
+**Swing:** High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
+**Intraday:** Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green to Red, 30min Pivot, Mean Reversion L/S
+
+### Tests
+- Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade).
+- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup).
+
+### Trade-log retirement (2026-06-02)
+The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —
+Model Book is no longer a trade log. Following the j2_playbook deprecation idiom:
+`api/routers/trades.py` + `data/trades.json` are KEPT as a rollback backup, but
+`app.include_router(trades.router)` in `api/main.py` is **commented out** (the
+import is left in place). No UI references `/api/trades`. Schedule the file +
+data removal after ~30d of green prod.
 
 ---
 
