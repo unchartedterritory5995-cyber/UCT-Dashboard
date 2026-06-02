@@ -1,13 +1,13 @@
 /* Model Book — curated library of top stocks in history with playbook
    setups labeled on each chart. Two-pane layout mirrors SetupLibrary. */
 
-.page { padding: 20px 24px; }
-.header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.page { padding: 14px 24px; }
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
 .heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); flex: 1; }
 
-/* ── Year tabs ── */
-.yearTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; align-items: center; }
+/* ── Year tabs (inline in the header row to save vertical space) ── */
+.yearTabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .yearTab {
   font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
   padding: 5px 14px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
@@ -18,7 +18,7 @@
 .emptyYears { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 
 /* ── Layout ── */
-.layout { display: flex; gap: 0; height: calc(100vh - 180px); }
+.layout { display: flex; gap: 0; height: calc(100vh - 90px); }
 .listPanel { width: 340px; flex: none; display: flex; flex-direction: column; overflow-y: auto; padding-right: 12px; }
 .resizer { width: 7px; flex: none; cursor: col-resize; border-right: 1px solid var(--border); transition: background 0.1s; }
 .resizer:hover { background: rgba(201,168,76,0.25); }
@@ -88,7 +88,11 @@
 .detailCompany { font-size: 12px; color: var(--text-muted); }
 .detailThesis { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 14px; }
 
-.chartWrap { height: calc(100vh - 290px); min-height: 520px; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
+/* dvTop fills the visible detail area; the chart flexes to fill whatever space
+   the header + info panel leave, so info + full chart stay on screen together
+   (the setups list scrolls below). */
+.dvTop { display: flex; flex-direction: column; height: calc(100vh - 104px); }
+.chartWrap { flex: 1 1 auto; min-height: 300px; width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
 .chart { height: 100%; }
 
 /* ── Setup list ── */
@@ -153,6 +157,7 @@
   .listPanel { width: 100% !important; min-width: 0 !important; border-bottom: 1px solid var(--border); max-height: 280px; padding-right: 0; }
   .resizer { display: none; }
   .detailPanel { padding: 12px 0 0; }
-  .chartWrap { height: 440px; min-height: 0; }
+  .dvTop { height: auto; }
+  .chartWrap { flex: none; height: 380px; min-height: 0; }
   .input { width: 100%; }
 }
