@@ -74,6 +74,24 @@ def _url_bytes(url: str):
     return None
 
 
+# logo.dev publishable key — safe to embed (per logo.dev: "Safe to share
+# publicly. Used with img.logo.dev."). Env override wins.
+_LOGODEV_TOKEN = os.environ.get("LOGODEV_TOKEN") or "pk_VBp-OevvQhy4D94cOdDhTA"
+
+
+def _logodev_logo_bytes(sym: str):
+    """logo.dev ticker logo — highest-coverage source. `fallback=404` makes
+    unknown tickers return 404 (→ None here) so we fall through to the next
+    source / monogram instead of caching logo.dev's generic placeholder."""
+    if not _LOGODEV_TOKEN:
+        return None
+    url = (
+        f"https://img.logo.dev/ticker/{_safe(sym)}"
+        f"?token={_LOGODEV_TOKEN}&format=png&size=128&retina=true&fallback=404"
+    )
+    return _url_bytes(url)
+
+
 def _clearbit_logo_bytes(sym: str):
     """Fetch logo from Clearbit Logo API using the company's domain.
 
@@ -117,18 +135,20 @@ def _fetch_sources(sym: str):
     """
     s = _safe(sym)
     return (
-        _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
+        _logodev_logo_bytes(s)
+        or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
         or _finnhub_logo_bytes(s)
     )
 
 
 def _fetch_sources_with_clearbit(sym: str):
-    """Extended source chain that adds Clearbit as a final fallback.
-    Used only by run_miss_retry() at low concurrency."""
+    """Extended source chain (logo.dev first, Clearbit last) used only by
+    run_miss_retry() at low concurrency."""
     s = _safe(sym)
     return (
-        _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
+        _logodev_logo_bytes(s)
+        or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
         or _finnhub_logo_bytes(s)
         or _clearbit_logo_bytes(s)

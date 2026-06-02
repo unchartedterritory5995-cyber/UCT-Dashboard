@@ -43,6 +43,33 @@ def test_resolve_skips_recent_miss(tmp_path):
         assert out is None
 
 
+# ── logo.dev primary source ───────────────────────────────────────────────────
+
+def test_logodev_builds_ticker_url_with_token_and_404_fallback():
+    captured = {}
+    def fake(url):
+        captured["url"] = url
+        return b"\x89PNG\r\n\x1a\nlogodev"
+    with mock.patch.object(tl, "_url_bytes", side_effect=fake), \
+         mock.patch.object(tl, "_LOGODEV_TOKEN", "pk_test"):
+        out = tl._logodev_logo_bytes("AAPL")
+    assert out is not None
+    assert "img.logo.dev/ticker/AAPL" in captured["url"]
+    assert "token=pk_test" in captured["url"]
+    assert "fallback=404" in captured["url"]
+
+
+def test_logodev_is_first_source_short_circuits_chain():
+    with mock.patch.object(tl, "_logodev_logo_bytes", return_value=b"\x89PNG\r\n\x1a\nx") as ld, \
+         mock.patch.object(tl, "_url_bytes") as url, \
+         mock.patch.object(tl, "_finnhub_logo_bytes") as fh:
+        out = tl._fetch_sources("AAPL")
+    assert out is not None
+    ld.assert_called_once_with("AAPL")
+    url.assert_not_called()
+    fh.assert_not_called()
+
+
 # ── E3: miss-retry + Clearbit tests ───────────────────────────────────────────
 
 def test_run_miss_retry_only_touches_miss_tickers(tmp_path):
