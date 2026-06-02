@@ -16,8 +16,12 @@ const MA_STACK_COLS = {
 
 export function metricValue(metric, row) {
   const k = metric.key
-  if (MA_STACK_COLS[k]) return MA_STACK_COLS[k].filter(c => row[c] === 1).length
-  if (k === 'is_ftd') return row.is_ftd ? 1 : 0
+  if (MA_STACK_COLS[k]) {
+    const cols = MA_STACK_COLS[k]
+    if (cols.every(c => row[c] == null)) return null
+    return cols.filter(c => row[c] === 1).length
+  }
+  if (k === 'is_ftd') return row.is_ftd == null ? null : (row.is_ftd ? 1 : 0)
   const v = row[k]
   if (v == null || isNaN(Number(v))) return null
   return Number(v)
@@ -25,7 +29,7 @@ export function metricValue(metric, row) {
 
 // Percent of the sorted ascending array <= v.
 export function percentileRank(sorted, v) {
-  if (!sorted || sorted.length < 1) return null
+  if (!sorted?.length) return null
   return Math.round(sorted.filter(x => x <= v).length / sorted.length * 100)
 }
 

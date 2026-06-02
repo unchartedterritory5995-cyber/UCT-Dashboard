@@ -30,6 +30,12 @@ describe('metricValue', () => {
     expect(metricValue(M('vix'), {})).toBeNull()
     expect(metricValue(M('vix'), { vix: 'x' })).toBeNull()
   })
+  it('returns null when is_ftd is absent', () => {
+    expect(metricValue(M('is_ftd'), {})).toBeNull()
+  })
+  it('returns null when all MA-stack columns are absent', () => {
+    expect(metricValue(M('spy_ma_stack'), {})).toBeNull()
+  })
 })
 
 describe('percentileRank', () => {
@@ -91,5 +97,9 @@ describe('netPosture', () => {
   })
   it('returns null when no usable pairs', () => {
     expect(netPosture(metrics, {})).toBeNull()
+  })
+  it('skips pairs whose values sum to zero', () => {
+    const m = [up('up_4pct_today', 'down_4pct_today'), down('down_4pct_today')]
+    expect(netPosture(m, { up_4pct_today: 0, down_4pct_today: 0 })).toBeNull()
   })
 })
