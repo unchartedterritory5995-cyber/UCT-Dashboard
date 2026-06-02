@@ -366,9 +366,9 @@ export default function EarningsModal({ row, label, onClose }) {
         {/* ── C5: Sentiment gauge ──────────────────────────────────────── */}
         <SentimentGauge ticker={row.sym} />
 
-        {/* ── C5: Call recap + audio ───────────────────────────────────── */}
+        {/* ── C5: Call recap + audio (+ lazy full transcript) ─────────── */}
         {recapData && (
-          <CallRecapSection recap={recapData} audio={audioData ?? null} />
+          <CallRecapSection recap={recapData} audio={audioData ?? null} ticker={row.sym} />
         )}
 
         {/* ── C2: SEC Filings section ──────────────────────────────────── */}

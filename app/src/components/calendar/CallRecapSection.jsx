@@ -6,10 +6,12 @@
 //   - Audio player when audio.stream_url present (native <audio>)
 //   - "Listen live ↗" link to webcast_url as fallback
 //   - Recent rating changes from the call-recap payload
+//   - Full Transcript collapsible (lazy — fetches only when expanded)
 //
 // All data fetched by the parent via useCallRecap / useEarningsAudio hooks
 // and passed as props so the component is purely presentational + testable.
 import { useState, useRef, useEffect, useCallback } from 'react'
+import useTranscript from '../../hooks/useTranscript'
 import styles from './CallRecapSection.module.css'
 
 // ── TTS helper ────────────────────────────────────────────────────────────────
@@ -82,12 +84,21 @@ function RatingChanges({ changes }) {
  *
  * @param {object} recap   — from useCallRecap().data
  * @param {object|null} audio — from useEarningsAudio().data ({ stream_url, kind, transcript_url })
+ * @param {string|null} ticker — symbol, used for lazy full-transcript fetch
  */
-export default function CallRecapSection({ recap, audio }) {
+export default function CallRecapSection({ recap, audio, ticker = null }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [ttsActive, setTtsActive] = useState(false)
+  const [transcriptOpen, setTranscriptOpen] = useState(false)
+  const [transcriptTtsActive, setTranscriptTtsActive] = useState(false)
   const utteranceRef = useRef(null)
+  const transcriptUtteranceRef = useRef(null)
   const audioRef = useRef(null)
+
+  // Lazy transcript fetch — only fires when the panel is expanded
+  const { data: transcript, isLoading: transcriptLoading } = useTranscript(ticker, {
+    enabled: transcriptOpen,
+  })
 
   // Stop TTS on unmount
   useEffect(() => {
@@ -95,6 +106,14 @@ export default function CallRecapSection({ recap, audio }) {
       if (hasSpeechSynthesis()) window.speechSynthesis.cancel()
     }
   }, [])
+
+  // Stop transcript TTS when panel collapses
+  useEffect(() => {
+    if (!transcriptOpen && transcriptTtsActive) {
+      if (hasSpeechSynthesis()) window.speechSynthesis.cancel()
+      setTranscriptTtsActive(false)
+    }
+  }, [transcriptOpen, transcriptTtsActive])
 
   const handleTTSToggle = useCallback(() => {
     if (!hasSpeechSynthesis()) return
@@ -112,6 +131,28 @@ export default function CallRecapSection({ recap, audio }) {
     window.speechSynthesis.speak(utter)
     setTtsActive(true)
   }, [recap, ttsActive])
+
+  // Build TTS text from verbatim transcript segments
+  const handleTranscriptTTSToggle = useCallback(() => {
+    if (!hasSpeechSynthesis()) return
+    if (transcriptTtsActive) {
+      window.speechSynthesis.cancel()
+      setTranscriptTtsActive(false)
+      return
+    }
+    if (!transcript?.segments?.length) return
+    const text = transcript.segments.map(s => {
+      const who = s.speaker || s.title || ''
+      return who ? `${who}: ${s.content}` : s.content
+    }).join('. ')
+    if (!text.trim()) return
+    const utter = new window.SpeechSynthesisUtterance(text)
+    utter.onend  = () => setTranscriptTtsActive(false)
+    utter.onerror = () => setTranscriptTtsActive(false)
+    transcriptUtteranceRef.current = utter
+    window.speechSynthesis.speak(utter)
+    setTranscriptTtsActive(true)
+  }, [transcript, transcriptTtsActive])
 
   if (!recap) return null
 
@@ -283,6 +324,82 @@ export default function CallRecapSection({ recap, audio }) {
         >
           Listen live ↗
         </a>
+      )}
+
+      {/* Full Transcript (lazy — only fetches when expanded; preserves AV quota) */}
+      {ticker && (
+        <div className={styles.transcriptBlock}>
+          <button
+            type="button"
+            className={styles.transcriptToggleBtn}
+            onClick={() => setTranscriptOpen(o => !o)}
+            aria-expanded={transcriptOpen}
+          >
+            <span className={styles.transcriptChevron}>{transcriptOpen ? '▾' : '▸'}</span>
+            <span className={styles.sectionLabel}>FULL TRANSCRIPT</span>
+          </button>
+
+          {transcriptOpen && (
+            <div className={styles.transcriptPanel}>
+              {transcriptLoading && !transcript && (
+                <p className={styles.transcriptLoading}>Loading transcript…</p>
+              )}
+
+              {!transcriptLoading && transcript === null && (
+                <p className={styles.transcriptUnavailable}>Transcript not available.</p>
+              )}
+
+              {transcript?.segments?.length > 0 && (
+                <>
+                  {/* Header row: quarter label + Listen TTS */}
+                  <div className={styles.transcriptHeader}>
+                    {transcript.quarter && (
+                      <span className={styles.transcriptQuarter}>{transcript.quarter}</span>
+                    )}
+                    {hasSpeechSynthesis() && (
+                      <button
+                        type="button"
+                        className={`${styles.listenBtn} ${transcriptTtsActive ? styles.listenBtnActive : ''}`}
+                        onClick={handleTranscriptTTSToggle}
+                        title={transcriptTtsActive ? 'Stop reading' : 'Listen to call'}
+                      >
+                        {transcriptTtsActive ? '⏹ Stop' : '🔊 Listen to call'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Transcript segments with keyword search highlight */}
+                  <div className={styles.transcriptSegments}>
+                    {transcript.segments.map((seg, i) => (
+                      <div key={i} className={styles.transcriptSegment}>
+                        {(seg.speaker || seg.title) && (
+                          <div className={styles.transcriptSpeaker}>
+                            {seg.speaker && <span className={styles.speakerName}>{seg.speaker}</span>}
+                            {seg.title && (
+                              <span className={styles.speakerTitle}>{seg.title}</span>
+                            )}
+                            {seg.sentiment && (
+                              <span className={
+                                seg.sentiment === 'positive' ? styles.sentBull :
+                                seg.sentiment === 'negative' ? styles.sentBear :
+                                styles.sentNeutral
+                              }>
+                                {seg.sentiment}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <p className={styles.transcriptContent}>
+                          {highlight(seg.content, kw)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
