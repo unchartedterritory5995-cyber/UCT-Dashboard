@@ -75,12 +75,18 @@ def _url_bytes(url: str):
 
 
 def _fetch_sources(sym: str):
-    """Try each source in priority order; return raw image bytes or None."""
+    """Try each source in priority order; return raw image bytes or None.
+
+    CDN sources (Parqet, FMP) come first: they need no API key and tolerate
+    concurrency, which keeps the universe-wide bulk warm fast. Finnhub's
+    profile2 logo is the last resort because its free tier is rate-limited
+    (~60/min) and would throttle a bulk pass if it ran first.
+    """
     s = _safe(sym)
     return (
-        _finnhub_logo_bytes(s)
-        or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
+        _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
         or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
+        or _finnhub_logo_bytes(s)
     )
 
 

@@ -21,10 +21,16 @@ export default function CompanyLogo({ sym, size = 38 }) {
       </span>
     )
   }
+  // A cold logo returns a 1x1 transparent PNG (loads "successfully"), so onError
+  // alone won't catch it. Detect the placeholder via naturalWidth and fall back
+  // to the monogram — otherwise cold tickers render as blank white circles.
+  const handleLoad = (e) => {
+    if (e.currentTarget.naturalWidth <= 2) setFailed(true)
+  }
   return (
     <span className={styles.wrap} style={{ width: px, height: px }}>
       <img className={styles.img} src={`/api/ticker-logo/${s}`} alt={`${s} logo`}
-           loading="lazy" onError={() => setFailed(true)} />
+           loading="lazy" onError={() => setFailed(true)} onLoad={handleLoad} />
     </span>
   )
 }
