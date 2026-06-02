@@ -4,9 +4,10 @@ import useRealtimePrices from '../../hooks/useRealtimePrices'
 import EarningsCard from './EarningsCard'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
+import { useReactions } from './useCalendarData'
 import styles from './Calendar.module.css'
 
-function DayGroup({ ds, day, filters, onSelect, reactions }) {
+function DayGroup({ ds, day, filters, onSelect }) {
   const bmo = (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' }))
   const amc = (day.amc || []).map(e => ({ ...e, _timing: 'amc' }))
   let entries = [...bmo, ...amc]
@@ -15,6 +16,7 @@ function DayGroup({ ds, day, filters, onSelect, reactions }) {
 
   const syms = useMemo(() => entries.map(e => e.sym), [entries])
   const { prices } = useRealtimePrices(syms)
+  const { data: reactions } = useReactions(ds)
   if (!entries.length && !(day.econ?.length || day.fed?.length)) return null
 
   const mineN = entries.filter(e => e.mine).length
@@ -38,12 +40,12 @@ function DayGroup({ ds, day, filters, onSelect, reactions }) {
   )
 }
 
-export default function FeedView({ weekDates, days, filters, onSelect, reactionsByDate }) {
+export default function FeedView({ weekDates, days, filters, onSelect }) {
   return (
     <div className={styles.feed}>
       {weekDates.map(ds => days[ds]
         ? <DayGroup key={ds} ds={ds} day={days[ds]} filters={filters}
-            onSelect={onSelect} reactions={reactionsByDate?.[ds]} /> : null)}
+            onSelect={onSelect} /> : null)}
     </div>
   )
 }

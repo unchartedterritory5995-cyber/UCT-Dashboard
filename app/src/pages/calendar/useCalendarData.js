@@ -48,6 +48,16 @@ export function useEnrichment(activeDate) {
   )
 }
 
+// Live post-print reaction (todaysChangePerc) for reported tickers on a given
+// day → { SYM: number }. Called per-DayGroup (stable component-level hook).
+export function useReactions(ds) {
+  return useMobileSWR(
+    ds ? `/api/calendar/reactions?date=${ds}` : null,
+    fetcher,
+    { refreshInterval: 30 * 1000, revalidateOnFocus: false, marketHoursOnly: true },
+  )
+}
+
 // One SWR subscription for the whole week — fetcher fans out to the per-day
 // enrichment endpoint and returns a { [ds]: {SYM:{expected_move,beat_history}} } map.
 // MUST be a single stable hook (not a loop) to avoid "rendered more hooks than during
