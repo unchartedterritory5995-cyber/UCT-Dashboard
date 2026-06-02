@@ -381,6 +381,11 @@ export default function ModelBook() {
   const sortArrow = key => (sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '')
 
   const [selectedId, setSelectedId] = useState(null)
+  // Auto-show the top stock of the current (sorted) list until the user picks
+  // one — so switching years immediately renders a chart instead of a prompt.
+  const activeId = (selectedId != null && sortedStocks.some(s => s.id === selectedId))
+    ? selectedId
+    : (sortedStocks[0]?.id ?? null)
 
   function selectYear(y) {
     setPickedYear(y)
@@ -395,7 +400,7 @@ export default function ModelBook() {
   // Keyboard ↑/↓ to move through the (sorted) stock list. A ref holds the latest
   // list + selection so the listener is bound once, not re-subscribed per change.
   const navRef = useRef({ list: [], id: null })
-  useEffect(() => { navRef.current = { list: sortedStocks, id: selectedId } }, [sortedStocks, selectedId])
+  useEffect(() => { navRef.current = { list: sortedStocks, id: activeId } }, [sortedStocks, activeId])
   useEffect(() => {
     const onKey = e => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
@@ -481,7 +486,7 @@ export default function ModelBook() {
               <div
                 key={s.id}
                 data-stock-id={s.id}
-                className={`${styles.stockCard} ${selectedId === s.id ? styles.stockCardActive : ''}`}
+                className={`${styles.stockCard} ${activeId === s.id ? styles.stockCardActive : ''}`}
                 onClick={() => setSelectedId(s.id)}
               >
                 <div className={styles.stockCardTop}>
@@ -512,7 +517,7 @@ export default function ModelBook() {
 
         {/* Right — chart + setups */}
         <div className={styles.detailPanel}>
-          <StockDetail stockId={selectedId} isAdmin={isAdmin} />
+          <StockDetail stockId={activeId} isAdmin={isAdmin} />
         </div>
       </div>
     </div>

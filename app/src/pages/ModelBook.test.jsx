@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { vi, beforeEach, test, expect } from 'vitest'
 
 // Stub the heavy chart so the page renders in jsdom without canvas/SSE.
@@ -55,7 +55,8 @@ test('renders model book heading', () => {
 test('renders the year tab and a stock card', () => {
   render(<ModelBook />)
   expect(screen.getByRole('button', { name: '2025' })).toBeInTheDocument()
-  expect(screen.getByText('NVDA')).toBeInTheDocument()
+  // NVDA shows in the gallery card (and, once auto-selected, the detail header)
+  expect(screen.getAllByText('NVDA').length).toBeGreaterThan(0)
 })
 
 test('hides admin add-stock button for non-admins', () => {
@@ -69,9 +70,9 @@ test('shows admin add-stock button for admins', () => {
   expect(screen.getByRole('button', { name: /add stock/i })).toBeInTheDocument()
 })
 
-test('clicking a stock card renders its chart and labeled setup', () => {
+test('auto-selects the first stock and renders its chart + labeled setup', () => {
   render(<ModelBook />)
-  fireEvent.click(screen.getByText('NVDA'))
+  // No click needed — the top stock is shown automatically.
   expect(screen.getByTestId('stock-chart')).toHaveTextContent('chart:NVDA')
   expect(screen.getByText('VCP')).toBeInTheDocument()
   expect(screen.getByText('A+')).toBeInTheDocument()
