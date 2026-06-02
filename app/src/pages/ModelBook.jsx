@@ -304,73 +304,75 @@ function StockDetail({ stockId, isAdmin }) {
         </div>
       </div>
 
-      {infoOpen && (
-        <div className={styles.infoPanel}>
-          <div className={styles.infoStats}>
-            <div className={styles.infoStat}>
-              <span className={styles.infoStatLabel}>{stock.year} Gain</span>
-              <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.oc_pct)}</span>
-            </div>
-            <div className={styles.infoStat}>
-              <span className={styles.infoStatLabel}>Low → High</span>
-              <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.lh_pct)}</span>
-            </div>
-            <div className={styles.infoStat}>
-              <span className={styles.infoStatLabel}>Avg Daily Vol</span>
-              <span className={styles.infoStatVal}>{fmtVol(stock.avg_vol)}</span>
-            </div>
-          </div>
-
-          <div className={styles.infoNarrative}>
-            {editNarr ? (
-              <>
-                <span className={styles.sectionLabel}>WHAT THE COMPANY DOES</span>
-                <textarea className={styles.textarea} style={{ minHeight: 50 }} value={descDraft}
-                  placeholder="One sentence on what the company does"
-                  onChange={e => setDescDraft(e.target.value)} />
-                <span className={styles.sectionLabel} style={{ marginTop: 8, display: 'inline-block' }}>WHY IT RAN THAT YEAR</span>
-                <textarea className={styles.textarea} style={{ minHeight: 110 }} value={storyDraft}
-                  placeholder="Catalysts, drivers, the theme behind the move"
-                  onChange={e => setStoryDraft(e.target.value)} />
-                <div className={styles.formActions}>
-                  <button className={styles.saveBtn} onClick={saveNarrative}>Save</button>
-                  <button className={styles.cancelBtn} onClick={() => setEditNarr(false)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                {stock.company_desc && <p className={styles.infoDesc}>{stock.company_desc}</p>}
-                {stock.run_story
-                  ? <p className={styles.infoStory}>{stock.run_story}</p>
-                  : !stock.company_desc && <p className={styles.infoStoryMuted}>Generating summary…</p>}
-                {isAdmin && (
-                  <button className={styles.infoEditLink}
-                    onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
-                    edit
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+      <div className={styles.dvBody}>
+        <div className={styles.chartWrap}>
+          <StockChart
+            sym={stock.symbol}
+            tf="D"
+            height="100%"
+            liveUpdates={false}
+            showDrawingTools={false}
+            entryDate={`${stock.year}-01-01`}
+            exitDate={`${stock.year}-12-31`}
+            exactDateRange
+            forceLogScale
+            priceScaleTopMargin={0.06}
+            markers={markers}
+            priceLines={priceLines}
+            className={styles.chart}
+          />
         </div>
-      )}
 
-      <div className={styles.chartWrap}>
-        <StockChart
-          sym={stock.symbol}
-          tf="D"
-          height="100%"
-          liveUpdates={false}
-          showDrawingTools={false}
-          entryDate={`${stock.year}-01-01`}
-          exitDate={`${stock.year}-12-31`}
-          exactDateRange
-          forceLogScale
-          priceScaleTopMargin={0.06}
-          markers={markers}
-          priceLines={priceLines}
-          className={styles.chart}
-        />
+        {infoOpen && (
+          <aside className={styles.infoSide}>
+            <div className={styles.infoStatsV}>
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>{stock.year} Gain</span>
+                <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.oc_pct)}</span>
+              </div>
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>Low → High</span>
+                <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.lh_pct)}</span>
+              </div>
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>Avg Daily Vol</span>
+                <span className={styles.infoStatVal}>{fmtVol(stock.avg_vol)}</span>
+              </div>
+            </div>
+
+            <div className={styles.infoNarrative}>
+              {editNarr ? (
+                <>
+                  <span className={styles.sectionLabel}>WHAT THE COMPANY DOES</span>
+                  <textarea className={styles.textarea} style={{ minHeight: 50 }} value={descDraft}
+                    placeholder="One sentence on what the company does"
+                    onChange={e => setDescDraft(e.target.value)} />
+                  <span className={styles.sectionLabel} style={{ marginTop: 8, display: 'inline-block' }}>WHY IT RAN THAT YEAR</span>
+                  <textarea className={styles.textarea} style={{ minHeight: 110 }} value={storyDraft}
+                    placeholder="Catalysts, drivers, the theme behind the move"
+                    onChange={e => setStoryDraft(e.target.value)} />
+                  <div className={styles.formActions}>
+                    <button className={styles.saveBtn} onClick={saveNarrative}>Save</button>
+                    <button className={styles.cancelBtn} onClick={() => setEditNarr(false)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {stock.company_desc && <p className={styles.infoDesc}>{stock.company_desc}</p>}
+                  {stock.run_story
+                    ? <p className={styles.infoStory}>{stock.run_story}</p>
+                    : !stock.company_desc && <p className={styles.infoStoryMuted}>Generating summary…</p>}
+                  {isAdmin && (
+                    <button className={styles.infoEditLink}
+                      onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
+                      edit
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
       </div>
 
