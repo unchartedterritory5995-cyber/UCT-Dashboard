@@ -72,7 +72,6 @@ from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
-from api.routers import ticker_logos as ticker_logos_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
@@ -981,13 +980,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
-    try:
-        from api.services.ticker_logos_prewarm import start_async as _logos_start
-        _logos_start()
-        print("[startup] ticker-logos prewarm scheduled")
-    except Exception as e:
-        print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
-
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
 
@@ -1747,7 +1739,6 @@ app.include_router(stream_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
-app.include_router(ticker_logos_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
