@@ -2744,12 +2744,18 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
   }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
 
-  // Exact-range pin (Model Book): keep the view locked to [entryDate, exitDate]
-  // whenever the CURRENT ticker's bars update. The main zoom block above only
-  // fires on a sym/tf change, which can run before async bars arrive (cold
-  // cache) and then never re-applies — leaving the chart on the full range.
-  // This re-pins once data lands, and compares by epoch so it's robust to `t`
-  // being a 'YYYY-MM-DD' string OR a unix timestamp number.
+  // Effect: update chart when data or settings change (NO cleanup — chart persists)
+  useEffect(() => {
+    updateChart()
+  }, [updateChart])
+
+  // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
+  // MUST run AFTER updateChart() (above) so the series already holds the
+  // current bars — otherwise our logical indices (computed from the new
+  // filteredBars) wouldn't match the series and setData would snap the view
+  // back to "now". Compares by epoch so it's robust to `t` being a
+  // 'YYYY-MM-DD' string OR a unix timestamp number. Re-runs on every data
+  // update so the network swap after the IDB cache can't revert it.
   useEffect(() => {
     if (!exactDateRange || !entryDate) return
     const chart = chartRef.current
@@ -2776,11 +2782,6 @@ export default function StockChart({
       chart.priceScale('right').applyOptions({ autoScale: true })
     } catch { /* range can be out of bounds mid-load; next update re-pins */ }
   }, [exactDateRange, entryDate, exitDate, filteredBars, sym])
-
-  // Effect: update chart when data or settings change (NO cleanup — chart persists)
-  useEffect(() => {
-    updateChart()
-  }, [updateChart])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
