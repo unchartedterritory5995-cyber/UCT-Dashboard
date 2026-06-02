@@ -163,7 +163,7 @@ export default function BreadthViews({ rows, onDrill }) {
         {views.viewStyle === 'treemap' && (
           <TreemapView currentRow={currentRow} prevRow={prevRow} pctileByKey={pctileByKey}
                        visibleKeys={visibleKeys} signalKey={signals.signalKey}
-                       notableKey={signals.notableKey} onDrill={drill} />
+                       notableKey={signals.notableKey} onDrill={drill} options={views.options} />
         )}
         {views.viewStyle === 'rings'      && <RingsView      {...common} />}
         {views.viewStyle === 'tug'        && <TugView        {...common} />}

@@ -10,10 +10,25 @@ import {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS,
 } from '../../Breadth'
 
-export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill }) {
+export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill, options = {} }) {
   const option = useMemo(() => {
     if (!currentRow) return {}
     const items = TREEMAP_DEF[0].items.filter(it => visibleKeys.has(it.metricKey))
+    const weightBy = options.weightBy ?? 'curated'
+    const tileWeight = (item) => {
+      if (weightBy === 'equal') return 1
+      if (weightBy === 'extremity') {
+        const sorted = pctileByKey[item.metricKey]
+        const raw = currentRow[item.metricKey]
+        if (sorted && raw != null && !isNaN(Number(raw))) {
+          const v = Number(raw)
+          const pct = sorted.filter(x => x <= v).length / sorted.length * 100
+          return Math.max(1, Math.abs(pct - 50))
+        }
+        return 1
+      }
+      return item.weight  // curated
+    }
     const children = items.map(item => {
       const metric = HM_METRICS_BY_KEY[item.metricKey]
       if (!metric) return null
@@ -36,7 +51,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         ? { color, borderColor: '#fbbf24', borderWidth: 2 }
         : { color, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 }
       return {
-        name: item.metricKey, value: item.weight,
+        name: item.metricKey, value: tileWeight(item),
         labelText: (isSignal ? '★ ' : '') + metric.label,
         valText: val + arrow, tier, itemStyle,
       }
@@ -98,7 +113,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         ],
       }],
     }
-  }, [currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey])
+  }, [currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, options])
 
   if (!currentRow) return null
   return (
