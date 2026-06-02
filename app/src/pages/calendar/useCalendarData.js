@@ -1,4 +1,5 @@
 // app/src/pages/calendar/useCalendarData.js
+import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 
 const fetcher = (url) => fetch(url).then(r => r.ok ? r.json() : null)
@@ -44,5 +45,25 @@ export function useEnrichment(activeDate) {
     activeDate ? `/api/calendar/enrichment?date=${activeDate}` : null,
     fetcher,
     { refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false, marketHoursOnly: true },
+  )
+}
+
+// One SWR subscription for the whole week — fetcher fans out to the per-day
+// enrichment endpoint and returns a { [ds]: {SYM:{expected_move,beat_history}} } map.
+// MUST be a single stable hook (not a loop) to avoid "rendered more hooks than during
+// the previous render" crash when weekDates length changes between renders.
+export function useWeekEnrichment(weekDates) {
+  const key = weekDates && weekDates.length ? `enrich:${weekDates.join(',')}` : null
+  return useSWR(
+    key,
+    () => Promise.all(
+      weekDates.map(ds =>
+        fetch(`/api/calendar/enrichment?date=${ds}`)
+          .then(r => (r.ok ? r.json() : {}))
+          .then(e => [ds, e || {}])
+          .catch(() => [ds, {}])
+      )
+    ).then(Object.fromEntries),
+    { refreshInterval: 300000, revalidateOnFocus: false }
   )
 }
