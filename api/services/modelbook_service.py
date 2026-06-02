@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   lh_pct      REAL,          -- cached year low->high %
   avg_vol     REAL,          -- cached avg daily volume for the year
   stats_at    INTEGER,       -- epoch when oc_pct/lh_pct were computed
+  company_desc TEXT,         -- AI: one-sentence "what the company does"
+  run_story    TEXT,         -- AI: brief "why it moved that year" narrative
+  desc_at      INTEGER,      -- epoch when descriptions were generated
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER,
   UNIQUE(year, symbol)
@@ -62,7 +65,8 @@ CREATE INDEX IF NOT EXISTS idx_mb_setups_stock ON modelbook_setups(stock_id, lab
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
-_STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct")
+_STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct",
+                 "company_desc", "run_story")
 _SETUP_FIELDS = ("setup_type", "label_date", "timeframe", "entry_price",
                  "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape")
@@ -89,6 +93,9 @@ def _init_db() -> None:
             ("modelbook_stocks", "lh_pct", "REAL"),
             ("modelbook_stocks", "avg_vol", "REAL"),
             ("modelbook_stocks", "stats_at", "INTEGER"),
+            ("modelbook_stocks", "company_desc", "TEXT"),
+            ("modelbook_stocks", "run_story", "TEXT"),
+            ("modelbook_stocks", "desc_at", "INTEGER"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -137,6 +144,16 @@ def save_stats(stock_id: int, oc_pct, lh_pct, avg_vol=None) -> None:
         c.execute(
             "UPDATE modelbook_stocks SET oc_pct = ?, lh_pct = ?, avg_vol = ?, stats_at = ? WHERE id = ?",
             (oc_pct, lh_pct, avg_vol, int(time.time()), int(stock_id)),
+        )
+        c.commit()
+
+
+def save_descriptions(stock_id: int, company_desc, run_story) -> None:
+    """Persist AI-generated company description + year narrative (generated once)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE modelbook_stocks SET company_desc = ?, run_story = ?, desc_at = ? WHERE id = ?",
+            (company_desc, run_story, int(time.time()), int(stock_id)),
         )
         c.commit()
 

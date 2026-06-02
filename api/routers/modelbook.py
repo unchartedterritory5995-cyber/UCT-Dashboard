@@ -56,6 +56,8 @@ class StockPatch(BaseModel):
     sort_order: Optional[int] = None
     thesis: Optional[str] = None
     gain_pct: Optional[float] = None
+    company_desc: Optional[str] = None
+    run_story: Optional[str] = None
 
 
 class SetupIn(BaseModel):
@@ -115,6 +117,9 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
+    # Auto-generate the company/story descriptions on first view (background).
+    if not stock.get("company_desc") and _is_final_year(stock.get("year", 0)):
+        _gen_desc_async(stock)
     return stock
 
 
@@ -235,11 +240,99 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
     return {"year": year, "stats": out}
 
 
+# ── AI-generated descriptions (company one-liner + "why it ran that year") ────
+
+import os as _os
+_DESC_ENABLED = _os.environ.get("MODELBOOK_DESC_ENABLED", "1") == "1"
+_DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_gen_lock = _threading.Lock()
+_generating = set()  # stock ids with a description generation in flight
+
+
+def _generate_descriptions(symbol, company, year, gain_pct):
+    """Claude → {company_desc, run_story}. One sentence on what the company does +
+    a brief, factual reason it made its big move that year. Returns None on failure."""
+    if not _DESC_ENABLED:
+        return None
+    import json as _json
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
+        system = ("You write concise, factual stock study notes for a trader's model book. "
+                  "Output JSON only — no preamble, no markdown fences.")
+        prompt = (
+            f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
+            f"The stock rose {gain_txt} that year.\n\n"
+            'Return JSON exactly: {"company_desc": "...", "run_story": "..."}\n'
+            "- company_desc: ONE plain sentence on what the company does.\n"
+            "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
+            "the specific catalysts/drivers, or the broader market theme it rode. "
+            "Be factual and specific to that year; if unsure of specifics, describe the "
+            "dominant theme/driver. No price targets, no buy/sell advice."
+        )
+        msg = client.messages.create(
+            model=_DESC_MODEL, max_tokens=400, temperature=0.4,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+        s, e = text.find("{"), text.rfind("}")
+        if s == -1 or e == -1:
+            return None
+        obj = _json.loads(text[s:e + 1])
+        cd = (obj.get("company_desc") or "").strip()
+        rs = (obj.get("run_story") or "").strip()
+        return {"company_desc": cd, "run_story": rs} if (cd or rs) else None
+    except Exception:
+        return None
+
+
+def _generate_descriptions_for(stocks, max_workers=3):
+    pending = [s for s in stocks if not s.get("company_desc")]
+    if not pending:
+        return
+    import concurrent.futures
+
+    def _work(s):
+        d = _generate_descriptions(s["symbol"], s.get("company"), s["year"], s.get("oc_pct"))
+        if d:
+            try:
+                svc.save_descriptions(s["id"], d["company_desc"], d["run_story"])
+            except Exception:
+                pass
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        list(ex.map(_work, pending))
+
+
+def _gen_desc_async(stock):
+    """Deduped background generation of one stock's descriptions."""
+    sid = stock.get("id")
+    if not sid or not _DESC_ENABLED:
+        return
+    with _gen_lock:
+        if sid in _generating:
+            return
+        _generating.add(sid)
+
+    def _run():
+        try:
+            d = _generate_descriptions(stock["symbol"], stock.get("company"),
+                                       stock["year"], stock.get("oc_pct"))
+            if d:
+                svc.save_descriptions(sid, d["company_desc"], d["run_story"])
+        finally:
+            with _gen_lock:
+                _generating.discard(sid)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-desc-{sid}").start()
+
+
 def warm_all_stats() -> None:
-    """Background pre-warm at startup: compute + persist stats for every curated
-    stock in a closed year that lacks them. Low concurrency + a delay past the
-    startup bars-resync window so the gallery's gain column is ready before users
-    open the page. Re-checks once more after a longer delay to catch transients."""
+    """Background pre-warm at startup: compute + persist price stats AND generate
+    AI descriptions for every curated stock in a closed year that lacks them. Low
+    concurrency + a delay past the startup bars-resync window. Re-checks once more
+    after a longer delay to catch transients."""
     import time as _time
     for delay in (35, 120):
         _time.sleep(delay)
@@ -247,9 +340,17 @@ def warm_all_stats() -> None:
             stocks = [s for s in svc.get_all_stocks() if _is_final_year(s["year"])]
         except Exception:
             continue
-        if all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks):
+        stats_done = all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks)
+        desc_done = all(s.get("company_desc") for s in stocks) or not _DESC_ENABLED
+        if stats_done and desc_done:
             return  # fully warmed
-        _persist_stats_for(stocks, max_workers=2)
+        if not stats_done:
+            _persist_stats_for(stocks, max_workers=2)
+            try:
+                stocks = [s for s in svc.get_all_stocks() if _is_final_year(s["year"])]
+            except Exception:
+                pass
+        _generate_descriptions_for(stocks)
 
 
 # ── Writes (admin only) ───────────────────────────────────────────────────────

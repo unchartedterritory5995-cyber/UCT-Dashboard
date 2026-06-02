@@ -77,8 +77,13 @@
 .infoStat { display: flex; flex-direction: column; gap: 2px; }
 .infoStatLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
 .infoStatVal { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--text-primary); }
-.infoNarrHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.infoNarrText { font-size: 13px; line-height: 1.65; color: var(--text-secondary); margin: 0; white-space: pre-wrap; }
+.infoStatGreen { color: var(--gain, #3cb868); }
+.infoNarrative { position: relative; }
+.infoDesc { font-size: 13.5px; line-height: 1.55; color: var(--text-primary); font-weight: 600; margin: 0 0 8px; }
+.infoStory { font-size: 13px; line-height: 1.7; color: var(--text-secondary); margin: 0; white-space: pre-wrap; }
+.infoStoryMuted { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin: 0; }
+.infoEditLink { background: transparent; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px; cursor: pointer; padding: 4px 0 0; text-transform: uppercase; }
+.infoEditLink:hover { color: var(--ut-gold); }
 .detailGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--ut-green, #3cb868); }
 .detailCompany { font-size: 12px; color: var(--text-muted); }
 .detailThesis { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 14px; }

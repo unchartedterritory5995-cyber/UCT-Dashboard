@@ -228,15 +228,16 @@ function StockDetail({ stockId, isAdmin }) {
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
       revalidateOnFocus: false,
-      // Poll briefly while the year stats (incl. avg volume) are still warming.
-      refreshInterval: (d) => (d && !d.error && d.avg_vol == null) ? 5000 : 0,
+      // Poll while the year stats (avg vol) or AI descriptions are still warming.
+      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || !d.company_desc)) ? 5000 : 0,
     },
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
   const [editNarr, setEditNarr] = useState(false)
-  const [narrDraft, setNarrDraft] = useState('')
+  const [descDraft, setDescDraft] = useState('')
+  const [storyDraft, setStoryDraft] = useState('')
   // Derived: the picked setup if still present, else the first one (so its
   // price lines show by default). Avoids a setState-in-effect on stock change.
   const selectedSetupId = (pickedSetupId != null && setups.some(s => s.id === pickedSetupId))
@@ -270,7 +271,7 @@ function StockDetail({ stockId, isAdmin }) {
     await fetch(`/api/modelbook/stock/${stock.id}`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ thesis: narrDraft }),
+      body: JSON.stringify({ company_desc: descDraft, run_story: storyDraft }),
     })
     setEditNarr(false)
     mutate()
@@ -307,11 +308,11 @@ function StockDetail({ stockId, isAdmin }) {
           <div className={styles.infoStats}>
             <div className={styles.infoStat}>
               <span className={styles.infoStatLabel}>{stock.year} Gain</span>
-              <span className={`${styles.infoStatVal} ${(stock.oc_pct ?? 0) >= 0 ? styles.gain : styles.loss}`}>{pctStr(stock.oc_pct)}</span>
+              <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.oc_pct)}</span>
             </div>
             <div className={styles.infoStat}>
               <span className={styles.infoStatLabel}>Low → High</span>
-              <span className={styles.infoStatVal}>{pctStr(stock.lh_pct)}</span>
+              <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.lh_pct)}</span>
             </div>
             <div className={styles.infoStat}>
               <span className={styles.infoStatLabel}>Avg Daily Vol</span>
@@ -320,26 +321,34 @@ function StockDetail({ stockId, isAdmin }) {
           </div>
 
           <div className={styles.infoNarrative}>
-            <div className={styles.infoNarrHead}>
-              <span className={styles.sectionLabel}>STORY / NARRATIVE</span>
-              {isAdmin && !editNarr && (
-                <button className={styles.addBtn} onClick={() => { setNarrDraft(stock.thesis || ''); setEditNarr(true) }}>
-                  {stock.thesis ? 'Edit' : '+ Add notes'}
-                </button>
-              )}
-            </div>
             {editNarr ? (
               <>
-                <textarea className={styles.textarea} style={{ minHeight: 120 }} value={narrDraft}
-                  placeholder="Performance, earnings, the story behind the move that year, key levels, etc."
-                  onChange={e => setNarrDraft(e.target.value)} />
+                <span className={styles.sectionLabel}>WHAT THE COMPANY DOES</span>
+                <textarea className={styles.textarea} style={{ minHeight: 50 }} value={descDraft}
+                  placeholder="One sentence on what the company does"
+                  onChange={e => setDescDraft(e.target.value)} />
+                <span className={styles.sectionLabel} style={{ marginTop: 8, display: 'inline-block' }}>WHY IT RAN THAT YEAR</span>
+                <textarea className={styles.textarea} style={{ minHeight: 110 }} value={storyDraft}
+                  placeholder="Catalysts, drivers, the theme behind the move"
+                  onChange={e => setStoryDraft(e.target.value)} />
                 <div className={styles.formActions}>
                   <button className={styles.saveBtn} onClick={saveNarrative}>Save</button>
                   <button className={styles.cancelBtn} onClick={() => setEditNarr(false)}>Cancel</button>
                 </div>
               </>
             ) : (
-              <p className={styles.infoNarrText}>{stock.thesis || 'No notes yet.'}</p>
+              <>
+                {stock.company_desc && <p className={styles.infoDesc}>{stock.company_desc}</p>}
+                {stock.run_story
+                  ? <p className={styles.infoStory}>{stock.run_story}</p>
+                  : !stock.company_desc && <p className={styles.infoStoryMuted}>Generating summary…</p>}
+                {isAdmin && (
+                  <button className={styles.infoEditLink}
+                    onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
+                    edit
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
