@@ -26,6 +26,12 @@ from api.services.voice_usage import (
 )
 from api.services.voice_audio_cache import get_cached, put_cached
 from api.services.voice_openai import synthesize_speech, synthesize_speech_stream, MAX_INPUT_CHARS
+
+# Per-request OpenAI limit is MAX_INPUT_CHARS (~4k); the synth layer auto-chunks
+# longer text. This is just an abuse ceiling on a single read-aloud request —
+# generous enough for a full Morning Wire rundown (~11k) plus headroom.
+# ~50k chars ≈ 50+ minutes of audio.
+MAX_TTS_CHARS = 50_000
 from fastapi import UploadFile, File, Form
 from urllib.parse import quote as _urlquote
 from api.services.voice_openai import transcribe_audio, cleanup_transcript
@@ -97,10 +103,10 @@ def tts(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    if len(text) > MAX_INPUT_CHARS:
+    if len(text) > MAX_TTS_CHARS:
         raise HTTPException(
             status_code=400,
-            detail=f"text exceeds max length ({MAX_INPUT_CHARS} chars)",
+            detail=f"text exceeds max length ({MAX_TTS_CHARS} chars)",
         )
 
     settings = get_voice_settings(user["id"])

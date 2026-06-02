@@ -85,6 +85,26 @@ def test_tts_rejects_empty_text(client):
     assert r.status_code == 400
 
 
+def test_tts_accepts_full_morning_wire_length(client, tmp_path, monkeypatch):
+    """Regression: an ~11k-char Morning Wire rundown must NOT be rejected as
+    'too long' — the synth layer chunks it. Previously a 4000-char cap made
+    Read Aloud silently fail on the entire Morning Wire."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    long_rundown = ("The market opened higher today. " * 400).strip()  # ~12k chars
+    assert len(long_rundown) > 10_000
+    fake_audio = b"\xFF\xFB\x90\x00FULLWIRE"
+    fake_client = object()
+    with patch("api.services.voice_openai._get_client", return_value=fake_client), \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ):
+        r = client.post("/api/voice/tts", json={"text": long_rundown})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("audio/mpeg")
+
+
 # ── Settings + Usage ────────────────────────────────────────────────────────
 
 def test_settings_get_returns_defaults_for_new_paid_user(client):

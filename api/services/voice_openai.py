@@ -7,6 +7,7 @@ slice 4 will add Realtime session token minting.
 """
 
 import os
+import re
 import logging
 import time
 from openai import OpenAI
@@ -14,12 +15,84 @@ from openai import APIConnectionError, APIStatusError, RateLimitError
 
 _log = logging.getLogger(__name__)
 
-# OpenAI tts-1 hard limit is ~4096 chars. Stay safely under.
+# OpenAI TTS hard limit is ~4096 chars PER REQUEST. Stay safely under it.
+# Longer text (e.g. the ~11k-char Morning Wire rundown) is split into multiple
+# requests at natural boundaries by _chunk_text() and the resulting MP3 streams
+# are concatenated — the browser <audio> element plays them back-to-back.
 MAX_INPUT_CHARS = 4000
 
 _TTS_MODEL = "tts-1-hd"
 
 _client = None
+
+
+def _chunk_text(text: str, max_chars: int = MAX_INPUT_CHARS) -> list[str]:
+    """
+    Split `text` into ordered chunks each <= max_chars, breaking on natural
+    boundaries so playback sounds seamless: paragraphs first, then sentences,
+    then (only if a single sentence is still too long) words, then — in the
+    pathological case of one giant token — a hard slice.
+
+    No content is dropped; concatenating the chunks' words reproduces the input.
+    """
+    text = (text or "").strip()
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    # 1) Break into atomic units that are each guaranteed <= max_chars.
+    units: list[str] = []
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        if len(para) <= max_chars:
+            units.append(para)
+            continue
+        for sent in re.split(r"(?<=[.!?])\s+", para):
+            sent = sent.strip()
+            if not sent:
+                continue
+            if len(sent) <= max_chars:
+                units.append(sent)
+                continue
+            # Sentence too long — pack words greedily.
+            cur = ""
+            for word in sent.split():
+                if len(word) > max_chars:
+                    if cur:
+                        units.append(cur)
+                        cur = ""
+                    for i in range(0, len(word), max_chars):
+                        units.append(word[i:i + max_chars])
+                    continue
+                if not cur:
+                    cur = word
+                elif len(cur) + 1 + len(word) <= max_chars:
+                    cur += " " + word
+                else:
+                    units.append(cur)
+                    cur = word
+            if cur:
+                units.append(cur)
+
+    # 2) Greedily pack units back together up to max_chars, joined by blank
+    #    lines so the model reads natural paragraph pauses at the seams.
+    chunks: list[str] = []
+    cur = ""
+    sep = "\n\n"
+    for unit in units:
+        if not cur:
+            cur = unit
+        elif len(cur) + len(sep) + len(unit) <= max_chars:
+            cur += sep + unit
+        else:
+            chunks.append(cur)
+            cur = unit
+    if cur:
+        chunks.append(cur)
+    return chunks
 
 
 def _get_client() -> OpenAI:
@@ -33,69 +106,76 @@ def _get_client() -> OpenAI:
     return _client
 
 
+def _synthesize_one_stream(client, chunk: str, *, voice: str, speed: float):
+    """Stream MP3 bytes for a single <=MAX_INPUT_CHARS chunk."""
+    with client.audio.speech.with_streaming_response.create(
+        model=_TTS_MODEL,
+        voice=voice,
+        input=chunk,
+        speed=speed,
+        response_format="mp3",
+    ) as resp:
+        for piece in resp.iter_bytes():
+            if piece:
+                yield piece
+
+
 def synthesize_speech_stream(text: str, *, voice: str, speed: float):
     """
     Yield MP3 audio chunks as OpenAI streams them. Generator.
     Used by the /tts router for low-latency client streaming.
-    Does NOT retry mid-stream (retries happen in synthesize_speech which uses
-    this under the hood for the simple bytes-result path).
+
+    Text longer than the per-request limit is split into multiple chunks
+    (paragraph/sentence boundaries) and their MP3 streams are yielded
+    back-to-back. The first chunk starts playing while later ones synthesize,
+    so long-form read-aloud (e.g. the Morning Wire) stays low-latency.
+    Does NOT retry mid-stream.
     """
     if not text or not text.strip():
         raise ValueError("text is empty")
-    if len(text) > MAX_INPUT_CHARS:
-        _log.warning("voice synth: truncating %d -> %d chars", len(text), MAX_INPUT_CHARS)
-        text = text[:MAX_INPUT_CHARS]
 
     client = _get_client()
-    with client.audio.speech.with_streaming_response.create(
-        model=_TTS_MODEL,
-        voice=voice,
-        input=text,
-        speed=speed,
-        response_format="mp3",
-    ) as resp:
-        for chunk in resp.iter_bytes():
-            if chunk:
-                yield chunk
+    chunks = _chunk_text(text)
+    if len(chunks) > 1:
+        _log.info("voice synth: streaming %d chars in %d chunks", len(text), len(chunks))
+    for chunk in chunks:
+        yield from _synthesize_one_stream(client, chunk, voice=voice, speed=speed)
 
 
 def synthesize_speech(text: str, *, voice: str, speed: float) -> bytes:
     """
-    Synthesize MP3 audio for `text` using OpenAI tts-1.
+    Synthesize MP3 audio for `text` using OpenAI TTS.
     Returns the full MP3 bytes (callers stream them to the client).
-    Retries up to 3 times on transient errors.
+    Long text is chunked; each chunk retries up to 3 times on transient errors
+    and the resulting MP3 segments are concatenated.
     """
     if not text or not text.strip():
         raise ValueError("text is empty")
-    if len(text) > MAX_INPUT_CHARS:
-        _log.warning("voice synth: truncating %d -> %d chars", len(text), MAX_INPUT_CHARS)
-        text = text[:MAX_INPUT_CHARS]
 
     client = _get_client()
-    last_err: Exception | None = None
-    for attempt in range(1, 4):
-        try:
-            with client.audio.speech.with_streaming_response.create(
-                model=_TTS_MODEL,
-                voice=voice,
-                input=text,
-                speed=speed,
-                response_format="mp3",
-            ) as resp:
+    chunks = _chunk_text(text)
+    out = bytearray()
+    for chunk in chunks:
+        last_err: Exception | None = None
+        for attempt in range(1, 4):
+            try:
                 buf = bytearray()
-                for chunk in resp.iter_bytes():
-                    buf.extend(chunk)
-                return bytes(buf)
-        except (APIConnectionError, RateLimitError) as e:
-            last_err = e
-            sleep_s = 0.5 * (2 ** (attempt - 1))
-            _log.warning("voice synth attempt %d failed: %s — retry in %.1fs", attempt, e, sleep_s)
-            time.sleep(sleep_s)
-        except APIStatusError as e:
-            # 4xx — do not retry
-            raise
-    assert last_err is not None
-    raise last_err
+                for piece in _synthesize_one_stream(client, chunk, voice=voice, speed=speed):
+                    buf.extend(piece)
+                out.extend(buf)  # commit only after the chunk fully succeeds
+                last_err = None
+                break
+            except (APIConnectionError, RateLimitError) as e:
+                last_err = e
+                sleep_s = 0.5 * (2 ** (attempt - 1))
+                _log.warning("voice synth attempt %d failed: %s — retry in %.1fs", attempt, e, sleep_s)
+                time.sleep(sleep_s)
+            except APIStatusError:
+                # 4xx — do not retry
+                raise
+        if last_err is not None:
+            raise last_err
+    return bytes(out)
 
 
 # ── Whisper STT ─────────────────────────────────────────────────────────────

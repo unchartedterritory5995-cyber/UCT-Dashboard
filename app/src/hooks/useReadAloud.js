@@ -51,17 +51,26 @@ export default function useReadAloud() {
         body: JSON.stringify(body),
       })
       if (!r.ok) {
+        // Surface every failure — a silent no-op makes the button look "broken".
         if (r.status === 402) {
           alert('Voice features require a paid plan.')
-          return
-        }
-        if (r.status === 429) {
+        } else if (r.status === 429) {
           alert('Monthly read-aloud cap reached.')
-          return
+        } else if (r.status === 401) {
+          alert('Please sign in to use Read Aloud.')
+        } else if (r.status === 503) {
+          alert('Read Aloud is temporarily unavailable. Please try again shortly.')
+        } else {
+          alert('Read Aloud failed. Please try again.')
         }
-        throw new Error(`TTS failed: ${r.status}`)
+        console.error('[useReadAloud] TTS request failed', r.status)
+        return
       }
       const blob = await r.blob()
+      if (!blob || blob.size === 0) {
+        alert('Read Aloud failed. Please try again.')
+        return
+      }
       blobUrl = URL.createObjectURL(blob)
       if (activeBlobUrl.current) {
         URL.revokeObjectURL(activeBlobUrl.current)
@@ -69,6 +78,7 @@ export default function useReadAloud() {
       activeBlobUrl.current = blobUrl
     } catch (e) {
       console.error('[useReadAloud] fetch failed', e)
+      alert('Read Aloud failed — could not reach the server. Please try again.')
       return
     }
 
