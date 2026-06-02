@@ -315,6 +315,25 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
             </label>
           </div>
         )}
+        {(() => {
+          // Move enabled oscillators into the volume pane (left axis).
+          const OSC = [['rsi', 'RSI'], ['macd', 'MACD'], ['stoch', 'Stoch'], ['atr', 'ATR'], ['mfi', 'MFI'], ['cci', 'CCI'], ['williamsR', 'W%R'], ['adx', 'ADX'], ['obv', 'OBV']]
+          const enabled = OSC.filter(([k]) => cs.indicators?.[k]?.enabled)
+          if (!cs.volume.visible || enabled.length === 0) return null
+          const cur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+          return (
+            <div className={styles.sRow} style={{ marginTop: 6, flexWrap: 'wrap' }}>
+              <span style={{ width: '100%', marginBottom: 2, fontSize: 11, opacity: 0.7 }}>Overlay on volume pane:</span>
+              {enabled.map(([k, label]) => (
+                <label key={k} className={styles.sCheck} title={`Render ${label} inside the volume pane`}>
+                  <input type="checkbox" checked={cur.includes(k)}
+                    onChange={() => update('volumeOverlayIndicators', cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k])} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Technical Indicators */}
