@@ -525,6 +525,7 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import modelbook_service
         modelbook_service._init_db()
+        modelbook_service.seed_initial()  # one-time bootstrap (flag-gated)
         print("[startup] modelbook.db initialized")
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")

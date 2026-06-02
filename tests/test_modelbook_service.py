@@ -119,3 +119,15 @@ def test_update_stock_patches_fields(s):
 def test_delete_missing_returns_false(s):
     assert s.delete_stock(123) is False
     assert s.delete_setup(123) is False
+
+
+def test_seed_initial_populates_and_is_flag_gated(s):
+    s.seed_initial()
+    assert s.list_years() == [2025, 2024]
+    assert len(s.get_stocks_for_year(2025)) == 10
+    assert len(s.get_stocks_for_year(2024)) == 10
+    # Once seeded, a second call is a no-op: deletions must stick across reseeds.
+    victim = s.get_stocks_for_year(2025)[0]
+    assert s.delete_stock(victim["id"]) is True
+    s.seed_initial()
+    assert len(s.get_stocks_for_year(2025)) == 9
