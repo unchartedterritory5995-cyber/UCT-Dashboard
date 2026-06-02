@@ -69,6 +69,35 @@ function FadeIn({ children, delay = 0, className = '' }) {
   )
 }
 
+// Animates a number from 0 to `to` over `duration`ms when the element
+// scrolls into view. Honors prefers-reduced-motion by skipping the
+// animation and rendering the final value immediately.
+function CountUp({ to, duration = 1200, format = (n) => n.toLocaleString('en-US'), className = '' }) {
+  const [ref, isInView] = useInView()
+  const [value, setValue] = useState(0)
+  const reduceMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  useEffect(() => {
+    if (!isInView) return
+    if (reduceMotion) { setValue(to); return }
+    let raf = null
+    let start = null
+    const tick = (ts) => {
+      if (start === null) start = ts
+      const progress = Math.min(1, (ts - start) / duration)
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(Math.round(to * eased))
+      if (progress < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => raf !== null && cancelAnimationFrame(raf)
+  }, [isInView, to, duration, reduceMotion])
+
+  return <span ref={ref} className={className}>{format(value)}</span>
+}
+
 const EQUITY_PATH_D =
   'M 90 580 C 150 575, 180 555, 210 540 S 270 510, 310 535 ' +
   'C 350 560, 390 565, 430 525 S 510 460, 560 475 ' +
@@ -385,13 +414,13 @@ export default function Landing() {
           Engine live
         </span>
         <span className={styles.stripDiv}>·</span>
-        <span className={styles.stripStat}>20 catalysts</span>
+        <span className={styles.stripStat}><CountUp to={20} /> catalysts</span>
         <span className={styles.stripDiv}>·</span>
-        <span className={styles.stripStat}>347 patterns</span>
+        <span className={styles.stripStat}><CountUp to={347} /> patterns</span>
         <span className={styles.stripDiv}>·</span>
-        <span className={styles.stripStat}>99 themes</span>
+        <span className={styles.stripStat}><CountUp to={99} /> themes</span>
         <span className={styles.stripDiv}>·</span>
-        <span className={styles.stripStat}>3,685 tickers</span>
+        <span className={styles.stripStat}><CountUp to={3685} /> tickers</span>
         <span className={styles.stripDiv}>·</span>
         <span className={styles.stripStat}>SPY <span className={styles.stripUp}>+0.42%</span></span>
       </div>
@@ -517,6 +546,46 @@ export default function Landing() {
           <div className={styles.compassFoot}>
             Pre-trade verdicts · post-mortems · weekly reviews · talk to it by voice
           </div>
+        </div>
+      </section>
+
+      {/* ── Who this is for ── */}
+      <section className={styles.who}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionH2}>Built for traders who take it seriously.</h2>
+          <p className={styles.sectionP}>Whether you swing, day trade, or invest — UCT fits.</p>
+        </div>
+        <div className={styles.whoGrid}>
+          <FadeIn delay={0}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Swing traders</div>
+              <h3 className={styles.whoH3}>You want to compound, not gamble.</h3>
+              <p className={styles.whoP}>
+                Multi-day to multi-week holds on the leaders. Use the Wire, UCT 20, and the
+                85-detector pattern engine. Compass keeps you patient.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={120}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Day traders</div>
+              <h3 className={styles.whoH3}>You want an edge before the bell.</h3>
+              <p className={styles.whoP}>
+                Pre-market catalysts, gap scanner, live breadth, Twitter feed, and Options
+                Flow. Everything you'd build a routine around — in one screen.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={240}>
+            <div className={styles.whoCard}>
+              <div className={styles.whoTag}>Active investors</div>
+              <h3 className={styles.whoH3}>You want to know what's rotating.</h3>
+              <p className={styles.whoP}>
+                99 themes across 12 sectors. Breadth Monitor, COT positioning, 500-day
+                analogue matching. See where the money's actually moving.
+              </p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -704,6 +773,31 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Trust signals ── */}
+      <div className={styles.trust}>
+        <div className={styles.trustInner}>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">●</span>
+            Real-time market data via Polygon
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">⊕</span>
+            AI synthesis by Anthropic Claude
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">🔒</span>
+            TLS secured · payments by Stripe
+          </span>
+          <span className={styles.trustDiv}>·</span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustGlyph} aria-hidden="true">✓</span>
+            Not investment advice
+          </span>
+        </div>
+      </div>
 
       {/* ── Footer ── */}
       <footer className={styles.foot}>

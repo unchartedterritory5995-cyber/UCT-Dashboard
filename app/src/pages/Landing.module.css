@@ -791,6 +791,61 @@
   margin: 0;
 }
 
+/* ── Who this is for ───────────────────────────────── */
+.who {
+  padding: 90px 40px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.whoGrid {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.whoCard {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px 24px;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  height: 100%;
+}
+.whoCard:hover {
+  border-color: rgba(201, 168, 76, 0.35);
+  background: #110a06;
+  transform: translateY(-2px);
+}
+.whoTag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+.whoH3 {
+  color: var(--cream);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  margin: 0 0 10px;
+}
+.whoP {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* ── Pricing ───────────────────────────────────────── */
 .price {
   padding: 96px 40px;
@@ -1187,6 +1242,37 @@
   justify-content: center;
 }
 
+/* ── Trust signals ─────────────────────────────────── */
+.trust {
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  padding: 22px 40px;
+}
+.trustInner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+  font-size: 12px;
+  color: var(--text-mute);
+}
+.trustItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.1px;
+}
+.trustGlyph {
+  color: var(--gold);
+  font-size: 11px;
+}
+.trustDiv {
+  color: rgba(255, 255, 255, 0.15);
+}
+
 /* ── Footer ────────────────────────────────────────── */
 .foot {
   padding: 40px 40px 28px;
@@ -1292,6 +1378,7 @@
   }
   .closeH2 { font-size: 32px; }
   .howGrid { gap: 24px; }
+  .whoGrid { gap: 14px; }
 }
 
 @media (max-width: 640px) {
@@ -1357,6 +1444,14 @@
   .compassSec { padding: 56px 20px; }
   .compassMock { padding: 20px; }
   .compassVerdict { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+  .who { padding: 56px 20px; }
+  .whoGrid { grid-template-columns: 1fr; gap: 14px; }
+  .whoCard { padding: 22px 18px; }
+
+  .trust { padding: 18px 20px; }
+  .trustInner { gap: 6px 14px; font-size: 11px; }
+  .trustDiv { display: none; }
 
   .footMid { width: 100%; justify-content: flex-start; }
 
