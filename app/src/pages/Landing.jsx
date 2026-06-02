@@ -12,35 +12,15 @@ const EQUITY_PATH_D =
 const EQUITY_FILL_D = EQUITY_PATH_D + ' L 1130 640 L 90 640 Z'
 
 const FEATURES = [
-  { icon: '❧', name: 'Morning Wire',     desc: 'Daily AI brief at 7:35 AM ET. Regime, exposure, top 5 picks with triggers.' },
-  { icon: '★', name: 'UCT 20',           desc: 'The 20 highest-conviction leadership stocks with entry/exit signals and live P&L.' },
-  { icon: '⊕', name: 'AI Compass',       desc: 'Your trading coach — pre-trade verdicts, post-mortems, tilt detection, weekly reviews.', isNew: true },
-  { icon: '◎', name: 'Stock Catalysts',  desc: '20-row pre-market desk, 8 sources synthesized by Opus 4.7 every refresh.', isNew: true },
-  { icon: '≣', name: 'Breadth Monitor',  desc: '20+ internals, 8-tier heatmap, COT data, 500-day analogue matching.' },
-  { icon: '❋', name: 'Theme Tracker',    desc: '99 themes, 12 sectors, 1,928 stocks, live intraday returns across 6 periods.' },
-  { icon: '⊞', name: 'Charts Workspace', desc: 'TradingView-grade drag-resize layout, 4 color groups, 8 timeframes.' },
-  { icon: '♪', name: 'Voice Assistant',  desc: 'Ask Compass anything by voice. 88 tools, RAG memory, risk engine.', isNew: true },
+  { name: 'Morning Wire',     desc: 'Daily AI brief at 7:35 AM ET. Regime, exposure, top 5 picks with triggers, stops, and invalidation levels.' },
+  { name: 'UCT 20',           desc: 'The 20 highest-conviction leadership stocks. Entry and exit signals, stop losses, live P&L.' },
+  { name: 'AI Compass',       desc: 'A trading coach that learns your setups. Pre-trade verdicts, post-mortems, tilt detection, weekly reviews.', isNew: true },
+  { name: 'Stock Catalysts',  desc: 'A pre-market intelligence desk. 20 vetted picks synthesized from 8 sources every refresh.', isNew: true },
+  { name: 'Breadth Monitor',  desc: '20+ market internals, eight-tier heatmap, COT positioning, 500-day analogue matching.' },
+  { name: 'Theme Tracker',    desc: '99 themes across 12 sectors. 1,928 stocks. Live intraday returns across six periods.' },
+  { name: 'Charts Workspace', desc: 'TradingView-grade workspace. Drag-resize tiles, four color groups for linking, eight timeframes.' },
+  { name: 'Voice Assistant',  desc: 'Ask Compass anything by voice. 88 tools, persistent memory, regime-aware risk engine.', isNew: true },
 ]
-
-const STARS = [
-  { top: 80,  left: '14%', size: 3, delay: '0s',   bright: true  },
-  { top: 110, left: '22%', size: 2, delay: '1.2s', bright: false },
-  { top: 60,  left: '28%', size: 4, delay: '2.5s', bright: true  },
-  { top: 130, left: '36%', size: 2, delay: '0.8s', bright: false },
-  { top: 75,  left: '48%', size: 2, delay: '1.6s', bright: false },
-  { top: 95,  left: '58%', size: 3, delay: '3.2s', bright: true  },
-  { top: 145, left: '66%', size: 2, delay: '0.5s', bright: false },
-  { top: 70,  left: '76%', size: 2, delay: '2.8s', bright: false },
-  { top: 100, left: '86%', size: 3, delay: '1.9s', bright: true  },
-  { top: 50,  left: '92%', size: 2, delay: '3.5s', bright: false },
-]
-
-function formatDateLine(d = new Date()) {
-  // Format like "Mon 1 Jun 2026" in ET; this is decorative so a simple
-  // toLocaleString is sufficient.
-  const opts = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/New_York' }
-  return d.toLocaleString('en-US', opts).replace(',', '')
-}
 
 export default function Landing() {
   const pathRef          = useRef(null)
@@ -155,36 +135,29 @@ export default function Landing() {
     }
   }, [])
 
+  const scrollToFeatures = (e) => {
+    e.preventDefault()
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
     <div className={styles.page}>
-      {/* ── Sticky Nav ── */}
+      {/* ── Nav ── */}
       <nav className={styles.nav}>
         <div className={styles.navBrand}>
-          <span className={styles.navMark}>⊕</span>
-          UCT INTELLIGENCE
+          <span className={styles.navMark} aria-hidden="true">⊕</span>
+          UCT Intelligence
         </div>
         <div className={styles.navCta}>
-          <Link to="/login" className={styles.navLogin}>Log In</Link>
-          <Link to="/signup?plan=pro" className={styles.navSignup}>Begin</Link>
+          <Link to="/login" className={styles.navLogin}>Log in</Link>
+          <Link to="/signup?plan=pro" className={styles.navSignup}>Get started</Link>
         </div>
       </nav>
 
       {/* ── Hero ── */}
       <section className={styles.hero}>
-        <div className={styles.cartouche}>
-          Day 1,247 of the voyage · {formatDateLine()}
-        </div>
-
-        {STARS.map((s, i) => (
-          <div
-            key={i}
-            className={`${styles.star} ${s.bright ? styles.starBright : ''}`}
-            style={{ top: s.top, left: s.left, width: s.size, height: s.size, animationDelay: s.delay }}
-          />
-        ))}
-
         {/* Equity-curve background */}
-        <div className={styles.equity}>
+        <div className={styles.equity} aria-hidden="true">
           <svg viewBox="0 0 1200 640" preserveAspectRatio="none">
             <defs>
               <linearGradient id="eqGrad" x1="0%" y1="100%" x2="100%" y2="0%">
@@ -267,116 +240,73 @@ export default function Landing() {
               </g>
             </g>
           </svg>
-          <div className={styles.chartLabel}>
-            <span className={styles.chartLabelDot} />
-            — Account · Year-to-Date —
-          </div>
         </div>
 
-        {/* Corner annotations */}
-        <div className={`${styles.corner} ${styles.cornerTl}`}>
-          <span className={styles.flourish}>❦</span> Uncharted Territory
-          <small>EST. PREMARKET</small>
-        </div>
-        <div className={`${styles.corner} ${styles.cornerTr}`}>
-          Charting the market <span className={styles.flourish}>❦</span>
-          <small>SINCE THE OPENING BELL</small>
-        </div>
-        <div className={`${styles.corner} ${styles.cornerBl}`}>
-          <span className={styles.flourish}>❀</span> From — Pre-Market
-          <small>04 : 00 EDT</small>
-        </div>
-        <div className={`${styles.corner} ${styles.cornerBr}`}>
-          To — Closing Bell <span className={styles.flourish}>❀</span>
-          <small>16 : 00 EDT</small>
-        </div>
-
-        {/* Hero inner content */}
         <div className={styles.heroInner}>
           <div className={styles.compassWrap}>
-            <div className={styles.compassShadow} />
-            <div className={styles.compassRing} />
-            <span className={`${styles.compassCard} ${styles.compassN}`}>N</span>
-            <span className={`${styles.compassCard} ${styles.compassE}`}>E</span>
-            <span className={`${styles.compassCard} ${styles.compassS}`}>S</span>
-            <span className={`${styles.compassCard} ${styles.compassW}`}>W</span>
             <div className={styles.compass}>
               <div className={styles.needle} />
             </div>
           </div>
 
           <div className={styles.heroBody}>
-            <div className={styles.heroGreeting}>
-              <span className={styles.greetingDot} />
-              Welcome, Trader.
+            <div className={styles.heroEyebrow}>
+              <span className={styles.eyebrowDot} />
+              Trading intelligence
             </div>
-            <h1 className={styles.heroH1}>
-              UCT Intelligence
-              <span className={styles.heroH1Small}>— A product of Uncharted Territory —</span>
-            </h1>
-            <div className={styles.divider}>
-              <span className={styles.dividerLine} />
-              <span className={styles.dividerGem}>◆</span>
-              <span className={styles.dividerTag}>Navigate the market, effectively.</span>
-              <span className={styles.dividerGem}>◆</span>
-              <span className={`${styles.dividerLine} ${styles.dividerLineRight}`} />
-            </div>
-            <div className={styles.pills}>
-              <span className={styles.pill}>Morning Wire</span>
-              <span className={styles.pill}>UCT 20</span>
-              <span className={styles.pill}>AI Compass</span>
-              <span className={styles.pill}>Stock Catalysts</span>
-              <span className={styles.pill}>Live Breadth</span>
-              <span className={styles.pill}>Pattern Engine</span>
-              <span className={styles.pill}>Charts Workspace</span>
-              <span className={styles.pill}>Voice Assistant</span>
-            </div>
+            <h1 className={styles.heroH1}>UCT Intelligence</h1>
+            <p className={styles.heroTagline}>Navigate the market, effectively.</p>
+            <p className={styles.heroSub}>
+              A complete trading desk in one app — pre-market AI brief, 20-stock
+              leadership portfolio, an AI coach that watches your trades, and a
+              live catalyst engine that reads 8 sources every morning.
+            </p>
             <div className={styles.ctas}>
               <Link to="/signup?plan=pro" className={styles.ctaGold}>
-                Step Aboard — $20/mo
+                Get started — $20/mo
               </Link>
-              <a href="#intro" className={styles.ctaGhost}>Watch the Intro</a>
-              <span className={styles.watch}>2 min</span>
+              <a href="#features" onClick={scrollToFeatures} className={styles.ctaGhost}>
+                See what's included
+              </a>
             </div>
           </div>
         </div>
-
-        <div className={styles.sealCurve}>— CHARTING THE MARKET —</div>
-        <div className={styles.seal}>UT</div>
       </section>
 
       {/* ── Live engine strip ── */}
       <div className={styles.strip}>
         <span className={styles.stripPulse}>
           <span className={styles.stripDot} />
-          ENGINE LIVE
+          Engine live
         </span>
-        <span className={styles.stripDiv}>|</span>
-        <span className={styles.stripStat}>CATALYSTS <span className={styles.stripV}>20</span></span>
-        <span className={styles.stripStat}>PATTERNS <span className={styles.stripV}>347</span></span>
-        <span className={styles.stripStat}>THEMES <span className={styles.stripV}>99</span></span>
-        <span className={styles.stripStat}>UNIVERSE <span className={styles.stripV}>3,685</span></span>
-        <span className={styles.stripStat}>EXPOSURE <span className={styles.stripUp}>115</span></span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}>20 catalysts</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}>347 patterns</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}>99 themes</span>
+        <span className={styles.stripDiv}>·</span>
+        <span className={styles.stripStat}>3,685 tickers</span>
+        <span className={styles.stripDiv}>·</span>
         <span className={styles.stripStat}>SPY <span className={styles.stripUp}>+0.42%</span></span>
       </div>
 
-      {/* ── Feature grid ── */}
-      <section className={styles.features}>
+      {/* ── Features ── */}
+      <section id="features" className={styles.features}>
         <div className={styles.sectionHead}>
-          <div className={styles.eyebrow}>Everything aboard</div>
-          <h2 className={styles.sectionH2}>One screen. Every signal that matters.</h2>
+          <h2 className={styles.sectionH2}>Everything you need to find an edge.</h2>
           <p className={styles.sectionP}>
-            Pre-market intelligence, live breadth, an AI coach, pattern detection,
-            real-time streaming — the depth of a trading desk without the Bloomberg bill.
+            Eight integrated tools. Pre-market intelligence, live breadth, an AI
+            coach, pattern detection, real-time streaming.
           </p>
         </div>
         <div className={styles.grid}>
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
             <div key={f.name} className={styles.feat}>
-              <div className={styles.featIcon}>{f.icon}</div>
+              <div className={styles.featNum}>{String(i + 1).padStart(2, '0')}</div>
               <h3 className={styles.featH3}>
                 {f.name}
-                {f.isNew && <span className={styles.featNew}>NEW</span>}
+                {f.isNew && <span className={styles.featNew}>New</span>}
               </h3>
               <p className={styles.featP}>{f.desc}</p>
             </div>
@@ -387,51 +317,58 @@ export default function Landing() {
       {/* ── Pricing ── */}
       <section className={styles.price}>
         <div className={styles.sectionHead}>
-          <div className={styles.eyebrow}>One price. Everything aboard.</div>
-          <h2 className={styles.sectionH2}>$20/month. Cancel anytime.</h2>
+          <h2 className={styles.sectionH2}>One plan. Everything included.</h2>
+          <p className={styles.sectionP}>$20 a month. Cancel anytime.</p>
         </div>
         <div className={styles.priceCard}>
-          <div className={styles.priceBadge}>PRO · ALL ACCESS</div>
-          <div className={styles.priceAmt}>$20<span className={styles.pricePer}> /month</span></div>
-          <div className={styles.priceTag}>— Less than one bad trade. —</div>
+          <div className={styles.priceTop}>
+            <div>
+              <div className={styles.priceBadge}>Pro</div>
+              <div className={styles.priceAmt}>
+                $20<span className={styles.pricePer}>/month</span>
+              </div>
+            </div>
+          </div>
           <ul className={styles.priceUl}>
             <li>Morning Wire — daily AI brief</li>
             <li>UCT 20 portfolio + live signals</li>
-            <li>AI Compass — pre-trade, post-trade, weekly</li>
-            <li>Stock Catalysts — 20 rows / refresh</li>
+            <li>AI Compass coach</li>
+            <li>Stock Catalysts (20 picks per refresh)</li>
             <li>85-detector pattern engine</li>
             <li>99-theme rotation tracker</li>
             <li>Charts Workspace + 8 timeframes</li>
             <li>Voice Assistant + real-time streaming</li>
           </ul>
-          <Link to="/signup?plan=pro" className={styles.priceCta}>Begin the Voyage</Link>
-          <div className={styles.priceNote}>No contracts. Cancel from your dashboard in 1 click.</div>
+          <Link to="/signup?plan=pro" className={styles.priceCta}>Get started</Link>
+          <div className={styles.priceNote}>No contracts. Cancel in one click.</div>
         </div>
-        <div className={styles.priceFree}>
-          <strong>Free forever:</strong> Dashboard, Breadth, Charts, Journal &amp; Options Flow — no card required.
-        </div>
+        <p className={styles.priceFree}>
+          <strong>Free forever:</strong> Dashboard, Breadth Monitor, Charts Workspace,
+          Journal, and Options Flow. No card required.
+        </p>
       </section>
 
       {/* ── Footer ── */}
       <footer className={styles.foot}>
-        <div className={styles.footSeal}>UT</div>
-        <div className={styles.footBrand}>
-          <span className={styles.footBrandMark}>⊕</span>
-          UCT INTELLIGENCE
-        </div>
-        <div className={styles.footTag}>— A product of Uncharted Territory —</div>
-        <div className={styles.footLinks}>
-          <Link to="/terms">Terms</Link>
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/settings">Disclaimers</Link>
-          <a href="mailto:contact@uctintelligence.com">Contact</a>
+        <div className={styles.footTop}>
+          <div className={styles.footBrand}>
+            <span className={styles.footBrandMark} aria-hidden="true">⊕</span>
+            UCT Intelligence
+          </div>
+          <div className={styles.footLinks}>
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/settings">Disclaimers</Link>
+            <a href="mailto:contact@uctintelligence.com">Contact</a>
+          </div>
         </div>
         <div className={styles.footAttr}>
-          Built on the methodologies of Qullamaggie · Minervini · O'Neil · Kell · Bonde.
-          <br />
-          Not investment advice. Trade at your own risk.
+          Built on the methodologies of Qullamaggie, Minervini, O'Neil, Kell, and Bonde.
+          Not investment advice — trade at your own risk.
         </div>
-        <div className={styles.footCopy}>&copy; {new Date().getFullYear()} Uncharted Territory</div>
+        <div className={styles.footCopy}>
+          &copy; {new Date().getFullYear()} Uncharted Territory
+        </div>
       </footer>
     </div>
   )
