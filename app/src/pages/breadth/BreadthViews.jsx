@@ -26,6 +26,8 @@ export default function BreadthViews({ rows, onDrill }) {
 
   useEffect(() => {
     const handler = e => {
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       if (e.key === 'ArrowLeft')  setRowIdx(p => Math.min(p + 1, rows.length - 1))
       if (e.key === 'ArrowRight') setRowIdx(p => Math.max(p - 1, 0))
     }

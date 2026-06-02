@@ -26,4 +26,14 @@ describe('TugView', () => {
     fireEvent.click(screen.getByLabelText('Up 4%+ details'))
     expect(onDrill).toHaveBeenCalledWith(metrics[0])
   })
+  it('renders unpaired metrics as single signed bars', () => {
+    const m = [
+      { key: 'vix', label: 'VIX', getFmt: () => '16', drillKey: null, polarity: 'bear' },
+      { key: 'breadth_score', label: 'Health', getFmt: () => '75', drillKey: null, polarity: 'bull' },
+    ]
+    render(<TugView currentRow={{ vix: 16, breadth_score: 75 }} metrics={m} normalize={() => 70} onDrill={() => {}} />)
+    expect(screen.getByText('VIX')).toBeInTheDocument()
+    expect(screen.getByText('Health')).toBeInTheDocument()
+    expect(screen.getByText('16')).toBeInTheDocument()
+  })
 })
