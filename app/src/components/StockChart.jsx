@@ -297,6 +297,7 @@ export default function StockChart({
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
+  forceLogScale = false,    // default the price scale to logarithmic
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -1962,8 +1963,10 @@ export default function StockChart({
       })
     }
 
-    // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5)
-    chart.priceScale('right').applyOptions({ mode: cs.percentScale ? 2 : (cs.logScale ? 1 : 0) })
+    // Log scale: mode 0 = Normal, 1 = Logarithmic (Lightweight Charts v5).
+    // forceLogScale (Model Book) defaults to log so a full-year % move reads
+    // proportionally; an explicit percent-scale pref still wins.
+    chart.priceScale('right').applyOptions({ mode: cs.percentScale ? 2 : ((forceLogScale || cs.logScale) ? 1 : 0) })
 
     // ── Price series — reuse if chart type unchanged, else swap ──
     // When swapping the candle series, the markers controller is bound to the
