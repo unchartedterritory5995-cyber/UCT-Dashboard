@@ -41,7 +41,6 @@ const ICONS = {
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
   replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
-  candleMark: I(<><rect x="6" y="4" width="4" height="8" fill="currentColor" stroke="none" /><line x1="8" y1="1.5" x2="8" y2="4" /><line x1="8" y1="12" x2="8" y2="14.5" /><rect x="2" y="2" width="12" height="12" strokeDasharray="2 1.5" opacity="0.6" /></>),
 }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -711,7 +710,6 @@ function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
-  markToolEnabled = false,  // show the "Mark Setup Candle" tool (Model Book)
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -813,7 +811,7 @@ function ChartToolbar({
     <div className={styles.toolbar}>
       {/* ── Tool buttons ── */}
       <div className={styles.tools}>
-        {(markToolEnabled ? [...TOOLS, 'sep', { id: 'candleMark', label: 'Mark Setup Candle' }] : TOOLS).map((t, i) =>
+        {TOOLS.map((t, i) =>
           t === 'sep' ? <div key={`sep-${i}`} className={styles.sep} /> : (
             <button
               key={t.id}

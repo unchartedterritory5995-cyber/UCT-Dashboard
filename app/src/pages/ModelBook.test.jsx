@@ -30,7 +30,11 @@ vi.mock('swr', () => ({
       return {
         data: {
           id: 1, year: 2025, symbol: 'NVDA', company: 'NVIDIA Corp', gain_pct: 171,
-          thesis: 'AI leader', drawings_json: null,
+          thesis: 'AI leader', setups: [
+            { id: 10, setup_type: 'VCP', label_date: '2025-03-14', grade: 'A+',
+              entry_price: 120, stop_price: 110, target_price: 150, notes: 'textbook',
+              marker_side: 'belowBar', marker_shape: 'arrowUp' },
+          ],
         },
         mutate: vi.fn(),
       }
@@ -66,18 +70,10 @@ test('shows admin add-stock button for admins', () => {
   expect(screen.getByRole('button', { name: /add stock/i })).toBeInTheDocument()
 })
 
-test('auto-selects the first stock and renders its chart', () => {
+test('auto-selects the first stock and renders its chart + labeled setup', () => {
   render(<ModelBook />)
   // No click needed — the top stock is shown automatically.
   expect(screen.getByTestId('stock-chart')).toHaveTextContent('chart:NVDA')
-})
-
-test('shows the chart Edit (annotate) toggle for admins only', () => {
-  mockRole = 'admin'
-  const { unmount } = render(<ModelBook />)
-  expect(screen.getByRole('button', { name: '✎ Edit' })).toBeInTheDocument()
-  unmount()
-  mockRole = null
-  render(<ModelBook />)
-  expect(screen.queryByRole('button', { name: '✎ Edit' })).toBeNull()
+  expect(screen.getByText('VCP')).toBeInTheDocument()
+  expect(screen.getByText('A+')).toBeInTheDocument()
 })
