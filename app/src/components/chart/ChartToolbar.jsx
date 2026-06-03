@@ -710,6 +710,8 @@ function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
+  onToggleLineStyle = null,      // toggle solid/dashed on the selected line (Model Book annotations)
+  selectedLineStyle = 'solid',
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -1024,6 +1026,19 @@ function ChartToolbar({
         </div>
 
         <div className={styles.sep} />
+
+        {/* Solid / dashed toggle for the selected line (Model Book annotations) */}
+        {onToggleLineStyle && (
+          <button
+            className={`${styles.btn} ${selectedLineStyle === 'dashed' ? styles.active : ''}`}
+            onClick={onToggleLineStyle}
+            disabled={!hasSelection}
+            title={hasSelection ? 'Toggle solid / dashed line' : 'Select a line, then toggle dashed'}
+            style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '-1px' }}
+          >
+            {selectedLineStyle === 'dashed' ? '┄┄' : '──'}
+          </button>
+        )}
 
         {/* Delete selected */}
         <button
