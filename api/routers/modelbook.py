@@ -284,10 +284,24 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
             "the specific catalysts/drivers, or the broader market theme it rode. "
             "Be factual and specific to that year; if unsure of specifics, describe the "
-            "dominant theme/driver. No price targets, no buy/sell advice."
+            "dominant theme/driver. No price targets, no buy/sell advice.\n\n"
+            "STYLE — IMPORTANT (these notes sit next to each other, so they must read "
+            "differently):\n"
+            "- The ticker and the % gain are ALREADY shown above the note. Do NOT restate "
+            "them. Do NOT begin with the ticker symbol or company name.\n"
+            "- Do NOT open with 'surged', 'soared', 'rallied', 'rose', 'skyrocketed', "
+            "'jumped' or any generic move-verb. Lead straight with the actual driver, "
+            "catalyst, product, or theme.\n"
+            "- Vary the sentence structure from a typical writeup — open with the catalyst, "
+            "the demand story, the macro theme, an event, or a fundamental shift, not a "
+            "price statement. Get straight to substance.\n"
+            "- AVOID cliche/hype words: do NOT use 'explosive', 'explosive demand', "
+            "'massive', 'skyrocketing', 'red-hot', 'insatiable', 'meteoric', 'parabolic', "
+            "'breakneck', 'frenzy', or 'on fire'. Use precise, varied, plain language and a "
+            "different opening word than other notes would naturally use."
         )
         msg = client.messages.create(
-            model=_DESC_MODEL, max_tokens=400, temperature=0.4,
+            model=_DESC_MODEL, max_tokens=400, temperature=0.7,
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()
