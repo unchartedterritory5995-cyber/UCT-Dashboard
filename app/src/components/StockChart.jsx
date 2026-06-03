@@ -304,6 +304,7 @@ export default function StockChart({
   forceLogScale = false,    // default the price scale to logarithmic
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   hideLastValue = false,    // hide the last-price axis tag on the price series
+  volumeSeparatePane = false, // force volume into its own draggable bottom pane
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -1407,8 +1408,10 @@ export default function StockChart({
   )
   const volData = useMemo(() => {
     if (!filteredBars?.length) return []
-    const upC = boldCandles ? BOLD_UP : cs.volume.upColor
-    const downC = boldCandles ? BOLD_DOWN : cs.volume.downColor
+    // Dim the bold volume to the same hue at lower opacity — dense solid bars
+    // otherwise read brighter than the thin candles and look out of place.
+    const upC = boldCandles ? 'rgba(33,196,92,0.55)' : cs.volume.upColor
+    const downC = boldCandles ? 'rgba(242,54,69,0.55)' : cs.volume.downColor
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
@@ -2127,7 +2130,7 @@ export default function StockChart({
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
-    const volSeparatePane = !!cs.volume.separatePane || volOverlaySet.size > 0
+    const volSeparatePane = volumeSeparatePane || !!cs.volume.separatePane || volOverlaySet.size > 0
     const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
     const VOL_PANE_INDEX = 1
     // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
@@ -2171,6 +2174,9 @@ export default function StockChart({
         const vs = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
           priceScaleId: volScaleId,
+          // Model Book: no dashed last-volume price line / axis tag.
+          priceLineVisible: !boldCandles,
+          lastValueVisible: !boldCandles,
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volScaleId
