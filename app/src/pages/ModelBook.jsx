@@ -33,13 +33,26 @@ function pctStr(v) {
   return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-// label_date is ISO "YYYY-MM-DD" — parse the month part directly (no Date(),
-// which would shift to the prior day under negative UTC offsets).
-function fmtMonth(dateStr) {
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December']
+function ordinal(d) {
+  const rem100 = d % 100
+  if (rem100 >= 11 && rem100 <= 13) return `${d}th`
+  switch (d % 10) {
+    case 1: return `${d}st`
+    case 2: return `${d}nd`
+    case 3: return `${d}rd`
+    default: return `${d}th`
+  }
+}
+// label_date is ISO "YYYY-MM-DD" — parse the parts directly (no Date(), which
+// would shift to the prior day under negative UTC offsets). → "August 22nd".
+function fmtSetupDate(dateStr) {
   if (!dateStr) return ''
-  const mi = parseInt(dateStr.split('-')[1], 10) - 1
-  return MONTHS[mi] || ''
+  const [, mm, dd] = dateStr.split('-')
+  const month = MONTHS[parseInt(mm, 10) - 1]
+  const day = parseInt(dd, 10)
+  return month && day ? `${month} ${ordinal(day)}` : ''
 }
 
 // ── Admin: add a curated stock to a year ──────────────────────────────────────
@@ -373,7 +386,7 @@ function StockDetail({ stockId, isAdmin }) {
                       title={s.notes || undefined}
                     >
                       <span className={styles.setupNameC}>{s.setup_type}</span>
-                      <span className={styles.setupMonthC}>{fmtMonth(s.label_date)}</span>
+                      <span className={styles.setupMonthC}>{fmtSetupDate(s.label_date)}</span>
                       {isAdmin && (
                         <button
                           className={styles.setupDelC}
