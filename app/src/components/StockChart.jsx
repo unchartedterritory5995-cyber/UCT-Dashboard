@@ -427,6 +427,7 @@ export default function StockChart({
   showVolume: showVolumeProp,
   overlays: overlaysProp,
   watermark = null,
+  watermarkOpacity = null,   // override the settings watermark opacity (Model Book uses a brighter mark)
   className = '',
   showDrawingTools = true,
   onSymbolChange = null,
@@ -2198,7 +2199,7 @@ export default function StockChart({
       wmCtrlRef.current.setOptions({
         lines: wmLines,
         color: cs.watermark.color,
-        opacity: cs.watermark.opacity,
+        opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
         x: cs.watermark.x,
         y: cs.watermark.y,
@@ -3048,7 +3049,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, cs, adjustTime, resolvedTf, tickerMeta])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

@@ -302,13 +302,34 @@ function StockDetail({ stockId, isAdmin }) {
   // Animated chart focus: which setup the chart is zoomed into + a nonce that
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
-  // the stock or timeframe changes — no reset effect needed.
+  // the stock or timeframe changes.
   const [focus, setFocus] = useState({ id: null, date: null, startDate: null, nonce: 0, stockId: null, tf: null })
   const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [storyDraft, setStoryDraft] = useState('')
+
+  // When the user switches to a DIFFERENT stock, hard-clear the prior stock's
+  // focus + annotation state. Stamping stockId on `focus` only DEACTIVATES it
+  // while you're on another stock (focusActive guard below) — but returning to
+  // the original stock would re-satisfy `focus.stockId === stockId` and
+  // REACTIVATE the stale zoom, leaving annotations on the zoomed-out chart.
+  // Clearing on stockId change makes the focus unrecoverable. This is React's
+  // "reset state when a prop changes" idiom (setState during render via a
+  // previous-value tracker) — no extra paint, and no visible flash since the
+  // focusActive guard has already hidden annotations for the new stock by
+  // render time. `nonce` is left unchanged so the chart's focus effect doesn't
+  // fire a stray zoom animation on the freshly-loaded stock.
+  const [prevStockId, setPrevStockId] = useState(stockId)
+  if (stockId !== prevStockId) {
+    setPrevStockId(stockId)
+    setFocus(f => ({ id: null, date: null, startDate: null, nonce: f.nonce, stockId: null, tf: null }))
+    setPickedSetupId(null)
+    setAnnotateMode(false)
+    setAnnotationDraft([])
+    setEditingSetupId(null)
+  }
   // Derived: the picked setup if still present, else the first one (so its
   // price lines show by default). Avoids a setState-in-effect on stock change.
   const selectedSetupId = (pickedSetupId != null && setups.some(s => s.id === pickedSetupId))
@@ -454,6 +475,7 @@ function StockDetail({ stockId, isAdmin }) {
             volumeMa={50}
             priceScaleTopMargin={0.14}
             priceScaleBottomMargin={0.06}
+            watermarkOpacity={0.13}
             priceLines={priceLines}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
