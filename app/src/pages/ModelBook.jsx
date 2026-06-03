@@ -23,13 +23,6 @@ function gradeColor(grade) {
   return '#8a8a8a'
 }
 
-function GradePill({ grade }) {
-  if (!grade) return null
-  const cls = grade === 'A+' || grade === 'A' ? styles.gA
-    : grade === 'B' ? styles.gB : styles.gC
-  return <span className={`${styles.gradePill} ${cls}`}>{grade}</span>
-}
-
 function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
@@ -48,12 +41,13 @@ function pctStr(v) {
   return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
 }
 
-function riskReward(s) {
-  if (s.entry_price == null || s.stop_price == null || s.target_price == null) return null
-  const risk = s.entry_price - s.stop_price
-  const reward = s.target_price - s.entry_price
-  if (!risk) return null
-  return (reward / risk).toFixed(1)
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// label_date is ISO "YYYY-MM-DD" — parse the month part directly (no Date(),
+// which would shift to the prior day under negative UTC offsets).
+function fmtMonth(dateStr) {
+  if (!dateStr) return ''
+  const mi = parseInt(dateStr.split('-')[1], 10) - 1
+  return MONTHS[mi] || ''
 }
 
 // ── Admin: add a curated stock to a year ──────────────────────────────────────
@@ -233,7 +227,12 @@ function StockDetail({ stockId, isAdmin }) {
       refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
     },
   )
-  const setups = useMemo(() => stock?.setups || [], [stock])
+  // Chronological so the list reads as a time-ordered guide to the buy spots
+  // (e.g. Flat Base Breakout · Aug → High Tight Flag · Oct → · Nov).
+  const setups = useMemo(
+    () => (stock?.setups || []).slice().sort((a, b) => (a.label_date || '').localeCompare(b.label_date || '')),
+    [stock],
+  )
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
@@ -385,48 +384,42 @@ function StockDetail({ stockId, isAdmin }) {
                 </>
               )}
             </div>
+
+            {/* Setups — a time-ordered guide to the best buy spots on the chart.
+                Click a row to surface its entry/stop/target lines on the chart. */}
+            <div className={styles.panelSetups}>
+              <div className={styles.setupSectionHead}>
+                <span className={styles.sectionLabel}>SETUPS ({setups.length})</span>
+                {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+              </div>
+              {setups.length === 0 ? (
+                <p className={styles.noSetups}>No setups labeled on this chart yet.</p>
+              ) : (
+                <div className={styles.setupListC}>
+                  {setups.map(s => (
+                    <div
+                      key={s.id}
+                      className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
+                      onClick={() => setPickedSetupId(s.id)}
+                      title={s.notes || undefined}
+                    >
+                      <span className={styles.setupNameC}>{s.setup_type}</span>
+                      <span className={styles.setupMonthC}>{fmtMonth(s.label_date)}</span>
+                      {isAdmin && (
+                        <button
+                          className={styles.setupDelC}
+                          title="Delete setup"
+                          onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}
+                        >×</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </aside>
         )}
       </div>
-      </div>
-
-      <div className={styles.setupSection}>
-        <div className={styles.setupSectionHead}>
-          <span className={styles.sectionLabel}>LABELED SETUPS ({setups.length})</span>
-          {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
-        </div>
-        {setups.length === 0 ? (
-          <p className={styles.noSetups}>No setups labeled on this chart yet.</p>
-        ) : (
-          <div className={styles.setupList}>
-            {setups.map(s => {
-              const rr = riskReward(s)
-              return (
-                <div
-                  key={s.id}
-                  className={`${styles.setupRow} ${selectedSetupId === s.id ? styles.setupRowActive : ''}`}
-                  onClick={() => setPickedSetupId(s.id)}
-                >
-                  <div className={styles.setupMain}>
-                    <span className={styles.setupName}>{s.setup_type}</span>
-                    <GradePill grade={s.grade} />
-                    <span className={styles.setupDate}>{s.label_date}</span>
-                  </div>
-                  <div className={styles.setupNums}>
-                    <span>E {fmtPrice(s.entry_price)}</span>
-                    <span style={{ color: STOP_COLOR }}>S {fmtPrice(s.stop_price)}</span>
-                    <span style={{ color: ENTRY_COLOR }}>T {fmtPrice(s.target_price)}</span>
-                    {rr && <span className={styles.rr}>{rr}:1</span>}
-                  </div>
-                  {s.notes && <p className={styles.setupNotes}>{s.notes}</p>}
-                  {isAdmin && (
-                    <button className={styles.deleteBtn} onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}>Delete</button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
       </div>
     </div>
   )

@@ -103,30 +103,28 @@
 .infoStatsV { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .chart { height: 100%; }
 
-/* ── Setup list ── */
-.setupSection { margin-top: 18px; }
-.setupSectionHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+/* ── Setups (compact list in the right info panel) ── */
+/* Divider line that splits the panel: stats + story above, setups below. */
+.panelSetups { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+.setupSectionHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .sectionLabel { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ut-gold); opacity: 0.8; }
 .noSetups { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
-.setupList { display: flex; flex-direction: column; gap: 6px; }
-.setupRow {
-  position: relative; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
-  cursor: pointer; transition: background 0.1s, border-color 0.1s;
+.setupListC { display: flex; flex-direction: column; gap: 3px; }
+.setupRowC {
+  display: flex; align-items: baseline; gap: 8px; padding: 7px 8px; border-radius: 5px;
+  cursor: pointer; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s;
 }
-.setupRow:hover { background: rgba(255,255,255,0.03); }
-.setupRowActive { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
-.setupMain { display: flex; align-items: center; gap: 10px; }
-.setupName { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.setupDate { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-left: auto; }
-.setupNums { display: flex; gap: 14px; margin-top: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
-.rr { color: var(--ut-gold); font-weight: 700; }
-.setupNotes { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
-
-/* ── Grade pill (mirrors SetupLibrary) ── */
-.gradePill { font-family: var(--font-mono); font-size: 10px; font-weight: 800; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 3px; }
-.gA { background: rgba(74,222,128,0.18); color: #4ade80; }
-.gB { background: rgba(201,168,76,0.18); color: var(--ut-gold); }
-.gC { background: rgba(231,76,60,0.18); color: #e74c3c; }
+.setupRowC:hover { background: rgba(255,255,255,0.03); }
+.setupRowCActive { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
+.setupNameC { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.setupMonthC { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+.setupDelC {
+  flex: none; font-family: var(--font-mono); font-size: 14px; line-height: 1; padding: 0 2px;
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+}
+.setupRowC:hover .setupDelC { opacity: 0.7; }
+.setupDelC:hover { color: #e74c3c; opacity: 1; }
 
 /* ── Admin forms ── */
 .addBtn {
@@ -155,8 +153,6 @@
 .saveBtn:disabled { opacity: 0.5; cursor: default; }
 .cancelBtn { font-family: var(--font-mono); font-size: 12px; padding: 6px 14px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
 .cancelBtn:hover { color: var(--text-primary); }
-.deleteBtn { position: absolute; top: 8px; right: 10px; font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; cursor: pointer; border: 1px solid rgba(231,76,60,0.3); background: transparent; color: #e74c3c; }
-.deleteBtn:hover { background: rgba(231,76,60,0.12); }
 
 /* ── Mobile ── */
 @media (max-width: 640px) {
