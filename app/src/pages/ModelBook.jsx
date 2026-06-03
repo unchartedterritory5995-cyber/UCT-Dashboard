@@ -15,6 +15,12 @@ const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
 
+// Stable empty reference for priceLines. Returning a fresh [] on every render
+// gives StockChart a new prop identity each time the selected setup changes,
+// which re-runs its updateChart (setData) mid-zoom — the "background chart"
+// flash. Reusing one array keeps the reference stable when there are no lines.
+const NO_PRICE_LINES = []
+
 function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
@@ -255,12 +261,12 @@ function StockDetail({ stockId, isAdmin }) {
 
   const priceLines = useMemo(() => {
     const s = setups.find(x => x.id === selectedSetupId)
-    if (!s) return []
+    if (!s) return NO_PRICE_LINES
     const lines = []
     if (s.entry_price != null) lines.push({ price: s.entry_price, color: ENTRY_COLOR, lineStyle: 2, title: `Entry ${fmtPrice(s.entry_price)}` })
     if (s.stop_price != null) lines.push({ price: s.stop_price, color: STOP_COLOR, lineStyle: 2, title: `Stop ${fmtPrice(s.stop_price)}` })
     if (s.target_price != null) lines.push({ price: s.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target ${fmtPrice(s.target_price)}` })
-    return lines
+    return lines.length ? lines : NO_PRICE_LINES
   }, [setups, selectedSetupId])
 
   // Click a setup → select it (price lines) and smoothly zoom the chart so the

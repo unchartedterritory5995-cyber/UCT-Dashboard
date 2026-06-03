@@ -326,6 +326,69 @@ function _animateVisibleRange(chart, rafRef, target, duration = 1150) {
   rafRef.current = requestAnimationFrame(step)
 }
 
+// Price min/max (raw lows/highs) of the bars spanned by a logical [from,to]
+// window. Used to give the focus zoom a continuously-interpolated vertical so
+// the price axis glides instead of stair-stepping as taller/shorter bars scroll
+// into view (default per-frame autoScale only changes at those discrete events).
+function _windowPriceRange(bars, from, to) {
+  if (!bars || !bars.length) return null
+  const s = Math.max(0, Math.floor(from))
+  const e = Math.min(bars.length - 1, Math.ceil(to))
+  let lo = Infinity, hi = -Infinity
+  for (let i = s; i <= e; i++) {
+    const b = bars[i]
+    if (!b) continue
+    if (b.l < lo) lo = b.l
+    if (b.h > hi) hi = b.h
+  }
+  return (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) ? { lo, hi } : null
+}
+
+// Focus zoom with BOTH axes animated: horizontal logical range (geometric width,
+// like _animateVisibleRange) AND a vertical price range interpolated in log space
+// from the start framing to the target framing. The vertical is driven through an
+// autoscaleInfoProvider on the candle series reading priceRangeRef — set per frame
+// here, cleared at the end so normal autoScale resumes. Falls back to the plain
+// horizontal-only animation when the price ranges can't be computed.
+function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150) {
+  if (!chart || !series) { _animateVisibleRange(chart, rafRef, target, duration); return }
+  if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+  const ts = chart.timeScale()
+  let start
+  try { start = ts.getVisibleLogicalRange() } catch { start = null }
+  if (!start) { try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } return }
+  const sRange = _windowPriceRange(bars, start.from, start.to)
+  const tRange = _windowPriceRange(bars, target.from, target.to)
+  if (!sRange || !tRange) { _animateVisibleRange(chart, rafRef, target, duration); return }
+  const startWidth = start.to - start.from
+  const endWidth = target.to - target.from
+  const geom = startWidth > 0 && endWidth > 0
+  const ratio = geom ? endWidth / startWidth : 1
+  // Interpolate price-range endpoints in log space (prices are > 0) so the
+  // vertical motion reads uniform on a log axis.
+  const logLerp = (a, b, e) => Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * e)
+  const t0 = performance.now()
+  const ease = x => -(Math.cos(Math.PI * x) - 1) / 2   // easeInOutSine
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / duration)
+    const e = ease(p)
+    const to = start.to + (target.to - start.to) * e
+    const width = geom ? startWidth * Math.pow(ratio, e) : startWidth + (endWidth - startWidth) * e
+    const from = to - width
+    priceRangeRef.current = { lo: logLerp(sRange.lo, tRange.lo, e), hi: logLerp(sRange.hi, tRange.hi, e) }
+    try { ts.setVisibleLogicalRange({ from, to }) } catch { /* ignore transient */ }
+    if (p < 1) {
+      rafRef.current = requestAnimationFrame(step)
+    } else {
+      rafRef.current = null
+      // Hand the vertical back to default autoScale for an exact final fit.
+      priceRangeRef.current = null
+      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+    }
+  }
+  rafRef.current = requestAnimationFrame(step)
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -632,6 +695,8 @@ export default function StockChart({
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
   const lastFocusNonceRef = useRef(0)     // last processed focusNonce — only act when it actually changes
   const yearFramedRef = useRef(null)      // sym+tf the exact-range year frame has been rAF-reapplied for (first-load layout race)
+  const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
+  const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
@@ -2099,6 +2164,7 @@ export default function StockChart({
       candleSeriesRef.current = null
       try { markersControllerRef.current?.detach?.() } catch {}
       markersControllerRef.current = null
+      focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
     }
 
     if (!candleSeriesRef.current) {
@@ -2934,7 +3000,11 @@ export default function StockChart({
     // correct for the new chart; otherwise yield so data refreshes don't snap
     // the zoomed-in view back to the full year.
     const fk = `${sym}_${resolvedTf}`
-    if (focusKeyRef.current !== fk) { focusActiveRef.current = false; focusKeyRef.current = fk }
+    if (focusKeyRef.current !== fk) {
+      focusActiveRef.current = false
+      focusPriceRangeRef.current = null  // drop any in-flight focus vertical so the new chart autoscales cleanly
+      focusKeyRef.current = fk
+    }
     if (focusActiveRef.current) return
     const toMs = v => {
       if (v == null) return NaN
@@ -3011,9 +3081,29 @@ export default function StockChart({
       }
       focusActiveRef.current = true
       try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
-      _animateVisibleRange(chart, focusRafRef, { from, to })
+      // Install (once) the autoscale provider that lets the focus zoom drive a
+      // smoothly-interpolated vertical via focusPriceRangeRef. When the ref is
+      // null it defers to the chart's default autoscale, so it's inert outside a
+      // focus animation. Model Book only — other charts never call _animateFocusZoom.
+      const series = candleSeriesRef.current
+      if (series && !focusProviderInstalledRef.current) {
+        try {
+          series.applyOptions({
+            autoscaleInfoProvider: (orig) => {
+              const r = focusPriceRangeRef.current
+              if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
+                return { priceRange: { minValue: r.lo, maxValue: r.hi } }
+              }
+              return orig ? orig() : null
+            },
+          })
+          focusProviderInstalledRef.current = true
+        } catch { /* provider optional */ }
+      }
+      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to })
     } else {
       // Zoom back out to the framed year, then release the view to the pin.
+      focusPriceRangeRef.current = null  // drop any interpolated range so the year view autoscales normally
       const lo = toMs(entryDate)
       const hi = toMs(exitDate)
       let startIdx = filteredBars.findIndex(b => toMs(b.t) >= lo)
