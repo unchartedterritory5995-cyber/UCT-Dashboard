@@ -467,7 +467,7 @@ export default function StockChart({
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
-  highlightBarTime = null,      // ISO/time of a bar to paint gold (Model Book: the focused setup's day)
+  highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint gold (Model Book: focused setup's day, or all setup days in "show all" mode)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
 }) {
   const { prefs, setPref } = usePreferences()
@@ -1593,18 +1593,26 @@ export default function StockChart({
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
     [displayBars, adjustTime]
   )
-  // Gold-tinted copy with the highlighted bar (Model Book: focused setup's day)
-  // painted gold. Kept separate from ohlcData so updateChart's normal setData
-  // path (and every other chart) is untouched — the dedicated effect below
-  // applies/clears the gold with a candle-only setData (no full re-render).
+  // Gold-tinted copy with the highlighted bar(s) (Model Book: the focused
+  // setup's day, or — with "show all" on — every setup's day) painted gold.
+  // Kept separate from ohlcData so updateChart's normal setData path (and every
+  // other chart) is untouched — the dedicated effect below applies/clears the
+  // gold with a candle-only setData (no full re-render). highlightBarTime accepts
+  // a single ISO/time value or an array of them.
   const HIGHLIGHT_GOLD = '#e6b800'
+  const highlightTimeSet = useMemo(() => {
+    if (highlightBarTime == null) return null
+    const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
+    const s = new Set()
+    for (const t of arr) { if (t != null) s.add(adjustTime(t)) }
+    return s.size ? s : null
+  }, [highlightBarTime, adjustTime])
   const goldOhlc = useMemo(() => {
-    if (!highlightBarTime) return ohlcData
-    const t = adjustTime(highlightBarTime)
-    return ohlcData.map(d => (d.time === t
+    if (!highlightTimeSet) return ohlcData
+    return ohlcData.map(d => (highlightTimeSet.has(d.time)
       ? { ...d, color: HIGHLIGHT_GOLD, borderColor: HIGHLIGHT_GOLD, wickColor: HIGHLIGHT_GOLD }
       : d))
-  }, [ohlcData, highlightBarTime, adjustTime])
+  }, [ohlcData, highlightTimeSet])
   const closeData = useMemo(
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
     [displayBars, adjustTime]
@@ -3063,14 +3071,14 @@ export default function StockChart({
   useEffect(() => {
     const series = candleSeriesRef.current
     if (!series || !isOhlcType(cs.chartType)) return
-    if (highlightBarTime) {
+    if (highlightTimeSet) {
       hadHighlightRef.current = true
       try { series.setData(goldOhlc) } catch { /* range can be out of bounds mid-load */ }
     } else if (hadHighlightRef.current) {
       hadHighlightRef.current = false
       try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
     }
-  }, [goldOhlc, ohlcData, highlightBarTime, chartReady, cs.chartType])
+  }, [goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType])
 
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].

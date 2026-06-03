@@ -397,6 +397,9 @@ function StockDetail({ stockId, isAdmin }) {
       : ds
   }), [setups])
   const hasAnnotations = allDrawings.length > 0
+  // All setup days — painted gold on the chart while "show all" is on so each
+  // setup candle stands out alongside its annotations. Stable ref for StockChart.
+  const setupTimes = useMemo(() => setups.map(s => s.label_date).filter(Boolean), [setups])
 
   // Precedence: admin authoring > show-all overlay > single-setup focus.
   let annotations, annotationsVisible
@@ -519,7 +522,7 @@ function StockDetail({ stockId, isAdmin }) {
             annotationsVisible={annotationsVisible}
             annotationsEditable={annotateMode}
             onAnnotationsChange={setAnnotationDraft}
-            highlightBarTime={focusDate}
+            highlightBarTime={showAllAnnotations && hasAnnotations ? setupTimes : focusDate}
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
