@@ -533,6 +533,7 @@ export default function ChartDrawingOverlay({
   activeTool, setActiveTool,
   color, lineWidth,
   lineStyle = 'solid',
+  magnet = false,
   drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
   repeatMode = true,
@@ -632,6 +633,23 @@ export default function ChartDrawingOverlay({
     if (!time && !price) return null
     return { time, price }
   }, [chartRef, seriesRef, bars])
+
+  // ── Magnet: snap a point's price to the nearest O/H/L/C of the bar under it ──
+  // (TradingView-style). When on, drawing near a candle locks to that exact
+  // open/high/low/close. Time is already snapped to the bar by toChart.
+  const snap = useCallback((coords) => {
+    if (!magnet || !coords || coords.price == null || coords.time == null) return coords
+    const idx = timeToIndex.get(coords.time)
+    const b = idx != null ? bars[idx] : null
+    if (!b) return coords
+    let best = null, bestDist = Infinity
+    for (const v of [b.o, b.h, b.l, b.c]) {
+      if (v == null) continue
+      const d = Math.abs(coords.price - v)
+      if (d < bestDist) { bestDist = d; best = v }
+    }
+    return best == null ? coords : { ...coords, price: best }
+  }, [magnet, timeToIndex, bars])
 
   // ── Canvas setup & resize ──
   useEffect(() => {
@@ -848,7 +866,7 @@ export default function ChartDrawingOverlay({
 
     const pos = getCanvasPos(e)
     if (!pos) return
-    const coords = toChart(pos.x, pos.y)
+    const coords = snap(toChart(pos.x, pos.y))
 
     // ── CURSOR MODE: select + drag ──
     if (activeTool === 'cursor') {
@@ -928,7 +946,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
+  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
 
   const handleMouseMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -988,10 +1006,10 @@ export default function ChartDrawingOverlay({
       }
     }
 
-    // Standard preview for drawing tools
-    setMouseCoords(coords)
+    // Standard preview for drawing tools — snap so the preview shows the magnet target
+    setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, requestRedraw, drawings, timeToIndex, bars, updateDrawing, hitTestAll, hitTestHandle])
+  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, hitTestAll, hitTestHandle])
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {

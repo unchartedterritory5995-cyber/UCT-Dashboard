@@ -713,6 +713,8 @@ function ChartToolbar({
   lineStyle = 'solid',           // 'solid' | 'dashed' — current line style (Model Book annotations)
   setLineStyle = null,           // when provided, shows a Solid/Dashed control
   prominent = false,             // force full opacity (annotation/edit mode, not the unobtrusive default)
+  magnet = false,                // snap drawings to nearest O/H/L/C
+  setMagnet = null,              // when provided, shows the magnet toggle
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -831,6 +833,18 @@ function ChartToolbar({
       {/* ── Bottom actions ── */}
       <div className={styles.actions}>
         <div className={styles.sep} />
+
+        {/* Magnet: snap drawings to nearest O/H/L/C */}
+        {setMagnet && (
+          <button
+            className={`${styles.btn} ${magnet ? styles.active : ''}`}
+            onClick={() => setMagnet(!magnet)}
+            title={magnet ? 'Magnet: ON — snaps to candle O/H/L/C' : 'Magnet: OFF'}
+            style={{ fontSize: '13px' }}
+          >
+            🧲
+          </button>
+        )}
 
         {/* Repeat mode toggle */}
         <button
