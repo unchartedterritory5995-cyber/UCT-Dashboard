@@ -336,8 +336,8 @@ function StockDetail({ stockId, isAdmin }) {
                 <span className={`${styles.infoStatVal} ${stock.lh_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.lh_pct)}</span>
               </div>
               <div className={styles.infoStat}>
-                <span className={styles.infoStatLabel}>Avg Daily Vol</span>
-                <span className={styles.infoStatVal}>{fmtVol(stock.avg_vol)}</span>
+                <span className={styles.infoStatLabel}>Avg Daily $ Vol</span>
+                <span className={styles.infoStatVal}>{stock.avg_vol == null ? '—' : `$${fmtVol(stock.avg_vol)}`}</span>
               </div>
             </div>
 

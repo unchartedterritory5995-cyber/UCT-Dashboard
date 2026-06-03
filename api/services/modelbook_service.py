@@ -137,6 +137,23 @@ def get_all_stocks() -> list[dict]:
         return [dict(r) for r in c.execute("SELECT * FROM modelbook_stocks").fetchall()]
 
 
+def migrate_dollar_volume() -> None:
+    """One-time: clear avg_vol (previously SHARE volume) so the warm recomputes
+    it as DOLLAR volume. Flag-gated so it runs once ever."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        ".modelbook_dollarvol_v1")
+    if os.path.exists(flag):
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute("UPDATE modelbook_stocks SET avg_vol = NULL")
+            c.commit()
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("done\n")
+    except OSError:
+        pass
+
+
 def save_stats(stock_id: int, oc_pct, lh_pct, avg_vol=None) -> None:
     """Persist computed year price stats so they survive redeploys (closed-year
     stats are static, so this is a permanent cache)."""

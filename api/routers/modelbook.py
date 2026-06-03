@@ -149,13 +149,14 @@ def _compute_year_stats(symbol: str, year: int) -> dict:
             c = yb[-1].get("c")
             lows = [b["l"] for b in yb if b.get("l") is not None]
             highs = [b["h"] for b in yb if b.get("h") is not None]
-            vols = [b["v"] for b in yb if b.get("v") is not None]
+            # DOLLAR volume per day = shares traded * close price.
+            dvols = [b["v"] * b["c"] for b in yb if b.get("v") is not None and b.get("c") is not None]
             if o:
                 stats["open_close_pct"] = round((c - o) / o * 100, 1)
             if lows and highs and min(lows):
                 stats["low_high_pct"] = round((max(highs) - min(lows)) / min(lows) * 100, 1)
-            if vols:
-                stats["avg_vol"] = round(sum(vols) / len(vols))
+            if dvols:
+                stats["avg_vol"] = round(sum(dvols) / len(dvols))  # avg daily $ volume
     except Exception:
         pass
 
