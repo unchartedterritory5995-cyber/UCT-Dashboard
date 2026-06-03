@@ -23,15 +23,6 @@ function gradeColor(grade) {
   return '#8a8a8a'
 }
 
-const CATALYST_COLORS = {
-  earnings: '#3b82f6', partnership: '#a855f7', product: '#22c55e',
-  guidance: '#f59e0b', 'm&a': '#ec4899', regulatory: '#ef4444',
-  analyst: '#06b6d4', news: '#9ca3af',
-}
-function catalystColor(type) {
-  return CATALYST_COLORS[(type || '').toLowerCase()] || '#e6b800'
-}
-
 function GradePill({ grade }) {
   if (!grade) return null
   const cls = grade === 'A+' || grade === 'A' ? styles.gA
@@ -55,14 +46,6 @@ function fmtVol(v) {
 function pctStr(v) {
   if (v == null) return '—'
   return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
-}
-
-const _MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-function fmtCatDate(iso) {
-  // 'YYYY-MM-DD' → 'Mon D' without timezone shifting (no Date parsing).
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
-  if (!m) return iso || ''
-  return `${_MONTHS[Number(m[2]) - 1] || ''} ${Number(m[3])}`
 }
 
 function riskReward(s) {
@@ -247,17 +230,12 @@ function StockDetail({ stockId, isAdmin }) {
       revalidateOnFocus: false,
       // Poll while year stats (avg vol) are warming or descriptions haven't been
       // attempted yet (desc_at unset). Stops once an attempt is recorded.
-      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at) || !d.catalysts_at)) ? 5000 : 0,
+      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
     },
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
-  const catalysts = useMemo(() => {
-    try { return stock?.catalysts_json ? JSON.parse(stock.catalysts_json) : [] }
-    catch { return [] }
-  }, [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [chartTf, setChartTf] = useState('D')
-  const [catalystMode, setCatalystMode] = useState(false)
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
@@ -268,24 +246,13 @@ function StockDetail({ stockId, isAdmin }) {
     ? pickedSetupId
     : (setups[0]?.id ?? null)
 
-  const setupMarkers = useMemo(() => setups.map(s => ({
+  const markers = useMemo(() => setups.map(s => ({
     time: s.label_date,
     position: s.marker_side || 'belowBar',
     color: gradeColor(s.grade),
     shape: s.marker_shape || 'arrowUp',
     text: `${s.setup_type}${s.grade ? ` ${s.grade}` : ''}`,
   })), [setups])
-  const catalystMarkers = useMemo(() => catalysts.map(c => ({
-    time: c.date,
-    position: 'aboveBar',
-    color: catalystColor(c.type),
-    shape: 'arrowDown',
-    text: c.label,
-  })), [catalysts])
-  const markers = useMemo(
-    () => (catalystMode ? [...setupMarkers, ...catalystMarkers] : setupMarkers),
-    [setupMarkers, catalystMarkers, catalystMode],
-  )
 
   const priceLines = useMemo(() => {
     const s = setups.find(x => x.id === selectedSetupId)
@@ -337,17 +304,9 @@ function StockDetail({ stockId, isAdmin }) {
             )}
           </h2>
         </div>
-        <div className={styles.headerCtrls}>
-          {catalysts.length > 0 && (
-            <button className={`${styles.catBtn} ${catalystMode ? styles.catBtnActive : ''}`}
-              onClick={() => setCatalystMode(v => !v)} title="Annotate notable catalysts">
-              ⚡ Catalysts
-            </button>
-          )}
-          <div className={styles.tfToggle}>
-            <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
-            <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
-          </div>
+        <div className={styles.tfToggle}>
+          <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
+          <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
         </div>
       </div>
 
@@ -426,24 +385,6 @@ function StockDetail({ stockId, isAdmin }) {
                 </>
               )}
             </div>
-
-            {catalystMode && catalysts.length > 0 && (
-              <div className={styles.catList}>
-                <span className={styles.sectionLabel}>CATALYSTS</span>
-                {catalysts.map((c, i) => (
-                  <div key={i} className={styles.catItem}>
-                    <span className={styles.catDot} style={{ background: catalystColor(c.type) }} />
-                    <div className={styles.catText}>
-                      <div className={styles.catItemHead}>
-                        <span className={styles.catLabel}>{c.label}</span>
-                        <span className={styles.catDate}>{fmtCatDate(c.date)}</span>
-                      </div>
-                      {c.desc && <p className={styles.catDesc}>{c.desc}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </aside>
         )}
       </div>

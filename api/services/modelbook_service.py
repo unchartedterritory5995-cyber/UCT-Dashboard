@@ -40,8 +40,6 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   company_desc TEXT,         -- AI: one-sentence "what the company does"
   run_story    TEXT,         -- AI: brief "why it moved that year" narrative
   desc_at      INTEGER,      -- epoch when descriptions were generated
-  catalysts_json TEXT,       -- AI: notable catalysts for the year (JSON array)
-  catalysts_at INTEGER,      -- epoch when catalysts were generated
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER,
   UNIQUE(year, symbol)
@@ -98,8 +96,6 @@ def _init_db() -> None:
             ("modelbook_stocks", "company_desc", "TEXT"),
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
-            ("modelbook_stocks", "catalysts_json", "TEXT"),
-            ("modelbook_stocks", "catalysts_at", "INTEGER"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -193,21 +189,6 @@ def save_descriptions(stock_id: int, company_desc, run_story) -> None:
             "UPDATE modelbook_stocks SET company_desc = ?, run_story = ?, desc_at = ? WHERE id = ?",
             (company_desc, run_story, int(time.time()), int(stock_id)),
         )
-        c.commit()
-
-
-def save_catalysts(stock_id: int, catalysts_json: str) -> None:
-    """Persist the AI-generated catalysts JSON for a stock/year."""
-    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        c.execute("UPDATE modelbook_stocks SET catalysts_json = ?, catalysts_at = ? WHERE id = ?",
-                  (catalysts_json, int(time.time()), int(stock_id)))
-        c.commit()
-
-
-def mark_catalysts_attempt(stock_id: int) -> None:
-    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        c.execute("UPDATE modelbook_stocks SET catalysts_at = ? WHERE id = ?",
-                  (int(time.time()), int(stock_id)))
         c.commit()
 
 
