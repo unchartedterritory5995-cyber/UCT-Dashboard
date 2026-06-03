@@ -322,6 +322,7 @@ function StockDetail({ stockId, isAdmin }) {
             showVolume
             volumeSeparatePane
             priceScaleTopMargin={0.06}
+            priceScaleBottomMargin={0.06}
             markers={markers}
             priceLines={priceLines}
             className={styles.chart}

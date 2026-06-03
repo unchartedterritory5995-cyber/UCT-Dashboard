@@ -277,11 +277,16 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 const BOLD_UP = '#21c45c'
 const BOLD_DOWN = '#f23645'
 
-// Main price-scale margins, with an optional caller override of the top margin
-// (the global default reserves 0.30 headroom; some surfaces want a tighter fit).
-function _mainMargins(cs, hasVol, topOverride) {
+// Main price-scale margins, with optional caller overrides of the top/bottom
+// margin (the global default reserves 0.30 headroom; some surfaces want a
+// tighter fit, plus a small bottom gap above a separate volume pane).
+function _mainMargins(cs, hasVol, topOverride, bottomOverride) {
   const m = computePaneMargins(cs, hasVol).main
-  return topOverride != null ? { top: topOverride, bottom: m.bottom } : m
+  if (topOverride == null && bottomOverride == null) return m
+  return {
+    top: topOverride != null ? topOverride : m.top,
+    bottom: bottomOverride != null ? bottomOverride : m.bottom,
+  }
 }
 
 export default function StockChart({
@@ -305,6 +310,7 @@ export default function StockChart({
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -667,7 +673,7 @@ export default function StockChart({
         vertMarginsRef.current = null
         chartRef.current?.priceScale('right').applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin),
+          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
         })
       } catch {}
     }
@@ -1891,7 +1897,7 @@ export default function StockChart({
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin)
+                const base = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
                 // Only treat as a custom placement if it meaningfully differs from default.
                 if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
                   vertMarginsRef.current = null
@@ -1914,7 +1920,7 @@ export default function StockChart({
         fontSize: 10,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
-        ...(boldCandles ? { panes: { separatorColor: 'rgba(255,255,255,0.06)', separatorHoverColor: 'rgba(255,255,255,0.16)', enableResize: true } } : {}),
+        ...(boldCandles ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: true } } : {}),
       },
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -1930,7 +1936,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin),
+        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
       },
       timeScale: {
         borderColor: themeColors.borderColor,
