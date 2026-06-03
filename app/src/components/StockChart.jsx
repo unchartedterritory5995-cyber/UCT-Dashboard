@@ -697,6 +697,7 @@ export default function StockChart({
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
   const lastFocusNonceRef = useRef(0)     // last processed focusNonce — only act when it actually changes
   const yearFramedRef = useRef(null)      // sym+tf the exact-range year frame has been rAF-reapplied for (first-load layout race)
+  const yearRangeRef = useRef(null)       // latest {from,to} logical range for the framed year — re-asserts read this so staged data loads can't lock in stale indices
   const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
@@ -3025,9 +3026,15 @@ export default function StockChart({
       }
     }
     if (endIdx < startIdx) endIdx = filteredBars.length - 1
+    // Store the LATEST computed range; the scheduled re-asserts below read this
+    // ref (not captured locals) so a partial first data load can't lock stale
+    // indices into the pending re-asserts (which showed the earliest bars).
+    yearRangeRef.current = { from: startIdx, to: endIdx }
     const applyYear = () => {
+      const r = yearRangeRef.current
+      if (!r) return
       try {
-        chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
+        chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to })
         chart.priceScale('right').applyOptions({ autoScale: true })
       } catch { /* range can be out of bounds mid-load; next update re-pins */ }
     }
