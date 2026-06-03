@@ -323,6 +323,7 @@ function StockDetail({ stockId, isAdmin }) {
             volumeSeparatePane
             markVolumeExtremes
             volumePaneHeightPct={18}
+            volumeMa={50}
             priceScaleTopMargin={0.06}
             priceScaleBottomMargin={0.06}
             markers={markers}
