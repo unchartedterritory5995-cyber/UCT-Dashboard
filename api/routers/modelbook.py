@@ -60,6 +60,12 @@ class StockPatch(BaseModel):
     run_story: Optional[str] = None
 
 
+class DrawingsIn(BaseModel):
+    # Opaque list of drawing objects ({id, type, points:[{time,price}], ...})
+    # produced by the chart drawing engine. Stored verbatim as JSON.
+    drawings: list
+
+
 class SetupIn(BaseModel):
     setup_type: str
     label_date: str
@@ -406,6 +412,17 @@ def remove_stock(stock_id: int, _admin: dict = Depends(require_admin)):
     if not svc.delete_stock(stock_id):
         raise HTTPException(404, "Stock not found")
     return {"deleted": stock_id}
+
+
+@router.put("/stock/{stock_id}/drawings")
+def save_drawings(stock_id: int, payload: DrawingsIn, _admin: dict = Depends(require_admin)):
+    """Persist admin-curated on-chart annotations for a model-book stock."""
+    import json as _json
+    if len(payload.drawings) > 500:
+        raise HTTPException(400, "too many drawings (max 500)")
+    if not svc.save_drawings(stock_id, _json.dumps(payload.drawings)):
+        raise HTTPException(404, "Stock not found")
+    return {"saved": len(payload.drawings)}
 
 
 @router.post("/stock/{stock_id}/setups")

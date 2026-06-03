@@ -327,6 +327,10 @@ export default function StockChart({
   hidePatterns = false,     // hide the pattern-recognition toggle button
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
+  // ── Optional external drawing store (Model Book: server-persisted, shared) ──
+  drawingsAdapter = null,   // {drawings, addDrawing, updateDrawing, removeDrawing, clearAll} — overrides the local localStorage store
+  drawingsReadOnly = false, // render drawings but disable creation/edit + hide the toolbar (viewers)
+  markOptions = null,       // string[] of setup names for the candle-mark picker
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -905,7 +909,11 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
+  // Local localStorage-backed store (default for every surface). When a
+  // drawingsAdapter is supplied (Model Book server store) we prefer it; the
+  // local hook still runs harmlessly so hook order stays stable.
+  const localDrawings = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = drawingsAdapter || localDrawings
   addDrawingRef.current = addDrawing
 
   // ── Position tool price lines ──
@@ -3791,7 +3799,7 @@ export default function StockChart({
           onDetectionClick={setActiveDetection}
         />
       )}
-      {showDrawingTools && bars?.length > 0 && (
+      {(showDrawingTools || drawingsReadOnly) && bars?.length > 0 && (
         <>
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -3808,7 +3816,11 @@ export default function StockChart({
             selectedId={selectedId}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}
+            readOnly={drawingsReadOnly}
+            markOptions={markOptions}
           />
+          {showDrawingTools && !drawingsReadOnly && (
+          <>
           <ChartToolbar
             ref={toolbarRef}
             activeTool={activeTool}
@@ -3870,6 +3882,7 @@ export default function StockChart({
             hidePatterns={hidePatterns}
             hideCompare={hideCompare}
             hideCountdown={hideCountdown}
+            markToolEnabled={!!markOptions}
           />
           {screenshotPopoverOpen && (
             <ScreenshotPopover
@@ -3896,6 +3909,8 @@ export default function StockChart({
               onClear={() => setPositionTool(p => ({ ...p, entry: '', stop: '', target: '' }))}
               onClose={() => setActiveTool(null)}
             />
+          )}
+          </>
           )}
         </>
       )}

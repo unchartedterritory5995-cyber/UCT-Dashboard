@@ -66,10 +66,16 @@
 .detail { padding: 8px 0 24px; }
 .loading, .emptyDetail { padding: 40px 8px; font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
 .detailHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.headerCtrls { display: flex; align-items: center; gap: 8px; flex: none; }
 .tfToggle { display: flex; gap: 4px; flex: none; }
 .tfBtn { font-family: var(--font-mono); font-size: 12px; font-weight: 700; width: 26px; height: 24px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); }
 .tfBtn:hover { color: var(--text-primary); }
 .tfBtnActive { background: rgba(201,168,76,0.15); color: var(--ut-gold); border-color: rgba(201,168,76,0.3); }
+.editBtn { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.3px; height: 24px; padding: 0 10px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); white-space: nowrap; }
+.editBtn:hover { color: var(--text-primary); }
+.editBtnActive { background: rgba(60,184,104,0.16); color: #5fce8a; border-color: rgba(60,184,104,0.4); }
+.editHint { margin: 10px 2px 0; padding: 9px 12px; border: 1px solid rgba(60,184,104,0.3); border-radius: 6px; background: rgba(60,184,104,0.06); font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.editHint strong { color: var(--text-primary); }
 .detailName { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: baseline; gap: 10px; }
 .detailNameCo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text-muted); }
 .infoToggle { background: transparent; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; padding: 0 6px; line-height: 1; }
