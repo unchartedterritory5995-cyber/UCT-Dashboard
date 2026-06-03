@@ -117,9 +117,12 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
-    # Auto-generate the company/story descriptions on first view (background).
-    if not stock.get("company_desc") and _is_final_year(stock.get("year", 0)):
-        _gen_desc_async(stock)
+    # Auto-generate the company/story descriptions + catalysts on first view.
+    if _is_final_year(stock.get("year", 0)):
+        if _needs_desc(stock):
+            _gen_desc_async(stock)
+        if _needs_catalysts(stock):
+            _gen_catalysts_async(stock)
     return stock
 
 
@@ -357,6 +360,94 @@ def _gen_desc_async(stock):
             with _gen_lock:
                 _generating.discard(sid)
     _threading.Thread(target=_run, daemon=True, name=f"mb-desc-{sid}").start()
+
+
+# ── Catalyst annotations (AI: notable price-moving events for the year) ────────
+
+_cat_generating = set()
+
+
+def _needs_catalysts(s) -> bool:
+    if not _DESC_ENABLED or s.get("catalysts_json"):
+        return False
+    ca = s.get("catalysts_at")
+    return (not ca) or (int(_time_mod.time()) - ca > _DESC_RETRY_AFTER)
+
+
+def _generate_catalysts(symbol, company, year):
+    """Claude → JSON list of the year's most significant catalysts:
+    [{date, type, label, desc}]. Returns a list (possibly empty) or None on error."""
+    if not _DESC_ENABLED:
+        return None
+    import json as _json
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        system = ("You annotate stock charts for a trader's model book. Output JSON only "
+                  "— no preamble, no markdown fences.")
+        prompt = (
+            f"For {symbol} ({company or symbol}) during calendar year {year}, list the 3-4 "
+            "MOST significant, price-moving catalysts of that year — earnings surprises, "
+            "major partnerships/contracts, product launches, guidance changes, M&A, "
+            "regulatory news, analyst upgrades, or major headlines. Only the most impactful "
+            "events that actually moved the stock; skip minor news.\n\n"
+            'Return a JSON array ONLY: [{"date":"YYYY-MM-DD","type":"earnings|partnership|'
+            'product|guidance|m&a|regulatory|analyst|news","label":"3-6 word headline",'
+            '"desc":"one short factual sentence"}]\n'
+            f"Use the real approximate date of each event within {year}. Order by date. "
+            "Maximum 4 items. If you cannot identify real catalysts, return []."
+        )
+        msg = client.messages.create(
+            model=_DESC_MODEL, max_tokens=600, temperature=0.3,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+        s, e = text.find("["), text.rfind("]")
+        if s == -1 or e == -1:
+            return None
+        arr = _json.loads(text[s:e + 1])
+        out = []
+        ystr = str(year)
+        for it in arr:
+            d = str(it.get("date", "")).strip()
+            label = str(it.get("label", "")).strip()
+            if not d.startswith(ystr) or not label:
+                continue
+            out.append({
+                "date": d[:10],
+                "type": str(it.get("type", "news")).strip().lower(),
+                "label": label,
+                "desc": str(it.get("desc", "")).strip(),
+            })
+        out.sort(key=lambda x: x["date"])
+        return out[:4]
+    except Exception:
+        return None
+
+
+def _gen_catalysts_async(stock):
+    sid = stock.get("id")
+    if not sid or not _DESC_ENABLED:
+        return
+    with _gen_lock:
+        if sid in _cat_generating:
+            return
+        _cat_generating.add(sid)
+
+    def _run():
+        import json as _json
+        try:
+            cats = _generate_catalysts(stock["symbol"], stock.get("company"), stock["year"])
+            if cats is not None:
+                svc.save_catalysts(sid, _json.dumps(cats))
+            else:
+                svc.mark_catalysts_attempt(sid)
+        finally:
+            with _gen_lock:
+                _cat_generating.discard(sid)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-cat-{sid}").start()
 
 
 def warm_all_stats() -> None:
