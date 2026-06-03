@@ -290,24 +290,35 @@ function _mainMargins(cs, hasVol, topOverride, bottomOverride) {
 }
 
 // Smoothly animate the chart's visible logical range from wherever it is now to
-// `target` ({from,to} in bar-index space) over `duration` ms (easeInOutCubic).
+// `target` ({from,to} in bar-index space) over `duration` ms.
 // rafRef holds the in-flight requestAnimationFrame id so a new call (or unmount)
 // can cancel the previous animation. autoScale on the right price scale makes the
 // vertical axis ride along, so the candles grow as the window narrows.
-function _animateVisibleRange(chart, rafRef, target, duration = 900) {
+//
+// The right edge eases linearly, but the window WIDTH is interpolated
+// geometrically (exponentially) — a zoom reads as smooth only when the
+// magnification changes at a constant *ratio* per frame, not a constant number
+// of bars per frame. Linear width made the motion lurch (fast at the start,
+// crawling at the end); geometric width + easeInOutSine gives a gliding feel.
+function _animateVisibleRange(chart, rafRef, target, duration = 1150) {
   if (!chart) return
   if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
   const ts = chart.timeScale()
   let start
   try { start = ts.getVisibleLogicalRange() } catch { start = null }
   if (!start) { try { ts.setVisibleLogicalRange(target) } catch { /* out of range mid-load */ } return }
+  const startWidth = start.to - start.from
+  const endWidth = target.to - target.from
+  const geom = startWidth > 0 && endWidth > 0   // geometric width only when both ends are sane
+  const ratio = geom ? endWidth / startWidth : 1
   const t0 = performance.now()
-  const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+  const ease = x => -(Math.cos(Math.PI * x) - 1) / 2   // easeInOutSine — gentlest start/stop
   const step = (now) => {
     const p = Math.min(1, (now - t0) / duration)
     const e = ease(p)
-    const from = start.from + (target.from - start.from) * e
     const to = start.to + (target.to - start.to) * e
+    const width = geom ? startWidth * Math.pow(ratio, e) : startWidth + (endWidth - startWidth) * e
+    const from = to - width
     try { ts.setVisibleLogicalRange({ from, to }) } catch { /* ignore transient */ }
     if (p < 1) rafRef.current = requestAnimationFrame(step)
     else rafRef.current = null

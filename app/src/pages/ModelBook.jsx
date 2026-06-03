@@ -332,7 +332,7 @@ function StockDetail({ stockId, isAdmin }) {
             markVolumeExtremes
             volumePaneHeightPct={18}
             volumeMa={50}
-            priceScaleTopMargin={0.06}
+            priceScaleTopMargin={0.14}
             priceScaleBottomMargin={0.06}
             priceLines={priceLines}
             focusDate={focusDate}
