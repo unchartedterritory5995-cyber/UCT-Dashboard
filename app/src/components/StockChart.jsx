@@ -630,6 +630,7 @@ export default function StockChart({
   const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
   const lastFocusNonceRef = useRef(0)     // last processed focusNonce — only act when it actually changes
+  const yearFramedRef = useRef(null)      // sym+tf the exact-range year frame has been rAF-reapplied for (first-load layout race)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
@@ -1222,9 +1223,19 @@ export default function StockChart({
   // BUT never paint a stale intraday IDB series — that's what fuses a
   // live-price spike onto week-old history. When stale we force a full
   // refetch (no `since`, above) and show a brief spinner until it lands.
-  const bars = (data && !data.delta && data.bars?.length)
+  //
+  // Cross-ticker guard: on a sym switch, setIdbBars(null) only lands NEXT
+  // render, and a stale-closure `data` may still describe the OLD ticker — so
+  // for one render the naive selector would serve the previous stock's candles
+  // (the "random candles flashing" on flip). Gate IDB on idbReadyForRef and
+  // network on data.ticker so a mismatched render yields null (clean blank +
+  // updateChart clears the series) instead of the wrong stock.
+  const _symU = sym ? sym.toUpperCase() : ''
+  const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  const bars = (_netMatches && !data.delta)
     ? data.bars
-    : ((idbBars?.length && !idbStaleIntraday) ? idbBars : data?.bars)
+    : (_idbFresh ? idbBars : (_netMatches ? data.bars : null))
   const loading = !bars && !error
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted
@@ -2941,10 +2952,22 @@ export default function StockChart({
       }
     }
     if (endIdx < startIdx) endIdx = filteredBars.length - 1
-    try {
-      chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
-      chart.priceScale('right').applyOptions({ autoScale: true })
-    } catch { /* range can be out of bounds mid-load; next update re-pins */ }
+    const applyYear = () => {
+      try {
+        chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
+        chart.priceScale('right').applyOptions({ autoScale: true })
+      } catch { /* range can be out of bounds mid-load; next update re-pins */ }
+    }
+    applyYear()
+    // First framing of this sym+tf: the chart created with autoSize is still
+    // doing its initial layout, and that first paint can override the range to
+    // the default (latest) — the "shows current data until I click another
+    // chart" bug. Re-apply once after layout settles. Skip if a focus zoom has
+    // since taken the view.
+    if (yearFramedRef.current !== fk) {
+      yearFramedRef.current = fk
+      requestAnimationFrame(() => { if (!focusActiveRef.current && focusKeyRef.current === fk) applyYear() })
+    }
   }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf])
 
   // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
