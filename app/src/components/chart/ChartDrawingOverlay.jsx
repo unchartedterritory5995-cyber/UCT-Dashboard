@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
   rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, fibext: 2, channel: 3, measure: 2, avwap: 1,
-  pitchfork: 3, candleMark: 1,
+  pitchfork: 3,
 }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -193,49 +193,6 @@ function renderText(ctx, pts, drawing) {
   lines.forEach((line, i) => {
     ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * (drawing.fontSize || 13) * 1.3)
   })
-}
-
-// Candle highlight + label tag. `x` = bar pixel center, `halfW` = half bar width,
-// `w`/`h` = CSS canvas size, `idx` = stacking index (to offset overlapping tags).
-function renderCandleMark(ctx, d, x, halfW, w, h, idx = 0) {
-  const accent = d.color || '#ffffff'
-  ctx.save()
-  // Translucent vertical highlight band over the candle.
-  ctx.fillStyle = 'rgba(255,255,255,0.10)'
-  ctx.fillRect(x - halfW, 0, halfW * 2, h)
-  ctx.globalAlpha = 0.55
-  ctx.strokeStyle = accent
-  ctx.lineWidth = 1
-  ctx.setLineDash([3, 3])
-  ctx.beginPath()
-  ctx.moveTo(x - halfW, 0); ctx.lineTo(x - halfW, h)
-  ctx.moveTo(x + halfW, 0); ctx.lineTo(x + halfW, h)
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.globalAlpha = 1
-
-  // Label tag near the top (stacked down by idx so neighbours don't overlap).
-  const label = d.setup || d.label || 'Setup'
-  ctx.font = '600 11px "Instrument Sans", sans-serif'
-  ctx.textBaseline = 'middle'
-  const padX = 6, boxH = 18, top = 6 + (idx % 4) * (boxH + 3)
-  const tw = ctx.measureText(label).width
-  const boxW = tw + padX * 2
-  let bx = x - boxW / 2
-  bx = Math.max(2, Math.min(bx, w - boxW - 2))
-  // Connector from the tag down to the band.
-  ctx.strokeStyle = accent
-  ctx.globalAlpha = 0.5
-  ctx.beginPath(); ctx.moveTo(x, top + boxH); ctx.lineTo(x, h); ctx.stroke()
-  ctx.globalAlpha = 1
-  ctx.fillStyle = 'rgba(15,17,21,0.94)'
-  ctx.fillRect(bx, top, boxW, boxH)
-  ctx.strokeStyle = accent
-  ctx.lineWidth = 1
-  ctx.strokeRect(bx, top, boxW, boxH)
-  ctx.fillStyle = '#fff'
-  ctx.fillText(label, bx + padX, top + boxH / 2)
-  ctx.restore()
 }
 
 function renderFib(ctx, pts, w, toPixel) {
@@ -570,9 +527,6 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     }
     case 'avwap':
       return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD * 2
-    case 'candleMark':
-      // Highlight band is a vertical strip — hit anywhere near its x.
-      return pts.length >= 1 && Math.abs(mx - pts[0].x) < HIT_THRESHOLD * 2
     default: return false
   }
 }
@@ -586,14 +540,11 @@ export default function ChartDrawingOverlay({
   drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
   repeatMode = true,
-  readOnly = false,
-  markOptions = null,   // optional string[] of setup names for the candle-mark picker
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
   const [mouseCoords, setMouseCoords] = useState(null)
   const [textInput, setTextInput] = useState(null)
-  const [markInput, setMarkInput] = useState(null) // { x, y, time } — candle-mark picker
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, drawingId }
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -755,7 +706,6 @@ export default function ChartDrawingOverlay({
     }
 
     // Draw completed drawings
-    let candleMarkSeq = 0
     for (const d of drawings) {
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
@@ -795,21 +745,9 @@ export default function ChartDrawingOverlay({
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d); break
-        case 'candleMark': {
-          const cmX = pts[0].x
-          let halfW = 6
-          const cmIdx = timeToIndex.get(d.points[0].time)
-          const nb = cmIdx != null ? bars[cmIdx + 1] || bars[cmIdx - 1] : null
-          if (nb) {
-            const nx = toPixel(nb.t, null)?.x
-            if (nx != null) halfW = Math.max(3, Math.min(28, Math.abs(nx - cmX) * 0.42))
-          }
-          renderCandleMark(ctx, d, cmX, halfW, w, h, candleMarkSeq++)
-          break
-        }
       }
 
-      if (d.id === selectedId && d.type !== 'candleMark') renderSelectionHandles(ctx, pts)
+      if (d.id === selectedId) renderSelectionHandles(ctx, pts)
       ctx.restore()
     }
 
@@ -900,7 +838,7 @@ export default function ChartDrawingOverlay({
 
   // ── Mouse handlers ──
   const handleMouseDown = useCallback((e) => {
-    if (e.button !== 0 || readOnly) return
+    if (e.button !== 0) return
 
     const pos = getCanvasPos(e)
     if (!pos) return
@@ -959,13 +897,6 @@ export default function ChartDrawingOverlay({
       return
     }
 
-    // Candle-mark tool: pick the candle, then choose a setup label in a popover.
-    if (activeTool === 'candleMark') {
-      if (coords.time == null) return
-      setMarkInput({ x: e.clientX, y: e.clientY, time: coords.time })
-      return
-    }
-
     // Add point for drawing tools
     if (activeTool && activeTool !== 'cursor') {
       const newPending = [...pendingPoints, coords]
@@ -990,7 +921,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode, readOnly])
+  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
 
   const handleMouseMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -1131,24 +1062,9 @@ export default function ChartDrawingOverlay({
     if (!repeatMode) setActiveTool(null)
   }
 
-  const handleMarkSubmit = ({ setup, note }) => {
-    if (!markInput || !setup) { setMarkInput(null); return }
-    addDrawing({
-      type: 'candleMark',
-      points: [{ time: markInput.time }],
-      setup,
-      note: note || '',
-      color: color || '#ffffff',
-    })
-    setMarkInput(null)
-    if (!repeatMode) setActiveTool(null)
-  }
-
   // ── Determine cursor ──
   const isDrawingTool = activeTool && activeTool !== 'cursor'
-  // Read-only viewers must never capture pointer events — the chart underneath
-  // needs them for pan/zoom/crosshair. Drawings still render (canvas paints).
-  const canvasPointerEvents = readOnly ? 'none' : (activeTool ? 'auto' : 'none')
+  const canvasPointerEvents = activeTool ? 'auto' : 'none'
   let canvasCursor = 'default'
   if (isDrawingTool) canvasCursor = 'crosshair'
   else if (isDragging) canvasCursor = 'grabbing'
@@ -1158,7 +1074,6 @@ export default function ChartDrawingOverlay({
 
   // ── Right-click context menu ──
   const handleContextMenu = useCallback((e) => {
-    if (readOnly) return
     const pos = getCanvasPos(e)
     if (!pos) return
     const hitId = hitTestAll(pos.x, pos.y)
@@ -1168,7 +1083,7 @@ export default function ChartDrawingOverlay({
       setSelectedId(hitId)
       setCtxMenu({ x: e.clientX, y: e.clientY, drawingId: hitId })
     }
-  }, [hitTestAll, setSelectedId, readOnly])
+  }, [hitTestAll, setSelectedId])
 
   // Close context menu on any click
   useEffect(() => {
@@ -1207,16 +1122,6 @@ export default function ChartDrawingOverlay({
           onCancel={() => setTextInput(null)}
         />
       )}
-      {markInput && (
-        <MarkInputOverlay
-          x={markInput.x}
-          y={markInput.y}
-          color={color}
-          options={markOptions}
-          onSubmit={handleMarkSubmit}
-          onCancel={() => setMarkInput(null)}
-        />
-      )}
       {ctxMenu && (
         <DrawingContextMenu
           x={ctxMenu.x}
@@ -1227,105 +1132,6 @@ export default function ChartDrawingOverlay({
       )}
     </>
   )
-}
-
-// ─── Candle-mark setup picker ────────────────────────────────────────────────
-
-function MarkInputOverlay({ x, y, color, options, onSubmit, onCancel }) {
-  const list = Array.isArray(options) ? options : []
-  const [setup, setSetup] = useState(list[0] || '')
-  const [custom, setCustom] = useState('')
-  const [note, setNote] = useState('')
-  const ref = useRef(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => ref.current?.focus(), 50)
-    return () => clearTimeout(t)
-  }, [])
-
-  const submit = () => {
-    const label = (setup === '__custom__' ? custom : setup).trim()
-    if (label) onSubmit({ setup: label, note: note.trim() })
-    else onCancel()
-  }
-
-  // Position the popover but keep it within the viewport.
-  const left = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 250)
-  const top = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 190)
-
-  return (
-    <div
-      onMouseDown={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); submit() }
-        if (e.key === 'Escape') onCancel()
-        e.stopPropagation()
-      }}
-      style={{
-        position: 'fixed', left, top, zIndex: 30, width: 236,
-        padding: 10, background: 'rgba(20, 22, 27, 0.98)',
-        border: `1px solid ${color || '#c9a84c'}`, borderRadius: 6,
-        boxShadow: '0 6px 22px rgba(0,0,0,0.55)',
-        fontFamily: "'Instrument Sans', sans-serif", color: '#e2dfd6',
-        display: 'flex', flexDirection: 'column', gap: 8,
-      }}
-    >
-      <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: '#8a8a8a', fontWeight: 700 }}>
-        Label this candle
-      </div>
-      {list.length > 0 && (
-        <select
-          ref={ref}
-          value={setup}
-          onChange={(e) => setSetup(e.target.value)}
-          style={{
-            width: '100%', padding: '6px 8px', fontSize: 12.5, borderRadius: 4,
-            background: 'rgba(255,255,255,0.04)', color: '#fff',
-            border: '1px solid rgba(255,255,255,0.15)', outline: 'none',
-          }}
-        >
-          {list.map(s => <option key={s} value={s}>{s}</option>)}
-          <option value="__custom__">Custom…</option>
-        </select>
-      )}
-      {(list.length === 0 || setup === '__custom__') && (
-        <input
-          ref={list.length === 0 ? ref : undefined}
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          placeholder="Setup name"
-          style={{
-            width: '100%', padding: '6px 8px', fontSize: 12.5, borderRadius: 4,
-            background: 'rgba(255,255,255,0.04)', color: '#fff',
-            border: '1px solid rgba(255,255,255,0.15)', outline: 'none',
-          }}
-        />
-      )}
-      <input
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Note (optional)"
-        style={{
-          width: '100%', padding: '6px 8px', fontSize: 12, borderRadius: 4,
-          background: 'rgba(255,255,255,0.04)', color: '#cfccc4',
-          border: '1px solid rgba(255,255,255,0.12)', outline: 'none',
-        }}
-      />
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={markBtn(false)}>Cancel</button>
-        <button onClick={submit} style={markBtn(true)}>Add</button>
-      </div>
-    </div>
-  )
-}
-
-function markBtn(primary) {
-  return {
-    padding: '5px 12px', fontSize: 12, fontWeight: 700, borderRadius: 4, cursor: 'pointer',
-    border: primary ? '1px solid rgba(201,168,76,0.5)' : '1px solid rgba(255,255,255,0.15)',
-    background: primary ? 'rgba(201,168,76,0.18)' : 'transparent',
-    color: primary ? '#e8c879' : '#9a9a9a',
-  }
 }
 
 // ─── Inline text input ──────────────────────────────────────────────────────

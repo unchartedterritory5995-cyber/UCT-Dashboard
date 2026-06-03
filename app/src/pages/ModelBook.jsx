@@ -1,59 +1,11 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import { useAuth } from '../context/AuthContext'
-import { SETUPS } from '../constants/setupGroups'
+import { SETUP_GROUPS, GRADES } from '../constants/setupGroups'
 import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
-
-// Server-persisted chart drawings for a model-book stock. Mirrors the
-// useChartDrawings interface so it can be dropped into StockChart via the
-// drawingsAdapter prop. Loads from the stock's drawings_json; admins
-// debounce-save back to the server. Viewers' mutators are local-only no-ops
-// in practice (the chart is rendered read-only with no toolbar).
-function parseDrawings(json) {
-  try { const a = json ? JSON.parse(json) : []; return Array.isArray(a) ? a : [] }
-  catch { return [] }
-}
-
-function useServerDrawings(stockId, initialJson, canEdit) {
-  const [drawings, setDrawings] = useState(() => parseDrawings(initialJson))
-  // Track what we last seeded from. When the server's stored drawings change
-  // (a different stock loads, or SWR delivers them after the initial paint),
-  // re-seed during render — React's "adjust state on prop change" pattern.
-  const [seededFrom, setSeededFrom] = useState(initialJson)
-  const timer = useRef(null)
-  if (seededFrom !== initialJson) {
-    setSeededFrom(initialJson)
-    setDrawings(parseDrawings(initialJson))
-  }
-
-  const persist = useCallback((updated) => {
-    setDrawings(updated)
-    if (!canEdit || stockId == null) return
-    if (timer.current) clearTimeout(timer.current)
-    const id = stockId
-    timer.current = setTimeout(() => {
-      fetch(`/api/modelbook/stock/${id}/drawings`, {
-        method: 'PUT', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ drawings: updated }),
-      }).catch(() => {})
-    }, 700)
-  }, [canEdit, stockId])
-
-  const addDrawing = useCallback((d) => {
-    const id = crypto.randomUUID()
-    persist([...drawings, { ...d, id }])
-    return id
-  }, [drawings, persist])
-  const removeDrawing = useCallback((id) => persist(drawings.filter(d => d.id !== id)), [drawings, persist])
-  const updateDrawing = useCallback((id, u) => persist(drawings.map(d => d.id === id ? { ...d, ...u } : d)), [drawings, persist])
-  const clearAll = useCallback(() => persist([]), [persist])
-
-  return { drawings, addDrawing, removeDrawing, updateDrawing, clearAll }
-}
 
 // Year tabs always shown, even before any stocks are curated for them.
 // Any year that has stocks (from the API) is unioned in on top of these.
@@ -62,6 +14,25 @@ const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
+
+// Marker color by grade: A/A+ green, B gold, C/F red, ungraded muted.
+function gradeColor(grade) {
+  if (grade === 'A+' || grade === 'A') return ENTRY_COLOR
+  if (grade === 'B') return TARGET_COLOR
+  if (grade === 'C' || grade === 'F') return STOP_COLOR
+  return '#8a8a8a'
+}
+
+function GradePill({ grade }) {
+  if (!grade) return null
+  const cls = grade === 'A+' || grade === 'A' ? styles.gA
+    : grade === 'B' ? styles.gB : styles.gC
+  return <span className={`${styles.gradePill} ${cls}`}>{grade}</span>
+}
+
+function fmtPrice(v) {
+  return v == null ? '—' : `$${Number(v).toFixed(2)}`
+}
 
 function fmtVol(v) {
   if (v == null) return '—'
@@ -75,6 +46,14 @@ function fmtVol(v) {
 function pctStr(v) {
   if (v == null) return '—'
   return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
+}
+
+function riskReward(s) {
+  if (s.entry_price == null || s.stop_price == null || s.target_price == null) return null
+  const risk = s.entry_price - s.stop_price
+  const reward = s.target_price - s.entry_price
+  if (!risk) return null
+  return (reward / risk).toFixed(1)
 }
 
 // ── Admin: add a curated stock to a year ──────────────────────────────────────
@@ -141,7 +120,109 @@ function AddStockForm({ year, onAdded }) {
   )
 }
 
-// ── Stock detail: chart with on-chart setup annotations ───────────────────────
+// ── Admin: label a playbook setup on a stock ──────────────────────────────────
+function AddSetupForm({ stockId, year, onAdded }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const empty = {
+    setup_type: '', label_date: '', timeframe: 'D', entry_price: '', stop_price: '',
+    target_price: '', grade: '', notes: '', marker_side: 'belowBar', marker_shape: 'arrowUp',
+  }
+  const [form, setForm] = useState(empty)
+
+  async function submit(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const num = v => (v === '' ? null : parseFloat(v))
+      const body = {
+        setup_type: form.setup_type,
+        label_date: form.label_date,
+        timeframe: form.timeframe,
+        entry_price: num(form.entry_price),
+        stop_price: num(form.stop_price),
+        target_price: num(form.target_price),
+        grade: form.grade || null,
+        notes: form.notes || null,
+        marker_side: form.marker_side,
+        marker_shape: form.marker_shape,
+      }
+      const r = await fetch(`/api/modelbook/stock/${stockId}/setups`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (r.ok) {
+        setForm(empty)
+        setOpen(false)
+        onAdded?.()
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) {
+    return <button className={styles.addBtn} onClick={() => setOpen(true)}>+ Label Setup</button>
+  }
+  return (
+    <form className={styles.adminForm} onSubmit={submit}>
+      <div className={styles.formRow}>
+        <select className={styles.input} value={form.setup_type} required
+          onChange={e => setForm(f => ({ ...f, setup_type: e.target.value }))}>
+          <option value="">Setup…</option>
+          {SETUP_GROUPS.map(g => (
+            <optgroup key={g.label} label={g.label}>
+              {g.setups.map(s => <option key={s} value={s}>{s}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        <input className={styles.input} type="date" value={form.label_date}
+          min={`${year}-01-01`} max={`${year}-12-31`} required
+          onChange={e => setForm(f => ({ ...f, label_date: e.target.value }))} />
+        <select className={styles.input} value={form.timeframe}
+          onChange={e => setForm(f => ({ ...f, timeframe: e.target.value }))}>
+          <option value="D">Daily</option>
+          <option value="W">Weekly</option>
+        </select>
+        <select className={styles.input} value={form.grade}
+          onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
+          <option value="">Grade…</option>
+          {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <div className={styles.formRow}>
+        <input className={styles.input} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
+          onChange={e => setForm(f => ({ ...f, entry_price: e.target.value }))} />
+        <input className={styles.input} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
+          onChange={e => setForm(f => ({ ...f, stop_price: e.target.value }))} />
+        <input className={styles.input} type="number" step="0.01" placeholder="Target" value={form.target_price}
+          onChange={e => setForm(f => ({ ...f, target_price: e.target.value }))} />
+        <select className={styles.input} value={form.marker_side}
+          onChange={e => setForm(f => ({ ...f, marker_side: e.target.value }))}>
+          <option value="belowBar">Below bar</option>
+          <option value="aboveBar">Above bar</option>
+        </select>
+        <select className={styles.input} value={form.marker_shape}
+          onChange={e => setForm(f => ({ ...f, marker_shape: e.target.value }))}>
+          <option value="arrowUp">Arrow ↑</option>
+          <option value="arrowDown">Arrow ↓</option>
+          <option value="circle">Circle</option>
+          <option value="square">Square</option>
+        </select>
+      </div>
+      <textarea className={styles.textarea} placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
+        onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+      <div className={styles.formActions}>
+        <button className={styles.saveBtn} type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Setup'}</button>
+        <button className={styles.cancelBtn} type="button" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </form>
+  )
+}
+
+// ── Stock detail: chart with setups labeled + the setup list ──────────────────
 function StockDetail({ stockId, isAdmin }) {
   const { data: stock, mutate } = useSWR(
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
@@ -152,15 +233,41 @@ function StockDetail({ stockId, isAdmin }) {
       refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
     },
   )
+  const setups = useMemo(() => stock?.setups || [], [stock])
+  const [pickedSetupId, setPickedSetupId] = useState(null)
   const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
-  const [editMode, setEditMode] = useState(false)
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [storyDraft, setStoryDraft] = useState('')
+  // Derived: the picked setup if still present, else the first one (so its
+  // price lines show by default). Avoids a setState-in-effect on stock change.
+  const selectedSetupId = (pickedSetupId != null && setups.some(s => s.id === pickedSetupId))
+    ? pickedSetupId
+    : (setups[0]?.id ?? null)
 
-  // Server-persisted on-chart annotations (admin draws in edit mode; all view).
-  const drawingsAdapter = useServerDrawings(stockId, stock?.drawings_json, isAdmin && editMode)
+  const markers = useMemo(() => setups.map(s => ({
+    time: s.label_date,
+    position: s.marker_side || 'belowBar',
+    color: gradeColor(s.grade),
+    shape: s.marker_shape || 'arrowUp',
+    text: `${s.setup_type}${s.grade ? ` ${s.grade}` : ''}`,
+  })), [setups])
+
+  const priceLines = useMemo(() => {
+    const s = setups.find(x => x.id === selectedSetupId)
+    if (!s) return []
+    const lines = []
+    if (s.entry_price != null) lines.push({ price: s.entry_price, color: ENTRY_COLOR, lineStyle: 2, title: `Entry ${fmtPrice(s.entry_price)}` })
+    if (s.stop_price != null) lines.push({ price: s.stop_price, color: STOP_COLOR, lineStyle: 2, title: `Stop ${fmtPrice(s.stop_price)}` })
+    if (s.target_price != null) lines.push({ price: s.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target ${fmtPrice(s.target_price)}` })
+    return lines
+  }, [setups, selectedSetupId])
+
+  async function deleteSetup(id) {
+    await fetch(`/api/modelbook/setup/${id}`, { method: 'DELETE', credentials: 'include' })
+    mutate()
+  }
 
   async function saveNarrative() {
     await fetch(`/api/modelbook/stock/${stock.id}`, {
@@ -197,20 +304,9 @@ function StockDetail({ stockId, isAdmin }) {
             )}
           </h2>
         </div>
-        <div className={styles.headerCtrls}>
-          {isAdmin && (
-            <button
-              className={`${styles.editBtn} ${editMode ? styles.editBtnActive : ''}`}
-              onClick={() => setEditMode(v => !v)}
-              title="Draw setups on this chart (saves for all viewers)"
-            >
-              {editMode ? '✓ Done' : '✎ Edit'}
-            </button>
-          )}
-          <div className={styles.tfToggle}>
-            <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
-            <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
-          </div>
+        <div className={styles.tfToggle}>
+          <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
+          <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
         </div>
       </div>
 
@@ -221,10 +317,7 @@ function StockDetail({ stockId, isAdmin }) {
             tf={chartTf}
             height="100%"
             liveUpdates={false}
-            showDrawingTools={editMode}
-            drawingsAdapter={drawingsAdapter}
-            drawingsReadOnly={!editMode}
-            markOptions={SETUPS}
+            showDrawingTools={false}
             entryDate={`${stock.year}-01-01`}
             exitDate={`${stock.year}-12-31`}
             exactDateRange
@@ -238,6 +331,8 @@ function StockDetail({ stockId, isAdmin }) {
             volumeMa={50}
             priceScaleTopMargin={0.06}
             priceScaleBottomMargin={0.06}
+            markers={markers}
+            priceLines={priceLines}
             className={styles.chart}
           />
         </div>
@@ -295,13 +390,44 @@ function StockDetail({ stockId, isAdmin }) {
       </div>
       </div>
 
-      {isAdmin && editMode && (
-        <div className={styles.editHint}>
-          <strong>Edit mode</strong> — use the toolbar on the chart to draw trendlines, boxes, and notes.
-          Pick the <strong>⬛ Mark Setup Candle</strong> tool, click a candle, and choose a setup to label it.
-          Everything saves automatically and shows for all viewers. Click <strong>✓ Done</strong> when finished.
+      <div className={styles.setupSection}>
+        <div className={styles.setupSectionHead}>
+          <span className={styles.sectionLabel}>LABELED SETUPS ({setups.length})</span>
+          {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
         </div>
-      )}
+        {setups.length === 0 ? (
+          <p className={styles.noSetups}>No setups labeled on this chart yet.</p>
+        ) : (
+          <div className={styles.setupList}>
+            {setups.map(s => {
+              const rr = riskReward(s)
+              return (
+                <div
+                  key={s.id}
+                  className={`${styles.setupRow} ${selectedSetupId === s.id ? styles.setupRowActive : ''}`}
+                  onClick={() => setPickedSetupId(s.id)}
+                >
+                  <div className={styles.setupMain}>
+                    <span className={styles.setupName}>{s.setup_type}</span>
+                    <GradePill grade={s.grade} />
+                    <span className={styles.setupDate}>{s.label_date}</span>
+                  </div>
+                  <div className={styles.setupNums}>
+                    <span>E {fmtPrice(s.entry_price)}</span>
+                    <span style={{ color: STOP_COLOR }}>S {fmtPrice(s.stop_price)}</span>
+                    <span style={{ color: ENTRY_COLOR }}>T {fmtPrice(s.target_price)}</span>
+                    {rr && <span className={styles.rr}>{rr}:1</span>}
+                  </div>
+                  {s.notes && <p className={styles.setupNotes}>{s.notes}</p>}
+                  {isAdmin && (
+                    <button className={styles.deleteBtn} onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}>Delete</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

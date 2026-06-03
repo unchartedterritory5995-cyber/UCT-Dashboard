@@ -996,23 +996,18 @@ users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note)
 - `/data/modelbook.db` — Railway persistent volume (NOT the uct_intelligence `model_examples` table, which is unreachable on Railway). Mirrors the cot.db / catalysts.db pattern.
 
 ### Data model (`/data/modelbook.db`)
-- `modelbook_stocks(id, year, symbol, company, sort_order, thesis, gain_pct, oc_pct, lh_pct, avg_vol, stats_at, company_desc, run_story, desc_at, drawings_json, created_at, updated_at, UNIQUE(year, symbol))`
-- `modelbook_setups(...)` — **legacy** (kept in DB but no longer surfaced; the old form-based "Labeled Setups" list was retired 2026-06-02 in favor of on-chart drawings). Endpoints still exist but the UI doesn't use them.
-- `drawings_json` holds the admin-curated on-chart annotations — a JSON array of drawing objects from the chart engine (`{id, type, points:[{time,price}], ...}`, incl. the `candleMark` type `{type:'candleMark', points:[{time}], setup, note, color}`). `_init_db()` ALTER-loop adds new columns forward-compat.
-
-### On-chart annotations (drawings) — the way setups are labeled now (2026-06-02)
-- **Admin "✎ Edit" toggle** in the stock-detail header turns on `StockChart`'s drawing toolbar + a **Mark Setup Candle** tool (highlights a candle + attaches a setup label from the taxonomy + optional note). Drawings **save server-side per stock** (debounced `PUT /api/modelbook/stock/{id}/drawings`) and render **read-only for all viewers**.
-- Drawings are stored as `{time, price}` coords → portable across zoom/log-scale/year-frame/timeframe. `StockChart` got new optional props (additive, default-off so all other surfaces are unchanged): `drawingsAdapter` (external store overriding the localStorage `useChartDrawings`), `drawingsReadOnly` (render drawings, hide toolbar, `pointerEvents:none` so the chart stays interactive), `markOptions` (string[] for the candle picker). `ChartDrawingOverlay` got a `candleMark` render/tool + `readOnly` guard; `ChartToolbar` got `markToolEnabled`.
-- `useServerDrawings(stockId, drawings_json, canEdit)` in `ModelBook.jsx` mirrors the `useChartDrawings` interface but loads from the stock + debounce-saves to the server. Re-seeds on `initialJson` change via the "adjust state during render with a `seededFrom` state guard" pattern (NOT an effect/ref — the repo lints `set-state-in-effect` and ref-writes-in-render as errors).
+- `modelbook_stocks(id, year, symbol, company, sort_order, thesis, gain_pct, created_at, updated_at, UNIQUE(year, symbol))`
+- `modelbook_setups(id, stock_id→stocks ON DELETE CASCADE, setup_type, label_date 'YYYY-MM-DD', timeframe, entry_price, stop_price, target_price, grade, notes, marker_side, marker_shape, created_at)`
+- `label_date` is ISO TEXT so it maps 1:1 to lightweight-charts daily marker `time` (no conversion). `PRAGMA foreign_keys=ON` on every connection (cascade).
 
 ### Endpoints (`/api/modelbook/*`)
-- `GET /years`, `GET /stocks?year=`, `GET /stock/{id}` (stock detail incl. `drawings_json`) — any logged-in user
-- `POST /stocks`, `PUT|DELETE /stock/{id}`, `PUT /stock/{id}/drawings` (save annotations, max 500), `POST /stock/{id}/setups`, `PUT|DELETE /setup/{id}` (legacy) — `require_admin`
-- AI-generated `company_desc` / `run_story` narratives + year stats (`oc_pct`/`lh_pct`/`avg_vol`) warm lazily on first view of a finalized year (gen-once, daily retry guard via `desc_at`).
+- `GET /years`, `GET /stocks?year=`, `GET /stock/{id}` (stock + setups[]) — any logged-in user
+- `POST /stocks`, `PUT|DELETE /stock/{id}`, `POST /stock/{id}/setups`, `PUT|DELETE /setup/{id}` — `require_admin`
+- Validation: grade∈{A+,A,B,C,F}, timeframe∈{D,W}, label_date=YYYY-MM-DD, marker enums.
 
 ### Chart integration
-- Reuses `StockChart` (`tf="D"`/`W`, `liveUpdates={false}`, `entryDate=year-01-01` / `exitDate=year-12-31` + `exactDateRange` to frame the calendar year; `forceLogScale`, `boldCandles`, separate volume pane w/ 50-day MA).
-- Annotations come from `drawingsAdapter` + `drawingsReadOnly` (see above), NOT setup markers/priceLines anymore.
+- Reuses `StockChart` (`tf="D"`, `liveUpdates={false}`, `entryDate=year-01-01` / `exitDate=year-12-31` to frame the calendar year).
+- `markers` from setups (`{time: label_date, position: marker_side, color by grade, shape, text: "Setup Grade"}`); `priceLines` (entry/stop/target dashed) rendered for the **selected** setup only (click a setup row to switch).
 
 ### Setup taxonomy (now in `app/src/constants/setupGroups.js`)
 **Swing:** High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
@@ -1020,7 +1015,7 @@ users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note)
 
 ### Tests
 - Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade).
-- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, auto-select → chart, admin-only ✎ Edit toggle).
+- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup).
 
 ### Trade-log retirement (2026-06-02)
 The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —
