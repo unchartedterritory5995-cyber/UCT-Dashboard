@@ -273,6 +273,10 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Bold candle/volume palette (Model Book "TC2000" look — boldCandles instances).
+const BOLD_UP = '#21c45c'
+const BOLD_DOWN = '#f23645'
+
 // Main price-scale margins, with an optional caller override of the top margin
 // (the global default reserves 0.30 headroom; some surfaces want a tighter fit).
 function _mainMargins(cs, hasVol, topOverride) {
@@ -1403,14 +1407,17 @@ export default function StockChart({
   )
   const volData = useMemo(() => {
     if (!filteredBars?.length) return []
+    const upC = boldCandles ? BOLD_UP : cs.volume.upColor
+    const downC = boldCandles ? BOLD_DOWN : cs.volume.downColor
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
-      color: hvcSet.has(b.t)
+      // boldCandles wants volume to exactly match candle colors (no HVC gold).
+      color: (!boldCandles && hvcSet.has(b.t))
         ? 'rgba(201,168,76,0.9)'
-        : b.c >= b.o ? cs.volume.upColor : cs.volume.downColor,
+        : b.c >= b.o ? upC : downC,
     }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime])
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles])
   const overlayData = useMemo(() => {
     if (!filteredBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -2036,9 +2043,9 @@ export default function StockChart({
       // right-axis price tag. Both only apply to instances that opt in.
       try {
         const _bold = boldCandles ? {
-          upColor: '#22c55e', downColor: '#ef4444',
-          borderUpColor: '#22c55e', borderDownColor: '#ef4444',
-          wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+          upColor: BOLD_UP, downColor: BOLD_DOWN,
+          borderVisible: false,                       // pure solid bodies (TC2000 look)
+          wickUpColor: BOLD_UP, wickDownColor: BOLD_DOWN,
         } : {}
         priceSeries.applyOptions({ priceLineVisible: !exactDateRange, lastValueVisible: !hideLastValue, ..._bold })
       } catch { /* older LWC */ }

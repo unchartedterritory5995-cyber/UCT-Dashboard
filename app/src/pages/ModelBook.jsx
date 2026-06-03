@@ -319,6 +319,7 @@ function StockDetail({ stockId, isAdmin }) {
             forceLogScale
             boldCandles
             hideLastValue
+            showVolume
             priceScaleTopMargin={0.06}
             markers={markers}
             priceLines={priceLines}
