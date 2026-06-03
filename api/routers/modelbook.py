@@ -243,10 +243,22 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
 # ── AI-generated descriptions (company one-liner + "why it ran that year") ────
 
 import os as _os
+import time as _time_mod
 _DESC_ENABLED = _os.environ.get("MODELBOOK_DESC_ENABLED", "1") == "1"
 _DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_DESC_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
 _gen_lock = _threading.Lock()
 _generating = set()  # stock ids with a description generation in flight
+
+
+def _needs_desc(s) -> bool:
+    """True if a stock still needs descriptions: none yet AND either never
+    attempted or the last attempt is stale. Prevents a tight retry/cost loop on
+    tickers the model can't summarize."""
+    if not _DESC_ENABLED or s.get("company_desc"):
+        return False
+    da = s.get("desc_at")
+    return (not da) or (int(_time_mod.time()) - da > _DESC_RETRY_AFTER)
 
 
 def _generate_descriptions(symbol, company, year, gain_pct):
@@ -290,18 +302,20 @@ def _generate_descriptions(symbol, company, year, gain_pct):
 
 
 def _generate_descriptions_for(stocks, max_workers=3):
-    pending = [s for s in stocks if not s.get("company_desc")]
+    pending = [s for s in stocks if _needs_desc(s)]
     if not pending:
         return
     import concurrent.futures
 
     def _work(s):
         d = _generate_descriptions(s["symbol"], s.get("company"), s["year"], s.get("oc_pct"))
-        if d:
-            try:
+        try:
+            if d:
                 svc.save_descriptions(s["id"], d["company_desc"], d["run_story"])
-            except Exception:
-                pass
+            else:
+                svc.mark_desc_attempt(s["id"])  # stamp attempt so we don't loop
+        except Exception:
+            pass
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         list(ex.map(_work, pending))
 
@@ -322,6 +336,8 @@ def _gen_desc_async(stock):
                                        stock["year"], stock.get("oc_pct"))
             if d:
                 svc.save_descriptions(sid, d["company_desc"], d["run_story"])
+            else:
+                svc.mark_desc_attempt(sid)  # stamp attempt so we don't loop
         finally:
             with _gen_lock:
                 _generating.discard(sid)
@@ -341,7 +357,7 @@ def warm_all_stats() -> None:
         except Exception:
             continue
         stats_done = all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks)
-        desc_done = all(s.get("company_desc") for s in stocks) or not _DESC_ENABLED
+        desc_done = not any(_needs_desc(s) for s in stocks)
         if stats_done and desc_done:
             return  # fully warmed
         if not stats_done:

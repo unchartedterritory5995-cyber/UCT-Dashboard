@@ -158,6 +158,15 @@ def save_descriptions(stock_id: int, company_desc, run_story) -> None:
         c.commit()
 
 
+def mark_desc_attempt(stock_id: int) -> None:
+    """Record that we attempted description generation (even on failure) so the
+    generator/poller don't retry in a tight loop."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE modelbook_stocks SET desc_at = ? WHERE id = ?",
+                  (int(time.time()), int(stock_id)))
+        c.commit()
+
+
 def get_stock_detail(stock_id: int) -> Optional[dict]:
     """A single stock with its full setups[] list (ordered by label_date)."""
     with contextlib.closing(_connect()) as c:

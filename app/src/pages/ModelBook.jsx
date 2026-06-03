@@ -228,8 +228,9 @@ function StockDetail({ stockId, isAdmin }) {
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
       revalidateOnFocus: false,
-      // Poll while the year stats (avg vol) or AI descriptions are still warming.
-      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || !d.company_desc)) ? 5000 : 0,
+      // Poll while year stats (avg vol) are warming or descriptions haven't been
+      // attempted yet (desc_at unset). Stops once an attempt is recorded.
+      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
     },
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
@@ -328,11 +329,11 @@ function StockDetail({ stockId, isAdmin }) {
             <div className={styles.infoStatsV}>
               <div className={styles.infoStat}>
                 <span className={styles.infoStatLabel}>{stock.year} Gain</span>
-                <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.oc_pct)}</span>
+                <span className={`${styles.infoStatVal} ${stock.oc_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.oc_pct)}</span>
               </div>
               <div className={styles.infoStat}>
                 <span className={styles.infoStatLabel}>Low → High</span>
-                <span className={`${styles.infoStatVal} ${styles.infoStatGreen}`}>{pctStr(stock.lh_pct)}</span>
+                <span className={`${styles.infoStatVal} ${stock.lh_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.lh_pct)}</span>
               </div>
               <div className={styles.infoStat}>
                 <span className={styles.infoStatLabel}>Avg Daily Vol</span>
@@ -359,9 +360,9 @@ function StockDetail({ stockId, isAdmin }) {
               ) : (
                 <>
                   {stock.company_desc && <p className={styles.infoDesc}>{stock.company_desc}</p>}
-                  {stock.run_story
-                    ? <p className={styles.infoStory}>{stock.run_story}</p>
-                    : !stock.company_desc && <p className={styles.infoStoryMuted}>Generating summary…</p>}
+                  {stock.run_story && <p className={styles.infoStory}>{stock.run_story}</p>}
+                  {!stock.company_desc && !stock.run_story && !stock.desc_at &&
+                    <p className={styles.infoStoryMuted}>Generating summary…</p>}
                   {isAdmin && (
                     <button className={styles.infoEditLink}
                       onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
