@@ -4739,13 +4739,13 @@ export default function OptionsFlowDashboard() {
                           if(!trades.length) return null;
                           return (
                             <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginBottom:4, marginLeft:24 }}>
-                              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                                <div style={{ fontSize:9, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                                 <button onClick={e=>{e.stopPropagation(); setChartModal({sym:p.sym}); setChartInterval("D");}}
-                                  title={`Open ${p.sym} chart in TradingView`}
+                                  title={`Open ${p.sym} chart`}
                                   style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                   📈 Chart
                                 </button>
+                                <div style={{ fontSize:9, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
                               </div>
                               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                                 <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
@@ -4839,6 +4839,7 @@ export default function OptionsFlowDashboard() {
                         height="100%"
                         liveUpdates={true}
                         showDrawingTools={true}
+                        showVolume={true}
                         onTfChange={setChartInterval}
                         hideReplay
                         hidePatterns
