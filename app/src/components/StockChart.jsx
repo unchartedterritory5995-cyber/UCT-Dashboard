@@ -778,6 +778,7 @@ export default function StockChart({
   const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
+  const [magnet, setMagnet] = useState(false)  // snap drawings to nearest O/H/L/C
   const [selectedId, setSelectedId] = useState(null)
   const [repeatMode, setRepeatMode] = useState(() => {
     try { return localStorage.getItem('uct-draw-repeat') !== 'false' } catch { return true }
@@ -4129,6 +4130,7 @@ export default function StockChart({
             setActiveTool={setActiveTool}
             color={drawColor}
             lineWidth={drawWidth}
+            magnet={magnet}
             drawings={cs.hideDrawings ? [] : drawings}
             addDrawing={addDrawing}
             updateDrawing={updateDrawing}
@@ -4151,6 +4153,8 @@ export default function StockChart({
             drawingCount={drawings.length}
             repeatMode={repeatMode}
             setRepeatMode={handleSetRepeatMode}
+            magnet={magnet}
+            setMagnet={setMagnet}
             chartSettings={cs}
             onUpdateSettings={handleUpdateChartSettings}
             showExtended={isIntraday ? showExtended : null}
@@ -4251,6 +4255,7 @@ export default function StockChart({
             color={drawColor}
             lineWidth={drawWidth}
             lineStyle={drawLineStyle}
+            magnet={magnet}
             drawings={annotations}
             addDrawing={annAdd}
             updateDrawing={annUpdate}
@@ -4277,6 +4282,8 @@ export default function StockChart({
               onUpdateSettings={handleUpdateChartSettings}
               lineStyle={drawLineStyle}
               setLineStyle={setAnnLineStyle}
+              magnet={magnet}
+              setMagnet={setMagnet}
               prominent
               hideReplay
               hidePatterns
