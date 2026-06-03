@@ -434,6 +434,11 @@ export default function StockChart({
   focusStartDate = null,    // ISO date — optional left edge of the focus frame; overrides focusBarsBack when set
   focusNonce = 0,           // bump to (re)trigger the focus zoom even when focusDate is unchanged
   focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
+  // ── Per-setup annotations (Model Book) — additive, default-off ──
+  annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
+  annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
+  annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
+  onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -1022,6 +1027,26 @@ export default function StockChart({
   }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
+
+  // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
+  // bubble the new array to the parent via onAnnotationsChange (no localStorage).
+  const annAdd = useCallback((d) => {
+    const id = crypto.randomUUID()
+    onAnnotationsChange?.([...(annotations || []), { ...d, id }])
+    return id
+  }, [annotations, onAnnotationsChange])
+  const annUpdate = useCallback((id, updates) => {
+    onAnnotationsChange?.((annotations || []).map(d => (d.id === id ? { ...d, ...updates } : d)))
+  }, [annotations, onAnnotationsChange])
+  const annRemove = useCallback((id) => {
+    onAnnotationsChange?.((annotations || []).filter(d => d.id !== id))
+  }, [annotations, onAnnotationsChange])
+  const annClear = useCallback(() => { onAnnotationsChange?.([]) }, [onAnnotationsChange])
+  // Solid/dashed toggle for the selected annotation line (the "dashed level" tool).
+  const selectedAnnLineStyle = (annotations || []).find(d => d.id === selectedId)?.lineStyle || 'solid'
+  const toggleAnnLineStyle = useCallback(() => {
+    if (selectedId) annUpdate(selectedId, { lineStyle: selectedAnnLineStyle === 'dashed' ? 'solid' : 'dashed' })
+  }, [selectedId, selectedAnnLineStyle, annUpdate])
 
   // ── Position tool price lines ──
   useEffect(() => {
@@ -4148,6 +4173,63 @@ export default function StockChart({
             />
           )}
         </>
+      )}
+
+      {/* Per-setup annotations (Model Book). Separate from the normal drawing
+          tools (Model Book runs with showDrawingTools=false). Read-only by
+          default — activeTool=null makes the overlay canvas pointer-transparent
+          so the focus zoom still works underneath. The wrapper fades the whole
+          layer in/out as the chart zooms onto / away from the setup. */}
+      {annotations != null && bars?.length > 0 && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 4,
+            opacity: annotationsVisible ? 1 : 0,
+            transition: 'opacity 360ms ease',
+            pointerEvents: annotationsEditable ? 'auto' : 'none',
+          }}
+        >
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            activeTool={annotationsEditable ? activeTool : null}
+            setActiveTool={setActiveTool}
+            color={drawColor}
+            lineWidth={drawWidth}
+            drawings={annotations}
+            addDrawing={annAdd}
+            updateDrawing={annUpdate}
+            removeDrawing={annRemove}
+            selectedId={annotationsEditable ? selectedId : null}
+            setSelectedId={setSelectedId}
+            repeatMode={repeatMode}
+          />
+          {annotationsEditable && (
+            <ChartToolbar
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              color={drawColor}
+              setColor={setDrawColor}
+              lineWidth={drawWidth}
+              setLineWidth={setDrawWidth}
+              hasSelection={!!selectedId}
+              onDelete={() => { annRemove(selectedId); setSelectedId(null) }}
+              onClearAll={annClear}
+              drawingCount={annotations.length}
+              repeatMode={repeatMode}
+              setRepeatMode={handleSetRepeatMode}
+              chartSettings={cs}
+              onUpdateSettings={handleUpdateChartSettings}
+              onToggleLineStyle={toggleAnnLineStyle}
+              selectedLineStyle={selectedAnnLineStyle}
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
+            />
+          )}
+        </div>
       )}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       <PatternSidePanel

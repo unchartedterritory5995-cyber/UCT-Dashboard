@@ -727,7 +727,9 @@ export default function ChartDrawingOverlay({
       ctx.save()
       ctx.strokeStyle = d.color || '#c9a84c'
       ctx.lineWidth = d.lineWidth || 1
-      ctx.setLineDash([])
+      // Per-drawing dashed style (e.g. a dashed horizontal level). Most shapes
+      // set their own dash internally; lines respect this before they draw.
+      ctx.setLineDash(d.lineStyle === 'dashed' ? [6, 4] : [])
 
       switch (d.type) {
         case 'trendline': renderTrendline(ctx, pts); break

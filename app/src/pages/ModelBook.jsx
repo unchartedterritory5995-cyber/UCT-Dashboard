@@ -21,6 +21,13 @@ const TARGET_COLOR = '#c9a84c'
 // flash. Reusing one array keeps the reference stable when there are no lines.
 const NO_PRICE_LINES = []
 
+// Parse a setup's stored drawings_json (annotations) → array; [] on missing/bad.
+function parseDrawings(json) {
+  if (!json) return []
+  try { const d = JSON.parse(json); return Array.isArray(d) ? d : [] }
+  catch { return [] }
+}
+
 function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
@@ -263,6 +270,8 @@ function StockDetail({ stockId, isAdmin }) {
   )
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [editingSetupId, setEditingSetupId] = useState(null)  // admin: setup row being edited inline
+  const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
+  const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
   // Animated chart focus: which setup the chart is zoomed into + a nonce that
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
@@ -293,11 +302,15 @@ function StockDetail({ stockId, isAdmin }) {
   // setup's day is the last candle on screen. Click the same setup again to
   // zoom back out to the full year.
   function onSetupClick(s) {
+    if (annotateMode) return  // lock setup switching while drawing; Save/Cancel first
     setPickedSetupId(s.id)
     setFocus(f => {
-      const sameTarget = f.id === s.id && f.stockId === stockId && f.tf === chartTf
+      // sameTarget only when currently zoomed IN on this setup (date set). On
+      // toggle-off we KEEP the id (date=null) so its drawings can fade out; a
+      // re-click then re-focuses it.
+      const sameTarget = f.id === s.id && f.date != null && f.stockId === stockId && f.tf === chartTf
       return sameTarget
-        ? { id: null, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+        ? { id: s.id, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
         : { id: s.id, date: s.label_date, startDate: s.frame_start_date || null, nonce: f.nonce + 1, stockId, tf: chartTf }
     })
   }
@@ -306,6 +319,34 @@ function StockDetail({ stockId, isAdmin }) {
   const focusActive = focus.stockId === stockId && focus.tf === chartTf
   const focusDate = focusActive ? focus.date : null
   const focusStartDate = focusActive ? focus.startDate : null
+
+  // ── Per-setup annotations ──
+  // The focused setup (id retained through zoom-out so its drawings fade rather
+  // than vanish). Drawings render when zoomed in and fade out on zoom-out.
+  const focusedSetup = focusActive && focus.id != null ? setups.find(s => s.id === focus.id) : null
+  const savedDrawings = useMemo(() => parseDrawings(focusedSetup?.drawings_json), [focusedSetup])
+  const annotations = annotateMode ? annotationDraft : (focusedSetup ? savedDrawings : null)
+  const annotationsVisible = !!focusDate || annotateMode
+
+  function startAnnotate() {
+    setAnnotationDraft(savedDrawings)
+    setAnnotateMode(true)
+  }
+  function cancelAnnotate() {
+    setAnnotateMode(false)
+    setAnnotationDraft([])
+  }
+  async function saveAnnotations() {
+    if (focus.id == null) return
+    await fetch(`/api/modelbook/setup/${focus.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ drawings_json: JSON.stringify(annotationDraft) }),
+    })
+    setAnnotateMode(false)
+    setAnnotationDraft([])
+    mutate()
+  }
 
   async function deleteSetup(id) {
     await fetch(`/api/modelbook/setup/${id}`, { method: 'DELETE', credentials: 'include' })
@@ -347,9 +388,21 @@ function StockDetail({ stockId, isAdmin }) {
             )}
           </h2>
         </div>
-        <div className={styles.tfToggle}>
-          <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
-          <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
+        <div className={styles.headerTools}>
+          {/* Annotate: only when admin has a setup zoomed in. */}
+          {isAdmin && focusDate && !annotateMode && (
+            <button className={styles.annotateBtn} onClick={startAnnotate} title="Draw annotations on this setup">✏️ Annotate</button>
+          )}
+          {isAdmin && annotateMode && (
+            <>
+              <button className={styles.annotateSave} onClick={saveAnnotations}>Save</button>
+              <button className={styles.annotateCancel} onClick={cancelAnnotate}>Cancel</button>
+            </>
+          )}
+          <div className={styles.tfToggle}>
+            <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
+            <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
+          </div>
         </div>
       </div>
 
@@ -378,6 +431,10 @@ function StockDetail({ stockId, isAdmin }) {
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
+            annotations={annotations}
+            annotationsVisible={annotationsVisible}
+            annotationsEditable={annotateMode}
+            onAnnotationsChange={setAnnotationDraft}
             className={styles.chart}
           />
         </div>
