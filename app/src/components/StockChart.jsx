@@ -2279,7 +2279,7 @@ export default function StockChart({
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
       const _ovLineType = boldCandles ? LineType.Curved : LineType.Simple
-      const _ovLineWidth = boldCandles ? 1.5 : 1  // 1.5 = smooth but not bulky
+      const _ovLineWidth = boldCandles ? 1 : 1  // thinnest; curve keeps it smooth
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth })
