@@ -161,6 +161,15 @@
   border-radius: var(--radius-md, 4px); outline: none;
 }
 .input:focus { border-color: var(--ut-gold); }
+/* Custom-setup free-text cell: occupies the dropdown's slot in .formRow, with a
+   tiny toggle beneath to switch back to the predefined list. */
+.setupCell { flex: 1; min-width: 110px; display: flex; flex-direction: column; gap: 3px; }
+.toggleLink {
+  align-self: flex-start; padding: 0; border: none; background: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.toggleLink:hover { color: var(--ut-gold); }
 .textarea {
   width: 100%; min-height: 56px; padding: 7px 10px; font-size: 13px; font-family: var(--font-sans);
   background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);

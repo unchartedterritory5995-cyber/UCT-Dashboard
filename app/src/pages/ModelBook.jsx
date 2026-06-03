@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import { useAuth } from '../context/AuthContext'
-import { SETUP_GROUPS, GRADES } from '../constants/setupGroups'
+import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -148,6 +148,11 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
     grade: initial?.grade || '',
     notes: initial?.notes || '',
   }))
+  // Free-text fallback when the desired setup isn't in SETUP_GROUPS. Starts on
+  // automatically when editing a setup whose type was typed in (not a known one).
+  const [customSetup, setCustomSetup] = useState(
+    () => !!initial?.setup_type && !SETUPS.includes(initial.setup_type),
+  )
 
   async function submit(e) {
     e.preventDefault()
@@ -181,15 +186,32 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
   return (
     <form className={styles.adminForm} onSubmit={submit}>
       <div className={styles.formRow}>
-        <select className={styles.input} value={form.setup_type} required
-          onChange={e => setForm(f => ({ ...f, setup_type: e.target.value }))}>
-          <option value="">Setup…</option>
-          {SETUP_GROUPS.map(g => (
-            <optgroup key={g.label} label={g.label}>
-              {g.setups.map(s => <option key={s} value={s}>{s}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        {customSetup ? (
+          <div className={styles.setupCell}>
+            <input className={styles.input} type="text" required autoFocus
+              placeholder="Custom setup name" value={form.setup_type}
+              onChange={e => setForm(f => ({ ...f, setup_type: e.target.value }))} />
+            <button type="button" className={styles.toggleLink}
+              onClick={() => { setCustomSetup(false); setForm(f => ({ ...f, setup_type: '' })) }}>
+              ← Pick from list
+            </button>
+          </div>
+        ) : (
+          <select className={styles.input} value={form.setup_type} required
+            onChange={e => {
+              const v = e.target.value
+              if (v === '__custom__') { setCustomSetup(true); setForm(f => ({ ...f, setup_type: '' })) }
+              else setForm(f => ({ ...f, setup_type: v }))
+            }}>
+            <option value="">Setup…</option>
+            {SETUP_GROUPS.map(g => (
+              <optgroup key={g.label} label={g.label}>
+                {g.setups.map(s => <option key={s} value={s}>{s}</option>)}
+              </optgroup>
+            ))}
+            <option value="__custom__">+ Custom setup…</option>
+          </select>
+        )}
         <select className={styles.input} value={form.timeframe}
           onChange={e => setForm(f => ({ ...f, timeframe: e.target.value }))}>
           <option value="D">Daily</option>
