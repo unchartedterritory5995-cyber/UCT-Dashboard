@@ -330,16 +330,34 @@ function _animateVisibleRange(chart, rafRef, target, duration = 1150) {
 // window. Used to give the focus zoom a continuously-interpolated vertical so
 // the price axis glides instead of stair-stepping as taller/shorter bars scroll
 // into view (default per-frame autoScale only changes at those discrete events).
-function _windowPriceRange(bars, from, to) {
+function _windowPriceRange(bars, from, to, overlays) {
   if (!bars || !bars.length) return null
   const s = Math.max(0, Math.floor(from))
   const e = Math.min(bars.length - 1, Math.ceil(to))
   let lo = Infinity, hi = -Infinity
+  const winTimes = new Set()
   for (let i = s; i <= e; i++) {
     const b = bars[i]
     if (!b) continue
+    winTimes.add(b.t)
     if (b.l < lo) lo = b.l
     if (b.h > hi) hi = b.h
+  }
+  // Include overlay (MA) values in the window so the interpolated target matches
+  // the chart's default autoScale fit (which fits candles + overlays). Without
+  // this, the end-of-zoom hand-off to autoScale snaps the scale to include MAs
+  // that dip below / poke above the candles — and the price-anchored annotations
+  // skip with it. (Focus zoom only runs in Model Book at daily/weekly, where the
+  // overlay's `time` equals the raw bar `t`.)
+  if (overlays?.length) {
+    for (const ov of overlays) {
+      if (!ov?.data) continue
+      for (const p of ov.data) {
+        if (p.value == null || !winTimes.has(p.time)) continue
+        if (p.value < lo) lo = p.value
+        if (p.value > hi) hi = p.value
+      }
+    }
   }
   return (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) ? { lo, hi } : null
 }
@@ -350,7 +368,7 @@ function _windowPriceRange(bars, from, to) {
 // autoscaleInfoProvider on the candle series reading priceRangeRef — set per frame
 // here, cleared at the end so normal autoScale resumes. Falls back to the plain
 // horizontal-only animation when the price ranges can't be computed.
-function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null) {
+function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null) {
   priceRangeRef.current = null  // any fallback path below leaves default autoscale in effect
   if (!chart || !series) { _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
@@ -358,8 +376,8 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   let start
   try { start = ts.getVisibleLogicalRange() } catch { start = null }
   if (!start) { try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
-  const sRange = _windowPriceRange(bars, start.from, start.to)
-  const tRange = _windowPriceRange(bars, target.from, target.to)
+  const sRange = _windowPriceRange(bars, start.from, start.to, overlays)
+  const tRange = _windowPriceRange(bars, target.from, target.to, overlays)
   if (!sRange || !tRange) { _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   const startWidth = start.to - start.from
   const endWidth = target.to - target.from
@@ -3174,7 +3192,7 @@ export default function StockChart({
         }
       }
       focusActiveRef.current = true
-      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to })
+      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 1150, null, overlayData)
     } else {
       // Zoom back out to the framed year — same dual-axis glide as the zoom-in.
       // Hold the view (focusActiveRef stays true) until the animation finishes so
@@ -3192,9 +3210,9 @@ export default function StockChart({
       if (endIdx < startIdx) endIdx = filteredBars.length - 1
       focusActiveRef.current = true
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: startIdx, to: endIdx }, 1150, () => { focusActiveRef.current = false })
+        { from: startIdx, to: endIdx }, 1150, () => { focusActiveRef.current = false }, overlayData)
     }
-  }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf])
+  }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf, overlayData])
 
   // Cancel any in-flight focus animation on unmount.
   useEffect(() => () => { if (focusRafRef.current != null) cancelAnimationFrame(focusRafRef.current) }, [])

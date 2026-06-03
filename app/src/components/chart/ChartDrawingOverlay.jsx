@@ -127,11 +127,6 @@ function renderHRay(ctx, pts, w) {
     ctx.fillStyle = ctx.strokeStyle
     ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
   }
-  // Small anchor dot at origin
-  ctx.beginPath()
-  ctx.arc(x, pts[0].y, 3, 0, Math.PI * 2)
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fill()
 }
 
 function renderVertical(ctx, pts, h) {
