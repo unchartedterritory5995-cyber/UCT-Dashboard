@@ -72,6 +72,7 @@ class SetupIn(BaseModel):
     notes: Optional[str] = None
     marker_side: Optional[str] = "belowBar"
     marker_shape: Optional[str] = "arrowUp"
+    drawings_json: Optional[str] = None   # JSON array of chart annotations
 
 
 class SetupPatch(BaseModel):
@@ -86,6 +87,7 @@ class SetupPatch(BaseModel):
     notes: Optional[str] = None
     marker_side: Optional[str] = None
     marker_shape: Optional[str] = None
+    drawings_json: Optional[str] = None   # JSON array of chart annotations
 
 
 def _validate_setup(d: dict) -> None:

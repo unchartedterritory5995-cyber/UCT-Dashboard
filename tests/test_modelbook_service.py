@@ -30,6 +30,7 @@ def _setup(label_date="2025-03-14", **kw):
         "setup_type": kw.get("setup_type", "VCP"),
         "label_date": label_date,
         "frame_start_date": kw.get("frame_start_date"),
+        "drawings_json": kw.get("drawings_json"),
         "timeframe": kw.get("timeframe", "D"),
         "entry_price": kw.get("entry_price", 120.0),
         "stop_price": kw.get("stop_price", 110.0),
@@ -107,6 +108,21 @@ def test_setup_frame_start_date_roundtrips(s):
     # Patchable via update_setup.
     upd = s.update_setup(b["id"], {"frame_start_date": "2025-05-15"})
     assert upd["frame_start_date"] == "2025-05-15"
+
+
+def test_setup_drawings_json_roundtrips(s):
+    stock = s.create_stock(_stock())
+    a = s.create_setup(stock["id"], _setup())
+    assert a["drawings_json"] is None  # default when not provided
+    payload = '[{"id":"x","type":"trendline","points":[{"time":"2025-08-01","price":2.1}],"lineStyle":"dashed"}]'
+    b = s.create_setup(stock["id"], _setup(drawings_json=payload))
+    assert b["drawings_json"] == payload
+    # Patchable in isolation (annotate-save sends only drawings_json).
+    upd = s.update_setup(a["id"], {"drawings_json": payload})
+    assert upd["drawings_json"] == payload
+    # And editing other fields leaves drawings untouched.
+    upd2 = s.update_setup(a["id"], {"grade": "B"})
+    assert upd2["drawings_json"] == payload
 
 
 def test_setups_ordered_by_label_date(s):
