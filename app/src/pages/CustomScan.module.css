@@ -273,6 +273,42 @@
 .rowSelected td { background: rgba(201,168,76,0.07) !important; }
 .rowSelected .sym { color: var(--ut-gold); }
 
+/* ── Industry/sector group header rows (Grouped view) ── */
+.groupRow { cursor: pointer; }
+.groupRow:hover .groupCell { background: rgba(201,168,76,0.12); }
+.groupCell {
+  background: rgba(201,168,76,0.07);
+  border-top: 1px solid rgba(201,168,76,0.22);
+  border-bottom: 1px solid rgba(201,168,76,0.22);
+  padding: 5px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.groupCaret { display: inline-block; width: 12px; color: var(--ut-gold); font-size: 10px; }
+.groupName {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+.groupCount {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 18px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ut-gold);
+  background: rgba(201,168,76,0.14);
+  border-radius: 8px;
+  text-align: center;
+}
+.groupAvgUp, .groupAvgDn { margin-left: 10px; font-family: var(--font-mono); font-size: 11px; }
+.groupAvgUp { color: #4ade80; }
+.groupAvgDn { color: #f87171; }
+
 /* ── Ticker cell ── */
 .tickerCell { display: flex; flex-direction: column; gap: 1px; }
 .sym { font-weight: 800; color: var(--ut-cream); letter-spacing: 0.5px; font-size: 12px; }

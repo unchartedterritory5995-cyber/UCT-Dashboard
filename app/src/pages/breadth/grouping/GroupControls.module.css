@@ -1,0 +1,29 @@
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.toggle {
+  display: inline-flex;
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.btn + .btn { border-left: 1px solid rgba(201,168,76,0.3); }
+.btn:hover { color: var(--text, #e0e0e0); }
+.active {
+  background: rgba(201,168,76,0.16);
+  color: var(--ut-gold, #c9a84c);
+}

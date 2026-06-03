@@ -146,13 +146,18 @@ async def breadth_industries(request: Request):
     tickers = [str(t).upper() for t in tickers if t][:500]  # cap per call
     try:
         from api.services import industry_map
-        industries = industry_map.get_industries(tickers)
+        groups = industry_map.get_groups(tickers)
+        industries = {t: g.get("industry") for t, g in groups.items()}
+        sectors = {t: g.get("sector") for t, g in groups.items()}
     except Exception as e:
         # Never break the drill modal over enrichment — degrade to ungrouped.
         import logging
         logging.getLogger(__name__).warning("[breadth] industries lookup failed: %s", e)
         industries = {t: None for t in tickers}
-    return {"industries": industries}
+        sectors = {t: None for t in tickers}
+    # `industries` kept as the back-compat key; `sectors` added for the
+    # Sector ⇄ Industry dimension toggle.
+    return {"industries": industries, "sectors": sectors}
 
 
 @router.get("/api/breadth/industries/status")

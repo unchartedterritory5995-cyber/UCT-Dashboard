@@ -347,6 +347,47 @@ def warm_universe_gaps(limit: int = 1500, sleep_s: float = 0.4) -> int:
     return filled
 
 
+def get_groups(tickers: list[str]) -> dict[str, dict]:
+    """Return {TICKER: {"sector": ..|None, "industry": ..|None}} non-blocking.
+
+    Same read path as get_industries (instant from the persisted map, bounded
+    fallback warm for stragglers, empty/stale self-heal) but exposes BOTH
+    grouping dimensions so the frontend can flip Sector ⇄ Industry.
+    """
+    _ensure_init()
+    want = []
+    seen = set()
+    for raw in tickers:
+        if not raw:
+            continue
+        t = str(raw).upper()
+        if t not in seen:
+            seen.add(t)
+            want.append(t)
+    if not want:
+        return {}
+
+    rows: dict[str, dict] = {}
+    with contextlib.closing(_connect()) as c:
+        for i in range(0, len(want), 400):
+            chunk = want[i:i + 400]
+            q = "SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
+                ",".join("?" * len(chunk)))
+            for row in c.execute(q, chunk).fetchall():
+                rows[row["ticker"]] = {"sector": row["sector"], "industry": row["industry"]}
+
+    out: dict[str, dict] = {}
+    for t in want:
+        rec = rows.get(t)
+        out[t] = {"sector": rec["sector"] if rec else None,
+                  "industry": rec["industry"] if rec else None}
+        if not (rec and rec["industry"]):
+            _enqueue_fallback(t)
+
+    _maybe_self_heal()
+    return out
+
+
 def prewarm() -> None:
     """Startup hook: bulk-refresh from Finviz if empty/stale, then fill the
     cap_universe gaps Finviz misses so the map is ~100% complete."""

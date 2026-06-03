@@ -101,6 +101,14 @@ def test_status_shape(imap):
     assert s["stale"] is False
 
 
+def test_get_groups_returns_both_dims(imap):
+    imap.bulk_refresh_from_finviz()
+    out = imap.get_groups(["NVDA", "XOM", "ZZZZ"])
+    assert out["NVDA"] == {"sector": "Technology", "industry": "Semiconductors"}
+    assert out["XOM"] == {"sector": "Energy", "industry": "Oil & Gas Integrated"}
+    assert out["ZZZZ"] == {"sector": None, "industry": None}
+
+
 def test_warm_universe_gaps_fills_finviz_misses(imap, monkeypatch, tmp_path):
     imap.bulk_refresh_from_finviz()  # seeds NVDA/AMD/XOM
     # cap_universe includes a name Finviz didn't cover.
@@ -148,6 +156,9 @@ def test_endpoint_shape(client):
     body = r.json()
     assert body["industries"]["MSFT"] == "Software - Infrastructure"
     assert body["industries"]["NOPE"] is None
+    # sectors map returned alongside for the dimension toggle
+    assert body["sectors"]["MSFT"] == "Technology"
+    assert body["sectors"]["NOPE"] is None
 
 
 def test_endpoint_caps_at_500(client):

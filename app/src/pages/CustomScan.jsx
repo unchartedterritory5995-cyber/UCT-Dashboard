@@ -6,6 +6,10 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
+import GroupControls from './breadth/grouping/GroupControls'
+import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
+import { Fragment } from 'react'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -389,30 +393,35 @@ export default function CustomScan({ allCandidates }) {
     return rows
   }, [mergedUniverse, activeFilters, tickerSearch, sortKey, sortDir, resolvedFilters])
 
+  // Shared breadth grouping (same engine as the drill modal). Group the scan
+  // by industry/sector; nav + render follow the grouped visible order.
+  const grouping = useBreadthGrouping(results, { tickerOf: r => r.ticker, pctOf: r => r.pct_1d })
+  const orderedResults = grouping.grouped ? grouping.visibleOrder : results
+
   // Keyboard navigation
   useEffect(() => {
     function onKey(e) {
       if (!selectedSym) return
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-      const idx = results.findIndex(r => r.ticker === selectedSym)
+      const idx = orderedResults.findIndex(r => r.ticker === selectedSym)
       if (idx === -1) return
-      const next = e.key === 'ArrowDown' ? results[idx + 1] : results[idx - 1]
+      const next = e.key === 'ArrowDown' ? orderedResults[idx + 1] : orderedResults[idx - 1]
       if (next) { setSelectedSym(next.ticker); setSelectedName(next.name || '') }
       e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedSym, results])
+  }, [selectedSym, orderedResults])
 
   // Prefetch all timeframes for current ticker + adjacent tickers for active TF
   useEffect(() => {
-    if (!selectedSym || !results.length) return
+    if (!selectedSym || !orderedResults.length) return
     prefetchAllTimeframes(selectedSym)
-    const idx = results.findIndex(r => r.ticker === selectedSym)
+    const idx = orderedResults.findIndex(r => r.ticker === selectedSym)
     if (idx < 0) return
-    const upcoming = results.slice(idx + 1, idx + 6).map(r => r.ticker)
+    const upcoming = orderedResults.slice(idx + 1, idx + 6).map(r => r.ticker)
     prefetchBars(upcoming, chartPeriod)
-  }, [selectedSym, results, chartPeriod])
+  }, [selectedSym, orderedResults, chartPeriod])
 
   // Sort toggle helper
   const toggleSort = key => {
@@ -454,6 +463,12 @@ export default function CustomScan({ allCandidates }) {
             placeholder="NVDA, AAPL…"
             value={tickerSearch}
             onChange={e => setTickerSearch(e.target.value)}
+          />
+          <GroupControls
+            viewMode={grouping.viewMode}
+            setViewMode={grouping.setViewMode}
+            dimension={grouping.dimension}
+            setDimension={grouping.setDimension}
           />
         </div>
         <div className={styles.controlRight}>
@@ -522,6 +537,14 @@ export default function CustomScan({ allCandidates }) {
           {results.length === 0 ? (
             <div className={styles.empty}>No stocks match the current filters</div>
           ) : (
+            <>
+            {grouping.grouped && (
+              <GroupSummaryStrip
+                summary={grouping.summary}
+                dimension={grouping.dimension}
+                onPick={grouping.toggleGroupCollapse}
+              />
+            )}
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -540,7 +563,8 @@ export default function CustomScan({ allCandidates }) {
                 </tr>
               </thead>
               <tbody>
-                {results.map(c => {
+                {(() => {
+                  const renderRow = c => {
                   const isSelected = c.ticker === selectedSym
                   const alertCls   = alertBadgeClass(c.alert_state)
                   const setupCls   = setupClass(c.setup_type)
@@ -620,9 +644,33 @@ export default function CustomScan({ allCandidates }) {
                       </td>
                     </tr>
                   )
-                })}
+                  }
+
+                  if (!grouping.grouped) return results.map(renderRow)
+
+                  // Grouped: industry/sector header rows interleaved, collapsible.
+                  return grouping.grouped.groups.map(g => {
+                    const isCollapsed = grouping.collapsedGroups.has(g.key)
+                    return (
+                      <Fragment key={g.key}>
+                        <tr className={styles.groupRow} onClick={() => grouping.toggleGroupCollapse(g.key)}>
+                          <td className={styles.groupCell} colSpan={12}>
+                            <span className={styles.groupCaret}>{isCollapsed ? '▸' : '▾'}</span>
+                            <span className={styles.groupName}>{g.key}</span>
+                            <span className={styles.groupCount}>{g.count}</span>
+                            <span className={g.avgPct >= 0 ? styles.groupAvgUp : styles.groupAvgDn}>
+                              avg {g.avgPct > 0 ? '+' : ''}{g.avgPct.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                        {!isCollapsed && g.items.map(renderRow)}
+                      </Fragment>
+                    )
+                  })
+                })()}
               </tbody>
             </table>
+            </>
           )}
         </div>
 

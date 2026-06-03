@@ -15,7 +15,9 @@ import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import { polarityOf, PAIRS } from './breadth/views/breadthViewShared'
 import BreadthViews from './breadth/BreadthViews'
-import { groupItemsByIndustry } from './breadth/groupByIndustry'
+import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
+import GroupControls from './breadth/grouping/GroupControls'
+import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -392,59 +394,17 @@ function DrillModal({ drill, onClose }) {
   const items = drill.items ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
-  const [viewMode, setViewMode] = useState(() => {
-    try { return localStorage.getItem('breadth.drill.viewMode') === 'grouped' ? 'grouped' : 'list' }
-    catch { return 'list' }
-  })
-  const setMode = m => {
-    setViewMode(m)
-    setSelectedIdx(0)
-    try { localStorage.setItem('breadth.drill.viewMode', m) } catch { /* ignore */ }
-  }
-  const [industries, setIndustries] = useState({})
-  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
-  const toggleGroupCollapse = key => setCollapsedGroups(prev => {
-    const next = new Set(prev)
-    next.has(key) ? next.delete(key) : next.add(key)
-    return next
-  })
 
-  // Fetch GICS industry per ticker for the Grouped view. Non-blocking on the
-  // server: cold-cache tickers return null and warm in the background, so we
-  // do one delayed retry to pull in late arrivals.
-  useEffect(() => {
-    if (!items.length) return
-    let cancelled = false
-    const tickers = items.map(i => i.t).filter(Boolean)
-    const fetchInd = () => fetch('/api/breadth/industries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tickers }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        if (cancelled || !d?.industries) return false
-        setIndustries(prev => ({ ...prev, ...d.industries }))
-        return Object.values(d.industries).some(v => !v)  // any misses left?
-      })
-      .catch(() => false)
-    fetchInd().then(hadMisses => {
-      if (cancelled || !hadMisses) return
-      setTimeout(() => { if (!cancelled) fetchInd() }, 2500)
-    })
-    return () => { cancelled = true }
-  }, [items])
+  // Shared grouping toolkit (same engine used by CustomScan) — owns the
+  // List|Grouped + Sector|Industry state, the industry/sector fetch, and the
+  // grouped buckets / visible order / summary.
+  const {
+    viewMode, setViewMode, dimension, setDimension,
+    grouped, visibleOrder, collapsedGroups, toggleGroupCollapse, summary,
+  } = useBreadthGrouping(items, { tickerOf: i => i.t, pctOf: i => i.pct })
 
-  const grouped = useMemo(
-    () => (viewMode === 'grouped' ? groupItemsByIndustry(items, industries) : null),
-    [viewMode, items, industries],
-  )
-  // Items in current visual order, excluding collapsed-group rows — drives
-  // selection + ↑/↓ nav so navigation skips hidden rows and stays aligned.
-  const visibleOrder = useMemo(() => {
-    if (!grouped) return items
-    return grouped.groups.flatMap(g => (collapsedGroups.has(g.key) ? [] : g.items))
-  }, [grouped, items, collapsedGroups])
+  // Reset the cursor whenever the view shape changes.
+  useEffect(() => { setSelectedIdx(0) }, [viewMode, dimension])
 
   // When the drill list first loads, immediately prefetch ALL tickers into the
   // browser's SWR cache. For tickers already in server SQLite (the vast majority),
@@ -523,17 +483,12 @@ function DrillModal({ drill, onClose }) {
             <div className={styles.drillSubRow}>
               <span className={styles.drillSub}>{drill.date}</span>
               {items.length > 0 && (
-                <div className={styles.drillViewToggle} role="group" aria-label="View mode">
-                  <button
-                    className={`${styles.drillViewBtn} ${viewMode === 'list' ? styles.drillViewBtnActive : ''}`}
-                    onClick={() => setMode('list')}
-                  >List</button>
-                  <button
-                    className={`${styles.drillViewBtn} ${viewMode === 'grouped' ? styles.drillViewBtnActive : ''}`}
-                    onClick={() => setMode('grouped')}
-                    title="Group by industry — most-represented first"
-                  >Grouped</button>
-                </div>
+                <GroupControls
+                  viewMode={viewMode}
+                  setViewMode={setViewMode}
+                  dimension={dimension}
+                  setDimension={setDimension}
+                />
               )}
               <CopyTickersButton items={grouped ? grouped.order : items} />
             </div>
@@ -549,6 +504,8 @@ function DrillModal({ drill, onClose }) {
             ) : items.length === 0 ? (
               <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
             ) : (
+              <>
+              {grouped && <GroupSummaryStrip summary={summary} dimension={dimension} onPick={toggleGroupCollapse} />}
               <table className={styles.drillTable}>
                 <thead>
                   <tr>
@@ -633,6 +590,7 @@ function DrillModal({ drill, onClose }) {
                   })()}
                 </tbody>
               </table>
+              </>
             )}
           </div>
 
