@@ -761,7 +761,19 @@ export default function ChartDrawingOverlay({
         case 'ray': renderRay(ctx, pts, w, h); break
         case 'extended': renderExtended(ctx, pts, w, h); break
         case 'horizontal': renderHorizontal(ctx, pts, w); break
-        case 'hray': renderHRay(ctx, pts, w); break
+        case 'hray': {
+          // Optional right bound (time-anchored): stop the ray at this bar
+          // instead of running to the canvas edge. Model Book uses it so that,
+          // when all setups are shown on the zoomed-out chart, each ray ends at
+          // its setup candle rather than streaking across the whole year.
+          let hrayRight = w
+          if (d.rightBoundTime != null) {
+            const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
+            if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
+          }
+          renderHRay(ctx, pts, hrayRight)
+          break
+        }
         case 'vertical': renderVertical(ctx, pts, h); break
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break

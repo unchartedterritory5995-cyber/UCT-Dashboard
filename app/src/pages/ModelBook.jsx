@@ -299,6 +299,19 @@ function StockDetail({ stockId, isAdmin }) {
   const [editingSetupId, setEditingSetupId] = useState(null)  // admin: setup row being edited inline
   const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
   const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
+  // "Show all" overlay: render every setup's annotations on the zoomed-out chart.
+  // Persisted (and survives stock switches, since StockDetail isn't remounted) so
+  // it stays on as you browse from stock to stock until explicitly turned off.
+  const [showAllAnnotations, setShowAllAnnotations] = useState(() => {
+    try { return localStorage.getItem('modelbook_show_all_annotations') === '1' } catch { return false }
+  })
+  function toggleShowAll() {
+    setShowAllAnnotations(v => {
+      const nv = !v
+      try { localStorage.setItem('modelbook_show_all_annotations', nv ? '1' : '0') } catch { /* ignore */ }
+      return nv
+    })
+  }
   // Animated chart focus: which setup the chart is zoomed into + a nonce that
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
@@ -373,8 +386,30 @@ function StockDetail({ stockId, isAdmin }) {
   // than vanish). Drawings render when zoomed in and fade out on zoom-out.
   const focusedSetup = focusActive && focus.id != null ? setups.find(s => s.id === focus.id) : null
   const savedDrawings = useMemo(() => parseDrawings(focusedSetup?.drawings_json), [focusedSetup])
-  const annotations = annotateMode ? annotationDraft : (focusedSetup ? savedDrawings : null)
-  const annotationsVisible = !!focusDate || annotateMode
+
+  // "Show all": every setup's drawings overlaid on the (zoomed-out) chart. Each
+  // setup's horizontal rays get a rightBoundTime of that setup's candle so they
+  // stop at the setup instead of streaking across the whole year when zoomed out.
+  const allDrawings = useMemo(() => setups.flatMap(s => {
+    const ds = parseDrawings(s.drawings_json)
+    return s.label_date
+      ? ds.map(d => (d.type === 'hray' ? { ...d, rightBoundTime: s.label_date } : d))
+      : ds
+  }), [setups])
+  const hasAnnotations = allDrawings.length > 0
+
+  // Precedence: admin authoring > show-all overlay > single-setup focus.
+  let annotations, annotationsVisible
+  if (annotateMode) {
+    annotations = annotationDraft
+    annotationsVisible = true
+  } else if (showAllAnnotations) {
+    annotations = allDrawings
+    annotationsVisible = true
+  } else {
+    annotations = focusedSetup ? savedDrawings : null
+    annotationsVisible = !!focusDate
+  }
 
   function startAnnotate() {
     setAnnotationDraft(savedDrawings)
@@ -544,7 +579,22 @@ function StockDetail({ stockId, isAdmin }) {
             <div className={styles.panelSetups}>
               <div className={styles.setupSectionHead}>
                 <span className={styles.sectionLabel}>SETUPS ({setups.length})</span>
-                {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                <div className={styles.setupHeadTools}>
+                  {hasAnnotations && (
+                    <button
+                      className={`${styles.showAllToggle} ${showAllAnnotations ? styles.showAllToggleOn : ''}`}
+                      onClick={toggleShowAll}
+                      aria-pressed={showAllAnnotations}
+                      title={showAllAnnotations
+                        ? 'Hide setup annotations (only show on click)'
+                        : 'Show every setup’s annotations on the chart'}
+                    >
+                      <span className={styles.showAllTrack}><span className={styles.showAllKnob} /></span>
+                      Show all
+                    </button>
+                  )}
+                  {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                </div>
               </div>
               {setups.length === 0 ? (
                 <p className={styles.noSetups}>No setups labeled on this chart yet.</p>
