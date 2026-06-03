@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS modelbook_setups (
   notes        TEXT,
   marker_side  TEXT    NOT NULL DEFAULT 'belowBar',
   marker_shape TEXT    NOT NULL DEFAULT 'arrowUp',
+  drawings_json TEXT,              -- JSON array of chart annotations (trendlines etc.) shown when this setup is focused
   created_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mb_setups_stock ON modelbook_setups(stock_id, label_date);
@@ -70,7 +71,7 @@ _STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct"
                  "company_desc", "run_story")
 _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "entry_price", "stop_price", "target_price", "grade", "notes",
-                 "marker_side", "marker_shape")
+                 "marker_side", "marker_shape", "drawings_json")
 
 
 def _connect() -> sqlite3.Connection:
@@ -98,6 +99,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
             ("modelbook_setups", "frame_start_date", "TEXT"),
+            ("modelbook_setups", "drawings_json", "TEXT"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -307,10 +309,11 @@ def create_setup(stock_id: int, payload: dict) -> Optional[dict]:
             """INSERT INTO modelbook_setups
                (stock_id, setup_type, label_date, frame_start_date, timeframe,
                 entry_price, stop_price, target_price, grade, notes, marker_side,
-                marker_shape, created_at)
+                marker_shape, drawings_json, created_at)
                VALUES (:stock_id, :setup_type, :label_date, :frame_start_date,
                        :timeframe, :entry_price, :stop_price, :target_price,
-                       :grade, :notes, :marker_side, :marker_shape, :created_at)""",
+                       :grade, :notes, :marker_side, :marker_shape, :drawings_json,
+                       :created_at)""",
             data,
         )
         c.commit()
