@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import useSWR from 'swr'
-import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType } from 'lightweight-charts'
+import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings } from './chart/chartDefaults'
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
@@ -2215,15 +2215,19 @@ export default function StockChart({
     // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
     for (let i = 0; i < overlayData.length; i++) {
       const { data: ovData, color } = overlayData[i]
+      // Model Book renders MAs as smooth curves (TradingView look) instead of
+      // the default straight-segment polyline.
+      const _ovLineType = boldCandles ? LineType.Curved : LineType.Simple
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
-        overlaySeriesRefs.current[i].applyOptions({ color })
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType })
         overlaySeriesRefs.current[i].setData(ovData)
       } else if (ovData.length) {
         // Add new series only if there's data to show
         const ls = chart.addSeries(LineSeries, {
           color,
           lineWidth: 1,
+          lineType: _ovLineType,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
           lastValueVisible: false,
