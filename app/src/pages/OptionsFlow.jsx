@@ -4788,56 +4788,64 @@ export default function OptionsFlowDashboard() {
               );
             })()}
 
-            {/* ─── TradingView Chart Modal ─── */}
+            {/* ─── Chart Modal (uses StockChart — same colors as renderDetailPanel) ─── */}
             {chartModal && chartModal.sym && (() => {
               const sym = chartModal.sym;
-              // TradingView's lightweight embed URL. Leaving exchange unset
-              // lets TV auto-resolve (NASDAQ:NVDA, NYSE:GME, etc.). The key
-              // prop forces remount when symbol or interval changes.
-              const tvUrl = `https://s.tradingview.com/widgetembed/?frameElementId=tvchart_${sym}&symbol=${encodeURIComponent(sym)}&interval=${chartInterval}&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131722&studies=%5B%5D&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&hideideas=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en`;
+              const tk = D && D.TICKER_DB ? D.TICKER_DB.find(t => t.s === sym) : null;
+              const tkBull = tk ? ((tk.b||0) >= (tk.r||0)) : true;
+              const dirC = tkBull ? P.bu : P.be;
               return (
                 <div onClick={e => { if (e.target === e.currentTarget) setChartModal(null); }}
                   style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.8)",
                     display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
                   <div onClick={e => e.stopPropagation()}
                     style={{ width:"min(1100px, 96vw)", height:"min(720px, 92vh)",
-                      background:"#131722", borderRadius:12, overflow:"hidden",
+                      background:P.cd, borderRadius:12, overflow:"hidden",
                       display:"flex", flexDirection:"column",
                       boxShadow:"0 24px 80px rgba(0,0,0,0.9)", border:"1px solid "+P.bl }}>
-                    {/* Header bar */}
+                    {/* Header — same row layout as renderDetailPanel */}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"10px 16px", borderBottom:"1px solid "+P.bl, background:P.cd }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                        <span style={{ fontWeight:800, color:P.ac, fontSize:14, letterSpacing:1 }}>📈 {sym}</span>
-                        <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
-                          {[["D","1D"],["W","1W"],["M","1M"]].map(([v,label]) => (
-                            <button key={v} onClick={() => setChartInterval(v)}
-                              style={{ padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
-                                fontSize:10, fontWeight:700, fontFamily:"inherit", textTransform:"uppercase", letterSpacing:1,
-                                background: chartInterval===v ? P.ac+"22" : "transparent",
-                                color: chartInterval===v ? P.ac : P.dm }}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(sym)}`} target="_blank" rel="noopener noreferrer"
-                          style={{ fontSize:9, color:P.dm, textDecoration:"none", marginLeft:4 }}
-                          title="Open full chart on TradingView">
-                          Open in TradingView ↗
-                        </a>
+                      padding:"10px 14px", borderBottom:"1px solid "+P.bd, background:P.cd, flexShrink:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span>
+                        {tk && (
+                          <>
+                            <Tag c={dirC}>{tkBull ? "BULL" : "BEAR"}</Tag>
+                            <span style={{ fontSize:11, fontWeight:900, color:P.ac, background:P.ac+"18", padding:"2px 8px", borderRadius:4 }}>
+                              {fmt((tk.b||0)+(tk.r||0))}
+                            </span>
+                            <span style={{ fontSize:10, color:P.dm }}>{tk.n||0} trades</span>
+                          </>
+                        )}
                       </div>
                       <button onClick={() => setChartModal(null)}
-                        style={{ background:"none", border:"none", color:P.dm, fontSize:20, cursor:"pointer", padding:"0 6px", lineHeight:1 }}>
-                        ×
-                      </button>
+                        style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
                     </div>
-                    {/* Iframe — key forces remount on symbol/interval change */}
-                    <iframe key={sym+"|"+chartInterval}
-                      src={tvUrl}
-                      title={`TradingView chart for ${sym}`}
-                      style={{ flex:1, border:"none", background:"#131722", width:"100%" }}
-                      allow="encrypted-media"
-                      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+                    {/* Timeframe row — matches renderDetailPanel pattern */}
+                    <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0 }}>
+                      {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label]) => (
+                        <button key={val} onClick={() => setChartInterval(val)}
+                          style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(chartInterval===val?P.ac:P.bd+"80"),
+                            background:chartInterval===val?P.ac+"22":"transparent", color:chartInterval===val?P.ac:P.dm,
+                            fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ flex:1, minHeight:0 }}>
+                      <StockChart
+                        sym={sym}
+                        tf={chartInterval}
+                        height="100%"
+                        liveUpdates={true}
+                        showDrawingTools={true}
+                        onTfChange={setChartInterval}
+                        hideReplay
+                        hidePatterns
+                        hideCompare
+                        hideCountdown
+                      />
+                    </div>
                   </div>
                 </div>
               );
