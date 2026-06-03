@@ -3032,14 +3032,22 @@ export default function StockChart({
       } catch { /* range can be out of bounds mid-load; next update re-pins */ }
     }
     applyYear()
-    // First framing of this sym+tf: the chart created with autoSize is still
-    // doing its initial layout, and that first paint can override the range to
-    // the default (latest) — the "shows current data until I click another
-    // chart" bug. Re-apply once after layout settles. Skip if a focus zoom has
-    // since taken the view.
+    // First framing of this sym+tf: the chart created with autoSize keeps
+    // re-laying-out for several frames after first paint (container 0→real
+    // size, ResizeObserver, fonts), and each of those can override the range
+    // back to the default latest view — the "shows 2026 until I click another
+    // chart" bug. A single rAF fired too early. Re-assert across the whole
+    // initial settle window. Guards (same sym+tf, no focus zoom) make a stock
+    // switch or a setup click cancel the pending re-asserts; the user can't
+    // have manually zoomed this early after load.
     if (yearFramedRef.current !== fk) {
       yearFramedRef.current = fk
-      requestAnimationFrame(() => { if (!focusActiveRef.current && focusKeyRef.current === fk) applyYear() })
+      const reassert = () => { if (focusKeyRef.current === fk && !focusActiveRef.current) applyYear() }
+      requestAnimationFrame(reassert)
+      requestAnimationFrame(() => requestAnimationFrame(reassert))
+      setTimeout(reassert, 120)
+      setTimeout(reassert, 320)
+      setTimeout(reassert, 650)
     }
   }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf])
 
