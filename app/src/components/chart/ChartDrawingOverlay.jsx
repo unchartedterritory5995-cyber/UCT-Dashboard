@@ -120,14 +120,14 @@ function renderHRay(ctx, pts, w) {
   ctx.moveTo(x, pts[0].y)
   ctx.lineTo(w, pts[0].y)
   ctx.stroke()
-  // Price label — placed just LEFT of the ray's anchor (the setup bar), not at
-  // the right price scale, so it reads next to the candle it marks.
+  // Price label — placed just ABOVE the ray's anchor (the setup bar/start of
+  // the ray), not at the right price scale, so it sits over the candle it marks.
   if (pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
     ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
-    ctx.textBaseline = 'middle'
-    ctx.fillText(label, Math.max(2, x - ctx.measureText(label).width - 6), pts[0].y)
+    ctx.textBaseline = 'bottom'
+    ctx.fillText(label, x, pts[0].y - 5)
     ctx.textBaseline = 'alphabetic'
   }
 }
