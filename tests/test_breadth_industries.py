@@ -101,6 +101,30 @@ def test_status_shape(imap):
     assert s["stale"] is False
 
 
+def test_warm_universe_gaps_fills_finviz_misses(imap, monkeypatch, tmp_path):
+    imap.bulk_refresh_from_finviz()  # seeds NVDA/AMD/XOM
+    # cap_universe includes a name Finviz didn't cover.
+    uni = tmp_path / "cap_universe.json"
+    uni.write_text('["NVDA", "AMD", "XOM", "BK"]')
+    monkeypatch.setattr(imap, "_cap_universe_path", lambda: str(uni))
+    monkeypatch.setattr(imap, "_fetch_fallback",
+                        lambda t: ("Financial Services", "Banks - Diversified", "yfinance"))
+    filled = imap.warm_universe_gaps(sleep_s=0)
+    assert filled == 1  # only BK was missing
+    assert imap.get_industries(["BK"])["BK"] == "Banks - Diversified"
+
+
+def test_warm_universe_gaps_noop_when_complete(imap, monkeypatch, tmp_path):
+    imap.bulk_refresh_from_finviz()
+    uni = tmp_path / "cap_universe.json"
+    uni.write_text('["NVDA", "AMD", "XOM"]')  # all already classified
+    monkeypatch.setattr(imap, "_cap_universe_path", lambda: str(uni))
+    called = []
+    monkeypatch.setattr(imap, "_fetch_fallback", lambda t: called.append(t) or (None, None, None))
+    assert imap.warm_universe_gaps(sleep_s=0) == 0
+    assert called == []
+
+
 # ── Endpoint ────────────────────────────────────────────────────────────────
 
 @pytest.fixture

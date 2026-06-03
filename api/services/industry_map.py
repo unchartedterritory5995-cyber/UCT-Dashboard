@@ -299,15 +299,65 @@ def get_industries(tickers: list[str]) -> dict[str, Optional[str]]:
     return out
 
 
+def _cap_universe_path() -> str:
+    here = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
+    if os.path.exists(here):
+        return here
+    return os.path.join("api", "data", "cap_universe.json")
+
+
+def _classified_tickers() -> set:
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT ticker FROM industry_map WHERE industry IS NOT NULL AND industry != ''"
+        ).fetchall()
+    return {r[0] for r in rows}
+
+
+def warm_universe_gaps(limit: int = 1500, sleep_s: float = 0.4) -> int:
+    """Fill industries for cap_universe tickers the Finviz bulk didn't cover.
+
+    Finviz's whole-market export silently omits a small slice of real symbols
+    (~1-2%, e.g. BK / HOLX / PSTG). This walks the cap_universe, finds those
+    gaps, and resolves each via the per-ticker fallback (yfinance → Finnhub) so
+    the map reaches ~100% of our universe. Slow by design — runs in the startup
+    background thread; persists as it goes so reboots are near-instant.
+    """
+    try:
+        import json
+        with open(_cap_universe_path(), encoding="utf-8") as fh:
+            uni = [str(t).upper() for t in json.load(fh) if t]
+    except Exception as e:
+        logger.warning("[industry_map] cap_universe load failed: %s", e)
+        return 0
+    have = _classified_tickers()
+    gaps = [t for t in uni if t not in have][:limit]
+    if not gaps:
+        logger.info("[industry_map] no universe gaps to warm")
+        return 0
+    filled = 0
+    for t in gaps:
+        sec, ind, src = _fetch_fallback(t)
+        if ind:
+            _upsert_many([(t, sec, ind, src, int(time.time()))])
+            filled += 1
+        time.sleep(sleep_s)
+    logger.info("[industry_map] warmed %d/%d universe gaps via fallback", filled, len(gaps))
+    return filled
+
+
 def prewarm() -> None:
-    """Startup hook: ensure the map is populated. Bulk-refresh if empty or stale."""
+    """Startup hook: bulk-refresh from Finviz if empty/stale, then fill the
+    cap_universe gaps Finviz misses so the map is ~100% complete."""
     _ensure_init()
     try:
         if _count() == 0 or (int(time.time()) - _newest_fetched_at()) > _STALE_SECONDS:
             n = bulk_refresh_from_finviz()
-            logger.info("[industry_map] prewarm complete — %d rows", n)
+            logger.info("[industry_map] prewarm bulk complete — %d rows", n)
         else:
-            logger.info("[industry_map] prewarm skipped — map fresh (%d rows)", _count())
+            logger.info("[industry_map] prewarm bulk skipped — fresh (%d rows)", _count())
+        warm_universe_gaps()
     except Exception as e:
         logger.warning("[industry_map] prewarm failed: %s", e)
 
