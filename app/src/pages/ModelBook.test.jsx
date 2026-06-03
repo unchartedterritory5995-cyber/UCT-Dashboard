@@ -74,7 +74,7 @@ test('auto-selects the first stock and renders its chart + labeled setup', () =>
   render(<ModelBook />)
   // No click needed — the top stock is shown automatically.
   expect(screen.getByTestId('stock-chart')).toHaveTextContent('chart:NVDA')
-  // Setup shows compactly in the right panel as name + month (label_date 2025-03-14 → Mar).
+  // Setup shows compactly in the right panel as name + date (label_date 2025-03-14 → March 14th).
   expect(screen.getByText('VCP')).toBeInTheDocument()
-  expect(screen.getByText('Mar')).toBeInTheDocument()
+  expect(screen.getByText('March 14th')).toBeInTheDocument()
 })
