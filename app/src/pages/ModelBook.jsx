@@ -321,6 +321,8 @@ function StockDetail({ stockId, isAdmin }) {
             hideLastValue
             showVolume
             volumeSeparatePane
+            markVolumeExtremes
+            volumePaneHeightPct={18}
             priceScaleTopMargin={0.06}
             priceScaleBottomMargin={0.06}
             markers={markers}
