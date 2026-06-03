@@ -1227,6 +1227,12 @@ export default function OptionsFlowDashboard() {
   const [tab, setTab] = useState("Market Read");
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
+
+  // ─── TradingView Chart modal (Market Read → Top 10 Flow Picks) ──────
+  // Click "📈 Chart" on an expanded row to open the underlying ticker in a
+  // TradingView widget. Daily / Weekly / Monthly only (per design call).
+  const [chartModal, setChartModal] = useState(null);     // { sym: "NVDA" } | null
+  const [chartInterval, setChartInterval] = useState("D"); // "D" | "W" | "M"
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
 
 
@@ -4145,25 +4151,123 @@ export default function OptionsFlowDashboard() {
                             </div>
                           );
                         })()}
-                        {/* Sector mode dropdown */}
+                        {/* Sector mode dropdown — top tickers, with inline drill-down on click */}
                         {!FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && s.topTickers && s.topTickers.length > 0 && (
-                          <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:180,
+                          <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:280, maxWidth:420,
                             background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
-                            boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
-                            <div style={{ fontWeight:700, color:P.ac, marginBottom:6 }}>{s.name} — Top Flow</div>
-                            {s.topTickers.map((tk,j) => {
-                              const tkBull = tk.bull >= tk.bear;
-                              const sqColor = tkBull ? P.bu : P.be;
-                              return (
-                              <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:j<s.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
-                                <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
-                                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                                  <span style={{ fontWeight:700, color:P.ac }}>{fmt(tk.p)}</span>
-                                  <span style={{ width:9, height:9, borderRadius:2, background:sqColor, display:"inline-block", flexShrink:0 }} title={tkBull?"Bullish":"Bearish"} />
+                            boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
+                            onClick={e=>e.stopPropagation()}>
+                            {!selectedItem._drilldownTicker ? (
+                              // Top tickers list (clickable)
+                              <>
+                                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                                  <div style={{ fontWeight:700, color:P.ac }}>{s.name} — Top Flow</div>
+                                  <button onClick={e=>{e.stopPropagation();setSelectedItem(null);}}
+                                    style={{ background:"none", border:"none", color:P.dm, fontSize:14, cursor:"pointer", padding:"0 2px" }}>×</button>
                                 </div>
-                              </div>
-                              );
-                            })}
+                                {s.topTickers.map((tk,j) => {
+                                  const tkBull = tk.bull >= tk.bear;
+                                  const sqColor = tkBull ? P.bu : P.be;
+                                  return (
+                                    <div key={j}
+                                      onClick={e=>{e.stopPropagation(); setSelectedItem({_secKey:hk, _drilldownTicker:tk.s});}}
+                                      style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 6px", borderBottom:j<s.topTickers.length-1?("1px solid "+P.bd+"20"):"none", cursor:"pointer", borderRadius:3, transition:"background 0.1s" }}
+                                      onMouseEnter={e=>{e.currentTarget.style.background=P.al;}}
+                                      onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+                                      <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
+                                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                                        <span style={{ fontWeight:700, color:P.ac }}>{fmt(tk.p)}</span>
+                                        <span style={{ width:9, height:9, borderRadius:2, background:sqColor, display:"inline-block", flexShrink:0 }} title={tkBull?"Bullish":"Bearish"} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            ) : (
+                              // Inline ticker drilldown — clusters + top trades for the clicked ticker
+                              (()=>{
+                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                if (!tk) return (
+                                  <div style={{ padding:"6px 4px" }}>
+                                    <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
+                                      style={{ background:"none", border:"none", color:P.dm, fontSize:10, cursor:"pointer", padding:0 }}>← Back</button>
+                                    <div style={{ marginTop:6, color:P.dm }}>No data for {selectedItem._drilldownTicker}.</div>
+                                  </div>
+                                );
+                                const tkClusters = (tk.c||[]).slice(0,4);
+                                const tkTopTrades = (tk.t||[]).slice(0,6);
+                                const tkBull = (tk.b||0) >= (tk.r||0);
+                                return (
+                                  <>
+                                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, gap:8 }}>
+                                      <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
+                                        title={`Back to ${s.name} top tickers`}
+                                        style={{ background:"none", border:"none", color:P.dm, fontSize:11, cursor:"pointer", padding:0, fontWeight:700 }}>← Back</button>
+                                      <span style={{ fontWeight:800, color:P.ac, fontSize:13, flex:1, textAlign:"center" }}>
+                                        {tk.s} <span style={{ fontSize:9, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
+                                      </span>
+                                      <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
+                                        title={`Open ${tk.s} chart in TradingView`}
+                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
+                                        📈 Chart
+                                      </button>
+                                    </div>
+                                    {/* Bull/Bear summary */}
+                                    <div style={{ display:"flex", gap:10, fontSize:9, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
+                                      <span style={{ color:P.bu, fontWeight:700 }}>BULL {fmt(tk.b||0)}</span>
+                                      <span style={{ color:P.be, fontWeight:700 }}>BEAR {fmt(tk.r||0)}</span>
+                                      <span style={{ color:P.dm, marginLeft:"auto" }}>{tk.n||0} trades</span>
+                                    </div>
+                                    {tkClusters.length>0 && (
+                                      <>
+                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                        {tkClusters.map((cl,ci)=>{
+                                          const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
+                                          return (
+                                            <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
+                                              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                                <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
+                                                <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                                <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
+                                              </div>
+                                              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
+                                                <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                    {tkTopTrades.length>0 && (
+                                      <>
+                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                        {tkTopTrades.map((tr,ti)=>{
+                                          const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
+                                          return (
+                                            <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
+                                              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                                <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
+                                                <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                                <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
+                                                {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
+                                              </div>
+                                              <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                    <div style={{ marginTop:8, textAlign:"center" }}>
+                                      <button onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
+                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                        View Full {tk.s} Flow →
+                                      </button>
+                                    </div>
+                                  </>
+                                );
+                              })()
+                            )}
                           </div>
                         )}
                       </div>
@@ -4199,37 +4303,127 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ fontSize:8, color:P.dm, marginTop:2 }}>{th.count} trades · {Object.keys(th.tickers).length} tickers</div>
                         </div>
-                        {/* Theme ticker dropdown */}
+                        {/* Theme ticker dropdown — with inline drill-down on click */}
                         {selectedItem&&selectedItem._secKey===hk && th.topTickers && th.topTickers.length > 0 && (
-                          <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:220,
+                          <div style={{ position:"absolute", top:"100%", left:0, zIndex:50, marginTop:4, minWidth:280, maxWidth:420,
                             background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:"10px 12px", fontSize:10,
                             boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}
                             onClick={e=>e.stopPropagation()}>
-                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                              <span style={{ fontWeight:800, color:P.ac, fontSize:11 }}>{th.name}</span>
-                              <button onClick={e=>{e.stopPropagation();setSelectedItem(null);}}
-                                style={{ background:"none", border:"none", color:P.dm, fontSize:14, cursor:"pointer", padding:"0 2px" }}>×</button>
-                            </div>
-                            {th.topTickers.map((tk,j) => {
-                              const tkTotal = tk.bull + tk.bear;
-                              const tkBull = tk.bull >= tk.bear;
-                              const sqColor = tkBull ? P.bu : P.be;
-                              return (
-                                <div key={j} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 0", borderBottom:j<th.topTickers.length-1?("1px solid "+P.bd+"20"):"none" }}>
-                                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                    <span style={{ width:6, height:6, borderRadius:1, background:sqColor, display:"inline-block", flexShrink:0 }} />
-                                    <span style={{ fontWeight:800, color:P.wh, textAlign:"center", cursor:"pointer" }}
-                                      onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.s)||null); setTab("Search"); setSelectedItem(null);}}
-                                    >{tk.s}</span>
-                                  </div>
-                                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                    <span style={{ fontSize:9, color:P.bu, fontWeight:700 }}>{fmt(tk.bull)}</span>
-                                    <span style={{ fontSize:9, color:P.be, fontWeight:700 }}>{fmt(tk.bear)}</span>
-                                    <span style={{ fontWeight:700, color:P.ac, fontSize:9 }}>{fmt(tkTotal)}</span>
-                                  </div>
+                            {!selectedItem._drilldownTicker ? (
+                              // Top tickers list (clickable for drill-down)
+                              <>
+                                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                  <span style={{ fontWeight:800, color:P.ac, fontSize:11 }}>{th.name}</span>
+                                  <button onClick={e=>{e.stopPropagation();setSelectedItem(null);}}
+                                    style={{ background:"none", border:"none", color:P.dm, fontSize:14, cursor:"pointer", padding:"0 2px" }}>×</button>
                                 </div>
-                              );
-                            })}
+                                {th.topTickers.map((tk,j) => {
+                                  const tkTotal = tk.bull + tk.bear;
+                                  const tkBull = tk.bull >= tk.bear;
+                                  const sqColor = tkBull ? P.bu : P.be;
+                                  return (
+                                    <div key={j}
+                                      onClick={e=>{e.stopPropagation(); setSelectedItem({_secKey:hk, _drilldownTicker:tk.s});}}
+                                      style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 6px", borderBottom:j<th.topTickers.length-1?("1px solid "+P.bd+"20"):"none", cursor:"pointer", borderRadius:3, transition:"background 0.1s" }}
+                                      onMouseEnter={e=>{e.currentTarget.style.background=P.al;}}
+                                      onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                        <span style={{ width:6, height:6, borderRadius:1, background:sqColor, display:"inline-block", flexShrink:0 }} />
+                                        <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
+                                      </div>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                        <span style={{ fontSize:9, color:P.bu, fontWeight:700 }}>{fmt(tk.bull)}</span>
+                                        <span style={{ fontSize:9, color:P.be, fontWeight:700 }}>{fmt(tk.bear)}</span>
+                                        <span style={{ fontWeight:700, color:P.ac, fontSize:9 }}>{fmt(tkTotal)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            ) : (
+                              // Inline ticker drilldown
+                              (()=>{
+                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                if (!tk) return (
+                                  <div style={{ padding:"6px 4px" }}>
+                                    <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
+                                      style={{ background:"none", border:"none", color:P.dm, fontSize:10, cursor:"pointer", padding:0 }}>← Back</button>
+                                    <div style={{ marginTop:6, color:P.dm }}>No data for {selectedItem._drilldownTicker}.</div>
+                                  </div>
+                                );
+                                const tkClusters = (tk.c||[]).slice(0,4);
+                                const tkTopTrades = (tk.t||[]).slice(0,6);
+                                const tkBull = (tk.b||0) >= (tk.r||0);
+                                return (
+                                  <>
+                                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, gap:8 }}>
+                                      <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
+                                        title={`Back to ${th.name} tickers`}
+                                        style={{ background:"none", border:"none", color:P.dm, fontSize:11, cursor:"pointer", padding:0, fontWeight:700 }}>← Back</button>
+                                      <span style={{ fontWeight:800, color:P.ac, fontSize:13, flex:1, textAlign:"center" }}>
+                                        {tk.s} <span style={{ fontSize:9, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
+                                      </span>
+                                      <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
+                                        title={`Open ${tk.s} chart in TradingView`}
+                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
+                                        📈 Chart
+                                      </button>
+                                    </div>
+                                    <div style={{ display:"flex", gap:10, fontSize:9, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
+                                      <span style={{ color:P.bu, fontWeight:700 }}>BULL {fmt(tk.b||0)}</span>
+                                      <span style={{ color:P.be, fontWeight:700 }}>BEAR {fmt(tk.r||0)}</span>
+                                      <span style={{ color:P.dm, marginLeft:"auto" }}>{tk.n||0} trades</span>
+                                    </div>
+                                    {tkClusters.length>0 && (
+                                      <>
+                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                        {tkClusters.map((cl,ci)=>{
+                                          const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
+                                          return (
+                                            <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
+                                              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                                <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
+                                                <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                                <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
+                                              </div>
+                                              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
+                                                <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                    {tkTopTrades.length>0 && (
+                                      <>
+                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                        {tkTopTrades.map((tr,ti)=>{
+                                          const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
+                                          return (
+                                            <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
+                                              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                                <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
+                                                <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                                <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
+                                                {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
+                                              </div>
+                                              <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                    <div style={{ marginTop:8, textAlign:"center" }}>
+                                      <button onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
+                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                        View Full {tk.s} Flow →
+                                      </button>
+                                    </div>
+                                  </>
+                                );
+                              })()
+                            )}
                           </div>
                         )}
                       </div>
@@ -4545,7 +4739,14 @@ export default function OptionsFlowDashboard() {
                           if(!trades.length) return null;
                           return (
                             <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginBottom:4, marginLeft:24 }}>
-                              <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                                <div style={{ fontSize:9, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                                <button onClick={e=>{e.stopPropagation(); setChartModal({sym:p.sym}); setChartInterval("D");}}
+                                  title={`Open ${p.sym} chart in TradingView`}
+                                  style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                  📈 Chart
+                                </button>
+                              </div>
                               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
                                 <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                                   {["Date","Time","Type","Side","C/P","Strike","Exp","DTE","Vol","OI","Premium","Color"].map(h=>(
@@ -4584,6 +4785,61 @@ export default function OptionsFlowDashboard() {
                     })}
                   </div>
                 </Card>
+              );
+            })()}
+
+            {/* ─── TradingView Chart Modal ─── */}
+            {chartModal && chartModal.sym && (() => {
+              const sym = chartModal.sym;
+              // TradingView's lightweight embed URL. Leaving exchange unset
+              // lets TV auto-resolve (NASDAQ:NVDA, NYSE:GME, etc.). The key
+              // prop forces remount when symbol or interval changes.
+              const tvUrl = `https://s.tradingview.com/widgetembed/?frameElementId=tvchart_${sym}&symbol=${encodeURIComponent(sym)}&interval=${chartInterval}&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131722&studies=%5B%5D&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&hideideas=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en`;
+              return (
+                <div onClick={e => { if (e.target === e.currentTarget) setChartModal(null); }}
+                  style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.8)",
+                    display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ width:"min(1100px, 96vw)", height:"min(720px, 92vh)",
+                      background:"#131722", borderRadius:12, overflow:"hidden",
+                      display:"flex", flexDirection:"column",
+                      boxShadow:"0 24px 80px rgba(0,0,0,0.9)", border:"1px solid "+P.bl }}>
+                    {/* Header bar */}
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                      padding:"10px 16px", borderBottom:"1px solid "+P.bl, background:P.cd }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                        <span style={{ fontWeight:800, color:P.ac, fontSize:14, letterSpacing:1 }}>📈 {sym}</span>
+                        <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                          {[["D","1D"],["W","1W"],["M","1M"]].map(([v,label]) => (
+                            <button key={v} onClick={() => setChartInterval(v)}
+                              style={{ padding:"4px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                                fontSize:10, fontWeight:700, fontFamily:"inherit", textTransform:"uppercase", letterSpacing:1,
+                                background: chartInterval===v ? P.ac+"22" : "transparent",
+                                color: chartInterval===v ? P.ac : P.dm }}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <a href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(sym)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize:9, color:P.dm, textDecoration:"none", marginLeft:4 }}
+                          title="Open full chart on TradingView">
+                          Open in TradingView ↗
+                        </a>
+                      </div>
+                      <button onClick={() => setChartModal(null)}
+                        style={{ background:"none", border:"none", color:P.dm, fontSize:20, cursor:"pointer", padding:"0 6px", lineHeight:1 }}>
+                        ×
+                      </button>
+                    </div>
+                    {/* Iframe — key forces remount on symbol/interval change */}
+                    <iframe key={sym+"|"+chartInterval}
+                      src={tvUrl}
+                      title={`TradingView chart for ${sym}`}
+                      style={{ flex:1, border:"none", background:"#131722", width:"100%" }}
+                      allow="encrypted-media"
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+                  </div>
+                </div>
               );
             })()}
           </div>
