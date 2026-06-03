@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   company_desc TEXT,         -- AI: one-sentence "what the company does"
   run_story    TEXT,         -- AI: brief "why it moved that year" narrative
   desc_at      INTEGER,      -- epoch when descriptions were generated
+  drawings_json TEXT,        -- admin-curated on-chart annotations (JSON array of drawings)
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER,
   UNIQUE(year, symbol)
@@ -96,6 +97,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "company_desc", "TEXT"),
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
+            ("modelbook_stocks", "drawings_json", "TEXT"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -199,6 +201,18 @@ def mark_desc_attempt(stock_id: int) -> None:
         c.execute("UPDATE modelbook_stocks SET desc_at = ? WHERE id = ?",
                   (int(time.time()), int(stock_id)))
         c.commit()
+
+
+def save_drawings(stock_id: int, drawings_json: str) -> bool:
+    """Persist the admin-curated on-chart annotations (a JSON array string).
+    Returns False if the stock id doesn't exist."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "UPDATE modelbook_stocks SET drawings_json = ?, updated_at = ? WHERE id = ?",
+            (drawings_json, int(time.time()), int(stock_id)),
+        )
+        c.commit()
+        return cur.rowcount > 0
 
 
 def get_stock_detail(stock_id: int) -> Optional[dict]:
