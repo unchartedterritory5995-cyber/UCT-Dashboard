@@ -298,6 +298,8 @@ export default function StockChart({
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   forceLogScale = false,    // default the price scale to logarithmic
+  boldCandles = false,      // bold solid green/red candles (Model Book look)
+  hideLastValue = false,    // hide the last-price axis tag on the price series
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -2030,7 +2032,16 @@ export default function StockChart({
       candleSeriesRef.current = priceSeries
       // Model Book studies a past year — the current (latest) price line is
       // irrelevant there, so hide the dotted last-price line for exact-range.
-      try { priceSeries.applyOptions({ priceLineVisible: !exactDateRange }) } catch { /* older LWC */ }
+      // boldCandles paints solid bright green/red; hideLastValue drops the
+      // right-axis price tag. Both only apply to instances that opt in.
+      try {
+        const _bold = boldCandles ? {
+          upColor: '#22c55e', downColor: '#ef4444',
+          borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+          wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+        } : {}
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange, lastValueVisible: !hideLastValue, ..._bold })
+      } catch { /* older LWC */ }
       prevChartTypeRef.current = cs.chartType
     }
 

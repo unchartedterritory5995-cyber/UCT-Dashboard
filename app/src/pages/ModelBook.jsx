@@ -317,6 +317,8 @@ function StockDetail({ stockId, isAdmin }) {
             exitDate={`${stock.year}-12-31`}
             exactDateRange
             forceLogScale
+            boldCandles
+            hideLastValue
             priceScaleTopMargin={0.06}
             markers={markers}
             priceLines={priceLines}
