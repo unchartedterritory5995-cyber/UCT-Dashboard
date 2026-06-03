@@ -235,6 +235,7 @@ function StockDetail({ stockId, isAdmin }) {
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
+  const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
@@ -303,13 +304,17 @@ function StockDetail({ stockId, isAdmin }) {
             )}
           </h2>
         </div>
+        <div className={styles.tfToggle}>
+          <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
+          <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
+        </div>
       </div>
 
       <div className={styles.dvBody}>
         <div className={styles.chartWrap}>
           <StockChart
             sym={stock.symbol}
-            tf="D"
+            tf={chartTf}
             height="100%"
             liveUpdates={false}
             showDrawingTools={false}

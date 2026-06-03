@@ -2279,7 +2279,7 @@ export default function StockChart({
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
       const _ovLineType = boldCandles ? LineType.Curved : LineType.Simple
-      const _ovLineWidth = boldCandles ? 2 : 1  // thicker = anti-aliases smoother
+      const _ovLineWidth = boldCandles ? 1.5 : 1  // 1.5 = smooth but not bulky
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth })
@@ -3686,7 +3686,7 @@ export default function StockChart({
       {!showFatalError && chartReady && (
         <div
           className={styles.scaleToggle}
-          style={{ bottom: `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0).main.bottom})` }}
+          style={{ bottom: boldCandles ? '30px' : `calc(26px + (100% - 26px) * ${computePaneMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane).main.bottom})` }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
         >
           <button
