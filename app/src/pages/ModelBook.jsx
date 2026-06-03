@@ -125,21 +125,28 @@ function AddStockForm({ year, onAdded }) {
   )
 }
 
-// ── Admin: label a playbook setup on a stock ──────────────────────────────────
-function AddSetupForm({ stockId, year, onAdded }) {
-  const [open, setOpen] = useState(false)
+// ── Admin: shared add/edit form for a labeled setup ───────────────────────────
+// `initial` with an id → edit mode (PUT); otherwise create mode (POST).
+function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
+  const isEdit = !!initial?.id
   const [saving, setSaving] = useState(false)
-  const empty = {
-    setup_type: '', label_date: '', frame_start_date: '', timeframe: 'D',
-    entry_price: '', stop_price: '', target_price: '', grade: '', notes: '',
-  }
-  const [form, setForm] = useState(empty)
+  const [form, setForm] = useState(() => ({
+    setup_type: initial?.setup_type || '',
+    label_date: initial?.label_date || '',
+    frame_start_date: initial?.frame_start_date || '',
+    timeframe: initial?.timeframe || 'D',
+    entry_price: initial?.entry_price ?? '',
+    stop_price: initial?.stop_price ?? '',
+    target_price: initial?.target_price ?? '',
+    grade: initial?.grade || '',
+    notes: initial?.notes || '',
+  }))
 
   async function submit(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      const num = v => (v === '' ? null : parseFloat(v))
+      const num = v => (v === '' || v == null ? null : parseFloat(v))
       const body = {
         setup_type: form.setup_type,
         label_date: form.label_date,
@@ -151,25 +158,19 @@ function AddSetupForm({ stockId, year, onAdded }) {
         grade: form.grade || null,
         notes: form.notes || null,
       }
-      const r = await fetch(`/api/modelbook/stock/${stockId}/setups`, {
-        method: 'POST',
+      const url = isEdit ? `/api/modelbook/setup/${initial.id}` : `/api/modelbook/stock/${stockId}/setups`
+      const r = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (r.ok) {
-        setForm(empty)
-        setOpen(false)
-        onAdded?.()
-      }
+      if (r.ok) onSaved?.()
     } finally {
       setSaving(false)
     }
   }
 
-  if (!open) {
-    return <button className={styles.addBtn} onClick={() => setOpen(true)}>+ Label Setup</button>
-  }
   return (
     <form className={styles.adminForm} onSubmit={submit}>
       <div className={styles.formRow}>
@@ -218,10 +219,28 @@ function AddSetupForm({ stockId, year, onAdded }) {
       <textarea className={styles.textarea} placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
         onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
       <div className={styles.formActions}>
-        <button className={styles.saveBtn} type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Setup'}</button>
-        <button className={styles.cancelBtn} type="button" onClick={() => setOpen(false)}>Cancel</button>
+        <button className={styles.saveBtn} type="submit" disabled={saving}>
+          {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Save Setup')}
+        </button>
+        <button className={styles.cancelBtn} type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  )
+}
+
+// ── Admin: "+ Label Setup" toggle that opens the create form ──────────────────
+function AddSetupForm({ stockId, year, onAdded }) {
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return <button className={styles.addBtn} onClick={() => setOpen(true)}>+ Label Setup</button>
+  }
+  return (
+    <SetupForm
+      stockId={stockId}
+      year={year}
+      onSaved={() => { setOpen(false); onAdded?.() }}
+      onCancel={() => setOpen(false)}
+    />
   )
 }
 
@@ -243,6 +262,7 @@ function StockDetail({ stockId, isAdmin }) {
     [stock],
   )
   const [pickedSetupId, setPickedSetupId] = useState(null)
+  const [editingSetupId, setEditingSetupId] = useState(null)  // admin: setup row being edited inline
   // Animated chart focus: which setup the chart is zoomed into + a nonce that
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
@@ -423,22 +443,40 @@ function StockDetail({ stockId, isAdmin }) {
               ) : (
                 <div className={styles.setupListC}>
                   {setups.map(s => (
-                    <div
-                      key={s.id}
-                      className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
-                      onClick={() => onSetupClick(s)}
-                      title={s.notes || undefined}
-                    >
-                      <span className={styles.setupNameC}>{s.setup_type}</span>
-                      <span className={styles.setupMonthC}>{fmtSetupDate(s.label_date)}</span>
-                      {isAdmin && (
-                        <button
-                          className={styles.setupDelC}
-                          title="Delete setup"
-                          onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}
-                        >×</button>
-                      )}
-                    </div>
+                    editingSetupId === s.id ? (
+                      <SetupForm
+                        key={s.id}
+                        stockId={stock.id}
+                        year={stock.year}
+                        initial={s}
+                        onSaved={() => { setEditingSetupId(null); mutate() }}
+                        onCancel={() => setEditingSetupId(null)}
+                      />
+                    ) : (
+                      <div
+                        key={s.id}
+                        className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
+                        onClick={() => onSetupClick(s)}
+                        title={s.notes || undefined}
+                      >
+                        <span className={styles.setupNameC}>{s.setup_type}</span>
+                        <span className={styles.setupMonthC}>{fmtSetupDate(s.label_date)}</span>
+                        {isAdmin && (
+                          <>
+                            <button
+                              className={styles.setupEditC}
+                              title="Edit setup"
+                              onClick={e => { e.stopPropagation(); setEditingSetupId(s.id) }}
+                            >✎</button>
+                            <button
+                              className={styles.setupDelC}
+                              title="Delete setup"
+                              onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}
+                            >×</button>
+                          </>
+                        )}
+                      </div>
+                    )
                   ))}
                 </div>
               )}
