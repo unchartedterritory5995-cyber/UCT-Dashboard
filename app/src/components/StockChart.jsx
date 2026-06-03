@@ -356,7 +356,7 @@ export default function StockChart({
   // ── Animated "focus a setup" zoom (Model Book) ──
   focusDate = null,         // ISO date — smoothly zoom so this bar is the last candle; null = zoom back to [entryDate,exitDate]
   focusNonce = 0,           // bump to (re)trigger the focus zoom even when focusDate is unchanged
-  focusBarsBack = 50,       // lead-up bars shown to the left of the focus bar
+  focusBarsBack = 65,       // lead-up bars shown to the left of the focus bar
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2962,7 +2962,7 @@ export default function StockChart({
         if (toMs(filteredBars[i].t) <= target) { idx = i; break }
       }
       if (idx < 0) idx = filteredBars.length - 1
-      const to = idx + 1                       // +1 = a hair of right margin so the breakout candle isn't flush to the edge
+      const to = idx + 0.5                     // half-bar right margin: the setup bar is the last candle, never the next one
       const from = Math.max(0, to - focusBarsBack)
       focusActiveRef.current = true
       try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
