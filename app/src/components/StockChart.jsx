@@ -289,6 +289,32 @@ function _mainMargins(cs, hasVol, topOverride, bottomOverride) {
   }
 }
 
+// Smoothly animate the chart's visible logical range from wherever it is now to
+// `target` ({from,to} in bar-index space) over `duration` ms (easeInOutCubic).
+// rafRef holds the in-flight requestAnimationFrame id so a new call (or unmount)
+// can cancel the previous animation. autoScale on the right price scale makes the
+// vertical axis ride along, so the candles grow as the window narrows.
+function _animateVisibleRange(chart, rafRef, target, duration = 900) {
+  if (!chart) return
+  if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+  const ts = chart.timeScale()
+  let start
+  try { start = ts.getVisibleLogicalRange() } catch { start = null }
+  if (!start) { try { ts.setVisibleLogicalRange(target) } catch { /* out of range mid-load */ } return }
+  const t0 = performance.now()
+  const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / duration)
+    const e = ease(p)
+    const from = start.from + (target.from - start.from) * e
+    const to = start.to + (target.to - start.to) * e
+    try { ts.setVisibleLogicalRange({ from, to }) } catch { /* ignore transient */ }
+    if (p < 1) rafRef.current = requestAnimationFrame(step)
+    else rafRef.current = null
+  }
+  rafRef.current = requestAnimationFrame(step)
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -327,6 +353,10 @@ export default function StockChart({
   hidePatterns = false,     // hide the pattern-recognition toggle button
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
+  // ── Animated "focus a setup" zoom (Model Book) ──
+  focusDate = null,         // ISO date — smoothly zoom so this bar is the last candle; null = zoom back to [entryDate,exitDate]
+  focusNonce = 0,           // bump to (re)trigger the focus zoom even when focusDate is unchanged
+  focusBarsBack = 50,       // lead-up bars shown to the left of the focus bar
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -585,6 +615,10 @@ export default function StockChart({
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
+  const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
+  const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
+  const lastFocusNonceRef = useRef(0)     // last processed focusNonce — only act when it actually changes
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
@@ -2872,6 +2906,13 @@ export default function StockChart({
     if (!exactDateRange || !entryDate) return
     const chart = chartRef.current
     if (!chart || !filteredBars || filteredBars.length === 0) return
+    // A setup-focus zoom (below) owns the view until the user toggles it off or
+    // switches stock/timeframe. Releasing on a sym+tf change keeps the pin
+    // correct for the new chart; otherwise yield so data refreshes don't snap
+    // the zoomed-in view back to the full year.
+    const fk = `${sym}_${resolvedTf}`
+    if (focusKeyRef.current !== fk) { focusActiveRef.current = false; focusKeyRef.current = fk }
+    if (focusActiveRef.current) return
     const toMs = v => {
       if (v == null) return NaN
       if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
@@ -2893,7 +2934,60 @@ export default function StockChart({
       chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
       chart.priceScale('right').applyOptions({ autoScale: true })
     } catch { /* range can be out of bounds mid-load; next update re-pins */ }
-  }, [exactDateRange, entryDate, exitDate, filteredBars, sym])
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf])
+
+  // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
+  // focusDate is set, smoothly zoom so that bar is the last candle on screen
+  // (with focusBarsBack bars of lead-up to its left); if focusDate is null,
+  // zoom back out to the full [entryDate, exitDate] year and hand the view
+  // back to the pin above. Only fires on an actual nonce change so routine
+  // data refreshes never re-trigger it.
+  useEffect(() => {
+    if (focusNonce === lastFocusNonceRef.current) return
+    lastFocusNonceRef.current = focusNonce
+    const chart = chartRef.current
+    if (!chart || !filteredBars || filteredBars.length === 0) return
+    const toMs = v => {
+      if (v == null) return NaN
+      if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
+      const s = String(v)
+      return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+    }
+    focusKeyRef.current = `${sym}_${resolvedTf}`
+    if (focusDate) {
+      // Last bar on/at-or-before the setup date becomes the rightmost candle.
+      const target = toMs(focusDate)
+      let idx = -1
+      for (let i = filteredBars.length - 1; i >= 0; i--) {
+        if (toMs(filteredBars[i].t) <= target) { idx = i; break }
+      }
+      if (idx < 0) idx = filteredBars.length - 1
+      const to = idx + 1                       // +1 = a hair of right margin so the breakout candle isn't flush to the edge
+      const from = Math.max(0, to - focusBarsBack)
+      focusActiveRef.current = true
+      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      _animateVisibleRange(chart, focusRafRef, { from, to })
+    } else {
+      // Zoom back out to the framed year, then release the view to the pin.
+      const lo = toMs(entryDate)
+      const hi = toMs(exitDate)
+      let startIdx = filteredBars.findIndex(b => toMs(b.t) >= lo)
+      if (startIdx < 0) startIdx = 0
+      let endIdx = filteredBars.length - 1
+      if (!Number.isNaN(hi)) {
+        for (let i = filteredBars.length - 1; i >= 0; i--) {
+          if (toMs(filteredBars[i].t) <= hi) { endIdx = i; break }
+        }
+      }
+      if (endIdx < startIdx) endIdx = filteredBars.length - 1
+      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      _animateVisibleRange(chart, focusRafRef, { from: startIdx, to: endIdx })
+      focusActiveRef.current = false
+    }
+  }, [focusNonce, focusDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf])
+
+  // Cancel any in-flight focus animation on unmount.
+  useEffect(() => () => { if (focusRafRef.current != null) cancelAnimationFrame(focusRafRef.current) }, [])
 
   // Apply the price-scale mode from effectiveScale (Normal/Log/Percent).
   // Owns the right scale's mode so the A/L/% toggle + forceLogScale default

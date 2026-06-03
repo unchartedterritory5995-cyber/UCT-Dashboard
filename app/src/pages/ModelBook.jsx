@@ -225,6 +225,11 @@ function StockDetail({ stockId, isAdmin }) {
     [stock],
   )
   const [pickedSetupId, setPickedSetupId] = useState(null)
+  // Animated chart focus: which setup the chart is zoomed into + a nonce that
+  // bumps on every click so re-clicking the same setup still re-fires the zoom.
+  // stockId/tf are stamped so the focus auto-invalidates (derived below) when
+  // the stock or timeframe changes — no reset effect needed.
+  const [focus, setFocus] = useState({ id: null, date: null, nonce: 0, stockId: null, tf: null })
   const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
@@ -245,6 +250,22 @@ function StockDetail({ stockId, isAdmin }) {
     if (s.target_price != null) lines.push({ price: s.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target ${fmtPrice(s.target_price)}` })
     return lines
   }, [setups, selectedSetupId])
+
+  // Click a setup → select it (price lines) and smoothly zoom the chart so the
+  // setup's day is the last candle on screen. Click the same setup again to
+  // zoom back out to the full year.
+  function onSetupClick(s) {
+    setPickedSetupId(s.id)
+    setFocus(f => {
+      const sameTarget = f.id === s.id && f.stockId === stockId && f.tf === chartTf
+      return sameTarget
+        ? { id: null, date: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+        : { id: s.id, date: s.label_date, nonce: f.nonce + 1, stockId, tf: chartTf }
+    })
+  }
+  // A focus only applies to the stock + timeframe it was set on; switching either
+  // drops the zoom request (the chart re-frames the year on its own).
+  const focusDate = (focus.stockId === stockId && focus.tf === chartTf) ? focus.date : null
 
   async function deleteSetup(id) {
     await fetch(`/api/modelbook/setup/${id}`, { method: 'DELETE', credentials: 'include' })
@@ -314,6 +335,8 @@ function StockDetail({ stockId, isAdmin }) {
             priceScaleTopMargin={0.06}
             priceScaleBottomMargin={0.06}
             priceLines={priceLines}
+            focusDate={focusDate}
+            focusNonce={focus.nonce}
             className={styles.chart}
           />
         </div>
@@ -382,7 +405,7 @@ function StockDetail({ stockId, isAdmin }) {
                     <div
                       key={s.id}
                       className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
-                      onClick={() => setPickedSetupId(s.id)}
+                      onClick={() => onSetupClick(s)}
                       title={s.notes || undefined}
                     >
                       <span className={styles.setupNameC}>{s.setup_type}</span>
