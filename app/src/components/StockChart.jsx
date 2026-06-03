@@ -369,16 +369,21 @@ function _windowPriceRange(bars, from, to, overlays) {
 // here, cleared at the end so normal autoScale resumes. Falls back to the plain
 // horizontal-only animation when the price ranges can't be computed.
 function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null) {
-  priceRangeRef.current = null  // any fallback path below leaves default autoscale in effect
-  if (!chart || !series) { _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
+  // NOTE: do NOT null priceRangeRef here. The previous zoom left it pinned to its
+  // final range; nulling it before the first frame opens a window where any
+  // autoScale recompute (e.g. the gold-candle setData when toggling fast between
+  // setups) falls back to the default rounded scale → a one-frame flash. We keep
+  // the prior range until the first animation frame overwrites it, and only reset
+  // to default on the genuine fallback paths below.
+  if (!chart || !series) { priceRangeRef.current = null; _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
   const ts = chart.timeScale()
   let start
   try { start = ts.getVisibleLogicalRange() } catch { start = null }
-  if (!start) { try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
+  if (!start) { priceRangeRef.current = null; try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
   const sRange = _windowPriceRange(bars, start.from, start.to, overlays)
   const tRange = _windowPriceRange(bars, target.from, target.to, overlays)
-  if (!sRange || !tRange) { _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
+  if (!sRange || !tRange) { priceRangeRef.current = null; _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   const startWidth = start.to - start.from
   const endWidth = target.to - target.from
   const geom = startWidth > 0 && endWidth > 0
