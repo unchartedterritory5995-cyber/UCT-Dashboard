@@ -137,6 +137,23 @@ def get_all_stocks() -> list[dict]:
         return [dict(r) for r in c.execute("SELECT * FROM modelbook_stocks").fetchall()]
 
 
+def regen_descriptions(version_tag: str) -> None:
+    """One-time (per tag): clear AI descriptions so the warm regenerates them with
+    an updated prompt. Flag-gated by version_tag so each prompt revision runs once."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        f".modelbook_desc_{version_tag}")
+    if os.path.exists(flag):
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute("UPDATE modelbook_stocks SET company_desc = NULL, run_story = NULL, desc_at = NULL")
+            c.commit()
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("done\n")
+    except OSError:
+        pass
+
+
 def migrate_dollar_volume() -> None:
     """One-time: clear avg_vol (previously SHARE volume) so the warm recomputes
     it as DOLLAR volume. Flag-gated so it runs once ever."""
