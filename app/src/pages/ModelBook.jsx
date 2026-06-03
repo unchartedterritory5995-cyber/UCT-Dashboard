@@ -15,14 +15,6 @@ const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
 
-// Marker color by grade: A/A+ green, B gold, C/F red, ungraded muted.
-function gradeColor(grade) {
-  if (grade === 'A+' || grade === 'A') return ENTRY_COLOR
-  if (grade === 'B') return TARGET_COLOR
-  if (grade === 'C' || grade === 'F') return STOP_COLOR
-  return '#8a8a8a'
-}
-
 function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
@@ -120,7 +112,7 @@ function AddSetupForm({ stockId, year, onAdded }) {
   const [saving, setSaving] = useState(false)
   const empty = {
     setup_type: '', label_date: '', timeframe: 'D', entry_price: '', stop_price: '',
-    target_price: '', grade: '', notes: '', marker_side: 'belowBar', marker_shape: 'arrowUp',
+    target_price: '', grade: '', notes: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -138,8 +130,6 @@ function AddSetupForm({ stockId, year, onAdded }) {
         target_price: num(form.target_price),
         grade: form.grade || null,
         notes: form.notes || null,
-        marker_side: form.marker_side,
-        marker_shape: form.marker_shape,
       }
       const r = await fetch(`/api/modelbook/stock/${stockId}/setups`, {
         method: 'POST',
@@ -193,18 +183,6 @@ function AddSetupForm({ stockId, year, onAdded }) {
           onChange={e => setForm(f => ({ ...f, stop_price: e.target.value }))} />
         <input className={styles.input} type="number" step="0.01" placeholder="Target" value={form.target_price}
           onChange={e => setForm(f => ({ ...f, target_price: e.target.value }))} />
-        <select className={styles.input} value={form.marker_side}
-          onChange={e => setForm(f => ({ ...f, marker_side: e.target.value }))}>
-          <option value="belowBar">Below bar</option>
-          <option value="aboveBar">Above bar</option>
-        </select>
-        <select className={styles.input} value={form.marker_shape}
-          onChange={e => setForm(f => ({ ...f, marker_shape: e.target.value }))}>
-          <option value="arrowUp">Arrow ↑</option>
-          <option value="arrowDown">Arrow ↓</option>
-          <option value="circle">Circle</option>
-          <option value="square">Square</option>
-        </select>
       </div>
       <textarea className={styles.textarea} placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
         onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
@@ -244,14 +222,6 @@ function StockDetail({ stockId, isAdmin }) {
   const selectedSetupId = (pickedSetupId != null && setups.some(s => s.id === pickedSetupId))
     ? pickedSetupId
     : (setups[0]?.id ?? null)
-
-  const markers = useMemo(() => setups.map(s => ({
-    time: s.label_date,
-    position: s.marker_side || 'belowBar',
-    color: gradeColor(s.grade),
-    shape: s.marker_shape || 'arrowUp',
-    text: `${s.setup_type}${s.grade ? ` ${s.grade}` : ''}`,
-  })), [setups])
 
   const priceLines = useMemo(() => {
     const s = setups.find(x => x.id === selectedSetupId)
@@ -330,7 +300,6 @@ function StockDetail({ stockId, isAdmin }) {
             volumeMa={50}
             priceScaleTopMargin={0.06}
             priceScaleBottomMargin={0.06}
-            markers={markers}
             priceLines={priceLines}
             className={styles.chart}
           />
