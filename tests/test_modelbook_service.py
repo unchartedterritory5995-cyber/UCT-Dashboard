@@ -29,6 +29,7 @@ def _setup(label_date="2025-03-14", **kw):
     return {
         "setup_type": kw.get("setup_type", "VCP"),
         "label_date": label_date,
+        "frame_start_date": kw.get("frame_start_date"),
         "timeframe": kw.get("timeframe", "D"),
         "entry_price": kw.get("entry_price", 120.0),
         "stop_price": kw.get("stop_price", 110.0),
@@ -91,6 +92,21 @@ def test_setup_crud_and_setup_count(s):
 
 def test_create_setup_on_missing_stock_returns_none(s):
     assert s.create_setup(9999, _setup()) is None
+
+
+def test_setup_frame_start_date_roundtrips(s):
+    stock = s.create_stock(_stock())
+    # Defaults to None when not provided.
+    a = s.create_setup(stock["id"], _setup())
+    assert a["frame_start_date"] is None
+    # Stored and returned when provided.
+    b = s.create_setup(stock["id"], _setup(label_date="2025-08-22",
+                                           frame_start_date="2025-06-02"))
+    assert b["frame_start_date"] == "2025-06-02"
+    assert s.get_setup(b["id"])["frame_start_date"] == "2025-06-02"
+    # Patchable via update_setup.
+    upd = s.update_setup(b["id"], {"frame_start_date": "2025-05-15"})
+    assert upd["frame_start_date"] == "2025-05-15"
 
 
 def test_setups_ordered_by_label_date(s):

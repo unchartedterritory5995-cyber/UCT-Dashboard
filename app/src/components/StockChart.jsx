@@ -366,8 +366,9 @@ export default function StockChart({
   hideCountdown = false,    // hide the intraday bar-close countdown badge
   // ── Animated "focus a setup" zoom (Model Book) ──
   focusDate = null,         // ISO date — smoothly zoom so this bar is the last candle; null = zoom back to [entryDate,exitDate]
+  focusStartDate = null,    // ISO date — optional left edge of the focus frame; overrides focusBarsBack when set
   focusNonce = 0,           // bump to (re)trigger the focus zoom even when focusDate is unchanged
-  focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar
+  focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2997,7 +2998,17 @@ export default function StockChart({
       }
       if (idx < 0) idx = filteredBars.length - 1
       const to = idx                           // integer index = the setup bar is the last fully-shown candle, nothing after it (same as the year pin)
-      const from = Math.max(0, to - focusBarsBack)
+      // Left edge: an explicit start date (first bar on/after it) wins; otherwise
+      // fall back to a fixed lead-up. Guard against a start that isn't actually
+      // left of the setup bar (bad input) by reverting to the bars-back default.
+      let from = Math.max(0, to - focusBarsBack)
+      if (focusStartDate) {
+        const startMs = toMs(focusStartDate)
+        if (!Number.isNaN(startMs)) {
+          const sIdx = filteredBars.findIndex(b => toMs(b.t) >= startMs)
+          if (sIdx >= 0 && sIdx < idx) from = sIdx
+        }
+      }
       focusActiveRef.current = true
       try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
       _animateVisibleRange(chart, focusRafRef, { from, to })
@@ -3018,7 +3029,7 @@ export default function StockChart({
       _animateVisibleRange(chart, focusRafRef, { from: startIdx, to: endIdx })
       focusActiveRef.current = false
     }
-  }, [focusNonce, focusDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf])
+  }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf])
 
   // Cancel any in-flight focus animation on unmount.
   useEffect(() => () => { if (focusRafRef.current != null) cancelAnimationFrame(focusRafRef.current) }, [])

@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS modelbook_setups (
   stock_id     INTEGER NOT NULL REFERENCES modelbook_stocks(id) ON DELETE CASCADE,
   setup_type   TEXT    NOT NULL,
   label_date   TEXT    NOT NULL,
+  frame_start_date TEXT,           -- optional left edge for the focus-zoom frame (label_date is the right edge)
   timeframe    TEXT    NOT NULL DEFAULT 'D',
   entry_price  REAL,
   stop_price   REAL,
@@ -67,8 +68,8 @@ CREATE INDEX IF NOT EXISTS idx_mb_setups_stock ON modelbook_setups(stock_id, lab
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
 _STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct",
                  "company_desc", "run_story")
-_SETUP_FIELDS = ("setup_type", "label_date", "timeframe", "entry_price",
-                 "stop_price", "target_price", "grade", "notes",
+_SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
+                 "entry_price", "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape")
 
 
@@ -96,6 +97,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "company_desc", "TEXT"),
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
+            ("modelbook_setups", "frame_start_date", "TEXT"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -303,12 +305,12 @@ def create_setup(stock_id: int, payload: dict) -> Optional[dict]:
             return None
         cur = c.execute(
             """INSERT INTO modelbook_setups
-               (stock_id, setup_type, label_date, timeframe, entry_price,
-                stop_price, target_price, grade, notes, marker_side,
+               (stock_id, setup_type, label_date, frame_start_date, timeframe,
+                entry_price, stop_price, target_price, grade, notes, marker_side,
                 marker_shape, created_at)
-               VALUES (:stock_id, :setup_type, :label_date, :timeframe,
-                       :entry_price, :stop_price, :target_price, :grade, :notes,
-                       :marker_side, :marker_shape, :created_at)""",
+               VALUES (:stock_id, :setup_type, :label_date, :frame_start_date,
+                       :timeframe, :entry_price, :stop_price, :target_price,
+                       :grade, :notes, :marker_side, :marker_shape, :created_at)""",
             data,
         )
         c.commit()
