@@ -569,6 +569,7 @@ async def lifespan(app: FastAPI):
         from api.services import modelbook_service
         modelbook_service._init_db()
         modelbook_service.seed_initial()  # one-time bootstrap (flag-gated)
+        modelbook_service.migrate_dollar_volume()  # recompute avg_vol as $ volume
         print("[startup] modelbook.db initialized")
         # Background pre-warm of year-gain stats so the gallery loads instantly.
         import threading as _mb_threading

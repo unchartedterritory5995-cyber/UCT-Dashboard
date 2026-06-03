@@ -48,14 +48,6 @@ function pctStr(v) {
   return `${v >= 0 ? '+' : ''}${Math.round(v)}%`
 }
 
-function fmtEps(v) {
-  return v == null ? '—' : `$${Number(v).toFixed(2)}`
-}
-
-function fmtSurp(v) {
-  return v == null ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v)}%`
-}
-
 function riskReward(s) {
   if (s.entry_price == null || s.stop_price == null || s.target_price == null) return null
   const risk = s.entry_price - s.stop_price
@@ -236,17 +228,12 @@ function StockDetail({ stockId, isAdmin }) {
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
       revalidateOnFocus: false,
-      // Poll while year stats (avg vol), descriptions, or earnings are still being
-      // fetched. Stops once each has been attempted (its *_at timestamp is set).
-      refreshInterval: (d) => (d && !d.error &&
-        (d.avg_vol == null || (!d.company_desc && !d.desc_at) || !d.earnings_at)) ? 5000 : 0,
+      // Poll while year stats (avg vol) are warming or descriptions haven't been
+      // attempted yet (desc_at unset). Stops once an attempt is recorded.
+      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
     },
   )
   const setups = useMemo(() => stock?.setups || [], [stock])
-  const earnings = useMemo(() => {
-    try { return stock?.earnings_json ? JSON.parse(stock.earnings_json) : [] }
-    catch { return [] }
-  }, [stock])
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
@@ -349,8 +336,8 @@ function StockDetail({ stockId, isAdmin }) {
                 <span className={`${styles.infoStatVal} ${stock.lh_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.lh_pct)}</span>
               </div>
               <div className={styles.infoStat}>
-                <span className={styles.infoStatLabel}>Avg Daily Vol</span>
-                <span className={styles.infoStatVal}>{fmtVol(stock.avg_vol)}</span>
+                <span className={styles.infoStatLabel}>Avg Daily $ Vol</span>
+                <span className={styles.infoStatVal}>{stock.avg_vol == null ? '—' : `$${fmtVol(stock.avg_vol)}`}</span>
               </div>
             </div>
 
@@ -385,29 +372,6 @@ function StockDetail({ stockId, isAdmin }) {
                 </>
               )}
             </div>
-
-            {earnings.length > 0 && (
-              <div className={styles.earnSection}>
-                <span className={styles.sectionLabel}>QUARTERLY EARNINGS · {stock.year}</span>
-                <table className={styles.earnTable}>
-                  <thead>
-                    <tr><th>Qtr</th><th>EPS</th><th>Est.</th><th>Surp.</th></tr>
-                  </thead>
-                  <tbody>
-                    {earnings.map((e, idx) => (
-                      <tr key={e.quarter || idx}>
-                        <td className={styles.earnQ}>{e.quarter || '—'}</td>
-                        <td>{fmtEps(e.actual)}</td>
-                        <td className={styles.earnMuted}>{fmtEps(e.estimate)}</td>
-                        <td className={e.surprise_pct == null ? styles.earnMuted : (e.surprise_pct >= 0 ? styles.gain : styles.loss)}>
-                          {fmtSurp(e.surprise_pct)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </aside>
         )}
       </div>
