@@ -710,8 +710,9 @@ function ChartToolbar({
   hidePatterns = false,
   hideCompare = false,
   hideCountdown = false,
-  onToggleLineStyle = null,      // toggle solid/dashed on the selected line (Model Book annotations)
-  selectedLineStyle = 'solid',
+  lineStyle = 'solid',           // 'solid' | 'dashed' — current line style (Model Book annotations)
+  setLineStyle = null,           // when provided, shows a Solid/Dashed control
+  prominent = false,             // force full opacity (annotation/edit mode, not the unobtrusive default)
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -810,7 +811,7 @@ function ChartToolbar({
 
   return (
     <>
-    <div className={styles.toolbar}>
+    <div className={styles.toolbar} style={prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
       <div className={styles.tools}>
         {TOOLS.map((t, i) =>
@@ -1027,16 +1028,15 @@ function ChartToolbar({
 
         <div className={styles.sep} />
 
-        {/* Solid / dashed toggle for the selected line (Model Book annotations) */}
-        {onToggleLineStyle && (
+        {/* Line style: applies to NEW lines you draw and (if one is selected) the selected line */}
+        {setLineStyle && (
           <button
-            className={`${styles.btn} ${selectedLineStyle === 'dashed' ? styles.active : ''}`}
-            onClick={onToggleLineStyle}
-            disabled={!hasSelection}
-            title={hasSelection ? 'Toggle solid / dashed line' : 'Select a line, then toggle dashed'}
-            style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '-1px' }}
+            className={`${styles.btn} ${lineStyle === 'dashed' ? styles.active : ''}`}
+            onClick={() => setLineStyle(lineStyle === 'dashed' ? 'solid' : 'dashed')}
+            title="Line style — applies to new lines and the selected line"
+            style={{ width: 'auto', padding: '0 8px', fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap' }}
           >
-            {selectedLineStyle === 'dashed' ? '┄┄' : '──'}
+            {lineStyle === 'dashed' ? '┄ Dashed' : '─ Solid'}
           </button>
         )}
 

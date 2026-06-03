@@ -439,6 +439,7 @@ export default function StockChart({
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
+  highlightBarTime = null,      // ISO/time of a bar to paint gold (Model Book: the focused setup's day)
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -705,6 +706,7 @@ export default function StockChart({
   const yearRangeRef = useRef(null)       // latest {from,to} logical range for the framed year — re-asserts read this so staged data loads can't lock in stale indices
   const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
+  const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
@@ -1042,11 +1044,12 @@ export default function StockChart({
     onAnnotationsChange?.((annotations || []).filter(d => d.id !== id))
   }, [annotations, onAnnotationsChange])
   const annClear = useCallback(() => { onAnnotationsChange?.([]) }, [onAnnotationsChange])
-  // Solid/dashed toggle for the selected annotation line (the "dashed level" tool).
-  const selectedAnnLineStyle = (annotations || []).find(d => d.id === selectedId)?.lineStyle || 'solid'
-  const toggleAnnLineStyle = useCallback(() => {
-    if (selectedId) annUpdate(selectedId, { lineStyle: selectedAnnLineStyle === 'dashed' ? 'solid' : 'dashed' })
-  }, [selectedId, selectedAnnLineStyle, annUpdate])
+  // Current line style for NEW annotation lines; also re-styles the selected line.
+  const [drawLineStyle, setDrawLineStyle] = useState('solid')
+  const setAnnLineStyle = useCallback((style) => {
+    setDrawLineStyle(style)
+    if (selectedId) annUpdate(selectedId, { lineStyle: style })
+  }, [selectedId, annUpdate])
 
   // ── Position tool price lines ──
   useEffect(() => {
@@ -1560,6 +1563,18 @@ export default function StockChart({
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
     [displayBars, adjustTime]
   )
+  // Gold-tinted copy with the highlighted bar (Model Book: focused setup's day)
+  // painted gold. Kept separate from ohlcData so updateChart's normal setData
+  // path (and every other chart) is untouched — the dedicated effect below
+  // applies/clears the gold with a candle-only setData (no full re-render).
+  const HIGHLIGHT_GOLD = '#e6b800'
+  const goldOhlc = useMemo(() => {
+    if (!highlightBarTime) return ohlcData
+    const t = adjustTime(highlightBarTime)
+    return ohlcData.map(d => (d.time === t
+      ? { ...d, color: HIGHLIGHT_GOLD, borderColor: HIGHLIGHT_GOLD, wickColor: HIGHLIGHT_GOLD }
+      : d))
+  }, [ohlcData, highlightBarTime, adjustTime])
   const closeData = useMemo(
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
     [displayBars, adjustTime]
@@ -3011,6 +3026,22 @@ export default function StockChart({
     updateChart()
   }, [updateChart])
 
+  // Gold setup-day candle (Model Book). Runs AFTER updateChart so it overrides
+  // the plain candle data. A candle-only setData (range preserved) → just a
+  // recolor, no flash. Scoped: does nothing unless a highlight is/was set, so
+  // every other chart is untouched.
+  useEffect(() => {
+    const series = candleSeriesRef.current
+    if (!series || !isOhlcType(cs.chartType)) return
+    if (highlightBarTime) {
+      hadHighlightRef.current = true
+      try { series.setData(goldOhlc) } catch { /* range can be out of bounds mid-load */ }
+    } else if (hadHighlightRef.current) {
+      hadHighlightRef.current = false
+      try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
+    }
+  }, [goldOhlc, ohlcData, highlightBarTime, chartReady, cs.chartType])
+
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
   // MUST run AFTER updateChart() (above) so the series already holds the
@@ -4197,6 +4228,7 @@ export default function StockChart({
             setActiveTool={setActiveTool}
             color={drawColor}
             lineWidth={drawWidth}
+            lineStyle={drawLineStyle}
             drawings={annotations}
             addDrawing={annAdd}
             updateDrawing={annUpdate}
@@ -4221,8 +4253,9 @@ export default function StockChart({
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
               onUpdateSettings={handleUpdateChartSettings}
-              onToggleLineStyle={toggleAnnLineStyle}
-              selectedLineStyle={selectedAnnLineStyle}
+              lineStyle={drawLineStyle}
+              setLineStyle={setAnnLineStyle}
+              prominent
               hideReplay
               hidePatterns
               hideCompare

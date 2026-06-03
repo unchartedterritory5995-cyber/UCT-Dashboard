@@ -537,6 +537,7 @@ export default function ChartDrawingOverlay({
   chartRef, seriesRef, bars,
   activeTool, setActiveTool,
   color, lineWidth,
+  lineStyle = 'solid',
   drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
   repeatMode = true,
@@ -665,22 +666,30 @@ export default function ChartDrawingOverlay({
     return () => ro.disconnect()
   }, [])
 
-  // ── Poll for chart scroll/zoom changes (robust, avoids subscription timing) ──
+  // ── Track chart scroll/zoom and redraw in lockstep ──
+  // Subscribe to the time scale's range change so drawings redraw on the SAME
+  // frame the chart moves (fires synchronously from setVisibleLogicalRange) —
+  // this keeps annotations glued to the candles during the smooth focus zoom
+  // (the old 60ms/~16fps poll made them skip behind). A slow poll stays as a
+  // belt-and-suspenders fallback for any movement the subscription misses.
   useEffect(() => {
+    const chart = chartRef?.current
+    if (!chart) return
+    const ts = chart.timeScale()
+    const onRange = () => redrawRef.current?.()
     let lastRangeKey = null
     const interval = setInterval(() => {
-      const chart = chartRef?.current
-      if (!chart) return
       try {
-        const range = chart.timeScale().getVisibleLogicalRange()
+        const range = ts.getVisibleLogicalRange()
         const key = range ? `${range.from.toFixed(2)}-${range.to.toFixed(2)}` : null
-        if (key !== lastRangeKey) {
-          lastRangeKey = key
-          redrawRef.current?.()
-        }
-      } catch {}
-    }, 60) // ~16fps polling for scroll
-    return () => clearInterval(interval)
+        if (key !== lastRangeKey) { lastRangeKey = key; redrawRef.current?.() }
+      } catch { /* chart torn down mid-poll */ }
+    }, 200)
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    return () => {
+      clearInterval(interval)
+      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
+    }
   }, [chartRef])
 
   // ── Request redraw (debounced via rAF, uses ref for latest redraw) ──
@@ -910,6 +919,7 @@ export default function ChartDrawingOverlay({
           points: newPending,
           color,
           lineWidth,
+          lineStyle,   // 'solid' | 'dashed' — honored for line-type drawings
         }
         if (activeTool === 'measure' && newPending.length >= 2) {
           const idx0 = timeToIndex.get(newPending[0].time) || 0
@@ -923,7 +933,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
+  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
 
   const handleMouseMove = useCallback((e) => {
     const pos = getCanvasPos(e)

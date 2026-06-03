@@ -435,6 +435,7 @@ function StockDetail({ stockId, isAdmin }) {
             annotationsVisible={annotationsVisible}
             annotationsEditable={annotateMode}
             onAnnotationsChange={setAnnotationDraft}
+            highlightBarTime={focusDate}
             className={styles.chart}
           />
         </div>
