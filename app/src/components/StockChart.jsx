@@ -501,6 +501,8 @@ export default function StockChart({
 
   // Prop overrides — memoized to prevent unstable references
   const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
+  // Volume in its own pane (no bottom band reserved on the price scale).
+  const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
   const resolvedOverlays = useMemo(
     () => overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled),
     [overlaysProp, cs.overlays]
@@ -665,7 +667,7 @@ export default function StockChart({
         vertMarginsRef.current = null
         chartRef.current?.priceScale('right').applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin),
+          scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin),
         })
       } catch {}
     }
@@ -1410,8 +1412,8 @@ export default function StockChart({
     if (!filteredBars?.length) return []
     // Dim the bold volume to the same hue at lower opacity — dense solid bars
     // otherwise read brighter than the thin candles and look out of place.
-    const upC = boldCandles ? 'rgba(33,196,92,0.55)' : cs.volume.upColor
-    const downC = boldCandles ? 'rgba(242,54,69,0.55)' : cs.volume.downColor
+    const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
+    const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
@@ -1889,7 +1891,7 @@ export default function StockChart({
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
-                const base = _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin)
+                const base = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin)
                 // Only treat as a custom placement if it meaningfully differs from default.
                 if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
                   vertMarginsRef.current = null
@@ -1911,6 +1913,8 @@ export default function StockChart({
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
+        // Model Book: subtle (not bold gray) pane divider; still draggable.
+        ...(boldCandles ? { panes: { separatorColor: 'rgba(255,255,255,0.06)', separatorHoverColor: 'rgba(255,255,255,0.16)', enableResize: true } } : {}),
       },
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -1926,7 +1930,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0, priceScaleTopMargin),
+        scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin),
       },
       timeScale: {
         borderColor: themeColors.borderColor,
@@ -2130,7 +2134,7 @@ export default function StockChart({
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via computePaneMargins bands.
-    const volSeparatePane = volumeSeparatePane || !!cs.volume.separatePane || volOverlaySet.size > 0
+    const volSeparatePane = volInSeparatePane || volOverlaySet.size > 0
     const paneMargins = computePaneMargins(cs, showVolume && volData.length > 0 && !volSeparatePane, volOverlaySet)
     const VOL_PANE_INDEX = 1
     // Resolve an indicator's target (pane + price-scale id). Overlaid → volume
