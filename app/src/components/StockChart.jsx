@@ -400,13 +400,13 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
       rafRef.current = requestAnimationFrame(step)
     } else {
       rafRef.current = null
-      // Do NOT re-fit via autoScale here: the final frame already set the scale
-      // to the target range (candles + overlays). Re-fitting would recompute the
-      // scale a hair differently and snap it — and because that's a price-scale
-      // (not logical-range) change, the annotation overlay wouldn't redraw with
-      // it, so the drawing visibly skips. Just stop driving the scale; the ref is
-      // cleared so the next data-driven autoScale uses the chart's default fit.
-      priceRangeRef.current = null
+      // KEEP the final interpolated range in the provider (do NOT null it / re-fit
+      // via autoScale). Handing back to the chart's default autoScale re-rounds the
+      // range to "nice" tick values — a one-frame snap that drags the candles AND
+      // the price-anchored annotations as the chart "lands". Leaving the provider
+      // pinned to the exact final range means there's no landing jump at all. The
+      // ref is reset at the start of the next focus zoom and cleared on a
+      // stock/timeframe switch (the year pin), so autoScale resumes when needed.
       onDone && onDone()
     }
   }
