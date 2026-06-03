@@ -210,8 +210,13 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
         </label>
         <label className={styles.dateField}>
           <span className={styles.dateLabel}>Zoom start (optional)</span>
+          {/* No `min`: the zoom frame may begin in a PRIOR year (e.g. a base that
+              started in 2024 for a 2025 setup). Pinning min to the book year also
+              made the native month segment auto-commit "01" — leaving min off lets
+              the year drop below `max`, so two-digit months (10/11/12) type freely.
+              `max` still keeps the zoom start on/before the setup day. */}
           <input className={styles.input} type="date" value={form.frame_start_date}
-            min={`${year}-01-01`} max={form.label_date || `${year}-12-31`}
+            max={form.label_date || `${year}-12-31`}
             onChange={e => setForm(f => ({ ...f, frame_start_date: e.target.value }))} />
         </label>
       </div>
