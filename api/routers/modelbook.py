@@ -117,12 +117,9 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
-    # Auto-fill descriptions + quarterly earnings on first view (background).
-    if _is_final_year(stock.get("year", 0)):
-        if _needs_desc(stock):
-            _gen_desc_async(stock)
-        if _needs_earnings(stock):
-            _fetch_earnings_async(stock)
+    # Auto-generate the company/story descriptions on first view (background).
+    if not stock.get("company_desc") and _is_final_year(stock.get("year", 0)):
+        _gen_desc_async(stock)
     return stock
 
 
@@ -347,90 +344,6 @@ def _gen_desc_async(stock):
     _threading.Thread(target=_run, daemon=True, name=f"mb-desc-{sid}").start()
 
 
-# ── Quarterly earnings (Finnhub EPS actual/estimate/surprise for the year) ────
-
-_earn_generating = set()
-
-
-def _needs_earnings(s) -> bool:
-    if s.get("earnings_json"):
-        return False
-    ea = s.get("earnings_at")
-    return (not ea) or (int(_time_mod.time()) - ea > _DESC_RETRY_AFTER)
-
-
-def _fetch_year_earnings(symbol, year):
-    """Finnhub /stock/earnings → that year's quarterly EPS, sorted Q1..Q4.
-    Returns a list (possibly empty) or None on API failure."""
-    try:
-        from api.services.earnings_estimates import _fh_get
-        raw = _fh_get("/stock/earnings", {"symbol": symbol.upper(), "limit": 24})
-        if not isinstance(raw, list):
-            return None
-        rows = []
-        for q in raw:
-            try:
-                if int(q.get("year")) != int(year):
-                    continue
-            except (TypeError, ValueError):
-                continue
-            qn = q.get("quarter")
-            rows.append({
-                "quarter": f"Q{qn}" if qn else "",
-                "period": q.get("period", ""),
-                "actual": q.get("actual"),
-                "estimate": q.get("estimate"),
-                "surprise_pct": q.get("surprisePercent"),
-            })
-        rows.sort(key=lambda r: r["quarter"])
-        return rows
-    except Exception:
-        return None
-
-
-def _fetch_earnings_for(stocks, max_workers=3):
-    pending = [s for s in stocks if _needs_earnings(s)]
-    if not pending:
-        return
-    import concurrent.futures
-    import json as _json
-
-    def _work(s):
-        rows = _fetch_year_earnings(s["symbol"], s["year"])
-        try:
-            if rows is not None:
-                svc.save_earnings(s["id"], _json.dumps(rows))
-            else:
-                svc.mark_earnings_attempt(s["id"])
-        except Exception:
-            pass
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        list(ex.map(_work, pending))
-
-
-def _fetch_earnings_async(stock):
-    sid = stock.get("id")
-    if not sid:
-        return
-    with _gen_lock:
-        if sid in _earn_generating:
-            return
-        _earn_generating.add(sid)
-
-    def _run():
-        import json as _json
-        try:
-            rows = _fetch_year_earnings(stock["symbol"], stock["year"])
-            if rows is not None:
-                svc.save_earnings(sid, _json.dumps(rows))
-            else:
-                svc.mark_earnings_attempt(sid)
-        finally:
-            with _gen_lock:
-                _earn_generating.discard(sid)
-    _threading.Thread(target=_run, daemon=True, name=f"mb-earn-{sid}").start()
-
-
 def warm_all_stats() -> None:
     """Background pre-warm at startup: compute + persist price stats AND generate
     AI descriptions for every curated stock in a closed year that lacks them. Low
@@ -444,8 +357,8 @@ def warm_all_stats() -> None:
         except Exception:
             continue
         stats_done = all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks)
-        extras_done = not any(_needs_desc(s) or _needs_earnings(s) for s in stocks)
-        if stats_done and extras_done:
+        desc_done = not any(_needs_desc(s) for s in stocks)
+        if stats_done and desc_done:
             return  # fully warmed
         if not stats_done:
             _persist_stats_for(stocks, max_workers=2)
@@ -454,7 +367,6 @@ def warm_all_stats() -> None:
             except Exception:
                 pass
         _generate_descriptions_for(stocks)
-        _fetch_earnings_for(stocks)
 
 
 # ── Writes (admin only) ───────────────────────────────────────────────────────
