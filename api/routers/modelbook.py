@@ -63,6 +63,7 @@ class StockPatch(BaseModel):
 class SetupIn(BaseModel):
     setup_type: str
     label_date: str
+    frame_start_date: Optional[str] = None
     timeframe: Optional[str] = "D"
     entry_price: Optional[float] = None
     stop_price: Optional[float] = None
@@ -76,6 +77,7 @@ class SetupIn(BaseModel):
 class SetupPatch(BaseModel):
     setup_type: Optional[str] = None
     label_date: Optional[str] = None
+    frame_start_date: Optional[str] = None
     timeframe: Optional[str] = None
     entry_price: Optional[float] = None
     stop_price: Optional[float] = None
@@ -90,6 +92,8 @@ def _validate_setup(d: dict) -> None:
     """Validate the enum/format fields present in a setup payload → 400 on bad."""
     if d.get("label_date") is not None and not _ISO_DATE.match(d["label_date"]):
         raise HTTPException(400, "label_date must be YYYY-MM-DD")
+    if d.get("frame_start_date") not in (None, "") and not _ISO_DATE.match(d["frame_start_date"]):
+        raise HTTPException(400, "frame_start_date must be YYYY-MM-DD")
     if d.get("timeframe") is not None and d["timeframe"] not in _TIMEFRAMES:
         raise HTTPException(400, f"timeframe must be one of {sorted(_TIMEFRAMES)}")
     if d.get("grade") not in (None, "") and d["grade"] not in _GRADES:

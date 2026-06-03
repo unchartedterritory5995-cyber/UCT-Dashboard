@@ -135,6 +135,8 @@
 .addBtn:hover { background: rgba(201,168,76,0.15); }
 .adminForm { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; background: rgba(255,255,255,0.02); }
 .formRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.dateField { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 130px; }
+.dateLabel { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
 .input {
   flex: 1; min-width: 110px; padding: 7px 10px; font-size: 13px; font-family: var(--font-mono);
   background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border);

@@ -124,8 +124,8 @@ function AddSetupForm({ stockId, year, onAdded }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const empty = {
-    setup_type: '', label_date: '', timeframe: 'D', entry_price: '', stop_price: '',
-    target_price: '', grade: '', notes: '',
+    setup_type: '', label_date: '', frame_start_date: '', timeframe: 'D',
+    entry_price: '', stop_price: '', target_price: '', grade: '', notes: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -137,6 +137,7 @@ function AddSetupForm({ stockId, year, onAdded }) {
       const body = {
         setup_type: form.setup_type,
         label_date: form.label_date,
+        frame_start_date: form.frame_start_date || null,
         timeframe: form.timeframe,
         entry_price: num(form.entry_price),
         stop_price: num(form.stop_price),
@@ -175,9 +176,6 @@ function AddSetupForm({ stockId, year, onAdded }) {
             </optgroup>
           ))}
         </select>
-        <input className={styles.input} type="date" value={form.label_date}
-          min={`${year}-01-01`} max={`${year}-12-31`} required
-          onChange={e => setForm(f => ({ ...f, label_date: e.target.value }))} />
         <select className={styles.input} value={form.timeframe}
           onChange={e => setForm(f => ({ ...f, timeframe: e.target.value }))}>
           <option value="D">Daily</option>
@@ -188,6 +186,20 @@ function AddSetupForm({ stockId, year, onAdded }) {
           <option value="">Grade…</option>
           {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
+      </div>
+      <div className={styles.formRow}>
+        <label className={styles.dateField}>
+          <span className={styles.dateLabel}>Setup day (last candle)</span>
+          <input className={styles.input} type="date" value={form.label_date}
+            min={`${year}-01-01`} max={`${year}-12-31`} required
+            onChange={e => setForm(f => ({ ...f, label_date: e.target.value }))} />
+        </label>
+        <label className={styles.dateField}>
+          <span className={styles.dateLabel}>Zoom start (optional)</span>
+          <input className={styles.input} type="date" value={form.frame_start_date}
+            min={`${year}-01-01`} max={form.label_date || `${year}-12-31`}
+            onChange={e => setForm(f => ({ ...f, frame_start_date: e.target.value }))} />
+        </label>
       </div>
       <div className={styles.formRow}>
         <input className={styles.input} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
@@ -229,7 +241,7 @@ function StockDetail({ stockId, isAdmin }) {
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
   // the stock or timeframe changes — no reset effect needed.
-  const [focus, setFocus] = useState({ id: null, date: null, nonce: 0, stockId: null, tf: null })
+  const [focus, setFocus] = useState({ id: null, date: null, startDate: null, nonce: 0, stockId: null, tf: null })
   const [chartTf, setChartTf] = useState('D')
   const [infoOpen, setInfoOpen] = useState(true)
   const [editNarr, setEditNarr] = useState(false)
@@ -259,13 +271,15 @@ function StockDetail({ stockId, isAdmin }) {
     setFocus(f => {
       const sameTarget = f.id === s.id && f.stockId === stockId && f.tf === chartTf
       return sameTarget
-        ? { id: null, date: null, nonce: f.nonce + 1, stockId, tf: chartTf }
-        : { id: s.id, date: s.label_date, nonce: f.nonce + 1, stockId, tf: chartTf }
+        ? { id: null, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+        : { id: s.id, date: s.label_date, startDate: s.frame_start_date || null, nonce: f.nonce + 1, stockId, tf: chartTf }
     })
   }
   // A focus only applies to the stock + timeframe it was set on; switching either
   // drops the zoom request (the chart re-frames the year on its own).
-  const focusDate = (focus.stockId === stockId && focus.tf === chartTf) ? focus.date : null
+  const focusActive = focus.stockId === stockId && focus.tf === chartTf
+  const focusDate = focusActive ? focus.date : null
+  const focusStartDate = focusActive ? focus.startDate : null
 
   async function deleteSetup(id) {
     await fetch(`/api/modelbook/setup/${id}`, { method: 'DELETE', credentials: 'include' })
@@ -336,6 +350,7 @@ function StockDetail({ stockId, isAdmin }) {
             priceScaleBottomMargin={0.06}
             priceLines={priceLines}
             focusDate={focusDate}
+            focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
             className={styles.chart}
           />
