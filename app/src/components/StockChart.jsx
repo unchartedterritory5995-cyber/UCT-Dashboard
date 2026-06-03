@@ -462,6 +462,7 @@ export default function StockChart({
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time of a bar to paint gold (Model Book: the focused setup's day)
+  onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3221,6 +3222,45 @@ export default function StockChart({
 
   // Cancel any in-flight focus animation on unmount.
   useEffect(() => () => { if (focusRafRef.current != null) cancelAnimationFrame(focusRafRef.current) }, [])
+
+  // Manual-interaction escape (Model Book): if the user wheel-zooms or drags the
+  // chart while a setup focus is active, they've left the setup view — release
+  // focus (annotations were lingering because they track the focus state, not
+  // the live view). Skip while authoring annotations (drawing uses the chart).
+  const annEditableRef = useRef(annotationsEditable)
+  annEditableRef.current = annotationsEditable
+  useEffect(() => {
+    if (!onFocusEscape) return
+    const el = containerRef.current
+    if (!el) return
+    const escape = () => {
+      if (!focusActiveRef.current || annEditableRef.current) return
+      focusActiveRef.current = false
+      focusPriceRangeRef.current = null
+      try { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      onFocusEscape()
+    }
+    // Wheel-zoom escapes immediately. For drag-pan, only escape once the pointer
+    // actually moves past a small threshold — a plain click shouldn't drop focus.
+    const onWheel = () => escape()
+    let down = null
+    const onDown = (e) => { down = { x: e.clientX, y: e.clientY } }
+    const onMove = (e) => {
+      if (!down) return
+      if (Math.abs(e.clientX - down.x) > 4 || Math.abs(e.clientY - down.y) > 4) { down = null; escape() }
+    }
+    const onUp = () => { down = null }
+    el.addEventListener('wheel', onWheel, { passive: true })
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerup', onUp)
+    }
+  }, [onFocusEscape])
 
   // Apply the price-scale mode from effectiveScale (Normal/Log/Percent).
   // Owns the right scale's mode so the A/L/% toggle + forceLogScale default
