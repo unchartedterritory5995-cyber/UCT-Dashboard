@@ -277,6 +277,16 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 const BOLD_UP = '#21c45c'
 const BOLD_DOWN = '#f23645'
 
+// Compact share-volume formatter for HVE/HV1 labels (e.g. 43.0M).
+function _fmtVolShort(v) {
+  if (v == null) return ''
+  const n = Number(v)
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+  return `${Math.round(n)}`
+}
+
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
 // tighter fit, plus a small bottom gap above a separate volume pane).
@@ -311,6 +321,8 @@ export default function StockChart({
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
+  markVolumeExtremes = false, // gold + label the HVE / HV1 volume bars (Model Book)
+  volumePaneHeightPct = null, // override the separate volume pane height (%)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
@@ -575,6 +587,7 @@ export default function StockChart({
   // charts with many lines + axis labels (e.g. the GEX chart with 8-12).
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
+  const volMarkersControllerRef = useRef(null)  // markers on the volume series (HVE/HV1 labels)
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
@@ -1414,21 +1427,42 @@ export default function StockChart({
     () => cs.volume.hvcEnabled && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
     [filteredBars, cs.volume.hvcEnabled]
   )
+  // Highest-Volume-Ever (across all loaded bars) + Highest-Volume in the selected
+  // year. Both labelled with the share count and % above the year's avg daily vol.
+  const volExtremes = useMemo(() => {
+    if (!markVolumeExtremes || !filteredBars?.length) return null
+    const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
+    const yb = filteredBars.filter(b => b.v != null && inYear(b))
+    if (!yb.length) return null
+    const adv = yb.reduce((s, b) => s + b.v, 0) / yb.length
+    let hve = null
+    for (const b of filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
+    let hv1 = null
+    for (const b of yb) if (!hv1 || b.v > hv1.v) hv1 = b
+    const hveInYear = hve && inYear(hve)
+    const pctOf = v => (adv > 0 ? Math.round((v / adv - 1) * 100) : 0)
+    const items = []
+    if (hveInYear) items.push({ t: hve.t, v: hve.v, label: 'HVE', pct: pctOf(hve.v) })
+    if (hv1 && (!hveInYear || hv1.t !== hve.t)) items.push({ t: hv1.t, v: hv1.v, label: 'HV1', pct: pctOf(hv1.v) })
+    return { items, goldTimes: new Set(items.map(r => r.t)) }
+  }, [markVolumeExtremes, filteredBars, entryDate, exitDate])
   const volData = useMemo(() => {
     if (!filteredBars?.length) return []
     // Dim the bold volume to the same hue at lower opacity — dense solid bars
     // otherwise read brighter than the thin candles and look out of place.
     const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
     const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
+    const gold = '#e6b800'
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
-      // boldCandles wants volume to exactly match candle colors (no HVC gold).
-      color: (!boldCandles && hvcSet.has(b.t))
-        ? 'rgba(201,168,76,0.9)'
-        : b.c >= b.o ? upC : downC,
+      color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
+        ? gold
+        : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
+          ? 'rgba(201,168,76,0.9)'
+          : b.c >= b.o ? upC : downC,
     }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles])
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes])
   const overlayData = useMemo(() => {
     if (!filteredBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -2194,11 +2228,12 @@ export default function StockChart({
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
-        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.1, bottom: 0 } })
+        // markVolumeExtremes needs headroom above the tallest bar for the HVE/HV1 label.
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: markVolumeExtremes ? 0.28 : 0.1, bottom: 0 } })
         try {
           // Stretch factors are relative, so price=(100-pct) / volume=pct makes
           // the volume pane occupy exactly pct% of the chart height.
-          const pct = Math.min(45, Math.max(8, cs.volume.paneHeightPct ?? 22))
+          const pct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume.paneHeightPct ?? 22))
           const panes = chart.panes()
           if (panes[0]) panes[0].setStretchFactor(100 - pct)
           if (panes[1]) panes[1].setStretchFactor(pct)
@@ -2805,6 +2840,28 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // HVE/HV1 labels on the volume series (Model Book). Runs after updateChart so
+  // the volume series exists; re-applies on ticker/year change.
+  useEffect(() => {
+    if (!markVolumeExtremes || !chartReady) return
+    if (!volumeSeriesRef.current) return
+    const markers = (volExtremes?.items || []).map(r => ({
+      time: adjustTime(r.t),
+      position: 'aboveBar',
+      color: '#e6b800',
+      shape: 'circle',
+      text: `${r.label} ${_fmtVolShort(r.v)} ${r.pct >= 0 ? '+' : ''}${r.pct}%`,
+    }))
+    import('lightweight-charts').then(({ createSeriesMarkers }) => {
+      if (!createSeriesMarkers || !volumeSeriesRef.current) return
+      if (volMarkersControllerRef.current && typeof volMarkersControllerRef.current.setMarkers === 'function') {
+        volMarkersControllerRef.current.setMarkers(markers)
+      } else {
+        volMarkersControllerRef.current = createSeriesMarkers(volumeSeriesRef.current, markers)
+      }
+    }).catch(() => {})
+  }, [markVolumeExtremes, volExtremes, chartReady, sym, adjustTime])
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
   // MUST run AFTER updateChart() (above) so the series already holds the
