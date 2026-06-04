@@ -1023,7 +1023,8 @@ admin edits" model).
 - **Chart**: on the Catalysts tab the chart shows gold ⚡ `markers` (StockChart `markers` prop) at each catalyst + ALL catalyst candles gold (`highlightBarTime` array) + setup overlays hidden; clicking a catalyst row focus-zooms to it. Switching tabs zooms back out to the year. Tab choice persists (`modelbook_panel_tab`) and survives stock switches.
 
 ### Earnings table — per-quarter EPS + revenue vs estimate (added 2026-06-03)
-A compact table **in the info panel, full-width below the year stats** (`styles.earnSection`),
+A compact table **in the info panel, top-right beside the year stats** (`styles.statsRow`: stats
+column + `styles.earnPanel`; the panel is widened to 450px so the trailing % column isn't clipped),
 for every stock/year. Columns: **Quarter (Q1–Q4 yr) · EPS · % Chg · Revenue ·
 % Chg**, where each % Chg is the surprise vs estimate (colored green/red). (Originally a chart
 overlay — `styles.earnOverlay`, removed 2026-06-03 — moved into the panel.)
