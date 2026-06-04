@@ -107,10 +107,15 @@ test('switches to the Catalysts tab and shows a catalyst', () => {
   expect(screen.getByText('September 4th')).toBeInTheDocument()
 })
 
-test('hides the AI Generate button for non-admins on the Catalysts tab', () => {
+test('catalyst details are collapsed until the row is clicked', () => {
   render(<ModelBook />)
   fireEvent.click(screen.getByRole('button', { name: /catalysts/i }))
-  expect(screen.queryByRole('button', { name: /generate/i })).toBeNull()
+  // Headline shows; the description is hidden until expanded.
+  expect(screen.getByText('Q3 earnings beat')).toBeInTheDocument()
+  expect(screen.queryByText('Crushed estimates on AI demand.')).toBeNull()
+  // Click the headline → details drop down.
+  fireEvent.click(screen.getByText('Q3 earnings beat'))
+  expect(screen.getByText('Crushed estimates on AI demand.')).toBeInTheDocument()
 })
 
 test('renders the permanent earnings overlay table on the chart', () => {

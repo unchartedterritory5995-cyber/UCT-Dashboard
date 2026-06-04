@@ -457,8 +457,7 @@ function StockDetail({ stockId, isAdmin }) {
     try { return localStorage.getItem('modelbook_panel_tab') === 'catalysts' ? 'catalysts' : 'setups' } catch { return 'setups' }
   })
   const [editingCatalystId, setEditingCatalystId] = useState(null)  // admin: catalyst row being edited inline
-  const [genningCats, setGenningCats] = useState(false)             // admin: AI catalyst generation in flight
-  const [catError, setCatError] = useState('')                     // generation error message
+  const [expandedCatalystId, setExpandedCatalystId] = useState(null)  // catalyst row whose details are dropped down
   const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
   const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
   // "Show all" overlay: render every setup's annotations on the zoomed-out chart.
@@ -505,7 +504,7 @@ function StockDetail({ stockId, isAdmin }) {
     setAnnotationDraft([])
     setEditingSetupId(null)
     setEditingCatalystId(null)
-    setCatError('')
+    setExpandedCatalystId(null)
   }
   // Derived: the picked setup if still present, else the first one (so its
   // price lines show by default). Avoids a setState-in-effect on stock change.
@@ -626,42 +625,21 @@ function StockDetail({ stockId, isAdmin }) {
     try { localStorage.setItem('modelbook_panel_tab', tab) } catch { /* ignore */ }
     setAnnotateMode(false)
     setAnnotationDraft([])
-    setCatError('')
     setFocus(f => (f.date != null
       ? { id: null, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
       : { id: null, date: null, startDate: null, nonce: f.nonce, stockId: null, tf: null }))
   }
 
-  // Click a catalyst → zoom so its day is the last candle; click again to zoom out.
+  // Click a catalyst → drop down its details AND zoom so its day is the last
+  // candle; click again to collapse + zoom out.
   function onCatalystClick(c) {
+    setExpandedCatalystId(prev => (prev === c.id ? null : c.id))
     setFocus(f => {
       const sameTarget = f.id === c.id && f.date != null && f.stockId === stockId && f.tf === chartTf
       return sameTarget
         ? { id: c.id, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
         : { id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
     })
-  }
-
-  async function generateCatalysts() {
-    // Catalysts persist in the DB forever once generated; regenerating re-runs
-    // the AI (spends tokens), so it's gated behind a confirm + an explicit force.
-    const isRegen = catalysts.length > 0
-    if (isRegen && !window.confirm('Regenerate catalysts? This re-runs the AI (spends tokens) and replaces the current set.')) return
-    setCatError('')
-    setGenningCats(true)
-    try {
-      const url = `/api/modelbook/stock/${stock.id}/catalysts/generate${isRegen ? '?force=true' : ''}`
-      const r = await fetch(url, { method: 'POST', credentials: 'include' })
-      if (r.ok) mutate()
-      else {
-        const e = await r.json().catch(() => ({}))
-        setCatError(e.detail || 'Could not generate catalysts. Try again.')
-      }
-    } catch {
-      setCatError('Could not generate catalysts. Try again.')
-    } finally {
-      setGenningCats(false)
-    }
   }
 
   async function deleteCatalyst(id) {
@@ -871,20 +849,13 @@ function StockDetail({ stockId, isAdmin }) {
                   )}
                   {onSetupsTab && isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
                   {onCatalystTab && isAdmin && (
-                    <>
-                      <button className={styles.annotateBtn} onClick={generateCatalysts} disabled={genningCats}
-                        title="Find this year's most impactful catalysts with AI">
-                        {genningCats ? 'Generating…' : (catalysts.length ? '↻ Regenerate' : '✨ Generate')}
-                      </button>
-                      <AddCatalystForm stockId={stock.id} year={stock.year} onAdded={mutate} />
-                    </>
+                    <AddCatalystForm stockId={stock.id} year={stock.year} onAdded={mutate} />
                   )}
                 </div>
               </div>
 
               {onCatalystTab ? (
                 <>
-                  {catError && <p className={styles.catError}>{catError}</p>}
                   {catalysts.length === 0 ? (
                     <p className={styles.noSetups}>
                       {!stock.catalysts_at
@@ -906,11 +877,10 @@ function StockDetail({ stockId, isAdmin }) {
                         ) : (
                           <div
                             key={c.id}
-                            className={styles.catRow}
-                            onClick={() => onCatalystClick(c)}
-                            title={c.description || undefined}
+                            className={`${styles.catRow} ${expandedCatalystId === c.id ? styles.catRowOpen : ''}`}
                           >
-                            <div className={styles.catRowTop}>
+                            <div className={styles.catRowTop} onClick={() => onCatalystClick(c)}>
+                              <span className={styles.catChevron}>{expandedCatalystId === c.id ? '▾' : '▸'}</span>
                               <span className={styles.catTitle}>{c.title}</span>
                               {c.move_pct != null && (
                                 <span className={`${styles.catMove} ${c.move_pct >= 0 ? styles.catMoveUp : styles.catMoveDown}`}>
@@ -933,7 +903,9 @@ function StockDetail({ stockId, isAdmin }) {
                                 </>
                               )}
                             </div>
-                            {c.description && <p className={styles.catDesc}>{c.description}</p>}
+                            {expandedCatalystId === c.id && c.description && (
+                              <p className={styles.catDesc}>{c.description}</p>
+                            )}
                           </div>
                         )
                       ))}
