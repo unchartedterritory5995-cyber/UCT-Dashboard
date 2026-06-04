@@ -9,7 +9,7 @@ const toMs = (v) => {
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
 }
 
-export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff' }) {
+export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff', bottomFrac = 0.82 }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -79,7 +79,11 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       if (x == null || top == null || bottom == null) continue
       segs.push({ x, top: Math.min(top, bottom), bottom: Math.max(top, bottom) })
     }
-    const priceBottom = h * 0.82  // keep labels in the price pane (volume pane is below)
+    // How far down labels may go. When this canvas covers ONLY the price pane
+    // (Model Book, index pane present → bottomFrac≈0.96) labels can use almost
+    // the whole pane, so a low candle's down-right spot is reachable. When the
+    // canvas spans the volume pane too (bottomFrac≈0.82) the bottom is reserved.
+    const priceBottom = h * bottomFrac
     const hitsCandles = (r) => {
       for (const s of segs) {
         if (s.x < r.x - 2 || s.x > r.x + r.w + 2) continue
@@ -164,7 +168,9 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
-    const DISTS = [9, 14, 20, 28, 38, 50, 66, 86, 112, 146, 190, 240]
+    // Min ~20px gives the leader a little breathing room (labels shouldn't kiss
+    // the candle); the rest let it reach a clear gap when nearby ones are taken.
+    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132, 166, 210]
     const placed = []
     // Score every candidate spot and take the cheapest. Cost is dominated by the
     // LEADER-LINE LENGTH (short, tidy lines win), with a hard penalty for any spot
@@ -259,7 +265,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     }
     ctx.shadowBlur = 0
     ctx.shadowColor = 'transparent'
-  }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate])
+  }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate, bottomFrac])
 
   // redrawRef → full search-and-place (deps change / resize).
   // trackedRef → cached rigid track (per-frame pan/zoom).

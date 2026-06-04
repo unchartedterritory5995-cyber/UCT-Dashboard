@@ -4633,6 +4633,7 @@ export default function StockChart({
             seriesRef={candleSeriesRef}
             bars={bars}
             callouts={callouts}
+            bottomFrac={overlayBounds ? 0.96 : 0.82}
           />
         </div>
       )}
