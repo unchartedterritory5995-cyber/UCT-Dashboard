@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
+import CompanyLogo from '../components/CompanyLogo'
 import { useAuth } from '../context/AuthContext'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import styles from './ModelBook.module.css'
@@ -692,7 +693,8 @@ function StockDetail({ stockId, isAdmin }) {
     <div className={styles.detail}>
       <div className={styles.dvTop}>
       <div className={styles.detailHeader}>
-        <div>
+        <div className={styles.detailTitleRow}>
+          <CompanyLogo sym={stock.symbol} size={30} />
           <h2 className={styles.detailName}>
             {stock.symbol}
             {stock.company && <span className={styles.detailNameCo}>({stock.company})</span>}
