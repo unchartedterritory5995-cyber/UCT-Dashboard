@@ -183,13 +183,14 @@ function renderArrow(ctx, pts) {
   drawArrowhead(ctx, pts[0], pts[1], 10)
 }
 
-function renderText(ctx, pts, drawing) {
+function renderText(ctx, pts, drawing, scale = 1) {
   if (!pts.length || !drawing.text) return
-  ctx.font = `${drawing.fontSize || 13}px "Instrument Sans", sans-serif`
+  const fs = (drawing.fontSize || 13) * scale   // scale text with the chart zoom
+  ctx.font = `${fs}px "Instrument Sans", sans-serif`
   ctx.fillStyle = ctx.strokeStyle
   const lines = drawing.text.split('\n')
   lines.forEach((line, i) => {
-    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * (drawing.fontSize || 13) * 1.3)
+    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
   })
 }
 
@@ -541,6 +542,7 @@ export default function ChartDrawingOverlay({
   selectedId, setSelectedId,
   repeatMode = true,
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
+  fontSize = 13,             // default size for new text annotations
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -737,6 +739,19 @@ export default function ChartDrawingOverlay({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
+    // Text annotations scale with the zoom so they grow/shrink with the candles
+    // instead of staying a fixed pixel size (which looks huge zoomed out). Keyed
+    // on how many bars are visible: base size at the setup-focus zoom (~85 bars),
+    // smaller when zoomed out, a touch larger when zoomed in close. Width-agnostic.
+    let textScale = 1
+    try {
+      const range = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
+      if (range) {
+        const visibleBars = Math.max(1, range.to - range.from)
+        textScale = Math.max(0.4, Math.min(1.3, 85 / visibleBars))
+      }
+    } catch { /* default scale 1 */ }
+
     const toPixelY = (_, price) => {
       const p = toPixel(null, price)
       return p?.y
@@ -790,7 +805,7 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text': renderText(ctx, pts, d); break
+        case 'text': renderText(ctx, pts, d, textScale); break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
@@ -1108,7 +1123,7 @@ export default function ChartDrawingOverlay({
       color,
       lineWidth,
       text: text.trim(),
-      fontSize: 13,
+      fontSize: fontSize || 13,
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)

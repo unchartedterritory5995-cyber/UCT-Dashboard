@@ -1115,6 +1115,13 @@ export default function StockChart({
     setDrawLineStyle(style)
     if (selectedId) annUpdate(selectedId, { lineStyle: style })
   }, [selectedId, annUpdate])
+  // Text annotation font size — applies to new text and (if a text drawing is
+  // selected) the selected one.
+  const [drawFontSize, setDrawFontSize] = useState(13)
+  const setAnnFontSize = useCallback((size) => {
+    setDrawFontSize(size)
+    if (selectedId) annUpdate(selectedId, { fontSize: size })
+  }, [selectedId, annUpdate])
 
   // ── Position tool price lines ──
   useEffect(() => {
@@ -4602,6 +4609,7 @@ export default function StockChart({
             color={drawColor}
             lineWidth={drawWidth}
             lineStyle={drawLineStyle}
+            fontSize={drawFontSize}
             magnet={magnet}
             drawings={annotations}
             addDrawing={annAdd}
@@ -4629,6 +4637,8 @@ export default function StockChart({
               onUpdateSettings={handleUpdateChartSettings}
               lineStyle={drawLineStyle}
               setLineStyle={setAnnLineStyle}
+              fontSize={drawFontSize}
+              setFontSize={setAnnFontSize}
               magnet={magnet}
               setMagnet={setMagnet}
               prominent

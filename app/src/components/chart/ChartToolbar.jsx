@@ -75,6 +75,7 @@ const COLORS = [
 ]
 
 const WIDTHS = [1, 2, 3]
+const FONT_SIZES = [10, 13, 16, 20, 26, 34, 44]
 
 const CHART_TYPES = [
   { value: 'candles', label: 'Candles' },
@@ -752,17 +753,21 @@ function ChartToolbar({
   hideCountdown = false,
   lineStyle = 'solid',           // 'solid' | 'dashed' — current line style (Model Book annotations)
   setLineStyle = null,           // when provided, shows a Solid/Dashed control
+  fontSize = 13,                 // current text-annotation font size
+  setFontSize = null,            // when provided, shows a text font-size control
   prominent = false,             // force full opacity (annotation/edit mode, not the unobtrusive default)
   magnet = false,                // snap drawings to nearest O/H/L/C
   setMagnet = null,              // when provided, shows the magnet toggle
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
+  const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
+  const fontRef = useRef(null)
   const settingsRef = useRef(null)
   const compareRef = useRef(null)
   const alertRef = useRef(null)
@@ -831,11 +836,12 @@ function ChartToolbar({
     const handler = (e) => {
       if (showColors && colorRef.current && !colorRef.current.contains(e.target)) setShowColors(false)
       if (showWidths && widthRef.current && !widthRef.current.contains(e.target)) setShowWidths(false)
+      if (showFonts && fontRef.current && !fontRef.current.contains(e.target)) setShowFonts(false)
       if (showSettings && settingsRef.current && !settingsRef.current.contains(e.target)) setShowSettings(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showColors, showWidths, showSettings])
+  }, [showColors, showWidths, showFonts, showSettings])
 
   const selectTool = (id) => {
     if (id === 'cursor') {
@@ -848,6 +854,7 @@ function ChartToolbar({
   const closeOthers = (keep) => {
     if (keep !== 'colors') setShowColors(false)
     if (keep !== 'widths') setShowWidths(false)
+    if (keep !== 'fonts') setShowFonts(false)
     if (keep !== 'settings') setShowSettings(false)
   }
 
@@ -1092,6 +1099,35 @@ function ChartToolbar({
           >
             {lineStyle === 'dashed' ? '┄ Dashed' : '─ Solid'}
           </button>
+        )}
+
+        {/* Text font size: applies to NEW text and (if a text drawing is selected) the selected one */}
+        {setFontSize && (
+          <div ref={fontRef} className={styles.pickerWrap}>
+            <button
+              className={styles.btn}
+              onClick={() => { setShowFonts(!showFonts); closeOthers('fonts') }}
+              title={`Text size: ${fontSize}px — applies to new text and the selected text`}
+              style={{ width: 'auto', padding: '0 8px', fontWeight: 700, whiteSpace: 'nowrap' }}
+            >
+              <span style={{ fontSize: 15, lineHeight: 1 }}>A</span>
+              <span style={{ fontSize: 9, marginLeft: 1 }}>{fontSize}</span>
+            </button>
+            {showFonts && (
+              <div className={styles.popup}>
+                {FONT_SIZES.map(fs => (
+                  <button
+                    key={fs}
+                    className={`${styles.widthOption} ${fs === fontSize ? styles.widthActive : ''}`}
+                    onClick={() => { setFontSize(fs); setShowFonts(false) }}
+                    style={{ fontSize: 12, fontWeight: 700, minWidth: 34 }}
+                  >
+                    {fs}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Delete selected */}
