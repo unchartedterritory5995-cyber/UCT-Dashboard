@@ -18,7 +18,6 @@ const NAV_ITEMS = [
   { to: '/screener',     label: 'Screener',      icon: '⚡' },
   { to: '/patterns',     label: 'Patterns',      icon: '🎯' },
   { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
-  { to: '/dark-pool',    label: 'Dark Pool',     icon: '🌊' },
   { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
   { to: '/model-book',   label: 'Model Book',    icon: '📖' },
   { to: '/setup-library',label: 'Setup Library', icon: '📚' },

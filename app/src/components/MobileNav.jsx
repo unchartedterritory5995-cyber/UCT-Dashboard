@@ -33,7 +33,6 @@ const NAV_SECTIONS = [
     label: 'Flow',
     items: [
       { to: '/options-flow', label: 'Options Flow', icon: '\uD83D\uDCCA' },
-      { to: '/dark-pool',    label: 'Dark Pool',    icon: '\uD83C\uDF0A' },
     ],
   },
   {
