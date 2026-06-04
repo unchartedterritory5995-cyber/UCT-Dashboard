@@ -16,6 +16,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   const redrawRef = useRef(null)
   const trackedRef = useRef(null)
   const sigRef = useRef('')   // catalyst-set signature, to fade in on stock change
+  const fullSigRef = useRef('')        // signature that gates the full re-search
+  const pendingReplaceRef = useRef(false)  // re-place once the view settles after a real change
   // Cached per-label placement, keyed by `${time}|${text}`. Stores the label's
   // offset from its anchor candle (offX from the candle x, offY from the anchor
   // high/low) plus which end of the candle the leader line attaches to. The
@@ -350,8 +352,19 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     redrawRef.current = () => draw(false)
     trackedRef.current = () => draw(true)
   }, [draw])
-  // The callout set / bars / color changed → re-search placements from scratch.
-  useEffect(() => { draw(false) }, [draw])
+  // Full re-search ONLY when the catalyst SET (or bars/size/color) actually
+  // changes — NOT on every parent re-render (focus/zoom rebuilds the callouts
+  // array with the same content). This pins the placement to the designated
+  // full-year view; mid-zoom the rAF loop just rides the cached offsets. The
+  // pending flag asks for one more re-place once the new chart's framing settles.
+  useEffect(() => {
+    const sig = (callouts || []).map(c => `${c?.time}|${c?.text}`).join('~') +
+      `|${bars?.length ?? 0}|${color}|${bottomFrac}`
+    if (sig === fullSigRef.current) return
+    fullSigRef.current = sig
+    pendingReplaceRef.current = true
+    draw(false)
+  }, [draw, callouts, bars, color, bottomFrac])
 
   // Seamless stock switches: when the catalyst SET changes (new stock), instantly
   // hide the canvas then fade it back in, so the labels don't visibly hop while
@@ -416,7 +429,6 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     let loopRaf = null
     let lastSig = ''
     let stable = 0
-    let needsReplace = false
     const tick = () => {
       try {
         const r = ts.getVisibleLogicalRange()
@@ -424,14 +436,15 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         const y1 = series?.priceToCoordinate(100)
         const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
         if (sig !== lastSig) {
-          // View is moving (pan/zoom/focus animation): ride cached offsets so it's
-          // smooth, and mark that a fresh placement is owed once it settles.
-          lastSig = sig; stable = 0; needsReplace = true; trackedRef.current?.()
-        } else if (needsReplace && ++stable > 10) {
-          // View settled (~10 idle frames): cached PIXEL offsets are stale for the
-          // new zoom level, so re-run the full search → labels snap back to their
-          // correct, close positions for THIS view (fixes zoom-in-then-out drift).
-          needsReplace = false; redrawRef.current?.()
+          // Pan/zoom/focus animation: ride the cached offsets so labels glide
+          // smoothly WITH their candles — NO re-search here, so a label keeps the
+          // same pixel offset from its candle at every zoom level.
+          lastSig = sig; stable = 0; trackedRef.current?.()
+        } else if (pendingReplaceRef.current && ++stable > 10) {
+          // Re-search ONCE the view settles AFTER a stock/catalyst change, so the
+          // designated placement is computed at the real (settled) full-year frame
+          // — NOT after every zoom (that would re-lock labels far at the new zoom).
+          pendingReplaceRef.current = false; redrawRef.current?.()
         }
       } catch { /* chart torn down mid-frame */ }
       loopRaf = requestAnimationFrame(tick)
