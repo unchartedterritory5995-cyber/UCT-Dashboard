@@ -15,6 +15,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
   const trackedRef = useRef(null)
+  const sigRef = useRef('')   // catalyst-set signature, to fade in on stock change
   // Cached per-label placement, keyed by `${time}|${text}`. Stores the label's
   // offset from its anchor candle (offX from the candle x, offY from the anchor
   // high/low) plus which end of the candle the leader line attaches to. The
@@ -173,10 +174,20 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
-    // Min ~20px gives the leader a little breathing room (labels shouldn't kiss
-    // the candle); the rest let it reach a clear gap when nearby ones are taken.
-    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132, 166, 210]
+    // Min ~20px breathing room; HARD-capped at ~132px so a label is never
+    // marooned far from its candle (user: "need a maximum length"). If nothing is
+    // clean within reach, the least-bad close spot wins instead of a long line.
+    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132]
     const placed = []
+    const placedLeaders = []   // leader segments already drawn — new ones must not cross them
+    // Do two leader segments cross (proper interior intersection)?
+    const segCross = (ax, ay, bx, by, L) => {
+      const dn = (bx - ax) * (L.y1 - L.y0) - (by - ay) * (L.x1 - L.x0)
+      if (Math.abs(dn) < 1e-6) return false
+      const t = ((L.x0 - ax) * (L.y1 - L.y0) - (L.y0 - ay) * (L.x1 - L.x0)) / dn
+      const u = ((L.x0 - ax) * (by - ay) - (L.y0 - ay) * (bx - ax)) / dn
+      return t > 0.04 && t < 0.96 && u > 0.04 && u < 0.96
+    }
     // Score every candidate spot and take the cheapest. Cost is dominated by the
     // LEADER-LINE LENGTH (short, tidy lines win), with a hard penalty for any spot
     // whose label or line covers a candle / overlaps another label, plus a small
@@ -200,6 +211,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const bias = (d) => (d.dy < 0 ? -5 : 0) + (d.dx < 0 ? -5 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
+      // If the candle's upper-left is clear of CANDLES, strongly prefer placing
+      // up-left — even a bit higher to STACK above a neighbouring label — rather
+      // than scattering down/right. (When up-left is candle-blocked this is false,
+      // so those candles correctly fall to the nearest other gap.)
+      const upLeftClear = !hitsCandles({
+        x: Math.max(plotLeft, it.ax - 36 - it.boxW),
+        y: Math.max(4, it.hy - 36 - it.boxH), w: it.boxW, h: it.boxH,
+      })
       for (const dist of DISTS) {
         for (const d of DIRS) {
           const anchorY = d.dy > 0 ? it.ly : it.hy
@@ -213,12 +232,15 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
           const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
           let cost = Math.hypot(nx - it.ax, ny - anchorY) + bias(d)
+          // When the upper-left is candle-clear, strongly prefer it (stack up-left,
+          // a bit higher if a neighbour label is in the way) over down/right spots.
+          if (upLeftClear && d.dx < 0 && d.dy < 0) cost -= 120
           // Force a real DIAGONAL: reject if the leader came out vertical or
-          // horizontal (e.g. an edge-clamped label landing right above its
-          // candle). The scorer then picks a direction that stays diagonal
-          // (up-right for a left-edge candle, etc.).
+          // horizontal (e.g. an edge-clamped label landing right above its candle).
           if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += NONDIAG
           if (placed.some(p => rectsOverlap(rect, p))) cost += LABELOVR
+          // A leader crossing another leader (the ugly X) is as bad as overlap.
+          if (placedLeaders.some(L => segCross(it.ax, anchorY, nx, ny, L))) cost += LABELOVR
           if (hitsCandles(rect)) cost += BLOCKED
           if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
           if (cost < bestCost) { bestCost = cost; best = rect }
@@ -263,6 +285,10 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         })
       }
       placed.push({ ...it, ...rect })
+      // Record this leader so later labels won't cross it.
+      const lnx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
+      const lny = Math.max(rect.y, Math.min(rect.y + rect.h, rect.anchorY))
+      placedLeaders.push({ x0: it.ax, y0: rect.anchorY, x1: lnx, y1: lny })
     }
 
     // Leader lines (under the labels): candle anchor → nearest point on the box.
@@ -308,6 +334,28 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   }, [draw])
   // The callout set / bars / color changed → re-search placements from scratch.
   useEffect(() => { draw(false) }, [draw])
+
+  // Seamless stock switches: when the catalyst SET changes (new stock), instantly
+  // hide the canvas then fade it back in, so the labels don't visibly hop while
+  // the new chart's bars settle. Same stock (only positions moving) → no fade.
+  useEffect(() => {
+    const sig = (callouts || []).map(c => `${c?.time}|${c?.text}`).join('~')
+    const canvas = canvasRef.current
+    if (!canvas || sig === sigRef.current) return
+    sigRef.current = sig
+    canvas.style.transition = 'none'
+    canvas.style.opacity = '0'
+    let id2 = 0
+    const id1 = requestAnimationFrame(() => {
+      id2 = requestAnimationFrame(() => {
+        const c = canvasRef.current
+        if (!c) return
+        c.style.transition = 'opacity 200ms ease'
+        c.style.opacity = '1'
+      })
+    })
+    return () => { cancelAnimationFrame(id1); if (id2) cancelAnimationFrame(id2) }
+  }, [callouts])
 
   // Canvas sizing.
   useEffect(() => {
