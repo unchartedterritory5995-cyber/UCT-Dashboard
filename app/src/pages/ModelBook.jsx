@@ -432,9 +432,16 @@ function StockDetail({ stockId, isAdmin }) {
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
       revalidateOnFocus: false,
-      // Poll while year stats (avg vol) are warming or descriptions haven't been
-      // attempted yet (desc_at unset). Stops once an attempt is recorded.
-      refreshInterval: (d) => (d && !d.error && (d.avg_vol == null || (!d.company_desc && !d.desc_at))) ? 5000 : 0,
+      // Poll while year stats (avg vol) are warming, descriptions haven't been
+      // attempted (desc_at unset), or catalysts are auto-generating on first view
+      // (none yet + catalysts_at unset). Stops once each attempt is recorded.
+      refreshInterval: (d) => {
+        if (!d || d.error) return 0
+        const statsPending = d.avg_vol == null
+        const descPending = !d.company_desc && !d.desc_at
+        const catalystsPending = !(d.catalysts && d.catalysts.length) && !d.catalysts_at
+        return (statsPending || descPending || catalystsPending) ? 5000 : 0
+      },
     },
   )
   // Chronological so the list reads as a time-ordered guide to the buy spots
@@ -880,9 +887,9 @@ function StockDetail({ stockId, isAdmin }) {
                   {catError && <p className={styles.catError}>{catError}</p>}
                   {catalysts.length === 0 ? (
                     <p className={styles.noSetups}>
-                      {isAdmin
-                        ? 'No catalysts yet — use ✨ Generate to find this year’s biggest movers.'
-                        : 'No catalysts labeled for this year yet.'}
+                      {!stock.catalysts_at
+                        ? 'Finding this year’s bullish catalysts…'
+                        : 'No catalysts found for this year.'}
                     </p>
                   ) : (
                     <div className={styles.setupListC}>

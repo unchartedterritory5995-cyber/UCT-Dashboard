@@ -148,6 +148,10 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     # Auto-generate the company/story descriptions on first view (background).
     if not stock.get("company_desc") and _is_final_year(stock.get("year", 0)):
         _gen_desc_async(stock)
+    # Auto-generate bullish, stock-specific catalysts on first view (background),
+    # once per stock — then kept permanently in the DB (no manual "Generate").
+    if _needs_catalysts(stock):
+        _gen_catalysts_async(stock)
     return stock
 
 
@@ -399,10 +403,10 @@ def _gen_desc_async(stock):
 
 
 def warm_all_stats() -> None:
-    """Background pre-warm at startup: compute + persist price stats AND generate
-    AI descriptions for every curated stock in a closed year that lacks them. Low
-    concurrency + a delay past the startup bars-resync window. Re-checks once more
-    after a longer delay to catch transients."""
+    """Background pre-warm at startup: compute + persist price stats, AI
+    descriptions, AND bullish catalysts for every curated closed-year stock that
+    lacks them (each generated once, then kept forever). Low concurrency + a delay
+    past the startup bars-resync window. Re-checks once more to catch transients."""
     import time as _time
     for delay in (35, 120):
         _time.sleep(delay)
@@ -412,7 +416,11 @@ def warm_all_stats() -> None:
             continue
         stats_done = all(s.get("oc_pct") is not None and s.get("avg_vol") is not None for s in stocks)
         desc_done = not any(_needs_desc(s) for s in stocks)
-        if stats_done and desc_done:
+        try:
+            cat_pending = [s for s in svc.get_stocks_needing_catalysts() if _is_final_year(s["year"])]
+        except Exception:
+            cat_pending = []
+        if stats_done and desc_done and not cat_pending:
             return  # fully warmed
         if not stats_done:
             _persist_stats_for(stocks, max_workers=2)
@@ -421,6 +429,7 @@ def warm_all_stats() -> None:
             except Exception:
                 pass
         _generate_descriptions_for(stocks)
+        _generate_catalysts_for(cat_pending)
 
 
 # ── AI-generated catalysts (the year's most impactful, move-driving events) ───
@@ -442,9 +451,10 @@ def _fetch_year_bars(symbol: str, year: int) -> list:
     return yb
 
 
-def _big_move_days(bars: list, top_n: int = 12) -> list:
-    """The largest single-day moves of the year (by |% change vs prior close|),
-    so the LLM attributes catalysts to days the stock actually moved big."""
+def _big_up_days(bars: list, top_n: int = 12) -> list:
+    """The largest single-day UP moves of the year (% GAIN vs prior close), so the
+    LLM attributes BULLISH catalysts to days the stock actually jumped. Down days
+    are excluded — catalysts are positive, stock-specific events only."""
     out = []
     prev_c = None
     for b in bars:
@@ -459,9 +469,10 @@ def _big_move_days(bars: list, top_n: int = 12) -> list:
             pct = (c - o) / o * 100
         else:
             pct = 0.0
-        out.append({"date": str(t)[:10], "pct": round(pct, 1)})
+        if pct > 0:
+            out.append({"date": str(t)[:10], "pct": round(pct, 1)})
         prev_c = c
-    out.sort(key=lambda d: abs(d["pct"]), reverse=True)
+    out.sort(key=lambda d: d["pct"], reverse=True)
     return out[:top_n]
 
 
@@ -501,7 +512,7 @@ def _generate_catalysts(symbol, company, year, gain_pct):
             return None
         trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
         day_set = set(trading_days)
-        movers = _big_move_days(bars, top_n=12)
+        movers = _big_up_days(bars, top_n=12)
         if not movers:
             return None
         from api.services.engine import _get_anthropic_client
@@ -510,29 +521,36 @@ def _generate_catalysts(symbol, company, year, gain_pct):
             return None
         gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
         movers_txt = "\n".join(
-            f"- {m['date']} -> {'+' if m['pct'] >= 0 else ''}{m['pct']}%" for m in movers
+            f"- {m['date']} -> +{m['pct']}%" for m in movers
         )
-        system = ("You identify the real catalysts behind a stock's biggest moves for a "
-                  "trader's model book. Be factual and specific to the given year. "
-                  "Output JSON only — no preamble, no markdown fences.")
+        system = ("You identify the real, STOCK-SPECIFIC bullish catalysts that ignited a "
+                  "stock's biggest up-moves, for a trader's model book. Be factual and "
+                  "specific to the given year. Output JSON only — no preamble, no fences.")
         prompt = (
             f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
             f"Full-year move: {gain_txt}.\n\n"
-            f"The stock's largest single-day moves that year (date -> that day's % change):\n"
+            f"The stock's largest single-day GAINS that year (date -> that day's % up move):\n"
             f"{movers_txt}\n\n"
-            "Identify the 3-5 MOST impactful catalysts that drove immediate big moves in "
-            f"{symbol} during {year} — the events that caused the stock to jump (or drop) "
-            "hard that day.\n"
+            f"Identify the 3-5 most impactful BULLISH, COMPANY-SPECIFIC catalysts that "
+            f"ignited a sharp UP move in {symbol} during {year}.\n"
             'Return JSON exactly: {"catalysts": [{"date": "YYYY-MM-DD", "title": "...", '
             '"description": "...", "move_pct": 0.0}, ...]}, ordered most impactful first.\n'
             "- date: the trading day the catalyst hit. STRONGLY PREFER a date from the "
-            "list above (those are the real big-move days).\n"
-            "- title: a 2-5 word headline of the catalyst (e.g. \"Q3 earnings beat\", "
-            "\"AI supply agreement\", \"Analyst upgrade\", \"Index inclusion\").\n"
-            "- description: ONE factual sentence on the catalyst and why it moved the stock.\n"
-            "- move_pct: the approximate single-day % move that day (number).\n"
-            "Rules: factual and specific to that year. If you don't know the exact news for "
-            "a given day, attribute it to the most likely driver given the company and the "
+            "list above (those are the real up-move days).\n"
+            "- title: a 2-5 word headline of the company-specific event (e.g. \"Q3 earnings "
+            "beat\", \"AI supply deal\", \"Major customer win\", \"Product launch\", "
+            "\"FDA approval\", \"Analyst upgrade\", \"Guidance raise\", \"Index inclusion\").\n"
+            "- description: ONE factual sentence on the catalyst and why it drove the stock up.\n"
+            "- move_pct: the approximate single-day % GAIN that day (positive number).\n\n"
+            "STRICT RULES:\n"
+            "- ONLY positive, bullish catalysts that pushed the stock UP. NEVER include "
+            "negative, bearish, disappointing, or sell-off events.\n"
+            "- ONLY stock-specific company events (earnings, products, partnerships, "
+            "contracts/customer wins, approvals, analyst upgrades, M&A, guidance raises, "
+            "index inclusion). Do NOT include market-wide or macro catalysts (Fed/interest "
+            "rates, broad market or sector rallies, index-wide themes, 'risk-on' sentiment).\n"
+            "- Factual and specific to that year. If unsure of the exact news for "
+            "a given day, attribute it to the most likely company-specific driver given the "
             "year's dominant theme. No price targets, no buy/sell advice."
         )
         msg = client.messages.create(
@@ -567,6 +585,77 @@ def _generate_catalysts(symbol, company, year, gain_pct):
         return out or None
     except Exception:
         return None
+
+
+# ── Auto-generated catalysts (no manual click; generated once, kept forever) ──
+
+_CATALYST_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
+_gen_cat_lock = _threading.Lock()
+_generating_catalysts = set()  # stock ids with a catalyst generation in flight
+
+
+def _needs_catalysts(stock_detail) -> bool:
+    """True if a stock still needs auto-generated catalysts: none yet AND either
+    never attempted or the last attempt is stale (so failures retry, successes
+    don't — once generated they're kept permanently in the DB)."""
+    if not _CATALYST_ENABLED or stock_detail.get("catalysts"):
+        return False
+    ca = stock_detail.get("catalysts_at")
+    return (not ca) or (int(_time_mod.time()) - ca > _CATALYST_RETRY_AFTER)
+
+
+def _gen_one_stock_catalysts(stock) -> None:
+    items = _generate_catalysts(
+        stock["symbol"], stock.get("company"), stock["year"],
+        stock.get("oc_pct") if stock.get("oc_pct") is not None else stock.get("gain_pct"),
+    )
+    if items:
+        svc.replace_catalysts(stock["id"], items)
+    else:
+        svc.mark_catalysts_attempt(stock["id"])  # stamp so we don't loop on empties
+
+
+def _gen_catalysts_async(stock):
+    """Deduped background catalyst generation for one stock (first-view trigger)."""
+    sid = stock.get("id")
+    if not sid or not _CATALYST_ENABLED:
+        return
+    with _gen_cat_lock:
+        if sid in _generating_catalysts:
+            return
+        _generating_catalysts.add(sid)
+
+    def _run():
+        try:
+            _gen_one_stock_catalysts(stock)
+        except Exception:
+            try:
+                svc.mark_catalysts_attempt(sid)
+            except Exception:
+                pass
+        finally:
+            with _gen_cat_lock:
+                _generating_catalysts.discard(sid)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-catalysts-{sid}").start()
+
+
+def _generate_catalysts_for(stocks, max_workers=2):
+    """Batch background catalyst generation (the startup warm). Low concurrency to
+    be gentle on the Anthropic API + SQLite. Caller pre-filters to those needing it."""
+    if not stocks:
+        return
+    import concurrent.futures
+
+    def _work(s):
+        try:
+            _gen_one_stock_catalysts(s)
+        except Exception:
+            try:
+                svc.mark_catalysts_attempt(s["id"])
+            except Exception:
+                pass
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        list(ex.map(_work, stocks))
 
 
 # ── Writes (admin only) ───────────────────────────────────────────────────────

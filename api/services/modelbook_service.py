@@ -431,6 +431,49 @@ def delete_catalyst(catalyst_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def mark_catalysts_attempt(stock_id: int) -> None:
+    """Stamp catalysts_at without writing rows — records that auto-generation was
+    attempted (even on failure/empty) so the poller/warm don't retry in a loop."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE modelbook_stocks SET catalysts_at = ? WHERE id = ?",
+                  (int(time.time()), int(stock_id)))
+        c.commit()
+
+
+def get_stocks_needing_catalysts(retry_after: int = 86400) -> list[dict]:
+    """Stocks with NO catalysts and no recent generation attempt — used by the
+    background warm to pre-populate catalysts (each generated once, then kept)."""
+    cutoff = int(time.time()) - int(retry_after)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT s.* FROM modelbook_stocks s
+               LEFT JOIN modelbook_catalysts x ON x.stock_id = s.id
+               WHERE x.id IS NULL AND (s.catalysts_at IS NULL OR s.catalysts_at < ?)
+               GROUP BY s.id""",
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def regen_catalysts(version_tag: str) -> None:
+    """One-time (per tag): drop AI-generated catalysts + reset catalysts_at so the
+    auto-generator rebuilds them with an updated prompt/policy (e.g. bullish-only).
+    Manual ('manual' source) catalysts are preserved. Flag-gated so it runs once."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        f".modelbook_catalysts_{version_tag}")
+    if os.path.exists(flag):
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute("DELETE FROM modelbook_catalysts WHERE source = 'ai'")
+            c.execute("UPDATE modelbook_stocks SET catalysts_at = NULL")
+            c.commit()
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("done\n")
+    except OSError:
+        pass
+
+
 def replace_catalysts(stock_id: int, items: list[dict]) -> Optional[list[dict]]:
     """Replace ALL of a stock's catalysts with a fresh set (used by AI generation).
     Stamps catalysts_at so a failed/empty generation isn't retried in a loop.

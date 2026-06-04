@@ -1013,13 +1013,17 @@ users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note)
 **Swing:** High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
 **Intraday:** Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green to Red, 30min Pivot, Mean Reversion L/S
 
-### Catalysts (AI-generated, marker + gold candle) — added 2026-06-03
-A second tab beside Setups in the right panel: the year's **top 3-5 catalysts** — the
-events that drove immediate big moves. AI-generated, admin-editable (the "AI draft →
-admin edits" model).
-- **Table `modelbook_catalysts`**: `(id, stock_id→stocks ON DELETE CASCADE, catalyst_date 'YYYY-MM-DD', title, description, move_pct, sort_order, source 'ai'|'manual', created_at)`. `modelbook_stocks` gained `catalysts_at` (last generation attempt epoch). Included in `get_stock_detail` as `catalysts[]`.
-- **Generation** (`POST /api/modelbook/stock/{id}/catalysts/generate`, admin, synchronous one LLM call): `_big_move_days()` ranks the year's daily bars by |% change vs prior close| → top 12 candidate days handed to Claude (`MODELBOOK_LLM_MODEL`), which attributes the most impactful catalysts to those days. Each returned date is `_snap_trading_day()`'d to the nearest real session (≤5 days) so the marker/gold-candle always lands on a candle. `replace_catalysts()` swaps the whole set + stamps `catalysts_at`. Gated by `MODELBOOK_CATALYSTS_ENABLED` (default on).
-- **Manual CRUD** (admin): `POST /stock/{id}/catalysts`, `PUT /catalyst/{id}`, `DELETE /catalyst/{id}`.
+### Catalysts (AI-generated, marker + gold candle) — added 2026-06-03; auto-gen + bullish-only 2026-06-04
+A second tab beside Setups in the right panel: the year's **top 3-5 BULLISH, stock-specific
+catalysts** that ignited an UP move — earnings beats, products, partnerships, customer wins,
+approvals, upgrades, M&A, guidance raises, index inclusion (NO negative/bearish events, NO
+macro/market-wide catalysts). **Auto-generated once per stock, then kept forever** (no manual
+click). Still admin-editable.
+- **Table `modelbook_catalysts`**: `(id, stock_id→stocks ON DELETE CASCADE, catalyst_date 'YYYY-MM-DD', title, description, move_pct, sort_order, source 'ai'|'manual', created_at)`. `modelbook_stocks` gained `catalysts_at` (last generation attempt epoch — the "already attempted, don't loop" marker). Included in `get_stock_detail` as `catalysts[]`.
+- **Auto-generation:** `GET /stock/{id}` fires `_gen_catalysts_async()` on first view when `_needs_catalysts()` (none yet + `catalysts_at` null-or-stale); `warm_all_stats` also pre-warms closed-year stocks via `get_stocks_needing_catalysts()`. Each stock generates **once** (success → `catalysts[]` filled; empty/fail → `mark_catalysts_attempt()` stamps `catalysts_at` so it won't retry except after the 1-day window). Frontend polls (`refreshInterval`) while `catalysts` empty + `catalysts_at` null, showing "Finding bullish catalysts…".
+- **The LLM call:** `_big_up_days()` ranks the year's daily bars by **% GAIN vs prior close** (down days excluded) → top 12 up-days → Claude (`MODELBOOK_LLM_MODEL`), prompted for bullish company-specific catalysts only (explicit "no bearish, no macro" rules). Dates `_snap_trading_day()`'d to a real session (≤5d). `replace_catalysts()` swaps the set + stamps `catalysts_at`. Gated by `MODELBOOK_CATALYSTS_ENABLED`.
+- **One-time policy reset:** `regen_catalysts("bullish_v1")` at startup (flag-gated, `main.py`) drops old AI catalysts + resets `catalysts_at` so everything regenerates under the bullish-only rules; manual (`source='manual'`) catalysts are preserved.
+- **Manual override** (admin): `POST /stock/{id}/catalysts/generate` is **idempotent** — returns existing without an LLM call unless `?force=true` (the "Regenerate" button, behind a confirm). Plus `POST /stock/{id}/catalysts`, `PUT /catalyst/{id}`, `DELETE /catalyst/{id}`.
 - **Chart**: on the Catalysts tab the chart shows gold ⚡ `markers` (StockChart `markers` prop) at each catalyst + ALL catalyst candles gold (`highlightBarTime` array) + setup overlays hidden; clicking a catalyst row focus-zooms to it. Switching tabs zooms back out to the year. Tab choice persists (`modelbook_panel_tab`) and survives stock switches.
 
 ### Earnings table — per-quarter EPS + revenue vs estimate (added 2026-06-03)

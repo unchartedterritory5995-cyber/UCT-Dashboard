@@ -217,6 +217,45 @@ def test_delete_stock_cascades_to_catalysts(s):
     assert s.get_catalyst(cat["id"]) is None
 
 
+def test_mark_catalysts_attempt_stamps(s):
+    stock = s.create_stock(_stock())
+    assert s.get_stock_detail(stock["id"])["catalysts_at"] is None
+    s.mark_catalysts_attempt(stock["id"])
+    assert s.get_stock_detail(stock["id"])["catalysts_at"] is not None
+
+
+def test_get_stocks_needing_catalysts(s):
+    a = s.create_stock(_stock(symbol="NVDA"))
+    b = s.create_stock(_stock(symbol="PLTR"))
+    # Both need catalysts initially (none + never attempted).
+    assert {x["symbol"] for x in s.get_stocks_needing_catalysts()} == {"NVDA", "PLTR"}
+    # One gets catalysts → drops out.
+    s.create_catalyst(a["id"], _catalyst())
+    assert {x["symbol"] for x in s.get_stocks_needing_catalysts()} == {"PLTR"}
+    # The other gets an attempt stamp (e.g. generation found nothing) → drops out.
+    s.mark_catalysts_attempt(b["id"])
+    assert s.get_stocks_needing_catalysts() == []
+
+
+def test_regen_catalysts_clears_ai_keeps_manual_and_is_flag_gated(s):
+    stock = s.create_stock(_stock())
+    s.create_catalyst(stock["id"], _catalyst(source="ai", title="ai one"))
+    s.create_catalyst(stock["id"], _catalyst(source="manual", title="manual one",
+                                             catalyst_date="2025-06-01"))
+    s.mark_catalysts_attempt(stock["id"])
+
+    s.regen_catalysts("testtag")
+    detail = s.get_stock_detail(stock["id"])
+    assert [c["title"] for c in detail["catalysts"]] == ["manual one"]  # AI dropped, manual kept
+    assert detail["catalysts_at"] is None                              # reset so it regenerates
+
+    # Second call is a no-op (flag-gated) — a fresh AI catalyst survives.
+    s.create_catalyst(stock["id"], _catalyst(source="ai", title="ai two"))
+    s.regen_catalysts("testtag")
+    titles = {c["title"] for c in s.get_stock_detail(stock["id"])["catalysts"]}
+    assert "ai two" in titles
+
+
 def test_seed_initial_populates_and_is_flag_gated(s):
     s.seed_initial()
     assert s.list_years() == [2025, 2024]
