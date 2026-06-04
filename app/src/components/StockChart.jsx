@@ -524,6 +524,14 @@ export default function StockChart({
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
+  // The price pane's right scale, addressed via the candle series so it's always
+  // the PRICE scale even when an index-comparison pane sits at pane 0 (where
+  // chart.priceScale('right') would otherwise resolve). Falls back to the bare
+  // lookup before the series exists. Identical object when no index pane.
+  const mainPriceScale = useCallback(
+    () => candleSeriesRef.current?.priceScale?.() ?? chartRef.current?.priceScale('right') ?? null,
+    []
+  )
 
   // ── Keyboard help overlay state ──
   const [helpOpen, setHelpOpen] = useState(false)
@@ -691,8 +699,6 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
-  const indexPaneRawRef = useRef([])      // raw {time, value:close} points (series itself holds rebased %)
-  const lastIndexBaseRef = useRef(null)   // last rebase baseline price (skip redundant setData)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
@@ -841,7 +847,7 @@ export default function StockChart({
       try {
         // Clear any locked vertical placement and restore the default candle band.
         vertMarginsRef.current = null
-        chartRef.current?.priceScale('right').applyOptions({
+        mainPriceScale()?.applyOptions({
           autoScale: true,
           scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
         })
@@ -3071,7 +3077,7 @@ export default function StockChart({
       // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
       // already applied that band's scaleMargins (= the captured proportional placement,
       // or the default headroom), so autoScale fills it with THIS stock's own range.
-      try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch {}
+      try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch {}
 
       let didPreserve = false
       if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
@@ -3214,7 +3220,7 @@ export default function StockChart({
       if (!r) return
       try {
         chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to })
-        chart.priceScale('right').applyOptions({ autoScale: true })
+        mainPriceScale()?.applyOptions({ autoScale: true })
       } catch { /* range can be out of bounds mid-load; next update re-pins */ }
     }
     applyYear()
@@ -3279,7 +3285,7 @@ export default function StockChart({
         focusProviderInstalledRef.current = true
       } catch { /* provider optional */ }
     }
-    try { chart.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+    try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
 
     if (focusDate) {
       // Last bar on/at-or-before the setup date becomes the rightmost candle.
@@ -3341,7 +3347,7 @@ export default function StockChart({
       if (!focusActiveRef.current || annEditableRef.current) return
       focusActiveRef.current = false
       focusPriceRangeRef.current = null
-      try { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
       onFocusEscape()
     }
     // Wheel-zoom escapes immediately. For drag-pan, only escape once the pointer
@@ -3373,8 +3379,12 @@ export default function StockChart({
     const chart = chartRef.current
     if (!chart) return
     const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
-    try { chart.priceScale('right').applyOptions({ mode }) } catch { /* pre-init */ }
-  }, [effectiveScale, chartReady])
+    // Apply to the PRICE scale (via the candle series, robust to the index pane
+    // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
+    // both panes together. The index line is raw price, so log/percent are valid.
+    try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
+    try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
+  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
@@ -3433,46 +3443,13 @@ export default function StockChart({
     } catch {}
   }, [comparisonSeries])
 
-  // Rebase the index pane line to % change from the FIRST VISIBLE bar, so the
-  // axis reads in % relative to whatever window is on screen — zoom into a setup
-  // and it becomes "the Nasdaq did +X% over this same span" against the stock's
-  // move. Re-runs on visible-range changes; skips setData when the baseline bar
-  // is unchanged so the focus-zoom stays cheap.
-  const rebaseIndexPane = useCallback(() => {
-    const series = indexPaneSeriesRef.current
-    const chart = chartRef.current
-    const raw = indexPaneRawRef.current
-    if (!series || !chart || !raw || !raw.length) return
-    // Normalize any Time shape (unix number / 'YYYY-MM-DD' / BusinessDay) to a
-    // comparable key so daily and intraday both work.
-    const timeKey = (t) => {
-      if (t == null) return null
-      if (typeof t === 'number') return t
-      if (typeof t === 'string') return Number(t.replace(/-/g, ''))
-      if (typeof t === 'object' && t.year) return t.year * 10000 + t.month * 100 + t.day
-      return null
-    }
-    let fromKey = null
-    try { fromKey = timeKey(chart.timeScale().getVisibleRange()?.from) } catch { /* no range yet */ }
-    let base = null
-    if (fromKey != null) {
-      for (const p of raw) { if (timeKey(p.time) >= fromKey) { base = p.value; break } }
-    }
-    if (base == null) base = raw[0]?.value
-    if (!base) return
-    if (lastIndexBaseRef.current === base) return  // baseline bar unchanged → no redraw
-    lastIndexBaseRef.current = base
-    const pts = raw.map(p => ({ time: p.time, value: (p.value / base - 1) * 100 }))
-    try { series.setData(pts) } catch {}
-  }, [])
-
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
   // Creates a LineSeries in its own pane, moves that pane to index 0 (above the
   // price pane) and sizes the three panes [index | price | volume]. Fully
   // additive: when indexPaneSymbol is null, nothing here runs and the chart is
   // byte-identical. Main-pane references elsewhere use getPane() so they stay
-  // correct with the extra pane on top. The line is rebased to % of the visible
-  // window (see rebaseIndexPane).
+  // correct with the extra pane on top. The line is raw price; its scale mode
+  // (Normal/Log/Percent) follows the A/L/% toggle so both panes switch together.
   useEffect(() => {
     const chart = chartRef.current
     const mainPane = candleSeriesRef.current?.getPane?.()
@@ -3510,7 +3487,6 @@ export default function StockChart({
           crosshairMarkerVisible: true,
           crosshairMarkerRadius: 2,
           priceScaleId: 'right',
-          priceFormat: { type: 'percent' },  // line is rebased to % of the visible window
           title: typeof indexPaneSymbol === 'string' ? indexPaneSymbol.replace(/^\^/, '') : '',
         }, paneCount)
         indexPaneSeriesRef.current = s
@@ -3521,10 +3497,15 @@ export default function StockChart({
 
     if (indexPaneSeriesRef.current) {
       try { indexPaneSeriesRef.current.applyOptions({ color: indexPaneColor }) } catch {}
-      // Store raw closes; rebaseIndexPane sets the series to % of visible window.
-      indexPaneRawRef.current = indexPaneSeries
-      lastIndexBaseRef.current = null  // force a recompute against the new data
-      rebaseIndexPane()
+      // Raw close line. The price scale's mode (Normal/Log/Percent) follows the
+      // A/L/% toggle — applied here too (not just the mode effect) because that
+      // effect runs before this series exists on first load. In Percent mode LWC
+      // auto-rebases to the visible window, so relative strength reads directly.
+      try { indexPaneSeriesRef.current.setData(indexPaneSeries) } catch {}
+      try {
+        const idxMode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+        indexPaneSeriesRef.current.priceScale().applyOptions({ mode: idxMode })
+      } catch {}
       // Size [index | price | volume].
       try {
         const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
@@ -3541,26 +3522,7 @@ export default function StockChart({
         }
       } catch {}
     }
-  }, [indexPaneSymbol, indexPaneSeries, indexPaneColor, indexPaneHeightPct, volumePaneHeightPct, cs, chartReady, rebaseIndexPane])
-
-  // Re-rebase the index pane whenever the visible range changes (pan / zoom /
-  // focus-zoom), throttled to one rAF; rebaseIndexPane no-ops when the baseline
-  // bar is unchanged so this is cheap during the animation.
-  useEffect(() => {
-    const chart = chartRef.current
-    if (!chart || !indexPaneSymbol) return
-    const ts = chart.timeScale()
-    let raf = null
-    const onRange = () => {
-      if (raf) cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => rebaseIndexPane())
-    }
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
-    return () => {
-      if (raf) cancelAnimationFrame(raf)
-      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
-    }
-  }, [indexPaneSymbol, rebaseIndexPane, chartReady])
+  }, [indexPaneSymbol, indexPaneSeries, indexPaneColor, indexPaneHeightPct, volumePaneHeightPct, cs, chartReady, effectiveScale])
 
   // Remove the index-pane series on unmount.
   useEffect(() => {
@@ -3952,7 +3914,7 @@ export default function StockChart({
       // the user sees.
       const separateVolume = showVolume && (!!cs.volume.separatePane || (Array.isArray(cs.volumeOverlayIndicators) && cs.volumeOverlayIndicators.length > 0))
       let axisWidth = 0, timeAxisHeight = 0, pane0Height = rect.height
-      try { axisWidth = chart.priceScale('right').width() } catch {}
+      try { axisWidth = (mainPriceScale()?.width?.()) ?? chart.priceScale('right').width() } catch {}
       try { timeAxisHeight = chart.timeScale().height() } catch {}
       try { pane0Height = (candleSeriesRef.current?.getPane?.()?.getHeight?.()) ?? chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
       const paneMargins = computePaneMargins(cs, showVolume && !separateVolume, cs.volumeOverlayIndicators)
