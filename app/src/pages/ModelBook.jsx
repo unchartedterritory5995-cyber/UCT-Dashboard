@@ -15,7 +15,6 @@ const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
-const CATALYST_WHITE = '#ffffff'  // catalyst candles + labels render white (no marker shape)
 
 // Stable empty reference for priceLines. Returning a fresh [] on every render
 // gives StockChart a new prop identity each time the selected setup changes,
@@ -474,6 +473,17 @@ function StockDetail({ stockId, isAdmin }) {
       return nv
     })
   }
+  // Same "show all" idea for catalysts — default OFF so they only appear on click.
+  const [showAllCatalysts, setShowAllCatalysts] = useState(() => {
+    try { return localStorage.getItem('modelbook_show_all_catalysts') === '1' } catch { return false }
+  })
+  function toggleShowAllCatalysts() {
+    setShowAllCatalysts(v => {
+      const nv = !v
+      try { localStorage.setItem('modelbook_show_all_catalysts', nv ? '1' : '0') } catch { /* ignore */ }
+      return nv
+    })
+  }
   // Animated chart focus: which setup the chart is zoomed into + a nonce that
   // bumps on every click so re-clicking the same setup still re-fires the zoom.
   // stockId/tf are stamped so the focus auto-invalidates (derived below) when
@@ -595,18 +605,25 @@ function StockDetail({ stockId, isAdmin }) {
 
   const onCatalystTab = panelTab === 'catalysts'
   const onSetupsTab = !onCatalystTab
+  // The catalyst the chart is currently zoomed into (click a row → focus). Used
+  // to show just that one when "show all" is off.
+  const focusedCatalyst = (onCatalystTab && focusActive && focus.id != null)
+    ? catalysts.find(c => c.id === focus.id) : null
   // The chart shows setup overlays on the Setups tab and catalyst markers on the
-  // Catalysts tab — never both.
-  const chartCallouts = onCatalystTab && catalystCallouts.length ? catalystCallouts : null
+  // Catalysts tab — never both. On the Catalysts tab, "show all" mirrors setups:
+  // off → only the clicked catalyst (when zoomed in); on → every catalyst.
+  const chartCallouts = onCatalystTab
+    ? (showAllCatalysts
+        ? (catalystCallouts.length ? catalystCallouts : null)
+        : (focusedCatalyst && focusDate ? [{ time: focusedCatalyst.catalyst_date, text: focusedCatalyst.title }] : null))
+    : null
   const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
   const chartAnnotations = onSetupsTab ? annotations : null
   const chartAnnotationsVisible = onSetupsTab ? annotationsVisible : false
   const chartAnnotateMode = onSetupsTab ? annotateMode : false
   const chartHighlight = onCatalystTab
-    ? (catalystTimes.length ? catalystTimes : focusDate)
+    ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
     : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
-  // Catalyst candles render white; setup candles keep StockChart's default gold.
-  const chartHighlightColor = onCatalystTab ? CATALYST_WHITE : undefined
 
   // Quarterly earnings for the year — fetched for EVERY stock (the table is a
   // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
@@ -759,7 +776,6 @@ function StockDetail({ stockId, isAdmin }) {
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
-            highlightColor={chartHighlightColor}
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
@@ -851,6 +867,19 @@ function StockDetail({ stockId, isAdmin }) {
                     </button>
                   )}
                   {onSetupsTab && isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                  {onCatalystTab && catalysts.length > 0 && (
+                    <button
+                      className={`${styles.showAllToggle} ${showAllCatalysts ? styles.showAllToggleOn : ''}`}
+                      onClick={toggleShowAllCatalysts}
+                      aria-pressed={showAllCatalysts}
+                      title={showAllCatalysts
+                        ? 'Hide catalysts (only show on click)'
+                        : 'Show every catalyst on the chart'}
+                    >
+                      <span className={styles.showAllTrack}><span className={styles.showAllKnob} /></span>
+                      Show all
+                    </button>
+                  )}
                   {onCatalystTab && isAdmin && (
                     <AddCatalystForm stockId={stock.id} year={stock.year} onAdded={mutate} />
                   )}
