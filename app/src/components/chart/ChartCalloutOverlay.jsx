@@ -14,6 +14,15 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
+  const trackedRef = useRef(null)
+  // Cached per-label placement, keyed by `${time}|${text}`. Stores the label's
+  // offset from its anchor candle (offX from the candle x, offY from the anchor
+  // high/low) plus which end of the candle the leader line attaches to. The
+  // blank-space SEARCH only runs when this is empty for a label; during pan/zoom
+  // we reuse the cached offset so each label rides RIGIDLY with its candle
+  // instead of re-searching every frame (which made labels hop around). Like the
+  // setup annotations, the label is now locked to its candle through the zoom.
+  const placeRef = useRef(new Map())
 
   // Nearest bar index for a date string (exact on daily; closest week on weekly).
   const barIndexForDate = useCallback((dateStr) => {
@@ -28,7 +37,12 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     return best
   }, [bars])
 
-  const redraw = useCallback(() => {
+  // useCache=false → run the blank-space search for every label and refresh the
+  // offset cache (initial placement, callout-set change, resize). useCache=true →
+  // reuse cached offsets so labels track their candles smoothly during pan/zoom;
+  // any label without a cached offset (e.g. it just scrolled on-screen) is placed
+  // by search on the fly without disturbing the already-locked ones.
+  const draw = useCallback((useCache) => {
     const canvas = canvasRef.current
     const chart = chartRef?.current
     const series = seriesRef?.current
@@ -39,7 +53,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     if (!w || !h) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
-    if (!callouts || !callouts.length) return
+    if (!callouts || !callouts.length) { placeRef.current.clear(); return }
+    if (!useCache) placeRef.current.clear()
 
     const ts = chart.timeScale()
     const font = '400 11px "Instrument Sans", system-ui, sans-serif'
@@ -91,7 +106,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       if (ax == null || hy == null || ax < -40 || ax > w + 40) continue
       if (ly == null) ly = hy
       const tw = ctx.measureText(c.text).width
-      items.push({ text: c.text, ax, hy, ly, boxW: tw + padX * 2, boxH })
+      items.push({ key: `${c.time}|${c.text}`, text: c.text, ax, hy, ly, boxW: tw + padX * 2, boxH })
     }
     items.sort((a, b) => a.ax - b.ax)
 
@@ -116,7 +131,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           let y = d.dy < 0 ? ty - it.boxH : d.dy > 0 ? ty : ty - it.boxH / 2
           x = Math.max(4, Math.min(w - it.boxW - 4, x))
           y = Math.max(4, Math.min(priceBottom - it.boxH - 4, y))
-          const rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
+          const rect = { x, y, w: it.boxW, h: it.boxH, anchorY, anchorIsLow: d.dy > 0 }
           if (placed.some(p => rectsOverlap(rect, p))) continue
           if (!hitsCandles(rect)) return rect
           if (!fallback) fallback = rect   // remember a label-clear spot in case nothing is candle-clear
@@ -124,10 +139,29 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       }
       return fallback || {
         x: Math.max(4, Math.min(w - it.boxW - 4, it.ax - it.boxW / 2)),
-        y: Math.max(4, it.hy - 30 - it.boxH), w: it.boxW, h: it.boxH, anchorY: it.hy,
+        y: Math.max(4, it.hy - 30 - it.boxH), w: it.boxW, h: it.boxH, anchorY: it.hy, anchorIsLow: false,
       }
     }
-    for (const it of items) placed.push({ ...it, ...placeOne(it) })
+    // Place each label: reuse the cached offset (rigid track) when available,
+    // otherwise search for a blank spot and remember the offset for next frame.
+    for (const it of items) {
+      const cached = useCache ? placeRef.current.get(it.key) : null
+      let rect
+      if (cached) {
+        const anchorY = cached.anchorIsLow ? it.ly : it.hy
+        const x = Math.max(4, Math.min(w - it.boxW - 4, it.ax + cached.offX))
+        const y = Math.max(4, Math.min(priceBottom - it.boxH - 4, anchorY + cached.offY))
+        rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
+      } else {
+        rect = placeOne(it)
+        placeRef.current.set(it.key, {
+          offX: rect.x - it.ax,
+          offY: rect.y - rect.anchorY,
+          anchorIsLow: !!rect.anchorIsLow,
+        })
+      }
+      placed.push({ ...it, ...rect })
+    }
 
     // Leader lines (under the labels): candle anchor → nearest point on the box.
     ctx.save()
@@ -160,8 +194,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     ctx.shadowColor = 'transparent'
   }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate])
 
-  useEffect(() => { redrawRef.current = redraw }, [redraw])
-  useEffect(() => { redrawRef.current?.() }, [redraw])
+  // redrawRef → full search-and-place (deps change / resize).
+  // trackedRef → cached rigid track (per-frame pan/zoom).
+  useEffect(() => {
+    redrawRef.current = () => draw(false)
+    trackedRef.current = () => draw(true)
+  }, [draw])
+  // The callout set / bars / color changed → re-search placements from scratch.
+  useEffect(() => { draw(false) }, [draw])
 
   // Canvas sizing.
   useEffect(() => {
@@ -197,7 +237,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const ts = chart.timeScale()
     const onRange = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      rafRef.current = requestAnimationFrame(() => redrawRef.current?.())
+      rafRef.current = requestAnimationFrame(() => trackedRef.current?.())
     }
     try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
 
@@ -209,7 +249,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         const y0 = series?.priceToCoordinate(1)
         const y1 = series?.priceToCoordinate(100)
         const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-        if (sig !== lastSig) { lastSig = sig; redrawRef.current?.() }
+        if (sig !== lastSig) { lastSig = sig; trackedRef.current?.() }
       } catch { /* chart torn down mid-frame */ }
       loopRaf = requestAnimationFrame(tick)
     }
