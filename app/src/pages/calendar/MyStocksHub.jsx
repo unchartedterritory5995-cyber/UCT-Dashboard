@@ -28,6 +28,9 @@ import useSeen from '../../hooks/useSeen'
 import { SentimentGaugeDisplay } from '../../components/calendar/SentimentGauge'
 import useSentiment from '../../hooks/useSentiment'
 import CallRecapSection from '../../components/calendar/CallRecapSection'
+import EarningsModal from '../../components/tiles/EarningsModal'
+import ErrorBoundary from '../../components/ErrorBoundary'
+import { toModalRow, timingLabel } from './earningsModalRow'
 import styles from './Calendar.module.css'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -317,7 +320,14 @@ export default function MyStocksHub() {
   const { prefs, setPref } = usePreferences()
   const { data: mySets } = useCalendarMySets()
   const [activeTab, setActiveTab] = useState('earnings')
-  const [selectedEntry, setSelectedEntry] = useState(null)
+  const [selected, setSelected] = useState(null)   // { row, label } for EarningsModal
+
+  // Open the earnings detail modal for a clicked card. `_timing` rides on the
+  // hub entry (set in EarningsTab) so we don't need a separate timing arg.
+  const openEntry = useCallback(
+    entry => setSelected({ row: toModalRow(entry), label: timingLabel(entry?._timing) }),
+    [],
+  )
 
   const mySources = prefs.calendar_mystocks_sources || ALL_SOURCES
   const setMySources = s => setPref('calendar_mystocks_sources', s)
@@ -382,7 +392,7 @@ export default function MyStocksHub() {
         {activeTab === 'earnings' && (
           <EarningsTab
             mineSyms={mineSyms}
-            onSelect={setSelectedEntry}
+            onSelect={openEntry}
             seen={seenMap.earnings.seen}
             markSeen={seenMap.earnings.markSeen}
           />
@@ -412,6 +422,24 @@ export default function MyStocksHub() {
           <InsightsTab mineSyms={mineSyms} />
         )}
       </div>
+
+      {/* Earnings detail modal — opened by clicking a card in the Earnings tab */}
+      {selected && (
+        <ErrorBoundary
+          key={selected.row.sym}
+          fallback={
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>
+              Unable to load — click a ticker to retry.
+            </div>
+          }
+        >
+          <EarningsModal
+            row={selected.row}
+            label={selected.label}
+            onClose={() => setSelected(null)}
+          />
+        </ErrorBoundary>
+      )}
     </div>
   )
 }

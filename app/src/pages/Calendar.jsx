@@ -4,6 +4,7 @@
 import { useState, useMemo } from 'react'
 import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsModal from '../components/tiles/EarningsModal'
+import { toModalRow, timingLabel } from './calendar/earningsModalRow'
 import usePreferences from '../hooks/usePreferences'
 import {
   useCalendar,
@@ -37,35 +38,6 @@ function fmtRev(v) {
   if (v == null) return null
   if (v >= 1000) return `$${(v / 1000).toFixed(1)}B`
   return `$${Math.round(v)}M`
-}
-
-function verdict(eps_act, eps_est) {
-  if (eps_act == null) return 'pending'
-  if (eps_est == null) return 'reported'
-  if (eps_act > eps_est) return 'beat'
-  if (eps_act < eps_est) return 'miss'
-  return 'meet'
-}
-
-function calcSurprise(act, est) {
-  if (act == null || est == null || est === 0) return null
-  const pct = ((act - est) / Math.abs(est)) * 100
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
-}
-
-// Normalize calendar entry → EarningsModal row format (ported from old Calendar.jsx)
-function toModalRow(entry) {
-  const v = verdict(entry.eps_act, entry.eps_est)
-  return {
-    sym:              entry.sym,
-    verdict:          v === 'meet' ? 'mixed' : v,
-    reported_eps:     entry.eps_act,
-    eps_estimate:     entry.eps_est,
-    surprise_pct:     calcSurprise(entry.eps_act, entry.eps_est),
-    rev_actual:       entry.rev_act,
-    rev_estimate:     entry.rev_est,
-    rev_surprise_pct: calcSurprise(entry.rev_act, entry.rev_est),
-  }
 }
 
 function fmtWeekRange(start, end) {
@@ -219,9 +191,7 @@ export default function Calendar() {
 
   // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
   const onSelect = (entry, timing) => {
-    const label = timing === 'bmo' || timing === 'BEFORE MARKET OPEN'
-      ? 'BEFORE MARKET OPEN'
-      : 'AFTER MARKET CLOSE'
+    const label = timingLabel(timing)
     setSelected({ row: toModalRow(entry), label })
   }
 

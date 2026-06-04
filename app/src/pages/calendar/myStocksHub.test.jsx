@@ -99,6 +99,15 @@ vi.mock('../../components/calendar/CallRecapSection', () => ({
   default: ({ recap }) => <div data-testid="call-recap">{recap?.headline}</div>,
 }))
 
+// Mock EarningsModal — assert it opens on card click with the right sym + label
+vi.mock('../../components/tiles/EarningsModal', () => ({
+  default: ({ row, label, onClose }) => (
+    <div data-testid="earnings-modal" data-sym={row?.sym} data-label={label}>
+      <button onClick={onClose}>close</button>
+    </div>
+  ),
+}))
+
 // SWR mock for /api/news
 vi.mock('swr', async (importOriginal) => {
   const real = await importOriginal()
@@ -219,6 +228,18 @@ describe('MyStocksHub', () => {
       .find(c => c.getAttribute('data-sym') === 'AAPL')
     expect(aapl).toBeTruthy()
     expect(aapl.getAttribute('data-timing')).toBe('bmo')
+  })
+
+  it('Earnings tab: clicking a card opens the EarningsModal', () => {
+    renderHub()
+    expect(screen.queryByTestId('earnings-modal')).toBeNull()
+    const aapl = screen
+      .getAllByTestId('earnings-card')
+      .find(c => c.getAttribute('data-sym') === 'AAPL')
+    fireEvent.click(aapl)
+    const modal = screen.getByTestId('earnings-modal')
+    expect(modal.getAttribute('data-sym')).toBe('AAPL')
+    expect(modal.getAttribute('data-label')).toBe('BEFORE MARKET OPEN')
   })
 
   it('renders the hub title', () => {
