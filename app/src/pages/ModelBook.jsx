@@ -683,13 +683,22 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     setFocus(f => ({ id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }))
     document.querySelector(`[data-catalyst-id="${c.id}"]`)?.scrollIntoView({ block: 'nearest' })
   }
-  // Expose catalyst-nav state to the parent ModelBook's keyboard handler so ↑/↓
-  // scroll catalysts while one is open, and revert to ticker nav when none is.
+  // Track whether the user's last click landed inside the catalyst section, so
+  // ↑/↓ only scroll catalysts while focused there. Clicking ANYWHERE else (chart,
+  // ticker list, info panel) hands the arrows back to ticker navigation — even
+  // if a catalyst is still open.
+  const catSectionFocusedRef = useRef(false)
+  useEffect(() => {
+    const onDown = e => { catSectionFocusedRef.current = !!e.target?.closest?.('[data-cat-section]') }
+    document.addEventListener('mousedown', onDown, true)
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [])
+  // Expose catalyst-nav state to the parent ModelBook's keyboard handler.
   useEffect(() => {
     if (!catNavRef) return
     catNavRef.current = {
-      active: onCatalystTab && expandedCatalystId != null,
       list: catalysts, id: expandedCatalystId, select: selectCatalyst,
+      isActive: () => catSectionFocusedRef.current && onCatalystTab && expandedCatalystId != null,
     }
   })
 
@@ -879,7 +888,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
 
             {/* Setups (buy spots) + Catalysts (move-driving events) — two tabbed
                 guides to the chart. Click a row to focus/zoom that point. */}
-            <div className={styles.panelSetups}>
+            <div className={styles.panelSetups} data-cat-section>
               <div className={styles.setupSectionHead}>
                 <div className={styles.panelTabs}>
                   <button className={`${styles.panelTab} ${onSetupsTab ? styles.panelTabActive : ''}`}
@@ -1150,7 +1159,7 @@ export default function ModelBook() {
 
       // ↑/↓ while clicked into a catalyst → scroll through the catalysts.
       const cn = catNavRef.current
-      if (cn.active && cn.list.length) {
+      if (cn.isActive?.() && cn.list.length) {
         e.preventDefault()
         const ci = cn.list.findIndex(c => c.id === cn.id)
         let cnext = ci === -1 ? 0 : (e.key === 'ArrowDown' ? ci + 1 : ci - 1)

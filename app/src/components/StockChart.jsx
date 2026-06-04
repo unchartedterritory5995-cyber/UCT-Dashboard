@@ -4631,7 +4631,10 @@ export default function StockChart({
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
-      {callouts != null && callouts.length > 0 && bars?.length > 0 && (
+      {/* Wait for the price-pane box to be measured before mounting the callout
+          overlay on an index-pane chart, so labels are placed with the correct
+          bounds from the first paint (no first-click jump). */}
+      {callouts != null && callouts.length > 0 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
         <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
           <ChartCalloutOverlay
             chartRef={chartRef}
