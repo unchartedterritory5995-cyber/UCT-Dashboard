@@ -95,6 +95,9 @@ function _makeCell(d, inMonth, todayStr, daysMap) {
   const all = [...bmo, ...amc]
   const syms = all.map(e => e.sym).filter(Boolean)
   const mineSyms = new Set(all.filter(e => e.mine).map(e => e.sym).filter(Boolean))
+  // Per-timing symbol lists so the month cell can split BMO (top) / AMC (bottom).
+  const bmoSyms = bmo.map(e => e.sym).filter(Boolean)
+  const amcSyms = amc.map(e => e.sym).filter(Boolean)
   const hasMacro = !!(day.econ?.some(e => e.is_key) || day.fed?.length)
   return {
     ds,
@@ -102,6 +105,8 @@ function _makeCell(d, inMonth, todayStr, daysMap) {
     inMonth,
     isToday: ds === todayStr,
     syms,
+    bmoSyms,
+    amcSyms,
     mineSyms,
     hasMacro,
   }

@@ -443,9 +443,11 @@
   border: 1px solid var(--cal-line);
   border-radius: 8px;
   padding: 7px 8px;
-  min-height: 72px;
+  min-height: 104px;
   cursor: pointer;
   transition: border-color 0.12s;
+  display: flex;
+  flex-direction: column;
 }
 
 .gcell:hover {
@@ -465,6 +467,47 @@
   font-weight: 800;
   color: var(--cal-dim);
   margin-bottom: 4px;
+}
+
+/* ── BMO / AMC split bands ─────────────────────────────────────────────── */
+.gband {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.gbandLbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+}
+
+.gbandIcon {
+  font-size: 9px;
+  line-height: 1;
+  filter: saturate(0.85);
+}
+
+.gbandDivider {
+  height: 1px;
+  margin: 5px -8px;
+  background: var(--cal-line);
+}
+
+.gbandEmpty {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cal-line2);
+  line-height: 1;
 }
 
 .glogos {

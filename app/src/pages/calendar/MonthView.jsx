@@ -44,10 +44,33 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 
 // ── MonthGrid cell ─────────────────────────────────────────────────────────
 
+// One timing band (BMO or AMC) inside a month cell.
+function TimingBand({ label, icon, syms, mineSyms }) {
+  const MAX_LOGOS = 5
+  const shown = syms.slice(0, MAX_LOGOS)
+  const overflow = syms.length - MAX_LOGOS
+  return (
+    <div className={styles.gband}>
+      <span className={styles.gbandLbl}>
+        <span className={styles.gbandIcon} aria-hidden="true">{icon}</span>{label}
+      </span>
+      {shown.length ? (
+        <div className={styles.glogos}>
+          {shown.map(s => (
+            <span key={s} className={mineSyms.has(s) ? styles.mineRing : ''}>
+              <CompanyLogo sym={s} size={18} />
+            </span>
+          ))}
+          {overflow > 0 && <span className={styles.gmore}>+{overflow}</span>}
+        </div>
+      ) : (
+        <span className={styles.gbandEmpty}>—</span>
+      )}
+    </div>
+  )
+}
+
 function MonthCell({ cell, onOpenDay }) {
-  const MAX_LOGOS = 6
-  const shown = cell.syms.slice(0, MAX_LOGOS)
-  const overflow = cell.syms.length - MAX_LOGOS
   return (
     <div
       className={[
@@ -61,14 +84,9 @@ function MonthCell({ cell, onOpenDay }) {
         {cell.dayNum}
         {cell.hasMacro && <span className={styles.macroStar}> ★</span>}
       </div>
-      <div className={styles.glogos}>
-        {shown.map(s => (
-          <span key={s} className={cell.mineSyms.has(s) ? styles.mineRing : ''}>
-            <CompanyLogo sym={s} size={18} />
-          </span>
-        ))}
-        {overflow > 0 && <span className={styles.gmore}>+{overflow}</span>}
-      </div>
+      <TimingBand label="BMO" icon="☀" syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
+      <div className={styles.gbandDivider} />
+      <TimingBand label="AMC" icon="🌙" syms={cell.amcSyms} mineSyms={cell.mineSyms} />
     </div>
   )
 }
