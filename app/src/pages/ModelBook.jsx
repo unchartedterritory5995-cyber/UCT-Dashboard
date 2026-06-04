@@ -776,6 +776,7 @@ function StockDetail({ stockId, isAdmin }) {
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
+            highlightColor="#ffffff"
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
