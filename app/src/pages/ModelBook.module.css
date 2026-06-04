@@ -112,7 +112,9 @@
 .chartWrap { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
 /* Permanent earnings table pinned top-left over the chart (below the OHLC legend) */
 .earnOverlay {
-  position: absolute; top: 34px; left: 10px; z-index: 5; pointer-events: none;
+  /* Below the crosshair OHLC legend (top:28px, z-index:3 in StockChart) and
+     behind it (z-index:2) so hovering the chart never hides the legend. */
+  position: absolute; top: 52px; left: 10px; z-index: 2; pointer-events: none;
   background: rgba(10,12,16,0.74); border: 1px solid rgba(255,255,255,0.09);
   border-radius: 6px; padding: 5px 9px 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }

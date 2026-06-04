@@ -47,8 +47,9 @@ vi.mock('swr', () => ({
     if (typeof key === 'string' && key.startsWith('/api/modelbook/year-earnings')) {
       return {
         data: { symbol: 'NVDA', year: 2025, rows: [
-          { date: '2025-05-28', eps_actual: 0.96, eps_estimate: 0.71, eps_surprise_pct: 35.2,
-            revenue_actual: 44060000000, revenue_estimate: 43310000000, revenue_surprise_pct: 1.7 },
+          { date: '2025-05-28', quarter: 2, year: 2025, eps_actual: 0.96, eps_estimate: 0.71,
+            eps_surprise_pct: 35.2, revenue_actual: 44060000000, revenue_estimate: 43310000000,
+            revenue_surprise_pct: 1.7 },
         ] },
         mutate: vi.fn(),
       }
@@ -116,8 +117,9 @@ test('renders the permanent earnings overlay table on the chart', () => {
   render(<ModelBook />)
   // No tab to click — the table is a permanent chart overlay for every stock.
   expect(screen.getByText('2025 EARNINGS')).toBeInTheDocument()
-  expect(screen.getByText('Reported')).toBeInTheDocument()
-  expect(screen.getByText('May 2025')).toBeInTheDocument()   // report date → month + year
+  expect(screen.getByText('Quarter')).toBeInTheDocument()
+  expect(screen.getByText('Revenue')).toBeInTheDocument()
+  expect(screen.getByText('Q2 2025')).toBeInTheDocument()    // fiscal quarter label
   expect(screen.getByText('0.96')).toBeInTheDocument()        // EPS actual
   expect(screen.getByText('+35%')).toBeInTheDocument()        // EPS surprise (35.2 → 35)
   expect(screen.getByText('44.06B')).toBeInTheDocument()      // revenue actual

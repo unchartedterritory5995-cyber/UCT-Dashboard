@@ -96,6 +96,11 @@ function pctCell(v) {
   return { text: `${r >= 0 ? '+' : ''}${r.toLocaleString()}%`, dir: r >= 0 ? 1 : -1 }
 }
 
+// Label a row by fiscal quarter ("Q1 2025"); fall back to the report month.
+function fmtQuarter(r) {
+  return (r.quarter && r.year) ? `Q${r.quarter} ${r.year}` : fmtReported(r.date)
+}
+
 function EarningsTable({ rows, loading }) {
   if (loading) return <p className={styles.noSetups}>Loading earnings…</p>
   if (!rows.length) return <p className={styles.noSetups}>No earnings reports found for this year.</p>
@@ -103,10 +108,10 @@ function EarningsTable({ rows, loading }) {
     <table className={styles.earnTable}>
       <thead>
         <tr>
-          <th className={styles.earnTh}>Reported</th>
+          <th className={styles.earnTh}>Quarter</th>
           <th className={styles.earnTh}>EPS</th>
           <th className={styles.earnTh}>% Chg</th>
-          <th className={styles.earnTh}>Sales</th>
+          <th className={styles.earnTh}>Revenue</th>
           <th className={styles.earnTh}>% Chg</th>
         </tr>
       </thead>
@@ -116,8 +121,8 @@ function EarningsTable({ rows, loading }) {
           const rev = pctCell(r.revenue_surprise_pct)
           const dirCls = d => (d > 0 ? styles.earnUp : d < 0 ? styles.earnDown : '')
           return (
-            <tr key={r.date || i}>
-              <td className={`${styles.earnTd} ${styles.earnReported}`}>{fmtReported(r.date)}</td>
+            <tr key={(r.quarter ?? r.date) || i}>
+              <td className={`${styles.earnTd} ${styles.earnReported}`}>{fmtQuarter(r)}</td>
               <td className={styles.earnTd}>{fmtEps(r.eps_actual)}</td>
               <td className={`${styles.earnTd} ${dirCls(eps.dir)}`}>{eps.text}</td>
               <td className={styles.earnTd}>{fmtRevenue(r.revenue_actual)}</td>

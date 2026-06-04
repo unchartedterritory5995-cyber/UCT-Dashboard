@@ -1026,8 +1026,8 @@ admin edits" model).
 A **permanent table pinned top-left over the chart** (below the OHLC legend, `styles.earnOverlay`,
 `pointer-events:none`) for every stock/year — NOT a tab. Columns: **Reported (month yr) · EPS ·
 % Chg · Sales · % Chg**, where each % Chg is the surprise vs estimate (colored green/red).
-- **Source:** Finnhub `/calendar/earnings` (carries `revenueActual/Estimate`, unlike `/stock/earnings`). `earnings_estimates.get_year_earnings(ticker, year)` returns rows with eps/revenue actual+estimate + `_surprise_pct` (`(actual-estimate)/|estimate|*100`). Cached per (ticker, year) — 30d for closed years.
-- **Endpoint:** `GET /api/modelbook/year-earnings?symbol=&year=` (any logged-in user). Frontend fetches it (SWR) for every stock view; overlay renders only when rows exist. Read-only (no market-cap column — scoped to EPS/revenue/surprise per request). The right panel stays a 2-tab Setups | Catalysts.
+- **Source:** Finnhub `/calendar/earnings`, fetched **whole-market month-by-month** (no `symbol` — that filter is unreliable for history; mirrors `calendar.py`) and filtered client-side. Scans the book year's 12 months **plus Jan–Mar of the next year** to catch the Q4 report (announced ~Feb), keeping rows whose FISCAL `year` matches (so all 4 quarters Q1–Q4 appear, labeled `Q{quarter} {year}`). Carries `revenueActual/Estimate` + `_surprise_pct`. Month payloads are cached + **shared across tickers** (`fh_earnings_month_{y}_{m}`), so a whole year's stocks trigger one set of fetches; per-(ticker,year) result cached 30d for closed years. Falls back to `/stock/earnings` (EPS only) if the calendar is empty. `earnings_estimates.get_year_earnings(ticker, year)`.
+- **Endpoint:** `GET /api/modelbook/year-earnings?symbol=&year=` (any logged-in user). Frontend fetches it (SWR) for every stock view; overlay renders only when rows exist. Read-only (no market-cap column). The right panel stays a 2-tab Setups | Catalysts.
 
 ### Tests
 - Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade, catalyst CRUD + `replace_catalysts` ordering/stamp + cascade).

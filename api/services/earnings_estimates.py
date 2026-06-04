@@ -16,7 +16,7 @@ _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
 
-def _fh_get(path: str, params: dict) -> dict | list | None:
+def _fh_get(path: str, params: dict, timeout: int | None = None) -> dict | list | None:
     """Fire a Finnhub GET request. Returns parsed JSON or None on failure."""
     api_key = os.environ.get("FINNHUB_API_KEY", "")
     if not api_key:
@@ -27,7 +27,7 @@ def _fh_get(path: str, params: dict) -> dict | list | None:
         resp = requests.get(
             f"https://finnhub.io/api/v1{path}",
             params=params,
-            timeout=_TIMEOUT,
+            timeout=timeout or _TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()
@@ -120,34 +120,63 @@ def _surprise_pct(actual, estimate):
     return round((a - e) / abs(e) * 100, 1)
 
 
-def _year_earnings_from_calendar(ticker: str, year: int) -> dict:
-    """EPS + revenue per report date from Finnhub's earnings calendar.
+def _fh_earnings_month_raw(year: int, month: int) -> list:
+    """Whole-market earnings calendar for ONE month. Finnhub returns nothing for
+    wide date ranges and the `symbol` filter is unreliable for history, so we
+    mirror the proven calendar.py pattern: fetch the whole market a month at a
+    time (no symbol) and filter client-side. Cached and SHARED across tickers, so
+    a whole year of Model Book stocks only triggers one set of month fetches."""
+    ckey = f"fh_earnings_month_{year}_{month:02d}"
+    cached = cache.get(ckey)
+    if cached is not None:
+        return cached
+    import calendar as _cal
+    last = _cal.monthrange(year, month)[1]
+    data = _fh_get(
+        "/calendar/earnings",
+        {"from": f"{year}-{month:02d}-01", "to": f"{year}-{month:02d}-{last:02d}"},
+        timeout=15,
+    )
+    rows = data.get("earningsCalendar") if isinstance(data, dict) else None
+    rows = rows or []
+    if rows:  # never cache an empty/failed month — every month has market-wide earnings
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        is_past = (year, month) < (now.year, now.month)
+        cache.set(ckey, rows, ttl=30 * 86400 if is_past else 1800)
+    return rows
 
-    Finnhub caps the queryable date range on /calendar/earnings (the month-by-
-    month calendar feature is built around this), so a full-year request returns
-    nothing — we fetch ONE QUARTER at a time and merge. Keyed by report date."""
+
+def _year_earnings_from_calendar(ticker: str, year: int) -> dict:
+    """All FISCAL quarters of `year` for `ticker` (EPS + revenue) from the
+    whole-market month calendar. Reports announce a quarter or two after the
+    fiscal period, so we scan `year` PLUS Jan-Mar of the next year to catch the
+    Q4 report. Keyed by fiscal quarter so each quarter appears once."""
+    import concurrent.futures
+    months = [(year, m) for m in range(1, 13)] + [(year + 1, m) for m in (1, 2, 3)]
+    # Parallel month fetches (most hit the shared cache after the first stock).
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+        monthly = list(ex.map(lambda ym: _fh_earnings_month_raw(*ym), months))
+
     out = {}
-    quarters = [
-        (f"{year}-01-01", f"{year}-03-31"),
-        (f"{year}-04-01", f"{year}-06-30"),
-        (f"{year}-07-01", f"{year}-09-30"),
-        (f"{year}-10-01", f"{year}-12-31"),
-    ]
-    for fm, to in quarters:
-        data = _fh_get("/calendar/earnings", {"symbol": ticker, "from": fm, "to": to})
-        items = data.get("earningsCalendar") if isinstance(data, dict) else None
-        for q in (items or []):
+    for rows in monthly:
+        for q in rows:
             if (q.get("symbol") or "").upper() != ticker:
                 continue
-            ds = str(q.get("date") or "")[:10]
-            if not ds.startswith(str(year)):
+            try:
+                fy = int(q.get("year"))
+            except (TypeError, ValueError):
+                fy = None
+            if fy != int(year):   # fiscal year must match the book year
                 continue
+            quarter = q.get("quarter")
             eps_a, eps_e = q.get("epsActual"), q.get("epsEstimate")
             rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimate")
-            out[ds] = {
-                "date": ds,
-                "quarter": q.get("quarter"),
-                "year": q.get("year"),
+            key = quarter if quarter is not None else str(q.get("date"))[:10]
+            out[key] = {
+                "date": str(q.get("date") or "")[:10],
+                "quarter": quarter,
+                "year": fy,
                 "eps_actual": eps_a,
                 "eps_estimate": eps_e,
                 "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
@@ -160,21 +189,23 @@ def _year_earnings_from_calendar(ticker: str, year: int) -> dict:
 
 def _year_earnings_from_stock(ticker: str, year: int) -> list:
     """Fallback EPS-only history from /stock/earnings (no revenue, but reliable
-    on every Finnhub tier). `period` is the fiscal quarter-end date; we keep the
-    quarters whose period falls in `year`. Used only when the calendar is empty."""
+    on every Finnhub tier). Keeps the FISCAL quarters of `year`. Used only when
+    the whole-market calendar comes back empty."""
     rows = []
     eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 24})
     if isinstance(eps_raw, list):
         for q in eps_raw:
+            fy = q.get("year")
             period = str(q.get("period") or "")[:10]
-            if not period.startswith(str(year)):
+            in_year = (str(fy) == str(year)) if fy is not None else period.startswith(str(year))
+            if not in_year:
                 continue
             eps_a, eps_e = q.get("actual"), q.get("estimate")
             surp = q.get("surprisePercent")
             rows.append({
                 "date": period,
                 "quarter": q.get("quarter"),
-                "year": q.get("year"),
+                "year": fy if fy is not None else int(year),
                 "eps_actual": eps_a,
                 "eps_estimate": eps_e,
                 "eps_surprise_pct": round(float(surp), 1) if surp is not None else _surprise_pct(eps_a, eps_e),
@@ -199,11 +230,12 @@ def get_year_earnings(ticker: str, year: int) -> list:
     if cached is not None:
         return cached
 
-    by_date = _year_earnings_from_calendar(ticker, year)
-    rows = sorted(by_date.values(), key=lambda r: r["date"])
+    def _qsort(r):  # Q1 → Q4 (fall back to date when quarter is missing)
+        return (r.get("quarter") or 99, r.get("date") or "")
+
+    rows = sorted(_year_earnings_from_calendar(ticker, year).values(), key=_qsort)
     if not rows:
-        rows = _year_earnings_from_stock(ticker, year)
-        rows.sort(key=lambda r: r["date"])
+        rows = sorted(_year_earnings_from_stock(ticker, year), key=_qsort)
         _logger.info("get_year_earnings %s %s: calendar empty, /stock/earnings gave %d row(s)",
                      ticker, year, len(rows))
 
