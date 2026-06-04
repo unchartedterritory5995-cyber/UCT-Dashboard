@@ -164,7 +164,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
-    const DISTS = [14, 22, 32, 46, 64, 88, 118, 156, 200, 250]
+    const DISTS = [9, 14, 20, 28, 38, 50, 66, 86, 112, 146, 190, 240]
     const placed = []
     // Score every candidate spot and take the cheapest. Cost is dominated by the
     // LEADER-LINE LENGTH (short, tidy lines win), with a hard penalty for any spot
@@ -173,17 +173,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // on an up-trend). Net effect: a close bottom-right beats a far top-left, but
     // when distances are similar the top-left is chosen. (User-tuned behavior.)
     const BLOCKED = 1e6
+    // Closeness is paramount: cost is the leader-line LENGTH, so the nearest
+    // clear gap always wins. A small TOP-LEFT tiebreak (≈10px) only decides
+    // between spots that are otherwise about equally close — so a candle with an
+    // open upper-left gets its label up-left, but one whose up-left is blocked
+    // drops to the next-nearest gap (e.g. just below) rather than a far up-left.
+    const bias = (d) => (d.dy < 0 ? -5 : 0) + (d.dx < 0 ? -5 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
-      // The chart trends lower-left → upper-right, so the blank space is the
-      // upper-LEFT triangle (for candles high in the frame) and the lower-RIGHT
-      // triangle (for candles low in it). Reward the label going toward that
-      // void: UP for high candles, DOWN for low ones — plus a mild leftward
-      // nudge. `frac` = candle's vertical position (0 = top of pane, 1 = bottom).
-      const frac = Math.max(0, Math.min(1, ((it.hy + it.ly) / 2 - 4) / Math.max(1, priceBottom - 4)))
-      const vK = 42
-      const bias = (d) => (d.dx < 0 ? -4 : 4)
-        + (d.dy < 0 ? (frac - 0.5) * vK : (0.5 - frac) * vK)
       for (const dist of DISTS) {
         for (const d of DIRS) {
           const anchorY = d.dy > 0 ? it.ly : it.hy
