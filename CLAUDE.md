@@ -1023,8 +1023,8 @@ admin edits" model).
 - **Chart**: on the Catalysts tab the chart shows gold ⚡ `markers` (StockChart `markers` prop) at each catalyst + ALL catalyst candles gold (`highlightBarTime` array) + setup overlays hidden; clicking a catalyst row focus-zooms to it. Switching tabs zooms back out to the year. Tab choice persists (`modelbook_panel_tab`) and survives stock switches.
 
 ### Earnings table — per-quarter EPS + revenue vs estimate (added 2026-06-03)
-A compact table **in the info panel, beside the year stats** (`styles.statsRow`: stats column +
-`styles.earnPanel`), for every stock/year. Columns: **Quarter (Q1–Q4 yr) · EPS · % Chg · Revenue ·
+A compact table **in the info panel, full-width below the year stats** (`styles.earnSection`),
+for every stock/year. Columns: **Quarter (Q1–Q4 yr) · EPS · % Chg · Revenue ·
 % Chg**, where each % Chg is the surprise vs estimate (colored green/red). (Originally a chart
 overlay — `styles.earnOverlay`, removed 2026-06-03 — moved into the panel.)
 - **Source:** **FMP `stable/earnings`** (`_fmp_get`; `FMP_API_KEY`) — the only live FMP earnings endpoint on this plan (legacy v3 ones 403 after Aug-2025; AlphaVantage is rate-limited 25/day; Finnhub `/calendar/earnings` symbol filter is unreliable for history). One symbol-specific call returns EPS + revenue (actual + estimated) per report. `_fiscal_q_from_report` maps each report DATE to its fiscal quarter (calendar-fiscal assumption: Jan–Mar→Q4 prev yr, Apr–Jun→Q1, Jul–Sep→Q2, Oct–Dec→Q3), keeping the book year's 4 quarters. **Deduped by (year, quarter)** via `_earn_row_preferred` — FMP sometimes has two rows for one report (e.g. SNDK 2025-11-06: consensus row + alternate figure); the estimate-bearing one wins. Falls back to Finnhub `/stock/earnings` (EPS only) if FMP is empty. Cached per (ticker, year), 30d for closed years. `earnings_estimates.get_year_earnings(ticker, year)`.

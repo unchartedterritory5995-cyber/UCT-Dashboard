@@ -779,28 +779,27 @@ function StockDetail({ stockId, isAdmin }) {
 
         {infoOpen && (
           <aside className={styles.infoSide}>
-            <div className={styles.statsRow}>
-              <div className={styles.infoStatsV}>
-                <div className={styles.infoStat}>
-                  <span className={styles.infoStatLabel}>{stock.year} Gain</span>
-                  <span className={`${styles.infoStatVal} ${stock.oc_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.oc_pct)}</span>
-                </div>
-                <div className={styles.infoStat}>
-                  <span className={styles.infoStatLabel}>Low → High</span>
-                  <span className={`${styles.infoStatVal} ${stock.lh_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.lh_pct)}</span>
-                </div>
-                <div className={styles.infoStat}>
-                  <span className={styles.infoStatLabel}>Avg Daily $ Vol</span>
-                  <span className={styles.infoStatVal}>{stock.avg_vol == null ? '—' : `$${fmtVol(stock.avg_vol)}`}</span>
-                </div>
+            <div className={styles.infoStatsV}>
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>{stock.year} Gain</span>
+                <span className={`${styles.infoStatVal} ${stock.oc_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.oc_pct)}</span>
               </div>
-              {earningsRows.length > 0 && (
-                <div className={styles.earnPanel}>
-                  <div className={styles.earnPanelHead}>{stock.year} Earnings</div>
-                  <EarningsTable rows={earningsRows} />
-                </div>
-              )}
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>Low → High</span>
+                <span className={`${styles.infoStatVal} ${stock.lh_pct != null ? styles.infoStatGreen : ''}`}>{pctStr(stock.lh_pct)}</span>
+              </div>
+              <div className={styles.infoStat}>
+                <span className={styles.infoStatLabel}>Avg Daily $ Vol</span>
+                <span className={styles.infoStatVal}>{stock.avg_vol == null ? '—' : `$${fmtVol(stock.avg_vol)}`}</span>
+              </div>
             </div>
+
+            {earningsRows.length > 0 && (
+              <div className={styles.earnSection}>
+                <div className={styles.earnPanelHead}>{stock.year} Earnings</div>
+                <EarningsTable rows={earningsRows} />
+              </div>
+            )}
 
             <div className={styles.infoNarrative}>
               {editNarr ? (
