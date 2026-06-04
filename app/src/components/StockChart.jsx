@@ -478,6 +478,7 @@ export default function StockChart({
   indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
   indexPaneColor = '#ffffff',   // line color for the index pane
   indexPaneHeightPct = 18,      // height of the index pane as % of chart
+  indexPaneLabel = null,        // top-left label text for the index pane (defaults to the symbol sans caret)
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -4350,7 +4351,11 @@ export default function StockChart({
         </div>
       )}
       {crosshairData && (
-        <div className={styles.legend}>
+        <div
+          className={styles.legend}
+          /* Drop below the index pane so the OHLCV legend never covers it. */
+          style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
+        >
           <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>
           <span className={styles.legendLabel}>O <span className={styles.legendVal}>{crosshairData.open?.toFixed(2)}</span></span>
           <span className={styles.legendLabel}>H <span className={styles.legendVal}>{crosshairData.high?.toFixed(2)}</span></span>
@@ -4625,7 +4630,7 @@ export default function StockChart({
             textShadow: '0 0 3px rgba(0,0,0,0.85)',
           }}
         >
-          {String(indexPaneSymbol).replace(/^\^/, '')}
+          {indexPaneLabel || String(indexPaneSymbol).replace(/^\^/, '')}
         </div>
       )}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />

@@ -777,6 +777,7 @@ function StockDetail({ stockId, isAdmin }) {
             volumePaneHeightPct={12}
             volumeMa={50}
             indexPaneSymbol="^IXIC"
+            indexPaneLabel="IXIC (Nasdaq Composite)"
             indexPaneHeightPct={16}
             priceScaleTopMargin={0.14}
             priceScaleBottomMargin={0.06}
