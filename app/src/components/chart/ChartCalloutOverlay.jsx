@@ -94,15 +94,18 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     }
     ctx.restore()
 
-    // Labels (faint backing for legibility + text).
+    // Labels: plain text (no box). A soft dark shadow keeps the white text
+    // readable where it passes over candles, without drawing a background.
     ctx.textBaseline = 'middle'
     ctx.font = font
+    ctx.fillStyle = color
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'
+    ctx.shadowBlur = 3
     for (const p of placed) {
-      ctx.fillStyle = 'rgba(10,12,16,0.62)'
-      ctx.fillRect(p.x, p.y, p.boxW, p.boxH)
-      ctx.fillStyle = color
       ctx.fillText(p.text, p.x + padX, p.y + p.boxH / 2 + 0.5)
     }
+    ctx.shadowBlur = 0
+    ctx.shadowColor = 'transparent'
   }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate])
 
   useEffect(() => { redrawRef.current = redraw }, [redraw])
@@ -130,29 +133,41 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     return () => ro.disconnect()
   }, [])
 
-  // Redraw in lockstep with chart scroll/zoom.
+  // Redraw in lockstep with chart scroll/zoom AND vertical price-scale drags.
+  // The logical-range subscription only fires on horizontal moves; dragging the
+  // right price axis changes the price→pixel mapping without it. So a rAF loop
+  // samples both the time range and the price→pixel mapping each frame and
+  // redraws only when either actually changes — smooth, and idle = no redraws.
   useEffect(() => {
     const chart = chartRef?.current
+    const series = seriesRef?.current
     if (!chart) return
     const ts = chart.timeScale()
     const onRange = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(() => redrawRef.current?.())
     }
-    let lastKey = null
-    const interval = setInterval(() => {
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+
+    let loopRaf = null
+    let lastSig = ''
+    const tick = () => {
       try {
         const r = ts.getVisibleLogicalRange()
-        const key = r ? `${r.from.toFixed(2)}-${r.to.toFixed(2)}` : null
-        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
-      } catch { /* chart torn down mid-poll */ }
-    }, 200)
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+        const y0 = series?.priceToCoordinate(1)
+        const y1 = series?.priceToCoordinate(100)
+        const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
+        if (sig !== lastSig) { lastSig = sig; redrawRef.current?.() }
+      } catch { /* chart torn down mid-frame */ }
+      loopRaf = requestAnimationFrame(tick)
+    }
+    loopRaf = requestAnimationFrame(tick)
+
     return () => {
-      clearInterval(interval)
+      if (loopRaf) cancelAnimationFrame(loopRaf)
       try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
-  }, [chartRef])
+  }, [chartRef, seriesRef])
 
   return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
 }
