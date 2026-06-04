@@ -2,22 +2,27 @@
 darkpool_router.py — FastAPI routes for dark pool data.
 Mount in main.py:  app.include_router(darkpool_router.router)
 
-Mirrors the flow_router.py architecture:
-- /data uses streaming SQL cursor → buffered gzip → Response with Content-Length
-- 60-day cap on /data to keep response sizes manageable for both server and browser
-- Cache-Control SWR so Cloudflare caches each ?days=N window at the edge
+History note (why this changed):
+  Previous version buffered the full CSV into memory and gzipped it before
+  returning a Response with Content-Length, on the theory that Cloudflare
+  could then edge-cache windows by ?days=N. That theory didn't hold up:
+  DarkPool.jsx appends ?_t=Date.now() to every request, so the cache key
+  changes every fetch — Cloudflare never serves a cached response. Meanwhile
+  the buffer cost was real: at 36K rows/day actual (not the 25K we'd
+  assumed), 60+ days = 250MB+ raw CSV being held in memory plus a gzip
+  output buffer, OOM-killing the Railway worker mid-response. The browser
+  saw a truncated/empty body and parseCSV returned 0 rows → "No data
+  returned" error on the dashboard.
 
-Why buffered (not streaming):
-  An earlier version used StreamingResponse for incremental gzip. That kept
-  peak server memory flat but Cloudflare won't cache chunked responses
-  without Content-Length — every request became a Railway origin hit
-  (~10s instead of ~100ms edge hits). The 60-day cap below keeps response
-  sizes well within memory budget, so buffering is the right tradeoff.
+  Now using StreamingResponse with the stream_csv() generator (same pattern
+  as flow_router). Memory stays flat regardless of window size, first byte
+  arrives in ~100ms, and the app-level GZipMiddleware (main.py:1792)
+  auto-compresses each chunk. Cap raised to 120 days to match the DB
+  auto-prune retention policy.
 """
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
-import gzip
+from fastapi.responses import JSONResponse, StreamingResponse
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
@@ -25,55 +30,30 @@ from api.darkpool_db import (
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
 
-# Same caching policy as flow_router — SWR with a 5-min max-age. The
-# ?days=N query string is part of CF's cache key, so each window caches
-# independently and a stale response can serve while a fresh one warms.
-_DARKPOOL_CACHE_HEADERS = {
-    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-    "Vary": "Accept-Encoding",
-}
-
-
-def _gzip_csv_response(gen, request: Request):
-    """Collect CSV generator into bytes, gzip if client accepts, return Response
-    with Content-Length set so Cloudflare can cache."""
-    content = "".join(gen).encode("utf-8")
-    accept = (request.headers.get("accept-encoding") or "").lower()
-    if "gzip" in accept:
-        compressed = gzip.compress(content, compresslevel=4)
-        return Response(
-            content=compressed,
-            media_type="text/csv",
-            headers={**_DARKPOOL_CACHE_HEADERS, "Content-Encoding": "gzip"},
-        )
-    return Response(content=content, media_type="text/csv", headers=_DARKPOOL_CACHE_HEADERS)
-
-
-# Hard cap on response size in trading days. The browser can't reliably
-# Papa.parse + render more than this many days of raw darkpool prints
-# without blowing past Chrome's JS heap limit (~1.5GB). At ~25K rows/day
-# this lands around 1.5M rows / 180MB decompressed CSV — the highest
-# empirically-working window.
-#
-# When this fires for a request, response carries X-Data-Capped-Days so the
-# frontend can show "Showing most recent 60d — DB contains N" if it wants.
-MAX_RESPONSE_DAYS = 60
+# Cap matches the DB retention policy (auto-prune at 120 days in main.py).
+# With streaming, memory cost on the server is flat regardless of window —
+# the practical ceiling is the browser's ability to parse and render the
+# row count. ~36K rows/day → 120 days ≈ 4.3M rows / ~500MB raw CSV.
+# If the browser struggles at the high end, lower this rather than going
+# back to buffering on the server.
+MAX_RESPONSE_DAYS = 120
 
 
 # ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
 async def get_darkpool_data(
     request: Request,
-    days: int = Query(default=1, ge=0, description="Number of trading days (0 = use all_data)"),
+    days: int = Query(default=1, ge=0, description="Number of trading days (0 = all available)"),
     all_data: bool = Query(default=False, description="Return all data"),
 ):
     """
-    Returns dark pool data as CSV text (gzipped if client accepts).
-    Frontend (DarkPool.jsx) parses this the same way it parsed the static CSV.
+    Stream dark pool data as CSV text (auto-gzipped by app middleware).
+    Frontend (DarkPool.jsx) parses the response the same way it parsed the
+    static CSV — header row + comma-separated trade rows.
 
-    Capped at MAX_RESPONSE_DAYS trading days to keep the browser stable.
-    For full-history views, build a server-side aggregation endpoint instead
-    of shipping raw rows.
+    Capped at MAX_RESPONSE_DAYS trading days. X-Data-Capped-Days header is
+    set when the cap fires so the frontend can surface a user-facing notice
+    ("Showing most recent 120d — DB contains N").
     """
     try:
         capped = False
@@ -85,11 +65,21 @@ async def get_darkpool_data(
                 capped = True
             effective_days = min(days, MAX_RESPONSE_DAYS)
 
-        gen = stream_csv(days=effective_days)
-        response = _gzip_csv_response(gen, request)
+        # Cache-Control kept for the day when the frontend stops cache-busting.
+        # Currently DarkPool.jsx appends ?_t=Date.now() so Cloudflare never
+        # hits, but the headers are cheap and correct.
+        headers = {
+            "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "Vary": "Accept-Encoding",
+        }
         if capped:
-            response.headers["X-Data-Capped-Days"] = str(MAX_RESPONSE_DAYS)
-        return response
+            headers["X-Data-Capped-Days"] = str(MAX_RESPONSE_DAYS)
+
+        return StreamingResponse(
+            stream_csv(days=effective_days),
+            media_type="text/csv",
+            headers=headers,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
