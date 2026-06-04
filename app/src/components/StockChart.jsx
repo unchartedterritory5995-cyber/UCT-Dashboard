@@ -431,6 +431,8 @@ export default function StockChart({
   overlays: overlaysProp,
   watermark = null,
   watermarkOpacity = null,   // override the settings watermark opacity (Model Book uses a brighter mark)
+  watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
+  watermarkY = null,         // override watermark Y (0..1 pane fraction)
   className = '',
   showDrawingTools = true,
   onSymbolChange = null,
@@ -2297,8 +2299,8 @@ export default function StockChart({
         color: cs.watermark.color,
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
-        x: cs.watermark.x,
-        y: cs.watermark.y,
+        x: watermarkX ?? cs.watermark.x,
+        y: watermarkY ?? cs.watermark.y,
       })
     }
 

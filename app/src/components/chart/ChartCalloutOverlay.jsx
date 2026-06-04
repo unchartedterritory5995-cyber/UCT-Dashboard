@@ -60,7 +60,6 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const font = '400 11px "Instrument Sans", system-ui, sans-serif'
     ctx.font = font
     const textH = 13, padX = 5, padY = 3
-    const boxH = textH + padY * 2
 
     // ── Map the price action so labels can dodge it ──
     // Build pixel high/low segments for the VISIBLE candles. A label that
@@ -92,7 +91,45 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const rectsOverlap = (a, b) =>
       !(a.x + a.w < b.x - 6 || b.x + b.w < a.x - 6 || a.y + a.h < b.y - 4 || b.y + b.h < a.y - 4)
 
-    // Resolve on-screen anchors (candle high + low).
+    // Keep labels inside the plot area — never under the right price axis or off
+    // either edge. (The canvas spans the price pane incl. the axis.)
+    let axisW = 0
+    try { axisW = series.priceScale().width() || 0 } catch { /* pre-init */ }
+    const plotLeft = 4
+    const plotRight = w - axisW - 6
+
+    // A leader line must not pass THROUGH any candle (other than its own anchor
+    // candle). Tests the segment against each visible candle's vertical extent.
+    const lineHitsCandles = (x0, y0, x1, y1, anchorX) => {
+      const minx = Math.min(x0, x1), maxx = Math.max(x0, x1)
+      for (const s of segs) {
+        if (Math.abs(s.x - anchorX) < 3) continue          // its own candle — ok to touch
+        if (s.x < minx - 0.5 || s.x > maxx + 0.5) continue // segment doesn't span this candle's x
+        const t = (x1 === x0) ? 0 : (s.x - x0) / (x1 - x0)
+        const y = y0 + t * (y1 - y0)
+        if (y >= s.top - 1 && y <= s.bottom + 1) return true
+      }
+      return false
+    }
+
+    // Wrap a label to at most two lines once it would exceed maxLineW, so long
+    // catalyst titles continue on a second line instead of running off-screen.
+    const maxLineW = Math.max(120, Math.min(220, (plotRight - plotLeft) * 0.5))
+    const wrapLabel = (text) => {
+      if (ctx.measureText(text).width <= maxLineW) return [text]
+      const words = String(text).split(' ')
+      let line1 = ''
+      let i = 0
+      for (; i < words.length; i++) {
+        const test = line1 ? `${line1} ${words[i]}` : words[i]
+        if (!line1 || ctx.measureText(test).width <= maxLineW) line1 = test
+        else break
+      }
+      const line2 = words.slice(i).join(' ')
+      return line2 ? [line1, line2] : [line1]
+    }
+
+    // Resolve on-screen anchors (candle high + low) + wrap long labels.
     const items = []
     for (const c of callouts) {
       if (!c?.text || !c?.time) continue
@@ -105,8 +142,12 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       try { ly = series.priceToCoordinate(b.l ?? b.low ?? b.c) } catch { ly = null }
       if (ax == null || hy == null || ax < -40 || ax > w + 40) continue
       if (ly == null) ly = hy
-      const tw = ctx.measureText(c.text).width
-      items.push({ key: `${c.time}|${c.text}`, text: c.text, ax, hy, ly, boxW: tw + padX * 2, boxH })
+      const lines = wrapLabel(c.text)
+      const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
+      items.push({
+        key: `${c.time}|${c.text}`, text: c.text, lines, ax, hy, ly,
+        boxW: tw + padX * 2, boxH: lines.length * textH + padY * 2,
+      })
     }
     items.sort((a, b) => a.ax - b.ax)
 
@@ -133,16 +174,20 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           const ty = anchorY + d.dy * dist
           let x = d.dx > 0 ? tx : d.dx < 0 ? tx - it.boxW : tx - it.boxW / 2
           let y = d.dy < 0 ? ty - it.boxH : d.dy > 0 ? ty : ty - it.boxH / 2
-          x = Math.max(4, Math.min(w - it.boxW - 4, x))
+          x = Math.max(plotLeft, Math.min(plotRight - it.boxW, x))
           y = Math.max(4, Math.min(priceBottom - it.boxH - 4, y))
           const rect = { x, y, w: it.boxW, h: it.boxH, anchorY, anchorIsLow: d.dy > 0 }
           if (placed.some(p => rectsOverlap(rect, p))) continue
-          if (!hitsCandles(rect)) return rect
-          if (!fallback) fallback = rect   // remember a label-clear spot in case nothing is candle-clear
+          // Leader endpoint = nearest point on the box to the candle anchor.
+          const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
+          const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
+          if (hitsCandles(rect)) continue
+          if (!lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) return rect  // label AND leader are clear
+          if (!fallback) fallback = rect   // label-clear (leader may clip) — last-resort spot
         }
       }
       return fallback || {
-        x: Math.max(4, Math.min(w - it.boxW - 4, it.ax - it.boxW / 2)),
+        x: Math.max(plotLeft, Math.min(plotRight - it.boxW, it.ax - it.boxW / 2)),
         y: Math.max(4, it.hy - 30 - it.boxH), w: it.boxW, h: it.boxH, anchorY: it.hy, anchorIsLow: false,
       }
     }
@@ -153,7 +198,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       let rect
       if (cached) {
         const anchorY = cached.anchorIsLow ? it.ly : it.hy
-        const x = Math.max(4, Math.min(w - it.boxW - 4, it.ax + cached.offX))
+        const x = Math.max(plotLeft, Math.min(plotRight - it.boxW, it.ax + cached.offX))
         const y = Math.max(4, Math.min(priceBottom - it.boxH - 4, anchorY + cached.offY))
         rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
       } else {
@@ -192,7 +237,11 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     ctx.shadowColor = 'rgba(0,0,0,0.8)'
     ctx.shadowBlur = 1.5
     for (const p of placed) {
-      ctx.fillText(p.text, Math.round(p.x + padX), Math.round(p.y + p.boxH / 2) + 0.5)
+      const lines = p.lines || [p.text]
+      for (let li = 0; li < lines.length; li++) {
+        const ty = Math.round(p.y + padY + textH * li + textH / 2) + 0.5
+        ctx.fillText(lines[li], Math.round(p.x + padX), ty)
+      }
     }
     ctx.shadowBlur = 0
     ctx.shadowColor = 'transparent'
