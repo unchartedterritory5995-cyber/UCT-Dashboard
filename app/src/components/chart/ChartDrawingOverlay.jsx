@@ -183,15 +183,18 @@ function renderArrow(ctx, pts) {
   drawArrowhead(ctx, pts[0], pts[1], 10)
 }
 
-function renderText(ctx, pts, drawing, scale = 1) {
-  if (!pts.length || !drawing.text) return
-  const fs = (drawing.fontSize || 13) * scale   // scale text with the chart zoom
+function renderText(ctx, pts, drawing, opacity = 1) {
+  if (!pts.length || !drawing.text || opacity <= 0.02) return
+  const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
+  const prevAlpha = ctx.globalAlpha
+  ctx.globalAlpha = prevAlpha * opacity
   ctx.font = `${fs}px "Instrument Sans", sans-serif`
   ctx.fillStyle = ctx.strokeStyle
   const lines = drawing.text.split('\n')
   lines.forEach((line, i) => {
     ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
   })
+  ctx.globalAlpha = prevAlpha
 }
 
 function renderFib(ctx, pts, w, toPixel) {
@@ -739,18 +742,18 @@ export default function ChartDrawingOverlay({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    // Text annotations scale with the zoom so they grow/shrink with the candles
-    // instead of staying a fixed pixel size (which looks huge zoomed out). Keyed
-    // on how many bars are visible: base size at the setup-focus zoom (~85 bars),
-    // smaller when zoomed out, a touch larger when zoomed in close. Width-agnostic.
-    let textScale = 1
+    // Text annotations FADE IN only as you zoom toward a setup — hidden on the
+    // zoomed-out / "show all" full-year view (just lines there), easing in over
+    // the latter half of the focus zoom so they land as the animation settles.
+    // Rendered at their true font size (no shrinking); only opacity changes.
+    let textOpacity = 1
     try {
       const range = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
       if (range) {
         const visibleBars = Math.max(1, range.to - range.from)
-        textScale = Math.max(0.4, Math.min(1.3, 85 / visibleBars))
+        textOpacity = Math.max(0, Math.min(1, (170 - visibleBars) / 70))
       }
-    } catch { /* default scale 1 */ }
+    } catch { /* default fully visible */ }
 
     const toPixelY = (_, price) => {
       const p = toPixel(null, price)
@@ -805,7 +808,7 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text': renderText(ctx, pts, d, textScale); break
+        case 'text': renderText(ctx, pts, d, textOpacity); break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
