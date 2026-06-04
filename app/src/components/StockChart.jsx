@@ -467,7 +467,8 @@ export default function StockChart({
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
-  highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint gold (Model Book: focused setup's day, or all setup days in "show all" mode)
+  highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
+  highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
 }) {
   const { prefs, setPref } = usePreferences()
@@ -1599,7 +1600,6 @@ export default function StockChart({
   // other chart) is untouched — the dedicated effect below applies/clears the
   // gold with a candle-only setData (no full re-render). highlightBarTime accepts
   // a single ISO/time value or an array of them.
-  const HIGHLIGHT_GOLD = '#e6b800'
   const highlightTimeSet = useMemo(() => {
     if (highlightBarTime == null) return null
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
@@ -1610,9 +1610,9 @@ export default function StockChart({
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
-      ? { ...d, color: HIGHLIGHT_GOLD, borderColor: HIGHLIGHT_GOLD, wickColor: HIGHLIGHT_GOLD }
+      ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
       : d))
-  }, [ohlcData, highlightTimeSet])
+  }, [ohlcData, highlightTimeSet, highlightColor])
   const closeData = useMemo(
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
     [displayBars, adjustTime]

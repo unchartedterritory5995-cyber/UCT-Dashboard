@@ -14,7 +14,7 @@ const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
-const CATALYST_GOLD = '#e6b800'   // ⚡ catalyst markers + gold candle (matches StockChart's highlight gold)
+const CATALYST_WHITE = '#ffffff'  // catalyst candles + labels render white (no marker shape)
 
 // Stable empty reference for priceLines. Returning a fresh [] on every render
 // gives StockChart a new prop identity each time the selected setup changes,
@@ -587,10 +587,10 @@ function StockDetail({ stockId, isAdmin }) {
     .map(c => ({
       time: c.catalyst_date,
       position: 'aboveBar',
-      color: CATALYST_GOLD,
-      shape: 'circle',
+      color: CATALYST_WHITE,
+      shape: 'circle',   // hidden — size:0 renders the text label only (no circle)
       text: c.title || (c.move_pct != null ? `${c.move_pct >= 0 ? '+' : ''}${Math.round(c.move_pct)}%` : ''),
-      size: 2,
+      size: 0,
     })), [catalysts])
   const catalystTimes = useMemo(() => catalysts.map(c => c.catalyst_date).filter(Boolean), [catalysts])
 
@@ -606,6 +606,8 @@ function StockDetail({ stockId, isAdmin }) {
   const chartHighlight = onCatalystTab
     ? (catalystTimes.length ? catalystTimes : focusDate)
     : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+  // Catalyst candles render white; setup candles keep StockChart's default gold.
+  const chartHighlightColor = onCatalystTab ? CATALYST_WHITE : undefined
 
   // Quarterly earnings for the year — fetched for EVERY stock (the table is a
   // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
@@ -757,6 +759,7 @@ function StockDetail({ stockId, isAdmin }) {
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
+            highlightColor={chartHighlightColor}
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
