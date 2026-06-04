@@ -80,7 +80,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
     <>
       <div
         className={`${styles.card} ${entry.mine ? styles.cardMine : ''}`}
-        onClick={() => onSelect(entry, timing)}
+        onClick={() => onSelect?.(entry, timing)}
         onContextMenu={e => openMenu(e, entry.sym)}
       >
         {entry.mine && <span className={styles.star}>★</span>}
@@ -90,7 +90,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             <div className={styles.sym}>
               {entry.sym}
               <span className={`${styles.tpill} ${timing === 'bmo' ? styles.bmo : styles.amc}`}>
-                {timing.toUpperCase()}
+                {(timing || '').toUpperCase()}
               </span>
               {reported && <span className={styles.beatPill}>{
                 surprise(entry.eps_act, entry.eps_est)?.startsWith('-') ? 'MISS' : 'BEAT'}</span>}

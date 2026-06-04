@@ -74,9 +74,11 @@ vi.mock('../../hooks/useSentiment', () => ({
 }))
 
 // Mock EarningsCard as a simple div to avoid deep rendering
+// Capture `timing` — the real EarningsCard does timing.toUpperCase(), so the hub
+// MUST pass it. Forwarding it here lets a test assert the caller contract.
 vi.mock('./EarningsCard', () => ({
-  default: ({ entry, onClick }) => (
-    <div data-testid="earnings-card" data-sym={entry?.sym} onClick={onClick}>
+  default: ({ entry, timing, onSelect }) => (
+    <div data-testid="earnings-card" data-sym={entry?.sym} data-timing={timing} onClick={onSelect}>
       {entry?.sym}
     </div>
   ),
@@ -206,6 +208,17 @@ describe('MyStocksHub', () => {
     const syms = cards.map(c => c.getAttribute('data-sym'))
     expect(syms).toContain('AAPL')
     expect(syms).not.toContain('TINY')
+  })
+
+  it('Earnings tab: passes `timing` to EarningsCard (AAPL is BMO)', () => {
+    // Regression: the hub used to omit `timing`, crashing EarningsCard's
+    // timing.toUpperCase() with "Cannot read properties of undefined".
+    renderHub()
+    const aapl = screen
+      .getAllByTestId('earnings-card')
+      .find(c => c.getAttribute('data-sym') === 'AAPL')
+    expect(aapl).toBeTruthy()
+    expect(aapl.getAttribute('data-timing')).toBe('bmo')
   })
 
   it('renders the hub title', () => {

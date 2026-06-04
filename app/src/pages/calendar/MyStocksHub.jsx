@@ -76,8 +76,13 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
     if (!calData || !mineSyms.size) return []
     const out = []
     for (const [, day] of Object.entries(calData.days || {})) {
-      for (const e of [...(day.bmo || []), ...(day.amc || [])]) {
-        if (mineSyms.has(e.sym?.toUpperCase())) out.push(e)
+      // Tag each entry with its session timing — EarningsCard requires `timing`
+      // (renders timing.toUpperCase()). All hub entries are "mine" → mine:true.
+      for (const e of (day.bmo || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'bmo', mine: true })
+      }
+      for (const e of (day.amc || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'amc', mine: true })
       }
     }
     return out
@@ -96,10 +101,13 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
           <div
             key={key}
             className={`${styles.hubCardWrap} ${unseen ? styles.hubUnseen : ''}`}
-            onClick={() => { markSeen(key); onSelect && onSelect(e) }}
           >
             {unseen && <span className={styles.unseenDot} aria-label="New" />}
-            <EarningsCard entry={e} mine={true} />
+            <EarningsCard
+              entry={e}
+              timing={e._timing}
+              onSelect={() => { markSeen(key); onSelect && onSelect(e) }}
+            />
           </div>
         )
       })}
