@@ -116,7 +116,7 @@ test('hides the AI Generate button for non-admins on the Catalysts tab', () => {
 test('renders the permanent earnings overlay table on the chart', () => {
   render(<ModelBook />)
   // No tab to click — the table is a permanent chart overlay for every stock.
-  expect(screen.getByText('2025 EARNINGS')).toBeInTheDocument()
+  expect(screen.getByText('2025 Earnings')).toBeInTheDocument()
   expect(screen.getByText('Quarter')).toBeInTheDocument()
   expect(screen.getByText('Revenue')).toBeInTheDocument()
   expect(screen.getByText('Q2 2025')).toBeInTheDocument()    // fiscal quarter label

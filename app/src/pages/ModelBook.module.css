@@ -109,23 +109,21 @@
 .dvTop { display: flex; flex-direction: column; height: calc(100vh - 104px); }
 /* chart on the left, vertical info panel on the right */
 .dvBody { flex: 1 1 auto; min-height: 0; display: flex; gap: 14px; }
-.chartWrap { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
-/* Permanent earnings table pinned top-left over the chart (below the OHLC legend) */
-.earnOverlay {
-  /* Below the crosshair OHLC legend (top:28px, z-index:3 in StockChart) and
-     behind it (z-index:2) so hovering the chart never hides the legend. */
-  position: absolute; top: 52px; left: 10px; z-index: 2; pointer-events: none;
-  background: rgba(10,12,16,0.74); border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 6px; padding: 5px 9px 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-}
-.earnOverlayHead {
-  font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 1.4px;
-  text-transform: uppercase; color: var(--ut-gold); opacity: 0.85; margin-bottom: 3px;
-}
-.earnOverlay .earnTh { font-size: 8.5px; padding: 2px 7px 3px; }
-.earnOverlay .earnTd { padding: 3px 7px; font-size: 11px; }
+.chartWrap { flex: 1 1 auto; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
 .infoSide { width: 340px; flex: none; overflow-y: auto; padding-left: 14px; padding-top: 12px; border-left: 1px solid var(--border); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
-.infoStatsV { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+/* Stats column + earnings table, side by side at the top of the info panel */
+.statsRow {
+  display: flex; gap: 18px; align-items: flex-start;
+  padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.infoStatsV { display: flex; flex-direction: column; gap: 12px; flex: none; }
+.earnPanel { flex: 1 1 auto; min-width: 0; }
+.earnPanelHead {
+  font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--ut-gold); opacity: 0.85; margin-bottom: 4px;
+}
+.earnPanel .earnTh { padding: 2px 5px 3px; }
+.earnPanel .earnTd { padding: 3px 5px; font-size: 11px; }
 .chart { height: 100%; }
 
 /* ── Setups (compact list in the right info panel) ── */

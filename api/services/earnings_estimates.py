@@ -157,11 +157,16 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
     """All 4 FISCAL quarters of `year` for `ticker` (EPS + revenue) from FMP's
     `stable/earnings` (the one FMP earnings endpoint still live on this plan;
     the legacy v3 ones 403 after Aug-2025). One symbol-specific call. The report
-    date maps to a fiscal quarter via `_fiscal_q_from_report`."""
+    date maps to a fiscal quarter via `_fiscal_q_from_report`.
+
+    FMP sometimes carries TWO rows for the same report (e.g. SNDK 2025-11-06 has
+    a consensus-tracked row + an alternate figure with no estimate), which would
+    otherwise show as a duplicate quarter — so we dedup by (year, quarter),
+    keeping the row that has a real surprise (estimate present), else the latest."""
     data = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 40})
     if not isinstance(data, list):
         return []
-    rows = []
+    best = {}
     for q in data:
         ds = str(q.get("date") or "")[:10]
         fq, fy = _fiscal_q_from_report(ds)
@@ -171,7 +176,7 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
         rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimated")
         if eps_a is None and rev_a is None:
             continue  # upcoming quarter, nothing reported yet
-        rows.append({
+        row = {
             "date": ds,
             "quarter": fq,
             "year": fy,
@@ -181,8 +186,21 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
             "revenue_actual": rev_a,
             "revenue_estimate": rev_e,
             "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
-        })
-    return rows
+        }
+        prev = best.get((fy, fq))
+        if prev is None or _earn_row_preferred(row, prev):
+            best[(fy, fq)] = row
+    return list(best.values())
+
+
+def _earn_row_preferred(new: dict, old: dict) -> bool:
+    """Tie-break two reports landing in the same fiscal quarter: the one with a
+    real EPS surprise (estimate present) wins; otherwise the later report date."""
+    new_has = new.get("eps_surprise_pct") is not None
+    old_has = old.get("eps_surprise_pct") is not None
+    if new_has != old_has:
+        return new_has
+    return (new.get("date") or "") > (old.get("date") or "")
 
 
 def _year_earnings_from_stock(ticker: str, year: int) -> list:
