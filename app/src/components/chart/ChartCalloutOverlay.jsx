@@ -42,7 +42,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     if (!callouts || !callouts.length) return
 
     const ts = chart.timeScale()
-    const font = '600 11px "Instrument Sans", system-ui, sans-serif'
+    const font = '400 11px "Instrument Sans", system-ui, sans-serif'
     ctx.font = font
     const textH = 13, padX = 5, padY = 3
     const boxH = textH + padY * 2
@@ -149,10 +149,12 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     ctx.textBaseline = 'middle'
     ctx.font = font
     ctx.fillStyle = color
-    ctx.shadowColor = 'rgba(0,0,0,0.9)'
-    ctx.shadowBlur = 3
+    // A tight, low-blur shadow keeps the text legible over candles without the
+    // fuzzy halo. Whole-pixel positions keep the glyphs crisp.
+    ctx.shadowColor = 'rgba(0,0,0,0.8)'
+    ctx.shadowBlur = 1.5
     for (const p of placed) {
-      ctx.fillText(p.text, p.x + padX, p.y + p.boxH / 2 + 0.5)
+      ctx.fillText(p.text, Math.round(p.x + padX), Math.round(p.y + p.boxH / 2) + 0.5)
     }
     ctx.shadowBlur = 0
     ctx.shadowColor = 'transparent'
