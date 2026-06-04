@@ -623,14 +623,21 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
 # ── Catalyst writes (admin only) ──────────────────────────────────────────────
 
 @router.post("/stock/{stock_id}/catalysts/generate")
-def generate_catalysts(stock_id: int, _admin: dict = Depends(require_admin)):
+def generate_catalysts(stock_id: int, force: bool = Query(False),
+                       _admin: dict = Depends(require_admin)):
     """AI-generate the year's top catalysts and REPLACE the stock's catalyst set.
-    Synchronous (one LLM call). Returns the updated stock detail."""
+    Synchronous (one LLM call). Returns the updated stock detail.
+
+    Idempotent by default: catalysts persist in the DB forever once generated, so
+    if they already exist we return them WITHOUT spending Anthropic tokens. Pass
+    force=true (the "Regenerate" button) to deliberately re-run the LLM."""
     if not _CATALYST_ENABLED:
         raise HTTPException(503, "Catalyst generation is disabled")
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
+    if stock.get("catalysts") and not force:
+        return stock  # already generated — no LLM call, no tokens spent
     items = _generate_catalysts(
         stock["symbol"], stock.get("company"), stock["year"],
         stock.get("oc_pct") if stock.get("oc_pct") is not None else stock.get("gain_pct"),

@@ -636,13 +636,15 @@ function StockDetail({ stockId, isAdmin }) {
   }
 
   async function generateCatalysts() {
-    if (catalysts.length && !window.confirm('Regenerate catalysts? This replaces the current set.')) return
+    // Catalysts persist in the DB forever once generated; regenerating re-runs
+    // the AI (spends tokens), so it's gated behind a confirm + an explicit force.
+    const isRegen = catalysts.length > 0
+    if (isRegen && !window.confirm('Regenerate catalysts? This re-runs the AI (spends tokens) and replaces the current set.')) return
     setCatError('')
     setGenningCats(true)
     try {
-      const r = await fetch(`/api/modelbook/stock/${stock.id}/catalysts/generate`, {
-        method: 'POST', credentials: 'include',
-      })
+      const url = `/api/modelbook/stock/${stock.id}/catalysts/generate${isRegen ? '?force=true' : ''}`
+      const r = await fetch(url, { method: 'POST', credentials: 'include' })
       if (r.ok) mutate()
       else {
         const e = await r.json().catch(() => ({}))
