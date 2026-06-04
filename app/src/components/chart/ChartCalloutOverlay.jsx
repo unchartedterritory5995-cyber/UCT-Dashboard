@@ -200,6 +200,11 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
           const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
           let cost = Math.hypot(nx - it.ax, ny - anchorY) + bias(d)
+          // Force a real DIAGONAL: reject if the leader came out vertical or
+          // horizontal (e.g. an edge-clamped label landing right above its
+          // candle). The scorer then picks a direction that stays diagonal
+          // (up-right for a left-edge candle, etc.).
+          if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += BLOCKED
           if (placed.some(p => rectsOverlap(rect, p))) cost += BLOCKED
           if (hitsCandles(rect)) cost += BLOCKED
           if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
