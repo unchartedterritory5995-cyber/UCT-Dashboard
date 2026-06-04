@@ -88,29 +88,51 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
     return out
   }, [calData, mineSyms])
 
+  const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
+  const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
+
   if (!entries.length) {
     return <div className={styles.hubEmpty}>No upcoming earnings for your stocks.</div>
   }
 
   return (
-    <div className={styles.hubCardGrid}>
-      {entries.map(e => {
-        const key = `${e.sym}:${e.date}`
-        const unseen = !seen.has(key)
-        return (
-          <div
-            key={key}
-            className={`${styles.hubCardWrap} ${unseen ? styles.hubUnseen : ''}`}
-          >
-            {unseen && <span className={styles.unseenDot} aria-label="New" />}
-            <EarningsCard
-              entry={e}
-              timing={e._timing}
-              onSelect={() => { markSeen(key); onSelect && onSelect(e) }}
-            />
-          </div>
-        )
-      })}
+    <>
+      <HubTimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
+        entries={bmoEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
+      <HubTimingSection label="After Close" icon="🌙" hdClass={styles.amcHd}
+        entries={amcEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
+    </>
+  )
+}
+
+// One timing-grouped section (Before Open / After Close) inside the Earnings tab.
+function HubTimingSection({ label, icon, hdClass, entries, seen, markSeen, onSelect }) {
+  if (!entries.length) return null
+  return (
+    <div className={styles.timedGroup}>
+      <div className={`${styles.timedHd} ${hdClass}`}>
+        <span aria-hidden="true">{icon}</span> {label}
+        <span className={styles.timedCount}>{entries.length}</span>
+      </div>
+      <div className={styles.hubCardGrid}>
+        {entries.map(e => {
+          const key = `${e.sym}:${e.date}`
+          const unseen = !seen.has(key)
+          return (
+            <div
+              key={key}
+              className={`${styles.hubCardWrap} ${unseen ? styles.hubUnseen : ''}`}
+            >
+              {unseen && <span className={styles.unseenDot} aria-label="New" />}
+              <EarningsCard
+                entry={e}
+                timing={e._timing}
+                onSelect={() => { markSeen(key); onSelect && onSelect(e) }}
+              />
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
