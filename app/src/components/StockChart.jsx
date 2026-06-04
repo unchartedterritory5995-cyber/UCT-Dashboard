@@ -3111,14 +3111,21 @@ export default function StockChart({
         if (entryDate && exactDateRange && filteredBars.length > 0) {
           // Exact window: first bar >= entryDate .. last bar <= exitDate, no padding.
           // Used by Model Book to show exactly one calendar year's move.
-          const startIdx = Math.max(0, filteredBars.findIndex(b => b.t >= entryDate))
+          let startIdx = filteredBars.findIndex(b => b.t >= entryDate)
           let endIdx = filteredBars.length - 1
           if (exitDate) {
             for (let i = filteredBars.length - 1; i >= 0; i--) {
               if (filteredBars[i].t <= exitDate) { endIdx = i; break }
             }
           }
-          if (endIdx < startIdx) endIdx = filteredBars.length - 1
+          // Reused-ticker guard (see the exact-range pin below): if the selected
+          // year has no bars in the loaded series (it fell in a delisting gap),
+          // show the most recent ~year instead of anchoring to the oldest
+          // (delisted-era) bar. Without this, findIndex<0 → startIdx 0 streamed
+          // 2016/2008-era data onto a recent-year view.
+          const yearHasData = startIdx >= 0 && endIdx >= startIdx
+            && (!exitDate || filteredBars[startIdx].t <= exitDate)
+          if (!yearHasData) { endIdx = filteredBars.length - 1; startIdx = Math.max(0, endIdx - 251) }
           chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
         } else if (entryDate && filteredBars.length > 0) {
           const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
@@ -3214,14 +3221,25 @@ export default function StockChart({
     const lo = toMs(entryDate)
     const hi = toMs(exitDate)
     let startIdx = filteredBars.findIndex(b => toMs(b.t) >= lo)
-    if (startIdx < 0) startIdx = 0
     let endIdx = filteredBars.length - 1
     if (!Number.isNaN(hi)) {
       for (let i = filteredBars.length - 1; i >= 0; i--) {
         if (toMs(filteredBars[i].t) <= hi) { endIdx = i; break }
       }
     }
-    if (endIdx < startIdx) endIdx = filteredBars.length - 1
+    // Does the selected year actually have bars in the loaded series? Reused
+    // tickers (e.g. SNDK, BE: an old delisted company, then a multi-year data
+    // GAP, then the relisted company) can have the requested year fall entirely
+    // in that gap — findIndex then points past the gap while endIdx is stuck
+    // before it. The old code anchored startIdx to 0 in that case, which streamed
+    // the DELISTED-ERA data (2016/2008) onto a recent-year view. Never do that:
+    // if the year has no data, frame the most recent ~year of bars instead.
+    const yearHasData = startIdx >= 0 && endIdx >= startIdx
+      && toMs(filteredBars[startIdx].t) <= (Number.isNaN(hi) ? Infinity : hi)
+    if (!yearHasData) {
+      endIdx = filteredBars.length - 1
+      startIdx = Math.max(0, endIdx - 251)
+    }
     // Store the LATEST computed range; the scheduled re-asserts below read this
     // ref (not captured locals) so a partial first data load can't lock stale
     // indices into the pending re-asserts (which showed the earliest bars).
