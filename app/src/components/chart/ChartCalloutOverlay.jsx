@@ -113,10 +113,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // ── Find the nearest blank space in ANY direction for each label ──
     // Try positions outward from the candle (closest first), in 8 directions;
     // take the first that clears both candles and already-placed labels.
+    // Preference order: place labels DOWN and to the SIDE first (leader line
+    // attaches to the candle's LOW for dy>0), so they sit in the blank space
+    // beside/below the candle instead of floating high above on a long vertical
+    // stem. Straight-up is the last resort.
     const DIRS = [
-      { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: -1 },  // up, up-right, up-left
-      { dx: 1, dy: 0 }, { dx: -1, dy: 0 },                       // right, left
-      { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: 0, dy: 1 },     // down-right, down-left, down
+      { dx: 1, dy: 1 }, { dx: 1, dy: 0 },                        // down-right, right
+      { dx: -1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 },    // down-left, down, left
+      { dx: 1, dy: -1 }, { dx: -1, dy: -1 }, { dx: 0, dy: -1 },  // up-right, up-left, up (last resort)
     ]
     const DISTS = [14, 26, 42, 62, 88, 120, 158, 200, 250]
     const placed = []

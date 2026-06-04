@@ -1903,10 +1903,24 @@ export default function StockChart({
   const indexPaneSeries = useMemo(() => {
     if (!indexPaneSymbol || !indexPaneData?.length || !ohlcData?.length) return []
     const stockTimes = new Set(ohlcData.map(b => b.time))
+    // Also bound to the framed window (Model Book book-year) when provided. A
+    // reused ticker (SNDK/BE) has an OLD pre-delisting segment in stockTimes too;
+    // including its index points makes the line draw one segment straight across
+    // the multi-year gap — a spike at the left edge of the year view. Keeping only
+    // the framed window drops the old segment so the line starts cleanly.
+    const toMs = (t) => typeof t === 'number'
+      ? (t < 1e12 ? t * 1000 : t)
+      : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    const loMs = entryDate ? toMs(entryDate) : -Infinity
+    const hiMs = exitDate ? toMs(exitDate) : Infinity
     return indexPaneData
       .map(b => ({ time: adjustTime(b.t), value: b.c }))
-      .filter(p => p.value != null && Number.isFinite(p.value) && stockTimes.has(p.time))
-  }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime])
+      .filter(p => {
+        if (p.value == null || !Number.isFinite(p.value) || !stockTimes.has(p.time)) return false
+        const ms = toMs(p.time)
+        return ms >= loMs && ms <= hiMs
+      })
+  }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime, entryDate, exitDate])
 
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
