@@ -1913,8 +1913,13 @@ export default function StockChart({
     const toMs = (t) => typeof t === 'number'
       ? (t < 1e12 ? t * 1000 : t)
       : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
-    const loMs = entryDate ? toMs(entryDate) : -Infinity
-    const hiMs = exitDate ? toMs(exitDate) : Infinity
+    // Extend the lower bound ~13 months before the book year so the index line
+    // also covers the PRIOR-year lead-up a setup/catalyst focus-zoom reveals
+    // (e.g. Nov–Dec 2024 on a 2025 chart) — while still excluding a reused
+    // ticker's MULTI-year-old segment (its delisting gap is years, not months).
+    const YEAR_MS = 365 * 24 * 3600 * 1000
+    const loMs = entryDate ? toMs(entryDate) - Math.round(YEAR_MS * 1.1) : -Infinity
+    const hiMs = exitDate ? toMs(exitDate) + Math.round(YEAR_MS * 0.25) : Infinity
     return indexPaneData
       .map(b => ({ time: adjustTime(b.t), value: b.c }))
       .filter(p => {

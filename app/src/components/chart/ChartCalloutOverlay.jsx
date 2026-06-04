@@ -415,13 +415,24 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
 
     let loopRaf = null
     let lastSig = ''
+    let stable = 0
+    let needsReplace = false
     const tick = () => {
       try {
         const r = ts.getVisibleLogicalRange()
         const y0 = series?.priceToCoordinate(1)
         const y1 = series?.priceToCoordinate(100)
         const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-        if (sig !== lastSig) { lastSig = sig; trackedRef.current?.() }
+        if (sig !== lastSig) {
+          // View is moving (pan/zoom/focus animation): ride cached offsets so it's
+          // smooth, and mark that a fresh placement is owed once it settles.
+          lastSig = sig; stable = 0; needsReplace = true; trackedRef.current?.()
+        } else if (needsReplace && ++stable > 10) {
+          // View settled (~10 idle frames): cached PIXEL offsets are stale for the
+          // new zoom level, so re-run the full search → labels snap back to their
+          // correct, close positions for THIS view (fixes zoom-in-then-out drift).
+          needsReplace = false; redrawRef.current?.()
+        }
       } catch { /* chart torn down mid-frame */ }
       loopRaf = requestAnimationFrame(tick)
     }
