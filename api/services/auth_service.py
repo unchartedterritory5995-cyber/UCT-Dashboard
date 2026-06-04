@@ -715,6 +715,97 @@ def get_admin_notes(user_id: str) -> list[dict]:
         conn.close()
 
 
+def list_admin_todos() -> list[dict]:
+    """Return the shared admin to-do list. Open tasks first (by sort_order),
+    then completed tasks (most recently completed first)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, task, done, created_by, completed_by, completed_at, sort_order, created_at "
+            "FROM admin_todos "
+            "ORDER BY done ASC, "
+            "  CASE WHEN done = 0 THEN sort_order END ASC, "
+            "  CASE WHEN done = 0 THEN created_at END ASC, "
+            "  completed_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_admin_todo(task: str, admin_email: str) -> dict:
+    """Add a task to the shared admin to-do list."""
+    todo_id = str(uuid.uuid4())
+    conn = get_connection()
+    try:
+        # New open tasks go to the bottom of the open list.
+        row = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM admin_todos WHERE done = 0"
+        ).fetchone()
+        sort_order = row["next"] if row else 1
+        conn.execute(
+            "INSERT INTO admin_todos (id, task, created_by, sort_order) VALUES (?, ?, ?, ?)",
+            (todo_id, task, admin_email, sort_order),
+        )
+        conn.commit()
+        return _get_admin_todo(conn, todo_id)
+    finally:
+        conn.close()
+
+
+def _get_admin_todo(conn, todo_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT id, task, done, created_by, completed_by, completed_at, sort_order, created_at "
+        "FROM admin_todos WHERE id = ?",
+        (todo_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def set_admin_todo_done(todo_id: str, done: bool, admin_email: str) -> dict | None:
+    """Cross a task off (done=True) or restore it (done=False)."""
+    conn = get_connection()
+    try:
+        if done:
+            conn.execute(
+                "UPDATE admin_todos SET done = 1, completed_by = ?, "
+                "completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (admin_email, todo_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE admin_todos SET done = 0, completed_by = NULL, "
+                "completed_at = NULL WHERE id = ?",
+                (todo_id,),
+            )
+        conn.commit()
+        return _get_admin_todo(conn, todo_id)
+    finally:
+        conn.close()
+
+
+def update_admin_todo(todo_id: str, task: str) -> dict | None:
+    """Edit the text of a task."""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE admin_todos SET task = ? WHERE id = ?", (task, todo_id))
+        conn.commit()
+        return _get_admin_todo(conn, todo_id)
+    finally:
+        conn.close()
+
+
+def delete_admin_todo(todo_id: str) -> bool:
+    """Permanently remove a task from the shared list."""
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM admin_todos WHERE id = ?", (todo_id,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def log_page_view(user_id: str, page: str):
     """Insert a page view with 60-second dedup per user+page."""
     conn = get_connection()

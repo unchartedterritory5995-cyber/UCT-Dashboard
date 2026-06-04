@@ -321,6 +321,144 @@ function AnnouncementSection() {
   )
 }
 
+// ── Admin To-Do List (shared across all admins) ──
+function AdminTodoList() {
+  const [todos, setTodos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [newTask, setNewTask] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [busyId, setBusyId] = useState(null)
+
+  const fetchTodos = useCallback(() => {
+    setLoading(true)
+    fetch('/api/auth/admin/todos')
+      .then(r => { if (!r.ok) throw new Error('Failed'); return r.json() })
+      .then(d => setTodos(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { fetchTodos() }, [fetchTodos])
+
+  async function handleAdd() {
+    const task = newTask.trim()
+    if (!task) return
+    setAdding(true)
+    try {
+      const res = await fetch('/api/auth/admin/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task }),
+      })
+      if (res.ok) {
+        setNewTask('')
+        fetchTodos()
+      }
+    } catch { /* silent */ }
+    finally { setAdding(false) }
+  }
+
+  async function handleToggle(todo) {
+    setBusyId(todo.id)
+    try {
+      const res = await fetch(`/api/auth/admin/todos/${todo.id}/done`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !todo.done }),
+      })
+      if (res.ok) fetchTodos()
+    } catch { /* silent */ }
+    finally { setBusyId(null) }
+  }
+
+  async function handleDelete(todo) {
+    setBusyId(todo.id)
+    try {
+      const res = await fetch(`/api/auth/admin/todos/${todo.id}`, { method: 'DELETE' })
+      if (res.ok) fetchTodos()
+    } catch { /* silent */ }
+    finally { setBusyId(null) }
+  }
+
+  const openCount = todos.filter(t => !t.done).length
+  const doneCount = todos.length - openCount
+
+  return (
+    <div className={styles.todoSection}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionTitle}>
+          Team To-Do
+          {todos.length > 0 && (
+            <span className={styles.todoCounts}>
+              {openCount} open{doneCount > 0 ? ` · ${doneCount} done` : ''}
+            </span>
+          )}
+        </span>
+        <button className={styles.refreshBtn} onClick={fetchTodos} disabled={loading}>
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className={styles.todoAddRow}>
+        <input
+          type="text"
+          className={styles.todoInput}
+          placeholder="Add a task for the team..."
+          value={newTask}
+          onChange={e => setNewTask(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+        />
+        <button
+          className={styles.todoAddBtn}
+          onClick={handleAdd}
+          disabled={adding || !newTask.trim()}
+        >
+          {adding ? 'Adding...' : 'Add Task'}
+        </button>
+      </div>
+
+      <div className={styles.todoList}>
+        {loading && todos.length === 0 ? (
+          <div className={styles.loading}>Loading tasks...</div>
+        ) : todos.length === 0 ? (
+          <div className={styles.emptyActivity}>No tasks yet — add the first one above</div>
+        ) : (
+          todos.map(t => (
+            <div key={t.id} className={`${styles.todoItem} ${t.done ? styles.todoItemDone : ''}`}>
+              <button
+                className={`${styles.todoCheck} ${t.done ? styles.todoCheckDone : ''}`}
+                onClick={() => handleToggle(t)}
+                disabled={busyId === t.id}
+                title={t.done ? 'Mark as not done' : 'Cross off'}
+                aria-label={t.done ? 'Mark as not done' : 'Cross off'}
+              >
+                {t.done ? '✓' : ''}
+              </button>
+              <div className={styles.todoBody}>
+                <span className={styles.todoTask}>{t.task}</span>
+                <span className={styles.todoMeta}>
+                  {t.done
+                    ? `Done by ${t.completed_by || 'admin'}${t.completed_at ? ` · ${timeAgo(t.completed_at)}` : ''}`
+                    : `Added by ${t.created_by || 'admin'} · ${timeAgo(t.created_at)}`}
+                </span>
+              </div>
+              <button
+                className={styles.todoDelete}
+                onClick={() => handleDelete(t)}
+                disabled={busyId === t.id}
+                title="Delete task"
+                aria-label="Delete task"
+              >
+                &times;
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Revenue Chart (MRR over time) ──
 function RevenueChart({ data }) {
   if (!data || data.length === 0) return null
@@ -1580,6 +1718,9 @@ export default function Admin() {
           <span className={styles.statLabel}>30d Churn</span>
         </div>
       </div>
+
+      {/* ── Team To-Do List (shared across admins) ── */}
+      <AdminTodoList />
 
       {/* ── Section 2: Signups Chart ── */}
       <div className={styles.chartSection}>

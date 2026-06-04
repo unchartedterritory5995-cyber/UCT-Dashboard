@@ -1528,3 +1528,127 @@
   .audiencePills { justify-content: center; }
   .sendBtn { width: 100%; text-align: center; }
 }
+
+/* ── Team To-Do List ── */
+.todoSection {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  margin-bottom: 24px;
+}
+.todoCounts {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.todoAddRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.todoInput {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.todoInput:focus { border-color: var(--ut-gold); }
+.todoInput::placeholder { color: var(--text-muted); }
+.todoAddBtn {
+  background: var(--ut-gold);
+  border: none;
+  color: #1a1c17;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.todoAddBtn:hover { opacity: 0.88; }
+.todoAddBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.todoList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.todoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.todoItem:hover { background: rgba(255,255,255,0.05); }
+.todoItemDone { opacity: 0.55; }
+.todoCheck {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: #1a1c17;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.todoCheck:hover { border-color: var(--ut-gold); }
+.todoCheckDone {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  font-weight: 700;
+}
+.todoCheck:disabled { cursor: not-allowed; opacity: 0.6; }
+.todoBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.todoTask {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+.todoItemDone .todoTask {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.todoMeta {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.todoDelete {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.todoDelete:hover { color: #f87171; }
+.todoDelete:disabled { cursor: not-allowed; opacity: 0.5; }

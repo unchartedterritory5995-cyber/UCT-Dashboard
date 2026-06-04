@@ -144,6 +144,18 @@ CREATE TABLE IF NOT EXISTS admin_notes (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_notes_user ON admin_notes(user_id);
 
+CREATE TABLE IF NOT EXISTS admin_todos (
+    id             TEXT PRIMARY KEY,
+    task           TEXT NOT NULL,
+    done           INTEGER NOT NULL DEFAULT 0,
+    created_by     TEXT NOT NULL,           -- admin email who added it
+    completed_by   TEXT,                    -- admin email who crossed it off
+    completed_at   TIMESTAMP,
+    sort_order     INTEGER NOT NULL DEFAULT 0,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_admin_todos_done ON admin_todos(done, sort_order);
+
 CREATE TABLE IF NOT EXISTS page_views (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,

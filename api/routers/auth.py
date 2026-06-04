@@ -34,6 +34,11 @@ from api.services.auth_service import (
     get_mrr_history,
     add_admin_note,
     get_admin_notes,
+    list_admin_todos,
+    add_admin_todo,
+    set_admin_todo_done,
+    update_admin_todo,
+    delete_admin_todo,
     log_page_view,
     get_page_analytics,
     submit_feedback,
@@ -401,6 +406,65 @@ def admin_feedback(user: dict = Depends(get_current_user), limit: int = 50):
     """Admin-only: return recent feedback."""
     _require_admin(user)
     return get_recent_feedback(limit=limit)
+
+
+# ── Admin to-do list (shared across all admins) ───────────────────────────────
+
+class TodoRequest(BaseModel):
+    task: str
+
+
+class TodoDoneRequest(BaseModel):
+    done: bool
+
+
+@router.get("/admin/todos")
+def admin_list_todos(user: dict = Depends(get_current_user)):
+    """Admin-only: shared to-do list for all admins."""
+    _require_admin(user)
+    return list_admin_todos()
+
+
+@router.post("/admin/todos")
+def admin_create_todo(req: TodoRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: add a task to the shared to-do list."""
+    _require_admin(user)
+    task = req.task.strip()
+    if not task:
+        raise HTTPException(400, "Task is required")
+    return add_admin_todo(task, user["email"])
+
+
+@router.post("/admin/todos/{todo_id}/done")
+def admin_toggle_todo(todo_id: str, req: TodoDoneRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: cross a task off (or restore it)."""
+    _require_admin(user)
+    result = set_admin_todo_done(todo_id, req.done, user["email"])
+    if not result:
+        raise HTTPException(404, "Task not found")
+    return result
+
+
+@router.put("/admin/todos/{todo_id}")
+def admin_edit_todo(todo_id: str, req: TodoRequest, user: dict = Depends(get_current_user)):
+    """Admin-only: edit a task's text."""
+    _require_admin(user)
+    task = req.task.strip()
+    if not task:
+        raise HTTPException(400, "Task is required")
+    result = update_admin_todo(todo_id, task)
+    if not result:
+        raise HTTPException(404, "Task not found")
+    return result
+
+
+@router.delete("/admin/todos/{todo_id}")
+def admin_remove_todo(todo_id: str, user: dict = Depends(get_current_user)):
+    """Admin-only: permanently delete a task."""
+    _require_admin(user)
+    if not delete_admin_todo(todo_id):
+        raise HTTPException(404, "Task not found")
+    return {"ok": True}
 
 
 # ── User tag endpoints ────────────────────────────────────────────────────────
