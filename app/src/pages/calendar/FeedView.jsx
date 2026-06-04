@@ -63,6 +63,12 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return dividendsForDay
   }, [activeTypes, dividendsForDay])
 
+  // Split reporters into BMO (before open) / AMC (after close) so the feed shows
+  // the same clear top/bottom distinction as the month grid. Filtering + sorting
+  // already applied above; filter preserves relative order within each timing.
+  const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
+  const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
+
   const hasEarnings = entries.length > 0
   const hasMacro    = !!(day.econ?.length || day.fed?.length)
   const hasEvents   = ipoEvents.length > 0 || divEvents.length > 0
@@ -79,6 +85,37 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
         {mineN > 0 && <span className={styles.mineN}>{mineN} of yours</span>}
       </div>
       <MacroBand econ={day.econ} fed={day.fed} />
+
+      <TimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
+        entries={bmoEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
+      <TimingSection label="After Close" icon="🌙" hdClass={styles.amcHd}
+        entries={amcEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
+
+      {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
+      {hasEvents && (
+        <div className={styles.cards}>
+          {ipoEvents.map((ev, i) => (
+            <EventCard key={`ipo-${ev.sym || i}`} event={ev} />
+          ))}
+          {divEvents.map((ev, i) => (
+            <EventCard key={`div-${ev.sym}-${ev.type}-${i}`} event={ev} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// One timing-grouped section (Before Open / After Close) inside a day group.
+function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSelect }) {
+  if (!entries.length) return null
+  return (
+    <div className={styles.timedGroup}>
+      <div className={`${styles.timedHd} ${hdClass}`}>
+        <span className={styles.timedIcon} aria-hidden="true">{icon}</span>
+        {label}
+        <span className={styles.timedCount}>{entries.length}</span>
+      </div>
       <div className={styles.cards}>
         {entries.map(e => (
           <EarningsCard key={`earn-${e.sym}`} entry={e} timing={e._timing}
@@ -86,14 +123,6 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
             liveSnap={prices[e.sym] ?? null}
             reaction={reactions?.[e.sym]}
             onSelect={onSelect} />
-        ))}
-        {/* B3: IPO event cards interleaved */}
-        {ipoEvents.map((ev, i) => (
-          <EventCard key={`ipo-${ev.sym || i}`} event={ev} />
-        ))}
-        {/* B3: dividend + split event cards interleaved */}
-        {divEvents.map((ev, i) => (
-          <EventCard key={`div-${ev.sym}-${ev.type}-${i}`} event={ev} />
         ))}
       </div>
     </div>

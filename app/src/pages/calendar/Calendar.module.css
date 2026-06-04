@@ -355,6 +355,67 @@
   }
 }
 
+/* ── BMO / AMC grouped sections (Feed + DayDetailDrawer) ─────────────────── */
+.timedGroup {
+  margin-bottom: 16px;
+}
+
+.timedHd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin: 0 0 9px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--cal-line);
+}
+
+.timedIcon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.timedCount {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--cal-muted);
+  background: var(--cal-line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 2px;
+}
+
+/* Timing color modifiers — shared by feed/drawer headers + week sub-group headers.
+   border-bottom-color is a no-op where the element has no border (week). */
+.bmoHd {
+  color: #fbbf24;
+  border-bottom-color: rgba(251, 191, 36, 0.28);
+}
+
+.amcHd {
+  color: var(--cal-blue);
+  border-bottom-color: rgba(96, 165, 250, 0.28);
+}
+
+/* Week column timing sub-groups */
+.wgroup {
+  margin-bottom: 4px;
+}
+
+.wgroupHd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 7px 0 3px;
+}
+
 /* ── Task 12: WeekView + MonthView + DayDetailDrawer ────────────────────── */
 
 /* WeekView */
