@@ -63,6 +63,9 @@ const CHART_GROUPS = [
       { key: 'new_20d_lows',  label: '20D Lows' },
       { key: 'new_ath',       label: 'ATH Count' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
+      { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
+      { key: 'atr_ext_10',    label: '>10× ATR Ext (50SMA)' },
+      { key: 'atr_ext_12',    label: '>12× ATR Ext (50SMA)' },
     ],
   },
   {
