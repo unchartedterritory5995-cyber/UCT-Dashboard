@@ -176,7 +176,8 @@
 .catRowTop { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
 .catChevron { flex: none; width: 9px; font-size: 9px; line-height: 1; color: var(--text-muted); }
 .catRowOpen .catChevron, .catRow:hover .catChevron { color: var(--ut-gold); }
-.catTitle { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wrap long catalysts onto the next line so the full headline is readable at a glance. */
+.catTitle { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.32; color: var(--text-primary); overflow-wrap: anywhere; }
 /* Fixed-width right-aligned columns so move% and date line up vertically. */
 .catMove { flex: none; width: 46px; text-align: right; font-family: var(--font-mono); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .catMoveUp { color: #4ade80; }
