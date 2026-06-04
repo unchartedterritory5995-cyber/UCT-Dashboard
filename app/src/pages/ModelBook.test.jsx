@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, beforeEach, test, expect } from 'vitest'
 
 // Stub the heavy chart so the page renders in jsdom without canvas/SSE.
@@ -35,6 +35,11 @@ vi.mock('swr', () => ({
               entry_price: 120, stop_price: 110, target_price: 150, notes: 'textbook',
               marker_side: 'belowBar', marker_shape: 'arrowUp' },
           ],
+          catalysts: [
+            { id: 20, catalyst_date: '2025-09-04', title: 'Q3 earnings beat',
+              description: 'Crushed estimates on AI demand.', move_pct: 18.5,
+              source: 'ai', sort_order: 0 },
+          ],
         },
         mutate: vi.fn(),
       }
@@ -45,7 +50,8 @@ vi.mock('swr', () => ({
 
 import ModelBook from './ModelBook'
 
-beforeEach(() => { mockRole = null })
+// Reset role + persisted panel/toggle prefs so tests don't bleed into each other.
+beforeEach(() => { mockRole = null; try { localStorage.clear() } catch { /* ignore */ } })
 
 test('renders model book heading', () => {
   render(<ModelBook />)
@@ -77,4 +83,22 @@ test('auto-selects the first stock and renders its chart + labeled setup', () =>
   // Setup shows compactly in the right panel as name + date (label_date 2025-03-14 → March 14th).
   expect(screen.getByText('VCP')).toBeInTheDocument()
   expect(screen.getByText('March 14th')).toBeInTheDocument()
+})
+
+test('switches to the Catalysts tab and shows a catalyst', () => {
+  render(<ModelBook />)
+  // Setups tab is the default — the setup is visible, the catalyst is not.
+  expect(screen.getByText('VCP')).toBeInTheDocument()
+  expect(screen.queryByText('Q3 earnings beat')).toBeNull()
+  // Flip to Catalysts → its row (title + move% + date) renders.
+  fireEvent.click(screen.getByRole('button', { name: /catalysts/i }))
+  expect(screen.getByText('Q3 earnings beat')).toBeInTheDocument()
+  expect(screen.getByText('+19%')).toBeInTheDocument()  // 18.5 rounds to 19
+  expect(screen.getByText('September 4th')).toBeInTheDocument()
+})
+
+test('hides the AI Generate button for non-admins on the Catalysts tab', () => {
+  render(<ModelBook />)
+  fireEvent.click(screen.getByRole('button', { name: /catalysts/i }))
+  expect(screen.queryByRole('button', { name: /generate/i })).toBeNull()
 })

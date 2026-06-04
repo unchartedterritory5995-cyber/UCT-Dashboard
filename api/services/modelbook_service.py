@@ -64,6 +64,19 @@ CREATE TABLE IF NOT EXISTS modelbook_setups (
   created_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mb_setups_stock ON modelbook_setups(stock_id, label_date);
+
+CREATE TABLE IF NOT EXISTS modelbook_catalysts (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  stock_id      INTEGER NOT NULL REFERENCES modelbook_stocks(id) ON DELETE CASCADE,
+  catalyst_date TEXT    NOT NULL,  -- 'YYYY-MM-DD' the trading day the catalyst hit (the candle marked)
+  title         TEXT    NOT NULL,  -- short headline (e.g. "Q3 earnings beat")
+  description   TEXT,              -- one-sentence explanation of the catalyst + why it moved the stock
+  move_pct      REAL,              -- the immediate single-day % move on that day
+  sort_order    INTEGER NOT NULL DEFAULT 0,
+  source        TEXT    NOT NULL DEFAULT 'ai',  -- 'ai' (generated) or 'manual' (admin-entered)
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mb_catalysts_stock ON modelbook_catalysts(stock_id, catalyst_date);
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
@@ -72,6 +85,8 @@ _STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct"
 _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "entry_price", "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape", "drawings_json")
+_CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
+                    "sort_order", "source")
 
 
 def _connect() -> sqlite3.Connection:
@@ -98,6 +113,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "company_desc", "TEXT"),
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
+            ("modelbook_stocks", "catalysts_at", "INTEGER"),   # epoch of last AI catalyst-generation attempt
             ("modelbook_setups", "frame_start_date", "TEXT"),
             ("modelbook_setups", "drawings_json", "TEXT"),
         ):
@@ -221,6 +237,13 @@ def get_stock_detail(stock_id: int) -> Optional[dict]:
             (int(stock_id),),
         ).fetchall()
         stock["setups"] = [dict(s) for s in setups]
+        catalysts = c.execute(
+            """SELECT * FROM modelbook_catalysts
+               WHERE stock_id = ?
+               ORDER BY sort_order ASC, catalyst_date ASC, id ASC""",
+            (int(stock_id),),
+        ).fetchall()
+        stock["catalysts"] = [dict(x) for x in catalysts]
         return stock
 
 
@@ -350,6 +373,96 @@ def delete_setup(setup_id: int) -> bool:
         cur = c.execute("DELETE FROM modelbook_setups WHERE id = ?", (int(setup_id),))
         c.commit()
         return cur.rowcount > 0
+
+
+# ── Catalysts ─────────────────────────────────────────────────────────────────
+
+def get_catalyst(catalyst_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM modelbook_catalysts WHERE id = ?", (int(catalyst_id),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def create_catalyst(stock_id: int, payload: dict) -> Optional[dict]:
+    """Add one catalyst to a stock. Returns None if the stock is missing."""
+    data = {f: payload.get(f) for f in _CATALYST_FIELDS}
+    data["stock_id"] = int(stock_id)
+    data["source"] = data.get("source") or "manual"
+    data["sort_order"] = data.get("sort_order") or 0
+    data["created_at"] = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if not _stock_exists(c, stock_id):
+            return None
+        cur = c.execute(
+            """INSERT INTO modelbook_catalysts
+               (stock_id, catalyst_date, title, description, move_pct, sort_order,
+                source, created_at)
+               VALUES (:stock_id, :catalyst_date, :title, :description, :move_pct,
+                       :sort_order, :source, :created_at)""",
+            data,
+        )
+        c.commit()
+        new_id = cur.lastrowid
+    return get_catalyst(new_id)
+
+
+def update_catalyst(catalyst_id: int, payload: dict) -> Optional[dict]:
+    fields = {f: payload[f] for f in _CATALYST_FIELDS if f in payload}
+    if not fields:
+        return get_catalyst(catalyst_id)
+    set_clause = ", ".join(f"{k} = :{k}" for k in fields)
+    fields["id"] = int(catalyst_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            f"UPDATE modelbook_catalysts SET {set_clause} WHERE id = :id", fields
+        )
+        c.commit()
+        if cur.rowcount == 0:
+            return None
+    return get_catalyst(catalyst_id)
+
+
+def delete_catalyst(catalyst_id: int) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM modelbook_catalysts WHERE id = ?", (int(catalyst_id),))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def replace_catalysts(stock_id: int, items: list[dict]) -> Optional[list[dict]]:
+    """Replace ALL of a stock's catalysts with a fresh set (used by AI generation).
+    Stamps catalysts_at so a failed/empty generation isn't retried in a loop.
+    Returns the new catalyst list, or None if the stock is missing."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if not _stock_exists(c, stock_id):
+            return None
+        c.execute("DELETE FROM modelbook_catalysts WHERE stock_id = ?", (int(stock_id),))
+        for i, it in enumerate(items or []):
+            data = {f: it.get(f) for f in _CATALYST_FIELDS}
+            data["stock_id"] = int(stock_id)
+            data["source"] = data.get("source") or "ai"
+            data["sort_order"] = data.get("sort_order") if data.get("sort_order") is not None else i
+            data["created_at"] = now
+            c.execute(
+                """INSERT INTO modelbook_catalysts
+                   (stock_id, catalyst_date, title, description, move_pct, sort_order,
+                    source, created_at)
+                   VALUES (:stock_id, :catalyst_date, :title, :description, :move_pct,
+                           :sort_order, :source, :created_at)""",
+                data,
+            )
+        c.execute("UPDATE modelbook_stocks SET catalysts_at = ? WHERE id = ?",
+                  (now, int(stock_id)))
+        c.commit()
+        rows = c.execute(
+            """SELECT * FROM modelbook_catalysts WHERE stock_id = ?
+               ORDER BY sort_order ASC, catalyst_date ASC, id ASC""",
+            (int(stock_id),),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ── One-time bootstrap seed ───────────────────────────────────────────────────

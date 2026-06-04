@@ -14,6 +14,7 @@ const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
+const CATALYST_GOLD = '#e6b800'   // ⚡ catalyst markers + gold candle (matches StockChart's highlight gold)
 
 // Stable empty reference for priceLines. Returning a fresh [] on every render
 // gives StockChart a new prop identity each time the selected setup changes,
@@ -278,6 +279,87 @@ function AddSetupForm({ stockId, year, onAdded }) {
   )
 }
 
+// ── Admin: add/edit a single catalyst ─────────────────────────────────────────
+// `initial` with an id → edit mode (PUT); otherwise create mode (POST).
+function CatalystForm({ stockId, year, initial, onSaved, onCancel }) {
+  const isEdit = !!initial?.id
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(() => ({
+    catalyst_date: initial?.catalyst_date || '',
+    title: initial?.title || '',
+    description: initial?.description || '',
+    move_pct: initial?.move_pct ?? '',
+  }))
+
+  async function submit(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const body = {
+        catalyst_date: form.catalyst_date,
+        title: form.title.trim(),
+        description: form.description || null,
+        move_pct: form.move_pct === '' ? null : parseFloat(form.move_pct),
+        source: initial?.source || 'manual',
+      }
+      const url = isEdit ? `/api/modelbook/catalyst/${initial.id}` : `/api/modelbook/stock/${stockId}/catalysts`
+      const r = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (r.ok) onSaved?.()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className={styles.adminForm} onSubmit={submit}>
+      <input className={styles.input} type="text" required autoFocus
+        placeholder="Catalyst (e.g. Q3 earnings beat)" value={form.title}
+        onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+      <div className={styles.formRow}>
+        <label className={styles.dateField}>
+          <span className={styles.dateLabel}>Date</span>
+          <input className={styles.input} type="date" required value={form.catalyst_date}
+            min={`${year}-01-01`} max={`${year}-12-31`}
+            onChange={e => setForm(f => ({ ...f, catalyst_date: e.target.value }))} />
+        </label>
+        <label className={styles.dateField}>
+          <span className={styles.dateLabel}>Move %</span>
+          <input className={styles.input} type="number" step="0.1" placeholder="e.g. 18.5" value={form.move_pct}
+            onChange={e => setForm(f => ({ ...f, move_pct: e.target.value }))} />
+        </label>
+      </div>
+      <textarea className={styles.textarea} placeholder="What happened and why it moved the stock" value={form.description}
+        onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+      <div className={styles.formActions}>
+        <button className={styles.saveBtn} type="submit" disabled={saving}>
+          {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Save catalyst')}
+        </button>
+        <button className={styles.cancelBtn} type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  )
+}
+
+function AddCatalystForm({ stockId, year, onAdded }) {
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return <button className={styles.addBtn} onClick={() => setOpen(true)}>+ Add</button>
+  }
+  return (
+    <CatalystForm
+      stockId={stockId}
+      year={year}
+      onSaved={() => { setOpen(false); onAdded?.() }}
+      onCancel={() => setOpen(false)}
+    />
+  )
+}
+
 // ── Stock detail: chart with setups labeled + the setup list ──────────────────
 function StockDetail({ stockId, isAdmin }) {
   const { data: stock, mutate } = useSWR(
@@ -297,6 +379,13 @@ function StockDetail({ stockId, isAdmin }) {
   )
   const [pickedSetupId, setPickedSetupId] = useState(null)
   const [editingSetupId, setEditingSetupId] = useState(null)  // admin: setup row being edited inline
+  // Right panel: Setups | Catalysts tab. Persisted + survives stock switches.
+  const [panelTab, setPanelTab] = useState(() => {
+    try { return localStorage.getItem('modelbook_panel_tab') === 'catalysts' ? 'catalysts' : 'setups' } catch { return 'setups' }
+  })
+  const [editingCatalystId, setEditingCatalystId] = useState(null)  // admin: catalyst row being edited inline
+  const [genningCats, setGenningCats] = useState(false)             // admin: AI catalyst generation in flight
+  const [catError, setCatError] = useState('')                     // generation error message
   const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
   const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
   // "Show all" overlay: render every setup's annotations on the zoomed-out chart.
@@ -342,6 +431,8 @@ function StockDetail({ stockId, isAdmin }) {
     setAnnotateMode(false)
     setAnnotationDraft([])
     setEditingSetupId(null)
+    setEditingCatalystId(null)
+    setCatError('')
   }
   // Derived: the picked setup if still present, else the first one (so its
   // price lines show by default). Avoids a setState-in-effect on stock change.
@@ -414,6 +505,84 @@ function StockDetail({ stockId, isAdmin }) {
     annotationsVisible = !!focusDate
   }
 
+  // ── Catalysts ──
+  // The year's most impactful, move-driving events (AI-generated, admin-editable).
+  // Ordered by the API (sort_order). Shown as gold ⚡ markers + gold candles when
+  // the Catalysts tab is active; clicking one zooms to it.
+  const catalysts = useMemo(() => stock?.catalysts || [], [stock])
+  const catalystMarkers = useMemo(() => catalysts
+    .filter(c => c.catalyst_date)
+    .map(c => ({
+      time: c.catalyst_date,
+      position: 'aboveBar',
+      color: CATALYST_GOLD,
+      shape: 'circle',
+      text: c.title || (c.move_pct != null ? `${c.move_pct >= 0 ? '+' : ''}${Math.round(c.move_pct)}%` : ''),
+      size: 2,
+    })), [catalysts])
+  const catalystTimes = useMemo(() => catalysts.map(c => c.catalyst_date).filter(Boolean), [catalysts])
+
+  const onCatalystTab = panelTab === 'catalysts'
+  // The chart shows EITHER setup overlays or catalyst markers — never both. Pick
+  // the layer set for the active tab so they don't fight over the chart.
+  const chartMarkers = onCatalystTab && catalystMarkers.length ? catalystMarkers : null
+  const chartPriceLines = onCatalystTab ? NO_PRICE_LINES : priceLines
+  const chartAnnotations = onCatalystTab ? null : annotations
+  const chartAnnotationsVisible = onCatalystTab ? false : annotationsVisible
+  const chartAnnotateMode = onCatalystTab ? false : annotateMode
+  const chartHighlight = onCatalystTab
+    ? (catalystTimes.length ? catalystTimes : focusDate)
+    : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+
+  // Switch the right-panel tab. Zoom the chart back out to the full year so the
+  // new tab shows its overview; only animate when currently zoomed in.
+  function selectTab(tab) {
+    if (tab === panelTab) return
+    setPanelTab(tab)
+    try { localStorage.setItem('modelbook_panel_tab', tab) } catch { /* ignore */ }
+    setAnnotateMode(false)
+    setAnnotationDraft([])
+    setCatError('')
+    setFocus(f => (f.date != null
+      ? { id: null, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+      : { id: null, date: null, startDate: null, nonce: f.nonce, stockId: null, tf: null }))
+  }
+
+  // Click a catalyst → zoom so its day is the last candle; click again to zoom out.
+  function onCatalystClick(c) {
+    setFocus(f => {
+      const sameTarget = f.id === c.id && f.date != null && f.stockId === stockId && f.tf === chartTf
+      return sameTarget
+        ? { id: c.id, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+        : { id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
+    })
+  }
+
+  async function generateCatalysts() {
+    if (catalysts.length && !window.confirm('Regenerate catalysts? This replaces the current set.')) return
+    setCatError('')
+    setGenningCats(true)
+    try {
+      const r = await fetch(`/api/modelbook/stock/${stock.id}/catalysts/generate`, {
+        method: 'POST', credentials: 'include',
+      })
+      if (r.ok) mutate()
+      else {
+        const e = await r.json().catch(() => ({}))
+        setCatError(e.detail || 'Could not generate catalysts. Try again.')
+      }
+    } catch {
+      setCatError('Could not generate catalysts. Try again.')
+    } finally {
+      setGenningCats(false)
+    }
+  }
+
+  async function deleteCatalyst(id) {
+    await fetch(`/api/modelbook/catalyst/${id}`, { method: 'DELETE', credentials: 'include' })
+    mutate()
+  }
+
   function startAnnotate() {
     setAnnotationDraft(savedDrawings)
     setAnnotateMode(true)
@@ -475,8 +644,8 @@ function StockDetail({ stockId, isAdmin }) {
           </h2>
         </div>
         <div className={styles.headerTools}>
-          {/* Annotate: only when admin has a setup zoomed in. */}
-          {isAdmin && focusDate && !annotateMode && (
+          {/* Annotate: only when admin has a setup zoomed in (Setups tab). */}
+          {isAdmin && !onCatalystTab && focusDate && !annotateMode && (
             <button className={styles.annotateBtn} onClick={startAnnotate} title="Draw annotations on this setup">✏️ Annotate</button>
           )}
           {isAdmin && annotateMode && (
@@ -514,15 +683,16 @@ function StockDetail({ stockId, isAdmin }) {
             priceScaleTopMargin={0.14}
             priceScaleBottomMargin={0.06}
             watermarkOpacity={0.13}
-            priceLines={priceLines}
+            priceLines={chartPriceLines}
+            markers={chartMarkers}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
-            annotations={annotations}
-            annotationsVisible={annotationsVisible}
-            annotationsEditable={annotateMode}
+            annotations={chartAnnotations}
+            annotationsVisible={chartAnnotationsVisible}
+            annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
-            highlightBarTime={showAllAnnotations && hasAnnotations ? setupTimes : focusDate}
+            highlightBarTime={chartHighlight}
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
@@ -577,13 +747,22 @@ function StockDetail({ stockId, isAdmin }) {
               )}
             </div>
 
-            {/* Setups — a time-ordered guide to the best buy spots on the chart.
-                Click a row to surface its entry/stop/target lines on the chart. */}
+            {/* Setups (buy spots) + Catalysts (move-driving events) — two tabbed
+                guides to the chart. Click a row to focus/zoom that point. */}
             <div className={styles.panelSetups}>
               <div className={styles.setupSectionHead}>
-                <span className={styles.sectionLabel}>SETUPS ({setups.length})</span>
+                <div className={styles.panelTabs}>
+                  <button className={`${styles.panelTab} ${!onCatalystTab ? styles.panelTabActive : ''}`}
+                    onClick={() => selectTab('setups')}>
+                    Setups{setups.length ? ` (${setups.length})` : ''}
+                  </button>
+                  <button className={`${styles.panelTab} ${onCatalystTab ? styles.panelTabActive : ''}`}
+                    onClick={() => selectTab('catalysts')}>
+                    Catalysts{catalysts.length ? ` (${catalysts.length})` : ''}
+                  </button>
+                </div>
                 <div className={styles.setupHeadTools}>
-                  {hasAnnotations && (
+                  {!onCatalystTab && hasAnnotations && (
                     <button
                       className={`${styles.showAllToggle} ${showAllAnnotations ? styles.showAllToggleOn : ''}`}
                       onClick={toggleShowAll}
@@ -596,10 +775,78 @@ function StockDetail({ stockId, isAdmin }) {
                       Show all
                     </button>
                   )}
-                  {isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                  {!onCatalystTab && isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                  {onCatalystTab && isAdmin && (
+                    <>
+                      <button className={styles.annotateBtn} onClick={generateCatalysts} disabled={genningCats}
+                        title="Find this year's most impactful catalysts with AI">
+                        {genningCats ? 'Generating…' : (catalysts.length ? '↻ Regenerate' : '✨ Generate')}
+                      </button>
+                      <AddCatalystForm stockId={stock.id} year={stock.year} onAdded={mutate} />
+                    </>
+                  )}
                 </div>
               </div>
-              {setups.length === 0 ? (
+
+              {onCatalystTab ? (
+                <>
+                  {catError && <p className={styles.catError}>{catError}</p>}
+                  {catalysts.length === 0 ? (
+                    <p className={styles.noSetups}>
+                      {isAdmin
+                        ? 'No catalysts yet — use ✨ Generate to find this year’s biggest movers.'
+                        : 'No catalysts labeled for this year yet.'}
+                    </p>
+                  ) : (
+                    <div className={styles.setupListC}>
+                      {catalysts.map(c => (
+                        editingCatalystId === c.id ? (
+                          <CatalystForm
+                            key={c.id}
+                            stockId={stock.id}
+                            year={stock.year}
+                            initial={c}
+                            onSaved={() => { setEditingCatalystId(null); mutate() }}
+                            onCancel={() => setEditingCatalystId(null)}
+                          />
+                        ) : (
+                          <div
+                            key={c.id}
+                            className={styles.catRow}
+                            onClick={() => onCatalystClick(c)}
+                            title={c.description || undefined}
+                          >
+                            <div className={styles.catRowTop}>
+                              <span className={styles.catTitle}>{c.title}</span>
+                              {c.move_pct != null && (
+                                <span className={`${styles.catMove} ${c.move_pct >= 0 ? styles.catMoveUp : styles.catMoveDown}`}>
+                                  {c.move_pct >= 0 ? '+' : ''}{Math.round(c.move_pct)}%
+                                </span>
+                              )}
+                              <span className={styles.catDate}>{fmtSetupDate(c.catalyst_date)}</span>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    className={styles.setupEditC}
+                                    title="Edit catalyst"
+                                    onClick={e => { e.stopPropagation(); setEditingCatalystId(c.id) }}
+                                  >✎</button>
+                                  <button
+                                    className={styles.setupDelC}
+                                    title="Delete catalyst"
+                                    onClick={e => { e.stopPropagation(); deleteCatalyst(c.id) }}
+                                  >×</button>
+                                </>
+                              )}
+                            </div>
+                            {c.description && <p className={styles.catDesc}>{c.description}</p>}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : setups.length === 0 ? (
                 <p className={styles.noSetups}>No setups labeled on this chart yet.</p>
               ) : (
                 <div className={styles.setupListC}>

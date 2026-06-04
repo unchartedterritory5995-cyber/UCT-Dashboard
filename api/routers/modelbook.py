@@ -90,6 +90,28 @@ class SetupPatch(BaseModel):
     drawings_json: Optional[str] = None   # JSON array of chart annotations
 
 
+class CatalystIn(BaseModel):
+    catalyst_date: str
+    title: str
+    description: Optional[str] = None
+    move_pct: Optional[float] = None
+    sort_order: Optional[int] = 0
+    source: Optional[str] = "manual"
+
+
+class CatalystPatch(BaseModel):
+    catalyst_date: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    move_pct: Optional[float] = None
+    sort_order: Optional[int] = None
+
+
+def _validate_catalyst(d: dict) -> None:
+    if d.get("catalyst_date") is not None and not _ISO_DATE.match(d["catalyst_date"]):
+        raise HTTPException(400, "catalyst_date must be YYYY-MM-DD")
+
+
 def _validate_setup(d: dict) -> None:
     """Validate the enum/format fields present in a setup payload → 400 on bad."""
     if d.get("label_date") is not None and not _ISO_DATE.match(d["label_date"]):
@@ -390,6 +412,152 @@ def warm_all_stats() -> None:
         _generate_descriptions_for(stocks)
 
 
+# ── AI-generated catalysts (the year's most impactful, move-driving events) ───
+
+_CATALYST_ENABLED = _os.environ.get("MODELBOOK_CATALYSTS_ENABLED", "1") == "1"
+_CATALYST_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+
+
+def _fetch_year_bars(symbol: str, year: int) -> list:
+    """Sorted daily bars for the (symbol, year). Reuses the cached bars path."""
+    import json
+    from api.services import bars_fetch
+    resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
+    body = getattr(resp, "body", None)
+    data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
+    ystr = str(year)
+    yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
+    yb.sort(key=lambda b: b.get("t", ""))
+    return yb
+
+
+def _big_move_days(bars: list, top_n: int = 12) -> list:
+    """The largest single-day moves of the year (by |% change vs prior close|),
+    so the LLM attributes catalysts to days the stock actually moved big."""
+    out = []
+    prev_c = None
+    for b in bars:
+        c, o, t = b.get("c"), b.get("o"), b.get("t")
+        if c is None or not t:
+            if c is not None:
+                prev_c = c
+            continue
+        if prev_c:
+            pct = (c - prev_c) / prev_c * 100
+        elif o:
+            pct = (c - o) / o * 100
+        else:
+            pct = 0.0
+        out.append({"date": str(t)[:10], "pct": round(pct, 1)})
+        prev_c = c
+    out.sort(key=lambda d: abs(d["pct"]), reverse=True)
+    return out[:top_n]
+
+
+def _snap_trading_day(d: str, trading_days: list, day_set: set, year: int):
+    """Snap an LLM-returned date to the nearest real trading day (≤5 days away),
+    so the chart marker + gold candle always land on an actual bar. Drops dates
+    outside the year or too far from any session."""
+    from datetime import date
+    if not _ISO_DATE.match(d or "") or not d.startswith(str(year)):
+        return None
+    if d in day_set:
+        return d
+    try:
+        td = date.fromisoformat(d)
+    except ValueError:
+        return None
+    best, best_diff = None, None
+    for cand in trading_days:
+        try:
+            diff = abs((date.fromisoformat(cand) - td).days)
+        except ValueError:
+            continue
+        if best_diff is None or diff < best_diff:
+            best, best_diff = cand, diff
+    return best if (best is not None and best_diff is not None and best_diff <= 5) else None
+
+
+def _generate_catalysts(symbol, company, year, gain_pct):
+    """Claude → list of the year's top 3-5 catalysts, each anchored to a real
+    big-move trading day. Returns None on failure (no rows written)."""
+    if not _CATALYST_ENABLED:
+        return None
+    import json as _json
+    try:
+        bars = _fetch_year_bars(symbol, year)
+        if not bars:
+            return None
+        trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
+        day_set = set(trading_days)
+        movers = _big_move_days(bars, top_n=12)
+        if not movers:
+            return None
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
+        movers_txt = "\n".join(
+            f"- {m['date']} -> {'+' if m['pct'] >= 0 else ''}{m['pct']}%" for m in movers
+        )
+        system = ("You identify the real catalysts behind a stock's biggest moves for a "
+                  "trader's model book. Be factual and specific to the given year. "
+                  "Output JSON only — no preamble, no markdown fences.")
+        prompt = (
+            f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
+            f"Full-year move: {gain_txt}.\n\n"
+            f"The stock's largest single-day moves that year (date -> that day's % change):\n"
+            f"{movers_txt}\n\n"
+            "Identify the 3-5 MOST impactful catalysts that drove immediate big moves in "
+            f"{symbol} during {year} — the events that caused the stock to jump (or drop) "
+            "hard that day.\n"
+            'Return JSON exactly: {"catalysts": [{"date": "YYYY-MM-DD", "title": "...", '
+            '"description": "...", "move_pct": 0.0}, ...]}, ordered most impactful first.\n'
+            "- date: the trading day the catalyst hit. STRONGLY PREFER a date from the "
+            "list above (those are the real big-move days).\n"
+            "- title: a 2-5 word headline of the catalyst (e.g. \"Q3 earnings beat\", "
+            "\"AI supply agreement\", \"Analyst upgrade\", \"Index inclusion\").\n"
+            "- description: ONE factual sentence on the catalyst and why it moved the stock.\n"
+            "- move_pct: the approximate single-day % move that day (number).\n"
+            "Rules: factual and specific to that year. If you don't know the exact news for "
+            "a given day, attribute it to the most likely driver given the company and the "
+            "year's dominant theme. No price targets, no buy/sell advice."
+        )
+        msg = client.messages.create(
+            model=_CATALYST_MODEL, max_tokens=900, temperature=0.5,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+        s, e = text.find("{"), text.rfind("}")
+        if s == -1 or e == -1:
+            return None
+        raw = (_json.loads(text[s:e + 1]).get("catalysts")) or []
+        out = []
+        for i, it in enumerate(raw[:5]):
+            title = (it.get("title") or "").strip()
+            if not title:
+                continue
+            d = _snap_trading_day((it.get("date") or "").strip(), trading_days, day_set, year)
+            if not d:
+                continue
+            try:
+                mp = round(float(it.get("move_pct")), 1) if it.get("move_pct") is not None else None
+            except (TypeError, ValueError):
+                mp = None
+            out.append({
+                "catalyst_date": d,
+                "title": title[:80],
+                "description": ((it.get("description") or "").strip()[:400]) or None,
+                "move_pct": mp,
+                "sort_order": i,
+                "source": "ai",
+            })
+        return out or None
+    except Exception:
+        return None
+
+
 # ── Writes (admin only) ───────────────────────────────────────────────────────
 
 @router.post("/stocks")
@@ -439,3 +607,52 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
     if not svc.delete_setup(setup_id):
         raise HTTPException(404, "Setup not found")
     return {"deleted": setup_id}
+
+
+# ── Catalyst writes (admin only) ──────────────────────────────────────────────
+
+@router.post("/stock/{stock_id}/catalysts/generate")
+def generate_catalysts(stock_id: int, _admin: dict = Depends(require_admin)):
+    """AI-generate the year's top catalysts and REPLACE the stock's catalyst set.
+    Synchronous (one LLM call). Returns the updated stock detail."""
+    if not _CATALYST_ENABLED:
+        raise HTTPException(503, "Catalyst generation is disabled")
+    stock = svc.get_stock_detail(stock_id)
+    if not stock:
+        raise HTTPException(404, "Stock not found")
+    items = _generate_catalysts(
+        stock["symbol"], stock.get("company"), stock["year"],
+        stock.get("oc_pct") if stock.get("oc_pct") is not None else stock.get("gain_pct"),
+    )
+    if not items:
+        raise HTTPException(502, "Could not generate catalysts — try again.")
+    if svc.replace_catalysts(stock_id, items) is None:
+        raise HTTPException(404, "Stock not found")
+    return svc.get_stock_detail(stock_id)
+
+
+@router.post("/stock/{stock_id}/catalysts")
+def add_catalyst(stock_id: int, payload: CatalystIn, _admin: dict = Depends(require_admin)):
+    data = payload.model_dump()
+    _validate_catalyst(data)
+    cat = svc.create_catalyst(stock_id, data)
+    if cat is None:
+        raise HTTPException(404, "Stock not found")
+    return cat
+
+
+@router.put("/catalyst/{catalyst_id}")
+def edit_catalyst(catalyst_id: int, payload: CatalystPatch, _admin: dict = Depends(require_admin)):
+    data = payload.model_dump(exclude_unset=True)
+    _validate_catalyst(data)
+    cat = svc.update_catalyst(catalyst_id, data)
+    if not cat:
+        raise HTTPException(404, "Catalyst not found")
+    return cat
+
+
+@router.delete("/catalyst/{catalyst_id}")
+def remove_catalyst(catalyst_id: int, _admin: dict = Depends(require_admin)):
+    if not svc.delete_catalyst(catalyst_id):
+        raise HTTPException(404, "Catalyst not found")
+    return {"deleted": catalyst_id}

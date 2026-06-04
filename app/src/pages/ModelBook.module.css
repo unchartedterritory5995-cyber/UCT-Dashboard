@@ -138,6 +138,30 @@
   background: #d8d8d8; transition: transform 0.14s, background 0.12s;
 }
 .showAllToggleOn .showAllKnob { transform: translateX(10px); background: var(--ut-gold); }
+/* Setups | Catalysts tabs */
+.panelTabs { display: flex; gap: 4px; }
+.panelTab {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 4px; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--text-muted);
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.panelTab:hover { color: var(--text-primary); }
+.panelTabActive { color: var(--ut-gold); background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.3); }
+/* Catalyst rows — title + move% + date, with a description subline */
+.catRow {
+  display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; border-radius: 5px;
+  cursor: pointer; border: 1px solid transparent; transition: background 0.1s, border-color 0.1s;
+}
+.catRow:hover { background: rgba(255,255,255,0.03); border-color: rgba(201,168,76,0.25); }
+.catRowTop { display: flex; align-items: baseline; gap: 8px; }
+.catTitle { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catMove { font-family: var(--font-mono); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.catMoveUp { color: #4ade80; }
+.catMoveDown { color: #f87171; }
+.catDate { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.catDesc { font-size: 11.5px; line-height: 1.5; color: var(--text-muted); margin: 0; }
+.catError { font-family: var(--font-mono); font-size: 11px; color: #f87171; margin: 4px 0 8px; }
 .sectionLabel { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ut-gold); opacity: 0.8; }
 .noSetups { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
 .setupListC { display: flex; flex-direction: column; gap: 3px; }

@@ -1013,9 +1013,18 @@ users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note)
 **Swing:** High Tight Flag (Powerplay), Classic Flag/Pullback, VCP, Flat Base Breakout, IPO Base, Parabolic Short, Parabolic Long, Wedge Pop, Wedge Drop, Episodic Pivot, 2B Reversal, Kicker Candle, Power Earnings Gap, News Gappers, 4B Setup (Stan Weinstein), Failed H&S/Rounded Top, Classic U&R, Launchpad, Go Signal, HVC, Wick Play, Slingshot, Oops Reversal, News Failure, Remount, Red to Green
 **Intraday:** Opening Range Breakout, Opening Range Breakdown, Red to Green (Intraday), Green to Red, 30min Pivot, Mean Reversion L/S
 
+### Catalysts (AI-generated, marker + gold candle) — added 2026-06-03
+A second tab beside Setups in the right panel: the year's **top 3-5 catalysts** — the
+events that drove immediate big moves. AI-generated, admin-editable (the "AI draft →
+admin edits" model).
+- **Table `modelbook_catalysts`**: `(id, stock_id→stocks ON DELETE CASCADE, catalyst_date 'YYYY-MM-DD', title, description, move_pct, sort_order, source 'ai'|'manual', created_at)`. `modelbook_stocks` gained `catalysts_at` (last generation attempt epoch). Included in `get_stock_detail` as `catalysts[]`.
+- **Generation** (`POST /api/modelbook/stock/{id}/catalysts/generate`, admin, synchronous one LLM call): `_big_move_days()` ranks the year's daily bars by |% change vs prior close| → top 12 candidate days handed to Claude (`MODELBOOK_LLM_MODEL`), which attributes the most impactful catalysts to those days. Each returned date is `_snap_trading_day()`'d to the nearest real session (≤5 days) so the marker/gold-candle always lands on a candle. `replace_catalysts()` swaps the whole set + stamps `catalysts_at`. Gated by `MODELBOOK_CATALYSTS_ENABLED` (default on).
+- **Manual CRUD** (admin): `POST /stock/{id}/catalysts`, `PUT /catalyst/{id}`, `DELETE /catalyst/{id}`.
+- **Chart**: on the Catalysts tab the chart shows gold ⚡ `markers` (StockChart `markers` prop) at each catalyst + ALL catalyst candles gold (`highlightBarTime` array) + setup overlays hidden; clicking a catalyst row focus-zooms to it. Switching tabs zooms back out to the year. Tab choice persists (`modelbook_panel_tab`) and survives stock switches.
+
 ### Tests
-- Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade).
-- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup).
+- Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade, catalyst CRUD + `replace_catalysts` ordering/stamp + cascade).
+- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate).
 
 ### Trade-log retirement (2026-06-02)
 The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —

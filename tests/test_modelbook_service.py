@@ -153,6 +153,70 @@ def test_delete_missing_returns_false(s):
     assert s.delete_setup(123) is False
 
 
+def _catalyst(catalyst_date="2025-09-04", **kw):
+    return {
+        "catalyst_date": catalyst_date,
+        "title": kw.get("title", "Q3 earnings beat"),
+        "description": kw.get("description", "Blew past estimates on AI demand."),
+        "move_pct": kw.get("move_pct", 18.5),
+        "sort_order": kw.get("sort_order", 0),
+        "source": kw.get("source", "ai"),
+    }
+
+
+def test_stock_detail_includes_empty_catalysts(s):
+    stock = s.create_stock(_stock())
+    assert s.get_stock_detail(stock["id"])["catalysts"] == []
+
+
+def test_catalyst_crud(s):
+    stock = s.create_stock(_stock())
+    cat = s.create_catalyst(stock["id"], _catalyst())
+    assert cat["title"] == "Q3 earnings beat"
+    assert cat["move_pct"] == 18.5
+    assert cat["source"] == "ai"
+
+    detail = s.get_stock_detail(stock["id"])
+    assert len(detail["catalysts"]) == 1
+
+    upd = s.update_catalyst(cat["id"], {"title": "Earnings beat + raise", "move_pct": 22.0})
+    assert upd["title"] == "Earnings beat + raise"
+    assert upd["move_pct"] == 22.0
+
+    assert s.delete_catalyst(cat["id"]) is True
+    assert s.get_stock_detail(stock["id"])["catalysts"] == []
+
+
+def test_create_catalyst_on_missing_stock_returns_none(s):
+    assert s.create_catalyst(9999, _catalyst()) is None
+
+
+def test_replace_catalysts_swaps_whole_set_and_orders(s):
+    stock = s.create_stock(_stock())
+    s.create_catalyst(stock["id"], _catalyst(title="old one"))
+    new = s.replace_catalysts(stock["id"], [
+        _catalyst(catalyst_date="2025-05-01", title="B", sort_order=1),
+        _catalyst(catalyst_date="2025-02-01", title="A", sort_order=0),
+    ])
+    # Returns the fresh set ordered by sort_order; the old one is gone.
+    assert [c["title"] for c in new] == ["A", "B"]
+    detail = s.get_stock_detail(stock["id"])
+    assert [c["title"] for c in detail["catalysts"]] == ["A", "B"]
+    # catalysts_at is stamped so generation isn't retried in a loop.
+    assert detail["catalysts_at"] is not None
+
+
+def test_replace_catalysts_on_missing_stock_returns_none(s):
+    assert s.replace_catalysts(9999, [_catalyst()]) is None
+
+
+def test_delete_stock_cascades_to_catalysts(s):
+    stock = s.create_stock(_stock())
+    cat = s.create_catalyst(stock["id"], _catalyst())
+    assert s.delete_stock(stock["id"]) is True
+    assert s.get_catalyst(cat["id"]) is None
+
+
 def test_seed_initial_populates_and_is_flag_gated(s):
     s.seed_initial()
     assert s.list_years() == [2025, 2024]
