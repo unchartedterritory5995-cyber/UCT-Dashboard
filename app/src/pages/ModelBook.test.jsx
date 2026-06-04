@@ -44,6 +44,15 @@ vi.mock('swr', () => ({
         mutate: vi.fn(),
       }
     }
+    if (typeof key === 'string' && key.startsWith('/api/modelbook/year-earnings')) {
+      return {
+        data: { symbol: 'NVDA', year: 2025, rows: [
+          { date: '2025-05-28', eps_actual: 0.96, eps_estimate: 0.71, eps_surprise_pct: 35.2,
+            revenue_actual: 44060000000, revenue_estimate: 43310000000, revenue_surprise_pct: 1.7 },
+        ] },
+        mutate: vi.fn(),
+      }
+    }
     return { data: null, mutate: vi.fn() }
   },
 }))
@@ -101,4 +110,14 @@ test('hides the AI Generate button for non-admins on the Catalysts tab', () => {
   render(<ModelBook />)
   fireEvent.click(screen.getByRole('button', { name: /catalysts/i }))
   expect(screen.queryByRole('button', { name: /generate/i })).toBeNull()
+})
+
+test('Earnings tab renders the EPS / revenue table with surprise %', () => {
+  render(<ModelBook />)
+  fireEvent.click(screen.getByRole('button', { name: /earnings/i }))
+  expect(screen.getByText('Reported')).toBeInTheDocument()
+  expect(screen.getByText('May 2025')).toBeInTheDocument()   // report date → month + year
+  expect(screen.getByText('0.96')).toBeInTheDocument()        // EPS actual
+  expect(screen.getByText('+35%')).toBeInTheDocument()        // EPS surprise (35.2 → 35)
+  expect(screen.getByText('44.06B')).toBeInTheDocument()      // revenue actual
 })

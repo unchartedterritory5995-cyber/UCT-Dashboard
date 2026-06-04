@@ -1022,9 +1022,16 @@ admin edits" model).
 - **Manual CRUD** (admin): `POST /stock/{id}/catalysts`, `PUT /catalyst/{id}`, `DELETE /catalyst/{id}`.
 - **Chart**: on the Catalysts tab the chart shows gold ⚡ `markers` (StockChart `markers` prop) at each catalyst + ALL catalyst candles gold (`highlightBarTime` array) + setup overlays hidden; clicking a catalyst row focus-zooms to it. Switching tabs zooms back out to the year. Tab choice persists (`modelbook_panel_tab`) and survives stock switches.
 
+### Earnings tab — per-quarter EPS + revenue vs estimate (added 2026-06-03)
+A third right-panel tab (Setups | Catalysts | **Earnings**) showing a compact table of the
+year's earnings reports: **Reported (month yr) · EPS · % Chg · Sales · % Chg**, where each
+% Chg is the surprise vs estimate (colored green/red).
+- **Source:** Finnhub `/calendar/earnings` (carries `revenueActual/Estimate`, unlike `/stock/earnings`). `earnings_estimates.get_year_earnings(ticker, year)` returns rows with eps/revenue actual+estimate + `_surprise_pct` (`(actual-estimate)/|estimate|*100`). Cached per (ticker, year) — 30d for closed years.
+- **Endpoint:** `GET /api/modelbook/year-earnings?symbol=&year=` (any logged-in user). **Lazy** — the frontend only fetches (SWR null-key) when the Earnings tab is open, so a normal stock view never hits Finnhub. Read-only (no market-cap column — scoped to EPS/revenue/surprise per request).
+
 ### Tests
 - Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade, catalyst CRUD + `replace_catalysts` ordering/stamp + cascade).
-- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate).
+- Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate, Earnings tab table).
 
 ### Trade-log retirement (2026-06-02)
 The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —

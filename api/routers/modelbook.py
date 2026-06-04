@@ -269,6 +269,17 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
     return {"year": year, "stats": out}
 
 
+@router.get("/year-earnings")
+def year_earnings(symbol: str = Query(...), year: int = Query(...),
+                  _user: dict = Depends(get_current_user)):
+    """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the
+    reports that landed during `year`. Lazy — fetched only when the Earnings tab
+    is opened. Finnhub-backed + cached (closed years are static)."""
+    from api.services import earnings_estimates
+    rows = earnings_estimates.get_year_earnings(symbol, year)
+    return {"symbol": symbol.upper(), "year": year, "rows": rows}
+
+
 # ── AI-generated descriptions (company one-liner + "why it ran that year") ────
 
 import os as _os

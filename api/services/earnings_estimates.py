@@ -107,6 +107,60 @@ def get_earnings_intel(ticker: str) -> dict | None:
     return result
 
 
+def _surprise_pct(actual, estimate):
+    """% surprise of actual vs estimate = (actual - estimate) / |estimate| * 100.
+    None when either side is missing or the estimate is zero."""
+    try:
+        a = float(actual)
+        e = float(estimate)
+    except (TypeError, ValueError):
+        return None
+    if e == 0:
+        return None
+    return round((a - e) / abs(e) * 100, 1)
+
+
+def get_year_earnings(ticker: str, year: int) -> list:
+    """Quarterly EPS + revenue (actual vs estimate) for the reports that landed
+    DURING `year`. Uses Finnhub's earnings calendar, which carries revenue
+    (unlike /stock/earnings). Returns rows sorted by report date; [] on failure.
+
+    Each row: {date, quarter, year, eps_actual, eps_estimate, eps_surprise_pct,
+               revenue_actual, revenue_estimate, revenue_surprise_pct}.
+    Cached per (ticker, year): closed years are static so they cache for weeks."""
+    ticker = ticker.upper()
+    ckey = f"mb_year_earnings_{ticker}_{int(year)}"
+    cached = cache.get(ckey)
+    if cached is not None:
+        return cached
+
+    rows = []
+    data = _fh_get("/calendar/earnings",
+                   {"symbol": ticker, "from": f"{year}-01-01", "to": f"{year}-12-31"})
+    items = data.get("earningsCalendar") if isinstance(data, dict) else None
+    for q in (items or []):
+        eps_a, eps_e = q.get("epsActual"), q.get("epsEstimate")
+        rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimate")
+        rows.append({
+            "date": str(q.get("date") or "")[:10],
+            "quarter": q.get("quarter"),
+            "year": q.get("year"),
+            "eps_actual": eps_a,
+            "eps_estimate": eps_e,
+            "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
+            "revenue_actual": rev_a,
+            "revenue_estimate": rev_e,
+            "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
+        })
+    rows.sort(key=lambda r: r["date"])
+
+    if rows:  # don't cache transient failures
+        from datetime import datetime, timezone
+        ttl = 30 * 86400 if int(year) < datetime.now(timezone.utc).year else _CACHE_TTL
+        cache.set(ckey, rows, ttl=ttl)
+    return rows
+
+
 def get_chart_markers(ticker: str) -> dict:
     """Return earnings, stock splits, and dividends for chart annotation.
 

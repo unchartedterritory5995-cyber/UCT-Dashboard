@@ -69,6 +69,67 @@ function fmtSetupDate(dateStr) {
   return month && day ? `${month} ${ordinal(day)}` : ''
 }
 
+// ── Earnings table (per-quarter EPS + revenue vs estimate for the year) ───────
+// "Reported" is the report date → "May 2020". Surprise % cells are colored.
+function fmtReported(dateStr) {
+  if (!dateStr) return '—'
+  const [y, m] = dateStr.split('-')
+  const mon = MONTHS[parseInt(m, 10) - 1]
+  return mon ? `${mon.slice(0, 3)} ${y}` : (y || '—')
+}
+function fmtEps(v) {
+  return v == null ? '—' : Number(v).toFixed(2)
+}
+function fmtRevenue(v) {
+  if (v == null) return '—'
+  const n = Number(v)
+  const a = Math.abs(n)
+  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`
+  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`
+  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`
+  return String(Math.round(n))
+}
+// Surprise % → display text + up/down sign for coloring.
+function pctCell(v) {
+  if (v == null) return { text: '—', dir: 0 }
+  const r = Math.round(v)
+  return { text: `${r >= 0 ? '+' : ''}${r.toLocaleString()}%`, dir: r >= 0 ? 1 : -1 }
+}
+
+function EarningsTable({ rows, loading }) {
+  if (loading) return <p className={styles.noSetups}>Loading earnings…</p>
+  if (!rows.length) return <p className={styles.noSetups}>No earnings reports found for this year.</p>
+  return (
+    <table className={styles.earnTable}>
+      <thead>
+        <tr>
+          <th className={styles.earnTh}>Reported</th>
+          <th className={styles.earnTh}>EPS</th>
+          <th className={styles.earnTh}>% Chg</th>
+          <th className={styles.earnTh}>Sales</th>
+          <th className={styles.earnTh}>% Chg</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => {
+          const eps = pctCell(r.eps_surprise_pct)
+          const rev = pctCell(r.revenue_surprise_pct)
+          const dirCls = d => (d > 0 ? styles.earnUp : d < 0 ? styles.earnDown : '')
+          return (
+            <tr key={r.date || i}>
+              <td className={`${styles.earnTd} ${styles.earnReported}`}>{fmtReported(r.date)}</td>
+              <td className={styles.earnTd}>{fmtEps(r.eps_actual)}</td>
+              <td className={`${styles.earnTd} ${dirCls(eps.dir)}`}>{eps.text}</td>
+              <td className={styles.earnTd}>{fmtRevenue(r.revenue_actual)}</td>
+              <td className={`${styles.earnTd} ${dirCls(rev.dir)}`}>{rev.text}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
 // ── Admin: add a curated stock to a year ──────────────────────────────────────
 function AddStockForm({ year, onAdded }) {
   const [open, setOpen] = useState(false)
@@ -523,16 +584,29 @@ function StockDetail({ stockId, isAdmin }) {
   const catalystTimes = useMemo(() => catalysts.map(c => c.catalyst_date).filter(Boolean), [catalysts])
 
   const onCatalystTab = panelTab === 'catalysts'
-  // The chart shows EITHER setup overlays or catalyst markers — never both. Pick
-  // the layer set for the active tab so they don't fight over the chart.
+  const onEarningsTab = panelTab === 'earnings'
+  const onSetupsTab = !onCatalystTab && !onEarningsTab
+  // The chart shows setup overlays on the Setups tab, catalyst markers on the
+  // Catalysts tab, and nothing extra on Earnings — the tabs never fight.
   const chartMarkers = onCatalystTab && catalystMarkers.length ? catalystMarkers : null
-  const chartPriceLines = onCatalystTab ? NO_PRICE_LINES : priceLines
-  const chartAnnotations = onCatalystTab ? null : annotations
-  const chartAnnotationsVisible = onCatalystTab ? false : annotationsVisible
-  const chartAnnotateMode = onCatalystTab ? false : annotateMode
+  const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
+  const chartAnnotations = onSetupsTab ? annotations : null
+  const chartAnnotationsVisible = onSetupsTab ? annotationsVisible : false
+  const chartAnnotateMode = onSetupsTab ? annotateMode : false
   const chartHighlight = onCatalystTab
     ? (catalystTimes.length ? catalystTimes : focusDate)
-    : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+    : onSetupsTab
+      ? (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+      : focusDate
+
+  // Lazy earnings fetch — only hits Finnhub when the Earnings tab is open.
+  const { data: earningsData } = useSWR(
+    onEarningsTab && stock?.symbol
+      ? `/api/modelbook/year-earnings?symbol=${encodeURIComponent(stock.symbol)}&year=${stock.year}`
+      : null,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const earningsRows = useMemo(() => earningsData?.rows || [], [earningsData])
 
   // Switch the right-panel tab. Zoom the chart back out to the full year so the
   // new tab shows its overview; only animate when currently zoomed in.
@@ -645,7 +719,7 @@ function StockDetail({ stockId, isAdmin }) {
         </div>
         <div className={styles.headerTools}>
           {/* Annotate: only when admin has a setup zoomed in (Setups tab). */}
-          {isAdmin && !onCatalystTab && focusDate && !annotateMode && (
+          {isAdmin && onSetupsTab && focusDate && !annotateMode && (
             <button className={styles.annotateBtn} onClick={startAnnotate} title="Draw annotations on this setup">✏️ Annotate</button>
           )}
           {isAdmin && annotateMode && (
@@ -752,7 +826,7 @@ function StockDetail({ stockId, isAdmin }) {
             <div className={styles.panelSetups}>
               <div className={styles.setupSectionHead}>
                 <div className={styles.panelTabs}>
-                  <button className={`${styles.panelTab} ${!onCatalystTab ? styles.panelTabActive : ''}`}
+                  <button className={`${styles.panelTab} ${onSetupsTab ? styles.panelTabActive : ''}`}
                     onClick={() => selectTab('setups')}>
                     Setups{setups.length ? ` (${setups.length})` : ''}
                   </button>
@@ -760,9 +834,13 @@ function StockDetail({ stockId, isAdmin }) {
                     onClick={() => selectTab('catalysts')}>
                     Catalysts{catalysts.length ? ` (${catalysts.length})` : ''}
                   </button>
+                  <button className={`${styles.panelTab} ${onEarningsTab ? styles.panelTabActive : ''}`}
+                    onClick={() => selectTab('earnings')}>
+                    Earnings
+                  </button>
                 </div>
                 <div className={styles.setupHeadTools}>
-                  {!onCatalystTab && hasAnnotations && (
+                  {onSetupsTab && hasAnnotations && (
                     <button
                       className={`${styles.showAllToggle} ${showAllAnnotations ? styles.showAllToggleOn : ''}`}
                       onClick={toggleShowAll}
@@ -775,7 +853,7 @@ function StockDetail({ stockId, isAdmin }) {
                       Show all
                     </button>
                   )}
-                  {!onCatalystTab && isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
+                  {onSetupsTab && isAdmin && <AddSetupForm stockId={stock.id} year={stock.year} onAdded={mutate} />}
                   {onCatalystTab && isAdmin && (
                     <>
                       <button className={styles.annotateBtn} onClick={generateCatalysts} disabled={genningCats}
@@ -788,7 +866,9 @@ function StockDetail({ stockId, isAdmin }) {
                 </div>
               </div>
 
-              {onCatalystTab ? (
+              {onEarningsTab ? (
+                <EarningsTable rows={earningsRows} loading={!earningsData} />
+              ) : onCatalystTab ? (
                 <>
                   {catError && <p className={styles.catError}>{catError}</p>}
                   {catalysts.length === 0 ? (
