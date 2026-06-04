@@ -435,7 +435,7 @@ function AddCatalystForm({ stockId, year, onAdded }) {
 }
 
 // ── Stock detail: chart with setups labeled + the setup list ──────────────────
-function StockDetail({ stockId, isAdmin }) {
+function StockDetail({ stockId, isAdmin, catNavRef }) {
   const { data: stock, mutate } = useSWR(
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
@@ -605,7 +605,10 @@ function StockDetail({ stockId, isAdmin }) {
   // The year's most impactful, move-driving events (AI-generated, admin-editable).
   // Ordered by the API (sort_order). Shown as gold ⚡ markers + gold candles when
   // the Catalysts tab is active; clicking one zooms to it.
-  const catalysts = useMemo(() => stock?.catalysts || [], [stock])
+  const catalysts = useMemo(
+    () => [...(stock?.catalysts || [])].sort(
+      (a, b) => String(a.catalyst_date || '').localeCompare(String(b.catalyst_date || ''))),
+    [stock])
   // Catalyst chart labels: placed in blank space above the candle with a diagonal
   // leader line (AmiBroker-style) so they never cover candles — see ChartCalloutOverlay.
   const catalystCallouts = useMemo(() => catalysts
@@ -672,6 +675,23 @@ function StockDetail({ stockId, isAdmin }) {
         : { id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }
     })
   }
+
+  // Always select+zoom a catalyst (no toggle) — used by ↑/↓ arrow navigation.
+  function selectCatalyst(c) {
+    if (!c) return
+    setExpandedCatalystId(c.id)
+    setFocus(f => ({ id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }))
+    document.querySelector(`[data-catalyst-id="${c.id}"]`)?.scrollIntoView({ block: 'nearest' })
+  }
+  // Expose catalyst-nav state to the parent ModelBook's keyboard handler so ↑/↓
+  // scroll catalysts while one is open, and revert to ticker nav when none is.
+  useEffect(() => {
+    if (!catNavRef) return
+    catNavRef.current = {
+      active: onCatalystTab && expandedCatalystId != null,
+      list: catalysts, id: expandedCatalystId, select: selectCatalyst,
+    }
+  })
 
   async function deleteCatalyst(id) {
     await fetch(`/api/modelbook/catalyst/${id}`, { method: 'DELETE', credentials: 'include' })
@@ -928,6 +948,7 @@ function StockDetail({ stockId, isAdmin }) {
                         ) : (
                           <div
                             key={c.id}
+                            data-catalyst-id={c.id}
                             className={`${styles.catRow} ${expandedCatalystId === c.id ? styles.catRowOpen : ''}`}
                           >
                             <div className={styles.catRowTop} onClick={() => onCatalystClick(c)}>
@@ -1099,6 +1120,11 @@ export default function ModelBook() {
   // A ref holds the latest list/selection/years so the listener is bound once.
   const navRef = useRef({ list: [], id: null, years: [], year: null })
   useEffect(() => { navRef.current = { list: sortedStocks, id: activeId, years, year } }, [sortedStocks, activeId, years, year])
+  // When "clicked into" a catalyst (expanded on the Catalysts tab), ↑/↓ scroll
+  // through the catalysts instead of the stock list. StockDetail populates this
+  // ref (it owns the catalyst state); cleared when none is open, so the arrows
+  // revert to ticker navigation.
+  const catNavRef = useRef({ active: false, list: [], id: null, select: null })
   useEffect(() => {
     const onKey = e => {
       const t = e.target
@@ -1120,8 +1146,20 @@ export default function ModelBook() {
         return
       }
 
-      // ↑/↓ : move through the stock list
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+
+      // ↑/↓ while clicked into a catalyst → scroll through the catalysts.
+      const cn = catNavRef.current
+      if (cn.active && cn.list.length) {
+        e.preventDefault()
+        const ci = cn.list.findIndex(c => c.id === cn.id)
+        let cnext = ci === -1 ? 0 : (e.key === 'ArrowDown' ? ci + 1 : ci - 1)
+        cnext = Math.max(0, Math.min(cn.list.length - 1, cnext))
+        if (cn.list[cnext] && cn.list[cnext].id !== cn.id) cn.select?.(cn.list[cnext])
+        return
+      }
+
+      // ↑/↓ : move through the stock list
       const { list, id } = navRef.current
       if (!list.length) return
       e.preventDefault()
@@ -1231,7 +1269,7 @@ export default function ModelBook() {
 
         {/* Right — chart + setups */}
         <div className={styles.detailPanel}>
-          <StockDetail stockId={activeId} isAdmin={isAdmin} />
+          <StockDetail stockId={activeId} isAdmin={isAdmin} catNavRef={catNavRef} />
         </div>
       </div>
     </div>

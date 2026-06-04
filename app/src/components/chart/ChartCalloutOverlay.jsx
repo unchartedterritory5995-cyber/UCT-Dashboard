@@ -68,9 +68,13 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // Build pixel high/low segments for the VISIBLE candles. A label that
     // overlaps any of these is covering a candle, so we reject that spot.
     let lo = 0, hi = bars.length - 1
+    let visFrom = -Infinity, visTo = Infinity   // visible logical range (for hiding off-screen catalysts)
     try {
       const r = ts.getVisibleLogicalRange()
-      if (r) { lo = Math.max(0, Math.floor(r.from) - 1); hi = Math.min(bars.length - 1, Math.ceil(r.to) + 1) }
+      if (r) {
+        lo = Math.max(0, Math.floor(r.from) - 1); hi = Math.min(bars.length - 1, Math.ceil(r.to) + 1)
+        visFrom = r.from; visTo = r.to
+      }
     } catch { /* default to all */ }
     const segs = []
     for (let i = lo; i <= hi; i++) {
@@ -154,6 +158,10 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       if (!c?.text || !c?.time) continue
       const idx = barIndexForDate(c.time)
       if (idx < 0) continue
+      // Hide a catalyst whose bar is OUTSIDE the visible range — e.g. when zoomed
+      // to one catalyst, a later catalyst's bar is off the right edge, so its
+      // label/leader must not extend into view.
+      if (idx > visTo + 0.5 || idx < visFrom - 0.5) continue
       const b = bars[idx]
       let ax, hy, ly
       try { ax = ts.logicalToCoordinate(idx) } catch { ax = null }
