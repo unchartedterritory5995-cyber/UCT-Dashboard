@@ -131,7 +131,10 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       }
       return [words.slice(0, bestI).join(' '), words.slice(bestI).join(' ')]
     }
-    const maxLineW = Math.max(110, Math.min(150, (plotRight - plotLeft) * 0.42))
+    // Keep labels ONE line by default — only wrap a title that's genuinely too
+    // wide to fit on screen. (The two-pass below additionally wraps a label when
+    // that's the only way to place it CLOSE; everywhere else stays single-line.)
+    const maxLineW = Math.max(220, Math.min(340, (plotRight - plotLeft) * 0.62))
     const wrapLabel = (text) => ctx.measureText(text).width <= maxLineW ? [text] : splitTwo(text)
     const boxDims = (lines) => {
       const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
@@ -287,15 +290,16 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
       } else {
         rect = placeOne(it)
-        // Two-pass: a single-line label that landed FAR can often tuck in much
-        // closer once wrapped to two (narrower) lines — re-place and keep it if
-        // it shortens the leader meaningfully.
-        if (it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 88) {
+        // Two-pass: ONLY when a single-line label landed genuinely far (>130px)
+        // do we try wrapping to two narrower lines — and keep it only if that
+        // brings it MUCH closer (>30px). Otherwise the label stays one line, even
+        // if it sits a little out, so we don't wrap when there's plenty of room.
+        if (it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 130) {
           const lines2 = splitTwo(it.text)
           if (lines2.length === 2) {
             const it2 = { ...it, lines: lines2, ...boxDims(lines2) }
             const rect2 = placeOne(it2)
-            if (leaderLenOf(it2.ax, rect2) < leaderLenOf(it.ax, rect) - 12) { it = it2; rect = rect2 }
+            if (leaderLenOf(it2.ax, rect2) < leaderLenOf(it.ax, rect) - 30) { it = it2; rect = rect2 }
           }
         }
         placeRef.current.set(it.key, {
