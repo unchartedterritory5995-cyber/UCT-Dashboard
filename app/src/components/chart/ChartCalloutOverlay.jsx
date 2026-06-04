@@ -188,6 +188,23 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       const u = ((L.x0 - ax) * (by - ay) - (L.y0 - ay) * (bx - ax)) / dn
       return t > 0.04 && t < 0.96 && u > 0.04 && u < 0.96
     }
+    // Does a leader segment pass through a label's box? (A leader must not run
+    // across another catalyst's text.)
+    const lineHitsRect = (x0, y0, x1, y1, r) => {
+      if ((x0 < r.x && x1 < r.x) || (x0 > r.x + r.w && x1 > r.x + r.w) ||
+          (y0 < r.y && y1 < r.y) || (y0 > r.y + r.h && y1 > r.y + r.h)) return false
+      const within = (px, py) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h
+      if (within(x0, y0) || within(x1, y1)) return true
+      const ss = (cx, cy, dx, dy) => {
+        const dd = (x1 - x0) * (dy - cy) - (y1 - y0) * (dx - cx)
+        if (Math.abs(dd) < 1e-9) return false
+        const t = ((cx - x0) * (dy - cy) - (cy - y0) * (dx - cx)) / dd
+        const u = ((cx - x0) * (y1 - y0) - (cy - y0) * (x1 - x0)) / dd
+        return t >= 0 && t <= 1 && u >= 0 && u <= 1
+      }
+      return ss(r.x, r.y, r.x + r.w, r.y) || ss(r.x + r.w, r.y, r.x + r.w, r.y + r.h) ||
+             ss(r.x, r.y + r.h, r.x + r.w, r.y + r.h) || ss(r.x, r.y, r.x, r.y + r.h)
+    }
     // Score every candidate spot and take the cheapest. Cost is dominated by the
     // LEADER-LINE LENGTH (short, tidy lines win), with a hard penalty for any spot
     // whose label or line covers a candle / overlaps another label, plus a small
@@ -239,8 +256,11 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           // horizontal (e.g. an edge-clamped label landing right above its candle).
           if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += NONDIAG
           if (placed.some(p => rectsOverlap(rect, p))) cost += LABELOVR
-          // A leader crossing another leader (the ugly X) is as bad as overlap.
+          // A leader crossing another leader (the ugly X) — or running through
+          // another label's text box — is as bad as overlapping it.
           if (placedLeaders.some(L => segCross(it.ax, anchorY, nx, ny, L))) cost += LABELOVR
+          if (placed.some(p => lineHitsRect(it.ax, anchorY, nx, ny, p))) cost += LABELOVR
+          if (placedLeaders.some(L => lineHitsRect(L.x0, L.y0, L.x1, L.y1, rect))) cost += LABELOVR
           if (hitsCandles(rect)) cost += BLOCKED
           if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
           if (cost < bestCost) { bestCost = cost; best = rect }
