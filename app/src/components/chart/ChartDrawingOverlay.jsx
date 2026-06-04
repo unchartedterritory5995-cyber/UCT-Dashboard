@@ -98,14 +98,14 @@ function renderExtended(ctx, pts, w, h) {
   ctx.stroke()
 }
 
-function renderHorizontal(ctx, pts, w) {
+function renderHorizontal(ctx, pts, w, showLabel = true) {
   if (!pts.length) return
   ctx.beginPath()
   ctx.moveTo(0, pts[0].y)
   ctx.lineTo(w, pts[0].y)
   ctx.stroke()
   // Price label
-  if (pts[0].price != null) {
+  if (showLabel && pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
     ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
@@ -113,7 +113,7 @@ function renderHorizontal(ctx, pts, w) {
   }
 }
 
-function renderHRay(ctx, pts, w) {
+function renderHRay(ctx, pts, w, showLabel = true) {
   if (!pts.length) return
   const x = pts[0].x ?? 0
   ctx.beginPath()
@@ -122,7 +122,7 @@ function renderHRay(ctx, pts, w) {
   ctx.stroke()
   // Price label — placed just ABOVE the ray's anchor (the setup bar/start of
   // the ray), not at the right price scale, so it sits over the candle it marks.
-  if (pts[0].price != null) {
+  if (showLabel && pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
     ctx.font = '10px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
@@ -540,6 +540,7 @@ export default function ChartDrawingOverlay({
   drawings, addDrawing, updateDrawing, removeDrawing,
   selectedId, setSelectedId,
   repeatMode = true,
+  hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -771,7 +772,7 @@ export default function ChartDrawingOverlay({
         case 'trendline': renderTrendline(ctx, pts); break
         case 'ray': renderRay(ctx, pts, w, h); break
         case 'extended': renderExtended(ctx, pts, w, h); break
-        case 'horizontal': renderHorizontal(ctx, pts, w); break
+        case 'horizontal': renderHorizontal(ctx, pts, w, !hidePriceLabels); break
         case 'hray': {
           // Optional right bound (time-anchored): stop the ray at this bar
           // instead of running to the canvas edge. Model Book uses it so that,
@@ -782,7 +783,7 @@ export default function ChartDrawingOverlay({
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
             if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
           }
-          renderHRay(ctx, pts, hrayRight)
+          renderHRay(ctx, pts, hrayRight, !hidePriceLabels)
           break
         }
         case 'vertical': renderVertical(ctx, pts, h); break

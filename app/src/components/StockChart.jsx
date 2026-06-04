@@ -3510,8 +3510,10 @@ export default function StockChart({
     const mainPane = candleSeriesRef.current?.getPane?.()
     if (!chart || !mainPane) return
 
-    // Tear down when disabled or no data.
-    if (!indexPaneSymbol || !indexPaneSeries.length) {
+    // Tear down ONLY when the feature is turned off (symbol null). Do NOT remove
+    // the pane just because the data is transiently empty during a ticker switch —
+    // removing it shrinks the price pane and makes the watermark/annotations skip.
+    if (!indexPaneSymbol) {
       if (indexPaneSeriesRef.current) {
         try { chart.removeSeries(indexPaneSeriesRef.current) } catch {}
         indexPaneSeriesRef.current = null
@@ -3529,6 +3531,10 @@ export default function StockChart({
       }
       return
     }
+    // Data not ready yet (e.g. mid ticker-transition) — keep the pane mounted and
+    // its current line, skip the update, so the layout (and the overlays pinned to
+    // it) stays put instead of shrinking and snapping back.
+    if (!indexPaneSeries.length) return
 
     // Create the series in a fresh bottom pane, then hoist that pane to the top.
     if (!indexPaneSeriesRef.current) {
@@ -3620,7 +3626,10 @@ export default function StockChart({
     const t1 = setTimeout(measure, 60)
     const t2 = setTimeout(measure, 300)
     return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
-  }, [indexPaneSymbol, indexPaneSeries, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
+    // NOTE: keyed on whether the index pane EXISTS (length>0), not on the data
+    // itself — so a ticker switch (new data, pane unchanged) doesn't re-measure
+    // and momentarily shift the overlays. The ResizeObserver catches real resizes.
+  }, [indexPaneSymbol, indexPaneSeries.length > 0, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
 
   // ── Multi-symbol comparison overlays — cleanup on unmount ──
   useEffect(() => {
@@ -4587,6 +4596,7 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
+            hidePriceLabels
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -4651,7 +4661,7 @@ export default function StockChart({
           style={{
             position: 'absolute', top: 4, left: 10, zIndex: 5, pointerEvents: 'none',
             font: '600 11px "Instrument Sans", system-ui, sans-serif',
-            letterSpacing: '0.04em', color: indexPaneColor, opacity: 0.85,
+            letterSpacing: '0.04em', color: cs.watermark.color, opacity: 0.85,
             textShadow: '0 0 3px rgba(0,0,0,0.85)',
           }}
         >
