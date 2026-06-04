@@ -371,22 +371,28 @@ function _windowPriceRange(bars, from, to, overlays) {
 // autoscaleInfoProvider on the candle series reading priceRangeRef — set per frame
 // here, cleared at the end so normal autoScale resumes. Falls back to the plain
 // horizontal-only animation when the price ranges can't be computed.
-function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null) {
+function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null, textFadeRef = null, targetTextVisible = null) {
+  // Text annotations fade only in the last sliver of the zoom (see step()) so they
+  // land right as the animation settles on a setup / vanish right as it lands on
+  // the year. endFade is the settled target; snap to it on any non-animated path.
+  const endFade = targetTextVisible == null ? null : (targetTextVisible ? 1 : 0)
+  const snapFade = () => { if (textFadeRef && endFade != null) textFadeRef.current = endFade }
   // NOTE: do NOT null priceRangeRef here. The previous zoom left it pinned to its
   // final range; nulling it before the first frame opens a window where any
   // autoScale recompute (e.g. the gold-candle setData when toggling fast between
   // setups) falls back to the default rounded scale → a one-frame flash. We keep
   // the prior range until the first animation frame overwrites it, and only reset
   // to default on the genuine fallback paths below.
-  if (!chart || !series) { priceRangeRef.current = null; _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
+  if (!chart || !series) { priceRangeRef.current = null; snapFade(); _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
   const ts = chart.timeScale()
   let start
   try { start = ts.getVisibleLogicalRange() } catch { start = null }
-  if (!start) { priceRangeRef.current = null; try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
+  if (!start) { priceRangeRef.current = null; snapFade(); try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
   const sRange = _windowPriceRange(bars, start.from, start.to, overlays)
   const tRange = _windowPriceRange(bars, target.from, target.to, overlays)
-  if (!sRange || !tRange) { priceRangeRef.current = null; _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
+  if (!sRange || !tRange) { priceRangeRef.current = null; snapFade(); _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
+  const startFade = textFadeRef ? (textFadeRef.current ?? 0) : 0
   const startWidth = start.to - start.from
   const endWidth = target.to - target.from
   const geom = startWidth > 0 && endWidth > 0
@@ -404,10 +410,17 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
     const from = to - width
     priceRangeRef.current = { lo: logLerp(sRange.lo, tRange.lo, e), hi: logLerp(sRange.hi, tRange.hi, e) }
     try { ts.setVisibleLogicalRange({ from, to }) } catch { /* ignore transient */ }
+    // Text fade rides the LAST 15% of the animation only, so it eases in/out right
+    // as the zoom lands — interpolating from the value it started at to endFade.
+    if (textFadeRef && endFade != null) {
+      const fp = Math.max(0, Math.min(1, (p - 0.85) / 0.15))
+      textFadeRef.current = startFade + (endFade - startFade) * fp
+    }
     if (p < 1) {
       rafRef.current = requestAnimationFrame(step)
     } else {
       rafRef.current = null
+      snapFade()
       // KEEP the final interpolated range in the provider (do NOT null it / re-fit
       // via autoScale). Handing back to the chart's default autoScale re-rounds the
       // range to "nice" tick values — a one-frame snap that drags the candles AND
@@ -769,6 +782,7 @@ export default function StockChart({
   const yearRangeRef = useRef(null)       // latest {from,to} logical range for the framed year — re-asserts read this so staged data loads can't lock in stale indices
   const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
+  const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
   const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
@@ -3310,6 +3324,11 @@ export default function StockChart({
     // untouched; all effects run before paint, so there's no flash of "now".
   }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet])
 
+  // Each stock starts at the year view with setup text hidden; the first focus
+  // zoom then eases it in. Without this reset, switching from a focused stock
+  // would leave textFadeRef at 1 and the next setup's text would pop in instantly.
+  useEffect(() => { textFadeRef.current = 0 }, [sym, resolvedTf])
+
   // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
   // focusDate is set, smoothly zoom so that bar is the last candle on screen
   // (with focusBarsBack bars of lead-up to its left); if focusDate is null,
@@ -3370,7 +3389,7 @@ export default function StockChart({
         }
       }
       focusActiveRef.current = true
-      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 850, null, overlayData)
+      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 850, null, overlayData, textFadeRef, true)
     } else {
       // Zoom back out to the framed year — same dual-axis glide as the zoom-in.
       // Hold the view (focusActiveRef stays true) until the animation finishes so
@@ -3388,7 +3407,7 @@ export default function StockChart({
       if (endIdx < startIdx) endIdx = filteredBars.length - 1
       focusActiveRef.current = true
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: startIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData)
+        { from: startIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData, textFadeRef, false)
     }
   }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf, overlayData])
 
@@ -4604,6 +4623,7 @@ export default function StockChart({
             seriesRef={candleSeriesRef}
             bars={bars}
             hidePriceLabels
+            textFadeRef={annotationsEditable ? null : textFadeRef}
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}

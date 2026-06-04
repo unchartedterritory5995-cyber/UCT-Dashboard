@@ -546,6 +546,7 @@ export default function ChartDrawingOverlay({
   repeatMode = true,
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
   fontSize = 13,             // default size for new text annotations
+  textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -713,7 +714,10 @@ export default function ChartDrawingOverlay({
         const range = ts.getVisibleLogicalRange()
         const y0 = series?.priceToCoordinate(1)
         const y1 = series?.priceToCoordinate(100)
-        const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
+        // Include the text-fade value so the fade renders frame-by-frame even at
+        // the very end of the zoom, where the range barely changes.
+        const tf = textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''
+        const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}|${tf}`
         if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
       } catch { /* chart torn down mid-frame */ }
       raf = requestAnimationFrame(tick)
@@ -723,7 +727,7 @@ export default function ChartDrawingOverlay({
       if (raf) cancelAnimationFrame(raf)
       try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
-  }, [chartRef, seriesRef])
+  }, [chartRef, seriesRef, textFadeRef])
 
   // ── Request redraw (debounced via rAF, uses ref for latest redraw) ──
   const requestRedraw = useCallback(() => {
@@ -742,18 +746,11 @@ export default function ChartDrawingOverlay({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    // Text annotations FADE IN only as you zoom toward a setup — hidden on the
-    // zoomed-out / "show all" full-year view (just lines there), easing in over
-    // the latter half of the focus zoom so they land as the animation settles.
-    // Rendered at their true font size (no shrinking); only opacity changes.
-    let textOpacity = 1
-    try {
-      const range = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
-      if (range) {
-        const visibleBars = Math.max(1, range.to - range.from)
-        textOpacity = Math.max(0, Math.min(1, (170 - visibleBars) / 70))
-      }
-    } catch { /* default fully visible */ }
+    // Text annotation opacity is driven by the focus-zoom animation (Model Book):
+    // hidden on the zoomed-out view, eased in only during the last sliver of the
+    // zoom so it lands right as the chart settles on the setup. Other charts pass
+    // no ref → text is always fully visible.
+    const textOpacity = textFadeRef ? Math.max(0, Math.min(1, textFadeRef.current ?? 1)) : 1
 
     const toPixelY = (_, price) => {
       const p = toPixel(null, price)
