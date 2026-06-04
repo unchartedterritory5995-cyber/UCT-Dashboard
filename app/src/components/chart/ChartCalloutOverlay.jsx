@@ -154,10 +154,15 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // ── Find the nearest blank space in ANY direction for each label ──
     // Try positions outward from the candle (closest first), in 8 directions;
     // take the first that clears both candles and already-placed labels.
+    // DIAGONAL directions only — never straight up/down or left/right, so every
+    // leader line is a diagonal (offset in both x and y). The box is always fully
+    // offset from the candle on both axes, so the nearest-point leader can't fall
+    // vertical or horizontal.
     const DIRS = [
-      { dx: -1, dy: -1 }, { dx: -1, dy: 0 }, { dx: -1, dy: 1 },  // up-left, left, down-left
-      { dx: 0, dy: -1 }, { dx: 0, dy: 1 },                       // up, down
-      { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },     // up-right, right, down-right
+      { dx: -1, dy: -1 },  // up-left (preferred via dirBias)
+      { dx: -1, dy: 1 },   // down-left
+      { dx: 1, dy: -1 },   // up-right
+      { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
     const DISTS = [14, 22, 32, 46, 64, 88, 118, 156, 200, 250]
     const placed = []
@@ -168,10 +173,17 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // on an up-trend). Net effect: a close bottom-right beats a far top-left, but
     // when distances are similar the top-left is chosen. (User-tuned behavior.)
     const BLOCKED = 1e6
-    const dirBias = (d) =>            // small px nudge: up & left cheaper, down & right dearer
-      (d.dy < 0 ? -4 : d.dy > 0 ? 3 : 0) + (d.dx < 0 ? -4 : d.dx > 0 ? 3 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
+      // The chart trends lower-left → upper-right, so the blank space is the
+      // upper-LEFT triangle (for candles high in the frame) and the lower-RIGHT
+      // triangle (for candles low in it). Reward the label going toward that
+      // void: UP for high candles, DOWN for low ones — plus a mild leftward
+      // nudge. `frac` = candle's vertical position (0 = top of pane, 1 = bottom).
+      const frac = Math.max(0, Math.min(1, ((it.hy + it.ly) / 2 - 4) / Math.max(1, priceBottom - 4)))
+      const vK = 42
+      const bias = (d) => (d.dx < 0 ? -4 : 4)
+        + (d.dy < 0 ? (frac - 0.5) * vK : (0.5 - frac) * vK)
       for (const dist of DISTS) {
         for (const d of DIRS) {
           const anchorY = d.dy > 0 ? it.ly : it.hy
@@ -184,7 +196,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           const rect = { x, y, w: it.boxW, h: it.boxH, anchorY, anchorIsLow: d.dy > 0 }
           const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
           const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
-          let cost = Math.hypot(nx - it.ax, ny - anchorY) + dirBias(d)
+          let cost = Math.hypot(nx - it.ax, ny - anchorY) + bias(d)
           if (placed.some(p => rectsOverlap(rect, p))) cost += BLOCKED
           if (hitsCandles(rect)) cost += BLOCKED
           if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
