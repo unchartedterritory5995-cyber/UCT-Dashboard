@@ -1255,7 +1255,7 @@ export default function ModelBook() {
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
-          {sortedStocks.map((s, i) => {
+          {sortedStocks.map((s) => {
             const st = yearStats[s.symbol]
             return (
               <div
@@ -1265,7 +1265,7 @@ export default function ModelBook() {
                 onClick={() => setSelectedId(s.id)}
               >
                 <div className={styles.stockCardTop}>
-                  <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} /></span>
+                  <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} round /></span>
                   <span className={styles.stockSym}>{s.symbol}</span>
                   <div className={styles.cardStats}>
                     {st?.open_close_pct != null

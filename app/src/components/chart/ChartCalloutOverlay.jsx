@@ -375,8 +375,10 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   }, [draw, callouts, bars, color, bottomFrac])
 
   // Seamless stock switches: when the catalyst SET changes (new stock), instantly
-  // hide the canvas then fade it back in, so the labels don't visibly hop while
-  // the new chart's bars settle. Same stock (only positions moving) → no fade.
+  // hide the canvas, then fade it back in only AFTER the set has been stable for
+  // a beat. During rapid ticker scrolling the set keeps changing, so the timer
+  // keeps resetting and the labels stay hidden (no flicker) — they fade in once
+  // you settle on a stock. Same stock (only positions moving) → no fade.
   useEffect(() => {
     const sig = (callouts || []).map(c => `${c?.time}|${c?.text}`).join('~')
     const canvas = canvasRef.current
@@ -384,16 +386,13 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     sigRef.current = sig
     canvas.style.transition = 'none'
     canvas.style.opacity = '0'
-    let id2 = 0
-    const id1 = requestAnimationFrame(() => {
-      id2 = requestAnimationFrame(() => {
-        const c = canvasRef.current
-        if (!c) return
-        c.style.transition = 'opacity 200ms ease'
-        c.style.opacity = '1'
-      })
-    })
-    return () => { cancelAnimationFrame(id1); if (id2) cancelAnimationFrame(id2) }
+    const t = setTimeout(() => {
+      const c = canvasRef.current
+      if (!c) return
+      c.style.transition = 'opacity 220ms ease'
+      c.style.opacity = '1'
+    }, 150)
+    return () => clearTimeout(t)
   }, [callouts])
 
   // Canvas sizing.
