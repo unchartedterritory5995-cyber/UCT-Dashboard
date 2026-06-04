@@ -822,7 +822,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             indexPaneHeightPct={16}
             priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.12}
-            watermarkOpacity={0.22}
+            watermarkOpacity={0.34}
             watermarkX={0.14}
             watermarkY={0.2}
             priceLines={chartPriceLines}
