@@ -48,6 +48,7 @@
 .stockCardActive { background: rgba(201,168,76,0.08); border-left-color: var(--ut-gold); }
 .stockCardTop { display: flex; align-items: center; gap: 8px; }
 .rank { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.rankLogo { flex: none; display: flex; align-items: center; }
 .stockSym { font-size: 15px; font-weight: 700; color: var(--text-primary); }
 .stockName { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .stockGain { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }

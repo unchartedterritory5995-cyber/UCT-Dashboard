@@ -1265,7 +1265,7 @@ export default function ModelBook() {
                 onClick={() => setSelectedId(s.id)}
               >
                 <div className={styles.stockCardTop}>
-                  <span className={styles.rank}>#{i + 1}</span>
+                  <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} /></span>
                   <span className={styles.stockSym}>{s.symbol}</span>
                   <div className={styles.cardStats}>
                     {st?.open_close_pct != null
