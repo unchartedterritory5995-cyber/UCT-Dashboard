@@ -307,6 +307,18 @@ _YF_CONFIG = {
 # Ticker overrides for yfinance
 _YF_TICKERS = {'VIX': '^VIX', 'BTC': 'BTC-USD'}
 
+# Symbols that don't exist in Massive's equities API and must come from
+# yfinance — true market indices (Nasdaq Composite, S&P 500, Dow, Russell).
+# Used by the Model Book index-comparison pane (^IXIC). Daily/weekly/monthly
+# come from yfinance period='max'; intraday reuses _fetch_intraday_yfinance.
+# Any caret-prefixed ticker is treated as a yf-only index as well.
+_YF_ONLY = {'^IXIC': '^IXIC', 'IXIC': '^IXIC', '^GSPC': '^GSPC', '^DJI': '^DJI', '^RUT': '^RUT'}
+
+
+def _is_yf_only_symbol(ticker_up: str) -> bool:
+    """True for market-index symbols that bypass Massive and use yfinance."""
+    return ticker_up in _YF_ONLY or ticker_up.startswith('^')
+
 # In-memory cache TTLs by timeframe (seconds)
 # Intraday kept very short so charts stay current during market hours
 _CACHE_TTL = {'1': 5, '5': 10, '15': 10, '30': 10, '60': 10, 'D': 300, 'W': 900, 'M': 900}
@@ -874,6 +886,48 @@ def _fetch_daily_yf(ticker: str) -> list[dict]:
         return []
 
 
+def _fetch_yf_only(ticker_up: str, tf: str, max_bars: int) -> list[dict]:
+    """Fetch bars for a yf-only index symbol (e.g. ^IXIC) straight from
+    yfinance — Massive has no index data. Daily uses period='max'; weekly /
+    monthly resample that; intraday reuses the yfinance intraday path.
+    """
+    if tf in ("1", "5", "15", "30", "60"):
+        return _fetch_intraday_yfinance(ticker_up, tf, max_bars)
+    yf_sym = _YF_ONLY.get(ticker_up, ticker_up)
+    daily = _fetch_daily_yf(yf_sym)
+    if not daily:
+        return []
+    if tf == "W":
+        return _resample_weekly_iso(daily)[-max_bars:]
+    if tf == "M":
+        return _resample_monthly_iso(daily)[-max_bars:]
+    return daily[-max_bars:]
+
+
+def _yf_only_bars_response(ticker_up: str, tf: str, bars: int):
+    """Build the /api/bars JSON response for a yf-only index symbol.
+
+    Bypasses the SQLite/Massive/delta machinery entirely (indices only update
+    once per session) and uses a short in-memory TTL cache so repeat chart
+    loads don't re-hit yfinance.
+    """
+    cache_key = f"bars_{ticker_up}_{tf}_{bars}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return JSONResponse(
+            content=cached,
+            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+        )
+    out = _fetch_yf_only(ticker_up, tf, bars)
+    payload = {"ticker": ticker_up, "tf": tf, "bars": out}
+    if out:
+        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+    return JSONResponse(
+        content=payload,
+        headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+    )
+
+
 def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dict]:
     """Merge yfinance (deep history) + Massive (recent, more accurate).
     Massive wins for any overlapping date range. yfinance fills the older
@@ -1090,6 +1144,10 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     only the new rows — typically 0-5 bars, so payload is ~500 bytes vs 50 KB.
     """
     ticker_up = ticker.upper()
+    # Indices have no delta/SQLite path — return the full yfinance set (the
+    # caller fetches index bars without `since`, so this is a safety net).
+    if _is_yf_only_symbol(ticker_up):
+        return _yf_only_bars_response(ticker_up, tf, bars)
     _record_intraday_request(ticker_up, tf)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf = tf in ("D", "W", "M")
@@ -1416,6 +1474,10 @@ _DEFAULT_WARM_TFS = ["D", "W", "M", "60", "30", "15", "5", "1"]
 
 def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     ticker_up = ticker.upper()
+    # Market indices (^IXIC etc.) live only in yfinance — short-circuit the
+    # whole Massive/SQLite path. Used by the Model Book index-comparison pane.
+    if _is_yf_only_symbol(ticker_up):
+        return _yf_only_bars_response(ticker_up, tf, bars)
     _record_intraday_request(ticker_up, tf)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf   = tf in ("D", "W", "M")

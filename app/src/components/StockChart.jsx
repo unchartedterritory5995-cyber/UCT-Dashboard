@@ -474,6 +474,10 @@ export default function StockChart({
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
+  // ── Index comparison pane (Model Book) — additive, default-off ──
+  indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
+  indexPaneColor = '#ffffff',   // line color for the index pane
+  indexPaneHeightPct = 18,      // height of the index pane as % of chart
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -686,6 +690,9 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
+  const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
+  const indexPaneRawRef = useRef([])      // raw {time, value:close} points (series itself holds rebased %)
+  const lastIndexBaseRef = useRef(null)   // last rebase baseline price (skip redundant setData)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
@@ -1850,6 +1857,35 @@ export default function StockChart({
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
 
+  // ── Index comparison pane (indexPaneSymbol, e.g. ^IXIC) ──
+  // Fetch the index's bars for the same tf + bar count and draw its CLOSE as a
+  // line in a dedicated pane on top of the price pane. Unlike the % comparison
+  // overlay, this is its own auto-scaled pane (the shape is what matters for
+  // spotting relative strength). Indices route through yfinance server-side.
+  const { data: indexPaneData } = useSWR(
+    indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount] : null,
+    async () => {
+      const s = String(indexPaneSymbol).toUpperCase()
+      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+        .then(r => (r.ok ? r.json() : { bars: [] }))
+        .catch(() => ({ bars: [] }))
+      return res?.bars || []
+    },
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  )
+  // Clip the index line to the stock's visible date span so it never introduces
+  // leading/trailing whitespace that would shift the candles' logical indices
+  // (the focus-zoom relies on those). Time format mirrors the main series.
+  const indexPaneSeries = useMemo(() => {
+    if (!indexPaneSymbol || !indexPaneData?.length || !ohlcData?.length) return []
+    const first = ohlcData[0]?.time
+    const last = ohlcData[ohlcData.length - 1]?.time
+    const cmp = (a, b) => (typeof a === 'string' ? (a < b ? -1 : a > b ? 1 : 0) : a - b)
+    return indexPaneData
+      .map(b => ({ time: adjustTime(b.t), value: b.c }))
+      .filter(p => p.value != null && Number.isFinite(p.value) && cmp(p.time, first) >= 0 && cmp(p.time, last) <= 0)
+  }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime])
+
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
   // tick from the previous ticker (e.g. AAPL price) gets re-applied to the new
@@ -2447,12 +2483,23 @@ export default function StockChart({
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
         volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0 } })
         try {
-          // Stretch factors are relative, so price=(100-pct) / volume=pct makes
-          // the volume pane occupy exactly pct% of the chart height.
+          // Stretch factors are relative. Address panes by their series' own
+          // pane object (getPane) rather than raw index, so an index-comparison
+          // pane on top (Model Book) doesn't get mis-sized when this re-runs.
           const pct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume.paneHeightPct ?? 22))
-          const panes = chart.panes()
-          if (panes[0]) panes[0].setStretchFactor(100 - pct)
-          if (panes[1]) panes[1].setStretchFactor(pct)
+          const mainPane = candleSeriesRef.current?.getPane?.()
+          const volPane = volumeSeriesRef.current?.getPane?.()
+          if (mainPane && volPane) {
+            if (indexPaneSeriesRef.current) {
+              const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
+              try { indexPaneSeriesRef.current.getPane().setStretchFactor(idxPct) } catch {}
+              volPane.setStretchFactor(pct)
+              mainPane.setStretchFactor(Math.max(20, 100 - pct - idxPct))
+            } else {
+              mainPane.setStretchFactor(100 - pct)
+              volPane.setStretchFactor(pct)
+            }
+          }
         } catch {}
       } else {
         const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
@@ -3386,6 +3433,146 @@ export default function StockChart({
     } catch {}
   }, [comparisonSeries])
 
+  // Rebase the index pane line to % change from the FIRST VISIBLE bar, so the
+  // axis reads in % relative to whatever window is on screen — zoom into a setup
+  // and it becomes "the Nasdaq did +X% over this same span" against the stock's
+  // move. Re-runs on visible-range changes; skips setData when the baseline bar
+  // is unchanged so the focus-zoom stays cheap.
+  const rebaseIndexPane = useCallback(() => {
+    const series = indexPaneSeriesRef.current
+    const chart = chartRef.current
+    const raw = indexPaneRawRef.current
+    if (!series || !chart || !raw || !raw.length) return
+    // Normalize any Time shape (unix number / 'YYYY-MM-DD' / BusinessDay) to a
+    // comparable key so daily and intraday both work.
+    const timeKey = (t) => {
+      if (t == null) return null
+      if (typeof t === 'number') return t
+      if (typeof t === 'string') return Number(t.replace(/-/g, ''))
+      if (typeof t === 'object' && t.year) return t.year * 10000 + t.month * 100 + t.day
+      return null
+    }
+    let fromKey = null
+    try { fromKey = timeKey(chart.timeScale().getVisibleRange()?.from) } catch { /* no range yet */ }
+    let base = null
+    if (fromKey != null) {
+      for (const p of raw) { if (timeKey(p.time) >= fromKey) { base = p.value; break } }
+    }
+    if (base == null) base = raw[0]?.value
+    if (!base) return
+    if (lastIndexBaseRef.current === base) return  // baseline bar unchanged → no redraw
+    lastIndexBaseRef.current = base
+    const pts = raw.map(p => ({ time: p.time, value: (p.value / base - 1) * 100 }))
+    try { series.setData(pts) } catch {}
+  }, [])
+
+  // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
+  // Creates a LineSeries in its own pane, moves that pane to index 0 (above the
+  // price pane) and sizes the three panes [index | price | volume]. Fully
+  // additive: when indexPaneSymbol is null, nothing here runs and the chart is
+  // byte-identical. Main-pane references elsewhere use getPane() so they stay
+  // correct with the extra pane on top. The line is rebased to % of the visible
+  // window (see rebaseIndexPane).
+  useEffect(() => {
+    const chart = chartRef.current
+    const mainPane = candleSeriesRef.current?.getPane?.()
+    if (!chart || !mainPane) return
+
+    // Tear down when disabled or no data.
+    if (!indexPaneSymbol || !indexPaneSeries.length) {
+      if (indexPaneSeriesRef.current) {
+        try { chart.removeSeries(indexPaneSeriesRef.current) } catch {}
+        indexPaneSeriesRef.current = null
+        // Restore 2-pane (price + volume) or single-pane sizing.
+        try {
+          const volPane = volumeSeriesRef.current?.getPane?.()
+          if (volPane && volPane !== mainPane) {
+            const pct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+            mainPane.setStretchFactor(100 - pct)
+            volPane.setStretchFactor(pct)
+          } else {
+            mainPane.setStretchFactor(100)
+          }
+        } catch {}
+      }
+      return
+    }
+
+    // Create the series in a fresh bottom pane, then hoist that pane to the top.
+    if (!indexPaneSeriesRef.current) {
+      try {
+        const paneCount = chart.panes().length
+        const s = chart.addSeries(LineSeries, {
+          color: indexPaneColor,
+          lineWidth: 1.5,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 2,
+          priceScaleId: 'right',
+          priceFormat: { type: 'percent' },  // line is rebased to % of the visible window
+          title: typeof indexPaneSymbol === 'string' ? indexPaneSymbol.replace(/^\^/, '') : '',
+        }, paneCount)
+        indexPaneSeriesRef.current = s
+        try { s.getPane().moveTo(0) } catch {}
+        try { s.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.12 } }) } catch {}
+      } catch { /* pane API unavailable — index pane optional */ }
+    }
+
+    if (indexPaneSeriesRef.current) {
+      try { indexPaneSeriesRef.current.applyOptions({ color: indexPaneColor }) } catch {}
+      // Store raw closes; rebaseIndexPane sets the series to % of visible window.
+      indexPaneRawRef.current = indexPaneSeries
+      lastIndexBaseRef.current = null  // force a recompute against the new data
+      rebaseIndexPane()
+      // Size [index | price | volume].
+      try {
+        const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
+        const idxPane = indexPaneSeriesRef.current.getPane()
+        const volPane = volumeSeriesRef.current?.getPane?.()
+        if (volPane && volPane !== mainPane) {
+          const volPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+          idxPane.setStretchFactor(idxPct)
+          volPane.setStretchFactor(volPct)
+          mainPane.setStretchFactor(Math.max(20, 100 - idxPct - volPct))
+        } else {
+          idxPane.setStretchFactor(idxPct)
+          mainPane.setStretchFactor(100 - idxPct)
+        }
+      } catch {}
+    }
+  }, [indexPaneSymbol, indexPaneSeries, indexPaneColor, indexPaneHeightPct, volumePaneHeightPct, cs, chartReady, rebaseIndexPane])
+
+  // Re-rebase the index pane whenever the visible range changes (pan / zoom /
+  // focus-zoom), throttled to one rAF; rebaseIndexPane no-ops when the baseline
+  // bar is unchanged so this is cheap during the animation.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !indexPaneSymbol) return
+    const ts = chart.timeScale()
+    let raf = null
+    const onRange = () => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => rebaseIndexPane())
+    }
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
+    }
+  }, [indexPaneSymbol, rebaseIndexPane, chartReady])
+
+  // Remove the index-pane series on unmount.
+  useEffect(() => {
+    return () => {
+      const chart = chartRef.current
+      if (chart && indexPaneSeriesRef.current) {
+        try { chart.removeSeries(indexPaneSeriesRef.current) } catch {}
+        indexPaneSeriesRef.current = null
+      }
+    }
+  }, [])
+
   // ── Multi-symbol comparison overlays — cleanup on unmount ──
   useEffect(() => {
     return () => {
@@ -3767,7 +3954,7 @@ export default function StockChart({
       let axisWidth = 0, timeAxisHeight = 0, pane0Height = rect.height
       try { axisWidth = chart.priceScale('right').width() } catch {}
       try { timeAxisHeight = chart.timeScale().height() } catch {}
-      try { pane0Height = chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
+      try { pane0Height = (candleSeriesRef.current?.getPane?.()?.getHeight?.()) ?? chart.panes()[0]?.getHeight() ?? (rect.height - timeAxisHeight) } catch { pane0Height = rect.height - timeAxisHeight }
       const paneMargins = computePaneMargins(cs, showVolume && !separateVolume, cs.volumeOverlayIndicators)
       let region = resolveChartRegion({
         x: px, y: py, width: rect.width, height: rect.height,

@@ -776,6 +776,8 @@ function StockDetail({ stockId, isAdmin }) {
             markVolumeExtremes
             volumePaneHeightPct={18}
             volumeMa={50}
+            indexPaneSymbol="^IXIC"
+            indexPaneHeightPct={16}
             priceScaleTopMargin={0.14}
             priceScaleBottomMargin={0.06}
             watermarkOpacity={0.13}
