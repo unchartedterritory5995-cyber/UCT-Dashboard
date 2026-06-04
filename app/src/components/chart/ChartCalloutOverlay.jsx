@@ -229,17 +229,13 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // between spots that are otherwise about equally close — so a candle with an
     // open upper-left gets its label up-left, but one whose up-left is blocked
     // drops to the next-nearest gap (e.g. just below) rather than a far up-left.
-    const bias = (d) => (d.dy < 0 ? -5 : 0) + (d.dx < 0 ? -5 : 0)
+    // Gentle top-left lean (≈20px) — only breaks ties between near-equal spots.
+    // Distance DOMINATES so every label lands at its nearest clear gap, keeping
+    // leader lengths short and roughly UNIFORM across catalysts. (No strong
+    // directional bonus — that previously dragged some labels far up-left.)
+    const bias = (d) => (d.dy < 0 ? -10 : 0) + (d.dx < 0 ? -10 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
-      // If the candle's upper-left is clear of CANDLES, strongly prefer placing
-      // up-left — even a bit higher to STACK above a neighbouring label — rather
-      // than scattering down/right. (When up-left is candle-blocked this is false,
-      // so those candles correctly fall to the nearest other gap.)
-      const upLeftClear = !hitsCandles({
-        x: Math.max(plotLeft, it.ax - 36 - it.boxW),
-        y: Math.max(4, it.hy - 36 - it.boxH), w: it.boxW, h: it.boxH,
-      })
       for (const dist of DISTS) {
         for (const d of DIRS) {
           const anchorY = d.dy > 0 ? it.ly : it.hy
@@ -253,9 +249,6 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
           const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
           let cost = Math.hypot(nx - it.ax, ny - anchorY) + bias(d)
-          // When the upper-left is candle-clear, strongly prefer it (stack up-left,
-          // a bit higher if a neighbour label is in the way) over down/right spots.
-          if (upLeftClear && d.dx < 0 && d.dy < 0) cost -= 120
           // Force a real DIAGONAL: reject if the leader came out vertical or
           // horizontal (e.g. an edge-clamped label landing right above its candle).
           if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += NONDIAG
