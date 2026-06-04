@@ -779,7 +779,7 @@ function StockDetail({ stockId, isAdmin }) {
             indexPaneSymbol="^IXIC"
             indexPaneLabel="IXIC (Nasdaq Composite)"
             indexPaneHeightPct={16}
-            priceScaleTopMargin={0.07}
+            priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.12}
             watermarkOpacity={0.22}
             watermarkX={0.14}

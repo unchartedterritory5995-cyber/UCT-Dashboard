@@ -116,21 +116,30 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       return false
     }
 
-    // Wrap a label to at most two lines once it would exceed maxLineW, so long
-    // catalyst titles continue on a second line instead of running off-screen.
-    const maxLineW = Math.max(120, Math.min(220, (plotRight - plotLeft) * 0.5))
-    const wrapLabel = (text) => {
-      if (ctx.measureText(text).width <= maxLineW) return [text]
+    // Split a title into two BALANCED lines (min width difference). A narrower,
+    // taller box tucks into a close gap instead of being forced far out.
+    const splitTwo = (text) => {
       const words = String(text).split(' ')
-      let line1 = ''
-      let i = 0
-      for (; i < words.length; i++) {
-        const test = line1 ? `${line1} ${words[i]}` : words[i]
-        if (!line1 || ctx.measureText(test).width <= maxLineW) line1 = test
-        else break
+      if (words.length < 2) return [text]  // single long word — can't split
+      let bestI = 1, bestDiff = Infinity
+      for (let i = 1; i < words.length; i++) {
+        const w1 = ctx.measureText(words.slice(0, i).join(' ')).width
+        const w2 = ctx.measureText(words.slice(i).join(' ')).width
+        const d = Math.abs(w1 - w2)
+        if (d < bestDiff) { bestDiff = d; bestI = i }
       }
-      const line2 = words.slice(i).join(' ')
-      return line2 ? [line1, line2] : [line1]
+      return [words.slice(0, bestI).join(' '), words.slice(bestI).join(' ')]
+    }
+    const maxLineW = Math.max(110, Math.min(150, (plotRight - plotLeft) * 0.42))
+    const wrapLabel = (text) => ctx.measureText(text).width <= maxLineW ? [text] : splitTwo(text)
+    const boxDims = (lines) => {
+      const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
+      return { boxW: tw + padX * 2, boxH: lines.length * textH + padY * 2 }
+    }
+    const leaderLenOf = (ax, rect) => {
+      const nx = Math.max(rect.x, Math.min(rect.x + rect.w, ax))
+      const ny = Math.max(rect.y, Math.min(rect.y + rect.h, rect.anchorY))
+      return Math.hypot(nx - ax, ny - rect.anchorY)
     }
 
     // Resolve on-screen anchors (candle high + low) + wrap long labels.
@@ -147,11 +156,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       if (ax == null || hy == null || ax < -40 || ax > w + 40) continue
       if (ly == null) ly = hy
       const lines = wrapLabel(c.text)
-      const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
-      items.push({
-        key: `${c.time}|${c.text}`, text: c.text, lines, ax, hy, ly,
-        boxW: tw + padX * 2, boxH: lines.length * textH + padY * 2,
-      })
+      items.push({ key: `${c.time}|${c.text}`, text: c.text, lines, ax, hy, ly, ...boxDims(lines) })
     }
     items.sort((a, b) => a.ax - b.ax)
 
@@ -218,20 +223,35 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     }
     // Place each label: reuse the cached offset (rigid track) when available,
     // otherwise search for a blank spot and remember the offset for next frame.
-    for (const it of items) {
+    for (let it of items) {
       const cached = useCache ? placeRef.current.get(it.key) : null
       let rect
       if (cached) {
+        // Honour the resolved line wrapping the search chose (it may have been
+        // re-wrapped to 2 lines), so the tracked box matches what was placed.
+        if (cached.lines) it = { ...it, lines: cached.lines, ...boxDims(cached.lines) }
         const anchorY = cached.anchorIsLow ? it.ly : it.hy
         const x = Math.max(plotLeft, Math.min(plotRight - it.boxW, it.ax + cached.offX))
         const y = Math.max(4, Math.min(priceBottom - it.boxH - 4, anchorY + cached.offY))
         rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
       } else {
         rect = placeOne(it)
+        // Two-pass: a single-line label that landed FAR can often tuck in much
+        // closer once wrapped to two (narrower) lines — re-place and keep it if
+        // it shortens the leader meaningfully.
+        if (it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 88) {
+          const lines2 = splitTwo(it.text)
+          if (lines2.length === 2) {
+            const it2 = { ...it, lines: lines2, ...boxDims(lines2) }
+            const rect2 = placeOne(it2)
+            if (leaderLenOf(it2.ax, rect2) < leaderLenOf(it.ax, rect) - 12) { it = it2; rect = rect2 }
+          }
+        }
         placeRef.current.set(it.key, {
           offX: rect.x - it.ax,
           offY: rect.y - rect.anchorY,
           anchorIsLow: !!rect.anchorIsLow,
+          lines: it.lines,
         })
       }
       placed.push({ ...it, ...rect })
