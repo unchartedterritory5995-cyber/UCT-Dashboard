@@ -584,10 +584,9 @@ function StockDetail({ stockId, isAdmin }) {
   const catalystTimes = useMemo(() => catalysts.map(c => c.catalyst_date).filter(Boolean), [catalysts])
 
   const onCatalystTab = panelTab === 'catalysts'
-  const onEarningsTab = panelTab === 'earnings'
-  const onSetupsTab = !onCatalystTab && !onEarningsTab
-  // The chart shows setup overlays on the Setups tab, catalyst markers on the
-  // Catalysts tab, and nothing extra on Earnings — the tabs never fight.
+  const onSetupsTab = !onCatalystTab
+  // The chart shows setup overlays on the Setups tab and catalyst markers on the
+  // Catalysts tab — never both.
   const chartMarkers = onCatalystTab && catalystMarkers.length ? catalystMarkers : null
   const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
   const chartAnnotations = onSetupsTab ? annotations : null
@@ -595,13 +594,12 @@ function StockDetail({ stockId, isAdmin }) {
   const chartAnnotateMode = onSetupsTab ? annotateMode : false
   const chartHighlight = onCatalystTab
     ? (catalystTimes.length ? catalystTimes : focusDate)
-    : onSetupsTab
-      ? (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
-      : focusDate
+    : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
 
-  // Lazy earnings fetch — only hits Finnhub when the Earnings tab is open.
+  // Quarterly earnings for the year — fetched for EVERY stock (the table is a
+  // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
   const { data: earningsData } = useSWR(
-    onEarningsTab && stock?.symbol
+    stock?.symbol
       ? `/api/modelbook/year-earnings?symbol=${encodeURIComponent(stock.symbol)}&year=${stock.year}`
       : null,
     fetcher, { revalidateOnFocus: false },
@@ -770,6 +768,14 @@ function StockDetail({ stockId, isAdmin }) {
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
+          {/* Permanent earnings table — the year's quarterly EPS/revenue vs
+              estimate, pinned top-left (below the OHLC legend). */}
+          {earningsRows.length > 0 && (
+            <div className={styles.earnOverlay}>
+              <div className={styles.earnOverlayHead}>{stock.year} EARNINGS</div>
+              <EarningsTable rows={earningsRows} />
+            </div>
+          )}
         </div>
 
         {infoOpen && (
@@ -834,10 +840,6 @@ function StockDetail({ stockId, isAdmin }) {
                     onClick={() => selectTab('catalysts')}>
                     Catalysts{catalysts.length ? ` (${catalysts.length})` : ''}
                   </button>
-                  <button className={`${styles.panelTab} ${onEarningsTab ? styles.panelTabActive : ''}`}
-                    onClick={() => selectTab('earnings')}>
-                    Earnings
-                  </button>
                 </div>
                 <div className={styles.setupHeadTools}>
                   {onSetupsTab && hasAnnotations && (
@@ -866,9 +868,7 @@ function StockDetail({ stockId, isAdmin }) {
                 </div>
               </div>
 
-              {onEarningsTab ? (
-                <EarningsTable rows={earningsRows} loading={!earningsData} />
-              ) : onCatalystTab ? (
+              {onCatalystTab ? (
                 <>
                   {catError && <p className={styles.catError}>{catError}</p>}
                   {catalysts.length === 0 ? (

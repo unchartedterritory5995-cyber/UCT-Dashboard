@@ -112,9 +112,10 @@ test('hides the AI Generate button for non-admins on the Catalysts tab', () => {
   expect(screen.queryByRole('button', { name: /generate/i })).toBeNull()
 })
 
-test('Earnings tab renders the EPS / revenue table with surprise %', () => {
+test('renders the permanent earnings overlay table on the chart', () => {
   render(<ModelBook />)
-  fireEvent.click(screen.getByRole('button', { name: /earnings/i }))
+  // No tab to click — the table is a permanent chart overlay for every stock.
+  expect(screen.getByText('2025 EARNINGS')).toBeInTheDocument()
   expect(screen.getByText('Reported')).toBeInTheDocument()
   expect(screen.getByText('May 2025')).toBeInTheDocument()   // report date → month + year
   expect(screen.getByText('0.96')).toBeInTheDocument()        // EPS actual
