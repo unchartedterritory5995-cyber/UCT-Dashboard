@@ -29,6 +29,14 @@ function parseDrawings(json) {
   catch { return [] }
 }
 
+// Cap each horizontal ray at the setup's candle so it stops there instead of
+// streaking to the right edge — applied for display (both "show all" and a
+// single focused setup), NOT to the raw drawings used for admin editing.
+function boundHrays(drawings, labelDate) {
+  if (!labelDate) return drawings
+  return drawings.map(d => (d.type === 'hray' ? { ...d, rightBoundTime: labelDate } : d))
+}
+
 function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
@@ -559,17 +567,22 @@ function StockDetail({ stockId, isAdmin }) {
   // The focused setup (id retained through zoom-out so its drawings fade rather
   // than vanish). Drawings render when zoomed in and fade out on zoom-out.
   const focusedSetup = focusActive && focus.id != null ? setups.find(s => s.id === focus.id) : null
+  // Raw drawings of the focused setup (unbounded) — used to seed admin editing.
   const savedDrawings = useMemo(() => parseDrawings(focusedSetup?.drawings_json), [focusedSetup])
+  // Display version: horizontal rays bounded to stop at the setup candle, so they
+  // never extend past it even when zoomed into a single setup ("show all" off).
+  const focusedDrawings = useMemo(
+    () => (focusedSetup ? boundHrays(savedDrawings, focusedSetup.label_date) : null),
+    [focusedSetup, savedDrawings],
+  )
 
   // "Show all": every setup's drawings overlaid on the (zoomed-out) chart. Each
   // setup's horizontal rays get a rightBoundTime of that setup's candle so they
   // stop at the setup instead of streaking across the whole year when zoomed out.
-  const allDrawings = useMemo(() => setups.flatMap(s => {
-    const ds = parseDrawings(s.drawings_json)
-    return s.label_date
-      ? ds.map(d => (d.type === 'hray' ? { ...d, rightBoundTime: s.label_date } : d))
-      : ds
-  }), [setups])
+  const allDrawings = useMemo(
+    () => setups.flatMap(s => boundHrays(parseDrawings(s.drawings_json), s.label_date)),
+    [setups],
+  )
   const hasAnnotations = allDrawings.length > 0
   // All setup days — painted gold on the chart while "show all" is on so each
   // setup candle stands out alongside its annotations. Stable ref for StockChart.
@@ -584,7 +597,7 @@ function StockDetail({ stockId, isAdmin }) {
     annotations = allDrawings
     annotationsVisible = true
   } else {
-    annotations = focusedSetup ? savedDrawings : null
+    annotations = focusedSetup ? focusedDrawings : null
     annotationsVisible = !!focusDate
   }
 
