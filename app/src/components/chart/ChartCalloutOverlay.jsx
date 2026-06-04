@@ -45,51 +45,101 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const font = '600 11px "Instrument Sans", system-ui, sans-serif'
     ctx.font = font
     const textH = 13, padX = 5, padY = 3
-    const GAP = 26   // base vertical gap from candle high up to label bottom
+    const boxH = textH + padY * 2
 
-    // Resolve on-screen anchors.
+    // ── Map the price action so labels can dodge it ──
+    // Build pixel high/low segments for the VISIBLE candles. A label that
+    // overlaps any of these is covering a candle, so we reject that spot.
+    let lo = 0, hi = bars.length - 1
+    try {
+      const r = ts.getVisibleLogicalRange()
+      if (r) { lo = Math.max(0, Math.floor(r.from) - 1); hi = Math.min(bars.length - 1, Math.ceil(r.to) + 1) }
+    } catch { /* default to all */ }
+    const segs = []
+    for (let i = lo; i <= hi; i++) {
+      const b = bars[i]; if (!b) continue
+      let x, top, bottom
+      try { x = ts.logicalToCoordinate(i) } catch { x = null }
+      try { top = series.priceToCoordinate(b.h ?? b.high ?? b.c) } catch { top = null }
+      try { bottom = series.priceToCoordinate(b.l ?? b.low ?? b.c) } catch { bottom = null }
+      if (x == null || top == null || bottom == null) continue
+      segs.push({ x, top: Math.min(top, bottom), bottom: Math.max(top, bottom) })
+    }
+    const priceBottom = h * 0.82  // keep labels in the price pane (volume pane is below)
+    const hitsCandles = (r) => {
+      for (const s of segs) {
+        if (s.x < r.x - 2 || s.x > r.x + r.w + 2) continue
+        if (s.bottom < r.y || s.top > r.y + r.h) continue
+        return true
+      }
+      return false
+    }
+    const rectsOverlap = (a, b) =>
+      !(a.x + a.w < b.x - 6 || b.x + b.w < a.x - 6 || a.y + a.h < b.y - 4 || b.y + b.h < a.y - 4)
+
+    // Resolve on-screen anchors (candle high + low).
     const items = []
     for (const c of callouts) {
       if (!c?.text || !c?.time) continue
       const idx = barIndexForDate(c.time)
       if (idx < 0) continue
-      const high = bars[idx].h ?? bars[idx].high ?? bars[idx].c
-      let ax, ay
+      const b = bars[idx]
+      let ax, hy, ly
       try { ax = ts.logicalToCoordinate(idx) } catch { ax = null }
-      try { ay = series.priceToCoordinate(high) } catch { ay = null }
-      if (ax == null || ay == null || ax < -40 || ax > w + 40) continue
+      try { hy = series.priceToCoordinate(b.h ?? b.high ?? b.c) } catch { hy = null }
+      try { ly = series.priceToCoordinate(b.l ?? b.low ?? b.c) } catch { ly = null }
+      if (ax == null || hy == null || ax < -40 || ax > w + 40) continue
+      if (ly == null) ly = hy
       const tw = ctx.measureText(c.text).width
-      items.push({ text: c.text, ax, ay, boxW: tw + padX * 2, boxH: textH + padY * 2 })
+      items.push({ text: c.text, ax, hy, ly, boxW: tw + padX * 2, boxH })
     }
     items.sort((a, b) => a.ax - b.ax)
 
-    // Place each label up-and-to-a-side, then push it up to clear collisions.
+    // ── Find the nearest blank space in ANY direction for each label ──
+    // Try positions outward from the candle (closest first), in 8 directions;
+    // take the first that clears both candles and already-placed labels.
+    const DIRS = [
+      { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: -1 },  // up, up-right, up-left
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 },                       // right, left
+      { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: 0, dy: 1 },     // down-right, down-left, down
+    ]
+    const DISTS = [14, 26, 42, 62, 88, 120, 158, 200, 250]
     const placed = []
-    const overlaps = (a, b) =>
-      !(a.x + a.boxW < b.x - 6 || b.x + b.boxW < a.x - 6 || a.y + a.boxH < b.y - 4 || b.y + b.boxH < a.y - 4)
-    for (const it of items) {
-      const goRight = it.ax < w * 0.45            // diagonal toward the side with more room
-      let bx = goRight ? it.ax + 26 : it.ax - it.boxW - 26
-      bx = Math.max(4, Math.min(w - it.boxW - 4, bx))
-      let by = it.ay - GAP - it.boxH
-      let guard = 0
-      while (guard++ < 300 && placed.some(p => overlaps({ x: bx, y: by, boxW: it.boxW, boxH: it.boxH }, p))) {
-        by -= (it.boxH + 5)
+    const placeOne = (it) => {
+      let fallback = null
+      for (const dist of DISTS) {
+        for (const d of DIRS) {
+          const anchorY = d.dy > 0 ? it.ly : it.hy
+          const tx = it.ax + d.dx * dist
+          const ty = anchorY + d.dy * dist
+          let x = d.dx > 0 ? tx : d.dx < 0 ? tx - it.boxW : tx - it.boxW / 2
+          let y = d.dy < 0 ? ty - it.boxH : d.dy > 0 ? ty : ty - it.boxH / 2
+          x = Math.max(4, Math.min(w - it.boxW - 4, x))
+          y = Math.max(4, Math.min(priceBottom - it.boxH - 4, y))
+          const rect = { x, y, w: it.boxW, h: it.boxH, anchorY }
+          if (placed.some(p => rectsOverlap(rect, p))) continue
+          if (!hitsCandles(rect)) return rect
+          if (!fallback) fallback = rect   // remember a label-clear spot in case nothing is candle-clear
+        }
       }
-      by = Math.max(4, by)
-      placed.push({ ...it, x: bx, y: by })
+      return fallback || {
+        x: Math.max(4, Math.min(w - it.boxW - 4, it.ax - it.boxW / 2)),
+        y: Math.max(4, it.hy - 30 - it.boxH), w: it.boxW, h: it.boxH, anchorY: it.hy,
+      }
     }
+    for (const it of items) placed.push({ ...it, ...placeOne(it) })
 
-    // Leader lines (under the labels).
+    // Leader lines (under the labels): candle anchor → nearest point on the box.
     ctx.save()
     ctx.strokeStyle = color
     ctx.globalAlpha = 0.5
     ctx.lineWidth = 1
     for (const p of placed) {
-      const cornerX = (p.ax <= p.x) ? p.x : p.x + p.boxW   // bottom corner nearest the candle
+      const nx = Math.max(p.x, Math.min(p.x + p.w, p.ax))
+      const ny = Math.max(p.y, Math.min(p.y + p.h, p.anchorY))
       ctx.beginPath()
-      ctx.moveTo(p.ax, p.ay)
-      ctx.lineTo(cornerX, p.y + p.boxH)
+      ctx.moveTo(p.ax, p.anchorY)
+      ctx.lineTo(nx, ny)
       ctx.stroke()
     }
     ctx.restore()
