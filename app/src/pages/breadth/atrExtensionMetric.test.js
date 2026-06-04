@@ -25,9 +25,9 @@ describe('ATR extension breadth metric wiring', () => {
     expect(byKey.atr_ext_10.getFmt({})).toBe('—')
     expect(byKey.atr_ext_10.getTier({ atr_ext_10: null })).toBe('')
     expect(byKey.atr_ext_10.getTier({ atr_ext_10: 5 })).toBe('')     // below g1
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 20 })).toBe('g1')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 40 })).toBe('g2')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 70 })).toBe('g3')
-    expect(byKey.atr_ext_10.getFmt({ atr_ext_10: 42 })).toBe(42)
+    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 12 })).toBe('g1')
+    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 20 })).toBe('g2')
+    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 40 })).toBe('g3')
+    expect(byKey.atr_ext_10.getFmt({ atr_ext_10: 9 })).toBe(9)
   })
 })

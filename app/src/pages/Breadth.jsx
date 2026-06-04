@@ -228,13 +228,13 @@ const COLS = [
   // >N×ATR extended above the 50SMA (Jeff Sun extension). Strength/froth gauge —
   // graduated green; count thresholds are first-pass and tunable.
   { key: 'atr_ext_7', label: '>7×ATR', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 120 ? 'g3' : v > 80 ? 'g2' : v > 40 ? 'g1' : '',
+    colorFn: v => v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '',
     drillKey: 'atr_ext_7_list' },
   { key: 'atr_ext_10', label: '>10×ATR', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 60 ? 'g3' : v > 35 ? 'g2' : v > 15 ? 'g1' : '',
+    colorFn: v => v == null ? '' : v > 30 ? 'g3' : v > 18 ? 'g2' : v > 8 ? 'g1' : '',
     drillKey: 'atr_ext_10_list' },
   { key: 'atr_ext_12', label: '>12×ATR', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 40 ? 'g3' : v > 20 ? 'g2' : v > 8 ? 'g1' : '',
+    colorFn: v => v == null ? '' : v > 20 ? 'g3' : v > 12 ? 'g2' : v > 5 ? 'g1' : '',
     drillKey: 'atr_ext_12_list' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
@@ -815,13 +815,13 @@ export const HM_METRICS = [
     getTier: r => { const v = r.hvc_52w; return v == null ? '' : v > 100 ? 'g3' : v > 40 ? 'g2' : v > 15 ? 'g1' : '' },
     getFmt:  r => r.hvc_52w ?? '—' },
   { key: 'atr_ext_7',  label: '>7× ATR Ext',  group: 'Highs/Lows', drillKey: 'atr_ext_7_list',
-    getTier: r => { const v = r.atr_ext_7;  return v == null ? '' : v > 120 ? 'g3' : v > 80 ? 'g2' : v > 40 ? 'g1' : '' },
+    getTier: r => { const v = r.atr_ext_7;  return v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '' },
     getFmt:  r => r.atr_ext_7  ?? '—' },
   { key: 'atr_ext_10', label: '>10× ATR Ext', group: 'Highs/Lows', drillKey: 'atr_ext_10_list',
-    getTier: r => { const v = r.atr_ext_10; return v == null ? '' : v > 60 ? 'g3' : v > 35 ? 'g2' : v > 15 ? 'g1' : '' },
+    getTier: r => { const v = r.atr_ext_10; return v == null ? '' : v > 30 ? 'g3' : v > 18 ? 'g2' : v > 8 ? 'g1' : '' },
     getFmt:  r => r.atr_ext_10 ?? '—' },
   { key: 'atr_ext_12', label: '>12× ATR Ext', group: 'Highs/Lows', drillKey: 'atr_ext_12_list',
-    getTier: r => { const v = r.atr_ext_12; return v == null ? '' : v > 40 ? 'g3' : v > 20 ? 'g2' : v > 8 ? 'g1' : '' },
+    getTier: r => { const v = r.atr_ext_12; return v == null ? '' : v > 20 ? 'g3' : v > 12 ? 'g2' : v > 5 ? 'g1' : '' },
     getFmt:  r => r.atr_ext_12 ?? '—' },
 
   { key: '__h_sentiment', label: 'SENTIMENT',       isHeader: true, group: 'Sentiment' },
