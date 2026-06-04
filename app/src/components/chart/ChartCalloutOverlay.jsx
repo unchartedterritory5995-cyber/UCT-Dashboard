@@ -184,6 +184,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // on an up-trend). Net effect: a close bottom-right beats a far top-left, but
     // when distances are similar the top-left is chosen. (User-tuned behavior.)
     const BLOCKED = 1e6
+    // A vertical/horizontal leader is NEVER acceptable — penalize it harder than
+    // a candle graze so the scorer always falls to a diagonal, even a slightly
+    // overlapping one, rather than a clean vertical (the edge-clamped case).
+    const NONDIAG = 5e6
+    // Two labels overlapping is unreadable — forbid it as hard as a vertical line,
+    // harder than a candle graze, so a crowded label moves to a clean (or, failing
+    // that, candle-grazing) spot rather than landing on its neighbour.
+    const LABELOVR = 5e6
     // Closeness is paramount: cost is the leader-line LENGTH, so the nearest
     // clear gap always wins. A small TOP-LEFT tiebreak (≈10px) only decides
     // between spots that are otherwise about equally close — so a candle with an
@@ -209,8 +217,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           // horizontal (e.g. an edge-clamped label landing right above its
           // candle). The scorer then picks a direction that stays diagonal
           // (up-right for a left-edge candle, etc.).
-          if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += BLOCKED
-          if (placed.some(p => rectsOverlap(rect, p))) cost += BLOCKED
+          if (Math.abs(nx - it.ax) < 7 || Math.abs(ny - anchorY) < 7) cost += NONDIAG
+          if (placed.some(p => rectsOverlap(rect, p))) cost += LABELOVR
           if (hitsCandles(rect)) cost += BLOCKED
           if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
           if (cost < bestCost) { bestCost = cost; best = rect }
