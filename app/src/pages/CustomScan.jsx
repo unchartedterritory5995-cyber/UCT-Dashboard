@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
@@ -398,6 +398,30 @@ export default function CustomScan({ allCandidates }) {
   const grouping = useBreadthGrouping(results, { tickerOf: r => r.ticker, pctOf: r => r.pct_1d })
   const orderedResults = grouping.grouped ? grouping.visibleOrder : results
 
+  // Group-header refs (keyed by group key) so the summary strip can jump to a group.
+  const groupRefs = useRef({})
+  const pendingScrollKey = useRef(null)
+
+  // Jump to a group when its chip is clicked in the summary strip. If the group
+  // is collapsed, expand it first, then scroll once the rows have rendered.
+  const jumpToGroup = useCallback(key => {
+    if (grouping.collapsedGroups.has(key)) {
+      pendingScrollKey.current = key
+      grouping.toggleGroupCollapse(key)
+    } else {
+      groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [grouping])
+
+  // Complete a deferred jump after a collapsed group has expanded.
+  useEffect(() => {
+    const key = pendingScrollKey.current
+    if (key && !grouping.collapsedGroups.has(key)) {
+      pendingScrollKey.current = null
+      requestAnimationFrame(() => groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+  }, [grouping.collapsedGroups])
+
   // Keyboard navigation
   useEffect(() => {
     function onKey(e) {
@@ -542,7 +566,7 @@ export default function CustomScan({ allCandidates }) {
               <GroupSummaryStrip
                 summary={grouping.summary}
                 dimension={grouping.dimension}
-                onPick={grouping.toggleGroupCollapse}
+                onPick={jumpToGroup}
               />
             )}
             <table className={styles.table}>
@@ -653,7 +677,7 @@ export default function CustomScan({ allCandidates }) {
                     const isCollapsed = grouping.collapsedGroups.has(g.key)
                     return (
                       <Fragment key={g.key}>
-                        <tr className={styles.groupRow} onClick={() => grouping.toggleGroupCollapse(g.key)}>
+                        <tr ref={el => groupRefs.current[g.key] = el} className={styles.groupRow} onClick={() => grouping.toggleGroupCollapse(g.key)}>
                           <td className={styles.groupCell} colSpan={12}>
                             <span className={styles.groupCaret}>{isCollapsed ? '▸' : '▾'}</span>
                             <span className={styles.groupName}>{g.key}</span>

@@ -430,6 +430,29 @@ function DrillModal({ drill, onClose }) {
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const rowRefs = useRef([])
+  // Group-header refs (keyed by group key) so the summary strip can jump to a group.
+  const groupRefs = useRef({})
+  const pendingScrollKey = useRef(null)
+
+  // Jump to a group when its chip is clicked in the summary strip. If the group
+  // is collapsed, expand it first, then scroll once the rows have rendered.
+  const jumpToGroup = useCallback(key => {
+    if (collapsedGroups.has(key)) {
+      pendingScrollKey.current = key
+      toggleGroupCollapse(key)
+    } else {
+      groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [collapsedGroups, toggleGroupCollapse])
+
+  // Complete a deferred jump after a collapsed group has expanded.
+  useEffect(() => {
+    const key = pendingScrollKey.current
+    if (key && !collapsedGroups.has(key)) {
+      pendingScrollKey.current = null
+      requestAnimationFrame(() => groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+  }, [collapsedGroups])
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -505,7 +528,7 @@ function DrillModal({ drill, onClose }) {
               <div className={styles.drillEmpty}>No stocks matched this filter on {drill.date}.</div>
             ) : (
               <>
-              {grouped && <GroupSummaryStrip summary={summary} dimension={dimension} onPick={toggleGroupCollapse} />}
+              {grouped && <GroupSummaryStrip summary={summary} dimension={dimension} onPick={jumpToGroup} />}
               <table className={styles.drillTable}>
                 <thead>
                   <tr>
@@ -571,6 +594,7 @@ function DrillModal({ drill, onClose }) {
                       return (
                         <Fragment key={g.key}>
                           <tr
+                            ref={el => groupRefs.current[g.key] = el}
                             className={styles.drillGroupRow}
                             onClick={() => toggleGroupCollapse(g.key)}
                           >
