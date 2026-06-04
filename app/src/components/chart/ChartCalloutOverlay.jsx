@@ -174,10 +174,11 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
-    // Min ~20px breathing room; HARD-capped at ~132px so a label is never
-    // marooned far from its candle (user: "need a maximum length"). If nothing is
-    // clean within reach, the least-bad close spot wins instead of a long line.
-    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132]
+    // Min ~20px breathing room. Distance dominates the cost so the NEAREST spot
+    // wins, but the range reaches ~210px so that — in a dense cluster — a clean,
+    // READABLE gap is always reachable instead of being forced onto candles
+    // (clean always outranks a graze). The cost keeps labels close when it can.
+    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132, 168, 210]
     const placed = []
     const placedLeaders = []   // leader segments already drawn — new ones must not cross them
     // Do two leader segments cross (proper interior intersection)?
