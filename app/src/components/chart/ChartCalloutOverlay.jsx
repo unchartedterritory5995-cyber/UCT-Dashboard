@@ -132,8 +132,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // Leader lines (under the labels): candle anchor → nearest point on the box.
     ctx.save()
     ctx.strokeStyle = color
-    ctx.globalAlpha = 0.5
-    ctx.lineWidth = 1
+    ctx.globalAlpha = 0.8
+    ctx.lineWidth = 1.25
     for (const p of placed) {
       const nx = Math.max(p.x, Math.min(p.x + p.w, p.ax))
       const ny = Math.max(p.y, Math.min(p.y + p.h, p.anchorY))
