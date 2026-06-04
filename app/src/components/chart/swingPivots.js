@@ -79,23 +79,36 @@ export function detectSwingPivots(ohlc, { leftRight = 6, pctFloor = 6, includeDe
 
   const out = kept.map(p => ({ time: p.time, price: p.price, type: p.type }))
 
-  // 3. Developing last leg — the current swing the user expects to see.
+  // 3. Developing last leg — the current swing the user expects to see at the
+  //    live edge. Bidirectional: if price extends past the last confirmed pivot
+  //    in the SAME direction (a new higher high after a high, or lower low after
+  //    a low), that new extreme is the current swing; otherwise look for an
+  //    opposite-direction reversal that clears the % floor. Either way only one
+  //    developing label is added, and it's flagged so callers can style it.
   if (includeDeveloping && kept.length) {
     const last = kept[kept.length - 1]
-    const expected = last.type === 'high' ? 'low' : 'high'
-    let bestIdx = -1
-    let bestPrice = null
+    let hiIdx = -1
+    let loIdx = -1
     for (let i = last.idx + 1; i < n; i++) {
-      const v = expected === 'high' ? ohlc[i].high : ohlc[i].low
-      if (bestPrice == null || (expected === 'high' ? v > bestPrice : v < bestPrice)) {
-        bestPrice = v
-        bestIdx = i
-      }
+      if (hiIdx < 0 || ohlc[i].high > ohlc[hiIdx].high) hiIdx = i
+      if (loIdx < 0 || ohlc[i].low < ohlc[loIdx].low) loIdx = i
     }
-    if (bestIdx >= 0) {
-      const move = last.price ? Math.abs(bestPrice - last.price) / Math.abs(last.price) * 100 : 0
+    if (hiIdx >= 0) {
+      const tailHigh = ohlc[hiIdx].high
+      const tailLow = ohlc[loIdx].low
+      let devType = null
+      let devIdx = -1
+      let devPrice = null
+      if (last.type === 'high') {
+        if (tailHigh > last.price) { devType = 'high'; devIdx = hiIdx; devPrice = tailHigh }
+        else { devType = 'low'; devIdx = loIdx; devPrice = tailLow }
+      } else {
+        if (tailLow < last.price) { devType = 'low'; devIdx = loIdx; devPrice = tailLow }
+        else { devType = 'high'; devIdx = hiIdx; devPrice = tailHigh }
+      }
+      const move = last.price ? Math.abs(devPrice - last.price) / Math.abs(last.price) * 100 : 0
       if (move >= pctFloor) {
-        out.push({ time: ohlc[bestIdx].time, price: bestPrice, type: expected, developing: true })
+        out.push({ time: ohlc[devIdx].time, price: devPrice, type: devType, developing: true })
       }
     }
   }

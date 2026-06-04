@@ -61,6 +61,18 @@ describe('detectSwingPivots', () => {
     expect(piv[piv.length - 1].developing).toBe(true)
   })
 
+  it('developing leg extends a new high past the last confirmed high (AVGO case)', () => {
+    // confirmed high at 100, a sub-floor dip (no low pivot), then a new high at
+    // the live edge that can't be fractal-confirmed — must still be labeled
+    const vals = [50, 80, 100, 98, 99, 98, 99, 130, 128]
+    const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 5 })
+    expect(piv.some(p => p.price === 100 && p.type === 'high' && !p.developing)).toBe(true)
+    const dev = piv.find(p => p.developing)
+    expect(dev).toBeTruthy()
+    expect(dev.price).toBe(130)
+    expect(dev.type).toBe('high')
+  })
+
   it('developing leg respects the % floor', () => {
     // trailing bars stay within 5% of the last confirmed low (8) → no developing label
     const vals = [10, 9, 8, 9, 10, 9, 8, 8.1, 8.05]
