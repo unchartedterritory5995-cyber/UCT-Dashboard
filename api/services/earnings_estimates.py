@@ -120,13 +120,78 @@ def _surprise_pct(actual, estimate):
     return round((a - e) / abs(e) * 100, 1)
 
 
-def get_year_earnings(ticker: str, year: int) -> list:
-    """Quarterly EPS + revenue (actual vs estimate) for the reports that landed
-    DURING `year`. Uses Finnhub's earnings calendar, which carries revenue
-    (unlike /stock/earnings). Returns rows sorted by report date; [] on failure.
+def _year_earnings_from_calendar(ticker: str, year: int) -> dict:
+    """EPS + revenue per report date from Finnhub's earnings calendar.
 
-    Each row: {date, quarter, year, eps_actual, eps_estimate, eps_surprise_pct,
-               revenue_actual, revenue_estimate, revenue_surprise_pct}.
+    Finnhub caps the queryable date range on /calendar/earnings (the month-by-
+    month calendar feature is built around this), so a full-year request returns
+    nothing — we fetch ONE QUARTER at a time and merge. Keyed by report date."""
+    out = {}
+    quarters = [
+        (f"{year}-01-01", f"{year}-03-31"),
+        (f"{year}-04-01", f"{year}-06-30"),
+        (f"{year}-07-01", f"{year}-09-30"),
+        (f"{year}-10-01", f"{year}-12-31"),
+    ]
+    for fm, to in quarters:
+        data = _fh_get("/calendar/earnings", {"symbol": ticker, "from": fm, "to": to})
+        items = data.get("earningsCalendar") if isinstance(data, dict) else None
+        for q in (items or []):
+            if (q.get("symbol") or "").upper() != ticker:
+                continue
+            ds = str(q.get("date") or "")[:10]
+            if not ds.startswith(str(year)):
+                continue
+            eps_a, eps_e = q.get("epsActual"), q.get("epsEstimate")
+            rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimate")
+            out[ds] = {
+                "date": ds,
+                "quarter": q.get("quarter"),
+                "year": q.get("year"),
+                "eps_actual": eps_a,
+                "eps_estimate": eps_e,
+                "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
+                "revenue_actual": rev_a,
+                "revenue_estimate": rev_e,
+                "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
+            }
+    return out
+
+
+def _year_earnings_from_stock(ticker: str, year: int) -> list:
+    """Fallback EPS-only history from /stock/earnings (no revenue, but reliable
+    on every Finnhub tier). `period` is the fiscal quarter-end date; we keep the
+    quarters whose period falls in `year`. Used only when the calendar is empty."""
+    rows = []
+    eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 24})
+    if isinstance(eps_raw, list):
+        for q in eps_raw:
+            period = str(q.get("period") or "")[:10]
+            if not period.startswith(str(year)):
+                continue
+            eps_a, eps_e = q.get("actual"), q.get("estimate")
+            surp = q.get("surprisePercent")
+            rows.append({
+                "date": period,
+                "quarter": q.get("quarter"),
+                "year": q.get("year"),
+                "eps_actual": eps_a,
+                "eps_estimate": eps_e,
+                "eps_surprise_pct": round(float(surp), 1) if surp is not None else _surprise_pct(eps_a, eps_e),
+                "revenue_actual": None,
+                "revenue_estimate": None,
+                "revenue_surprise_pct": None,
+            })
+    return rows
+
+
+def get_year_earnings(ticker: str, year: int) -> list:
+    """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the
+    reports that landed DURING `year`. Returns rows sorted by date; [] on failure.
+
+    Primary source is Finnhub's earnings calendar (carries revenue), fetched a
+    quarter at a time to dodge the date-range cap. Falls back to /stock/earnings
+    (EPS only) when the calendar returns nothing, so the table still appears.
     Cached per (ticker, year): closed years are static so they cache for weeks."""
     ticker = ticker.upper()
     ckey = f"mb_year_earnings_{ticker}_{int(year)}"
@@ -134,25 +199,13 @@ def get_year_earnings(ticker: str, year: int) -> list:
     if cached is not None:
         return cached
 
-    rows = []
-    data = _fh_get("/calendar/earnings",
-                   {"symbol": ticker, "from": f"{year}-01-01", "to": f"{year}-12-31"})
-    items = data.get("earningsCalendar") if isinstance(data, dict) else None
-    for q in (items or []):
-        eps_a, eps_e = q.get("epsActual"), q.get("epsEstimate")
-        rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimate")
-        rows.append({
-            "date": str(q.get("date") or "")[:10],
-            "quarter": q.get("quarter"),
-            "year": q.get("year"),
-            "eps_actual": eps_a,
-            "eps_estimate": eps_e,
-            "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
-            "revenue_actual": rev_a,
-            "revenue_estimate": rev_e,
-            "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
-        })
-    rows.sort(key=lambda r: r["date"])
+    by_date = _year_earnings_from_calendar(ticker, year)
+    rows = sorted(by_date.values(), key=lambda r: r["date"])
+    if not rows:
+        rows = _year_earnings_from_stock(ticker, year)
+        rows.sort(key=lambda r: r["date"])
+        _logger.info("get_year_earnings %s %s: calendar empty, /stock/earnings gave %d row(s)",
+                     ticker, year, len(rows))
 
     if rows:  # don't cache transient failures
         from datetime import datetime, timezone
