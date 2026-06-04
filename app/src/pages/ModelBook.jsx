@@ -557,6 +557,13 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         : { id: s.id, date: s.label_date, startDate: s.frame_start_date || null, nonce: f.nonce + 1, stockId, tf: chartTf }
     })
   }
+  // Always select+zoom a setup (no toggle) — used by ↑/↓ arrow navigation.
+  function selectSetup(s) {
+    if (!s || annotateMode) return
+    setPickedSetupId(s.id)
+    setFocus(f => ({ id: s.id, date: s.label_date, startDate: s.frame_start_date || null, nonce: f.nonce + 1, stockId, tf: chartTf }))
+    document.querySelector(`[data-setup-id="${s.id}"]`)?.scrollIntoView({ block: 'nearest' })
+  }
   // A focus only applies to the stock + timeframe it was set on; switching either
   // drops the zoom request (the chart re-frames the year on its own).
   const focusActive = focus.stockId === stockId && focus.tf === chartTf
@@ -683,22 +690,27 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     setFocus(f => ({ id: c.id, date: c.catalyst_date, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }))
     document.querySelector(`[data-catalyst-id="${c.id}"]`)?.scrollIntoView({ block: 'nearest' })
   }
-  // Track whether the user's last click landed inside the catalyst section, so
-  // ↑/↓ only scroll catalysts while focused there. Clicking ANYWHERE else (chart,
-  // ticker list, info panel) hands the arrows back to ticker navigation — even
-  // if a catalyst is still open.
-  const catSectionFocusedRef = useRef(false)
+  // Track whether the user's last click landed inside the setups/catalysts panel,
+  // so ↑/↓ only scroll that list while focused there. Clicking ANYWHERE else
+  // (chart, ticker list, info panel) hands the arrows back to ticker navigation —
+  // even if a setup/catalyst is still open.
+  const panelFocusedRef = useRef(false)
   useEffect(() => {
-    const onDown = e => { catSectionFocusedRef.current = !!e.target?.closest?.('[data-cat-section]') }
+    const onDown = e => { panelFocusedRef.current = !!e.target?.closest?.('[data-panel-section]') }
     document.addEventListener('mousedown', onDown, true)
     return () => document.removeEventListener('mousedown', onDown, true)
   }, [])
-  // Expose catalyst-nav state to the parent ModelBook's keyboard handler.
+  // Expose the active tab's list/selection to ModelBook's keyboard handler so
+  // ↑/↓ scroll the Setups OR Catalysts list, whichever tab is showing.
   useEffect(() => {
     if (!catNavRef) return
     catNavRef.current = {
-      list: catalysts, id: expandedCatalystId, select: selectCatalyst,
-      isActive: () => catSectionFocusedRef.current && onCatalystTab && expandedCatalystId != null,
+      list: onCatalystTab ? catalysts : setups,
+      id: onCatalystTab ? expandedCatalystId : selectedSetupId,
+      select: onCatalystTab ? selectCatalyst : selectSetup,
+      isActive: () => panelFocusedRef.current && (
+        (onCatalystTab && expandedCatalystId != null) ||
+        (onSetupsTab && selectedSetupId != null)),
     }
   })
 
@@ -888,7 +900,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
 
             {/* Setups (buy spots) + Catalysts (move-driving events) — two tabbed
                 guides to the chart. Click a row to focus/zoom that point. */}
-            <div className={styles.panelSetups} data-cat-section>
+            <div className={styles.panelSetups} data-panel-section>
               <div className={styles.setupSectionHead}>
                 <div className={styles.panelTabs}>
                   <button className={`${styles.panelTab} ${onSetupsTab ? styles.panelTabActive : ''}`}
@@ -1010,6 +1022,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                     ) : (
                       <div
                         key={s.id}
+                        data-setup-id={s.id}
                         className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
                         onClick={() => onSetupClick(s)}
                         title={s.notes || undefined}
