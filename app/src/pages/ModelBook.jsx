@@ -774,7 +774,7 @@ function StockDetail({ stockId, isAdmin }) {
             showVolume
             volumeSeparatePane
             markVolumeExtremes
-            volumePaneHeightPct={18}
+            volumePaneHeightPct={12}
             volumeMa={50}
             indexPaneSymbol="^IXIC"
             indexPaneHeightPct={16}

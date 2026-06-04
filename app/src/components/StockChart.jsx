@@ -1890,17 +1890,21 @@ export default function StockChart({
     },
     { revalidateOnFocus: false, dedupingInterval: 60_000 }
   )
-  // Clip the index line to the stock's visible date span so it never introduces
-  // leading/trailing whitespace that would shift the candles' logical indices
-  // (the focus-zoom relies on those). Time format mirrors the main series.
+  // Keep ONLY index points whose time exists in the stock's own bars. The index
+  // series shares the chart's logical time scale; if it added points the stock
+  // lacks, those extra positions would shift every candle's logical index. That
+  // breaks reused/gappy tickers hard: e.g. SNDK (SanDisk delisted 2016 →
+  // relisted 2025) has a multi-year hole that ^IXIC fills with continuous data —
+  // those gap points expanded the logical space so the year-framing (computed
+  // from the stock's gap-less bar array) landed IN the gap, showing an empty
+  // chart at the wrong dates. Restricting to the stock's bar times keeps the
+  // logical indices 1:1 with the stock; the index line simply skips the gap too.
   const indexPaneSeries = useMemo(() => {
     if (!indexPaneSymbol || !indexPaneData?.length || !ohlcData?.length) return []
-    const first = ohlcData[0]?.time
-    const last = ohlcData[ohlcData.length - 1]?.time
-    const cmp = (a, b) => (typeof a === 'string' ? (a < b ? -1 : a > b ? 1 : 0) : a - b)
+    const stockTimes = new Set(ohlcData.map(b => b.time))
     return indexPaneData
       .map(b => ({ time: adjustTime(b.t), value: b.c }))
-      .filter(p => p.value != null && Number.isFinite(p.value) && cmp(p.time, first) >= 0 && cmp(p.time, last) <= 0)
+      .filter(p => p.value != null && Number.isFinite(p.value) && stockTimes.has(p.time))
   }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime])
 
   // Reset all live tracking refs on symbol or timeframe change.
@@ -3512,11 +3516,10 @@ export default function StockChart({
           color: indexPaneColor,
           lineWidth: 1.5,
           priceLineVisible: false,
-          lastValueVisible: true,
+          lastValueVisible: false,  // no floating "IXIC <price>" box — label sits top-left of the pane instead
           crosshairMarkerVisible: true,
           crosshairMarkerRadius: 2,
           priceScaleId: 'right',
-          title: typeof indexPaneSymbol === 'string' ? indexPaneSymbol.replace(/^\^/, '') : '',
         }, paneCount)
         indexPaneSeriesRef.current = s
         try { s.getPane().moveTo(0) } catch {}
@@ -4610,6 +4613,19 @@ export default function StockChart({
             bars={bars}
             callouts={callouts}
           />
+        </div>
+      )}
+      {/* Index pane label — top-left of the pane (replaces the floating last-value box). */}
+      {indexPaneSymbol && indexPaneSeries.length > 0 && (
+        <div
+          style={{
+            position: 'absolute', top: 4, left: 10, zIndex: 5, pointerEvents: 'none',
+            font: '600 11px "Instrument Sans", system-ui, sans-serif',
+            letterSpacing: '0.04em', color: indexPaneColor, opacity: 0.85,
+            textShadow: '0 0 3px rgba(0,0,0,0.85)',
+          }}
+        >
+          {String(indexPaneSymbol).replace(/^\^/, '')}
         </div>
       )}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
