@@ -154,19 +154,24 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // ── Find the nearest blank space in ANY direction for each label ──
     // Try positions outward from the candle (closest first), in 8 directions;
     // take the first that clears both candles and already-placed labels.
-    // Preference order: place labels DOWN and to the SIDE first (leader line
-    // attaches to the candle's LOW for dy>0), so they sit in the blank space
-    // beside/below the candle instead of floating high above on a long vertical
-    // stem. Straight-up is the last resort.
     const DIRS = [
-      { dx: 1, dy: 1 }, { dx: 1, dy: 0 },                        // down-right, right
-      { dx: -1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 },    // down-left, down, left
-      { dx: 1, dy: -1 }, { dx: -1, dy: -1 }, { dx: 0, dy: -1 },  // up-right, up-left, up (last resort)
+      { dx: -1, dy: -1 }, { dx: -1, dy: 0 }, { dx: -1, dy: 1 },  // up-left, left, down-left
+      { dx: 0, dy: -1 }, { dx: 0, dy: 1 },                       // up, down
+      { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },     // up-right, right, down-right
     ]
-    const DISTS = [14, 26, 42, 62, 88, 120, 158, 200, 250]
+    const DISTS = [14, 22, 32, 46, 64, 88, 118, 156, 200, 250]
     const placed = []
+    // Score every candidate spot and take the cheapest. Cost is dominated by the
+    // LEADER-LINE LENGTH (short, tidy lines win), with a hard penalty for any spot
+    // whose label or line covers a candle / overlaps another label, plus a small
+    // directional bias so ties break toward the TOP-LEFT (the natural blank space
+    // on an up-trend). Net effect: a close bottom-right beats a far top-left, but
+    // when distances are similar the top-left is chosen. (User-tuned behavior.)
+    const BLOCKED = 1e6
+    const dirBias = (d) =>            // small px nudge: up & left cheaper, down & right dearer
+      (d.dy < 0 ? -4 : d.dy > 0 ? 3 : 0) + (d.dx < 0 ? -4 : d.dx > 0 ? 3 : 0)
     const placeOne = (it) => {
-      let fallback = null
+      let best = null, bestCost = Infinity
       for (const dist of DISTS) {
         for (const d of DIRS) {
           const anchorY = d.dy > 0 ? it.ly : it.hy
@@ -177,16 +182,16 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
           x = Math.max(plotLeft, Math.min(plotRight - it.boxW, x))
           y = Math.max(4, Math.min(priceBottom - it.boxH - 4, y))
           const rect = { x, y, w: it.boxW, h: it.boxH, anchorY, anchorIsLow: d.dy > 0 }
-          if (placed.some(p => rectsOverlap(rect, p))) continue
-          // Leader endpoint = nearest point on the box to the candle anchor.
           const nx = Math.max(rect.x, Math.min(rect.x + rect.w, it.ax))
           const ny = Math.max(rect.y, Math.min(rect.y + rect.h, anchorY))
-          if (hitsCandles(rect)) continue
-          if (!lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) return rect  // label AND leader are clear
-          if (!fallback) fallback = rect   // label-clear (leader may clip) — last-resort spot
+          let cost = Math.hypot(nx - it.ax, ny - anchorY) + dirBias(d)
+          if (placed.some(p => rectsOverlap(rect, p))) cost += BLOCKED
+          if (hitsCandles(rect)) cost += BLOCKED
+          if (lineHitsCandles(it.ax, anchorY, nx, ny, it.ax)) cost += BLOCKED
+          if (cost < bestCost) { bestCost = cost; best = rect }
         }
       }
-      return fallback || {
+      return best || {
         x: Math.max(plotLeft, Math.min(plotRight - it.boxW, it.ax - it.boxW / 2)),
         y: Math.max(4, it.hy - 30 - it.boxH), w: it.boxW, h: it.boxH, anchorY: it.hy, anchorIsLow: false,
       }

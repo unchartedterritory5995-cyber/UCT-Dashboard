@@ -782,7 +782,7 @@ function StockDetail({ stockId, isAdmin }) {
             priceScaleTopMargin={0.07}
             priceScaleBottomMargin={0.05}
             watermarkOpacity={0.22}
-            watermarkX={0.72}
+            watermarkX={0.26}
             watermarkY={0.22}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
