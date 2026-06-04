@@ -3186,7 +3186,12 @@ export default function StockChart({
       setTimeout(reassert, 320)
       setTimeout(reassert, 650)
     }
-  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf])
+    // `mergedMarkers`/`highlightTimeSet` are in the deps so a Model Book tab
+    // switch (which swaps markers + highlighted candles → an internal setData
+    // that snaps the view to the latest bars) re-runs this pin and re-frames the
+    // year. The focusActiveRef guard above means a live setup/catalyst zoom is
+    // untouched; all effects run before paint, so there's no flash of "now".
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet])
 
   // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
   // focusDate is set, smoothly zoom so that bar is the last candle on screen
