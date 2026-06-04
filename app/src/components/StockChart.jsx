@@ -11,6 +11,7 @@ import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
+import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -465,6 +466,7 @@ export default function StockChart({
   focusNonce = 0,           // bump to (re)trigger the focus zoom even when focusDate is unchanged
   focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
   // ── Per-setup annotations (Model Book) — additive, default-off ──
+  callouts = null,              // array of {time, text} leader-line labels (Model Book catalysts) — placed in blank space with a diagonal line to the candle
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
@@ -4386,6 +4388,17 @@ export default function StockChart({
               hideCountdown
             />
           )}
+        </div>
+      )}
+      {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
+      {callouts != null && callouts.length > 0 && bars?.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+          <ChartCalloutOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            callouts={callouts}
+          />
         </div>
       )}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />

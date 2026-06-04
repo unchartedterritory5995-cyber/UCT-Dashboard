@@ -582,15 +582,13 @@ function StockDetail({ stockId, isAdmin }) {
   // Ordered by the API (sort_order). Shown as gold ⚡ markers + gold candles when
   // the Catalysts tab is active; clicking one zooms to it.
   const catalysts = useMemo(() => stock?.catalysts || [], [stock])
-  const catalystMarkers = useMemo(() => catalysts
+  // Catalyst chart labels: placed in blank space above the candle with a diagonal
+  // leader line (AmiBroker-style) so they never cover candles — see ChartCalloutOverlay.
+  const catalystCallouts = useMemo(() => catalysts
     .filter(c => c.catalyst_date)
     .map(c => ({
       time: c.catalyst_date,
-      position: 'aboveBar',
-      color: CATALYST_WHITE,
-      shape: 'circle',   // hidden — size:0 renders the text label only (no circle)
       text: c.title || (c.move_pct != null ? `${c.move_pct >= 0 ? '+' : ''}${Math.round(c.move_pct)}%` : ''),
-      size: 0,
     })), [catalysts])
   const catalystTimes = useMemo(() => catalysts.map(c => c.catalyst_date).filter(Boolean), [catalysts])
 
@@ -598,7 +596,7 @@ function StockDetail({ stockId, isAdmin }) {
   const onSetupsTab = !onCatalystTab
   // The chart shows setup overlays on the Setups tab and catalyst markers on the
   // Catalysts tab — never both.
-  const chartMarkers = onCatalystTab && catalystMarkers.length ? catalystMarkers : null
+  const chartCallouts = onCatalystTab && catalystCallouts.length ? catalystCallouts : null
   const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
   const chartAnnotations = onSetupsTab ? annotations : null
   const chartAnnotationsVisible = onSetupsTab ? annotationsVisible : false
@@ -750,7 +748,7 @@ function StockDetail({ stockId, isAdmin }) {
             priceScaleBottomMargin={0.06}
             watermarkOpacity={0.13}
             priceLines={chartPriceLines}
-            markers={chartMarkers}
+            callouts={chartCallouts}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
