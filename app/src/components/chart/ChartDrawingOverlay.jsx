@@ -690,23 +690,34 @@ export default function ChartDrawingOverlay({
   // belt-and-suspenders fallback for any movement the subscription misses.
   useEffect(() => {
     const chart = chartRef?.current
+    const series = seriesRef?.current
     if (!chart) return
     const ts = chart.timeScale()
     const onRange = () => redrawRef.current?.()
-    let lastRangeKey = null
-    const interval = setInterval(() => {
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    // A rAF loop samples the time range AND the price→pixel mapping each frame,
+    // so drawings track VERTICAL price-scale changes too — the autoscale settling
+    // after a focus zoom, or axis drags — not just horizontal range moves. (The
+    // old time-only 200ms poll left annotations stuck at stale price levels for a
+    // beat after the first zoom — the "2.70/5.42 in the wrong spot" glitch.)
+    let raf = null
+    let lastKey = ''
+    const tick = () => {
       try {
         const range = ts.getVisibleLogicalRange()
-        const key = range ? `${range.from.toFixed(2)}-${range.to.toFixed(2)}` : null
-        if (key !== lastRangeKey) { lastRangeKey = key; redrawRef.current?.() }
-      } catch { /* chart torn down mid-poll */ }
-    }, 200)
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+        const y0 = series?.priceToCoordinate(1)
+        const y1 = series?.priceToCoordinate(100)
+        const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
+        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
+      } catch { /* chart torn down mid-frame */ }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
     return () => {
-      clearInterval(interval)
+      if (raf) cancelAnimationFrame(raf)
       try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
-  }, [chartRef])
+  }, [chartRef, seriesRef])
 
   // ── Request redraw (debounced via rAF, uses ref for latest redraw) ──
   const requestRedraw = useCallback(() => {

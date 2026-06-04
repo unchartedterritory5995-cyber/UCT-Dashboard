@@ -4574,7 +4574,7 @@ export default function StockChart({
           default — activeTool=null makes the overlay canvas pointer-transparent
           so the focus zoom still works underneath. The wrapper fades the whole
           layer in/out as the chart zooms onto / away from the setup. */}
-      {annotations != null && bars?.length > 0 && (
+      {annotations != null && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
         <div
           style={overlayWrapStyle({
             zIndex: 4,
