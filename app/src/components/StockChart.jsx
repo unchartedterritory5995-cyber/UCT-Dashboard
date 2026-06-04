@@ -693,7 +693,6 @@ export default function StockChart({
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
-  const wmOpacityRef = useRef(0)        // animated watermark opacity (Model Book fade on ticker change)
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive
   const sessionShadeAttachedRef = useRef(false)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
@@ -2303,9 +2302,7 @@ export default function StockChart({
       wmCtrlRef.current.setOptions({
         lines: wmLines,
         color: cs.watermark.color,
-        // Model Book fades the watermark in on ticker change (see effect below);
-        // every other chart uses the static opacity directly.
-        opacity: indexPaneSymbol ? wmOpacityRef.current : (watermarkOpacity ?? cs.watermark.opacity),
+        opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
@@ -3366,7 +3363,7 @@ export default function StockChart({
         }
       }
       focusActiveRef.current = true
-      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 1150, null, overlayData)
+      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 850, null, overlayData)
     } else {
       // Zoom back out to the framed year — same dual-axis glide as the zoom-in.
       // Hold the view (focusActiveRef stays true) until the animation finishes so
@@ -3384,7 +3381,7 @@ export default function StockChart({
       if (endIdx < startIdx) endIdx = filteredBars.length - 1
       focusActiveRef.current = true
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: startIdx, to: endIdx }, 1150, () => { focusActiveRef.current = false }, overlayData)
+        { from: startIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData)
     }
   }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf, overlayData])
 
@@ -3624,32 +3621,6 @@ export default function StockChart({
     const t2 = setTimeout(measure, 300)
     return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
   }, [indexPaneSymbol, indexPaneSeries, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
-
-  // Model Book: fade the watermark in on ticker change. The mark re-centres per
-  // company (name lengths differ), so a hard swap looks like it jumps around.
-  // Hide it instantly, then fade in only after the ticker SETTLES (debounced) so
-  // rapid scrolling doesn't flicker it through companies. Scoped to index-pane
-  // charts; every other chart keeps the static opacity.
-  useEffect(() => {
-    if (!indexPaneSymbol) return
-    const target = watermarkOpacity ?? cs.watermark.opacity ?? 0.1
-    wmOpacityRef.current = 0
-    try { wmCtrlRef.current?.setOptions({ opacity: 0 }) } catch { /* not ready */ }
-    let raf = null
-    const t = setTimeout(() => {
-      let start = null
-      const dur = 260
-      const step = (now) => {
-        if (start == null) start = now
-        const k = Math.min(1, (now - start) / dur)
-        wmOpacityRef.current = target * k
-        try { wmCtrlRef.current?.setOptions({ opacity: wmOpacityRef.current }) } catch { /* torn down */ }
-        if (k < 1) raf = requestAnimationFrame(step)
-      }
-      raf = requestAnimationFrame(step)
-    }, 160)
-    return () => { clearTimeout(t); if (raf) cancelAnimationFrame(raf) }
-  }, [sym, indexPaneSymbol, watermarkOpacity, cs.watermark.opacity])
 
   // ── Multi-symbol comparison overlays — cleanup on unmount ──
   useEffect(() => {

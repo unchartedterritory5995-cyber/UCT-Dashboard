@@ -60,7 +60,7 @@
 .yearGain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
 .statMuted { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; }
 .stockCompany { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.gain { color: var(--gain, #3cb868); }
+.gain { color: #4ade80; }
 .loss { color: var(--loss, #e74c3c); }
 
 /* ── Detail ── */
@@ -94,7 +94,7 @@
 .infoStat { display: flex; flex-direction: column; gap: 1px; }
 .infoStatLabel { font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
 .infoStatVal { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text-primary); }
-.infoStatGreen { color: var(--gain, #3cb868); }
+.infoStatGreen { color: #4ade80; }
 .infoNarrative { position: relative; }
 .infoDesc { font-size: 13.5px; line-height: 1.55; color: var(--text-primary); font-weight: 600; margin: 0 0 8px; }
 .infoStory { font-size: 13px; line-height: 1.7; color: var(--text-secondary); margin: 0; white-space: pre-wrap; }

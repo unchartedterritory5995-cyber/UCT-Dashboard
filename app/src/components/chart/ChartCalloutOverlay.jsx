@@ -15,7 +15,6 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
   const trackedRef = useRef(null)
-  const sigRef = useRef('')   // catalyst-set signature, to fade in on stock change
   const fullSigRef = useRef('')        // signature that gates the full re-search
   const pendingReplaceRef = useRef(false)  // re-place once the view settles after a real change
   // Cached per-label placement, keyed by `${time}|${text}`. Stores the label's
@@ -374,26 +373,6 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     draw(false)
   }, [draw, callouts, bars, color, bottomFrac])
 
-  // Seamless stock switches: when the catalyst SET changes (new stock), instantly
-  // hide the canvas, then fade it back in only AFTER the set has been stable for
-  // a beat. During rapid ticker scrolling the set keeps changing, so the timer
-  // keeps resetting and the labels stay hidden (no flicker) — they fade in once
-  // you settle on a stock. Same stock (only positions moving) → no fade.
-  useEffect(() => {
-    const sig = (callouts || []).map(c => `${c?.time}|${c?.text}`).join('~')
-    const canvas = canvasRef.current
-    if (!canvas || sig === sigRef.current) return
-    sigRef.current = sig
-    canvas.style.transition = 'none'
-    canvas.style.opacity = '0'
-    const t = setTimeout(() => {
-      const c = canvasRef.current
-      if (!c) return
-      c.style.transition = 'opacity 220ms ease'
-      c.style.opacity = '1'
-    }, 150)
-    return () => clearTimeout(t)
-  }, [callouts])
 
   // Canvas sizing.
   useEffect(() => {

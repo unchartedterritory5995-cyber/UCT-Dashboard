@@ -765,7 +765,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       <div className={styles.dvTop}>
       <div className={styles.detailHeader}>
         <div className={styles.detailTitleRow}>
-          <CompanyLogo sym={stock.symbol} size={30} />
+          <CompanyLogo sym={stock.symbol} size={30} round />
           <h2 className={styles.detailName}>
             {stock.symbol}
             {stock.company && <span className={styles.detailNameCo}>({stock.company})</span>}
