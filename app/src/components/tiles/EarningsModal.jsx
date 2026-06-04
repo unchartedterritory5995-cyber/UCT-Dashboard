@@ -538,14 +538,6 @@ export default function EarningsModal({ row, label, onClose }) {
           <TickerPopup sym={row.sym} as="button" className={styles.btnChart}>
             View Chart
           </TickerPopup>
-          <a
-            href={`https://finviz.com/quote.ashx?t=${row.sym}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.btnFinviz}
-          >
-            FinViz
-          </a>
         </div>
 
       </div>
