@@ -73,6 +73,15 @@ export const CHART_DEFAULTS = {
     obv:       { enabled: false, color: '#9ca3af' },
     donchian:  { enabled: false, period: 20, color: 'rgba(96,165,250,0.5)' },
   },
+  // MarketSurge-style swing high/low price labels (rendered by swingLabelsPrimitive)
+  swingLabels: {
+    enabled: false,
+    sensitivity: 'medium', // low | medium | high
+    color: '#d4d0c4',
+    tintByType: false,     // tint swing-high labels up-color, swing-low down-color
+    upColor: '#4ade80',
+    downColor: '#f87171',
+  },
   heikinAshi: false,
   logScale:   false,
   percentScale: false,
@@ -242,6 +251,7 @@ export function mergeChartSettings(userSettings) {
       obv:           { ...CHART_DEFAULTS.indicators.obv,           ...(parsed.indicators?.obv           || {}) },
       donchian:      { ...CHART_DEFAULTS.indicators.donchian,      ...(parsed.indicators?.donchian      || {}) },
     },
+    swingLabels: { ...CHART_DEFAULTS.swingLabels, ...(parsed.swingLabels || {}) },
     heikinAshi: parsed.heikinAshi ?? CHART_DEFAULTS.heikinAshi,
     logScale:   parsed.logScale   ?? CHART_DEFAULTS.logScale,
     percentScale: parsed.percentScale ?? CHART_DEFAULTS.percentScale,

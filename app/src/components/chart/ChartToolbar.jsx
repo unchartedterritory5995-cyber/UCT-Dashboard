@@ -602,6 +602,46 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
         </div>
       </div>
 
+      {/* Swing high/low price labels */}
+      <div className={styles.sGroup}>
+        <span className={styles.sLabel}>Swing labels</span>
+        <div className={styles.sRow}>
+          <label className={styles.sCheck} title="Print the price at each notable swing high and swing low, MarketSurge-style">
+            <input type="checkbox"
+              checked={cs.swingLabels?.enabled ?? false}
+              onChange={e => update('swingLabels.enabled', e.target.checked)} />
+            Swing prices
+          </label>
+          <label className={styles.sCheck} style={{ display: 'flex', alignItems: 'center', gap: 6 }} title="How aggressively swings are detected">
+            <span>Sensitivity</span>
+            <select
+              className={styles.sMiniSelect}
+              value={cs.swingLabels?.sensitivity || 'medium'}
+              onChange={e => update('swingLabels.sensitivity', e.target.value)}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Med</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
+        <div className={styles.sRow} style={{ marginTop: 6 }}>
+          <ColorPicker label="Color" value={cs.swingLabels?.color ?? '#d4d0c4'} onChange={v => update('swingLabels.color', v)} />
+          <label className={styles.sCheck} title="Tint swing-high labels with the up-color and swing-low labels with the down-color">
+            <input type="checkbox"
+              checked={cs.swingLabels?.tintByType ?? false}
+              onChange={e => update('swingLabels.tintByType', e.target.checked)} />
+            Tint by type
+          </label>
+          {cs.swingLabels?.tintByType && (
+            <>
+              <ColorPicker label="Up" value={cs.swingLabels?.upColor ?? '#4ade80'} onChange={v => update('swingLabels.upColor', v)} />
+              <ColorPicker label="Dn" value={cs.swingLabels?.downColor ?? '#f87171'} onChange={v => update('swingLabels.downColor', v)} />
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Chart Markers */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Markers</span>

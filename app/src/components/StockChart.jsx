@@ -16,6 +16,8 @@ import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
 import { resolveChartRegion, INDICATOR_LABELS } from './chart/chartRegion'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
+import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
+import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -665,6 +667,8 @@ export default function StockChart({
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive
   const sessionShadeAttachedRef = useRef(false)
+  const swingCtrlRef = useRef(null)       // swing-label series primitive controller
+  const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
   useWatermarkDrag({
     containerRef,
@@ -937,6 +941,7 @@ export default function StockChart({
       if (['1', '5', '15', '30', '60'].includes(resolvedTf)) {
         items.push({ id: 'pr-eh', label: 'Extended-hours shading', kind: 'toggle', checked: !!cs.extendedHoursShading, onSelect: () => setCs('extendedHoursShading', !cs.extendedHoursShading) })
       }
+      items.push({ id: 'pr-swing', label: 'Swing price labels', kind: 'toggle', checked: !!cs.swingLabels?.enabled, onSelect: () => setCs('swingLabels.enabled', !cs.swingLabels?.enabled) })
       if (showVolumeProp === undefined && !cs.volume.visible) {
         items.push({ id: 'pr-vol', label: 'Show volume', kind: 'toggle', checked: false, onSelect: () => setCs('volume.visible', true) })
       }
@@ -1594,6 +1599,15 @@ export default function StockChart({
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
     [displayBars, adjustTime]
   )
+  // MarketSurge-style swing high/low pivots — recompute only when the data,
+  // sensitivity, or timeframe changes (not per render or live tick). Forming
+  // right-edge bars are never pivots, so live updates can't make labels flicker.
+  const swingLabelsOn = !!cs.swingLabels?.enabled
+  const swingSensitivity = cs.swingLabels?.sensitivity || 'medium'
+  const swingPoints = useMemo(
+    () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
+    [swingLabelsOn, swingSensitivity, resolvedTf, ohlcData]
+  )
   // Gold-tinted copy with the highlighted bar(s) (Model Book: the focused
   // setup's day, or — with "show all" on — every setup's day) painted gold.
   // Kept separate from ohlcData so updateChart's normal setData path (and every
@@ -2246,6 +2260,7 @@ export default function StockChart({
       try { markersControllerRef.current?.detach?.() } catch {}
       markersControllerRef.current = null
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
+      swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -2954,6 +2969,27 @@ export default function StockChart({
           markersControllerRef.current = createSeriesMarkers(candleSeriesRef.current, allMarkers)
         }
       }).catch(() => {})
+    }
+
+    // ── Swing high/low price labels (custom v5 series primitive, above series) ──
+    if (candleSeriesRef.current) {
+      if (!swingCtrlRef.current) swingCtrlRef.current = createSwingLabelsPrimitive({})
+      if (!swingAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(swingCtrlRef.current.primitive)
+          swingAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const sl = cs.swingLabels || {}
+      swingCtrlRef.current.setOptions({
+        enabled: !!sl.enabled,
+        color: sl.color || '#d4d0c4',
+        tintByType: !!sl.tintByType,
+        upColor: sl.upColor || '#4ade80',
+        downColor: sl.downColor || '#f87171',
+        bg: cs.background,
+      })
+      swingCtrlRef.current.setPoints(swingPoints)
     }
 
     // View handling on initial load / timeframe change / ticker switch.

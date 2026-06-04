@@ -1,0 +1,75 @@
+// Swing high/low pivot detection for chart price labels (MarketSurge-style).
+//
+// Hybrid N-bar fractal + ZigZag % filter:
+//   1. Raw fractal pivots — a bar is a swing high if no bar within `leftRight`
+//      bars on either side has a strictly greater high (low symmetric). Right-edge
+//      bars (within R of the end) are never evaluated, so forming bars never
+//      produce flickering labels.
+//   2. ZigZag filter — enforce alternation high→low→high and keep a pivot only if
+//      its move from the last kept pivot exceeds `pctFloor` percent. Consecutive
+//      same-type pivots collapse to the more extreme one.
+//
+// Pure + deterministic. `ohlc` = [{ time, high, low, ... }] ascending by time.
+
+// Map the user-facing sensitivity (low|medium|high) to detection params, scaled
+// by timeframe — intraday swings are smaller %, weekly/monthly larger.
+export function sensitivityToParams(level, tf) {
+  const lvl = level === 'low' || level === 'high' ? level : 'medium'
+  const intraday = ['1', '5', '15', '30', '60'].includes(String(tf))
+  const weekly = tf === 'W' || tf === 'M'
+
+  let table
+  if (intraday) {
+    table = { low: [8, 4], medium: [6, 2.5], high: [4, 1.2] }
+  } else if (weekly) {
+    table = { low: [6, 18], medium: [5, 12], high: [3, 7] }
+  } else {
+    // daily (default)
+    table = { low: [8, 10], medium: [6, 6], high: [4, 3.5] }
+  }
+  const [leftRight, pctFloor] = table[lvl]
+  return { leftRight, pctFloor }
+}
+
+export function detectSwingPivots(ohlc, { leftRight = 6, pctFloor = 6 } = {}) {
+  const n = Array.isArray(ohlc) ? ohlc.length : 0
+  const L = Math.max(1, leftRight | 0)
+  const R = L
+  if (n < L + R + 1) return []
+
+  // 1. Raw fractal pivots (chronological). A bar may qualify as both high and
+  //    low only in degenerate all-equal windows; the ZigZag pass dedups.
+  const raw = []
+  for (let i = L; i < n - R; i++) {
+    const hi = ohlc[i].high
+    const lo = ohlc[i].low
+    let isHigh = true
+    let isLow = true
+    for (let j = i - L; j <= i + R; j++) {
+      if (j === i) continue
+      if (ohlc[j].high > hi) isHigh = false
+      if (ohlc[j].low < lo) isLow = false
+      if (!isHigh && !isLow) break
+    }
+    if (isHigh) raw.push({ time: ohlc[i].time, price: hi, type: 'high' })
+    if (isLow) raw.push({ time: ohlc[i].time, price: lo, type: 'low' })
+  }
+
+  // 2. ZigZag alternation + % floor.
+  const out = []
+  for (const p of raw) {
+    if (out.length === 0) {
+      out.push(p)
+      continue
+    }
+    const last = out[out.length - 1]
+    if (p.type === last.type) {
+      const moreExtreme = p.type === 'high' ? p.price > last.price : p.price < last.price
+      if (moreExtreme) out[out.length - 1] = p
+    } else {
+      const move = last.price ? Math.abs(p.price - last.price) / Math.abs(last.price) * 100 : 0
+      if (move >= pctFloor) out.push(p)
+    }
+  }
+  return out
+}
