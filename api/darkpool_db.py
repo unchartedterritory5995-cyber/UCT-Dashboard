@@ -36,7 +36,10 @@ _SELECT_COLS = ", ".join(_DB_COLS)
 
 # Stream batch size: balance ASGI round-trips vs memory.
 # Larger = fewer yields, smaller = lower peak memory.
-_STREAM_BATCH = 2000
+# Kept on the small side to keep first-byte arriving fast and the
+# connection visibly active to the proxy (Railway/CF will close idle
+# connections after ~30s of no progress).
+_STREAM_BATCH = 1000
 
 
 def get_conn():
@@ -182,37 +185,55 @@ def stream_csv(days=None, all_data: bool = False):
     """
     Generator that yields CSV chunks from the database.
 
-    Uses cursor iteration (no fetchall) so memory stays flat regardless
-    of result size, and rows ship as soon as the first batch is ready —
-    no server-side wait for a giant string to be built.
+    Two important properties for serving large windows reliably:
+
+    (1) Header line yields BEFORE conn.execute(). This gets the first byte
+        on the wire immediately — Railway's edge proxy won't close the
+        connection waiting for SQLite to start producing rows. (Before
+        this, the header didn't yield until after execute() returned,
+        which on 60+ day windows could be 10-30s and tripped proxy
+        timeouts mid-handshake.)
+
+    (2) No ORDER BY in the SELECT. The previous query used
+        ``ORDER BY date DESC, timestamp DESC`` which is not covered by
+        any index (we have idx_dp_date and idx_dp_date_ticker, but
+        nothing on timestamp). SQLite was forced to materialize the
+        full result set and sort it in memory before yielding the first
+        row — fine at 20d (~720K rows) but the 2.2M+ rows at 60d turned
+        into a multi-second blocking sort that ran out the proxy budget.
+        The frontend doesn't depend on row order — parseCSVtoD aggregates
+        per-ticker regardless of input order — so dropping the ORDER BY
+        is safe.
 
     ``days=None`` or ``all_data=True`` means everything.
-    Matches the flow_db.FlowDB.stream_csv pattern.
     """
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     try:
+        # (1) Header out the door FIRST — guarantees an immediate first byte.
+        yield _HEADER_LINE
+
+        # Resolve date window. If empty, just the header has shipped — done.
         if all_data or days is None:
+            # No date filter — stream every row.
             cursor = conn.execute(
-                f"SELECT {_SELECT_COLS} FROM darkpool_trades "
-                f"ORDER BY date DESC, timestamp DESC"
+                f"SELECT {_SELECT_COLS} FROM darkpool_trades"
             )
         else:
             selected_dates = _resolve_dates(conn, days)
             if not selected_dates:
-                yield _HEADER_LINE
                 return
             placeholders = ",".join(["?"] * len(selected_dates))
             cursor = conn.execute(
                 f"SELECT {_SELECT_COLS} FROM darkpool_trades "
-                f"WHERE date IN ({placeholders}) "
-                f"ORDER BY date DESC, timestamp DESC",
+                f"WHERE date IN ({placeholders})",
                 selected_dates,
             )
 
-        yield _HEADER_LINE
-
+        # (2) Stream rows in batches. Smaller batches keep more frequent
+        # progress signals on the wire so the proxy keeps the connection
+        # open even on slow networks.
         buf = io.StringIO()
         writer = csv.writer(buf)
         count = 0
