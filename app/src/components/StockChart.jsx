@@ -532,6 +532,17 @@ export default function StockChart({
     () => candleSeriesRef.current?.priceScale?.() ?? chartRef.current?.priceScale('right') ?? null,
     []
   )
+  // When an index pane sits on top, the PRICE pane is pushed down. The canvas
+  // overlays (annotations + catalyst callouts) draw with pane-relative
+  // priceToCoordinate (0 = top of the price pane), so their wrapper must be
+  // offset to the price pane's box or every drawing lands too high. null = no
+  // index pane → wrapper stays inset:0 (every other chart unchanged).
+  const [overlayBounds, setOverlayBounds] = useState(null) // {top, height} | null
+  const overlayWrapStyle = (extra) => (
+    overlayBounds
+      ? { position: 'absolute', top: overlayBounds.top, left: 0, right: 0, height: overlayBounds.height, ...extra }
+      : { position: 'absolute', inset: 0, ...extra }
+  )
 
   // ── Keyboard help overlay state ──
   const [helpOpen, setHelpOpen] = useState(false)
@@ -3535,6 +3546,39 @@ export default function StockChart({
     }
   }, [])
 
+  // Track the price pane's on-screen box so the annotation/callout overlays
+  // align to it when the index pane shifts it down. Measures the pane's DOM
+  // element (v5.1 getHTMLElement) vs the container; re-measures on container OR
+  // pane resize plus a couple of post-layout ticks. No index pane → bounds null.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !indexPaneSymbol) { setOverlayBounds(null); return }
+    let raf = null
+    const measure = () => {
+      try {
+        const paneEl = candleSeriesRef.current?.getPane?.()?.getHTMLElement?.()
+        if (!paneEl) return
+        const c = container.getBoundingClientRect()
+        const p = paneEl.getBoundingClientRect()
+        const top = Math.max(0, p.top - c.top)
+        const height = p.height
+        if (!height) return
+        setOverlayBounds(prev =>
+          (prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.height - height) < 0.5)
+            ? prev : { top, height })
+      } catch { /* pane not ready */ }
+    }
+    const schedule = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) }
+    measure()
+    const ro = new ResizeObserver(schedule)
+    ro.observe(container)
+    const paneEl = candleSeriesRef.current?.getPane?.()?.getHTMLElement?.()
+    if (paneEl) ro.observe(paneEl)
+    const t1 = setTimeout(measure, 60)
+    const t2 = setTimeout(measure, 300)
+    return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
+  }, [indexPaneSymbol, indexPaneSeries, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
+
   // ── Multi-symbol comparison overlays — cleanup on unmount ──
   useEffect(() => {
     return () => {
@@ -4485,12 +4529,12 @@ export default function StockChart({
           layer in/out as the chart zooms onto / away from the setup. */}
       {annotations != null && bars?.length > 0 && (
         <div
-          style={{
-            position: 'absolute', inset: 0, zIndex: 4,
+          style={overlayWrapStyle({
+            zIndex: 4,
             opacity: annotationsVisible ? 1 : 0,
             transition: 'opacity 360ms ease',
             pointerEvents: annotationsEditable ? 'auto' : 'none',
-          }}
+          })}
         >
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -4541,7 +4585,7 @@ export default function StockChart({
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
       {callouts != null && callouts.length > 0 && bars?.length > 0 && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
+        <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
           <ChartCalloutOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
