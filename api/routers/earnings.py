@@ -82,6 +82,25 @@ def debug_earnings_sources(sym: str):
         ("stable/earnings", f"https://financialmodelingprep.com/stable/earnings?symbol={sym}&limit=12&apikey={fmp_key}"),
         ("stable/historical-earning-calendar", f"https://financialmodelingprep.com/stable/historical-earning-calendar?symbol={sym}&limit=12&apikey={fmp_key}"),
     ]
+    # Rich dump of the live stable/earnings endpoint (what get_year_earnings uses)
+    # so we can confirm revenueActual is populated for PAST quarters, not just
+    # the future sample.
+    if fmp_key:
+        try:
+            rr = requests.get(
+                f"https://financialmodelingprep.com/stable/earnings?symbol={sym}&limit=12&apikey={fmp_key}",
+                timeout=8,
+            )
+            if rr.status_code == 200 and isinstance(rr.json(), list):
+                out["fmp_stable_earnings_dump"] = [
+                    {k: e.get(k) for k in ("date", "epsActual", "epsEstimated", "revenueActual", "revenueEstimated")}
+                    for e in rr.json()[:12]
+                ]
+            else:
+                out["fmp_stable_earnings_dump"] = f"{rr.status_code}: {rr.text[:160]}"
+        except Exception as e:
+            out["fmp_stable_earnings_dump"] = f"err: {e}"
+
     out["fmp"] = {}
     if fmp_key:
         for name, url in fmp_tests:

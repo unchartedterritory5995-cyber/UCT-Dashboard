@@ -120,71 +120,69 @@ def _surprise_pct(actual, estimate):
     return round((a - e) / abs(e) * 100, 1)
 
 
-def _fh_earnings_month_raw(year: int, month: int) -> list:
-    """Whole-market earnings calendar for ONE month. Finnhub returns nothing for
-    wide date ranges and the `symbol` filter is unreliable for history, so we
-    mirror the proven calendar.py pattern: fetch the whole market a month at a
-    time (no symbol) and filter client-side. Cached and SHARED across tickers, so
-    a whole year of Model Book stocks only triggers one set of month fetches."""
-    ckey = f"fh_earnings_month_{year}_{month:02d}"
-    cached = cache.get(ckey)
-    if cached is not None:
-        return cached
-    import calendar as _cal
-    last = _cal.monthrange(year, month)[1]
-    data = _fh_get(
-        "/calendar/earnings",
-        {"from": f"{year}-{month:02d}-01", "to": f"{year}-{month:02d}-{last:02d}"},
-        timeout=15,
-    )
-    rows = data.get("earningsCalendar") if isinstance(data, dict) else None
-    rows = rows or []
-    if rows:  # never cache an empty/failed month — every month has market-wide earnings
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        is_past = (year, month) < (now.year, now.month)
-        cache.set(ckey, rows, ttl=30 * 86400 if is_past else 1800)
+def _fmp_get(path: str, params: dict, timeout: int = 10):
+    """Fire a Financial Modeling Prep GET. Returns parsed JSON or None on failure."""
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return None
+    params["apikey"] = key
+    try:
+        r = requests.get(f"https://financialmodelingprep.com{path}", params=params, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
+    except Exception as exc:
+        _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
+        return None
+
+
+def _fiscal_q_from_report(date_str: str):
+    """(quarter, fiscal_year) for a report ANNOUNCED on date_str, assuming a
+    calendar fiscal year — companies report ~1-2 months after the quarter ends:
+      Jan-Mar → Q4 of (year-1) · Apr-Jun → Q1 · Jul-Sep → Q2 · Oct-Dec → Q3.
+    Lets us label rows Q1-Q4 of the book year from just the report date."""
+    try:
+        y, m = int(date_str[:4]), int(date_str[5:7])
+    except (ValueError, TypeError):
+        return None, None
+    if m <= 3:
+        return 4, y - 1
+    if m <= 6:
+        return 1, y
+    if m <= 9:
+        return 2, y
+    return 3, y
+
+
+def _year_earnings_from_fmp(ticker: str, year: int) -> list:
+    """All 4 FISCAL quarters of `year` for `ticker` (EPS + revenue) from FMP's
+    `stable/earnings` (the one FMP earnings endpoint still live on this plan;
+    the legacy v3 ones 403 after Aug-2025). One symbol-specific call. The report
+    date maps to a fiscal quarter via `_fiscal_q_from_report`."""
+    data = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 40})
+    if not isinstance(data, list):
+        return []
+    rows = []
+    for q in data:
+        ds = str(q.get("date") or "")[:10]
+        fq, fy = _fiscal_q_from_report(ds)
+        if fy != int(year):
+            continue
+        eps_a, eps_e = q.get("epsActual"), q.get("epsEstimated")
+        rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimated")
+        if eps_a is None and rev_a is None:
+            continue  # upcoming quarter, nothing reported yet
+        rows.append({
+            "date": ds,
+            "quarter": fq,
+            "year": fy,
+            "eps_actual": eps_a,
+            "eps_estimate": eps_e,
+            "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
+            "revenue_actual": rev_a,
+            "revenue_estimate": rev_e,
+            "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
+        })
     return rows
-
-
-def _year_earnings_from_calendar(ticker: str, year: int) -> dict:
-    """All FISCAL quarters of `year` for `ticker` (EPS + revenue) from the
-    whole-market month calendar. Reports announce a quarter or two after the
-    fiscal period, so we scan `year` PLUS Jan-Mar of the next year to catch the
-    Q4 report. Keyed by fiscal quarter so each quarter appears once."""
-    import concurrent.futures
-    months = [(year, m) for m in range(1, 13)] + [(year + 1, m) for m in (1, 2, 3)]
-    # Parallel month fetches (most hit the shared cache after the first stock).
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
-        monthly = list(ex.map(lambda ym: _fh_earnings_month_raw(*ym), months))
-
-    out = {}
-    for rows in monthly:
-        for q in rows:
-            if (q.get("symbol") or "").upper() != ticker:
-                continue
-            try:
-                fy = int(q.get("year"))
-            except (TypeError, ValueError):
-                fy = None
-            if fy != int(year):   # fiscal year must match the book year
-                continue
-            quarter = q.get("quarter")
-            eps_a, eps_e = q.get("epsActual"), q.get("epsEstimate")
-            rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimate")
-            key = quarter if quarter is not None else str(q.get("date"))[:10]
-            out[key] = {
-                "date": str(q.get("date") or "")[:10],
-                "quarter": quarter,
-                "year": fy,
-                "eps_actual": eps_a,
-                "eps_estimate": eps_e,
-                "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
-                "revenue_actual": rev_a,
-                "revenue_estimate": rev_e,
-                "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
-            }
-    return out
 
 
 def _year_earnings_from_stock(ticker: str, year: int) -> list:
@@ -217,13 +215,13 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
 
 
 def get_year_earnings(ticker: str, year: int) -> list:
-    """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the
-    reports that landed DURING `year`. Returns rows sorted by date; [] on failure.
+    """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
+    fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
 
-    Primary source is Finnhub's earnings calendar (carries revenue), fetched a
-    quarter at a time to dodge the date-range cap. Falls back to /stock/earnings
-    (EPS only) when the calendar returns nothing, so the table still appears.
-    Cached per (ticker, year): closed years are static so they cache for weeks."""
+    Primary source is FMP `stable/earnings` (symbol-specific, carries EPS AND
+    revenue). Falls back to Finnhub `/stock/earnings` (EPS only) so the table
+    still appears if FMP is unavailable. Cached per (ticker, year) — closed
+    years are static so they cache for weeks."""
     ticker = ticker.upper()
     ckey = f"mb_year_earnings_{ticker}_{int(year)}"
     cached = cache.get(ckey)
@@ -233,10 +231,10 @@ def get_year_earnings(ticker: str, year: int) -> list:
     def _qsort(r):  # Q1 → Q4 (fall back to date when quarter is missing)
         return (r.get("quarter") or 99, r.get("date") or "")
 
-    rows = sorted(_year_earnings_from_calendar(ticker, year).values(), key=_qsort)
+    rows = sorted(_year_earnings_from_fmp(ticker, year), key=_qsort)
     if not rows:
         rows = sorted(_year_earnings_from_stock(ticker, year), key=_qsort)
-        _logger.info("get_year_earnings %s %s: calendar empty, /stock/earnings gave %d row(s)",
+        _logger.info("get_year_earnings %s %s: FMP empty, Finnhub /stock/earnings gave %d row(s)",
                      ticker, year, len(rows))
 
     if rows:  # don't cache transient failures
