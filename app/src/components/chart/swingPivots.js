@@ -31,7 +31,12 @@ export function sensitivityToParams(level, tf) {
   return { leftRight, pctFloor }
 }
 
-export function detectSwingPivots(ohlc, { leftRight = 6, pctFloor = 6 } = {}) {
+// includeDeveloping: also surface the most extreme price since the last confirmed
+// pivot as a "developing" swing (opposite type), so the current leg is always
+// labeled even though it can't be fractal-confirmed yet (needs R bars to its
+// right). This is the live last-leg every charting platform shows; only this one
+// label updates as new bars arrive — all confirmed labels stay put.
+export function detectSwingPivots(ohlc, { leftRight = 6, pctFloor = 6, includeDeveloping = true } = {}) {
   const n = Array.isArray(ohlc) ? ohlc.length : 0
   const L = Math.max(1, leftRight | 0)
   const R = L
@@ -51,25 +56,49 @@ export function detectSwingPivots(ohlc, { leftRight = 6, pctFloor = 6 } = {}) {
       if (ohlc[j].low < lo) isLow = false
       if (!isHigh && !isLow) break
     }
-    if (isHigh) raw.push({ time: ohlc[i].time, price: hi, type: 'high' })
-    if (isLow) raw.push({ time: ohlc[i].time, price: lo, type: 'low' })
+    if (isHigh) raw.push({ idx: i, time: ohlc[i].time, price: hi, type: 'high' })
+    if (isLow) raw.push({ idx: i, time: ohlc[i].time, price: lo, type: 'low' })
   }
 
   // 2. ZigZag alternation + % floor.
-  const out = []
+  const kept = []
   for (const p of raw) {
-    if (out.length === 0) {
-      out.push(p)
+    if (kept.length === 0) {
+      kept.push(p)
       continue
     }
-    const last = out[out.length - 1]
+    const last = kept[kept.length - 1]
     if (p.type === last.type) {
       const moreExtreme = p.type === 'high' ? p.price > last.price : p.price < last.price
-      if (moreExtreme) out[out.length - 1] = p
+      if (moreExtreme) kept[kept.length - 1] = p
     } else {
       const move = last.price ? Math.abs(p.price - last.price) / Math.abs(last.price) * 100 : 0
-      if (move >= pctFloor) out.push(p)
+      if (move >= pctFloor) kept.push(p)
     }
   }
+
+  const out = kept.map(p => ({ time: p.time, price: p.price, type: p.type }))
+
+  // 3. Developing last leg — the current swing the user expects to see.
+  if (includeDeveloping && kept.length) {
+    const last = kept[kept.length - 1]
+    const expected = last.type === 'high' ? 'low' : 'high'
+    let bestIdx = -1
+    let bestPrice = null
+    for (let i = last.idx + 1; i < n; i++) {
+      const v = expected === 'high' ? ohlc[i].high : ohlc[i].low
+      if (bestPrice == null || (expected === 'high' ? v > bestPrice : v < bestPrice)) {
+        bestPrice = v
+        bestIdx = i
+      }
+    }
+    if (bestIdx >= 0) {
+      const move = last.price ? Math.abs(bestPrice - last.price) / Math.abs(last.price) * 100 : 0
+      if (move >= pctFloor) {
+        out.push({ time: ohlc[bestIdx].time, price: bestPrice, type: expected, developing: true })
+      }
+    }
+  }
+
   return out
 }

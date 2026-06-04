@@ -12,9 +12,9 @@ describe('detectSwingPivots', () => {
     expect(detectSwingPivots(null, { leftRight: 2 })).toEqual([])
   })
 
-  it('detects a clean alternating zigzag', () => {
+  it('detects a clean alternating zigzag (confirmed only)', () => {
     const vals = [10, 11, 12, 11, 10, 9, 8, 9, 10, 11, 12, 11, 10]
-    const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 5 })
+    const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 5, includeDeveloping: false })
     expect(piv).toEqual([
       { time: 3, price: 12, type: 'high' },
       { time: 7, price: 8, type: 'low' },
@@ -25,7 +25,7 @@ describe('detectSwingPivots', () => {
   it('rejects a bounce smaller than the % floor', () => {
     // small high (9.2) between a real high and the recovery should be dropped
     const vals = [10, 12, 9, 9.2, 9, 12, 8]
-    const piv = detectSwingPivots(bars(vals), { leftRight: 1, pctFloor: 5 })
+    const piv = detectSwingPivots(bars(vals), { leftRight: 1, pctFloor: 5, includeDeveloping: false })
     expect(piv.map(p => p.price)).toEqual([12, 9, 12])
     expect(piv.some(p => p.price === 9.2)).toBe(false)
   })
@@ -40,11 +40,32 @@ describe('detectSwingPivots', () => {
     expect(highs.some(h => h.price === 9)).toBe(true)
   })
 
-  it('excludes right-edge bars within R of the end', () => {
-    // a tall high in the last R bars must not be labeled (not enough right context)
+  it('excludes right-edge bars from confirmed pivots', () => {
+    // a tall high in the last R bars can't be fractal-confirmed (no right context)
+    const vals = [10, 9, 8, 9, 10, 9, 8, 9, 99]
+    const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 1, includeDeveloping: false })
+    expect(piv.some(p => p.price === 99 && !p.developing)).toBe(false)
+  })
+
+  it('surfaces the recent extreme as a developing pivot', () => {
+    // the trailing run to 99 has no right context to confirm, but the user still
+    // expects the current swing labeled — it comes back flagged developing
     const vals = [10, 9, 8, 9, 10, 9, 8, 9, 99]
     const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 1 })
-    expect(piv.some(p => p.price === 99)).toBe(false)
+    const dev = piv.find(p => p.developing)
+    expect(dev).toBeTruthy()
+    expect(dev.price).toBe(99)
+    expect(dev.type).toBe('high')
+    // only one developing label, always the last entry
+    expect(piv.filter(p => p.developing).length).toBe(1)
+    expect(piv[piv.length - 1].developing).toBe(true)
+  })
+
+  it('developing leg respects the % floor', () => {
+    // trailing bars stay within 5% of the last confirmed low (8) → no developing label
+    const vals = [10, 9, 8, 9, 10, 9, 8, 8.1, 8.05]
+    const piv = detectSwingPivots(bars(vals), { leftRight: 2, pctFloor: 5 })
+    expect(piv.some(p => p.developing)).toBe(false)
   })
 
   it('output strictly alternates high/low', () => {
