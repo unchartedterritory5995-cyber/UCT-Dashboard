@@ -490,6 +490,7 @@ export default function StockChart({
   setupMoves = null,            // sorted array of {date, anchor} per setup (Model Book) — draws a "+X%" advance label at the start of each setup's lines vs the previous one
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
+  annotationsOpacity = 1,       // extra opacity multiplier (Model Book setup→setup crossfade)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
@@ -4619,8 +4620,8 @@ export default function StockChart({
         <div
           style={overlayWrapStyle({
             zIndex: 4,
-            opacity: annotationsVisible ? 1 : 0,
-            transition: 'opacity 360ms ease',
+            opacity: annotationsVisible ? annotationsOpacity : 0,
+            transition: 'opacity 150ms ease',
             pointerEvents: annotationsEditable ? 'auto' : 'none',
           })}
         >

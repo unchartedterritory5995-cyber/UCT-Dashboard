@@ -576,11 +576,32 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const focusedSetup = focusActive && focus.id != null ? setups.find(s => s.id === focus.id) : null
   // Raw drawings of the focused setup (unbounded) — used to seed admin editing.
   const savedDrawings = useMemo(() => parseDrawings(focusedSetup?.drawings_json), [focusedSetup])
+
+  // Setup→setup crossfade (show-all OFF): briefly fade the annotation layer out,
+  // swap to the new setup's drawings, fade in — instead of a hard snap. The
+  // DISPLAYED setup lags focus.id during the fade so the OLD one fades out and the
+  // NEW one fades in. annoOpacity multiplies the overlay's wrapper opacity.
+  const [drawFocusId, setDrawFocusId] = useState(null)
+  const [annoOpacity, setAnnoOpacity] = useState(1)
+  const lastFocusIdRef = useRef(null)
+  useEffect(() => {
+    const fid = focusActive ? focus.id : null
+    const prev = lastFocusIdRef.current
+    lastFocusIdRef.current = fid
+    if (fid != null && prev != null && fid !== prev && !showAllAnnotations && !annotateMode) {
+      setAnnoOpacity(0)                                  // fade old out
+      const t = setTimeout(() => { setDrawFocusId(fid); setAnnoOpacity(1) }, 160)  // swap + fade new in
+      return () => clearTimeout(t)
+    }
+    setDrawFocusId(p => (p === fid ? p : fid))           // no-op if unchanged (avoid extra render)
+    setAnnoOpacity(p => (p === 1 ? p : 1))
+  }, [focusActive, focus.id, showAllAnnotations, annotateMode])
+  const displaySetup = drawFocusId != null ? setups.find(s => s.id === drawFocusId) : null
   // Display version: horizontal rays bounded to stop at the setup candle, so they
   // never extend past it even when zoomed into a single setup ("show all" off).
-  const focusedDrawings = useMemo(
-    () => (focusedSetup ? boundHrays(savedDrawings, focusedSetup.label_date) : null),
-    [focusedSetup, savedDrawings],
+  const displayDrawings = useMemo(
+    () => (displaySetup ? boundHrays(parseDrawings(displaySetup.drawings_json), displaySetup.label_date) : null),
+    [displaySetup],
   )
 
   // "Show all": every setup's drawings overlaid on the (zoomed-out) chart. Each
@@ -627,7 +648,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     annotations = allDrawings
     annotationsVisible = true
   } else {
-    annotations = focusedSetup ? focusedDrawings : null
+    annotations = displaySetup ? displayDrawings : null
     annotationsVisible = !!focusDate
   }
 
@@ -856,6 +877,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             focusNonce={focus.nonce}
             annotations={chartAnnotations}
             annotationsVisible={chartAnnotationsVisible}
+            annotationsOpacity={annoOpacity}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
