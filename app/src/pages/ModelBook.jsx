@@ -916,7 +916,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             indexAnnotationsEditable={annotatingIndex}
             onIndexAnnotationsChange={setAnnotationDraft}
             priceScaleTopMargin={0.12}
-            priceScaleBottomMargin={0.12}
+            priceScaleBottomMargin={0.07}
             watermarkOpacity={0.34}
             watermarkX={0.14}
             watermarkY={0.2}
