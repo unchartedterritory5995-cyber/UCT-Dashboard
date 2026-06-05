@@ -1802,6 +1802,19 @@ export default function DarkPool({embedded}){
   const [loadErr,setLoadErr]=useState(null);
   const [loadStatus,setLoadStatus]=useState("Loading…");
   const [parsedRows,setParsedRows]=useState(null);
+  const [version,setVersion]=useState(null);
+
+  // Fetch cache-busting version once on mount (matches OptionsFlow.jsx pattern).
+  // The version (= DB total_rows) is appended to /api/darkpool/data as ?v=<n>
+  // so Cloudflare caches each version separately and admin uploads invalidate
+  // the cache cleanly. Until version arrives, csvFile is null and the data
+  // fetch effect short-circuits.
+  useEffect(() => {
+    fetch("/api/darkpool/version")
+      .then(r => r.json())
+      .then(j => setVersion(j.version || 0))
+      .catch(() => setVersion(0));
+  }, []);
 
   // Date picker state (matches OptionsFlow pattern)
   const [dateFilter,setDateFilter]=useState("Last1");
@@ -1815,9 +1828,13 @@ export default function DarkPool({embedded}){
   const calRef=useRef(null);
   const [csvLoading,setCsvLoading]=useState(true);
 
-  const csvFile = fetchDays === 0
-    ? "/api/darkpool/data?all_data=true"
-    : `/api/darkpool/data?days=${fetchDays}`;
+  // Version included as ?v=<n> so CF caches each version separately. Until
+  // version arrives (null), csvFile stays null and the fetch effect waits.
+  const csvFile = version === null
+    ? null
+    : fetchDays === 0
+      ? `/api/darkpool/data?all_data=true&v=${version}`
+      : `/api/darkpool/data?days=${fetchDays}&v=${version}`;
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
@@ -1876,13 +1893,18 @@ export default function DarkPool({embedded}){
 
   // Fetch data from API
   useEffect(() => {
+    if (!csvFile) return;  // wait for version to load
     let cancelled = false;
     setCsvLoading(true);
     setLoadErr(null);
     setLoadStatus("Fetching dark pool data…");
 
     function tryFetch(url) {
-      return fetch(url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now())
+      // No _t=Date.now() — ?v=<version> in csvFile already busts on data
+      // change, and busting on every load defeats Cloudflare's edge cache
+      // (which is the whole point of the LRU+version pattern). CF only
+      // caches stable URLs.
+      return fetch(url)
         .then(r => {
           if (!r.ok) throw new Error("HTTP " + r.status);
           return r.text();
