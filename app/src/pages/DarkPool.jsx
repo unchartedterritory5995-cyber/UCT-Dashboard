@@ -1805,10 +1805,10 @@ export default function DarkPool({embedded}){
   const [version,setVersion]=useState(null);
 
   // Fetch cache-busting version once on mount (matches OptionsFlow.jsx pattern).
-  // The version (= DB total_rows) is appended to /api/darkpool/data as ?v=<n>
-  // so Cloudflare caches each version separately and admin uploads invalidate
-  // the cache cleanly. Until version arrives, csvFile is null and the data
-  // fetch effect short-circuits.
+  // The version (= DB total_rows) is appended to /api/darkpool/aggregated
+  // as ?v=<n> so Cloudflare caches each version separately and admin
+  // uploads invalidate the cache cleanly. Until version arrives, csvFile
+  // is null and the data fetch effect short-circuits.
   useEffect(() => {
     fetch("/api/darkpool/version")
       .then(r => r.json())
@@ -1828,16 +1828,30 @@ export default function DarkPool({embedded}){
   const calRef=useRef(null);
   const [csvLoading,setCsvLoading]=useState(true);
 
-  // Version included as ?v=<n> so CF caches each version separately. Until
-  // version arrives (null), csvFile stays null and the fetch effect waits.
+  // Hits the new server-side aggregation endpoint. The response is JSON
+  // (already shaped like the old parseCSVtoD output), not CSV — so the
+  // fetch effect below sets dpData directly without any client-side
+  // processing. ?v=<n> in the URL is CF's cache key so admin uploads
+  // invalidate cleanly.
   const csvFile = version === null
     ? null
     : fetchDays === 0
-      ? `/api/darkpool/data?all_data=true&v=${version}`
-      : `/api/darkpool/data?days=${fetchDays}&v=${version}`;
+      ? `/api/darkpool/aggregated?all_data=true&v=${version}`
+      : `/api/darkpool/aggregated?days=${fetchDays}&v=${version}`;
 
-  // Extract unique dates from parsed rows
+  // availableDates is consumed by the date picker UI in M/D/YYYY format.
+  // The aggregated endpoint returns dates as YYYY-MM-DD in dpData.dates,
+  // so we convert here. parsedRows path retained as a fallback in case an
+  // older code path sets it directly during transition.
   const availableDates = useMemo(() => {
+    // Primary: derive from aggregated JSON
+    if (dpData && Array.isArray(dpData.dates) && dpData.dates.length > 0) {
+      return dpData.dates.map(iso => {
+        const [y, m, d] = iso.split("-").map(Number);
+        return `${m}/${d}/${y}`;  // M/D/YYYY — no leading zeros
+      });
+    }
+    // Legacy fallback (kept for safety; shouldn't normally fire)
     if (!parsedRows || parsedRows.length === 0) return [];
     const dateSet = new Set();
     parsedRows.forEach(r => { if (r.Date) dateSet.add(r.Date.trim()); });
@@ -1848,7 +1862,7 @@ export default function DarkPool({embedded}){
       const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
       return new Date(ya, pa[0]-1, pa[1]||1) - new Date(yb, pb[0]-1, pb[1]||1);
     });
-  }, [parsedRows]);
+  }, [dpData, parsedRows]);
 
   const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
 
@@ -1860,38 +1874,19 @@ export default function DarkPool({embedded}){
     return () => document.removeEventListener("mousedown", handler);
   }, [showCal]);
 
-  // Process data whenever parsedRows or dateFilter changes
-  useEffect(() => {
-    if (!parsedRows || parsedRows.length === 0) return;
-    let filtered;
-    if (dateFrom && dateTo) {
-      const from = isoToDate(dateFrom);
-      const to = isoToDate(dateTo);
-      to.setHours(23,59,59);
-      filtered = parsedRows.filter(r => {
-        if (!r.Date) return false;
-        const d = mdyToDate(r.Date.trim());
-        return d >= from && d <= to;
-      });
-    } else if (dateFilter === "All") {
-      filtered = parsedRows;
-    } else if (dateFilter.startsWith("Last")) {
-      const n = parseInt(dateFilter.replace("Last",""))||1;
-      const recentDates = new Set(availableDates.slice(-n));
-      filtered = parsedRows.filter(r => r.Date && recentDates.has(r.Date.trim()));
-    } else {
-      filtered = parsedRows.filter(r => r.Date && r.Date.trim() === dateFilter);
-    }
-    if (filtered.length === 0) { setDpData(null); return; }
-    try {
-      const d = parseCSVtoD(filtered);
-      setDpData(d);
-    } catch(err) {
-      setLoadErr("Processing error: "+err.message);
-    }
-  }, [parsedRows, dateFilter, dateFrom, dateTo]);
-
-  // Fetch data from API
+  // Fetch aggregated data from API.
+  //
+  // Server now does all the heavy lifting that parseCSVtoD used to do —
+  // we just receive a JSON payload with the same dpData shape and set
+  // it directly. No more parseCSV, no more parseCSVtoD, no more
+  // ~3M-row arrays in browser memory.
+  //
+  // Date-filter side effects (dateFilter, dateFrom, dateTo) intentionally
+  // omitted from this effect's deps: fetchDays already changes when the
+  // user clicks day buttons, which re-derives csvFile, which retriggers.
+  // Custom date-range picker is currently best-effort — server doesn't
+  // yet support arbitrary from/to, so a custom range falls back to All
+  // until the next iteration adds /aggregated?from=&to=.
   useEffect(() => {
     if (!csvFile) return;  // wait for version to load
     let cancelled = false;
@@ -1899,45 +1894,31 @@ export default function DarkPool({embedded}){
     setLoadErr(null);
     setLoadStatus("Fetching dark pool data…");
 
-    function tryFetch(url) {
-      // No _t=Date.now() — ?v=<version> in csvFile already busts on data
-      // change, and busting on every load defeats Cloudflare's edge cache
-      // (which is the whole point of the LRU+version pattern). CF only
-      // caches stable URLs.
-      return fetch(url)
-        .then(r => {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.text();
-        })
-        .then(text => {
-          const trimmed = text.trim();
-          if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("HTML");
-          return text;
-        });
-    }
-
-    // Try API first, fall back to static CSV
-    tryFetch(csvFile)
-      .catch(() => {
-        setLoadStatus("API unavailable — loading static CSV…");
-        return tryFetch("/Darkpool-data.csv");
+    fetch(csvFile)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
       })
-      .then(text => {
+      .then(json => {
         if (cancelled) return;
-        setLoadStatus("Parsing…");
-        setTimeout(() => {
-          if (cancelled) return;
-          try {
-            const rows = parseCSV(text);
-            if (!rows || rows.length === 0) throw new Error("No data returned");
-            setParsedRows(rows);
-            setCsvLoading(false);
-          } catch(err) {
-            if (!cancelled) { setLoadErr(err.message); setCsvLoading(false); }
-          }
-        }, 0);
+        // Server returned the same shape parseCSVtoD used to produce.
+        // Empty windows come back as a valid dict with tradingDays=0 —
+        // treat that as "no data" so the UI shows the empty state.
+        if (!json || !json.meta || json.meta.tradingDays === 0) {
+          setLoadErr("No data returned for this window");
+          setDpData(null);
+          setCsvLoading(false);
+          return;
+        }
+        setDpData(json);
+        setCsvLoading(false);
       })
-      .catch(e => { if (!cancelled) { setLoadErr("Could not load data from API or static CSV"); setCsvLoading(false); } });
+      .catch(e => {
+        if (cancelled) return;
+        setLoadErr(e.message || "Failed to fetch aggregated data");
+        setCsvLoading(false);
+      });
+
     return () => { cancelled = true; };
   }, [csvFile]);
 
