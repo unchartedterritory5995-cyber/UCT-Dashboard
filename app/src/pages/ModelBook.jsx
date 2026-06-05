@@ -635,8 +635,11 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const annotatingIndex = annotateMode && annotateTarget === 'index'
   const annotatingPrice = annotateMode && !annotatingIndex
   // Index-pane annotations: the editable draft while annotating the index, else
-  // the saved global set (read-only, shown to everyone).
-  const indexAnnotations = annotatingIndex ? annotationDraft : indexDrawings
+  // the saved global set — but only when "Show all" is on (the same toggle that
+  // governs the setup annotations now controls the Nasdaq marks too).
+  const indexAnnotations = annotatingIndex
+    ? annotationDraft
+    : (showAllAnnotations ? indexDrawings : [])
 
   // Precedence: admin authoring > show-all overlay > single-setup focus.
   let annotations, annotationsVisible
