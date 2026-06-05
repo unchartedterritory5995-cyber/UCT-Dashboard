@@ -206,14 +206,17 @@ function renderAdvance(ctx, pts, drawing, toPixelY) {
   const hiY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
   const y = (hiY != null ? hiY : p.y) - 10
   ctx.save()
-  ctx.font = '500 11px "Instrument Sans", system-ui, sans-serif'
+  ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  ctx.fillStyle = 'rgba(255,255,255,0.82)'
-  ctx.shadowColor = 'rgba(0,0,0,0.6)'
-  ctx.shadowBlur = 2
-  ctx.fillText(`${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`, p.x, y)
-  ctx.shadowBlur = 0
+  ctx.lineJoin = 'round'
+  const text = `${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`
+  const px = Math.round(p.x), py = Math.round(y)
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+  ctx.strokeText(text, px, py)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(text, px, py)
   ctx.restore()
 }
 

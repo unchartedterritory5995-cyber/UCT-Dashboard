@@ -13,7 +13,7 @@ const toMs = (v) => {
 
 export default function SetupMoveOverlay({
   chartRef, seriesRef, bars, setups,
-  color = 'rgba(255,255,255,0.82)',
+  color = '#ffffff',
 }) {
   const canvasRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -66,9 +66,10 @@ export default function SetupMoveOverlay({
     let from = -Infinity, to = Infinity
     try { const r = ts.getVisibleLogicalRange(); if (r) { from = r.from; to = r.to } } catch { /* unbounded */ }
 
-    ctx.font = '500 11px "Instrument Sans", system-ui, sans-serif'
+    ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
+    ctx.lineJoin = 'round'
     for (const mv of moves) {
       if (mv.idx > to + 0.5 || mv.idx < from - 0.5) continue   // candle off-screen
       let x = null
@@ -78,11 +79,12 @@ export default function SetupMoveOverlay({
       try { y = series.priceToCoordinate(mv.high) } catch { /* skip */ }
       if (x == null || y == null) continue
       const text = `${mv.pct >= 0 ? '+' : ''}${Math.round(mv.pct)}%`
+      const px = Math.round(x), py = Math.round(y - 10)   // pixel-snap for crisp edges
+      ctx.lineWidth = 3                                    // crisp dark outline (no blur) for contrast
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+      ctx.strokeText(text, px, py)
       ctx.fillStyle = color
-      ctx.shadowColor = 'rgba(0,0,0,0.6)'
-      ctx.shadowBlur = 2
-      ctx.fillText(text, x, y - 10)   // just above the candle's high where the lines start
-      ctx.shadowBlur = 0
+      ctx.fillText(text, px, py)   // just above the candle's high where the lines start
     }
   }, [chartRef, seriesRef, moves, color])
 

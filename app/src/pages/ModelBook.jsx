@@ -850,7 +850,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             watermarkY={0.2}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
-            setupMoves={onSetupsTab ? setupMoveData : null}
+            setupMoves={(onSetupsTab && showAllAnnotations) ? setupMoveData : null}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
