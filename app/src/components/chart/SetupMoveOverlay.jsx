@@ -79,7 +79,7 @@ export default function SetupMoveOverlay({
       try { y = series.priceToCoordinate(mv.high) } catch { /* skip */ }
       if (x == null || y == null) continue
       const text = `${mv.pct >= 0 ? '+' : ''}${Math.round(mv.pct)}%`
-      const px = Math.round(x), py = Math.round(y - 10)   // pixel-snap for crisp edges
+      const px = Math.round(x), py = Math.round(y - 16)   // uniform clearance above the candle's high; pixel-snap for crisp edges
       ctx.lineWidth = 3                                    // crisp dark outline (no blur) for contrast
       ctx.strokeStyle = 'rgba(0,0,0,0.85)'
       ctx.strokeText(text, px, py)

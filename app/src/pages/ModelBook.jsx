@@ -777,18 +777,30 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   }
   async function saveAnnotations() {
     // Route to the stock (full-year) or the focused setup based on the target.
-    const url = annotateTarget === 'stock'
+    const isStock = annotateTarget === 'stock'
+    const url = isStock
       ? `/api/modelbook/stock/${stock.id}`
       : (focus.id != null ? `/api/modelbook/setup/${focus.id}` : null)
     if (!url) return
-    await fetch(url, {
-      method: 'PUT', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ drawings_json: JSON.stringify(annotationDraft) }),
-    })
+    const json = JSON.stringify(annotationDraft)
+    // Optimistically write the new drawings into the SWR cache so they appear the
+    // instant you hit Save (no blink to the old set while the PUT + refetch runs).
+    mutate((cur) => {
+      if (!cur) return cur
+      if (isStock) return { ...cur, drawings_json: json }
+      return { ...cur, setups: (cur.setups || []).map(s => (s.id === focus.id ? { ...s, drawings_json: json } : s)) }
+    }, { revalidate: false })
     setAnnotateMode(false)
     setAnnotationDraft([])
-    mutate()
+    try {
+      await fetch(url, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ drawings_json: json }),
+      })
+    } finally {
+      mutate()   // revalidate from the server
+    }
   }
 
   async function deleteSetup(id) {

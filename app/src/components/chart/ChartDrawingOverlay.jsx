@@ -204,7 +204,7 @@ function renderAdvance(ctx, pts, drawing, toPixelY) {
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
   const hiY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
-  const y = (hiY != null ? hiY : p.y) - 10
+  const y = (hiY != null ? hiY : p.y) - 16
   ctx.save()
   ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
   ctx.textAlign = 'center'
