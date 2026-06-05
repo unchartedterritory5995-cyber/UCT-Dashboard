@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import useSWR from 'swr'
+import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
 import { useAuth } from '../context/AuthContext'
@@ -1439,6 +1439,23 @@ export default function ModelBook() {
     setRecap({ year: null, anchor: null })
   }
   useEffect(() => () => clearTimeout(recapTimer.current), [])
+
+  // Warm the client cache for EVERY year's recap as soon as the page opens, so
+  // hovering a year is instant (served from SWR cache, no per-hover round-trip).
+  // Trickled ~70ms apart so it's a gentle background fetch, not a 30-request burst.
+  useEffect(() => {
+    if (!years.length) return
+    let i = 0, cancelled = false
+    const list = [...years]
+    const tick = () => {
+      if (cancelled || i >= list.length) return
+      preload(`/api/modelbook/year-recap?year=${list[i]}`, fetcher)
+      i += 1
+      setTimeout(tick, 70)
+    }
+    tick()
+    return () => { cancelled = true }
+  }, [years])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.

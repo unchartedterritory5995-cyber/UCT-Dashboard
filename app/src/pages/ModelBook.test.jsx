@@ -56,6 +56,7 @@ vi.mock('swr', () => ({
     }
     return { data: null, mutate: vi.fn() }
   },
+  preload: vi.fn(),
 }))
 
 import ModelBook from './ModelBook'

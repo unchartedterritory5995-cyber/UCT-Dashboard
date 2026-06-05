@@ -535,11 +535,15 @@ def warm_all_stats() -> None:
             cat_pending = [s for s in svc.get_stocks_needing_catalysts() if _is_final_year(s["year"])]
         except Exception:
             cat_pending = []
-        # Pre-warm recaps for curated years (hover is then instant). Other years
-        # generate on first hover. Closed years only — the in-progress year's recap
-        # would go stale, so it regenerates on demand.
+        # Pre-warm recaps for EVERY closed year in the tab range (not just curated
+        # years) so hovering ANY year is instant — no on-demand "generating…" wait.
+        # _needs_recap skips years already done, so this only spends tokens on the
+        # first deploy. The in-progress year is excluded (it would go stale) and
+        # regenerates on demand.
         try:
-            recap_pending = [y for y in svc.list_years() if _is_final_year(y) and _needs_recap(y)]
+            from datetime import datetime as _dt, timezone as _tz
+            _cy = _dt.now(_tz.utc).year
+            recap_pending = [y for y in range(_MIN_RECAP_YEAR, _cy) if _needs_recap(y)]
         except Exception:
             recap_pending = []
         if stats_done and desc_done and not cat_pending and not recap_pending:
@@ -552,7 +556,7 @@ def warm_all_stats() -> None:
                 pass
         _generate_descriptions_for(stocks)
         _generate_catalysts_for(cat_pending)
-        _generate_recaps_for(recap_pending)
+        _generate_recaps_for(recap_pending, max_workers=3)
 
 
 # ── AI-generated catalysts (the year's most impactful, move-driving events) ───
