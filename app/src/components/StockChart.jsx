@@ -750,6 +750,7 @@ export default function StockChart({
   const volumeSeriesRef = useRef(null)
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
   const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
+  const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
@@ -1990,6 +1991,35 @@ export default function StockChart({
         return ms >= loMs && ms <= hiMs
       })
   }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime, entryDate, exitDate])
+
+  // Fixed price range for the index pane, computed over the SAME framed window as
+  // indexPaneSeries but from the FULL ^IXIC data (NOT clipped to the current
+  // stock's bar times). It's therefore identical for every stock in a given year,
+  // so pinning the index price scale to it keeps the Nasdaq line + its annotations
+  // ROCK-STEADY when flipping tickers (the per-stock clip otherwise re-autoscaled
+  // the pane → the line + % labels "jumped to a new spot" on each switch).
+  const indexPaneRange = useMemo(() => {
+    if (!indexPaneSymbol || !indexPaneData?.length) return null
+    const toMs = (t) => typeof t === 'number'
+      ? (t < 1e12 ? t * 1000 : t)
+      : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    const YEAR_MS = 365 * 24 * 3600 * 1000
+    const loMs = entryDate ? toMs(entryDate) - Math.round(YEAR_MS * 1.1) : -Infinity
+    const hiMs = exitDate ? toMs(exitDate) + Math.round(YEAR_MS * 0.25) : Infinity
+    let min = Infinity, max = -Infinity
+    for (const b of indexPaneData) {
+      if (b.c == null || !Number.isFinite(b.c)) continue
+      const ms = toMs(b.t)
+      if (ms < loMs || ms > hiMs) continue
+      if (b.c < min) min = b.c
+      if (b.c > max) max = b.c
+    }
+    return min <= max ? { min, max } : null
+  }, [indexPaneSymbol, indexPaneData, entryDate, exitDate])
+  // Keep the autoscaleInfoProvider's source current (it reads this ref). Pin only
+  // in arithmetic/log modes; in Percent mode LWC rebases to the visible window, so
+  // a fixed range would fight it — let it autoscale there.
+  indexScaleRef.current = { range: indexPaneRange, pin: effectiveScale !== 'pct' }
 
   // 50-period SMA of the index pane (e.g. ^IXIC). Computed on the FULL index
   // history then clipped to exactly the index line's plotted time set, so the
@@ -3640,6 +3670,15 @@ export default function StockChart({
           crosshairMarkerVisible: true,
           crosshairMarkerRadius: 2,
           priceScaleId: 'right',
+          // Pin the vertical scale to the year's FULL ^IXIC range (same for every
+          // stock in the year) so the Nasdaq line + its % annotations stay put when
+          // flipping tickers instead of re-autoscaling to each stock's clipped slice.
+          autoscaleInfoProvider: () => {
+            const sc = indexScaleRef.current
+            return (sc.pin && sc.range)
+              ? { priceRange: { minValue: sc.range.min, maxValue: sc.range.max } }
+              : null
+          },
         }, paneCount)
         indexPaneSeriesRef.current = s
         try { s.getPane().moveTo(0) } catch {}
