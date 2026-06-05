@@ -1319,11 +1319,12 @@ function YearRecapPopover({ year, anchor }) {
   if (year == null || !anchor) return null
   const ready = data && data.status === 'ready'
   const unavailable = data && data.status === 'unavailable'
-  const W = 380
+  const W = Math.min(480, window.innerWidth - 24)
   const top = Math.round(anchor.bottom + 8)
   const left = Math.round(Math.min(Math.max(8, anchor.left - 30), window.innerWidth - W - 8))
   return (
-    <div className={styles.recapPop} style={{ top, left, width: W }} role="tooltip">
+    <div className={styles.recapPop} role="tooltip"
+      style={{ top, left, width: W, maxHeight: `calc(100vh - ${top + 12}px)`, overflowY: 'auto' }}>
       <div className={styles.recapHead}>
         <span className={styles.recapYearTag}>{year}</span>
         {ready && data.market_tone && <span className={styles.recapTone}>{data.market_tone}</span>}

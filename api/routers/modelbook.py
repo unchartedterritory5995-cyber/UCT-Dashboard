@@ -843,6 +843,17 @@ def _nasdaq_year_stats(year: int):
         return None
 
 
+def _clip_sentence(text: str, cap: int) -> str:
+    """Trim overly-long prose at a SENTENCE boundary (never mid-word) so a recap
+    can't be left dangling like '…and the r'. Returns text unchanged when short."""
+    text = (text or "").strip()
+    if len(text) <= cap:
+        return text
+    cut = text[:cap]
+    p = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    return (cut[:p + 1] if p > cap * 0.6 else cut.rstrip(" ,;:-")).strip()
+
+
 def _generate_year_recap(year: int):
     """Claude → a varied, factual recap of `year` as a US-equity market year for a
     momentum/breakout swing trader's model book. Grounded with the year's curated
@@ -888,7 +899,8 @@ def _generate_year_recap(year: int):
             "- themes: 2-5 SHORT leadership theme/group labels that led that year (e.g. "
             "\"Dot-com & networking\", \"Homebuilders\", \"Solar\", \"AI infrastructure\", "
             "\"Chinese internet\", \"Mega-cap tech\"). Tie to the grounding winners when given.\n"
-            "- recap: 4-6 sentences covering (a) how the broad market traded (indices, trend, "
+            "- recap: 4-6 sentences (roughly 110-160 words — a tight, complete paragraph, never "
+            "left mid-thought) covering (a) how the broad market traded (indices, trend, "
             "volatility, the key macro driver), (b) what kind of stocks/groups led, and (c) how "
             "friendly the tape was to buying breakouts and holding winners. Plain, concrete prose.\n\n"
             "STYLE — IMPORTANT (these recaps sit next to each other across many years, so each "
@@ -928,7 +940,7 @@ def _generate_year_recap(year: int):
         themes = [str(t).strip()[:40] for t in themes if str(t).strip()][:6] if isinstance(themes, list) else []
         return {
             "headline": headline[:80] if headline else None,
-            "recap": recap[:1200],
+            "recap": _clip_sentence(recap, 1500),  # generous cap, never mid-word
             "market_tone": tone[:40] if tone else None,
             "trader_score": score,
             "themes_json": _json.dumps(themes),

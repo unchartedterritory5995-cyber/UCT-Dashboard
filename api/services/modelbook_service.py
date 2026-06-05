@@ -723,6 +723,24 @@ def mark_recap_attempt(year: int) -> None:
         c.commit()
 
 
+def regen_year_recaps(version_tag: str) -> None:
+    """One-time (per tag): drop all stored year recaps so they regenerate with an
+    updated prompt/length (e.g. after the 1200-char mid-word truncation fix).
+    Flag-gated so it runs once ever; warm + on-demand hover rebuild them."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        f".modelbook_recaps_{version_tag}")
+    if os.path.exists(flag):
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute("DELETE FROM modelbook_year_recaps")
+            c.commit()
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("done\n")
+    except OSError:
+        pass
+
+
 # ── One-time bootstrap seed ───────────────────────────────────────────────────
 
 # Initial curated lists. Seeded once at startup so the library isn't empty even
