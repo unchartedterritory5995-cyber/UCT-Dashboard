@@ -737,6 +737,7 @@ export default function StockChart({
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
+  const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
@@ -1960,6 +1961,27 @@ export default function StockChart({
         return ms >= loMs && ms <= hiMs
       })
   }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime, entryDate, exitDate])
+
+  // 50-period SMA of the index pane (e.g. ^IXIC). Computed on the FULL index
+  // history then clipped to exactly the index line's plotted time set, so the
+  // MA is already fully populated at the window's left edge (no 50-bar ramp-in)
+  // AND introduces no time points the stock lacks (same 1:1 logical-index rule
+  // as the index line — see indexPaneSeries above).
+  const indexPaneMaSeries = useMemo(() => {
+    if (!indexPaneSymbol || !indexPaneData?.length || !indexPaneSeries.length) return []
+    const keepTimes = new Set(indexPaneSeries.map(p => p.time))
+    const bars = indexPaneData
+      .filter(b => b.c != null && Number.isFinite(b.c))
+      .map(b => ({ t: adjustTime(b.t), c: b.c }))
+    return computeSMA(bars, 50).filter(p => keepTimes.has(p.time))
+  }, [indexPaneSymbol, indexPaneData, indexPaneSeries, adjustTime])
+
+  // Color the index-pane MA the same blue as the price chart's 50 SMA overlay
+  // (falls back to the default 50-SMA blue if no such overlay is enabled).
+  const indexMaColor = useMemo(() => {
+    const ov = resolvedOverlays?.find(o => o.type === 'SMA' && Number(o.period) === 50)
+    return ov?.color || '#60a5fa'
+  }, [resolvedOverlays])
 
   // Reset all live tracking refs on symbol or timeframe change.
   // CRITICAL: latestLiveRef must also be cleared — without it, a leftover live
@@ -3551,6 +3573,10 @@ export default function StockChart({
     // the pane just because the data is transiently empty during a ticker switch —
     // removing it shrinks the price pane and makes the watermark/annotations skip.
     if (!indexPaneSymbol) {
+      if (indexMaSeriesRef.current) {
+        try { chart.removeSeries(indexMaSeriesRef.current) } catch {}
+        indexMaSeriesRef.current = null
+      }
       if (indexPaneSeriesRef.current) {
         try { chart.removeSeries(indexPaneSeriesRef.current) } catch {}
         indexPaneSeriesRef.current = null
@@ -3603,6 +3629,36 @@ export default function StockChart({
         const idxMode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
         indexPaneSeriesRef.current.priceScale().applyOptions({ mode: idxMode })
       } catch {}
+
+      // 50-period SMA line on the index pane. Shares the index line's pane +
+      // 'right' price scale (so it tracks log/pct mode and aligns with the
+      // index). lineWidth 1 matches the volume-pane MA; color matches the price
+      // chart's 50 SMA. autoscaleInfoProvider null = the index line drives the
+      // pane's scale, the MA just rides inside it.
+      if (indexPaneMaSeries.length) {
+        if (!indexMaSeriesRef.current) {
+          try {
+            const idxPaneIndex = indexPaneSeriesRef.current.getPane().paneIndex()
+            indexMaSeriesRef.current = chart.addSeries(LineSeries, {
+              color: indexMaColor,
+              lineWidth: 1,
+              lineType: LineType.Curved,
+              priceScaleId: 'right',
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
+              autoscaleInfoProvider: () => null,
+            }, idxPaneIndex)
+          } catch { /* pane API unavailable — index MA optional */ }
+        }
+        if (indexMaSeriesRef.current) {
+          try { indexMaSeriesRef.current.applyOptions({ color: indexMaColor }) } catch {}
+          try { indexMaSeriesRef.current.setData(indexPaneMaSeries) } catch {}
+        }
+      } else if (indexMaSeriesRef.current) {
+        try { chart.removeSeries(indexMaSeriesRef.current) } catch {}
+        indexMaSeriesRef.current = null
+      }
       // Size [index | price | volume].
       try {
         const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
@@ -3619,12 +3675,16 @@ export default function StockChart({
         }
       } catch {}
     }
-  }, [indexPaneSymbol, indexPaneSeries, indexPaneColor, indexPaneHeightPct, volumePaneHeightPct, cs, chartReady, effectiveScale])
+  }, [indexPaneSymbol, indexPaneSeries, indexPaneMaSeries, indexMaColor, indexPaneColor, indexPaneHeightPct, volumePaneHeightPct, cs, chartReady, effectiveScale])
 
   // Remove the index-pane series on unmount.
   useEffect(() => {
     return () => {
       const chart = chartRef.current
+      if (chart && indexMaSeriesRef.current) {
+        try { chart.removeSeries(indexMaSeriesRef.current) } catch {}
+        indexMaSeriesRef.current = null
+      }
       if (chart && indexPaneSeriesRef.current) {
         try { chart.removeSeries(indexPaneSeriesRef.current) } catch {}
         indexPaneSeriesRef.current = null
