@@ -1880,7 +1880,11 @@ export default function OptionsFlowDashboard() {
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
         dir:c.dir||"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
         cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
+        // Raw clustering score (the one that actually wins the dedup ranking) —
+        // surfaced in the UI so you can see why a contract beat another contract
+        // on the same ticker. convScore = pre-penalty, rankScore = post-EXIT penalty.
+        convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
     const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
@@ -1890,7 +1894,8 @@ export default function OptionsFlowDashboard() {
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
         dir:c.dir||"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"",
         cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
+        convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
     setWlBull(bulls);
@@ -1923,7 +1928,9 @@ export default function OptionsFlowDashboard() {
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
         dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
         cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
+        // Raw clustering score (unusual path doesn't apply EXIT penalty — sorted by premium)
+        convScore: c.score||0, rankScore: c.score||0, isExit: false
       };
     });
     const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
@@ -1933,7 +1940,8 @@ export default function OptionsFlowDashboard() {
         strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
         dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
         cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot
+        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
+        convScore: c.score||0, rankScore: c.score||0, isExit: false
       };
     });
     setWlBull(bulls);
@@ -6717,6 +6725,14 @@ export default function OptionsFlowDashboard() {
                     ) : (
                       <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{Math.round(item.score*10)}%</span>
                     )}
+                    {item.convScore > 0 && (
+                      <span style={{ fontSize:9, color:item.isExit?P.be:P.dm, marginLeft:4, fontWeight:600, cursor:"help" }}
+                        title={item.isExit
+                          ? `Raw clustering score: ${Math.round(item.convScore).toLocaleString()} → ${Math.round(item.rankScore).toLocaleString()} (EXIT penalty ×0.4 applied). This is what the dedup uses for ranking — higher = beats other contracts on this ticker.`
+                          : `Raw clustering score (used for dedup ranking): ${Math.round(item.convScore).toLocaleString()}. Combines grade base + hits×20 + premium/5000 + V/OI bonus + single-sweep & ticker-heat bonuses.`}>
+                        [{Math.round(item.rankScore || item.convScore).toLocaleString()}]
+                      </span>
+                    )}
                     {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
                       const bP = conv?.bullPrem||0, brP = conv?.bearPrem||0, tot = bP+brP;
                       if (tot<=0) return null;
@@ -7089,6 +7105,12 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:12, fontWeight:800, color:P.wh, minWidth:50 }}>{c.sym}</span>
                   {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
                   <span style={{ fontSize:10, fontWeight:800, color:c._score>=7?P.bu:c._score>=5?"#ff9800":P.ye }}>{Math.round(c._score*10)}%</span>
+                  {(c.score||0) > 0 && (
+                    <span style={{ fontSize:8, color:P.dm, fontWeight:600, cursor:"help" }}
+                      title={`Raw clustering score (dedup ranker): ${Math.round(c.score).toLocaleString()}. Compare to watchlist items' raw scores to see why this didn't make the top-20.`}>
+                      [{Math.round(c.score).toLocaleString()}]
+                    </span>
+                  )}
                   <span style={{ fontSize:10, color:c.cp==="C"?P.bu:P.be }}>{c.cp==="C"?"C":"P"} ${c.K||c.strike} {c.exp}</span>
                   <Tag c={GRADE_COLORS[c.grade]||P.mt}>{c.grade}</Tag>
                   <span style={{ fontSize:9, color:P.dm }}>{c.hits}x · {fmt(c.prem)}</span>
