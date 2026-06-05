@@ -1234,6 +1234,11 @@ export default function OptionsFlowDashboard() {
   const [chartModal, setChartModal] = useState(null);     // { sym: "NVDA" } | null
   const [chartInterval, setChartInterval] = useState("D"); // "D" | "W" | "M"
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
+  // Flow Intelligence — exclude top-N concentration outliers from bull% calc.
+  // 0 = include everything (default), 1 = drop top bull + top bear ticker,
+  // 3 = drop top 3 each side. Lets the user see whether the headline bull/bear
+  // bias is broad-based or carried by a handful of mega-trades.
+  const [flowExcludeTop, setFlowExcludeTop] = useState(0); // 0 | 1 | 3
 
 
   const [cpFilter, setCpFilter] = useState("All"); // All | Calls | Puts
@@ -3851,10 +3856,11 @@ export default function OptionsFlowDashboard() {
             {FD && D.clean_confirmed && (()=>{
               const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
               if (!cc.length) return null;
-              let totalBull=0, totalBear=0;
+              // Per-ticker aggregation (always over the full set, exclusion is applied below)
+              let rawTotalBull=0, rawTotalBear=0;
               const tkMap = {};
               cc.forEach(t => {
-                if (t.D==="BULL") totalBull+=t.P; if (t.D==="BEAR") totalBear+=t.P;
+                if (t.D==="BULL") rawTotalBull+=t.P; if (t.D==="BEAR") rawTotalBear+=t.P;
                 if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0 };
                 const tk = tkMap[t.S];
                 if (t.D==="BULL") tk.bull+=t.P; if (t.D==="BEAR") tk.bear+=t.P; tk.n++;
@@ -3862,12 +3868,36 @@ export default function OptionsFlowDashboard() {
               const allTk = Object.values(tkMap);
               const bullCount = allTk.filter(t=>t.bull>t.bear).length;
               const bearCount = allTk.filter(t=>t.bear>t.bull).length;
+              // Sort tickers by their dominant flow to identify concentration outliers
+              const bullSorted = allTk.filter(t=>t.bull>t.bear).sort((a,b)=>(b.bull-b.bear)-(a.bull-a.bear));
+              const bearSorted = allTk.filter(t=>t.bear>t.bull).sort((a,b)=>(b.bear-b.bull)-(a.bear-a.bull));
+              // Concentration metrics — % of total flow held by top 1 / top 3 names
+              const top1BullPrem = bullSorted.slice(0,1).reduce((a,t)=>a+(t.bull-t.bear),0);
+              const top3BullPrem = bullSorted.slice(0,3).reduce((a,t)=>a+(t.bull-t.bear),0);
+              const top1BearPrem = bearSorted.slice(0,1).reduce((a,t)=>a+(t.bear-t.bull),0);
+              const top3BearPrem = bearSorted.slice(0,3).reduce((a,t)=>a+(t.bear-t.bull),0);
+              const top1BullPct = rawTotalBull>0 ? Math.round(top1BullPrem/rawTotalBull*100) : 0;
+              const top3BullPct = rawTotalBull>0 ? Math.round(top3BullPrem/rawTotalBull*100) : 0;
+              const top1BearPct = rawTotalBear>0 ? Math.round(top1BearPrem/rawTotalBear*100) : 0;
+              const top3BearPct = rawTotalBear>0 ? Math.round(top3BearPrem/rawTotalBear*100) : 0;
+              // Apply exclusion based on toggle — strip top N bull AND top N bear tickers
+              // and recompute totals/top-names. This shows whether bias survives without the outliers.
+              const excludedSyms = new Set();
+              if (flowExcludeTop > 0) {
+                bullSorted.slice(0, flowExcludeTop).forEach(t => excludedSyms.add(t.sym));
+                bearSorted.slice(0, flowExcludeTop).forEach(t => excludedSyms.add(t.sym));
+              }
+              const ccFiltered = excludedSyms.size > 0 ? cc.filter(t => !excludedSyms.has(t.S)) : cc;
+              let totalBull=0, totalBear=0;
+              ccFiltered.forEach(t => { if (t.D==="BULL") totalBull+=t.P; if (t.D==="BEAR") totalBear+=t.P; });
               const totalPrem = totalBull + totalBear;
               const bullPct = totalPrem > 0 ? Math.round(totalBull/totalPrem*100) : 50;
               const netDir = totalBull >= totalBear ? "BULLISH" : "BEARISH";
               const netC = totalBull >= totalBear ? P.bu : P.be;
-              const topBull = allTk.filter(t=>t.bull>t.bear).sort((a,b)=>(b.bull-b.bear)-(a.bull-a.bear)).slice(0,3);
-              const topBear = allTk.filter(t=>t.bear>t.bull).sort((a,b)=>(b.bear-b.bull)-(a.bear-a.bull)).slice(0,3);
+              const topBull = (excludedSyms.size > 0 ? bullSorted.filter(t=>!excludedSyms.has(t.sym)) : bullSorted).slice(0,3);
+              const topBear = (excludedSyms.size > 0 ? bearSorted.filter(t=>!excludedSyms.has(t.sym)) : bearSorted).slice(0,3);
+              // High-concentration warning: top 3 dominate one side
+              const concentrationWarn = top3BullPct >= 50 || top3BearPct >= 50;
               const capLabel = capFilter==="All" ? "All Caps" : capFilter;
               // Flow velocity: today vs average
               const allDates = [...new Set(cc.map(t=>t.Dt).filter(Boolean))];
@@ -3879,7 +3909,7 @@ export default function OptionsFlowDashboard() {
               const todayTrades = latestDate ? cc.filter(t=>t.Dt===latestDate) : [];
               const todayPrem = todayTrades.reduce((a,t)=>a+t.P,0);
               const todayCount = todayTrades.length;
-              const avgDailyPrem = allDates.length > 1 ? totalPrem / allDates.length : 0;
+              const avgDailyPrem = allDates.length > 1 ? (rawTotalBull + rawTotalBear) / allDates.length : 0;
               const avgDailyCount = allDates.length > 1 ? cc.length / allDates.length : 0;
               const velRatio = avgDailyPrem > 0 ? todayPrem / avgDailyPrem : 0;
               const velLabel = velRatio >= 1.5 ? "elevated" : velRatio >= 0.8 ? "normal" : "quiet";
@@ -3956,6 +3986,47 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </div>
                       )}
+                      {/* Concentration indicator — shows how much of bull/bear flow is */}
+                      {/* carried by the top 3 names. >50% = narrow / single-bet skewed. */}
+                      <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
+                        <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>CONCENTRATION: </span>
+                        <span>Top 3 bull = </span>
+                        <span style={{ fontWeight:800, color:top3BullPct>=50?P.ac:P.wh }}>{top3BullPct}%</span>
+                        <span style={{ color:P.dm }}> of bull flow</span>
+                        <span> · Top 3 bear = </span>
+                        <span style={{ fontWeight:800, color:top3BearPct>=50?P.ac:P.wh }}>{top3BearPct}%</span>
+                        <span style={{ color:P.dm }}> of bear flow</span>
+                        {concentrationWarn && (
+                          <span style={{ fontWeight:700, color:P.ac, marginLeft:8, padding:"1px 6px", borderRadius:3, background:P.ac+"22", fontSize:9, letterSpacing:0.5 }}>
+                            ⚠ NARROW
+                          </span>
+                        )}
+                      </div>
+                      {/* Exclusion toggle — recalc bull% with top-N tickers removed */}
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6 }}>
+                        <span style={{ fontSize:10, color:P.dm, fontWeight:700, letterSpacing:0.5 }}>RECALC EXCL:</span>
+                        {[
+                          { val:0, lbl:"None" },
+                          { val:1, lbl:"Top 1" },
+                          { val:3, lbl:"Top 3" },
+                        ].map(opt => {
+                          const active = flowExcludeTop===opt.val;
+                          return (
+                            <button key={opt.val} onClick={()=>setFlowExcludeTop(opt.val)}
+                              style={{ padding:"2px 8px", borderRadius:3, border:"1px solid "+(active?P.ac:P.bd),
+                                background:active?P.ac+"22":"transparent",
+                                color:active?P.ac:P.mt, fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                cursor:"pointer", letterSpacing:0.3 }}>
+                              {opt.lbl}
+                            </button>
+                          );
+                        })}
+                        {excludedSyms.size > 0 && (
+                          <span style={{ fontSize:9, color:P.ac, marginLeft:4 }}>
+                            ({excludedSyms.size} ticker{excludedSyms.size>1?"s":""} excluded: {[...excludedSyms].join(", ")})
+                          </span>
+                        )}
+                      </div>
                         </div>
                         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, width:"18%" }}>
                           <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
