@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
+import { prefetchBars } from '../utils/prefetchBars'
 import { useAuth } from '../context/AuthContext'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import styles from './ModelBook.module.css'
@@ -1456,6 +1457,31 @@ export default function ModelBook() {
     tick()
     return () => { cancelled = true }
   }, [years])
+
+  // Warm EVERY stock in the open year (chart bars + detail + custom bars +
+  // earnings) the moment the year loads, so scrolling through tickers is instant
+  // instead of a 1-2s cold fetch on each one's first view. Ordered by curated rank
+  // so the top names warm first. Chart bars go through prefetchBars' shared bounded
+  // + idle-deferred queue, so this never starves the chart you're actively viewing.
+  useEffect(() => {
+    if (!stocks.length || year == null) return
+    prefetchBars(stocks.map(s => s.symbol).filter(Boolean), 'D')
+    let i = 0, cancelled = false
+    const trickle = () => {
+      if (cancelled || i >= stocks.length) return
+      const s = stocks[i]; i += 1
+      if (s?.id != null) {
+        preload(`/api/modelbook/stock/${s.id}`, fetcher)        // setups + catalysts
+        preload(`/api/modelbook/stock/${s.id}/bars`, fetcher)   // custom bars (delisted); empty+cheap otherwise
+      }
+      if (s?.symbol) {
+        preload(`/api/modelbook/year-earnings?symbol=${encodeURIComponent(s.symbol)}&year=${year}`, fetcher)
+      }
+      setTimeout(trickle, 120)
+    }
+    trickle()
+    return () => { cancelled = true }
+  }, [stocks, year])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.
