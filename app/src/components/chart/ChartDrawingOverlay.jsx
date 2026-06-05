@@ -203,12 +203,16 @@ function renderAdvance(ctx, pts, drawing, toPixelY) {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
-  const hiY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
-  const y = (hiY != null ? hiY : p.y) - 16
+  const anchorY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
+  const baseY = anchorY != null ? anchorY : p.y
+  // Advance → label ABOVE the final point; decline → label BELOW it (so a market
+  // drop reads "-24%" tucked under the trough, not floating over the line).
+  const isDecline = drawing.advPct < 0
+  const y = isDecline ? baseY + 16 : baseY - 16
   ctx.save()
   ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.textBaseline = 'bottom'
+  ctx.textBaseline = isDecline ? 'top' : 'bottom'
   ctx.lineJoin = 'round'
   const text = `${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`
   const px = Math.round(p.x), py = Math.round(y)

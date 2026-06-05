@@ -3643,7 +3643,7 @@ export default function StockChart({
         }, paneCount)
         indexPaneSeriesRef.current = s
         try { s.getPane().moveTo(0) } catch {}
-        try { s.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.12 } }) } catch {}
+        try { s.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.2 } }) } catch {}
       } catch { /* pane API unavailable — index pane optional */ }
     }
 
@@ -3658,6 +3658,9 @@ export default function StockChart({
         const idxMode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
         indexPaneSeriesRef.current.priceScale().applyOptions({ mode: idxMode })
       } catch {}
+      // Keep extra room below the line so a decline's "-X%" label fits under the
+      // trough without crowding the pane edge (idempotent — also set at creation).
+      try { indexPaneSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0.2 } }) } catch {}
 
       // 50-period SMA line on the index pane. Shares the index line's pane +
       // 'right' price scale (so it tracks log/pct mode and aligns with the
