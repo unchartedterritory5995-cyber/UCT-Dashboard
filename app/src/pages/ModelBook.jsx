@@ -1041,6 +1041,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             watermarkOpacity={0.34}
             watermarkX={0.14}
             watermarkY={0.2}
+            watermarkName={stock.company || null}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
             focusDate={focusDate}

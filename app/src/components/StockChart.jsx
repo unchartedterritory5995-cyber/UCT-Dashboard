@@ -453,6 +453,7 @@ export default function StockChart({
   watermarkOpacity = null,   // override the settings watermark opacity (Model Book uses a brighter mark)
   watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
+  watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   className = '',
   showDrawingTools = true,
   onSymbolChange = null,
@@ -736,6 +737,17 @@ export default function StockChart({
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
+  // Watermark meta: when a curated company name is supplied (Model Book) and it
+  // clearly differs from the LIVE ticker meta (a reused ticker), use the curated
+  // name and DROP the live sector/industry (they belong to the current company,
+  // not the historical one). If the names overlap, keep the live sector/industry.
+  const watermarkMeta = useMemo(() => {
+    if (!watermarkName) return tickerMeta
+    const toks = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length >= 4)
+    const curated = toks(watermarkName), live = toks(tickerMeta?.name)
+    const sameCompany = curated.length > 0 && curated.some(w => live.includes(w))
+    return sameCompany ? { ...tickerMeta, name: watermarkName } : { name: watermarkName }
+  }, [watermarkName, tickerMeta])
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
@@ -2429,7 +2441,7 @@ export default function StockChart({
     }
     {
       const wmLines = cs.watermark.visible
-        ? composeWatermarkLines(watermark ?? sym, tickerMeta, cs.watermark.lines)
+        ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       wmCtrlRef.current.setOptions({
         lines: wmLines,
@@ -3324,7 +3336,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
