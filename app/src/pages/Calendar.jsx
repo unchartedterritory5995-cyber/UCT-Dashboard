@@ -278,7 +278,7 @@ export default function Calendar() {
       {selected && (
         <ErrorBoundary
           fallback={
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '12px' }}>
               Unable to load — click a ticker to retry.
             </div>
           }
