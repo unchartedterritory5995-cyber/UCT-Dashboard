@@ -752,6 +752,17 @@ export default function ChartDrawingOverlay({
     // no ref → text is always fully visible.
     const textOpacity = textFadeRef ? Math.max(0, Math.min(1, textFadeRef.current ?? 1)) : 1
 
+    // Visible logical range — used to hide a setup's annotations when its anchor
+    // bar is off-screen (e.g. the next setup to the right while zoomed in on this
+    // one). Only enforced for Model Book overlays (textFadeRef present).
+    let visFrom = -Infinity, visTo = Infinity
+    if (textFadeRef) {
+      try {
+        const r = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
+        if (r) { visFrom = r.from; visTo = r.to }
+      } catch { /* keep unbounded */ }
+    }
+
     const toPixelY = (_, price) => {
       const p = toPixel(null, price)
       return p?.y
@@ -776,6 +787,18 @@ export default function ChartDrawingOverlay({
 
       const pts = resolvePixels(d.points || [])
       if (!pts.length) continue
+      // Off-screen guard (Model Book): if this drawing's anchor bar — its setup
+      // candle (rightmost point / rightBoundTime) — is outside the visible range,
+      // skip it so a neighbouring setup's label/lines don't bleed in at the edge.
+      if (textFadeRef) {
+        const idxs = []
+        for (const p of (d.points || [])) { const i = timeToIndex.get(p.time); if (i != null) idxs.push(i) }
+        if (d.rightBoundTime != null) { const ri = timeToIndex.get(d.rightBoundTime); if (ri != null) idxs.push(ri) }
+        if (idxs.length) {
+          const anchorIdx = Math.max(...idxs)
+          if (anchorIdx > visTo + 0.5 || anchorIdx < visFrom - 0.5) continue
+        }
+      }
       ctx.save()
       ctx.strokeStyle = d.color || '#c9a84c'
       ctx.lineWidth = d.lineWidth || 1

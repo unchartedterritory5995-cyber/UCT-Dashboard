@@ -410,10 +410,14 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
     const from = to - width
     priceRangeRef.current = { lo: logLerp(sRange.lo, tRange.lo, e), hi: logLerp(sRange.hi, tRange.hi, e) }
     try { ts.setVisibleLogicalRange({ from, to }) } catch { /* ignore transient */ }
-    // Text fade rides the LAST 15% of the animation only, so it eases in/out right
-    // as the zoom lands — interpolating from the value it started at to endFade.
+    // Text fade is quick (15% of the animation) and edge-anchored: on zoom-IN it
+    // eases in over the LAST 15% so it lands right as the chart settles on the
+    // setup; on zoom-OUT it eases out over the FIRST 15% so it clears immediately
+    // instead of lingering through the whole zoom-out.
     if (textFadeRef && endFade != null) {
-      const fp = Math.max(0, Math.min(1, (p - 0.85) / 0.15))
+      const fp = targetTextVisible
+        ? Math.max(0, Math.min(1, (p - 0.85) / 0.15))
+        : Math.max(0, Math.min(1, p / 0.15))
       textFadeRef.current = startFade + (endFade - startFade) * fp
     }
     if (p < 1) {
