@@ -14,82 +14,6 @@ import { useChartsSym } from './charts/ChartsSymContext'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
-// ── Correlation heatmap ───────────────────────────────────────────────────────
-
-function corrColor(v) {
-  if (v == null) return '#1a1a1a'
-  if (v >= 0.9)  return '#14532d'
-  if (v >= 0.7)  return '#166534'
-  if (v >= 0.5)  return '#16a34a'
-  if (v >= 0.3)  return '#4ade80'
-  if (v >= 0.1)  return '#86efac'
-  if (v >= -0.1) return '#374151'
-  if (v >= -0.3) return '#fca5a5'
-  if (v >= -0.5) return '#f87171'
-  if (v >= -0.7) return '#ef4444'
-  return '#dc2626'
-}
-
-function CorrelationHeatmap({ data }) {
-  const { labels, names, matrix, n_dates } = data
-  const n = labels.length
-  return (
-    <div className={styles.corrWrap}>
-      <div className={styles.corrMeta}>
-        {n} ETFs &middot; {n_dates} trading days &middot; Pearson correlation
-      </div>
-      {/* Legend */}
-      <div className={styles.corrLegend}>
-        <span className={styles.corrLegendLabel}>-1</span>
-        <div className={styles.corrLegendBar} />
-        <span className={styles.corrLegendLabel}>+1</span>
-      </div>
-      {/* Top labels (rotated) */}
-      <div className={styles.corrTopLabels}>
-        <div className={styles.corrSpacer} />
-        {labels.map((l, i) => (
-          <div key={i} className={styles.corrTopLabel} title={names[i]}>
-            <span>{l}</span>
-          </div>
-        ))}
-      </div>
-      {/* Grid rows */}
-      <div className={styles.corrGrid}>
-        {matrix.map((row, i) => (
-          <div key={i} className={styles.corrRow}>
-            <div className={styles.corrLeftLabel} title={names[i]}>{labels[i]}</div>
-            {row.map((val, j) => (
-              <div
-                key={j}
-                className={`${styles.corrCell}${i === j ? ' ' + styles.corrCellDiag : ''}`}
-                style={{ background: i === j ? '#c9a84c22' : corrColor(val) }}
-                title={`${names[i]} vs ${names[j]}: ${val != null ? val.toFixed(2) : 'n/a'}`}
-              >
-                {i !== j && val != null ? val.toFixed(2) : ''}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function CorrelationTab() {
-  const { data, isLoading } = useMobileSWR('/api/theme-correlation', fetcher, {
-    dedupingInterval: 3_600_000,  // 1 hour — matches backend cache
-    revalidateOnFocus: false,
-  })
-
-  if (isLoading) {
-    return <div className={styles.corrLoading}>Loading correlation matrix…</div>
-  }
-  if (!data || data.error || !data.matrix) {
-    return <div className={styles.corrLoading}>Correlation data unavailable — try again later.</div>
-  }
-  return <CorrelationHeatmap data={data} />
-}
-
 function RotationBadge({ delta }) {
   if (delta == null) return null
   if (delta >= 20) return <span className={styles.rotBadgeIn}>IN {delta > 0 ? '+' : ''}{delta.toFixed(0)}</span>
@@ -98,8 +22,8 @@ function RotationBadge({ delta }) {
 }
 
 const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
-const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD', 'Corr']
-const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd', 'Corr': null }
+const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
+const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function fmtRet(val) {
   if (val === null || val === undefined) return '—'
@@ -208,13 +132,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const rowRefs = useRef({})
   const activeKey = RANK_TO_KEY[activeTab]
 
-  const isCorrTab = activeTab === 'Corr'
-
   function handleTabClick(tab) {
-    if (tab === 'Corr') {
-      setActiveTab(tab)
-      return
-    }
     if (tab === activeTab) {
       setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     } else {
@@ -391,7 +309,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
   return (
     <div className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
       {/* ── Left panel ── */}
-      <div className={`${styles.leftPanel}${isCorrTab ? ' ' + styles.leftPanelCorr : ''}`}>
+      <div className={styles.leftPanel}>
 
         {/* Period tabs */}
         <div className={styles.periodBar}>
@@ -401,60 +319,51 @@ export default function ThemeTrackerPage({ embedded = false }) {
               className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
               onClick={() => handleTabClick(tab)}
             >
-              {tab}{!isCorrTab && activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
+              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
         </div>
 
-        {isCorrTab ? (
-          /* ── Correlation heatmap fills the rest of left panel ── */
-          <div className={styles.corrPanel}>
-            <CorrelationTab />
-          </div>
-        ) : (
-          <>
-            {/* Search */}
-            <div className={styles.searchBar}>
-              <input
-                className={styles.searchInput}
-                placeholder="Search themes or tickers…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
-              )}
-            </div>
+        {/* Search */}
+        <div className={styles.searchBar}>
+          <input
+            className={styles.searchInput}
+            placeholder="Search themes or tickers…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
+          )}
+        </div>
 
-            <div className={styles.tableHeader}>
-              <span className={styles.colLabel}>Theme</span>
-              <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
-                {PERIOD_LABELS[activeKey]}
-              </span>
-            </div>
+        <div className={styles.tableHeader}>
+          <span className={styles.colLabel}>Theme</span>
+          <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
+            {PERIOD_LABELS[activeKey]}
+          </span>
+        </div>
 
-            <div className={styles.tableBody}>
-              {(isLoading || isComputing) && (
-                isComputing
-                  ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
-                  : <SkeletonTileContent lines={6} />
-              )}
-              {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
-                <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
-              )}
-              {filteredThemes.map(theme => (
-                <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
-                  activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
-                  rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
-                  tickerActions={tickerActions} onHoverSym={handleHoverSym} />
-              ))}
-            </div>
-          </>
-        )}
+        <div className={styles.tableBody}>
+          {(isLoading || isComputing) && (
+            isComputing
+              ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
+              : <SkeletonTileContent lines={6} />
+          )}
+          {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
+            <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
+          )}
+          {filteredThemes.map(theme => (
+            <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
+              activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
+              rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
+              tickerActions={tickerActions} onHoverSym={handleHoverSym} />
+          ))}
+        </div>
       </div>
 
-      {/* ── Right panel — hidden when corr tab active or in embedded mode ── */}
-      {!isCorrTab && !embedded && (
+      {/* ── Right panel — hidden in embedded mode ── */}
+      {!embedded && (
         <div className={styles.rightPanel} ref={chartRef}>
           {selectedSym ? (
             <>
