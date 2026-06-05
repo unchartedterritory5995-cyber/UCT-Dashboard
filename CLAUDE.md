@@ -1039,6 +1039,14 @@ overlay — `styles.earnOverlay`, removed 2026-06-03 — moved into the panel.)
 - **Diagnose:** unauthenticated `GET /api/debug/earnings-sources/{sym}` probes every FMP/AV/Finnhub earnings endpoint + dumps `stable/earnings` rows — use it to see what data actually comes back for a ticker.
 - **Endpoint:** `GET /api/modelbook/year-earnings?symbol=&year=` (any logged-in user). Frontend fetches it (SWR) for every stock view; the table renders only when rows exist + the info panel is open. Read-only. The right panel stays a 2-tab Setups | Catalysts.
 
+### Year-recap hover (added 2026-06-05)
+Hovering a **year tab** pops up an AI recap of that market year — broad-market behavior, leadership themes (chips), and a 1-10 "momentum swing-trader climate" meter — so you can scan what each year was like (e.g. 1999 dot-com euphoria, 2022 rate-driven bear). Generated once, then kept forever (mirrors the catalyst/description pattern).
+- **Table `modelbook_year_recaps`**: `(year PK, headline, recap, themes_json, trader_score 1-10, market_tone, recap_at, model)`. New table in `_SCHEMA` (no migration). Service: `get_year_recap` / `save_year_recap` / `mark_recap_attempt`.
+- **Generation** (`modelbook.py::_generate_year_recap`): Claude (`MODELBOOK_LLM_MODEL`, temp 0.85) grounded with the year's curated leaders (symbol/company/gain/sector) + best-effort Nasdaq (^IXIC) year return & max-drawdown (`_nasdaq_year_stats`; provider history only reaches ~2006, older years lean on the model's knowledge). Prompt mandates VARIED openings/structure (no "YYYY was…", no template) and forbids naming any specific trading methodology. Returns `{headline, market_tone, trader_score, themes[], recap}`. Gated by `MODELBOOK_RECAP_ENABLED`.
+- **Endpoint:** `GET /api/modelbook/year-recap?year=YYYY` (any logged-in user, 1990..current+1). Returns the recap, or `{status:'generating'}` (fires a deduped background job) on first hover, or `{status:'unavailable'}` if a recent attempt failed (client stops polling). Frontend polls every 2.5s while generating.
+- **Warm:** `warm_all_stats` pre-generates recaps for curated closed years (`list_years()`); all other years generate on first hover.
+- **Frontend** (`ModelBook.jsx`): `YearRecapPopover` (fixed-position, `pointer-events:none`, 220ms hover debounce) + `TraderMeter` (10 dots). Styles `.recapPop`/`.recap*`/`.meter*` in `ModelBook.module.css`.
+
 ### Tests
 - Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade, catalyst CRUD + `replace_catalysts` ordering/stamp + cascade).
 - Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate, permanent earnings overlay table).

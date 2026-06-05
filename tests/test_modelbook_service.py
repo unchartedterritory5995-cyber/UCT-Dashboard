@@ -318,6 +318,39 @@ def test_seed_initial_populates_and_is_flag_gated(s):
     assert len(s.get_stocks_for_year(2025)) == 9
 
 
+# ── Year recaps (AI market-year recap on year-tab hover) ──────────────────────
+
+def test_year_recap_save_get_upsert(s):
+    assert s.get_year_recap(1999) is None
+    s.save_year_recap(1999, {"headline": "Dot-com mania", "recap": "Tech and internet names ran wild.",
+                             "themes_json": '["Dot-com","Networking"]', "trader_score": 9,
+                             "market_tone": "Euphoric bull", "model": "claude-sonnet-4-6"})
+    r = s.get_year_recap(1999)
+    assert r["headline"] == "Dot-com mania"
+    assert r["trader_score"] == 9
+    assert r["market_tone"] == "Euphoric bull"
+    assert r["recap_at"] is not None
+    # Upsert on the same year replaces.
+    s.save_year_recap(1999, {"headline": "Revised", "recap": "...", "trader_score": 8})
+    again = s.get_year_recap(1999)
+    assert again["headline"] == "Revised"
+    assert again["trader_score"] == 8
+
+
+def test_mark_recap_attempt_stamps_without_prose(s):
+    s.mark_recap_attempt(2022)
+    r = s.get_year_recap(2022)
+    assert r is not None
+    assert r["recap"] is None          # attempt stamp only — no prose yet
+    assert r["recap_at"] is not None
+    # A later successful save fills the prose (and keeps the row).
+    s.save_year_recap(2022, {"headline": "Rate-driven bear", "recap": "Rising rates repriced everything.",
+                             "trader_score": 2, "market_tone": "Brutal bear"})
+    done = s.get_year_recap(2022)
+    assert done["recap"].startswith("Rising rates")
+    assert done["trader_score"] == 2
+
+
 # ── Index-pane drawings (GLOBAL) ──────────────────────────────────────────────
 
 def test_index_drawings_default_empty(s):

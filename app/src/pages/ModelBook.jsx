@@ -1287,6 +1287,67 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   )
 }
 
+// A 10-dot meter for how hospitable a year was to a momentum swing trader.
+function TraderMeter({ score }) {
+  const s = Math.max(0, Math.min(10, Math.round(score)))
+  const color = s >= 8 ? '#4ade80' : s >= 6 ? '#c9a84c' : s >= 4 ? '#e0a33e' : '#e74c3c'
+  return (
+    <span className={styles.meterWrap} title={`Momentum swing-trader climate: ${s}/10`}>
+      <span className={styles.meterLabel}>Trader climate</span>
+      <span className={styles.meterDots} aria-label={`${s} of 10`}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <span key={i} className={styles.meterDot}
+            style={{ background: i < s ? color : 'rgba(255,255,255,0.12)' }} />
+        ))}
+      </span>
+    </span>
+  )
+}
+
+// Hover-a-year-tab → a recap of that market year (broad market, leadership
+// themes, momentum-trader climate). Generated server-side on first request and
+// cached forever; polls while it's still being written.
+function YearRecapPopover({ year, anchor }) {
+  const { data } = useSWR(
+    year != null ? `/api/modelbook/year-recap?year=${year}` : null, fetcher,
+    {
+      revalidateOnFocus: false,
+      keepPreviousData: false,
+      refreshInterval: d => (d && (d.status === 'ready' || d.status === 'unavailable')) ? 0 : 2500,
+    },
+  )
+  if (year == null || !anchor) return null
+  const ready = data && data.status === 'ready'
+  const unavailable = data && data.status === 'unavailable'
+  const W = 380
+  const top = Math.round(anchor.bottom + 8)
+  const left = Math.round(Math.min(Math.max(8, anchor.left - 30), window.innerWidth - W - 8))
+  return (
+    <div className={styles.recapPop} style={{ top, left, width: W }} role="tooltip">
+      <div className={styles.recapHead}>
+        <span className={styles.recapYearTag}>{year}</span>
+        {ready && data.market_tone && <span className={styles.recapTone}>{data.market_tone}</span>}
+      </div>
+      {!ready && !unavailable && <div className={styles.recapLoading}>Writing the {year} market recap…</div>}
+      {unavailable && <div className={styles.recapLoading}>Recap for {year} isn’t available yet — hover again shortly.</div>}
+      {ready && (
+        <>
+          {data.headline && <div className={styles.recapHeadline}>{data.headline}</div>}
+          {typeof data.trader_score === 'number' && (
+            <div className={styles.recapMeterRow}><TraderMeter score={data.trader_score} /></div>
+          )}
+          {Array.isArray(data.themes) && data.themes.length > 0 && (
+            <div className={styles.recapThemes}>
+              {data.themes.map(t => <span key={t} className={styles.recapChip}>{t}</span>)}
+            </div>
+          )}
+          {data.recap && <p className={styles.recapText}>{data.recap}</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function ModelBook() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -1362,6 +1423,21 @@ export default function ModelBook() {
     setPickedYear(y)
     setSelectedId(null)
   }
+
+  // Year-tab hover → recap popover. A short debounce so scrubbing across many
+  // tabs doesn't fire (and prefetch) a recap for every one in passing.
+  const [recap, setRecap] = useState({ year: null, anchor: null })
+  const recapTimer = useRef(null)
+  function onYearHover(y, el) {
+    clearTimeout(recapTimer.current)
+    const rect = el.getBoundingClientRect()
+    recapTimer.current = setTimeout(() => setRecap({ year: y, anchor: rect }), 220)
+  }
+  function onYearLeave() {
+    clearTimeout(recapTimer.current)
+    setRecap({ year: null, anchor: null })
+  }
+  useEffect(() => () => clearTimeout(recapTimer.current), [])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.
@@ -1492,7 +1568,9 @@ export default function ModelBook() {
           <div className={styles.yearTabs} ref={yearStripRef}>
             {years.map(y => (
               <button key={y} data-year={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
-                onClick={() => selectYear(y)}>{y}</button>
+                onClick={() => selectYear(y)}
+                onMouseEnter={e => onYearHover(y, e.currentTarget)}
+                onMouseLeave={onYearLeave}>{y}</button>
             ))}
             {years.length === 0 && (
               <span className={styles.emptyYears}>
@@ -1505,6 +1583,8 @@ export default function ModelBook() {
         <span className={styles.count}>Top stocks in history</span>
         {isAdmin && <AddStockForm year={year ?? new Date().getFullYear()} onAdded={onStockAdded} />}
       </div>
+
+      <YearRecapPopover year={recap.year} anchor={recap.anchor} />
 
       <div className={styles.layout}>
         {/* Left — stock gallery */}

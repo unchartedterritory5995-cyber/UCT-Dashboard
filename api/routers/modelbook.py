@@ -535,7 +535,14 @@ def warm_all_stats() -> None:
             cat_pending = [s for s in svc.get_stocks_needing_catalysts() if _is_final_year(s["year"])]
         except Exception:
             cat_pending = []
-        if stats_done and desc_done and not cat_pending:
+        # Pre-warm recaps for curated years (hover is then instant). Other years
+        # generate on first hover. Closed years only — the in-progress year's recap
+        # would go stale, so it regenerates on demand.
+        try:
+            recap_pending = [y for y in svc.list_years() if _is_final_year(y) and _needs_recap(y)]
+        except Exception:
+            recap_pending = []
+        if stats_done and desc_done and not cat_pending and not recap_pending:
             return  # fully warmed
         if not stats_done:
             _persist_stats_for(stocks, max_workers=2)
@@ -545,6 +552,7 @@ def warm_all_stats() -> None:
                 pass
         _generate_descriptions_for(stocks)
         _generate_catalysts_for(cat_pending)
+        _generate_recaps_for(recap_pending)
 
 
 # ── AI-generated catalysts (the year's most impactful, move-driving events) ───
@@ -766,6 +774,238 @@ def _generate_catalysts_for(stocks, max_workers=2):
                 pass
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         list(ex.map(_work, stocks))
+
+
+# ── AI year recaps (hover a year tab → a recap of that market year) ───────────
+
+_RECAP_ENABLED = _os.environ.get("MODELBOOK_RECAP_ENABLED", "1") == "1"
+_RECAP_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_RECAP_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
+_MIN_RECAP_YEAR = 1990
+_gen_recap_lock = _threading.Lock()
+_generating_recaps = set()  # years with a recap generation in flight
+
+
+def _recap_out(r: dict) -> dict:
+    """Shape a stored recap row for the API (parse themes_json → list)."""
+    import json
+    themes = []
+    try:
+        t = json.loads(r.get("themes_json") or "[]")
+        themes = t if isinstance(t, list) else []
+    except (ValueError, TypeError):
+        themes = []
+    return {
+        "year": r["year"],
+        "status": "ready",
+        "headline": r.get("headline"),
+        "recap": r.get("recap"),
+        "market_tone": r.get("market_tone"),
+        "trader_score": r.get("trader_score"),
+        "themes": themes,
+    }
+
+
+def _needs_recap(year: int) -> bool:
+    """True if a year still needs a recap: none yet AND either never attempted or
+    the last attempt is stale (failures retry, successes are kept permanently)."""
+    if not _RECAP_ENABLED:
+        return False
+    r = svc.get_year_recap(year)
+    if r and r.get("recap"):
+        return False
+    ra = (r or {}).get("recap_at")
+    return (not ra) or (int(_time_mod.time()) - ra > _RECAP_RETRY_AFTER)
+
+
+def _nasdaq_year_stats(year: int):
+    """Best-effort Nasdaq Composite (^IXIC) year stats to GROUND the recap:
+    open→close % and worst peak-to-trough drawdown. Provider history only reaches
+    ~2006, so this is None for older years — the model then leans on its own
+    market-history knowledge (which is strong for these well-known years)."""
+    try:
+        yb = _load_year_bars("^IXIC", year)
+        if not yb or len(yb) < 20:
+            return None
+        o, c = yb[0].get("o"), yb[-1].get("c")
+        closes = [b["c"] for b in yb if b.get("c") is not None]
+        peak, mdd = None, 0.0
+        for px in closes:
+            if peak is None or px > peak:
+                peak = px
+            if peak:
+                mdd = min(mdd, (px - peak) / peak)
+        return {
+            "return_pct": round((c - o) / o * 100, 1) if o else None,
+            "max_drawdown_pct": round(mdd * 100, 1),
+        }
+    except Exception:
+        return None
+
+
+def _generate_year_recap(year: int):
+    """Claude → a varied, factual recap of `year` as a US-equity market year for a
+    momentum/breakout swing trader's model book. Grounded with the year's curated
+    leaders (real data) + Nasdaq stats when available. Returns a dict or None."""
+    if not _RECAP_ENABLED:
+        return None
+    import json as _json
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        leaders = []
+        for s in svc.get_stocks_for_year(year)[:12]:
+            g = s.get("oc_pct") if s.get("oc_pct") is not None else s.get("gain_pct")
+            gtxt = f"+{round(g)}%" if g is not None else "?"
+            sec = f", {s['sector']}" if s.get("sector") else ""
+            leaders.append(f"{s['symbol']} ({s.get('company') or s['symbol']}, {gtxt}{sec})")
+        nas = _nasdaq_year_stats(year)
+        ctx = []
+        if nas and nas.get("return_pct") is not None:
+            ctx.append(f"Nasdaq Composite {year}: {nas['return_pct']:+}% (year open→close), "
+                       f"worst drawdown {nas['max_drawdown_pct']}%.")
+        if leaders:
+            ctx.append("Big model-book winners that year: " + "; ".join(leaders) + ".")
+        ctx_txt = "\n".join(ctx) if ctx else "(No extra data — rely on your own market-history knowledge.)"
+
+        system = ("You are a market historian writing recap notes for a swing trader's "
+                  "model book — one per calendar year. Be factual and specific to the year. "
+                  "Output JSON only, no preamble, no markdown fences.")
+        prompt = (
+            f"Write a recap of the U.S. stock market in {year}.\n\n"
+            f"Grounding data:\n{ctx_txt}\n\n"
+            'Return JSON exactly: {"headline": "...", "market_tone": "...", '
+            '"trader_score": 0, "themes": ["..."], "recap": "..."}\n'
+            "- headline: 3-7 words capturing the year's character (NOT starting with the year).\n"
+            "- market_tone: a 2-4 word label (e.g. \"Roaring bull\", \"Brutal bear\", "
+            "\"Choppy and range-bound\", \"V-shaped recovery\").\n"
+            "- trader_score: an integer 1-10 for how HOSPITABLE the year was to a momentum / "
+            "breakout swing trader who buys strength and leadership. 1-3 = hostile (downtrend, "
+            "whipsaws, breakouts fail); 4-6 = mixed/selective; 7-8 = favorable (clean trends, "
+            "follow-through, leadership works); 9-10 = exceptional, target-rich.\n"
+            "- themes: 2-5 SHORT leadership theme/group labels that led that year (e.g. "
+            "\"Dot-com & networking\", \"Homebuilders\", \"Solar\", \"AI infrastructure\", "
+            "\"Chinese internet\", \"Mega-cap tech\"). Tie to the grounding winners when given.\n"
+            "- recap: 4-6 sentences covering (a) how the broad market traded (indices, trend, "
+            "volatility, the key macro driver), (b) what kind of stocks/groups led, and (c) how "
+            "friendly the tape was to buying breakouts and holding winners. Plain, concrete prose.\n\n"
+            "STYLE — IMPORTANT (these recaps sit next to each other across many years, so each "
+            "MUST read differently):\n"
+            "- Do NOT begin with the year or 'In YYYY' or 'YYYY was'. Vary the opening across "
+            "years — lead with the macro driver, the mood, a pivotal event, the leadership, or "
+            "the character of the tape.\n"
+            "- Do NOT use a fixed template or the same sentence skeleton every year. Vary "
+            "structure and rhythm.\n"
+            "- Avoid hype clichés ('explosive', 'massive', 'skyrocketing', 'roller-coaster', "
+            "'rollercoaster', 'perfect storm'). Be precise.\n"
+            "- Describe the trading climate in plain market terms (trend persistence, "
+            "follow-through, breadth, failed breakouts, leadership) — do NOT name any specific "
+            "trading methodology or system."
+        )
+        msg = client.messages.create(
+            model=_RECAP_MODEL, max_tokens=700, temperature=0.85,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+        s, e = text.find("{"), text.rfind("}")
+        if s == -1 or e == -1:
+            return None
+        obj = _json.loads(text[s:e + 1])
+        headline = (obj.get("headline") or "").strip() or None
+        recap = (obj.get("recap") or "").strip() or None
+        if not recap:
+            return None
+        tone = (obj.get("market_tone") or "").strip() or None
+        try:
+            score = int(round(float(obj.get("trader_score")))) if obj.get("trader_score") is not None else None
+            if score is not None:
+                score = max(1, min(10, score))
+        except (TypeError, ValueError):
+            score = None
+        themes = obj.get("themes") or []
+        themes = [str(t).strip()[:40] for t in themes if str(t).strip()][:6] if isinstance(themes, list) else []
+        return {
+            "headline": headline[:80] if headline else None,
+            "recap": recap[:1200],
+            "market_tone": tone[:40] if tone else None,
+            "trader_score": score,
+            "themes_json": _json.dumps(themes),
+            "model": _RECAP_MODEL,
+        }
+    except Exception:
+        return None
+
+
+def _gen_one_year_recap(year: int) -> None:
+    data = _generate_year_recap(year)
+    if data:
+        svc.save_year_recap(year, data)
+    else:
+        svc.mark_recap_attempt(year)  # stamp so we don't loop on empties
+
+
+def _gen_recap_async(year: int):
+    """Deduped background recap generation for one year (first-hover trigger)."""
+    if not _RECAP_ENABLED:
+        return
+    with _gen_recap_lock:
+        if year in _generating_recaps:
+            return
+        _generating_recaps.add(year)
+
+    def _run():
+        try:
+            _gen_one_year_recap(year)
+        except Exception:
+            try:
+                svc.mark_recap_attempt(year)
+            except Exception:
+                pass
+        finally:
+            with _gen_recap_lock:
+                _generating_recaps.discard(year)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-recap-{year}").start()
+
+
+def _generate_recaps_for(years, max_workers=2):
+    """Batch background recap generation (startup warm). Caller pre-filters."""
+    if not years:
+        return
+    import concurrent.futures
+
+    def _work(y):
+        try:
+            _gen_one_year_recap(y)
+        except Exception:
+            try:
+                svc.mark_recap_attempt(y)
+            except Exception:
+                pass
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        list(ex.map(_work, years))
+
+
+@router.get("/year-recap")
+def year_recap(year: int = Query(...), _user: dict = Depends(get_current_user)):
+    """An AI recap of `year` as a market year (broad market, leadership themes,
+    momentum-trader climate), shown on year-tab hover. Generated once on first
+    request, then kept permanently. Returns {status:'generating'} while the
+    background job runs; the frontend polls until it's ready."""
+    from datetime import datetime, timezone
+    cy = datetime.now(timezone.utc).year
+    if year < _MIN_RECAP_YEAR or year > cy + 1:
+        raise HTTPException(400, f"year must be {_MIN_RECAP_YEAR}..{cy + 1}")
+    r = svc.get_year_recap(year)
+    if r and r.get("recap"):
+        return _recap_out(r)
+    if _needs_recap(year):
+        _gen_recap_async(year)
+        return {"year": year, "status": "generating"}
+    # Attempted recently but came back empty/failed — tell the client to stop
+    # polling (it retries server-side after _RECAP_RETRY_AFTER on a later hover).
+    return {"year": year, "status": "unavailable"}
 
 
 # ── Writes (admin only) ───────────────────────────────────────────────────────

@@ -91,6 +91,17 @@ CREATE TABLE IF NOT EXISTS modelbook_stock_bars (
   bars_json  TEXT,                  -- uploaded daily OHLCV for a delisted stock (JSON array [{t,o,h,l,c,v}]); served to the chart instead of the (missing) provider data
   updated_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS modelbook_year_recaps (
+  year         INTEGER PRIMARY KEY, -- calendar year (1990..) — one AI market recap shown on year-tab hover
+  headline     TEXT,                -- short characterization of the year (3-7 words)
+  recap        TEXT,                -- flowing prose: broad market, leadership themes, momentum-trader climate
+  themes_json  TEXT,                -- JSON array of the year's leadership theme strings (chips)
+  trader_score INTEGER,             -- 1-10 how hospitable the year was to a momentum/breakout swing trader
+  market_tone  TEXT,                -- short tone label (e.g. "Roaring bull", "Brutal bear")
+  recap_at     INTEGER,             -- epoch of last generation attempt (the "already tried, don't loop" marker)
+  model        TEXT
+);
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
@@ -660,6 +671,56 @@ def set_index_drawings(symbol: str, drawings_json: str) -> str:
         )
         c.commit()
     return val
+
+
+# ── Year recaps (AI market-history recap shown on year-tab hover) ─────────────
+
+def get_year_recap(year: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM modelbook_year_recaps WHERE year = ?", (int(year),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def save_year_recap(year: int, data: dict) -> None:
+    """Upsert a generated year recap. Stamps recap_at as the don't-loop marker."""
+    payload = {
+        "year": int(year),
+        "headline": (data.get("headline") or None),
+        "recap": (data.get("recap") or None),
+        "themes_json": data.get("themes_json"),
+        "trader_score": data.get("trader_score"),
+        "market_tone": (data.get("market_tone") or None),
+        "recap_at": int(time.time()),
+        "model": data.get("model"),
+    }
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO modelbook_year_recaps
+               (year, headline, recap, themes_json, trader_score, market_tone, recap_at, model)
+               VALUES (:year, :headline, :recap, :themes_json, :trader_score, :market_tone,
+                       :recap_at, :model)
+               ON CONFLICT(year) DO UPDATE SET
+                 headline = excluded.headline, recap = excluded.recap,
+                 themes_json = excluded.themes_json, trader_score = excluded.trader_score,
+                 market_tone = excluded.market_tone, recap_at = excluded.recap_at,
+                 model = excluded.model""",
+            payload,
+        )
+        c.commit()
+
+
+def mark_recap_attempt(year: int) -> None:
+    """Stamp recap_at without writing prose — records a failed/empty generation so
+    the poller/warm don't retry in a tight loop."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO modelbook_year_recaps (year, recap_at) VALUES (?, ?)
+               ON CONFLICT(year) DO UPDATE SET recap_at = excluded.recap_at""",
+            (int(year), int(time.time())),
+        )
+        c.commit()
 
 
 # ── One-time bootstrap seed ───────────────────────────────────────────────────
