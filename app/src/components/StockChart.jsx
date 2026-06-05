@@ -781,6 +781,7 @@ export default function StockChart({
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
   const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
   const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
+  const lastIndexSigRef = useRef(null)  // signature of the last-drawn index line/MA so we SKIP setData+relayout when flipping tickers in the same year (the index line is identical → no millisecond glitch)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
@@ -3748,15 +3749,32 @@ export default function StockChart({
 
     if (indexPaneSeriesRef.current) {
       try { indexPaneSeriesRef.current.applyOptions({ color: indexPaneColor }) } catch {}
-      // Raw close line. The price scale's mode (Normal/Log/Percent) follows the
-      // A/L/% toggle — applied here too (not just the mode effect) because that
-      // effect runs before this series exists on first load. In Percent mode LWC
-      // auto-rebases to the visible window, so relative strength reads directly.
-      try { indexPaneSeriesRef.current.setData(indexPaneSeries) } catch {}
+      // Mode (Normal/Log/Percent) follows the A/L/% toggle — applied here too (not
+      // just the mode effect) because that effect runs before this series exists on
+      // first load. Cheap + doesn't move the pane, so always applied.
       try {
         const idxMode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
         indexPaneSeriesRef.current.priceScale().applyOptions({ mode: idxMode })
       } catch {}
+
+      // SKIP the line/MA setData + pane relayout when the index data is unchanged
+      // since the last draw. Flipping tickers WITHIN a year yields the identical
+      // ^IXIC line (same year window), so re-running setData + setStretchFactor only
+      // caused a one-frame flicker/shift. A signature (length + sampled times/values
+      // + pane sizes) detects a real change — a year switch, a settings change, or a
+      // gappy reused ticker whose index coverage actually differs — and only THEN
+      // redraws. Result: the Nasdaq pane sits perfectly still during fast scrolling.
+      const _isig = indexPaneSeries
+      const _mid = _isig[Math.floor(_isig.length / 2)]
+      const sig = [
+        _isig.length, _isig[0]?.time, _isig[0]?.value, _mid?.time, _mid?.value,
+        _isig[_isig.length - 1]?.time, _isig[_isig.length - 1]?.value,
+        indexPaneMaSeries.length, indexPaneHeightPct, volumePaneHeightPct, showVolume,
+      ].join('|')
+      if (sig === lastIndexSigRef.current) return  // identical — leave the pane untouched
+      lastIndexSigRef.current = sig
+
+      try { indexPaneSeriesRef.current.setData(indexPaneSeries) } catch {}
       // Keep extra room below the line so a decline's "-X%" label fits under the
       // trough without crowding the pane edge (idempotent — also set at creation).
       try { indexPaneSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0.2 } }) } catch {}

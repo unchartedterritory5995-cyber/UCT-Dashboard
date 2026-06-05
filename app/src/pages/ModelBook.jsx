@@ -507,6 +507,12 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
       revalidateOnFocus: false,
+      // Keep the previous stock's detail visible while the next one loads, so
+      // switching tickers updates the chart IN PLACE instead of unmounting it to a
+      // "Loading…" state and remounting a fresh chart — the remount is what briefly
+      // showed the latest-date view before snapping back to the book year ("flip to
+      // now"). With this, StockChart persists across switches and just re-frames.
+      keepPreviousData: true,
       // Poll while year stats (avg vol) are warming, descriptions haven't been
       // attempted (desc_at unset), or catalysts are auto-generating on first view
       // (none yet + catalysts_at unset). Stops once each attempt is recorded.
@@ -1458,14 +1464,14 @@ export default function ModelBook() {
     return () => { cancelled = true }
   }, [years])
 
-  // Warm EVERY stock in the open year (chart bars + detail + custom bars +
-  // earnings) the moment the year loads, so scrolling through tickers is instant
-  // instead of a 1-2s cold fetch on each one's first view. Ordered by curated rank
-  // so the top names warm first. Chart bars go through prefetchBars' shared bounded
-  // + idle-deferred queue, so this never starves the chart you're actively viewing.
+  // Warm EVERY stock in the OPEN year (chart bars + detail + custom bars +
+  // earnings) the moment the year loads — with PRIORITY so this year's charts jump
+  // ahead of the background catalog warm below. So switching to a year makes its
+  // tickers instant almost immediately. Chart bars go through prefetchBars' shared
+  // bounded queue, so it never starves the chart you're actively viewing.
   useEffect(() => {
     if (!stocks.length || year == null) return
-    prefetchBars(stocks.map(s => s.symbol).filter(Boolean), 'D')
+    prefetchBars(stocks.map(s => s.symbol).filter(Boolean), 'D', { priority: true })
     let i = 0, cancelled = false
     const trickle = () => {
       if (cancelled || i >= stocks.length) return
@@ -1482,6 +1488,44 @@ export default function ModelBook() {
     trickle()
     return () => { cancelled = true }
   }, [stocks, year])
+
+  // Catalog-wide warm on open: every OTHER year's gallery list + gains, then every
+  // stock's chart/detail/earnings across ALL years (newest first, background
+  // priority) — so switching to ANY year and scrolling its tickers is instant on
+  // first view after a refresh, not just the year you happened to land on.
+  useEffect(() => {
+    if (!years.length) return
+    let cancelled = false
+    // Gallery lists + gain stats for every year → the stock list + gains paint
+    // instantly the moment you click a different year (tiny JSON, fire now).
+    years.forEach(y => {
+      preload(`/api/modelbook/stocks?year=${y}`, fetcher)
+      preload(`/api/modelbook/year-stats?year=${y}`, fetcher)
+    })
+    ;(async () => {
+      let all = []
+      try {
+        const r = await fetch('/api/modelbook/all-stocks', { credentials: 'include' })
+        all = (await r.json())?.stocks || []
+      } catch { return }
+      if (cancelled || !all.length) return
+      all.sort((a, b) => (b.year - a.year) || 0)  // newest years first
+      prefetchBars(all.map(s => s.symbol).filter(Boolean), 'D')  // background priority
+      let i = 0
+      const trickle = () => {
+        if (cancelled || i >= all.length) return
+        const s = all[i]; i += 1
+        if (s?.id != null) {
+          preload(`/api/modelbook/stock/${s.id}`, fetcher)
+          preload(`/api/modelbook/stock/${s.id}/bars`, fetcher)
+        }
+        if (s?.symbol) preload(`/api/modelbook/year-earnings?symbol=${encodeURIComponent(s.symbol)}&year=${s.year}`, fetcher)
+        setTimeout(trickle, 90)
+      }
+      trickle()
+    })()
+    return () => { cancelled = true }
+  }, [years])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.

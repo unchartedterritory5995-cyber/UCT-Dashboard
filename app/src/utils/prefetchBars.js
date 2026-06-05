@@ -47,11 +47,17 @@ function _kickSoon() {
   else _kick = setTimeout(go, 800)
 }
 
-function _enqueue(url) {
-  if (_seen.has(url)) return
+function _enqueue(url, priority = false) {
+  const at = _queue.indexOf(url)
+  if (at >= 0) {                 // already queued — promote to front if now urgent
+    if (priority && at > 0) { _queue.splice(at, 1); _queue.unshift(url) }
+    return
+  }
+  if (_seen.has(url) && !priority) return  // recently done; priority re-allows a jump
   _seen.add(url)
   setTimeout(() => _seen.delete(url), 30000) // allow a fresh prefetch after 30s
-  _queue.push(url)
+  if (priority) _queue.unshift(url)          // front of line (year the user just opened)
+  else _queue.push(url)
   _kickSoon()
 }
 
@@ -60,11 +66,13 @@ function _url(sym, tf) {
 }
 
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
-export function prefetchBars(tickers, tf = 'D') {
+// `priority` jumps them to the front of the shared queue — e.g. the year the user
+// just switched to, so its charts warm before the background catalog trickle.
+export function prefetchBars(tickers, tf = 'D', { priority = false } = {}) {
   if (!tickers?.length) return
   for (const sym of tickers) {
     if (!sym) continue
-    _enqueue(_url(sym, tf))
+    _enqueue(_url(sym, tf), priority)
     prefetchTickerMeta(sym)
   }
 }

@@ -183,6 +183,15 @@ def get_stocks(year: int = Query(...), _user: dict = Depends(get_current_user)):
     return {"year": year, "stocks": svc.get_stocks_for_year(year)}
 
 
+@router.get("/all-stocks")
+def all_stocks(_user: dict = Depends(get_current_user)):
+    """Minimal {id, year, symbol} for EVERY curated stock across all years — one
+    round-trip the frontend uses to prefetch every chart/detail/earnings on open
+    so switching years + tickers is instant. Lightweight (no setups/catalysts)."""
+    return {"stocks": [{"id": s["id"], "year": s["year"], "symbol": s["symbol"]}
+                       for s in svc.get_all_stocks()]}
+
+
 @router.get("/stock/{stock_id}")
 def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
