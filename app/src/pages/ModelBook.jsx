@@ -10,7 +10,7 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 
 // Year tabs always shown, even before any stocks are curated for them.
 // Any year that has stocks (from the API) is unioned in on top of these.
-const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020]
+const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010]
 
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
