@@ -2319,7 +2319,13 @@ export default function StockChart({
     // lands in the same proportional spot (scaled to its own range). If it matches the
     // default, treat as "not customized" (null) so volume/indicator pane toggles still
     // re-flow normally.
-    {
+    if (exactDateRange) {
+      // Model Book frames each stock to a fixed year and should just autoscale —
+      // the carry-the-drag-placement-across-tickers lock is inappropriate here and
+      // compounds badly on huge back-adjusted/log-scale values (uploaded delisted
+      // data), ballooning the price scale until the candles are a sliver.
+      vertMarginsRef.current = null
+    } else {
       const _zoomKey = `${sym}_${resolvedTf}`
       const _isFirstLoad = zoomKeyRef.current === null
       const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf

@@ -1355,6 +1355,22 @@ export default function ModelBook() {
     mutateStocks()
   }
 
+  // Admin: right-click a gallery card → delete the stock from the Model Book.
+  const [stockCtx, setStockCtx] = useState(null)  // { x, y, stock } | null
+  function onStockContext(e, s) {
+    if (!isAdmin) return
+    e.preventDefault()
+    setStockCtx({ x: e.clientX, y: e.clientY, stock: s })
+  }
+  async function deleteStockFromBook(s) {
+    setStockCtx(null)
+    if (!window.confirm(`Remove ${s.symbol} from the ${year} Model Book? This deletes its setups, catalysts, annotations and any uploaded data.`)) return
+    await fetch(`/api/modelbook/stock/${s.id}`, { method: 'DELETE', credentials: 'include' })
+    if (selectedId === s.id) setSelectedId(null)
+    mutateStocks()
+    mutateYears()
+  }
+
   // Keyboard nav: ↑/↓ moves through the stock list, ←/→ switches years.
   // A ref holds the latest list/selection/years so the listener is bound once.
   const navRef = useRef({ list: [], id: null, years: [], year: null })
@@ -1480,6 +1496,7 @@ export default function ModelBook() {
                 data-stock-id={s.id}
                 className={`${styles.stockCard} ${activeId === s.id ? styles.stockCardActive : ''}`}
                 onClick={() => setSelectedId(s.id)}
+                onContextMenu={(e) => onStockContext(e, s)}
               >
                 <div className={styles.stockCardTop}>
                   <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} round /></span>
@@ -1511,6 +1528,38 @@ export default function ModelBook() {
           <StockDetail stockId={activeId} isAdmin={isAdmin} catNavRef={catNavRef} />
         </div>
       </div>
+
+      {/* Admin: right-click-a-card context menu (delete from the book). */}
+      {stockCtx && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+            onClick={() => setStockCtx(null)}
+            onContextMenu={(e) => { e.preventDefault(); setStockCtx(null) }}
+          />
+          <div
+            style={{
+              position: 'fixed', top: stockCtx.y, left: stockCtx.x, zIndex: 1000,
+              background: '#1a1a1e', border: '1px solid #333', borderRadius: 6,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.5)', padding: 4, minWidth: 190,
+              font: '13px "Instrument Sans", system-ui, sans-serif',
+            }}
+          >
+            <button
+              onClick={() => deleteStockFromBook(stockCtx.stock)}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px',
+                background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer',
+                borderRadius: 4, fontSize: 13,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,107,107,0.12)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+            >
+              🗑 Delete {stockCtx.stock.symbol} from {year}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
