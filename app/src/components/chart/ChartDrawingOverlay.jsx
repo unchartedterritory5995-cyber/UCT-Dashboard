@@ -199,7 +199,7 @@ function renderText(ctx, pts, drawing, opacity = 1) {
 
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
 // % = open of the 1st clicked candle → high of the 2nd; drawn white above that high.
-function renderAdvance(ctx, pts, drawing, toPixelY) {
+function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
@@ -208,7 +208,7 @@ function renderAdvance(ctx, pts, drawing, toPixelY) {
   // Advance → label ABOVE the final point; decline → label BELOW it (so a market
   // drop reads "-24%" tucked under the trough, not floating over the line).
   const isDecline = drawing.advPct < 0
-  const y = isDecline ? baseY + 16 : baseY - 16
+  const y = isDecline ? baseY + offset : baseY - offset
   ctx.save()
   ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
   ctx.textAlign = 'center'
@@ -919,7 +919,7 @@ export default function ChartDrawingOverlay({
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
-        case 'advance': renderAdvance(ctx, pts, d, toPixelY); break
+        case 'advance': renderAdvance(ctx, pts, d, toPixelY, lineData ? 9 : 16); break
       }
 
       if (d.id === selectedId) renderSelectionHandles(ctx, pts)
@@ -964,7 +964,7 @@ export default function ChartDrawingOverlay({
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
               if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY)
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9)
               }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
