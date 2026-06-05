@@ -3923,6 +3923,46 @@ export default function OptionsFlowDashboard() {
                     <div style={{ width:3, background:`linear-gradient(180deg, ${P.bu}, ${P.ac}, ${P.bu})`, borderRadius:2, alignSelf:"stretch", flexShrink:0, opacity:0.3 }} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:11, fontWeight:700, color:P.dm, letterSpacing:1.5, textTransform:"uppercase", marginBottom:6 }}>Flow Intelligence</div>
+                      {/* Concentration indicator + exclusion toggle — moved above the */}
+                      {/* two-column split so they sit visually above the big Bull Flow %. */}
+                      <div style={{ fontSize:11, color:P.mt, lineHeight:1.8 }}>
+                        <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>CONCENTRATION: </span>
+                        <span>Top 3 bull = </span>
+                        <span style={{ fontWeight:800, color:top3BullPct>=50?P.ac:P.wh }}>{top3BullPct}%</span>
+                        <span style={{ color:P.dm }}> of bull flow</span>
+                        <span> · Top 3 bear = </span>
+                        <span style={{ fontWeight:800, color:top3BearPct>=50?P.ac:P.wh }}>{top3BearPct}%</span>
+                        <span style={{ color:P.dm }}> of bear flow</span>
+                        {concentrationWarn && (
+                          <span style={{ fontWeight:700, color:P.ac, marginLeft:8, padding:"1px 6px", borderRadius:3, background:P.ac+"22", fontSize:9, letterSpacing:0.5 }}>
+                            ⚠ NARROW
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, marginBottom:8 }}>
+                        <span style={{ fontSize:10, color:P.dm, fontWeight:700, letterSpacing:0.5 }}>RECALC EXCL:</span>
+                        {[
+                          { val:0, lbl:"None" },
+                          { val:1, lbl:"Top 1" },
+                          { val:3, lbl:"Top 3" },
+                        ].map(opt => {
+                          const active = flowExcludeTop===opt.val;
+                          return (
+                            <button key={opt.val} onClick={()=>setFlowExcludeTop(opt.val)}
+                              style={{ padding:"2px 8px", borderRadius:3, border:"1px solid "+(active?P.ac:P.bd),
+                                background:active?P.ac+"22":"transparent",
+                                color:active?P.ac:P.mt, fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                cursor:"pointer", letterSpacing:0.3 }}>
+                              {opt.lbl}
+                            </button>
+                          );
+                        })}
+                        {excludedSyms.size > 0 && (
+                          <span style={{ fontSize:9, color:P.ac, marginLeft:4 }}>
+                            ({excludedSyms.size} ticker{excludedSyms.size>1?"s":""} excluded: {[...excludedSyms].join(", ")})
+                          </span>
+                        )}
+                      </div>
                       <div style={{ display:"flex", gap:16 }}>
                         <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, color:P.wh, lineHeight:1.8 }}>
@@ -3986,47 +4026,6 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </div>
                       )}
-                      {/* Concentration indicator — shows how much of bull/bear flow is */}
-                      {/* carried by the top 3 names. >50% = narrow / single-bet skewed. */}
-                      <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
-                        <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>CONCENTRATION: </span>
-                        <span>Top 3 bull = </span>
-                        <span style={{ fontWeight:800, color:top3BullPct>=50?P.ac:P.wh }}>{top3BullPct}%</span>
-                        <span style={{ color:P.dm }}> of bull flow</span>
-                        <span> · Top 3 bear = </span>
-                        <span style={{ fontWeight:800, color:top3BearPct>=50?P.ac:P.wh }}>{top3BearPct}%</span>
-                        <span style={{ color:P.dm }}> of bear flow</span>
-                        {concentrationWarn && (
-                          <span style={{ fontWeight:700, color:P.ac, marginLeft:8, padding:"1px 6px", borderRadius:3, background:P.ac+"22", fontSize:9, letterSpacing:0.5 }}>
-                            ⚠ NARROW
-                          </span>
-                        )}
-                      </div>
-                      {/* Exclusion toggle — recalc bull% with top-N tickers removed */}
-                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6 }}>
-                        <span style={{ fontSize:10, color:P.dm, fontWeight:700, letterSpacing:0.5 }}>RECALC EXCL:</span>
-                        {[
-                          { val:0, lbl:"None" },
-                          { val:1, lbl:"Top 1" },
-                          { val:3, lbl:"Top 3" },
-                        ].map(opt => {
-                          const active = flowExcludeTop===opt.val;
-                          return (
-                            <button key={opt.val} onClick={()=>setFlowExcludeTop(opt.val)}
-                              style={{ padding:"2px 8px", borderRadius:3, border:"1px solid "+(active?P.ac:P.bd),
-                                background:active?P.ac+"22":"transparent",
-                                color:active?P.ac:P.mt, fontSize:9, fontWeight:700, fontFamily:"inherit",
-                                cursor:"pointer", letterSpacing:0.3 }}>
-                              {opt.lbl}
-                            </button>
-                          );
-                        })}
-                        {excludedSyms.size > 0 && (
-                          <span style={{ fontSize:9, color:P.ac, marginLeft:4 }}>
-                            ({excludedSyms.size} ticker{excludedSyms.size>1?"s":""} excluded: {[...excludedSyms].join(", ")})
-                          </span>
-                        )}
-                      </div>
                         </div>
                         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, width:"18%" }}>
                           <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
