@@ -230,12 +230,6 @@ const COLS = [
   { key: 'atr_ext_7', label: '>7×ATR', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '',
     drillKey: 'atr_ext_7_list' },
-  { key: 'atr_ext_10', label: '>10×ATR', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 30 ? 'g3' : v > 18 ? 'g2' : v > 8 ? 'g1' : '',
-    drillKey: 'atr_ext_10_list' },
-  { key: 'atr_ext_12', label: '>12×ATR', group: G.HIGHS,
-    colorFn: v => v == null ? '' : v > 20 ? 'g3' : v > 12 ? 'g2' : v > 5 ? 'g1' : '',
-    drillKey: 'atr_ext_12_list' },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
@@ -817,12 +811,6 @@ export const HM_METRICS = [
   { key: 'atr_ext_7',  label: '>7× ATR Ext',  group: 'Highs/Lows', drillKey: 'atr_ext_7_list',
     getTier: r => { const v = r.atr_ext_7;  return v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '' },
     getFmt:  r => r.atr_ext_7  ?? '—' },
-  { key: 'atr_ext_10', label: '>10× ATR Ext', group: 'Highs/Lows', drillKey: 'atr_ext_10_list',
-    getTier: r => { const v = r.atr_ext_10; return v == null ? '' : v > 30 ? 'g3' : v > 18 ? 'g2' : v > 8 ? 'g1' : '' },
-    getFmt:  r => r.atr_ext_10 ?? '—' },
-  { key: 'atr_ext_12', label: '>12× ATR Ext', group: 'Highs/Lows', drillKey: 'atr_ext_12_list',
-    getTier: r => { const v = r.atr_ext_12; return v == null ? '' : v > 20 ? 'g3' : v > 12 ? 'g2' : v > 5 ? 'g1' : '' },
-    getFmt:  r => r.atr_ext_12 ?? '—' },
 
   { key: '__h_sentiment', label: 'SENTIMENT',       isHeader: true, group: 'Sentiment' },
   { key: 'cnn_fear_greed', label: 'CNN F/G',        group: 'Sentiment',
@@ -847,7 +835,7 @@ export const PCTILE_KEYS = new Set([
   'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
   'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
   'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath', 'hvc_52w',
-  'atr_ext_7', 'atr_ext_10', 'atr_ext_12',
+  'atr_ext_7',
   'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
 ])
 
@@ -911,8 +899,6 @@ export const TREEMAP_DEF = [
       { metricKey: 'new_20d_highs',     weight: 7 },
       { metricKey: 'new_20d_lows',      weight: 7 },
       { metricKey: 'atr_ext_7',         weight: 6 },
-      { metricKey: 'atr_ext_10',        weight: 6 },
-      { metricKey: 'atr_ext_12',        weight: 5 },
     ],
   },
 ]

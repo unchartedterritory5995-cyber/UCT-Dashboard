@@ -7,11 +7,9 @@ import { HM_METRICS, PCTILE_KEYS } from '../Breadth'
 describe('ATR extension breadth metric wiring', () => {
   const byKey = Object.fromEntries(HM_METRICS.filter(m => !m.isHeader).map(m => [m.key, m]))
 
-  it('registers all three bands in the Highs/Lows group with drill-down', () => {
+  it('registers the single 7× band in the Highs/Lows group with drill-down', () => {
     for (const [key, list] of [
       ['atr_ext_7', 'atr_ext_7_list'],
-      ['atr_ext_10', 'atr_ext_10_list'],
-      ['atr_ext_12', 'atr_ext_12_list'],
     ]) {
       expect(byKey[key], `${key} missing from HM_METRICS`).toBeTruthy()
       expect(byKey[key].group).toBe('Highs/Lows')
@@ -21,13 +19,20 @@ describe('ATR extension breadth metric wiring', () => {
     }
   })
 
+  it('no longer registers the retired 10× / 12× bands', () => {
+    expect(byKey.atr_ext_10).toBeUndefined()
+    expect(byKey.atr_ext_12).toBeUndefined()
+    expect(PCTILE_KEYS.has('atr_ext_10')).toBe(false)
+    expect(PCTILE_KEYS.has('atr_ext_12')).toBe(false)
+  })
+
   it('grades the count graduated-green and shows — when absent', () => {
-    expect(byKey.atr_ext_10.getFmt({})).toBe('—')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: null })).toBe('')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 5 })).toBe('')     // below g1
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 12 })).toBe('g1')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 20 })).toBe('g2')
-    expect(byKey.atr_ext_10.getTier({ atr_ext_10: 40 })).toBe('g3')
-    expect(byKey.atr_ext_10.getFmt({ atr_ext_10: 9 })).toBe(9)
+    expect(byKey.atr_ext_7.getFmt({})).toBe('—')
+    expect(byKey.atr_ext_7.getTier({ atr_ext_7: null })).toBe('')
+    expect(byKey.atr_ext_7.getTier({ atr_ext_7: 10 })).toBe('')     // below g1
+    expect(byKey.atr_ext_7.getTier({ atr_ext_7: 20 })).toBe('g1')
+    expect(byKey.atr_ext_7.getTier({ atr_ext_7: 40 })).toBe('g2')
+    expect(byKey.atr_ext_7.getTier({ atr_ext_7: 60 })).toBe('g3')
+    expect(byKey.atr_ext_7.getFmt({ atr_ext_7: 9 })).toBe(9)
   })
 })
