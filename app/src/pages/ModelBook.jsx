@@ -827,6 +827,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             watermarkY={0.2}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
+            setupMoveDates={onSetupsTab ? setupTimes : null}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
