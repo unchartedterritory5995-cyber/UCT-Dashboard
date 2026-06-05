@@ -32,20 +32,20 @@ export default function SetupMoveOverlay({
     return best
   }, [bars])
 
-  // For each consecutive pair of setups, the % move from the prior setup's close
-  // (its trigger candle) up to where THIS setup's lines start (its `anchor`), and
-  // the label is placed there too — so it reads "the stock ran +X% before this
-  // base began".
+  // For each consecutive pair of setups, the % move from the OPEN of the prior
+  // setup's trigger candle up to the HIGH of the candle where THIS setup's lines
+  // start (its `anchor`); the label is placed there too — so it reads "the stock
+  // ran +X% off the last setup before this base began".
   const moves = useMemo(() => {
     const out = []
     const ss = setups || []
     for (let k = 1; k < ss.length; k++) {
-      const ai = barIndexForDate(ss[k - 1].date)            // prior setup's trigger ("from")
-      const bi = barIndexForDate(ss[k].anchor ?? ss[k].date) // this setup's line-start ("to" + placement)
+      const ai = barIndexForDate(ss[k - 1].date)            // prior setup's trigger ("from" = its open)
+      const bi = barIndexForDate(ss[k].anchor ?? ss[k].date) // this setup's line-start ("to" = its high, + placement)
       if (ai < 0 || bi < 0) continue
       const a = bars[ai], b = bars[bi]
-      if (!a || !b || !(a.c > 0)) continue
-      out.push({ time: ss[k].anchor ?? ss[k].date, idx: bi, high: b.h, pct: ((b.c - a.c) / a.c) * 100 })
+      if (!a || !b || !(a.o > 0)) continue
+      out.push({ time: ss[k].anchor ?? ss[k].date, idx: bi, high: b.h, pct: ((b.h - a.o) / a.o) * 100 })
     }
     return out
   }, [setups, bars, barIndexForDate])
