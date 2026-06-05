@@ -493,6 +493,8 @@ export default function StockChart({
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsOpacity = 1,       // extra opacity multiplier (Model Book setup→setup crossfade)
+  annotationsFadeWhole = false, // Model Book show-all OFF: fade the WHOLE setup layer with the zoom (not just text)
+  annotationsFocusedSetupId = null, // Model Book show-all ON: only this setup's text box renders
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
@@ -4634,6 +4636,8 @@ export default function StockChart({
             bars={bars}
             hidePriceLabels
             textFadeRef={annotationsEditable ? null : textFadeRef}
+            fadeWholeLayer={!annotationsEditable && annotationsFadeWhole}
+            focusedSetupId={annotationsFocusedSetupId}
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}

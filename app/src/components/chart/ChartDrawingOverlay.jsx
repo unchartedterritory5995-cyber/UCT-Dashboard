@@ -576,6 +576,8 @@ export default function ChartDrawingOverlay({
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
+  fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
+  focusedSetupId = null,     // Model Book "show all" ON: only this setup's TEXT box renders (others' lines still show)
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -791,11 +793,14 @@ export default function ChartDrawingOverlay({
     ctx.rect(0, 0, Math.max(0, w - axisW - 1), h)
     ctx.clip()
 
-    // Text annotation opacity is driven by the focus-zoom animation (Model Book):
-    // hidden on the zoomed-out view, eased in only during the last sliver of the
-    // zoom so it lands right as the chart settles on the setup. Other charts pass
-    // no ref → text is always fully visible.
-    const textOpacity = textFadeRef ? Math.max(0, Math.min(1, textFadeRef.current ?? 1)) : 1
+    // Focus-zoom fade (Model Book). `fadeVal` eases 0→1 over the last sliver of the
+    // zoom-in (and out on zoom-out). When `fadeWholeLayer` (show-all OFF) the WHOLE
+    // layer fades via globalAlpha; otherwise (show-all ON) only the text fades and
+    // the lines stay put. Other charts (no ref) are always fully visible.
+    const fadeVal = textFadeRef ? Math.max(0, Math.min(1, textFadeRef.current ?? 1)) : 1
+    const layerAlpha = fadeWholeLayer ? fadeVal : 1
+    const textOpacity = fadeWholeLayer ? 1 : fadeVal
+    ctx.globalAlpha = layerAlpha
 
     // Visible logical range — used to hide a setup's annotations when its anchor
     // bar is off-screen (e.g. the next setup to the right while zoomed in on this
@@ -885,7 +890,12 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text': renderText(ctx, pts, d, textOpacity); break
+        case 'text':
+          // Show-all ON: a setup's TEXT box only renders for the focused setup
+          // (its lines/labels still show). Stock/Charts-Hub text (no _setupId) always shows.
+          if (d._setupId != null && d._setupId !== focusedSetupId) break
+          renderText(ctx, pts, d, textOpacity)
+          break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
