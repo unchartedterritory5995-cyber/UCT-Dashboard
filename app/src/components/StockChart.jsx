@@ -1150,7 +1150,7 @@ export default function StockChart({
   // Index-pane annotation CRUD (GLOBAL ^IXIC measure marks) — mirrors annAdd/etc.
   // but bubbles through onIndexAnnotationsChange. Its own activeTool/selection so
   // it never fights the price-pane drawing state.
-  const [indexActiveTool, setIndexActiveTool] = useState('measure')
+  const [indexActiveTool, setIndexActiveTool] = useState('advance')
   const [indexSelectedId, setIndexSelectedId] = useState(null)
   const idxAnnAdd = useCallback((d) => {
     const id = crypto.randomUUID()
@@ -4844,8 +4844,8 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={indexPaneSeriesRef}
             bars={bars}
+            lineData={indexPaneSeries}
             hidePriceLabels
-            measurePctOnly
             activeTool={indexAnnotationsEditable ? indexActiveTool : null}
             setActiveTool={setIndexActiveTool}
             color={drawColor}
@@ -4877,7 +4877,9 @@ export default function StockChart({
               setRepeatMode={handleSetRepeatMode}
               chartSettings={cs}
               onUpdateSettings={handleUpdateChartSettings}
-              toolFilter={['cursor', 'measure']}
+              magnet={magnet}
+              setMagnet={setMagnet}
+              toolFilter={['cursor', 'advance']}
               prominent
               hideReplay
               hidePatterns

@@ -580,6 +580,7 @@ export default function ChartDrawingOverlay({
   repeatMode = true,
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
   measurePctOnly = false,    // Model Book index pane: measure label shows ONLY the % move (drop the $ amount + bar count)
+  lineData = null,           // Model Book index pane: [{time, value}] of the underlying LINE series. When set the overlay is in "line mode" — magnet snaps to the line, and the advance % is computed from the line values (not candle O/H) since the pane has no candles.
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
@@ -686,11 +687,24 @@ export default function ChartDrawingOverlay({
     return { time, price }
   }, [chartRef, seriesRef, bars])
 
+  // Line mode (index pane): time → line value, for magnet-snap-to-line + advance %.
+  const timeToLineValue = useMemo(() => {
+    const m = new Map()
+    if (lineData) for (const p of lineData) if (p && p.value != null) m.set(p.time, p.value)
+    return m
+  }, [lineData])
+
   // ── Magnet: snap a point's price to the nearest O/H/L/C of the bar under it ──
   // (TradingView-style). When on, drawing near a candle locks to that exact
   // open/high/low/close. Time is already snapped to the bar by toChart.
+  // In line mode (index pane has no candles), magnet snaps to the line value at
+  // that time instead — so a click locks exactly onto the Nasdaq line.
   const snap = useCallback((coords) => {
     if (!magnet || !coords || coords.price == null || coords.time == null) return coords
+    if (lineData) {
+      const lv = timeToLineValue.get(coords.time)
+      return lv == null ? coords : { ...coords, price: lv }
+    }
     const idx = timeToIndex.get(coords.time)
     const b = idx != null ? bars[idx] : null
     if (!b) return coords
@@ -701,7 +715,7 @@ export default function ChartDrawingOverlay({
       if (d < bestDist) { bestDist = d; best = v }
     }
     return best == null ? coords : { ...coords, price: best }
-  }, [magnet, timeToIndex, bars])
+  }, [magnet, timeToIndex, bars, lineData, timeToLineValue])
 
   // ── Canvas setup & resize ──
   useEffect(() => {
@@ -943,10 +957,17 @@ export default function ChartDrawingOverlay({
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
           case 'advance': {
             renderTrendline(ctx, previewPts)   // faint connector so the span is visible while placing
-            const ai = timeToIndex.get(pendingPoints[0].time)
-            const bi = timeToIndex.get(mouseCoords.time)
-            if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
-              renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h }, toPixelY)
+            if (lineData) {
+              const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
+              if (a > 0 && b != null) {
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY)
+              }
+            } else {
+              const ai = timeToIndex.get(pendingPoints[0].time)
+              const bi = timeToIndex.get(mouseCoords.time)
+              if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
+                renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h }, toPixelY)
+              }
             }
             break
           }
@@ -1084,13 +1105,23 @@ export default function ChartDrawingOverlay({
         }
         // Advance label: % from the OPEN of the FIRST clicked candle to the HIGH
         // of the SECOND — same basis as the auto setup-advance labels. Stored at
-        // creation so it survives reload without needing a bar lookup.
+        // creation so it survives reload without needing a bar lookup. In line
+        // mode (index pane) there are no candles, so use the LINE values at the
+        // two clicked points (1st → 2nd) — gives the % advance/decline of the move.
         if (activeTool === 'advance' && newPending.length >= 2) {
-          const ai = timeToIndex.get(newPending[0].time)
-          const bi = timeToIndex.get(newPending[1].time)
-          if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
-            drawingData.advPct = ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100
-            drawingData.advHigh = bars[bi].h
+          if (lineData) {
+            const a = newPending[0].price, b = newPending[1].price
+            if (a > 0 && b != null) {
+              drawingData.advPct = ((b - a) / a) * 100
+              drawingData.advHigh = b
+            }
+          } else {
+            const ai = timeToIndex.get(newPending[0].time)
+            const bi = timeToIndex.get(newPending[1].time)
+            if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
+              drawingData.advPct = ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100
+              drawingData.advHigh = bars[bi].h
+            }
           }
         }
         addDrawing(drawingData)
@@ -1100,7 +1131,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, drawings, hitTestAll, hitTestHandle, repeatMode])
+  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode])
 
   const handleMouseMove = useCallback((e) => {
     const pos = getCanvasPos(e)
