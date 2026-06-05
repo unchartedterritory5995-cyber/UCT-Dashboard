@@ -13,7 +13,7 @@ const toMs = (v) => {
 
 export default function SetupMoveOverlay({
   chartRef, seriesRef, bars, setups,
-  color = '#ffffff',
+  color = 'rgba(255,255,255,0.82)',
 }) {
   const canvasRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -66,7 +66,7 @@ export default function SetupMoveOverlay({
     let from = -Infinity, to = Infinity
     try { const r = ts.getVisibleLogicalRange(); if (r) { from = r.from; to = r.to } } catch { /* unbounded */ }
 
-    ctx.font = '700 12px "Instrument Sans", system-ui, sans-serif'
+    ctx.font = '500 11px "Instrument Sans", system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
     for (const mv of moves) {
@@ -79,8 +79,8 @@ export default function SetupMoveOverlay({
       if (x == null || y == null) continue
       const text = `${mv.pct >= 0 ? '+' : ''}${Math.round(mv.pct)}%`
       ctx.fillStyle = color
-      ctx.shadowColor = 'rgba(0,0,0,0.85)'
-      ctx.shadowBlur = 4
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'
+      ctx.shadowBlur = 2
       ctx.fillText(text, x, y - 10)   // just above the candle's high where the lines start
       ctx.shadowBlur = 0
     }

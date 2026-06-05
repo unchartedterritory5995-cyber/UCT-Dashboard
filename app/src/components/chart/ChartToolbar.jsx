@@ -36,6 +36,7 @@ const ICONS = {
   avwap:      I(<><path d="M3 12 C5 6, 8 4, 13 5" fill="none" /><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none" /><text x="9" y="13" fontSize="6" fill="currentColor" stroke="none" fontFamily="monospace">V</text></>),
   text:       I(<text x="4" y="12.5" fontSize="11" fontWeight="700" fill="currentColor" stroke="none" fontFamily="monospace">T</text>),
   measure:    I(<><rect x="2" y="4" width="12" height="8" strokeDasharray="2 1" /><line x1="4" y1="8" x2="12" y2="8" /><line x1="4" y1="6" x2="4" y2="10" /><line x1="12" y1="6" x2="12" y2="10" /></>),
+  advance:    I(<><line x1="2" y1="13" x2="9" y2="6" /><polyline points="6,6 9,6 9,9" fill="none" /><text x="8.5" y="14" fontSize="6" fontWeight="700" fill="currentColor" stroke="none" fontFamily="monospace">%</text></>),
   position:   I(<><line x1="1" y1="5" x2="15" y2="5" strokeDasharray="none" /><line x1="1" y1="8" x2="15" y2="8" strokeDasharray="2 1" /><line x1="1" y1="11" x2="15" y2="11" strokeDasharray="none" /><text x="12" y="7" fontSize="4" fill="currentColor" stroke="none">T</text><text x="12" y="12" fontSize="4" fill="currentColor" stroke="none">S</text></>),
   delete:     I(<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>),
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
@@ -65,6 +66,7 @@ const TOOLS = [
   'sep',
   { id: 'text',       label: 'Text Note (X)' },
   { id: 'measure',    label: 'Measure (M)' },
+  { id: 'advance',    label: 'Advance % Label — click the setup candle, then the candle where the move tops' },
   'sep',
   { id: 'position',   label: 'Position Tool (P)' },
 ]

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
   rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, fibext: 2, channel: 3, measure: 2, avwap: 1,
-  pitchfork: 3,
+  pitchfork: 3, advance: 2,
 }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -195,6 +195,26 @@ function renderText(ctx, pts, drawing, opacity = 1) {
     ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.3)
   })
   ctx.globalAlpha = prevAlpha
+}
+
+// User-placed "+X%" advance label (manual version of the auto setup-advance label).
+// % = open of the 1st clicked candle → high of the 2nd; drawn white above that high.
+function renderAdvance(ctx, pts, drawing, toPixelY) {
+  if (!pts.length || drawing.advPct == null) return
+  const p = pts[pts.length - 1]   // the "to" candle
+  if (p.x == null) return
+  const hiY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
+  const y = (hiY != null ? hiY : p.y) - 10
+  ctx.save()
+  ctx.font = '500 11px "Instrument Sans", system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  ctx.fillStyle = 'rgba(255,255,255,0.82)'
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'
+  ctx.shadowBlur = 2
+  ctx.fillText(`${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`, p.x, y)
+  ctx.shadowBlur = 0
+  ctx.restore()
 }
 
 function renderFib(ctx, pts, w, toPixel) {
@@ -510,6 +530,12 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       const textW = (d.text?.length || 1) * 8
       const textH = (d.text?.split('\n').length || 1) * 16
       return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - textH && my <= pts[0].y + 8
+    }
+    case 'advance': {
+      // Label sits above the 2nd point's candle; box a vertical strip above it.
+      const p = pts[pts.length - 1]
+      if (!p || p.x == null || p.y == null) return false
+      return mx >= p.x - 26 && mx <= p.x + 26 && my >= p.y - 70 && my <= p.y + 10
     }
     case 'fib':
     case 'fibext':
@@ -834,6 +860,7 @@ export default function ChartDrawingOverlay({
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d); break
+        case 'advance': renderAdvance(ctx, pts, d, toPixelY); break
       }
 
       if (d.id === selectedId) renderSelectionHandles(ctx, pts)
@@ -873,6 +900,15 @@ export default function ChartDrawingOverlay({
             break
           }
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
+          case 'advance': {
+            renderTrendline(ctx, previewPts)   // faint connector so the span is visible while placing
+            const ai = timeToIndex.get(pendingPoints[0].time)
+            const bi = timeToIndex.get(mouseCoords.time)
+            if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
+              renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h }, toPixelY)
+            }
+            break
+          }
         }
         ctx.restore()
       }
@@ -1003,6 +1039,17 @@ export default function ChartDrawingOverlay({
           const idx0 = timeToIndex.get(newPending[0].time) || 0
           const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
           drawingData.barCount = Math.abs(idx1 - idx0)
+        }
+        // Advance label: % from the OPEN of the FIRST clicked candle to the HIGH
+        // of the SECOND — same basis as the auto setup-advance labels. Stored at
+        // creation so it survives reload without needing a bar lookup.
+        if (activeTool === 'advance' && newPending.length >= 2) {
+          const ai = timeToIndex.get(newPending[0].time)
+          const bi = timeToIndex.get(newPending[1].time)
+          if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
+            drawingData.advPct = ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100
+            drawingData.advHigh = bars[bi].h
+          }
         }
         addDrawing(drawingData)
         setPendingPoints([])
