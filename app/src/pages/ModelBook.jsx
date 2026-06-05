@@ -911,7 +911,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             volumeMa={50}
             indexPaneSymbol="^IXIC"
             indexPaneLabel="IXIC (Nasdaq Composite)"
-            indexPaneHeightPct={18}
+            indexPaneHeightPct={15}
             indexAnnotations={indexAnnotations}
             indexAnnotationsEditable={annotatingIndex}
             onIndexAnnotationsChange={setAnnotationDraft}
