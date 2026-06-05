@@ -1352,6 +1352,23 @@ export default function ModelBook() {
     setSelectedId(null)
   }
 
+  // Horizontal-scroll the year strip (arrows) + keep the active year in view when
+  // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.
+  const yearStripRef = useRef(null)
+  function scrollYears(dir) {
+    const el = yearStripRef.current
+    if (el) el.scrollBy({ left: dir * Math.max(220, el.clientWidth * 0.8), behavior: 'smooth' })
+  }
+  useEffect(() => {
+    const el = yearStripRef.current
+    if (!el || year == null) return
+    const btn = el.querySelector(`[data-year="${year}"]`)
+    if (!btn) return
+    const bl = btn.offsetLeft, br = bl + btn.offsetWidth
+    if (bl < el.scrollLeft) el.scrollTo({ left: Math.max(0, bl - 8), behavior: 'smooth' })
+    else if (br > el.scrollLeft + el.clientWidth) el.scrollTo({ left: br - el.clientWidth + 8, behavior: 'smooth' })
+  }, [year])
+
   function onStockAdded() {
     mutateYears()
     mutateStocks()
@@ -1459,16 +1476,20 @@ export default function ModelBook() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>MODEL BOOK</h1>
-        <div className={styles.yearTabs}>
-          {years.map(y => (
-            <button key={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
-              onClick={() => selectYear(y)}>{y}</button>
-          ))}
-          {years.length === 0 && (
-            <span className={styles.emptyYears}>
-              No years curated yet.{isAdmin ? ' Use “+ Add Stock” to start.' : ''}
-            </span>
-          )}
+        <div className={styles.yearNav}>
+          <button className={styles.yearArrow} onClick={() => scrollYears(-1)} aria-label="Scroll years left" title="Older / newer years">‹</button>
+          <div className={styles.yearTabs} ref={yearStripRef}>
+            {years.map(y => (
+              <button key={y} data-year={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
+                onClick={() => selectYear(y)}>{y}</button>
+            ))}
+            {years.length === 0 && (
+              <span className={styles.emptyYears}>
+                No years curated yet.{isAdmin ? ' Use “+ Add Stock” to start.' : ''}
+              </span>
+            )}
+          </div>
+          <button className={styles.yearArrow} onClick={() => scrollYears(1)} aria-label="Scroll years right" title="Older / newer years">›</button>
         </div>
         <span className={styles.count}>Top stocks in history</span>
         {isAdmin && <AddStockForm year={year ?? new Date().getFullYear()} onAdded={onStockAdded} />}
