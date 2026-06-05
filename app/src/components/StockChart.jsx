@@ -3632,17 +3632,22 @@ export default function StockChart({
 
       // 50-period SMA line on the index pane. Shares the index line's pane +
       // 'right' price scale (so it tracks log/pct mode and aligns with the
-      // index). lineWidth 1 matches the volume-pane MA; color matches the price
-      // chart's 50 SMA. autoscaleInfoProvider null = the index line drives the
-      // pane's scale, the MA just rides inside it.
+      // index). Color AND line width/type match the price chart's 50 SMA
+      // exactly (same hairline in Model Book's boldCandles mode) so the two
+      // blues render as the identical shade — a thicker line dodges the
+      // anti-aliasing dimming the hairline gets and would look brighter.
+      // autoscaleInfoProvider null = the index line drives the pane's scale,
+      // the MA just rides inside it.
+      const _idxMaWidth = boldCandles ? 0.5 : 1
+      const _idxMaLineType = boldCandles ? LineType.Curved : LineType.Simple
       if (indexPaneMaSeries.length) {
         if (!indexMaSeriesRef.current) {
           try {
             const idxPaneIndex = indexPaneSeriesRef.current.getPane().paneIndex()
             indexMaSeriesRef.current = chart.addSeries(LineSeries, {
               color: indexMaColor,
-              lineWidth: 1,
-              lineType: LineType.Curved,
+              lineWidth: _idxMaWidth,
+              lineType: _idxMaLineType,
               priceScaleId: 'right',
               priceLineVisible: false,
               lastValueVisible: false,
@@ -3652,7 +3657,7 @@ export default function StockChart({
           } catch { /* pane API unavailable — index MA optional */ }
         }
         if (indexMaSeriesRef.current) {
-          try { indexMaSeriesRef.current.applyOptions({ color: indexMaColor }) } catch {}
+          try { indexMaSeriesRef.current.applyOptions({ color: indexMaColor, lineWidth: _idxMaWidth, lineType: _idxMaLineType }) } catch {}
           try { indexMaSeriesRef.current.setData(indexPaneMaSeries) } catch {}
         }
       } else if (indexMaSeriesRef.current) {
