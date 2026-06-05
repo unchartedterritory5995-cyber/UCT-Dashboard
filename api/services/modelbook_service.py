@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS modelbook_catalysts (
   created_at    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mb_catalysts_stock ON modelbook_catalysts(stock_id, catalyst_date);
+
+CREATE TABLE IF NOT EXISTS modelbook_index_drawings (
+  symbol        TEXT PRIMARY KEY,   -- index pane symbol, e.g. '^IXIC' (GLOBAL: one shared set, shown on every stock)
+  drawings_json TEXT,               -- JSON array of chart annotations (measure marks for Nasdaq corrections)
+  updated_at    INTEGER
+);
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
@@ -507,6 +513,42 @@ def replace_catalysts(stock_id: int, items: list[dict]) -> Optional[list[dict]]:
             (int(stock_id),),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# ── Index-pane annotations (GLOBAL — shared across every stock) ────────────────
+# The ^IXIC reference line in the top pane is the same on every chart (just
+# clipped to each stock's date window), so its annotations (measure marks for
+# Nasdaq corrections) live in ONE shared row keyed by index symbol — drawn once
+# by an admin, shown read-only to all users on every stock.
+
+def get_index_drawings(symbol: str) -> str:
+    """Return the stored drawings_json for an index symbol, or '[]' if none."""
+    sym = (symbol or "").upper()
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT drawings_json FROM modelbook_index_drawings WHERE symbol = ?",
+            (sym,),
+        ).fetchone()
+    if row and row["drawings_json"]:
+        return row["drawings_json"]
+    return "[]"
+
+
+def set_index_drawings(symbol: str, drawings_json: str) -> str:
+    """Upsert the shared drawings_json for an index symbol. Returns the stored value."""
+    sym = (symbol or "").upper()
+    val = drawings_json if drawings_json else "[]"
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO modelbook_index_drawings (symbol, drawings_json, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(symbol) DO UPDATE SET
+                 drawings_json = excluded.drawings_json,
+                 updated_at    = excluded.updated_at""",
+            (sym, val, int(time.time())),
+        )
+        c.commit()
+    return val
 
 
 # ── One-time bootstrap seed ───────────────────────────────────────────────────

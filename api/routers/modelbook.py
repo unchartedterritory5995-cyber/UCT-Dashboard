@@ -91,6 +91,10 @@ class SetupPatch(BaseModel):
     drawings_json: Optional[str] = None   # JSON array of chart annotations
 
 
+class IndexDrawingsPatch(BaseModel):
+    drawings_json: str   # JSON array of chart annotations for the index pane (measure marks)
+
+
 class CatalystIn(BaseModel):
     catalyst_date: str
     title: str
@@ -283,6 +287,13 @@ def year_earnings(symbol: str = Query(...), year: int = Query(...),
     from api.services import earnings_estimates
     rows = earnings_estimates.get_year_earnings(symbol, year)
     return {"symbol": symbol.upper(), "year": year, "rows": rows}
+
+
+@router.get("/index-drawings")
+def get_index_drawings(symbol: str = Query("^IXIC"), _user: dict = Depends(get_current_user)):
+    """GLOBAL annotations for the index reference pane (^IXIC) — one shared set
+    shown read-only on every stock's chart. Any logged-in user can read."""
+    return {"symbol": symbol.upper(), "drawings_json": svc.get_index_drawings(symbol)}
 
 
 # ── AI-generated descriptions (company one-liner + "why it ran that year") ────
@@ -674,6 +685,22 @@ def edit_stock(stock_id: int, payload: StockPatch, _admin: dict = Depends(requir
     if not stock:
         raise HTTPException(404, "Stock not found")
     return stock
+
+
+@router.put("/index-drawings")
+def edit_index_drawings(payload: IndexDrawingsPatch, symbol: str = Query("^IXIC"),
+                        _admin: dict = Depends(require_admin)):
+    """Admin: replace the GLOBAL index-pane annotations for a symbol. Validates
+    that the body parses as a JSON array before storing."""
+    import json
+    try:
+        parsed = json.loads(payload.drawings_json)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "drawings_json must be valid JSON")
+    if not isinstance(parsed, list):
+        raise HTTPException(400, "drawings_json must be a JSON array")
+    stored = svc.set_index_drawings(symbol, payload.drawings_json)
+    return {"symbol": symbol.upper(), "drawings_json": stored}
 
 
 @router.delete("/stock/{stock_id}")

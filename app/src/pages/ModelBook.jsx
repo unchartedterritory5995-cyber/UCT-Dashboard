@@ -436,6 +436,12 @@ function AddCatalystForm({ stockId, year, onAdded }) {
 
 // ── Stock detail: chart with setups labeled + the setup list ──────────────────
 function StockDetail({ stockId, isAdmin, catNavRef }) {
+  // GLOBAL ^IXIC index-pane annotations (measure marks for Nasdaq corrections) —
+  // one shared set drawn once by an admin, shown read-only on every stock.
+  const { data: indexDrawingsData, mutate: mutateIndexDrawings } = useSWR(
+    '/api/modelbook/index-drawings?symbol=%5EIXIC', fetcher, { revalidateOnFocus: false },
+  )
+  const indexDrawings = useMemo(() => parseDrawings(indexDrawingsData?.drawings_json), [indexDrawingsData])
   const { data: stock, mutate } = useSWR(
     stockId ? `/api/modelbook/stock/${stockId}` : null, fetcher,
     {
@@ -624,9 +630,17 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   // setup candle stands out alongside its annotations. Stable ref for StockChart.
   const setupTimes = useMemo(() => setups.map(s => s.label_date).filter(Boolean), [setups])
 
+  // While annotating the index (Nasdaq) pane, the draft belongs to THAT pane —
+  // the price-pane layers keep their normal read-only display.
+  const annotatingIndex = annotateMode && annotateTarget === 'index'
+  const annotatingPrice = annotateMode && !annotatingIndex
+  // Index-pane annotations: the editable draft while annotating the index, else
+  // the saved global set (read-only, shown to everyone).
+  const indexAnnotations = annotatingIndex ? annotationDraft : indexDrawings
+
   // Precedence: admin authoring > show-all overlay > single-setup focus.
   let annotations, annotationsVisible
-  if (annotateMode) {
+  if (annotatingPrice) {
     annotations = annotationDraft
     annotationsVisible = true
   } else if (showAllAnnotations) {
@@ -672,7 +686,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
   const chartAnnotations = onSetupsTab ? annotations : null
   const chartAnnotationsVisible = onSetupsTab ? annotationsVisible : false
-  const chartAnnotateMode = onSetupsTab ? annotateMode : false
+  const chartAnnotateMode = onSetupsTab ? annotatingPrice : false
   const chartHighlight = onCatalystTab
     ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
     : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
@@ -750,7 +764,11 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
 
   function startAnnotate(target = 'setup') {
     setAnnotateTarget(target)
-    setAnnotationDraft(target === 'stock' ? stockDrawings : savedDrawings)
+    setAnnotationDraft(
+      target === 'index' ? indexDrawings
+        : target === 'stock' ? stockDrawings
+        : savedDrawings,
+    )
     setAnnotateMode(true)
   }
   function cancelAnnotate() {
@@ -758,6 +776,24 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     setAnnotationDraft([])
   }
   async function saveAnnotations() {
+    // Index (Nasdaq) pane annotations are GLOBAL — saved to the shared store, not
+    // the stock or setup. Optimistically update the index-drawings SWR cache.
+    if (annotateTarget === 'index') {
+      const json = JSON.stringify(annotationDraft)
+      mutateIndexDrawings({ drawings_json: json }, { revalidate: false })
+      setAnnotateMode(false)
+      setAnnotationDraft([])
+      try {
+        await fetch('/api/modelbook/index-drawings?symbol=%5EIXIC', {
+          method: 'PUT', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ drawings_json: json }),
+        })
+      } finally {
+        mutateIndexDrawings()
+      }
+      return
+    }
     // Route to the stock (full-year) or the focused setup based on the target.
     const isStock = annotateTarget === 'stock'
     const url = isStock
@@ -834,6 +870,10 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
           {isAdmin && onSetupsTab && !focusDate && !annotateMode && (
             <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the full-year chart (not tied to a setup)">✏️ Annotate Chart</button>
           )}
+          {/* Measure-mark the Nasdaq pane (GLOBAL — shown on every stock). */}
+          {isAdmin && !annotateMode && (
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('index')} title="Measure-mark Nasdaq corrections on the top pane (shared across every stock)">📐 Annotate Nasdaq</button>
+          )}
           {isAdmin && annotateMode && (
             <>
               <button className={styles.annotateSave} onClick={saveAnnotations}>Save</button>
@@ -869,6 +909,9 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             indexPaneSymbol="^IXIC"
             indexPaneLabel="IXIC (Nasdaq Composite)"
             indexPaneHeightPct={18}
+            indexAnnotations={indexAnnotations}
+            indexAnnotationsEditable={annotatingIndex}
+            onIndexAnnotationsChange={setAnnotationDraft}
             priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.12}
             watermarkOpacity={0.34}

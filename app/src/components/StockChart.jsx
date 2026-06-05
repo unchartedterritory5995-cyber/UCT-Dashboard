@@ -505,6 +505,9 @@ export default function StockChart({
   indexPaneColor = '#ffffff',   // line color for the index pane
   indexPaneHeightPct = 18,      // height of the index pane as % of chart
   indexPaneLabel = null,        // top-left label text for the index pane (defaults to the symbol sans caret)
+  indexAnnotations = null,      // Model Book: GLOBAL drawings (measure marks for Nasdaq corrections) on the index pane — read-only for all, editable for admin
+  indexAnnotationsEditable = false, // admin authoring: enable the measure toolbar on the index pane
+  onIndexAnnotationsChange = null,  // (drawings[]) => void — called when admin adds/edits/removes an index-pane annotation
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -568,6 +571,15 @@ export default function StockChart({
   const overlayWrapStyle = (extra) => (
     overlayBounds
       ? { position: 'absolute', top: overlayBounds.top, left: 0, right: 0, height: overlayBounds.height, ...extra }
+      : { position: 'absolute', inset: 0, ...extra }
+  )
+  // Same idea for the INDEX pane (top): a drawing overlay there maps Y via the
+  // index series' priceToCoordinate (0 = top of the INDEX pane), so its wrapper
+  // is offset to the index pane's measured box. null until measured.
+  const [indexOverlayBounds, setIndexOverlayBounds] = useState(null) // {top, height} | null
+  const indexOverlayWrapStyle = (extra) => (
+    indexOverlayBounds
+      ? { position: 'absolute', top: indexOverlayBounds.top, left: 0, right: 0, height: indexOverlayBounds.height, ...extra }
       : { position: 'absolute', inset: 0, ...extra }
   )
 
@@ -1135,6 +1147,23 @@ export default function StockChart({
     onAnnotationsChange?.((annotations || []).filter(d => d.id !== id))
   }, [annotations, onAnnotationsChange])
   const annClear = useCallback(() => { onAnnotationsChange?.([]) }, [onAnnotationsChange])
+  // Index-pane annotation CRUD (GLOBAL ^IXIC measure marks) — mirrors annAdd/etc.
+  // but bubbles through onIndexAnnotationsChange. Its own activeTool/selection so
+  // it never fights the price-pane drawing state.
+  const [indexActiveTool, setIndexActiveTool] = useState('measure')
+  const [indexSelectedId, setIndexSelectedId] = useState(null)
+  const idxAnnAdd = useCallback((d) => {
+    const id = crypto.randomUUID()
+    onIndexAnnotationsChange?.([...(indexAnnotations || []), { ...d, id }])
+    return id
+  }, [indexAnnotations, onIndexAnnotationsChange])
+  const idxAnnUpdate = useCallback((id, updates) => {
+    onIndexAnnotationsChange?.((indexAnnotations || []).map(d => (d.id === id ? { ...d, ...updates } : d)))
+  }, [indexAnnotations, onIndexAnnotationsChange])
+  const idxAnnRemove = useCallback((id) => {
+    onIndexAnnotationsChange?.((indexAnnotations || []).filter(d => d.id !== id))
+  }, [indexAnnotations, onIndexAnnotationsChange])
+  const idxAnnClear = useCallback(() => { onIndexAnnotationsChange?.([]) }, [onIndexAnnotationsChange])
   // Current line style for NEW annotation lines; also re-styles the selected line.
   const [drawLineStyle, setDrawLineStyle] = useState('solid')
   const setAnnLineStyle = useCallback((style) => {
@@ -3733,6 +3762,42 @@ export default function StockChart({
     // and momentarily shift the overlays. The ResizeObserver catches real resizes.
   }, [indexPaneSymbol, indexPaneSeries.length > 0, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
 
+  // Track the INDEX pane's on-screen box (same approach as the price-pane
+  // overlayBounds above, but measuring the index pane via indexPaneSeriesRef) so
+  // the index annotation overlay aligns to the top pane. Only when an index
+  // annotation layer is in use.
+  const idxOverlayActive = indexAnnotations != null && indexPaneSymbol
+    && (indexAnnotationsEditable || indexAnnotations.length > 0)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !idxOverlayActive) { setIndexOverlayBounds(null); return }
+    let raf = null
+    const paneOf = () => indexPaneSeriesRef.current?.getPane?.()?.getHTMLElement?.()
+    const measure = () => {
+      try {
+        const paneEl = paneOf()
+        if (!paneEl) return
+        const c = container.getBoundingClientRect()
+        const p = paneEl.getBoundingClientRect()
+        const top = Math.max(0, p.top - c.top)
+        const height = p.height
+        if (!height) return
+        setIndexOverlayBounds(prev =>
+          (prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.height - height) < 0.5)
+            ? prev : { top, height })
+      } catch { /* pane not ready */ }
+    }
+    const schedule = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) }
+    measure()
+    const ro = new ResizeObserver(schedule)
+    ro.observe(container)
+    const paneEl = paneOf()
+    if (paneEl) ro.observe(paneEl)
+    const t1 = setTimeout(measure, 60)
+    const t2 = setTimeout(measure, 300)
+    return () => { ro.disconnect(); clearTimeout(t1); clearTimeout(t2); if (raf) cancelAnimationFrame(raf) }
+  }, [idxOverlayActive, indexPaneSeries.length > 0, indexPaneHeightPct, volumePaneHeightPct, showVolume, chartReady])
+
   // ── Multi-symbol comparison overlays — cleanup on unmount ──
   useEffect(() => {
     return () => {
@@ -4766,6 +4831,60 @@ export default function StockChart({
             selectedId={null}
             setSelectedId={NOOP}
           />
+        </div>
+      )}
+      {/* Index-pane annotations (Model Book): GLOBAL measure marks on the ^IXIC
+          line — read-only for everyone, a measure-only toolbar for admins.
+          Bound to the index pane (indexPaneSeriesRef + its measured box) so the
+          Y coords map to the top pane, not the price pane. */}
+      {indexAnnotations != null && indexPaneSymbol && indexPaneSeries.length > 0 && indexOverlayBounds
+        && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
+        <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={indexPaneSeriesRef}
+            bars={bars}
+            hidePriceLabels
+            measurePctOnly
+            activeTool={indexAnnotationsEditable ? indexActiveTool : null}
+            setActiveTool={setIndexActiveTool}
+            color={drawColor}
+            lineWidth={drawWidth}
+            lineStyle={drawLineStyle}
+            fontSize={drawFontSize}
+            magnet={magnet}
+            drawings={indexAnnotations}
+            addDrawing={idxAnnAdd}
+            updateDrawing={idxAnnUpdate}
+            removeDrawing={idxAnnRemove}
+            selectedId={indexAnnotationsEditable ? indexSelectedId : null}
+            setSelectedId={setIndexSelectedId}
+            repeatMode={repeatMode}
+          />
+          {indexAnnotationsEditable && (
+            <ChartToolbar
+              activeTool={indexActiveTool}
+              setActiveTool={setIndexActiveTool}
+              color={drawColor}
+              setColor={setDrawColor}
+              lineWidth={drawWidth}
+              setLineWidth={setDrawWidth}
+              hasSelection={!!indexSelectedId}
+              onDelete={() => { idxAnnRemove(indexSelectedId); setIndexSelectedId(null) }}
+              onClearAll={idxAnnClear}
+              drawingCount={indexAnnotations.length}
+              repeatMode={repeatMode}
+              setRepeatMode={handleSetRepeatMode}
+              chartSettings={cs}
+              onUpdateSettings={handleUpdateChartSettings}
+              toolFilter={['cursor', 'measure']}
+              prominent
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
+            />
+          )}
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}

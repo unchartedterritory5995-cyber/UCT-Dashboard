@@ -361,7 +361,7 @@ function renderChannel(ctx, pts, w, h) {
   }
 }
 
-function renderMeasure(ctx, pts, drawing) {
+function renderMeasure(ctx, pts, drawing, pctOnly = false) {
   if (pts.length < 2) return
   const x1 = Math.min(pts[0].x, pts[1].x)
   const y1 = Math.min(pts[0].y, pts[1].y)
@@ -387,10 +387,15 @@ function renderMeasure(ctx, pts, drawing) {
     ctx.font = 'bold 11px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
     ctx.textAlign = 'center'
-    const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
-    const line2 = bars ? `${bars} bars` : ''
-    ctx.fillText(line1, cx, cy - 4)
-    if (line2) ctx.fillText(line2, cx, cy + 12)
+    if (pctOnly) {
+      // Just the % move — for marking the size of an index correction.
+      ctx.fillText(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
+    } else {
+      const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
+      const line2 = bars ? `${bars} bars` : ''
+      ctx.fillText(line1, cx, cy - 4)
+      if (line2) ctx.fillText(line2, cx, cy + 12)
+    }
     ctx.textAlign = 'start'
   }
 }
@@ -574,6 +579,7 @@ export default function ChartDrawingOverlay({
   selectedId, setSelectedId,
   repeatMode = true,
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
+  measurePctOnly = false,    // Model Book index pane: measure label shows ONLY the % move (drop the $ amount + bar count)
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
@@ -894,7 +900,7 @@ export default function ChartDrawingOverlay({
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
-        case 'measure': renderMeasure(ctx, pts, d); break
+        case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
         case 'advance': renderAdvance(ctx, pts, d, toPixelY); break
       }
 
@@ -931,7 +937,7 @@ export default function ChartDrawingOverlay({
                 ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
                 : 0
             }
-            renderMeasure(ctx, previewPts, md)
+            renderMeasure(ctx, previewPts, md, measurePctOnly)
             break
           }
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break

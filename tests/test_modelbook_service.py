@@ -266,3 +266,26 @@ def test_seed_initial_populates_and_is_flag_gated(s):
     assert s.delete_stock(victim["id"]) is True
     s.seed_initial()
     assert len(s.get_stocks_for_year(2025)) == 9
+
+
+# ── Index-pane drawings (GLOBAL) ──────────────────────────────────────────────
+
+def test_index_drawings_default_empty(s):
+    assert s.get_index_drawings("^IXIC") == "[]"
+
+
+def test_index_drawings_set_get_roundtrip_and_upsert(s):
+    payload = '[{"id":"a","type":"measure","points":[{"time":"2025-04-01","price":15000}]}]'
+    assert s.set_index_drawings("^IXIC", payload) == payload
+    assert s.get_index_drawings("^IXIC") == payload
+    # Upsert (same symbol) replaces rather than inserting a second row.
+    updated = '[{"id":"b","type":"measure"}]'
+    s.set_index_drawings("^ixic", updated)  # case-insensitive on symbol
+    assert s.get_index_drawings("^IXIC") == updated
+    # A different symbol is stored independently.
+    assert s.get_index_drawings("^GSPC") == "[]"
+
+
+def test_index_drawings_falsy_stores_empty_array(s):
+    s.set_index_drawings("^IXIC", "")
+    assert s.get_index_drawings("^IXIC") == "[]"

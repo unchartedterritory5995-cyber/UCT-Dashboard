@@ -760,6 +760,7 @@ function ChartToolbar({
   prominent = false,             // force full opacity (annotation/edit mode, not the unobtrusive default)
   magnet = false,                // snap drawings to nearest O/H/L/C
   setMagnet = null,              // when provided, shows the magnet toggle
+  toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -865,7 +866,7 @@ function ChartToolbar({
     <div className={styles.toolbar} style={prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
       <div className={styles.tools}>
-        {TOOLS.map((t, i) =>
+        {(toolFilter ? TOOLS.filter(t => t !== 'sep' && toolFilter.includes(t.id)) : TOOLS).map((t, i) =>
           t === 'sep' ? <div key={`sep-${i}`} className={styles.sep} /> : (
             <button
               key={t.id}
