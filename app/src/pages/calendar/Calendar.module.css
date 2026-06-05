@@ -7,20 +7,20 @@
    Task 12: week/month/drawer classes (appended)
 */
 
-/* ── Design tokens (local fallbacks matching mockup) ─────────────────────── */
+/* ── Design tokens — mapped onto the app's warm olive/cream/gold system ──── */
 :root {
-  --cal-bg: #0c0e11;
-  --cal-panel: #14171c;
-  --cal-panel2: #191d24;
-  --cal-line: #252a33;
-  --cal-line2: #2e343e;
-  --cal-txt: #e8ebf0;
-  --cal-dim: #8b93a0;
-  --cal-muted: #5c6470;
-  --cal-gold: #c9a84c;
-  --cal-green: #4ade80;
-  --cal-red: #f87171;
-  --cal-blue: #60a5fa;
+  --cal-bg: var(--bg);
+  --cal-panel: var(--bg-surface);
+  --cal-panel2: var(--bg-elevated);
+  --cal-line: var(--border);
+  --cal-line2: var(--border-accent);
+  --cal-txt: var(--text-bright);
+  --cal-dim: var(--text);
+  --cal-muted: var(--text-muted);
+  --cal-gold: var(--ut-gold);
+  --cal-green: var(--gain);
+  --cal-red: var(--loss);
+  --cal-blue: var(--info);
 }
 
 /* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
@@ -86,17 +86,17 @@
   padding: 2px 6px;
   border-radius: 5px;
   letter-spacing: 0.4px;
-  background: #222833;
+  background: var(--bg-hover);
   color: var(--cal-dim);
 }
 
 .bmo {
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--ut-gold);
 }
 
 .amc {
-  background: rgba(96, 165, 250, 0.15);
+  background: rgba(107, 163, 190, 0.15);
   color: var(--cal-blue);
 }
 
@@ -106,7 +106,7 @@
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 5px;
-  background: rgba(74, 222, 128, 0.16);
+  background: rgba(60, 184, 104, 0.16);
   color: var(--cal-green);
 }
 
@@ -120,7 +120,7 @@
 }
 
 .mono {
-  font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
 }
 
@@ -143,7 +143,7 @@
   justify-content: space-between;
   margin-top: 8px;
   padding: 7px 9px;
-  background: #0f1217;
+  background: var(--bg);
   border: 1px solid var(--cal-line);
   border-radius: 8px;
 }
@@ -177,11 +177,11 @@
 }
 
 .histPos {
-  background: rgba(74, 222, 128, 0.75);
+  background: rgba(60, 184, 104, 0.75);
 }
 
 .histNeg {
-  background: rgba(248, 113, 113, 0.75);
+  background: rgba(231, 76, 60, 0.75);
 }
 
 .histLbl {
@@ -391,13 +391,13 @@
 /* Timing color modifiers — shared by feed/drawer headers + week sub-group headers.
    border-bottom-color is a no-op where the element has no border (week). */
 .bmoHd {
-  color: #fbbf24;
-  border-bottom-color: rgba(251, 191, 36, 0.28);
+  color: var(--ut-gold);
+  border-bottom-color: rgba(201, 168, 76, 0.28);
 }
 
 .amcHd {
   color: var(--cal-blue);
-  border-bottom-color: rgba(96, 165, 250, 0.28);
+  border-bottom-color: rgba(107, 163, 190, 0.28);
 }
 
 /* Week column timing sub-groups */
@@ -651,7 +651,7 @@
   height: 100%;
   background: var(--cal-bg);
   color: var(--cal-txt);
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .error {
@@ -668,7 +668,7 @@
 
 /* Header (defined here so all header classes resolve for CalendarHeader in Task 13) */
 .header {
-  background: linear-gradient(90deg, #13161b, #0e1115);
+  background: linear-gradient(90deg, var(--bg-surface), var(--bg));
   border-bottom: 1px solid var(--cal-line);
   padding: 0;
 }
@@ -762,7 +762,7 @@
   padding: 11px 18px;
   border-bottom: 1px solid var(--cal-line);
   flex-wrap: wrap;
-  background: #0e1014;
+  background: var(--bg);
 }
 
 .chip {
@@ -827,7 +827,7 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   color: var(--cal-blue);
-  background: rgba(96, 165, 250, 0.12);
+  background: rgba(107, 163, 190, 0.12);
   border-radius: 4px;
   padding: 1px 5px;
 }
@@ -914,7 +914,7 @@
 }
 
 .filterInput {
-  background: #0e1014;
+  background: var(--bg);
   border: 1px solid var(--cal-line2);
   border-radius: 6px;
   color: var(--cal-txt);
@@ -932,8 +932,8 @@
 .filterClear {
   width: 100%;
   margin-top: 4px;
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.3);
   border-radius: 7px;
   color: var(--cal-red);
   font-size: 11px;
@@ -944,7 +944,7 @@
 }
 
 .filterClear:hover {
-  background: rgba(248, 113, 113, 0.22);
+  background: rgba(231, 76, 60, 0.22);
 }
 
 /* ── Month navigation (header inline + MonthView internal) ──────────────── */
@@ -1058,14 +1058,14 @@
 
 /* IPO — subtle blue tint */
 .evtCardIpo {
-  border-color: rgba(96, 165, 250, 0.35);
-  background: linear-gradient(180deg, rgba(96, 165, 250, 0.05), var(--cal-panel));
+  border-color: rgba(107, 163, 190, 0.35);
+  background: linear-gradient(180deg, rgba(107, 163, 190, 0.05), var(--cal-panel));
 }
 
 /* Dividend — subtle green tint */
 .evtCardDiv {
-  border-color: rgba(74, 222, 128, 0.3);
-  background: linear-gradient(180deg, rgba(74, 222, 128, 0.04), var(--cal-panel));
+  border-color: rgba(60, 184, 104, 0.3);
+  background: linear-gradient(180deg, rgba(60, 184, 104, 0.04), var(--cal-panel));
 }
 
 /* Split — subtle gold tint */
@@ -1090,9 +1090,9 @@
 
 /* IPO status pills */
 .evtStatusPriced {
-  background: rgba(74, 222, 128, 0.15);
+  background: rgba(60, 184, 104, 0.15);
   color: var(--cal-green);
-  border-color: rgba(74, 222, 128, 0.25);
+  border-color: rgba(60, 184, 104, 0.25);
 }
 
 .evtStatusExpected {
@@ -1102,9 +1102,9 @@
 }
 
 .evtStatusFiled {
-  background: rgba(96, 165, 250, 0.12);
+  background: rgba(107, 163, 190, 0.12);
   color: var(--cal-blue);
-  border-color: rgba(96, 165, 250, 0.25);
+  border-color: rgba(107, 163, 190, 0.25);
 }
 
 .evtStatusDefault {
@@ -1116,7 +1116,7 @@
 /* Event-type filter chips (in CalendarHeader fb row) — inherit .chip style */
 .chipEvtIpo:is(.chipOn) {
   background: var(--cal-blue);
-  color: #051428;
+  color: var(--bg);
   border-color: var(--cal-blue);
 }
 .chipEvtDiv:is(.chipOn) {
@@ -1138,7 +1138,7 @@
 }
 
 .histStatsVal {
-  font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--cal-gold);
   font-weight: 600;
