@@ -69,6 +69,48 @@ async def trigger_snapshot():
     return {"status": "started", "message": "Snapshot running in background. Check Railway logs for results."}
 
 
+@router.post("/migrate-entries")
+async def migrate_entries(
+    dry_run: bool = True,
+    max_picks: int | None = None,
+    force: bool = False,
+    allow_backfill: bool = True,
+    threshold: float = 50.0,
+):
+    """One-shot bug-fix migration. Replaces stock-price `entry` values with
+    the contract's actual price near dateSaved.
+
+    Params:
+        dry_run (default True): preview only, no writes. Set to false to commit.
+        max_picks: cap how many picks to process this call (None = all).
+        force: ignore the 'looks like stock price' heuristic.
+        allow_backfill: fall back to Polygon backfill for picks without local
+            snapshot history near dateSaved. Slower (rate-limited) but more
+            thorough.
+        threshold: entries above this $ value treated as suspect (default 50).
+
+    Workflow (recommended):
+        1. POST /api/top-flow/migrate-entries?dry_run=true&max_picks=10
+           → review the 'changes' array to sanity-check
+        2. POST /api/top-flow/migrate-entries?dry_run=false&max_picks=50
+           → small commit to validate end-to-end
+        3. POST /api/top-flow/migrate-entries?dry_run=false
+           → commit the rest
+
+    Idempotent: re-running on already-corrected picks skips them (their
+    entry is now < threshold). Old buggy entry preserved as `entrySpot`
+    so the migration can be reviewed or undone if needed.
+    """
+    from api.top_flow_tracker import migrate_entries as _migrate
+    return await _migrate(
+        dry_run=dry_run,
+        max_picks=max_picks,
+        force=force,
+        allow_backfill=allow_backfill,
+        threshold=threshold,
+    )
+
+
 @router.post("/archive-now")
 def trigger_archive():
     """Debug endpoint — just archive expired picks, no Schwab calls."""
