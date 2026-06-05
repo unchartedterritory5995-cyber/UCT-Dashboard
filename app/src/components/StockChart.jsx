@@ -39,17 +39,6 @@ import PositionPanel from './chart/PositionPanel'
 
 const NOOP = () => {}
 
-// Interpolate a hex color toward white by f∈[0,1] (Model Book setup-candle fade).
-function _hexToRgb(hex) {
-  const h = String(hex || '').replace('#', '')
-  if (h.length < 6) return [128, 128, 128]
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
-}
-function _lerpToWhite(hex, f) {
-  const [r, g, b] = _hexToRgb(hex)
-  return `rgb(${Math.round(r + (255 - r) * f)},${Math.round(g + (255 - g) * f)},${Math.round(b + (255 - b) * f)})`
-}
-
 // Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
@@ -510,7 +499,6 @@ export default function StockChart({
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
-  setupCandleFadeDate = null,   // Model Book show-all OFF: ISO date of the focused setup candle to fade real→white in lockstep with the annotation fade (textFadeRef)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
   // ── Index comparison pane (Model Book) — additive, default-off ──
   indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
@@ -3351,40 +3339,6 @@ export default function StockChart({
   // zoom then eases it in. Without this reset, switching from a focused stock
   // would leave textFadeRef at 1 and the next setup's text would pop in instantly.
   useEffect(() => { textFadeRef.current = 0 }, [sym, resolvedTf])
-
-  // Fade the focused setup candle real→white in lockstep with the annotation fade
-  // (Model Book, show-all OFF). Drives that one bar's color from textFadeRef each
-  // frame: f=0 → real up/down color (hollow green / red), f=1 → solid white. No
-  // fade date → inert (other charts / show-all ON use the static highlight).
-  useEffect(() => {
-    const series = candleSeriesRef.current
-    if (!setupCandleFadeDate || !series || !ohlcData?.length) return
-    const t = adjustTime(setupCandleFadeDate)
-    const bar = ohlcData.find(d => d.time === t)
-    if (!bar) return
-    const up = bar.close >= bar.open
-    const edgeReal = up ? cs.candles.upColor : cs.candles.downColor
-    let raf = null
-    let lastF = -1
-    const tick = () => {
-      const f = Math.max(0, Math.min(1, textFadeRef.current ?? 0))
-      if (Math.abs(f - lastF) > 0.004) {
-        lastF = f
-        const edge = _lerpToWhite(edgeReal, f)
-        const body = up ? `rgba(255,255,255,${f.toFixed(3)})` : _lerpToWhite(cs.candles.downColor, f)
-        // update() only touches the LAST bar in lightweight-charts; the setup
-        // candle is historical, so re-setData with just that bar recolored.
-        try {
-          series.setData(ohlcData.map(d => (d.time === t
-            ? { ...d, color: body, borderColor: edge, wickColor: edge }
-            : d)))
-        } catch { /* torn down */ }
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [setupCandleFadeDate, ohlcData, adjustTime, cs.candles.upColor, cs.candles.downColor])
 
   // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
   // focusDate is set, smoothly zoom so that bar is the last candle on screen

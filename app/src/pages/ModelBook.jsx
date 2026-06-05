@@ -675,11 +675,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const chartAnnotateMode = onSetupsTab ? annotateMode : false
   const chartHighlight = onCatalystTab
     ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
-    // Show-all OFF: the focused setup candle is faded real→white by the chart
-    // (setupCandleFadeDate) in lockstep with the annotations — no static highlight.
-    : (showAllAnnotations && hasAnnotations ? setupTimes : null)
-  // The focused setup candle to crossfade green→white with the annotation fade.
-  const setupCandleFadeDate = (onSetupsTab && !showAllAnnotations && displaySetup) ? displaySetup.label_date : null
+    : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
 
   // Quarterly earnings for the year — fetched for EVERY stock (the table is a
   // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
@@ -887,7 +883,6 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             annotationsVisible={chartAnnotationsVisible}
             annotationsOpacity={annoOpacity}
             annotationsFadeWhole={!showAllAnnotations}
-            setupCandleFadeDate={setupCandleFadeDate}
             staticAnnotations={(onSetupsTab && showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
