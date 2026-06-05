@@ -1992,30 +1992,32 @@ export default function StockChart({
       })
   }, [indexPaneSymbol, indexPaneData, ohlcData, adjustTime, entryDate, exitDate])
 
-  // Fixed price range for the index pane, computed over the SAME framed window as
-  // indexPaneSeries but from the FULL ^IXIC data (NOT clipped to the current
-  // stock's bar times). It's therefore identical for every stock in a given year,
-  // so pinning the index price scale to it keeps the Nasdaq line + its annotations
-  // ROCK-STEADY when flipping tickers (the per-stock clip otherwise re-autoscaled
-  // the pane → the line + % labels "jumped to a new spot" on each switch).
+  // Fixed price range for the index pane, computed from the FULL ^IXIC data over
+  // the BOOK YEAR ONLY (entryDate..exitDate, NOT the extended lead-up window and
+  // NOT clipped to the stock's bar times). Year-only = the Nasdaq line fills the
+  // pane (the lead-up window dragged in 2020/2022 lows that wasted the bottom
+  // half); full-data (not stock-clipped) = identical for every stock in a year so
+  // the scale stays pinned/steady across ticker switches. NaN-time + non-positive
+  // guards keep yfinance's 1970s ^IXIC history (period='max', lows near 50) from
+  // leaking in past the date filter (NaN comparisons are false → would slip through).
   const indexPaneRange = useMemo(() => {
-    if (!indexPaneSymbol || !indexPaneData?.length) return null
+    if (!indexPaneSymbol || !indexPaneData?.length || !entryDate || !exitDate) return null
     const toMs = (t) => typeof t === 'number'
       ? (t < 1e12 ? t * 1000 : t)
       : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
-    const YEAR_MS = 365 * 24 * 3600 * 1000
-    const loMs = entryDate ? toMs(entryDate) - Math.round(YEAR_MS * 1.1) : -Infinity
-    const hiMs = exitDate ? toMs(exitDate) + Math.round(YEAR_MS * 0.25) : Infinity
+    const loMs = toMs(entryDate)
+    const hiMs = toMs(exitDate)
+    if (!Number.isFinite(loMs) || !Number.isFinite(hiMs)) return null
     let min = Infinity, max = -Infinity
     for (const b of indexPaneData) {
-      if (b.c == null || !Number.isFinite(b.c)) continue
-      const ms = toMs(b.t)
-      if (ms < loMs || ms > hiMs) continue
+      if (b.c == null || !Number.isFinite(b.c) || b.c <= 0) continue
+      const ms = toMs(adjustTime(b.t))
+      if (!Number.isFinite(ms) || ms < loMs || ms > hiMs) continue
       if (b.c < min) min = b.c
       if (b.c > max) max = b.c
     }
     return min <= max ? { min, max } : null
-  }, [indexPaneSymbol, indexPaneData, entryDate, exitDate])
+  }, [indexPaneSymbol, indexPaneData, adjustTime, entryDate, exitDate])
   // Keep the autoscaleInfoProvider's source current (it reads this ref). Pin only
   // in arithmetic/log modes; in Percent mode LWC rebases to the visible window, so
   // a fixed range would fight it — let it autoscale there.
