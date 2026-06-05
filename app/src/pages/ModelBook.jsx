@@ -10,7 +10,9 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 
 // Year tabs always shown, even before any stocks are curated for them.
 // Any year that has stocks (from the API) is unioned in on top of these.
-const BASE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010]
+// Baseline year tabs, newest→oldest (2025 down to 1990). Data-driven years from
+// the API merge in on top of these.
+const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
 
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
