@@ -199,7 +199,7 @@ function EarningsTable({ rows, loading }) {
 function AddStockForm({ year, onAdded }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const empty = { year, symbol: '', company: '', sort_order: '', gain_pct: '', thesis: '' }
+  const empty = { year, symbol: '', company: '', sector: '', industry: '', sort_order: '', gain_pct: '', thesis: '' }
   const [form, setForm] = useState(empty)
 
   useEffect(() => { setForm(f => ({ ...f, year })) }, [year])
@@ -212,6 +212,8 @@ function AddStockForm({ year, onAdded }) {
         year: parseInt(form.year, 10),
         symbol: form.symbol.trim().toUpperCase(),
         company: form.company || null,
+        sector: form.sector || null,
+        industry: form.industry || null,
         sort_order: form.sort_order === '' ? 0 : parseInt(form.sort_order, 10),
         gain_pct: form.gain_pct === '' ? null : parseFloat(form.gain_pct),
         thesis: form.thesis || null,
@@ -248,6 +250,12 @@ function AddStockForm({ year, onAdded }) {
           onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} />
         <input className={styles.input} type="number" step="0.1" placeholder="Gain %" value={form.gain_pct}
           onChange={e => setForm(f => ({ ...f, gain_pct: e.target.value }))} />
+      </div>
+      <div className={styles.formRow}>
+        <input className={styles.input} placeholder="Sector (optional — AI-filled)" value={form.sector}
+          onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} />
+        <input className={styles.input} placeholder="Industry (optional — AI-filled)" value={form.industry}
+          onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} />
       </div>
       <textarea className={styles.textarea} placeholder="Why it's a model stock (thesis)" value={form.thesis}
         onChange={e => setForm(f => ({ ...f, thesis: e.target.value }))} />
@@ -1042,6 +1050,8 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             watermarkX={0.14}
             watermarkY={0.2}
             watermarkName={stock.company || null}
+            watermarkSector={stock.sector || null}
+            watermarkIndustry={stock.industry || null}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
             focusDate={focusDate}

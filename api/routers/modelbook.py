@@ -44,6 +44,8 @@ class StockIn(BaseModel):
     year: int
     symbol: str
     company: Optional[str] = None
+    sector: Optional[str] = None      # curated watermark sector (renamed/delisted tickers); AI-filled if blank
+    industry: Optional[str] = None    # curated watermark industry
     sort_order: Optional[int] = 0
     thesis: Optional[str] = None
     gain_pct: Optional[float] = None
@@ -53,6 +55,8 @@ class StockPatch(BaseModel):
     year: Optional[int] = None
     symbol: Optional[str] = None
     company: Optional[str] = None
+    sector: Optional[str] = None
+    industry: Optional[str] = None
     sort_order: Optional[int] = None
     thesis: Optional[str] = None
     gain_pct: Optional[float] = None
@@ -184,8 +188,10 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
-    # Auto-generate the company/story descriptions on first view (background).
-    if not stock.get("company_desc") and _is_final_year(stock.get("year", 0)):
+    # Auto-generate the company/story descriptions + watermark sector/industry on
+    # first view (background). _needs_desc also fires when an older stock still
+    # lacks sector/industry, so the new watermark fields backfill on next view.
+    if _is_final_year(stock.get("year", 0)) and _needs_desc(stock):
         _gen_desc_async(stock)
     # Auto-generate bullish, stock-specific catalysts on first view (background),
     # once per stock — then kept permanently in the DB (no manual "Generate").
@@ -357,18 +363,26 @@ _generating = set()  # stock ids with a description generation in flight
 
 
 def _needs_desc(s) -> bool:
-    """True if a stock still needs descriptions: none yet AND either never
-    attempted or the last attempt is stale. Prevents a tight retry/cost loop on
-    tickers the model can't summarize."""
-    if not _DESC_ENABLED or s.get("company_desc"):
+    """True if a stock still needs an LLM pass: it's missing its description OR its
+    watermark sector/industry (the same call produces all of them). Either-never-
+    attempted-or-attempt-is-stale gates it so we don't tight-loop / re-spend on
+    tickers the model can't fully summarize."""
+    if not _DESC_ENABLED:
+        return False
+    has_desc = bool(s.get("company_desc"))
+    has_meta = bool(s.get("sector") or s.get("industry"))
+    if has_desc and has_meta:
         return False
     da = s.get("desc_at")
     return (not da) or (int(_time_mod.time()) - da > _DESC_RETRY_AFTER)
 
 
 def _generate_descriptions(symbol, company, year, gain_pct):
-    """Claude → {company_desc, run_story}. One sentence on what the company does +
-    a brief, factual reason it made its big move that year. Returns None on failure."""
+    """Claude → {company_desc, run_story, sector, industry}. One sentence on what
+    the company does, a brief factual reason it ran that year, plus its GICS
+    sector/industry for the chart watermark (the live ticker-meta lookup fails for
+    renamed/delisted symbols like SQ→Block, WTW, WWE — this is the historical
+    fallback). Returns None on failure."""
     if not _DESC_ENABLED:
         return None
     import json as _json
@@ -383,8 +397,16 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         prompt = (
             f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
             f"The stock rose {gain_txt} that year.\n\n"
-            'Return JSON exactly: {"company_desc": "...", "run_story": "..."}\n'
+            'Return JSON exactly: {"company_desc": "...", "run_story": "...", '
+            '"sector": "...", "industry": "..."}\n'
             "- company_desc: ONE plain sentence on what the company does.\n"
+            "- sector: the company's GICS sector AS OF that year (e.g. \"Technology\", "
+            "\"Communication Services\", \"Consumer Cyclical\", \"Healthcare\", "
+            "\"Financial Services\", \"Industrials\", \"Energy\"). Use the name the "
+            "company traded under that year, even if it was later renamed or acquired.\n"
+            "- industry: the company's specific GICS industry that year (e.g. "
+            "\"Software - Infrastructure\", \"Entertainment\", \"Personal Services\", "
+            "\"Semiconductors\"). Keep it short — 1-4 words.\n"
             "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
             "the specific catalysts/drivers, or the broader market theme it rode. "
             "Be factual and specific to that year; if unsure of specifics, describe the "
@@ -415,7 +437,11 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         obj = _json.loads(text[s:e + 1])
         cd = (obj.get("company_desc") or "").strip()
         rs = (obj.get("run_story") or "").strip()
-        return {"company_desc": cd, "run_story": rs} if (cd or rs) else None
+        sec = (obj.get("sector") or "").strip() or None
+        ind = (obj.get("industry") or "").strip() or None
+        if not (cd or rs or sec or ind):
+            return None
+        return {"company_desc": cd, "run_story": rs, "sector": sec, "industry": ind}
     except Exception:
         return None
 
@@ -430,7 +456,8 @@ def _generate_descriptions_for(stocks, max_workers=3):
         d = _generate_descriptions(s["symbol"], s.get("company"), s["year"], s.get("oc_pct"))
         try:
             if d:
-                svc.save_descriptions(s["id"], d["company_desc"], d["run_story"])
+                svc.save_descriptions(s["id"], d["company_desc"], d["run_story"],
+                                      d.get("sector"), d.get("industry"))
             else:
                 svc.mark_desc_attempt(s["id"])  # stamp attempt so we don't loop
         except Exception:
@@ -454,7 +481,8 @@ def _gen_desc_async(stock):
             d = _generate_descriptions(stock["symbol"], stock.get("company"),
                                        stock["year"], stock.get("oc_pct"))
             if d:
-                svc.save_descriptions(sid, d["company_desc"], d["run_story"])
+                svc.save_descriptions(sid, d["company_desc"], d["run_story"],
+                                      d.get("sector"), d.get("industry"))
             else:
                 svc.mark_desc_attempt(sid)  # stamp attempt so we don't loop
         finally:

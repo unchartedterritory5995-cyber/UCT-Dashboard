@@ -454,6 +454,8 @@ export default function StockChart({
   watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
+  watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
+  watermarkIndustry = null,  // Model Book: curated historical industry (paired with watermarkSector).
   className = '',
   showDrawingTools = true,
   onSymbolChange = null,
@@ -737,17 +739,31 @@ export default function StockChart({
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
-  // Watermark meta: when a curated company name is supplied (Model Book) and it
-  // clearly differs from the LIVE ticker meta (a reused ticker), use the curated
-  // name and DROP the live sector/industry (they belong to the current company,
-  // not the historical one). If the names overlap, keep the live sector/industry.
+  // Watermark meta. Three cases (Model Book curates name/sector/industry):
+  //  1. No curated name → use live ticker meta, but let a curated sector/industry
+  //     fill any GAPS the live lookup left blank.
+  //  2. Curated name that token-overlaps the live name (same company, just a tidier
+  //     label) → keep the accurate live GICS sector/industry, curated fills gaps.
+  //  3. Curated name that does NOT match the live name (a REUSED / renamed /
+  //     delisted ticker — e.g. SQ=Square→Block, WTW=Weight Watchers, delisted WWE)
+  //     → the live meta is the WRONG company, so use the curated name AND the
+  //     curated historical sector/industry (so the watermark still shows them like
+  //     every other stock, instead of dropping them).
   const watermarkMeta = useMemo(() => {
-    if (!watermarkName) return tickerMeta
+    const withCuratedGaps = (base) => ({
+      ...base,
+      sector: base?.sector || watermarkSector || null,
+      industry: base?.industry || watermarkIndustry || null,
+    })
+    if (!watermarkName) {
+      return (watermarkSector || watermarkIndustry) ? withCuratedGaps(tickerMeta) : tickerMeta
+    }
     const toks = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length >= 4)
     const curated = toks(watermarkName), live = toks(tickerMeta?.name)
     const sameCompany = curated.length > 0 && curated.some(w => live.includes(w))
-    return sameCompany ? { ...tickerMeta, name: watermarkName } : { name: watermarkName }
-  }, [watermarkName, tickerMeta])
+    if (sameCompany) return withCuratedGaps({ ...tickerMeta, name: watermarkName })
+    return { name: watermarkName, sector: watermarkSector || null, industry: watermarkIndustry || null }
+  }, [watermarkName, watermarkSector, watermarkIndustry, tickerMeta])
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
@@ -3431,14 +3447,27 @@ export default function StockChart({
     // initial settle window. Guards (same sym+tf, no focus zoom) make a stock
     // switch or a setup click cancel the pending re-asserts; the user can't
     // have manually zoomed this early after load.
-    if (yearFramedRef.current !== fk) {
-      yearFramedRef.current = fk
+    // Re-assert across the settle window on the FIRST framing of this sym+tf AND
+    // again whenever the bar count changes for it — the bars load in two phases
+    // (instant IDB cache → delayed network swap), and an uncached still-trading
+    // stock framed to a PAST year (e.g. the first 2016 name, data running to
+    // today) gets its network bars AFTER the first re-assert window closes. Without
+    // re-asserting on that swap, the post-network setData snaps the view to the
+    // latest bars and it "scrolls back / stays on now until you click another
+    // chart". Keying on bar count re-pins through every data phase. (Delisted/
+    // custom-bar years end in-year and have a single phase, so they never showed
+    // it — this makes every year behave identically.) Tail extended to 1.2s for
+    // slow networks.
+    const frameSig = `${fk}:${filteredBars.length}`
+    if (yearFramedRef.current !== frameSig) {
+      yearFramedRef.current = frameSig
       const reassert = () => { if (focusKeyRef.current === fk && !focusActiveRef.current) applyYear() }
       requestAnimationFrame(reassert)
       requestAnimationFrame(() => requestAnimationFrame(reassert))
       setTimeout(reassert, 120)
       setTimeout(reassert, 320)
       setTimeout(reassert, 650)
+      setTimeout(reassert, 1200)
     }
     // `mergedMarkers`/`highlightTimeSet` are in the deps so a Model Book tab
     // switch (which swaps markers + highlighted candles → an internal setData

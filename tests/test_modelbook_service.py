@@ -19,6 +19,8 @@ def _stock(year=2025, symbol="NVDA", **kw):
         "year": year,
         "symbol": symbol,
         "company": kw.get("company", "NVIDIA Corp"),
+        "sector": kw.get("sector"),
+        "industry": kw.get("industry"),
         "sort_order": kw.get("sort_order", 1),
         "thesis": kw.get("thesis", "AI leader"),
         "gain_pct": kw.get("gain_pct", 171.0),
@@ -139,6 +141,54 @@ def test_delete_stock_cascades_to_setups(s):
     assert s.delete_stock(stock["id"]) is True
     assert s.get_stock_detail(stock["id"]) is None
     assert s.get_setup(setup["id"]) is None  # cascade removed it
+
+
+def test_sector_industry_roundtrip_and_patch(s):
+    created = s.create_stock(_stock(symbol="SQ", company="Square"))
+    # Defaults to None when not supplied.
+    assert created["sector"] is None
+    assert created["industry"] is None
+    # Settable on create.
+    a = s.create_stock(_stock(year=2024, symbol="WWE", company="World Wrestling Entertainment",
+                              sector="Communication Services", industry="Entertainment"))
+    assert a["sector"] == "Communication Services"
+    assert a["industry"] == "Entertainment"
+    # Patchable via update_stock.
+    upd = s.update_stock(created["id"], {"sector": "Technology",
+                                         "industry": "Software - Infrastructure"})
+    assert upd["sector"] == "Technology"
+    assert upd["industry"] == "Software - Infrastructure"
+
+
+def test_reAdd_blank_sector_keeps_existing(s):
+    # Curate (or AI-fill) a sector, then re-add the (year, symbol) with the field
+    # left blank — the ON CONFLICT COALESCE must KEEP the prior value, not wipe it.
+    s.create_stock(_stock(symbol="WTW", company="Weight Watchers",
+                          sector="Consumer Cyclical", industry="Personal Services"))
+    re = s.create_stock(_stock(symbol="WTW", company="Weight Watchers", thesis="v2"))
+    assert re["sector"] == "Consumer Cyclical"
+    assert re["industry"] == "Personal Services"
+    # But an explicit new value on re-add DOES overwrite.
+    re2 = s.create_stock(_stock(symbol="WTW", company="Weight Watchers",
+                               sector="Consumer Defensive"))
+    assert re2["sector"] == "Consumer Defensive"
+
+
+def test_save_descriptions_backfills_sector_only_when_blank(s):
+    stock = s.create_stock(_stock(symbol="SQ", company="Square"))
+    # First AI pass fills the blank sector/industry.
+    s.save_descriptions(stock["id"], "Payments company.", "Rode fintech adoption.",
+                        sector="Technology", industry="Software - Infrastructure")
+    d = s.get_stock_detail(stock["id"])
+    assert d["sector"] == "Technology"
+    assert d["company_desc"] == "Payments company."
+    # A later pass must NOT clobber the now-set sector/industry.
+    s.save_descriptions(stock["id"], "Updated desc.", "Updated story.",
+                        sector="WRONG", industry="WRONG")
+    d2 = s.get_stock_detail(stock["id"])
+    assert d2["sector"] == "Technology"
+    assert d2["industry"] == "Software - Infrastructure"
+    assert d2["company_desc"] == "Updated desc."  # desc/story still refresh
 
 
 def test_update_stock_patches_fields(s):

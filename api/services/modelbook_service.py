@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS modelbook_stocks (
   year        INTEGER NOT NULL,
   symbol      TEXT    NOT NULL,
   company     TEXT,
+  sector      TEXT,          -- curated GICS sector for the watermark (historical/delisted/renamed tickers)
+  industry    TEXT,          -- curated GICS industry for the watermark
   sort_order  INTEGER NOT NULL DEFAULT 0,
   thesis      TEXT,
   gain_pct    REAL,
@@ -92,8 +94,8 @@ CREATE TABLE IF NOT EXISTS modelbook_stock_bars (
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
-_STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct",
-                 "company_desc", "run_story", "drawings_json")
+_STOCK_FIELDS = ("year", "symbol", "company", "sector", "industry", "sort_order",
+                 "thesis", "gain_pct", "company_desc", "run_story", "drawings_json")
 _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "entry_price", "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape", "drawings_json")
@@ -127,6 +129,8 @@ def _init_db() -> None:
             ("modelbook_stocks", "desc_at", "INTEGER"),
             ("modelbook_stocks", "catalysts_at", "INTEGER"),   # epoch of last AI catalyst-generation attempt
             ("modelbook_stocks", "drawings_json", "TEXT"),      # stock-level chart annotations (full-year view, not tied to a setup)
+            ("modelbook_stocks", "sector", "TEXT"),             # curated watermark sector (renamed/delisted tickers)
+            ("modelbook_stocks", "industry", "TEXT"),           # curated watermark industry
             ("modelbook_setups", "frame_start_date", "TEXT"),
             ("modelbook_setups", "drawings_json", "TEXT"),
         ):
@@ -215,12 +219,21 @@ def save_stats(stock_id: int, oc_pct, lh_pct, avg_vol=None) -> None:
         c.commit()
 
 
-def save_descriptions(stock_id: int, company_desc, run_story) -> None:
-    """Persist AI-generated company description + year narrative (generated once)."""
+def save_descriptions(stock_id: int, company_desc, run_story,
+                      sector=None, industry=None) -> None:
+    """Persist AI-generated company description + year narrative (generated once).
+    Also backfills the watermark sector/industry, but only when they're still
+    empty — COALESCE(NULLIF(...)) so a manually-curated value is never clobbered."""
+    sector = (sector or "").strip() or None
+    industry = (industry or "").strip() or None
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
-            "UPDATE modelbook_stocks SET company_desc = ?, run_story = ?, desc_at = ? WHERE id = ?",
-            (company_desc, run_story, int(time.time()), int(stock_id)),
+            """UPDATE modelbook_stocks
+               SET company_desc = ?, run_story = ?, desc_at = ?,
+                   sector   = COALESCE(NULLIF(sector, ''), ?),
+                   industry = COALESCE(NULLIF(industry, ''), ?)
+               WHERE id = ?""",
+            (company_desc, run_story, int(time.time()), sector, industry, int(stock_id)),
         )
         c.commit()
 
@@ -272,18 +285,25 @@ def create_stock(payload: dict) -> dict:
     now = int(time.time())
     data = {f: payload.get(f) for f in _STOCK_FIELDS}
     data["symbol"] = (data.get("symbol") or "").upper()
+    # Normalize blanks to NULL so the ON CONFLICT COALESCE keeps any AI-filled value.
+    data["sector"] = (data.get("sector") or "").strip() or None
+    data["industry"] = (data.get("industry") or "").strip() or None
     data["sort_order"] = data.get("sort_order") or 0
     data["created_at"] = now
     data["updated_at"] = now
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             """INSERT INTO modelbook_stocks
-               (year, symbol, company, sort_order, thesis, gain_pct,
+               (year, symbol, company, sector, industry, sort_order, thesis, gain_pct,
                 created_at, updated_at)
-               VALUES (:year, :symbol, :company, :sort_order, :thesis, :gain_pct,
-                       :created_at, :updated_at)
+               VALUES (:year, :symbol, :company, :sector, :industry, :sort_order,
+                       :thesis, :gain_pct, :created_at, :updated_at)
                ON CONFLICT(year, symbol) DO UPDATE SET
                  company    = excluded.company,
+                 -- only overwrite curated sector/industry when the re-add supplies
+                 -- one (an Add with the field left blank keeps the AI-filled value)
+                 sector     = COALESCE(excluded.sector, modelbook_stocks.sector),
+                 industry   = COALESCE(excluded.industry, modelbook_stocks.industry),
                  sort_order = excluded.sort_order,
                  thesis     = excluded.thesis,
                  gain_pct   = excluded.gain_pct,

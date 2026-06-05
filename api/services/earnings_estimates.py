@@ -153,6 +153,20 @@ def _fiscal_q_from_report(date_str: str):
     return 3, y
 
 
+def _history_limit(year: int, per_year: int = 4, headroom: int = 16, cap: int = 400) -> int:
+    """How many of the MOST-RECENT reports to pull to reach back to `year`.
+
+    `stable/earnings` returns the newest reports first, so a fixed limit only
+    covers recent years — an older book year falls off the end (e.g. limit=40 ≈
+    10y reached only Q3/Q4 2016 when viewed in 2026, dropping Q1/Q2). Scale the
+    limit to the gap between now and the book year (+headroom for FMP's duplicate
+    rows and future estimate rows), bounded by `cap`."""
+    from datetime import datetime, timezone
+    cur_y = datetime.now(timezone.utc).year
+    span = max(2, cur_y - int(year) + 2)  # +2: Q4 reports land in year+1
+    return min(cap, span * per_year + headroom)
+
+
 def _year_earnings_from_fmp(ticker: str, year: int) -> list:
     """All 4 FISCAL quarters of `year` for `ticker` (EPS + revenue) from FMP's
     `stable/earnings` (the one FMP earnings endpoint still live on this plan;
@@ -163,7 +177,7 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
     a consensus-tracked row + an alternate figure with no estimate), which would
     otherwise show as a duplicate quarter — so we dedup by (year, quarter),
     keeping the row that has a real surprise (estimate present), else the latest."""
-    data = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 40})
+    data = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": _history_limit(year)})
     if not isinstance(data, list):
         return []
     best = {}
@@ -208,7 +222,7 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
     on every Finnhub tier). Keeps the FISCAL quarters of `year`. Used only when
     the whole-market calendar comes back empty."""
     rows = []
-    eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 24})
+    eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": _history_limit(year)})
     if isinstance(eps_raw, list):
         for q in eps_raw:
             fy = q.get("year")
