@@ -81,7 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_mb_catalysts_stock ON modelbook_catalysts(stock_i
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
 _STOCK_FIELDS = ("year", "symbol", "company", "sort_order", "thesis", "gain_pct",
-                 "company_desc", "run_story")
+                 "company_desc", "run_story", "drawings_json")
 _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "entry_price", "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape", "drawings_json")
@@ -114,6 +114,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "run_story", "TEXT"),
             ("modelbook_stocks", "desc_at", "INTEGER"),
             ("modelbook_stocks", "catalysts_at", "INTEGER"),   # epoch of last AI catalyst-generation attempt
+            ("modelbook_stocks", "drawings_json", "TEXT"),      # stock-level chart annotations (full-year view, not tied to a setup)
             ("modelbook_setups", "frame_start_date", "TEXT"),
             ("modelbook_setups", "drawings_json", "TEXT"),
         ):

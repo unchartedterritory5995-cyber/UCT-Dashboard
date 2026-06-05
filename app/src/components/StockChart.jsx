@@ -37,6 +37,8 @@ import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 
+const NOOP = () => {}
+
 // Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
@@ -492,6 +494,7 @@ export default function StockChart({
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsOpacity = 1,       // extra opacity multiplier (Model Book setup→setup crossfade)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
+  staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
@@ -4675,6 +4678,27 @@ export default function StockChart({
               hideCountdown
             />
           )}
+        </div>
+      )}
+      {/* Stock-level annotations (Model Book): an always-on, read-only layer drawn
+          on the full-year view, independent of any setup (text never fades). */}
+      {staticAnnotations != null && staticAnnotations.length > 0 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
+        <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            activeTool={null}
+            setActiveTool={NOOP}
+            color={drawColor}
+            lineWidth={drawWidth}
+            drawings={staticAnnotations}
+            addDrawing={NOOP}
+            updateDrawing={NOOP}
+            removeDrawing={NOOP}
+            selectedId={null}
+            setSelectedId={NOOP}
+          />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}

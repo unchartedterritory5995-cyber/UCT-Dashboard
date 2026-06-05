@@ -468,6 +468,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const [expandedCatalystId, setExpandedCatalystId] = useState(null)  // catalyst row whose details are dropped down
   const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
   const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
+  const [annotateTarget, setAnnotateTarget] = useState('setup') // 'setup' (focused setup) | 'stock' (full-year chart)
   // "Show all" overlay: render every setup's annotations on the zoomed-out chart.
   // Persisted (and survives stock switches, since StockDetail isn't remounted) so
   // it stays on as you browse from stock to stock until explicitly turned off.
@@ -576,6 +577,8 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const focusedSetup = focusActive && focus.id != null ? setups.find(s => s.id === focus.id) : null
   // Raw drawings of the focused setup (unbounded) — used to seed admin editing.
   const savedDrawings = useMemo(() => parseDrawings(focusedSetup?.drawings_json), [focusedSetup])
+  // Stock-level annotations: drawn on the full-year chart, independent of setups.
+  const stockDrawings = useMemo(() => parseDrawings(stock?.drawings_json), [stock])
 
   // Setup→setup crossfade (show-all OFF): briefly fade the annotation layer out,
   // swap to the new setup's drawings, fade in — instead of a hard snap. The
@@ -763,8 +766,9 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     mutate()
   }
 
-  function startAnnotate() {
-    setAnnotationDraft(savedDrawings)
+  function startAnnotate(target = 'setup') {
+    setAnnotateTarget(target)
+    setAnnotationDraft(target === 'stock' ? stockDrawings : savedDrawings)
     setAnnotateMode(true)
   }
   function cancelAnnotate() {
@@ -772,8 +776,12 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     setAnnotationDraft([])
   }
   async function saveAnnotations() {
-    if (focus.id == null) return
-    await fetch(`/api/modelbook/setup/${focus.id}`, {
+    // Route to the stock (full-year) or the focused setup based on the target.
+    const url = annotateTarget === 'stock'
+      ? `/api/modelbook/stock/${stock.id}`
+      : (focus.id != null ? `/api/modelbook/setup/${focus.id}` : null)
+    if (!url) return
+    await fetch(url, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ drawings_json: JSON.stringify(annotationDraft) }),
@@ -825,9 +833,12 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
           </h2>
         </div>
         <div className={styles.headerTools}>
-          {/* Annotate: only when admin has a setup zoomed in (Setups tab). */}
+          {/* Annotate a focused setup (zoomed in) OR the full-year chart (zoomed out). */}
           {isAdmin && onSetupsTab && focusDate && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={startAnnotate} title="Draw annotations on this setup">✏️ Annotate</button>
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('setup')} title="Draw annotations on this setup">✏️ Annotate</button>
+          )}
+          {isAdmin && onSetupsTab && !focusDate && !annotateMode && (
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the full-year chart (not tied to a setup)">✏️ Annotate Chart</button>
           )}
           {isAdmin && annotateMode && (
             <>
@@ -878,6 +889,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             annotations={chartAnnotations}
             annotationsVisible={chartAnnotationsVisible}
             annotationsOpacity={annoOpacity}
+            staticAnnotations={(annotateMode && annotateTarget === 'stock') ? null : stockDrawings}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}

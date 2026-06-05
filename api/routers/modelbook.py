@@ -58,6 +58,7 @@ class StockPatch(BaseModel):
     gain_pct: Optional[float] = None
     company_desc: Optional[str] = None
     run_story: Optional[str] = None
+    drawings_json: Optional[str] = None   # stock-level chart annotations (full-year view)
 
 
 class SetupIn(BaseModel):
