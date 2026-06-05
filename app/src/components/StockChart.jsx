@@ -4840,7 +4840,13 @@ export default function StockChart({
           line — read-only for everyone, a measure-only toolbar for admins.
           Bound to the index pane (indexPaneSeriesRef + its measured box) so the
           Y coords map to the top pane, not the price pane. */}
-      {indexAnnotations != null && indexPaneSymbol && indexPaneSeries.length > 0 && indexOverlayBounds
+      {/* NOTE: gated on the (stable) measured bounds, NOT indexPaneSeries.length — the
+          global Nasdaq marks stay put while flipping tickers. The index pane + line
+          persist through a ticker switch (the index effect keeps them mounted on an
+          empty-data frame), so requiring length>0 here only caused the overlay to
+          unmount/remount on each switch = a blink. Bounds stay measured across the
+          switch, so the canvas survives and just redraws as the chart reframes. */}
+      {indexAnnotations != null && indexPaneSymbol && indexOverlayBounds
         && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
