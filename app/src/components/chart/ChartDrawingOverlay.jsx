@@ -585,6 +585,12 @@ export default function ChartDrawingOverlay({
   const rafRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
+  // Motion detection: the off-screen guard is suspended while the view is moving
+  // (focus zoom / pan) so lines transition WITH the candles, then re-applied once
+  // the view settles (~140ms stable) so off-screen setups stay hidden at rest.
+  const lastRangeKeyRef = useRef('')
+  const movingRef = useRef(false)
+  const settleTimerRef = useRef(null)
 
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
@@ -783,13 +789,24 @@ export default function ChartDrawingOverlay({
 
     // Visible logical range — used to hide a setup's annotations when its anchor
     // bar is off-screen (e.g. the next setup to the right while zoomed in on this
-    // one). Only enforced for Model Book overlays (textFadeRef present).
+    // one). Only enforced for Model Book overlays (textFadeRef present), and only
+    // once the view is SETTLED — while the chart is moving the guard is off so
+    // lines/labels transition smoothly with the candles instead of popping in.
     let visFrom = -Infinity, visTo = Infinity
+    let guardActive = false
     if (textFadeRef) {
       try {
         const r = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
         if (r) { visFrom = r.from; visTo = r.to }
       } catch { /* keep unbounded */ }
+      const key = `${visFrom.toFixed(2)}_${visTo.toFixed(2)}`
+      if (key !== lastRangeKeyRef.current) {
+        lastRangeKeyRef.current = key
+        movingRef.current = true
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
+        settleTimerRef.current = setTimeout(() => { movingRef.current = false; redrawRef.current?.() }, 140)
+      }
+      guardActive = !movingRef.current
     }
 
     const toPixelY = (_, price) => {
@@ -819,7 +836,8 @@ export default function ChartDrawingOverlay({
       // Off-screen guard (Model Book): if this drawing's anchor bar — its setup
       // candle (rightmost point / rightBoundTime) — is outside the visible range,
       // skip it so a neighbouring setup's label/lines don't bleed in at the edge.
-      if (textFadeRef) {
+      // Suspended while the view is moving (guardActive) so lines transition in.
+      if (guardActive) {
         const idxs = []
         for (const p of (d.points || [])) { const i = timeToIndex.get(p.time); if (i != null) idxs.push(i) }
         if (d.rightBoundTime != null) { const ri = timeToIndex.get(d.rightBoundTime); if (ri != null) idxs.push(ri) }
