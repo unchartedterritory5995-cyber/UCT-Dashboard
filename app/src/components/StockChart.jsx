@@ -3349,6 +3349,28 @@ export default function StockChart({
       }
     }
 
+    // Model Book (exactDateRange): the year frame is DETERMINISTIC for this (stock,
+    // year), so re-apply it on EVERY data update — not only on the sym/tf switch
+    // handled above. The bars load in phases (IDB cache → network refetch), and a
+    // later phase with a different bar count would otherwise leave the prior logical
+    // range mapping to the wrong dates for one frame: the chart (and the ^IXIC pane
+    // that rides its time scale) glitches to a wrong spot and snaps back while
+    // scrolling fast. Applying it here, in the SAME effect as setData above, makes
+    // the new bars + correct year frame paint atomically — no transient. Skipped
+    // while a setup/catalyst focus zoom owns the view (focusActiveRef).
+    if (exactDateRange && entryDate && filteredBars.length > 0 && !focusActiveRef.current) {
+      let _s = filteredBars.findIndex(b => b.t >= entryDate)
+      let _e = filteredBars.length - 1
+      if (exitDate) {
+        for (let i = filteredBars.length - 1; i >= 0; i--) {
+          if (filteredBars[i].t <= exitDate) { _e = i; break }
+        }
+      }
+      const _has = _s >= 0 && _e >= _s && (!exitDate || filteredBars[_s].t <= exitDate)
+      if (!_has) { _e = filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
+      try { chart.timeScale().setVisibleLogicalRange({ from: _s, to: _e }) } catch { /* out of range mid-load */ }
+    }
+
     // Track current bar count + bars so the next ticker switch can right-anchor the
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
