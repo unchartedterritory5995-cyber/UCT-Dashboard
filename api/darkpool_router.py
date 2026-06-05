@@ -2,86 +2,140 @@
 darkpool_router.py — FastAPI routes for dark pool data.
 Mount in main.py:  app.include_router(darkpool_router.router)
 
-History note (why this changed):
-  Previous version buffered the full CSV into memory and gzipped it before
-  returning a Response with Content-Length, on the theory that Cloudflare
-  could then edge-cache windows by ?days=N. That theory didn't hold up:
-  DarkPool.jsx appends ?_t=Date.now() to every request, so the cache key
-  changes every fetch — Cloudflare never serves a cached response. Meanwhile
-  the buffer cost was real: at 36K rows/day actual (not the 25K we'd
-  assumed), 60+ days = 250MB+ raw CSV being held in memory plus a gzip
-  output buffer, OOM-killing the Railway worker mid-response. The browser
-  saw a truncated/empty body and parseCSV returned 0 rows → "No data
-  returned" error on the dashboard.
+Architecture mirrors flow_router.py exactly. Three-layer caching for
+moderate-to-large CSV responses (90d at ~3M rows / ~250MB raw):
 
-  Now using StreamingResponse with the stream_csv() generator (same pattern
-  as flow_router). Memory stays flat regardless of window size, first byte
-  arrives in ~100ms, and the app-level GZipMiddleware (main.py:1792)
-  auto-compresses each chunk. Cap raised to 120 days to match the DB
-  auto-prune retention policy.
+1. Stream-compress through GzipFile rather than buffer-then-compress.
+   For 60+ day windows, the previous build-full-string approach allocated
+   250MB+ of uncompressed CSV in RAM before gzipping, OOM-killing the
+   Railway worker. Streaming chunks through gzip caps peak memory at the
+   compressed size (~30MB for 90d), independent of raw size.
+
+2. compresslevel=1 (not the default 6) cuts gzip CPU ~60% in exchange for
+   ~10% larger output. Speed-to-first-byte beats absolute size when CF
+   caches the result either way.
+
+3. In-memory LRU cache (8 entries) keyed by (days, version). If CF
+   misses (e.g. after a version bump) and multiple users hit at once,
+   only the first request rebuilds; the rest serve from RAM.
+
+Buffered Response (not StreamingResponse) is mandatory because
+Cloudflare won't cache chunked responses without Content-Length. The
+streaming above is internal to the handler; the response itself ships
+as a single buffered payload.
+
+Cache invalidation: total_rows from the DB acts as the version key.
+Uploads/prunes change the count → /version endpoint reports the new
+number → clients append it as ?v=N → CF treats it as a fresh URL.
+Both client-side and server-side caches invalidate in sync.
 """
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response
+from collections import OrderedDict
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
 )
+import gzip
+import io
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
 
-# Cap matches the DB retention policy (auto-prune at 120 days in main.py).
-# With streaming, memory cost on the server is flat regardless of window —
-# the practical ceiling is the browser's ability to parse and render the
-# row count. ~36K rows/day → 120 days ≈ 4.3M rows / ~500MB raw CSV.
-# If the browser struggles at the high end, lower this rather than going
-# back to buffering on the server.
-MAX_RESPONSE_DAYS = 120
+_DARKPOOL_CACHE_HEADERS = {
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Vary": "Accept-Encoding",
+}
+
+# ── In-memory response cache ────────────────────────────────────────────────
+# Keyed by (days,)  where days=None means "all". Values: (version, gzipped_bytes).
+# Bounded at 8 entries with LRU eviction. Working set is small (~6 windows:
+# 1d/5d/20d/60d/90d/all). At ~30MB per large entry, 8 entries caps RAM at
+# ~240MB worst case — fits comfortably in a Railway dyno.
+_RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+_RESPONSE_CACHE_MAX = 8
+
+
+def _current_version() -> int:
+    """DB total row count — used as cache invalidation key. Same number the
+    /version endpoint returns so client and server caches invalidate together."""
+    try:
+        return get_stats().get("total_rows") or 0
+    except Exception:
+        return 0
+
+
+def _build_gzipped_csv(days) -> bytes:
+    """Stream the CSV generator through the gzip compressor, returning
+    full gzipped bytes. Memory peak ~= compressed size, NOT raw CSV size.
+
+    days=None means "all data" — stream_csv handles that path."""
+    gen = stream_csv(days=days) if days is not None else stream_csv()
+    buf = io.BytesIO()
+    # compresslevel=1: ~60% faster than the default level 6 / ~10% larger
+    # output. CF caches either way, so first-byte speed wins.
+    # mtime=0: deterministic gzip header — same data -> byte-identical output,
+    # so HTTP intermediaries can compare-and-skip on revalidation.
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
+        for chunk in gen:
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
+    return buf.getvalue()
+
+
+def _get_cached_or_build(days) -> bytes:
+    """Return gzipped CSV bytes for (days,), using the in-memory cache when
+    version matches. LRU eviction at _RESPONSE_CACHE_MAX entries."""
+    version = _current_version()
+    key = (days,)
+    cached = _RESPONSE_CACHE.get(key)
+    if cached and cached[0] == version:
+        _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
+        return cached[1]
+
+    payload = _build_gzipped_csv(days)
+    if len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
+        _RESPONSE_CACHE.popitem(last=False)  # evict LRU
+    _RESPONSE_CACHE[key] = (version, payload)
+    return payload
+
+
+def _serve_csv(days, request: Request):
+    """Build (or fetch cached) gzipped CSV and return as Response with
+    Content-Length set implicitly. CF caches by full URL incl. ?v= and ?days=."""
+    try:
+        gzipped = _get_cached_or_build(days)
+    except Exception as e:
+        return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
+
+    accept = (request.headers.get("accept-encoding") or "").lower()
+    if "gzip" in accept:
+        return Response(
+            content=gzipped,
+            media_type="text/csv",
+            headers={**_DARKPOOL_CACHE_HEADERS, "Content-Encoding": "gzip"},
+        )
+    # Rare path: client doesn't accept gzip. Decompress before sending.
+    content = gzip.decompress(gzipped)
+    return Response(content=content, media_type="text/csv", headers=_DARKPOOL_CACHE_HEADERS)
 
 
 # ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
 async def get_darkpool_data(
     request: Request,
-    days: int = Query(default=1, ge=0, description="Number of trading days (0 = all available)"),
-    all_data: bool = Query(default=False, description="Return all data"),
+    days: int = Query(default=1, ge=0, description="Number of trading days (0 = all)"),
+    all_data: bool = Query(default=False),
 ):
-    """
-    Stream dark pool data as CSV text (auto-gzipped by app middleware).
-    Frontend (DarkPool.jsx) parses the response the same way it parsed the
-    static CSV — header row + comma-separated trade rows.
-
-    Capped at MAX_RESPONSE_DAYS trading days. X-Data-Capped-Days header is
-    set when the cap fires so the frontend can surface a user-facing notice
-    ("Showing most recent 120d — DB contains N").
-    """
-    try:
-        capped = False
-        if all_data or days == 0:
-            effective_days = MAX_RESPONSE_DAYS
-            capped = True
-        else:
-            if days > MAX_RESPONSE_DAYS:
-                capped = True
-            effective_days = min(days, MAX_RESPONSE_DAYS)
-
-        # Cache-Control kept for the day when the frontend stops cache-busting.
-        # Currently DarkPool.jsx appends ?_t=Date.now() so Cloudflare never
-        # hits, but the headers are cheap and correct.
-        headers = {
-            "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-            "Vary": "Accept-Encoding",
-        }
-        if capped:
-            headers["X-Data-Capped-Days"] = str(MAX_RESPONSE_DAYS)
-
-        return StreamingResponse(
-            stream_csv(days=effective_days),
-            media_type="text/csv",
-            headers=headers,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Serve dark pool data as gzipped CSV (cached at CF edge via ?v=)."""
+    if all_data or days == 0:
+        return _serve_csv(None, request)  # all
+    if days < 1:
+        days = 1
+    if days > 365:
+        days = 365
+    return _serve_csv(days, request)
 
 
 # ── Public: Get available trading dates ───────────────────────────────────────
@@ -93,6 +147,29 @@ async def get_dates():
         return JSONResponse({"dates": dates, "count": len(dates)})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Public: Cache-busting version key ────────────────────────────────────────
+@router.get("/version")
+async def get_version():
+    """Returns DB total_rows. Changes whenever rows are inserted (uploads) or
+    removed (prune). Clients append this as &v=<version> to /data requests so
+    CF treats each version as a separate cache entry — old cached responses
+    naturally fall out of use when new data arrives.
+
+    This endpoint itself is never cached (Cache-Control: no-store) so version
+    bumps are seen immediately."""
+    try:
+        return JSONResponse(
+            {"version": _current_version()},
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"version": 0, "error": str(e)},
+            status_code=500,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
 
 # ── Admin: Upload CSV data ────────────────────────────────────────────────────
@@ -114,11 +191,8 @@ async def upload_darkpool_csv(file: UploadFile = File(...)):
             )
 
         result = insert_csv_rows(csv_text)
-        return JSONResponse({
-            "status": "ok",
-            "filename": file.filename,
-            **result
-        })
+        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
+        return JSONResponse({"status": "ok", "filename": file.filename, **result})
     except HTTPException:
         raise
     except Exception as e:
@@ -128,23 +202,15 @@ async def upload_darkpool_csv(file: UploadFile = File(...)):
 # ── Admin: Upload CSV as raw text (for admin JSX fetch) ───────────────────────
 @router.post("/upload-text")
 async def upload_darkpool_text(body: dict):
-    """
-    Upload CSV as raw text in JSON body { "csv_text": "..." }.
-    Used by the admin dashboard drag-and-drop upload.
-    """
+    """Upload CSV as raw text in JSON body { "csv_text": "..." }."""
     try:
         csv_text = body.get("csv_text", "")
         filename = body.get("filename", "upload.csv")
-
         if not csv_text.strip():
             raise HTTPException(status_code=400, detail="Empty CSV text")
-
         result = insert_csv_rows(csv_text)
-        return JSONResponse({
-            "status": "ok",
-            "filename": filename,
-            **result
-        })
+        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
+        return JSONResponse({"status": "ok", "filename": filename, **result})
     except HTTPException:
         raise
     except Exception as e:
@@ -167,6 +233,7 @@ async def prune_data(keep_days: int = Query(default=120)):
     """Remove data older than keep_days trading days."""
     try:
         deleted = prune_old_data(keep_days)
+        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
         return JSONResponse({"status": "ok", "deleted": deleted, "kept_days": keep_days})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -178,6 +245,7 @@ async def clear_data():
     """Delete ALL dark pool data. Use with caution."""
     try:
         clear_all()
+        _RESPONSE_CACHE.clear()
         return JSONResponse({"status": "ok", "message": "All dark pool data cleared"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
