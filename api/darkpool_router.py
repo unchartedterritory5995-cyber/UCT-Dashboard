@@ -37,8 +37,14 @@ from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
     get_stats, prune_old_data, clear_all
 )
+from api.darkpool_aggregator import (
+    get_aggregated as get_aggregated_payload,
+    prebuild_all_windows_background,
+    invalidate_cache as invalidate_agg_cache,
+)
 import gzip
 import io
+import json
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
 
@@ -138,6 +144,48 @@ async def get_darkpool_data(
     return _serve_csv(days, request)
 
 
+# ── Public: Aggregated JSON (new primary endpoint) ────────────────────────────
+@router.get("/aggregated")
+async def get_darkpool_aggregated(
+    days: int = Query(default=1, ge=0, description="Trading days (0 = all)"),
+    all_data: bool = Query(default=False),
+):
+    """Return aggregated dark pool data as JSON.
+
+    Output matches the dpData shape that DarkPool.jsx parseCSVtoD used to
+    produce client-side, so the UI components consume it directly without
+    further processing.
+
+    File-cached on /data volume. Cache key includes a DB signature so any
+    upload (or prune) automatically invalidates. First request after a
+    cache miss takes 5-15s; subsequent identical requests are sub-second.
+    """
+    try:
+        if all_data or days == 0:
+            payload = get_aggregated_payload(all_data=True)
+        else:
+            if days > 365:
+                days = 365
+            payload = get_aggregated_payload(days=days)
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        return Response(
+            content=body,
+            media_type="application/json",
+            headers=_DARKPOOL_CACHE_HEADERS,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Admin: Manually trigger aggregation pre-build ────────────────────────────
+@router.post("/prebuild")
+async def prebuild_now():
+    """Kick off background pre-compute of all common windows.
+    Called automatically on upload — exposed here for manual ops use."""
+    prebuild_all_windows_background()
+    return JSONResponse({"status": "prebuild started"})
+
+
 # ── Public: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
 async def get_dates():
@@ -191,7 +239,9 @@ async def upload_darkpool_csv(file: UploadFile = File(...)):
             )
 
         result = insert_csv_rows(csv_text)
-        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
+        _RESPONSE_CACHE.clear()  # version bumped, in-memory CSV cache stale
+        invalidate_agg_cache()   # JSON aggregation cache also stale
+        prebuild_all_windows_background()  # warm the cache for end users
         return JSONResponse({"status": "ok", "filename": file.filename, **result})
     except HTTPException:
         raise
@@ -209,7 +259,9 @@ async def upload_darkpool_text(body: dict):
         if not csv_text.strip():
             raise HTTPException(status_code=400, detail="Empty CSV text")
         result = insert_csv_rows(csv_text)
-        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
+        _RESPONSE_CACHE.clear()  # version bumped, in-memory CSV cache stale
+        invalidate_agg_cache()   # JSON aggregation cache also stale
+        prebuild_all_windows_background()  # warm the cache for end users
         return JSONResponse({"status": "ok", "filename": filename, **result})
     except HTTPException:
         raise
@@ -233,7 +285,9 @@ async def prune_data(keep_days: int = Query(default=120)):
     """Remove data older than keep_days trading days."""
     try:
         deleted = prune_old_data(keep_days)
-        _RESPONSE_CACHE.clear()  # version bumped, in-memory cache stale
+        _RESPONSE_CACHE.clear()
+        invalidate_agg_cache()
+        prebuild_all_windows_background()
         return JSONResponse({"status": "ok", "deleted": deleted, "kept_days": keep_days})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -246,6 +300,7 @@ async def clear_data():
     try:
         clear_all()
         _RESPONSE_CACHE.clear()
+        invalidate_agg_cache()
         return JSONResponse({"status": "ok", "message": "All dark pool data cleared"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
