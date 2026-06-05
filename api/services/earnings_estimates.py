@@ -218,9 +218,9 @@ def _earn_row_preferred(new: dict, old: dict) -> bool:
 
 
 def _year_earnings_from_stock(ticker: str, year: int) -> list:
-    """Fallback EPS-only history from /stock/earnings (no revenue, but reliable
-    on every Finnhub tier). Keeps the FISCAL quarters of `year`. Used only when
-    the whole-market calendar comes back empty."""
+    """EPS-only history from Finnhub /stock/earnings (no revenue, but reliable on
+    every Finnhub tier). Keeps the FISCAL quarters of `year`. Used as a gap-fill in
+    get_year_earnings to populate quarters FMP is missing."""
     rows = []
     eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": _history_limit(year)})
     if isinstance(eps_raw, list):
@@ -246,32 +246,122 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
     return rows
 
 
+def _av_num(v):
+    """Parse an AlphaVantage numeric string ('5.73', 'None', '') → float or None."""
+    try:
+        if v is None or str(v).strip().lower() in ("", "none", "-"):
+            return None
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _year_earnings_from_av(ticker: str, year: int) -> list:
+    """EPS-only quarters of `year` from AlphaVantage `EARNINGS` — the deepest FREE
+    historical source (covers years/ADRs that FMP `stable/earnings` and Finnhub
+    lack, e.g. JKS/VIPS 2013). Quarter is taken from `fiscalDateEnding` (authoritative
+    period end), not a report-date heuristic. Best-effort: returns [] on any
+    failure OR an AV rate-limit Note/Information response (free tier = 25/day)."""
+    key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
+    if not key:
+        return []
+    try:
+        r = requests.get(
+            "https://www.alphavantage.co/query",
+            params={"function": "EARNINGS", "symbol": ticker, "apikey": key},
+            timeout=12,
+        )
+        r.raise_for_status()
+        j = r.json()
+    except Exception as exc:
+        _logger.info("AV EARNINGS failed for %s: %s", ticker, exc)
+        return []
+    if not isinstance(j, dict) or "quarterlyEarnings" not in j:
+        # {"Note": ...} / {"Information": ...} (throttled) or {"Error Message": ...}.
+        return []
+    q_by_month = {3: 1, 6: 2, 9: 3, 12: 4}  # calendar-fiscal quarter end → Q#
+    rows = []
+    for q in j.get("quarterlyEarnings", []):
+        fde = str(q.get("fiscalDateEnding") or "")[:10]
+        try:
+            fy, fm = int(fde[:4]), int(fde[5:7])
+        except (ValueError, IndexError):
+            continue
+        if fy != int(year):
+            continue
+        quarter = q_by_month.get(fm)
+        if not quarter:
+            continue  # off-calendar period end — skip rather than mislabel
+        eps_a, eps_e = _av_num(q.get("reportedEPS")), _av_num(q.get("estimatedEPS"))
+        surp = _av_num(q.get("surprisePercentage"))
+        rows.append({
+            "date": str(q.get("reportedDate") or fde)[:10],
+            "quarter": quarter,
+            "year": fy,
+            "eps_actual": eps_a,
+            "eps_estimate": eps_e,
+            "eps_surprise_pct": round(surp, 1) if surp is not None else _surprise_pct(eps_a, eps_e),
+            "revenue_actual": None,
+            "revenue_estimate": None,
+            "revenue_surprise_pct": None,
+        })
+    return rows
+
+
 def get_year_earnings(ticker: str, year: int) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
 
-    Primary source is FMP `stable/earnings` (symbol-specific, carries EPS AND
-    revenue). Falls back to Finnhub `/stock/earnings` (EPS only) so the table
-    still appears if FMP is unavailable. Cached per (ticker, year) — closed
-    years are static so they cache for weeks."""
+    MERGES sources by fiscal quarter to maximize coverage (FMP often has GAPS for
+    older years / ADRs — e.g. only Q1 2013 for JKS — and the old all-or-nothing
+    fallback never filled them):
+      1. FMP `stable/earnings` — EPS + revenue (richest; the only one with revenue).
+      2. Finnhub `/stock/earnings` — EPS only — fills quarters FMP is missing.
+      3. AlphaVantage `EARNINGS` — EPS only, deepest free history — fills the rest.
+    Each fill only populates quarters still empty, so FMP's revenue is never lost.
+    Cached per (ticker, year): a closed year that came back COMPLETE (all 4 quarters)
+    caches for weeks; an incomplete one caches briefly so it retries (e.g. once an
+    AV rate-limit clears) until it fills."""
     ticker = ticker.upper()
     ckey = f"mb_year_earnings_{ticker}_{int(year)}"
     cached = cache.get(ckey)
     if cached is not None:
         return cached
 
-    def _qsort(r):  # Q1 → Q4 (fall back to date when quarter is missing)
-        return (r.get("quarter") or 99, r.get("date") or "")
+    from datetime import datetime, timezone
+    closed = int(year) < datetime.now(timezone.utc).year
+    by_q: dict[int, dict] = {}
 
-    rows = sorted(_year_earnings_from_fmp(ticker, year), key=_qsort)
-    if not rows:
-        rows = sorted(_year_earnings_from_stock(ticker, year), key=_qsort)
-        _logger.info("get_year_earnings %s %s: FMP empty, Finnhub /stock/earnings gave %d row(s)",
-                     ticker, year, len(rows))
+    def _fill(rows):
+        for r in rows:
+            q = r.get("quarter")
+            try:
+                q = int(q) if q is not None else None
+            except (TypeError, ValueError):
+                q = None
+            if q in (1, 2, 3, 4) and q not in by_q:
+                r["quarter"] = q
+                by_q[q] = r
+
+    _fill(_year_earnings_from_fmp(ticker, year))
+    if len(by_q) < 4:
+        _fill(_year_earnings_from_stock(ticker, year))
+    # AV deep-history fill is gated to CLOSED years: for the in-progress year,
+    # missing quarters are simply not reported yet, so spending AV's scarce 25/day
+    # quota (shared with the news feed) on it would be wasteful and pointless.
+    if closed and len(by_q) < 4:
+        _fill(_year_earnings_from_av(ticker, year))
+
+    rows = sorted(by_q.values(), key=lambda r: (r.get("quarter") or 99, r.get("date") or ""))
+    if len(by_q) < 4:
+        _logger.info("get_year_earnings %s %s: only %d/4 quarters across sources",
+                     ticker, year, len(by_q))
 
     if rows:  # don't cache transient failures
-        from datetime import datetime, timezone
-        ttl = 30 * 86400 if int(year) < datetime.now(timezone.utc).year else _CACHE_TTL
+        complete = len(by_q) >= 4
+        # Long cache ONLY for a closed, complete year (static). An incomplete year
+        # gets the short TTL so it re-attempts the fill sources later.
+        ttl = 30 * 86400 if (closed and complete) else _CACHE_TTL
         cache.set(ckey, rows, ttl=ttl)
     return rows
 

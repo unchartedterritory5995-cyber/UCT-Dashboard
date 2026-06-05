@@ -200,13 +200,44 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     return stock
 
 
-def _compute_year_stats(symbol: str, year: int) -> dict:
+def _load_year_bars(symbol: str, year: int, stock_id=None) -> list:
+    """Sorted daily bars for (symbol, year). PREFERS admin-uploaded custom bars
+    (svc.modelbook_stock_bars) when present — a since-renamed/delisted ticker
+    (e.g. YELL in 2013 traded as YRCW) has NO provider data under its current
+    symbol, so the provider fetch returns nothing for the book year while the
+    uploaded bars (what the chart already renders) are the real history. Falls
+    back to the cached provider fetch. Returns [] on failure."""
+    import json
+    ystr = str(year)
+    # 1. Uploaded custom bars win (provider can't cover the old/renamed symbol).
+    if stock_id is not None:
+        try:
+            raw = svc.get_stock_bars(stock_id)
+            if raw:
+                yb = [b for b in json.loads(raw) if str(b.get("t", "")).startswith(ystr)]
+                yb.sort(key=lambda b: b.get("t", ""))
+                if yb:
+                    return yb
+        except Exception:
+            pass
+    # 2. Provider fetch (cached bars path).
+    try:
+        from api.services import bars_fetch
+        resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
+        body = getattr(resp, "body", None)
+        data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
+        yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
+        yb.sort(key=lambda b: b.get("t", ""))  # 'YYYY-MM-DD' sorts chronologically
+        return yb
+    except Exception:
+        return []
+
+
+def _compute_year_stats(symbol: str, year: int, stock_id=None) -> dict:
     """For a (symbol, year): % move from year open→close, and from year
     low→high. Computed from daily bars and cached (closed-year stats are
     static). Returns {open_close_pct, low_high_pct} (None when unavailable)."""
-    import json
     from api.services.cache import cache
-    from api.services import bars_fetch
 
     ckey = f"modelbook_yearstats_{symbol.upper()}_{year}"
     cached = cache.get(ckey)
@@ -215,12 +246,7 @@ def _compute_year_stats(symbol: str, year: int) -> dict:
 
     stats = {"open_close_pct": None, "low_high_pct": None, "avg_vol": None}
     try:
-        resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
-        body = getattr(resp, "body", None)
-        data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
-        ystr = str(year)
-        yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
-        yb.sort(key=lambda b: b.get("t", ""))  # 'YYYY-MM-DD' sorts chronologically
+        yb = _load_year_bars(symbol, year, stock_id)
         if yb:
             o = yb[0].get("o")
             c = yb[-1].get("c")
@@ -267,7 +293,7 @@ def _persist_stats_for(stocks, max_workers=2):
 
     def _work(s):
         try:
-            st = _compute_year_stats(s["symbol"], s["year"])
+            st = _compute_year_stats(s["symbol"], s["year"], s.get("id"))
             oc = st.get("open_close_pct")
             if oc is not None:  # don't persist failures
                 svc.save_stats(s["id"], oc, st.get("low_high_pct"), st.get("avg_vol"))
@@ -527,17 +553,11 @@ _CATALYST_ENABLED = _os.environ.get("MODELBOOK_CATALYSTS_ENABLED", "1") == "1"
 _CATALYST_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
 
 
-def _fetch_year_bars(symbol: str, year: int) -> list:
-    """Sorted daily bars for the (symbol, year). Reuses the cached bars path."""
-    import json
-    from api.services import bars_fetch
-    resp = bars_fetch._get_bars_inner(symbol, "D", 5000)
-    body = getattr(resp, "body", None)
-    data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
-    ystr = str(year)
-    yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
-    yb.sort(key=lambda b: b.get("t", ""))
-    return yb
+def _fetch_year_bars(symbol: str, year: int, stock_id=None) -> list:
+    """Sorted daily bars for the (symbol, year), preferring uploaded custom bars
+    (so catalysts generate for delisted/renamed tickers whose provider data
+    doesn't cover the book year — e.g. YELL=YRCW in 2013)."""
+    return _load_year_bars(symbol, year, stock_id)
 
 
 def _big_up_days(bars: list, top_n: int = 12) -> list:
@@ -589,14 +609,14 @@ def _snap_trading_day(d: str, trading_days: list, day_set: set, year: int):
     return best if (best is not None and best_diff is not None and best_diff <= 5) else None
 
 
-def _generate_catalysts(symbol, company, year, gain_pct):
+def _generate_catalysts(symbol, company, year, gain_pct, stock_id=None):
     """Claude → list of the year's top 3-5 catalysts, each anchored to a real
     big-move trading day. Returns None on failure (no rows written)."""
     if not _CATALYST_ENABLED:
         return None
     import json as _json
     try:
-        bars = _fetch_year_bars(symbol, year)
+        bars = _fetch_year_bars(symbol, year, stock_id)
         if not bars:
             return None
         trading_days = sorted({str(b["t"])[:10] for b in bars if b.get("t")})
@@ -697,6 +717,7 @@ def _gen_one_stock_catalysts(stock) -> None:
     items = _generate_catalysts(
         stock["symbol"], stock.get("company"), stock["year"],
         stock.get("oc_pct") if stock.get("oc_pct") is not None else stock.get("gain_pct"),
+        stock.get("id"),
     )
     if items:
         svc.replace_catalysts(stock["id"], items)
@@ -780,6 +801,17 @@ def edit_index_drawings(payload: IndexDrawingsPatch, symbol: str = Query("^IXIC"
     return {"symbol": symbol.upper(), "drawings_json": stored}
 
 
+def _invalidate_year_derived(stock_id: int) -> None:
+    """After bars change: reset stored stats + AI catalysts (svc) AND drop the
+    in-memory year-stats cache entry so the next /year-stats recomputes from the
+    new bars instead of returning the stale (often empty) cached value."""
+    stock = svc.get_stock_detail(stock_id)
+    svc.reset_year_derived(stock_id)
+    if stock:
+        from api.services.cache import cache
+        cache.invalidate(f"modelbook_yearstats_{str(stock['symbol']).upper()}_{stock['year']}")
+
+
 @router.put("/stock/{stock_id}/bars")
 def edit_stock_bars(stock_id: int, payload: BarsIn, _admin: dict = Depends(require_admin)):
     """Admin: upload historical OHLCV for a delisted stock (parsed from a
@@ -788,6 +820,7 @@ def edit_stock_bars(stock_id: int, payload: BarsIn, _admin: dict = Depends(requi
     clean = _clean_bars(payload.bars)
     if not svc.set_stock_bars(stock_id, json.dumps(clean)):
         raise HTTPException(404, "Stock not found")
+    _invalidate_year_derived(stock_id)  # recompute stats + catalysts from the new bars
     return {"stock_id": stock_id, "count": len(clean),
             "first": clean[0]["t"], "last": clean[-1]["t"]}
 
@@ -795,6 +828,7 @@ def edit_stock_bars(stock_id: int, payload: BarsIn, _admin: dict = Depends(requi
 @router.delete("/stock/{stock_id}/bars")
 def remove_stock_bars(stock_id: int, _admin: dict = Depends(require_admin)):
     svc.delete_stock_bars(stock_id)
+    _invalidate_year_derived(stock_id)  # fall back to provider data for stats/catalysts
     return {"stock_id": stock_id, "cleared": True}
 
 
@@ -853,6 +887,7 @@ def generate_catalysts(stock_id: int, force: bool = Query(False),
     items = _generate_catalysts(
         stock["symbol"], stock.get("company"), stock["year"],
         stock.get("oc_pct") if stock.get("oc_pct") is not None else stock.get("gain_pct"),
+        stock_id,
     )
     if not items:
         raise HTTPException(502, "Could not generate catalysts — try again.")

@@ -247,6 +247,49 @@ def mark_desc_attempt(stock_id: int) -> None:
         c.commit()
 
 
+def reset_year_derived(stock_id: int) -> None:
+    """Invalidate a stock's cached year data after its bars are replaced/cleared:
+    clear the price stats (oc/lh/avg_vol) so the warm recomputes them, drop any
+    AI-generated catalysts (they were anchored to the OLD bars' big-move days), and
+    reset catalysts_at so they regenerate from the new bars. Manual catalysts are
+    preserved (and keep auto-gen from running while they exist)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("DELETE FROM modelbook_catalysts WHERE stock_id = ? AND source = 'ai'",
+                  (int(stock_id),))
+        c.execute("""UPDATE modelbook_stocks
+                     SET oc_pct = NULL, lh_pct = NULL, avg_vol = NULL, stats_at = NULL,
+                         catalysts_at = NULL
+                     WHERE id = ?""", (int(stock_id),))
+        c.commit()
+
+
+def heal_custom_bars_derived(version_tag: str) -> None:
+    """One-time (per tag): for stocks with admin-uploaded custom bars, clear cached
+    price stats + reset catalysts_at (only when they have no catalysts yet) so the
+    background warm recomputes BOTH from the uploaded bars. Fixes delisted/renamed
+    tickers (e.g. YELL=YRCW in 2013) whose gain/$vol/catalysts were blank because
+    the old code fetched provider data the current symbol no longer has. Flag-gated."""
+    flag = os.path.join(os.path.dirname(os.path.abspath(_DB_PATH)) or ".",
+                        f".modelbook_heal_{version_tag}")
+    if os.path.exists(flag):
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute(
+                """UPDATE modelbook_stocks
+                   SET oc_pct = NULL, lh_pct = NULL, avg_vol = NULL, stats_at = NULL,
+                       catalysts_at = CASE
+                         WHEN id IN (SELECT stock_id FROM modelbook_catalysts)
+                         THEN catalysts_at ELSE NULL END
+                   WHERE id IN (SELECT stock_id FROM modelbook_stock_bars
+                                WHERE bars_json IS NOT NULL)""")
+            c.commit()
+        with open(flag, "w", encoding="utf-8") as f:
+            f.write("done\n")
+    except OSError:
+        pass
+
+
 def get_stock_detail(stock_id: int) -> Optional[dict]:
     """A single stock with its full setups[] list (ordered by label_date)."""
     with contextlib.closing(_connect()) as c:
