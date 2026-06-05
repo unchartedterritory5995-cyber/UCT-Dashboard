@@ -603,17 +603,22 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   // Display version: horizontal rays bounded to stop at the setup candle, so they
   // never extend past it even when zoomed into a single setup ("show all" off).
   const displayDrawings = useMemo(
-    () => (displaySetup ? boundHrays(parseDrawings(displaySetup.drawings_json), displaySetup.label_date).map(d => ({ ...d, _setupId: displaySetup.id })) : null),
+    () => (displaySetup ? boundHrays(parseDrawings(displaySetup.drawings_json), displaySetup.label_date) : null),
     [displaySetup],
   )
 
   // "Show all": every setup's drawings overlaid on the (zoomed-out) chart. Each
   // setup's horizontal rays get a rightBoundTime of that setup's candle so they
   // stop at the setup instead of streaking across the whole year when zoomed out.
-  const allDrawings = useMemo(
-    () => setups.flatMap(s => boundHrays(parseDrawings(s.drawings_json), s.label_date).map(d => ({ ...d, _setupId: s.id }))),
-    [setups],
-  )
+  const allDrawings = useMemo(() => {
+    const focusedId = (focusActive && focusDate) ? focus.id : null
+    return setups.flatMap(s => {
+      const ds = boundHrays(parseDrawings(s.drawings_json), s.label_date)
+      // Show-all ON: a setup's TEXT box only renders for the focused setup; its
+      // lines/labels always show. Non-focused setups keep everything but text.
+      return s.id === focusedId ? ds : ds.filter(d => d.type !== 'text')
+    })
+  }, [setups, focusActive, focusDate, focus.id])
   const hasAnnotations = allDrawings.length > 0
   // All setup days — painted gold on the chart while "show all" is on so each
   // setup candle stands out alongside its annotations. Stable ref for StockChart.
@@ -878,8 +883,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             annotationsVisible={chartAnnotationsVisible}
             annotationsOpacity={annoOpacity}
             annotationsFadeWhole={!showAllAnnotations}
-            annotationsFocusedSetupId={focusDate ? drawFocusId : null}
-            staticAnnotations={(annotateMode && annotateTarget === 'stock') ? null : (showAllAnnotations ? stockDrawings : null)}
+            staticAnnotations={(onSetupsTab && showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}

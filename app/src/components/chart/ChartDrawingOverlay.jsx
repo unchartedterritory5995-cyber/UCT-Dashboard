@@ -577,7 +577,6 @@ export default function ChartDrawingOverlay({
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
-  focusedSetupId = null,     // Model Book "show all" ON: only this setup's TEXT box renders (others' lines still show)
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -890,12 +889,7 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text':
-          // Show-all ON: a setup's TEXT box only renders for the focused setup
-          // (its lines/labels still show). Stock/Charts-Hub text (no _setupId) always shows.
-          if (d._setupId != null && d._setupId !== focusedSetupId) break
-          renderText(ctx, pts, d, textOpacity)
-          break
+        case 'text': renderText(ctx, pts, d, textOpacity); break
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
