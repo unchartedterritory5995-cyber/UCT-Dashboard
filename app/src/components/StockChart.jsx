@@ -3372,8 +3372,12 @@ export default function StockChart({
         lastF = f
         const edge = _lerpToWhite(edgeReal, f)
         const body = up ? `rgba(255,255,255,${f.toFixed(3)})` : _lerpToWhite(cs.candles.downColor, f)
+        // update() only touches the LAST bar in lightweight-charts; the setup
+        // candle is historical, so re-setData with just that bar recolored.
         try {
-          series.update({ time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close, color: body, borderColor: edge, wickColor: edge })
+          series.setData(ohlcData.map(d => (d.time === t
+            ? { ...d, color: body, borderColor: edge, wickColor: edge }
+            : d)))
         } catch { /* torn down */ }
       }
       raf = requestAnimationFrame(tick)
