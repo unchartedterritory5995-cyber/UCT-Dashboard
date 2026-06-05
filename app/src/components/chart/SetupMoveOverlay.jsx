@@ -12,14 +12,14 @@ const toMs = (v) => {
 }
 
 export default function SetupMoveOverlay({
-  chartRef, seriesRef, bars, dates,
-  posColor = '#4ade80', negColor = '#f87171',
+  chartRef, seriesRef, bars, setups,
+  color = '#ffffff',
 }) {
   const canvasRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
 
-  // Nearest bar index for a setup date (robust to date vs epoch formats).
+  // Nearest bar index for a date (robust to date vs epoch formats).
   const barIndexForDate = useCallback((dateStr) => {
     if (!bars || !bars.length) return -1
     const target = toMs(dateStr)
@@ -33,20 +33,23 @@ export default function SetupMoveOverlay({
   }, [bars])
 
   // For each consecutive pair of setups, the % move from the prior setup's close
-  // to this setup's close, labelled at this setup's candle.
+  // (its trigger candle) to this setup's close, PLACED at where this setup's lines
+  // start (its `anchor`) so the label sits at the front of the new base.
   const moves = useMemo(() => {
     const out = []
-    const ds = dates || []
-    for (let k = 1; k < ds.length; k++) {
-      const ai = barIndexForDate(ds[k - 1])
-      const bi = barIndexForDate(ds[k])
+    const ss = setups || []
+    for (let k = 1; k < ss.length; k++) {
+      const ai = barIndexForDate(ss[k - 1].date)
+      const bi = barIndexForDate(ss[k].date)
       if (ai < 0 || bi < 0) continue
       const a = bars[ai], b = bars[bi]
       if (!a || !b || !(a.c > 0)) continue
-      out.push({ time: ds[k], idx: bi, high: b.h, pct: ((b.c - a.c) / a.c) * 100 })
+      const ci = barIndexForDate(ss[k].anchor ?? ss[k].date)
+      const at = ci >= 0 ? ci : bi
+      out.push({ time: ss[k].anchor ?? ss[k].date, idx: at, high: bars[at].h, pct: ((b.c - a.c) / a.c) * 100 })
     }
     return out
-  }, [dates, bars, barIndexForDate])
+  }, [setups, bars, barIndexForDate])
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
@@ -76,13 +79,13 @@ export default function SetupMoveOverlay({
       try { y = series.priceToCoordinate(mv.high) } catch { /* skip */ }
       if (x == null || y == null) continue
       const text = `${mv.pct >= 0 ? '+' : ''}${Math.round(mv.pct)}%`
-      ctx.fillStyle = mv.pct >= 0 ? posColor : negColor
+      ctx.fillStyle = color
       ctx.shadowColor = 'rgba(0,0,0,0.85)'
       ctx.shadowBlur = 4
-      ctx.fillText(text, x, y - 10)   // just above the candle's high
+      ctx.fillText(text, x, y - 10)   // just above the candle's high where the lines start
       ctx.shadowBlur = 0
     }
-  }, [chartRef, seriesRef, moves, posColor, negColor])
+  }, [chartRef, seriesRef, moves, color])
 
   redrawRef.current = redraw
 

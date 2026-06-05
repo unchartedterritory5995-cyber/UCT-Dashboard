@@ -487,7 +487,7 @@ export default function StockChart({
   focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
   // ── Per-setup annotations (Model Book) — additive, default-off ──
   callouts = null,              // array of {time, text} leader-line labels (Model Book catalysts) — placed in blank space with a diagonal line to the candle
-  setupMoveDates = null,        // sorted array of setup label_dates (Model Book) — draws a "+X%" advance label above each setup vs the previous one
+  setupMoves = null,            // sorted array of {date, anchor} per setup (Model Book) — draws a "+X%" advance label at the start of each setup's lines vs the previous one
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
@@ -4693,13 +4693,13 @@ export default function StockChart({
       )}
       {/* Setup-to-setup % advance labels (Model Book): "+X%" above each setup
           candle showing the move from the previous setup. */}
-      {setupMoveDates != null && setupMoveDates.length > 1 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
+      {setupMoves != null && setupMoves.length > 1 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
         <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
           <SetupMoveOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
-            dates={setupMoveDates}
+            setups={setupMoves}
           />
         </div>
       )}

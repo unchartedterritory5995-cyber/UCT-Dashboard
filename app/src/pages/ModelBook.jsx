@@ -594,6 +594,29 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   // All setup days — painted gold on the chart while "show all" is on so each
   // setup candle stands out alongside its annotations. Stable ref for StockChart.
   const setupTimes = useMemo(() => setups.map(s => s.label_date).filter(Boolean), [setups])
+  // For the setup-to-setup "+X%" advance labels: each setup's trigger date (for
+  // the % math) + the anchor where its lines START (leftmost drawing point) so the
+  // label sits at the front of the new base, not on the trigger candle.
+  const setupMoveData = useMemo(() => {
+    const toMs = (t) => {
+      if (t == null) return Infinity
+      if (typeof t === 'number') return t < 1e12 ? t * 1000 : t
+      const s = String(t)
+      return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+    }
+    return setups
+      .filter(s => s.label_date)
+      .map(s => {
+        let anchor = s.label_date, best = Infinity
+        for (const d of parseDrawings(s.drawings_json)) {
+          for (const p of (d.points || [])) {
+            const ms = toMs(p.time)
+            if (ms < best) { best = ms; anchor = p.time }
+          }
+        }
+        return { date: s.label_date, anchor }
+      })
+  }, [setups])
 
   // Precedence: admin authoring > show-all overlay > single-setup focus.
   let annotations, annotationsVisible
@@ -827,7 +850,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             watermarkY={0.2}
             priceLines={chartPriceLines}
             callouts={chartCallouts}
-            setupMoveDates={onSetupsTab ? setupTimes : null}
+            setupMoves={onSetupsTab ? setupMoveData : null}
             focusDate={focusDate}
             focusStartDate={focusStartDate}
             focusNonce={focus.nonce}
