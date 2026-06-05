@@ -83,6 +83,12 @@ CREATE TABLE IF NOT EXISTS modelbook_index_drawings (
   drawings_json TEXT,               -- JSON array of chart annotations (measure marks for Nasdaq corrections)
   updated_at    INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS modelbook_stock_bars (
+  stock_id   INTEGER PRIMARY KEY REFERENCES modelbook_stocks(id) ON DELETE CASCADE,
+  bars_json  TEXT,                  -- uploaded daily OHLCV for a delisted stock (JSON array [{t,o,h,l,c,v}]); served to the chart instead of the (missing) provider data
+  updated_at INTEGER
+);
 """
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
@@ -251,6 +257,13 @@ def get_stock_detail(stock_id: int) -> Optional[dict]:
             (int(stock_id),),
         ).fetchall()
         stock["catalysts"] = [dict(x) for x in catalysts]
+        # Flag (not the data) so the detail stays light — the chart fetches the
+        # actual uploaded bars once from /stock/{id}/bars when this is true.
+        bw = c.execute(
+            "SELECT 1 FROM modelbook_stock_bars WHERE stock_id = ? AND bars_json IS NOT NULL",
+            (int(stock_id),),
+        ).fetchone()
+        stock["has_custom_bars"] = bw is not None
         return stock
 
 
@@ -532,6 +545,41 @@ def get_index_drawings(symbol: str) -> str:
     if row and row["drawings_json"]:
         return row["drawings_json"]
     return "[]"
+
+
+def get_stock_bars(stock_id: int) -> Optional[str]:
+    """Uploaded daily OHLCV (JSON array string) for a delisted stock, or None."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT bars_json FROM modelbook_stock_bars WHERE stock_id = ?",
+            (int(stock_id),),
+        ).fetchone()
+    return row["bars_json"] if row and row["bars_json"] else None
+
+
+def set_stock_bars(stock_id: int, bars_json: str) -> bool:
+    """Upsert uploaded bars for a stock. Returns False if the stock is missing."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if not _stock_exists(c, stock_id):
+            return False
+        c.execute(
+            """INSERT INTO modelbook_stock_bars (stock_id, bars_json, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(stock_id) DO UPDATE SET
+                 bars_json  = excluded.bars_json,
+                 updated_at = excluded.updated_at""",
+            (int(stock_id), bars_json, int(time.time())),
+        )
+        c.commit()
+    return True
+
+
+def delete_stock_bars(stock_id: int) -> bool:
+    """Remove uploaded bars for a stock. Returns True if a row was deleted."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM modelbook_stock_bars WHERE stock_id = ?", (int(stock_id),))
+        c.commit()
+        return cur.rowcount > 0
 
 
 def set_index_drawings(symbol: str, drawings_json: str) -> str:

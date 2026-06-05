@@ -505,6 +505,8 @@ export default function StockChart({
   indexPaneColor = '#ffffff',   // line color for the index pane
   indexPaneHeightPct = 18,      // height of the index pane as % of chart
   indexPaneLabel = null,        // top-left label text for the index pane (defaults to the symbol sans caret)
+  barsOverride = null,          // Model Book: explicit bars (uploaded historical data for a delisted stock). When set, skip ALL fetching/IDB/delta and render these directly — for tickers the data providers no longer carry.
+  barsOverridePending = false,  // Model Book: an override is expected but still loading — suppress the provider fetch (don't flash the wrong/penny data) and show the spinner until it arrives.
   indexAnnotations = null,      // Model Book: GLOBAL drawings (measure marks for Nasdaq corrections) on the index pane — read-only for all, editable for admin
   indexAnnotationsEditable = false, // admin authoring: enable the measure toolbar on the index pane
   onIndexAnnotationsChange = null,  // (drawings[]) => void — called when admin adds/edits/removes an index-pane annotation
@@ -1318,9 +1320,14 @@ export default function StockChart({
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
-  const swrUrl = (sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
-    : null
+  // barsOverride (Model Book uploaded data) short-circuits all fetching.
+  const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
+  const _hasOverride = _overrideArr || barsOverridePending
+  const swrUrl = _hasOverride
+    ? null
+    : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+        ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
+        : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
   // at first-fetch data until the component unmounted. That trapped users on
@@ -1458,9 +1465,13 @@ export default function StockChart({
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
-  const bars = (_netMatches && !data.delta)
-    ? data.bars
-    : (_idbFresh ? idbBars : (_netMatches ? data.bars : null))
+  const bars = _overrideArr
+    ? barsOverride
+    : (barsOverridePending
+        ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
+        : ((_netMatches && !data.delta)
+            ? data.bars
+            : (_idbFresh ? idbBars : (_netMatches ? data.bars : null))))
   const loading = !bars && !error
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted

@@ -29,6 +29,56 @@ function parseDrawings(json) {
   catch { return [] }
 }
 
+// Normalize a TradingView/broker CSV cell to an ISO YYYY-MM-DD date string.
+function toIsoDate(s) {
+  if (s == null) return null
+  s = String(s).trim().replace(/^"|"$/g, '')
+  if (!s) return null
+  if (/^\d{9,11}$/.test(s)) return new Date(parseInt(s, 10) * 1000).toISOString().slice(0, 10)  // unix seconds
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`           // ISO date/datetime
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`  // MM/DD/YYYY
+  const d = new Date(s); return isNaN(d) ? null : d.toISOString().slice(0, 10)
+}
+
+// Parse a TradingView-exported CSV (time,open,high,low,close,Volume[,indicators…])
+// into daily bars [{t,o,h,l,c,v}]. Header-driven (extra indicator columns ignored).
+function parseBarsCsv(text) {
+  const lines = String(text || '').split(/\r?\n/).filter(l => l.trim())
+  if (!lines.length) return []
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''))
+  const find = (...names) => header.findIndex(h => names.includes(h))
+  const oi = find('open'), hi = find('high'), li = find('low'), ci = find('close', 'close/last', 'price')
+  const vi = find('volume', 'vol')
+  let ti = find('time', 'date', 'datetime'); if (ti < 0) ti = 0
+  const hasHeader = oi >= 0 && ci >= 0
+  const out = []
+  for (let r = hasHeader ? 1 : 0; r < lines.length; r++) {
+    const cols = lines[r].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    const t = toIsoDate(cols[ti]); if (!t) continue
+    const num = i => { const v = parseFloat(cols[i]); return Number.isFinite(v) ? v : null }
+    const o = num(oi), h = num(hi), l = num(li), c = num(ci)
+    if (o == null || h == null || l == null || c == null) continue
+    const v = vi >= 0 ? (parseFloat(cols[vi]) || 0) : 0
+    out.push({ t, o, h, l, c, v })
+  }
+  return out
+}
+
+// Resample daily bars → weekly (Mon-anchored) for the W timeframe.
+function resampleWeekly(daily) {
+  const weeks = new Map()
+  for (const b of daily) {
+    const d = new Date(b.t + 'T00:00:00Z')
+    const dow = (d.getUTCDay() + 6) % 7            // Mon=0
+    const mon = new Date(d); mon.setUTCDate(d.getUTCDate() - dow)
+    const key = mon.toISOString().slice(0, 10)
+    const w = weeks.get(key)
+    if (!w) weeks.set(key, { t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
+    else { w.h = Math.max(w.h, b.h); w.l = Math.min(w.l, b.l); w.c = b.c; w.v += (b.v || 0) }
+  }
+  return [...weeks.values()].sort((a, b) => a.t.localeCompare(b.t))
+}
+
 // Cap each horizontal ray at the setup's candle so it stops there instead of
 // streaking to the right edge — applied for display (both "show all" and a
 // single focused setup), NOT to the raw drawings used for admin editing.
@@ -451,13 +501,27 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       // (none yet + catalysts_at unset). Stops once each attempt is recorded.
       refreshInterval: (d) => {
         if (!d || d.error) return 0
-        const statsPending = d.avg_vol == null
+        // A delisted stock served from uploaded bars will never get provider
+        // stats — don't poll forever waiting on avg_vol for it.
+        const statsPending = d.avg_vol == null && !d.has_custom_bars
         const descPending = !d.company_desc && !d.desc_at
         const catalystsPending = !(d.catalysts && d.catalysts.length) && !d.catalysts_at
         return (statsPending || descPending || catalystsPending) ? 5000 : 0
       },
     },
   )
+  // Uploaded historical bars for a delisted stock (fetched once when present) —
+  // passed straight to StockChart as barsOverride, bypassing the data providers.
+  const { data: customBarsData, mutate: mutateCustomBars } = useSWR(
+    (stockId && stock?.has_custom_bars) ? `/api/modelbook/stock/${stockId}/bars` : null,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const customBars = useMemo(
+    () => (Array.isArray(customBarsData?.bars) && customBarsData.bars.length ? customBarsData.bars : null),
+    [customBarsData],
+  )
+  const barsFileRef = useRef(null)
+  const [barsMsg, setBarsMsg] = useState(null)  // upload status line (admin)
   // Chronological so the list reads as a time-ordered guide to the buy spots
   // (e.g. Flat Base Breakout · Aug → High Tight Flag · Oct → · Nov).
   const setups = useMemo(
@@ -693,6 +757,11 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const chartHighlight = onCatalystTab
     ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
     : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+  // Uploaded-bars override for the chart: daily as stored, resampled for Weekly.
+  const chartBars = useMemo(() => {
+    if (!customBars) return null
+    return chartTf === 'W' ? resampleWeekly(customBars) : customBars
+  }, [customBars, chartTf])
 
   // Quarterly earnings for the year — fetched for EVERY stock (the table is a
   // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
@@ -829,6 +898,40 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     mutate()
   }
 
+  // Upload a TradingView (or broker) OHLCV CSV → parsed client-side → stored as
+  // this stock's chart data (for delisted tickers the providers no longer carry).
+  async function onBarsFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''  // allow re-selecting the same file
+    if (!file) return
+    setBarsMsg('Parsing…')
+    try {
+      const bars = parseBarsCsv(await file.text())
+      if (!bars.length) { setBarsMsg('No valid rows found — expected time,open,high,low,close,Volume.'); return }
+      setBarsMsg(`Uploading ${bars.length} bars…`)
+      const res = await fetch(`/api/modelbook/stock/${stock.id}/bars`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bars }),
+      })
+      if (!res.ok) { setBarsMsg(`Upload failed: ${(await res.text()).slice(0, 140)}`); return }
+      const j = await res.json()
+      setBarsMsg(`✓ Uploaded ${j.count} bars (${j.first} → ${j.last}).`)
+      await mutate()           // detail → has_custom_bars true
+      await mutateCustomBars() // pull the bars → chart swaps to them
+      setTimeout(() => setBarsMsg(null), 5000)
+    } catch (err) {
+      setBarsMsg('Error: ' + (err?.message || 'failed to read file'))
+    }
+  }
+  async function clearBars() {
+    if (!window.confirm('Remove the uploaded historical data for this stock?')) return
+    await fetch(`/api/modelbook/stock/${stock.id}/bars`, { method: 'DELETE', credentials: 'include' })
+    setBarsMsg('Cleared.')
+    await mutate(); await mutateCustomBars()
+    setTimeout(() => setBarsMsg(null), 3000)
+  }
+
   async function saveNarrative() {
     await fetch(`/api/modelbook/stock/${stock.id}`, {
       method: 'PUT', credentials: 'include',
@@ -877,6 +980,20 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
           {isAdmin && !annotateMode && (
             <button className={styles.annotateBtn} onClick={() => startAnnotate('index')} title="Measure-mark Nasdaq corrections on the top pane (shared across every stock)">📐 Annotate Nasdaq</button>
           )}
+          {/* Upload historical OHLCV for a delisted stock the data providers dropped. */}
+          {isAdmin && !annotateMode && (
+            <>
+              <button className={styles.annotateBtn} onClick={() => barsFileRef.current?.click()}
+                title="Upload a TradingView OHLCV CSV as this stock's chart data (for delisted tickers)">
+                📈 {stock.has_custom_bars ? 'Replace Data' : 'Upload Data'}
+              </button>
+              {stock.has_custom_bars && (
+                <button className={styles.annotateCancel} onClick={clearBars} title="Remove uploaded data">Clear Data</button>
+              )}
+              <input ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
+            </>
+          )}
+          {barsMsg && <span style={{ fontSize: 11, color: 'var(--color-text-muted, #9aa)', marginLeft: 4 }}>{barsMsg}</span>}
           {isAdmin && annotateMode && (
             <>
               <button className={styles.annotateSave} onClick={saveAnnotations}>Save</button>
@@ -912,6 +1029,8 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             indexPaneSymbol="^IXIC"
             indexPaneLabel="IXIC (Nasdaq Composite)"
             indexPaneHeightPct={15}
+            barsOverride={chartBars}
+            barsOverridePending={!!(stock.has_custom_bars && !chartBars)}
             indexAnnotations={indexAnnotations}
             indexAnnotationsEditable={annotatingIndex}
             onIndexAnnotationsChange={setAnnotationDraft}

@@ -289,3 +289,37 @@ def test_index_drawings_set_get_roundtrip_and_upsert(s):
 def test_index_drawings_falsy_stores_empty_array(s):
     s.set_index_drawings("^IXIC", "")
     assert s.get_index_drawings("^IXIC") == "[]"
+
+
+# ── Uploaded historical bars (delisted stocks) ────────────────────────────────
+
+def test_stock_bars_crud_and_detail_flag(s):
+    stock = s.create_stock(_stock(symbol="MMATQ"))
+    sid = stock["id"]
+    assert s.get_stock_bars(sid) is None
+    assert s.get_stock_detail(sid)["has_custom_bars"] is False
+
+    payload = '[{"t":"2021-06-21","o":1.0,"h":2.0,"l":0.9,"c":1.8,"v":100}]'
+    assert s.set_stock_bars(sid, payload) is True
+    assert s.get_stock_bars(sid) == payload
+    assert s.get_stock_detail(sid)["has_custom_bars"] is True
+
+    # Upsert replaces.
+    s.set_stock_bars(sid, '[{"t":"2021-07-01","o":1,"h":1,"l":1,"c":1,"v":1}]')
+    assert "2021-07-01" in s.get_stock_bars(sid)
+
+    assert s.delete_stock_bars(sid) is True
+    assert s.get_stock_bars(sid) is None
+    assert s.get_stock_detail(sid)["has_custom_bars"] is False
+
+
+def test_set_stock_bars_missing_stock(s):
+    assert s.set_stock_bars(999999, "[]") is False
+
+
+def test_stock_bars_cascade_on_stock_delete(s):
+    stock = s.create_stock(_stock(symbol="DELQ"))
+    sid = stock["id"]
+    s.set_stock_bars(sid, '[{"t":"2021-01-04","o":1,"h":1,"l":1,"c":1,"v":1}]')
+    assert s.delete_stock(sid) is True
+    assert s.get_stock_bars(sid) is None  # FK cascade removed the bars row

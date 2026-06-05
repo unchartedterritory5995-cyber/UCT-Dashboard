@@ -95,6 +95,40 @@ class IndexDrawingsPatch(BaseModel):
     drawings_json: str   # JSON array of chart annotations for the index pane (measure marks)
 
 
+class BarsIn(BaseModel):
+    bars: list[dict]     # uploaded daily OHLCV: [{t:'YYYY-MM-DD', o,h,l,c, v}, ...]
+
+
+def _clean_bars(raw: list[dict]) -> list[dict]:
+    """Validate + normalize uploaded bars → sorted, deduped daily OHLCV. Raises
+    HTTPException(400) on bad input."""
+    if not isinstance(raw, list) or not raw:
+        raise HTTPException(400, "bars must be a non-empty array")
+    if len(raw) > 20000:
+        raise HTTPException(400, "too many bars (max 20000)")
+    by_date: dict[str, dict] = {}
+    for b in raw:
+        try:
+            t = str(b["t"])[:10]
+            o, h, l, cl = float(b["o"]), float(b["h"]), float(b["l"]), float(b["c"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(400, "each bar needs t (YYYY-MM-DD) and numeric o/h/l/c")
+        if not _ISO_DATE.match(t):
+            raise HTTPException(400, f"bad date '{t}' — must be YYYY-MM-DD")
+        if not all(x > 0 for x in (o, h, l, cl)):
+            continue  # skip non-positive (bad) rows rather than poison the series
+        try:
+            v = int(float(b.get("v", 0) or 0))
+        except (TypeError, ValueError):
+            v = 0
+        by_date[t] = {"t": t, "o": round(o, 4), "h": round(h, 4),
+                      "l": round(l, 4), "c": round(cl, 4), "v": max(0, v)}
+    out = [by_date[k] for k in sorted(by_date)]
+    if not out:
+        raise HTTPException(400, "no valid bars after cleaning")
+    return out
+
+
 class CatalystIn(BaseModel):
     catalyst_date: str
     title: str
@@ -294,6 +328,21 @@ def get_index_drawings(symbol: str = Query("^IXIC"), _user: dict = Depends(get_c
     """GLOBAL annotations for the index reference pane (^IXIC) — one shared set
     shown read-only on every stock's chart. Any logged-in user can read."""
     return {"symbol": symbol.upper(), "drawings_json": svc.get_index_drawings(symbol)}
+
+
+@router.get("/stock/{stock_id}/bars")
+def get_stock_bars(stock_id: int, _user: dict = Depends(get_current_user)):
+    """Uploaded historical OHLCV for a delisted stock (served to the chart in
+    place of the missing provider data). Any logged-in user can read."""
+    import json
+    raw = svc.get_stock_bars(stock_id)
+    bars = []
+    if raw:
+        try:
+            bars = json.loads(raw)
+        except (ValueError, TypeError):
+            bars = []
+    return {"stock_id": stock_id, "bars": bars}
 
 
 # ── AI-generated descriptions (company one-liner + "why it ran that year") ────
@@ -701,6 +750,24 @@ def edit_index_drawings(payload: IndexDrawingsPatch, symbol: str = Query("^IXIC"
         raise HTTPException(400, "drawings_json must be a JSON array")
     stored = svc.set_index_drawings(symbol, payload.drawings_json)
     return {"symbol": symbol.upper(), "drawings_json": stored}
+
+
+@router.put("/stock/{stock_id}/bars")
+def edit_stock_bars(stock_id: int, payload: BarsIn, _admin: dict = Depends(require_admin)):
+    """Admin: upload historical OHLCV for a delisted stock (parsed from a
+    TradingView CSV client-side). Validated, deduped, sorted, then stored."""
+    import json
+    clean = _clean_bars(payload.bars)
+    if not svc.set_stock_bars(stock_id, json.dumps(clean)):
+        raise HTTPException(404, "Stock not found")
+    return {"stock_id": stock_id, "count": len(clean),
+            "first": clean[0]["t"], "last": clean[-1]["t"]}
+
+
+@router.delete("/stock/{stock_id}/bars")
+def remove_stock_bars(stock_id: int, _admin: dict = Depends(require_admin)):
+    svc.delete_stock_bars(stock_id)
+    return {"stock_id": stock_id, "cleared": True}
 
 
 @router.delete("/stock/{stock_id}")
