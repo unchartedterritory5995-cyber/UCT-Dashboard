@@ -781,6 +781,16 @@ export default function ChartDrawingOverlay({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
+    // Clip everything to the plot area (exclude the right price axis) so no line,
+    // ray, or label ever renders over the price scale — e.g. an hray streaking to
+    // the edge while transitioning between setups. Restored at the end of redraw.
+    let axisW = 0
+    try { axisW = seriesRef?.current?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, Math.max(0, w - axisW - 1), h)
+    ctx.clip()
+
     // Text annotation opacity is driven by the focus-zoom animation (Model Book):
     // hidden on the zoomed-out view, eased in only during the last sliver of the
     // zoom so it lands right as the chart settles on the setup. Other charts pass
@@ -942,6 +952,7 @@ export default function ChartDrawingOverlay({
         renderCrosshair(ctx, px.x, px.y, mouseCoords.price, w, h)
       }
     }
+    ctx.restore()   // end plot-area clip
   }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex])
 
   // Keep redrawRef in sync — always points to latest redraw
