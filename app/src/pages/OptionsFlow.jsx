@@ -2072,13 +2072,32 @@ export default function OptionsFlowDashboard() {
         // worth tracking. This is intentional (not auto-saved on every CSV
         // load — only when user explicitly pushes to Discord).
         const todayISO = new Date().toISOString().split("T")[0];
-        const toTracker = (items, dir) => items.slice(0,10).map(item => ({
-          sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
-          exp: item.exp||"", entry: item.entrySpot||0,
-          grade: item.grade||"B", dir, hits: item.hits||1,
-          prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
-          dateSaved: todayISO
-        }));
+        const toTracker = (items, dir) => items.slice(0,10).map(item => {
+          // ENTRY = volume-weighted avg CONTRACT price across the cluster's trades.
+          //
+          // Previously this stored item.entrySpot (the underlying STOCK price),
+          // which made the Tracker show massive negative P/L on every row:
+          // calcPnl reads `now` from getPrice() — the live OPTIONS contract
+          // mark (~$12.50) — and divided by entry that was the spot
+          // (~$590). Result: (12.50 - 590) / 590 = -97% on every single
+          // position regardless of how the contract was actually performing.
+          //
+          // Premium $ / (volume × 100) recovers the volume-weighted contract
+          // price the trades actually executed at — the correct comparison
+          // basis for option P/L. This matches the formula already used in
+          // the trade-row P/L table at ~line 138 (r.P / r.V / 100).
+          const vol = item.volume || 0;
+          const prem = item.prem || 0;
+          const entryContractPx = vol > 0 ? prem / (vol * 100) : 0;
+          return {
+            sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
+            exp: item.exp||"", entry: entryContractPx,
+            grade: item.grade||"B", dir, hits: item.hits||1,
+            prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
+            dateSaved: todayISO,
+            entrySpot: item.entrySpot||0, // kept for stock-move reference
+          };
+        });
         const trackerPicks = [...toTracker(wlBull,"BULL"), ...toTracker(wlBear,"BEAR")];
         if (trackerPicks.length > 0) {
           fetch("/api/top-flow/save",{method:"POST",headers:{"Content-Type":"application/json"},
