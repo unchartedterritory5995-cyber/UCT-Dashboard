@@ -1081,7 +1081,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.07}
             watermarkOpacity={0.34}
-            watermarkX={0.14}
+            watermarkX={0.2}
             watermarkY={0.2}
             watermarkName={stock.company || null}
             watermarkSector={stock.sector || null}

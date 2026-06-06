@@ -49,12 +49,14 @@ describe('computeWatermarkRect', () => {
     const r = computeWatermarkRect({ x: 0.5, y: 0.5 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
     expect(r).toEqual({ x: 400, y: 140, w: 200, h: 120 })
   })
-  it('clamps so block never leaves the pane', () => {
+  it('clamps so block stays inside the pane with a 14px horizontal gutter', () => {
+    // x=0 anchor → centered at 0 (left edge -100), clamped to the 14px gutter.
     const r = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
-    expect(r.x).toBe(0)
+    expect(r.x).toBe(14)
     expect(r.y).toBe(0)
+    // x=1 anchor → would push right edge out; clamped to width - block - gutter.
     const r2 = computeWatermarkRect({ x: 1, y: 1 }, { width: 1000, height: 400 }, { w: 200, h: 120 })
-    expect(r2.x).toBe(800)
+    expect(r2.x).toBe(786)
     expect(r2.y).toBe(280)
   })
 })

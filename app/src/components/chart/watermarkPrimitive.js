@@ -22,12 +22,17 @@ export function watermarkFontPx(lineIndex, sizeScale) {
   return Math.round(base * (sizeScale || 1))
 }
 
+// Keep a small gutter so a wide watermark (long company name) never sits flush
+// against the pane's left/right edge — for blocks wider than the pane the left
+// gutter wins, so the name reads from a consistent left inset.
+const EDGE_PAD = 14
+
 export function computeWatermarkRect(pos, mediaSize, block) {
   const cx = pos.x * mediaSize.width
   const cy = pos.y * mediaSize.height
   let x = cx - block.w / 2
   let y = cy - block.h / 2
-  x = Math.max(0, Math.min(x, mediaSize.width - block.w))
+  x = Math.max(EDGE_PAD, Math.min(x, mediaSize.width - block.w - EDGE_PAD))
   y = Math.max(0, Math.min(y, mediaSize.height - block.h))
   return { x, y, w: block.w, h: block.h }
 }
