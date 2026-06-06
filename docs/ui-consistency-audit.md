@@ -120,20 +120,24 @@ DOM-probe artifact from SVG/hidden elements — verified visually that the rende
 text is Instrument Sans, not Arial. Canvas chart text (ECharts/Chart.js/LWC) is
 not visible to the DOM probe at all; it was fixed via the JS font settings above.
 
-## Deferred maintainability backlog (no visible drift — optional polish)
+## Token-hygiene pass — DONE (2026-06-06)
 
-These are token-discipline cleanups, not user-visible inconsistencies:
+No visible change; source is now token-pure where it matters:
+- **Mono fonts** — 46 hardcoded mono `font-family` declarations across 19 CSS
+  files → `var(--font-mono)` (`tools/normalize_mono_fonts.py`). Excluded Landing
+  (island) + StockChart (already token).
+- **Radii** — 55 single-value `border-radius` px (3–12px) snapped to the
+  `--radius-*` scale across Breadth/BreadthCharts/CotData/Admin + admin subpages
+  (`tools/normalize_radii.py`). Pills (`50%`/`999px`), multi-value shorthands,
+  hairlines, and large radii left untouched.
 
-1. **Admin / Breadth hardcoded micro-radii** (3/4/5/6/8px) → `--radius-*`.
-   Imperceptible on small pills/cells; admin is not customer-facing.
-2. **Divergent mono declarations** (e.g. `IBM Plex Mono`-first stacks, bare
-   `monospace`) → normalize to `var(--font-mono)`. All already resolve to
-   JetBrains Mono at runtime, so no visible change.
-3. **`Instrument Sans, SF Pro Display, system-ui`** inline styles in Options Flow /
-   Dark Pool → `var(--font-sans)` (partner-owned files; renders identically since
-   Instrument Sans is first — coordinate before touching).
-4. **Migrate remaining bespoke buttons/inputs onto `components/ui/`** primitives
-   opportunistically as files are touched (Settings buttons, modal footers, filter panels).
+## Remaining (intentionally not done)
+
+1. **`Instrument Sans, SF Pro Display, system-ui`** inline styles in Options Flow /
+   Dark Pool — partner-owned files; render identically (Instrument Sans is first).
+   Left per the collab convention; coordinate before touching.
+2. **Migrate remaining bespoke buttons/inputs onto `components/ui/`** primitives —
+   best done opportunistically as those files are touched (not a discrete task).
 
 ---
 
