@@ -7,7 +7,7 @@ vi.mock('./widgets/ChartWidget', () => ({ default: () => <div data-testid="body-
 vi.mock('./widgets/WatchlistWidget', () => ({ default: () => <div data-testid="body-watchlist">WATCHLIST</div> }))
 vi.mock('./widgets/ThemesWidget', () => ({ default: () => <div data-testid="body-themes">THEMES</div> }))
 vi.mock('./widgets/ScannerWidget', () => ({ default: () => <div data-testid="body-scanner">SCANNER</div> }))
-vi.mock('./widgets/MobileChartFallback', () => ({ default: () => <div data-testid="mobile-fallback">MOBILE</div> }))
+vi.mock('./widgets/MobileWorkspace', () => ({ default: () => <div data-testid="mobile-workspace">MOBILE</div> }))
 
 // Mock react-grid-layout — render children directly so we can assert
 // what's in the DOM. The library's drag/resize behavior is its own
@@ -80,10 +80,10 @@ test('restores saved layout from preferences', () => {
   expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
 })
 
-test('renders MobileChartFallback when useMediaQuery indicates mobile', () => {
+test('renders MobileWorkspace (tabbed widget stack) when useMediaQuery indicates mobile', () => {
   mqMatches = true
   renderWS()
-  expect(screen.getByTestId('mobile-fallback')).toBeInTheDocument()
+  expect(screen.getByTestId('mobile-workspace')).toBeInTheDocument()
   expect(screen.queryByTestId('rgl-responsive')).not.toBeInTheDocument()
 })
 

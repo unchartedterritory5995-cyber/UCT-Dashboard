@@ -5,7 +5,7 @@ import usePreferences from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
-import MobileChartFallback from './widgets/MobileChartFallback'
+import MobileWorkspace from './widgets/MobileWorkspace'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -221,7 +221,19 @@ export default function ChartsWorkspace() {
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
   if (isMobile) {
-    return <MobileChartFallback />
+    // Phone: tabbed widget stack (RGL drag/resize doesn't fit a phone). Rendered
+    // inside the provider so widgets keep color-group ticker linking.
+    return (
+      <WorkspaceContext.Provider value={workspaceValue}>
+        <MobileWorkspace
+          widgets={layout.widgets}
+          onRemove={handleRemoveWidget}
+          onColorChange={handleColorChange}
+          onOptsChange={handleOptsChange}
+          onAddWidget={handleAddWidget}
+        />
+      </WorkspaceContext.Provider>
+    )
   }
 
   const rglLayouts = {
