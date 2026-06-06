@@ -91,6 +91,15 @@ function formatVolume(v) {
   return v.toLocaleString()
 }
 
+// Format dollar notional for dark pool bars: "$120.5M", "$1.2B", "$45K"
+function formatDpNotional(v) {
+  if (!Number.isFinite(v) || v <= 0) return '$0'
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B'
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M'
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K'
+  return '$' + v.toLocaleString()
+}
+
 // ─── Indicator computations ──────────────────────────────────────────────────
 
 // O(n*period) SMA via full window re-sum at every bar. The naive approach,
@@ -502,7 +511,6 @@ export default function StockChart({
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
-  colorByNetChange = false,     // Model Book: color each candle by NET change vs the PRIOR bar's close (green = up on the day vs yesterday), not open-vs-close — and the crosshair legend's change% follows suit
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
   // ── Index comparison pane (Model Book) — additive, default-off ──
   indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
@@ -514,6 +522,17 @@ export default function StockChart({
   indexAnnotations = null,      // Model Book: GLOBAL drawings (measure marks for Nasdaq corrections) on the index pane — read-only for all, editable for admin
   indexAnnotationsEditable = false, // admin authoring: enable the measure toolbar on the index pane
   onIndexAnnotationsChange = null,  // (drawings[]) => void — called when admin adds/edits/removes an index-pane annotation
+  // ── Dark Pool volume profile bars (DarkPool page) ──
+  // Renders horizontal bars on the right edge of the chart at the price levels
+  // of dark pool prints. Bar width + height scale with $ notional. Latest = gold,
+  // older = gray with opacity by relative size. Top 5 by notional get gold tier.
+  // Uses series.priceToCoordinate() so bars align pixel-perfect with candles
+  // and follow zoom/pan automatically.
+  darkPoolBars = null,            // array of {price, notional, isLatest, date, dateLong, pctAvgVol}
+  darkPoolMaxBarWidth = 250,      // max bar width in pixels
+  // ── Override candle series priceFormat (e.g. integer-only axis labels) ──
+  // Pass { type: 'price', precision: 0, minMove: 1 } to show "200" instead of "200.00"
+  priceFormat = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -596,6 +615,77 @@ export default function StockChart({
   // re-subscribing on every render of updateChart (which would happen ~once
   // per real-time tick and visibly stutter the crosshair).
   const [chartReady, setChartReady] = useState(false)
+
+  // ── Dark Pool overlay state ──────────────────────────────────────────────
+  // Hover tooltip — fixed-position div near the cursor when hovering a bar.
+  const [dpHover, setDpHover] = useState(null)
+  const dpBarsContainerRef = useRef(null)
+
+  // Memoize the bar layout so onMouseEnter handlers don't recompute every
+  // render. Sorts by notional desc, picks top 25, computes width/height/color
+  // tier based on each bar's $ size relative to the largest in the set.
+  const darkPoolBarsLayout = useMemo(() => {
+    if (!darkPoolBars || darkPoolBars.length === 0) return []
+    const sorted = [...darkPoolBars]
+      .filter(b => b && b.price != null && b.notional != null && Number.isFinite(b.notional))
+      .sort((a, b) => (b.notional || 0) - (a.notional || 0))
+      .slice(0, 25)
+    if (sorted.length === 0) return []
+    const maxN = Math.max(...sorted.map(b => b.notional || 0))
+    if (maxN <= 0) return []
+    const MIN_BAR_H = 4
+    const MAX_BAR_H = 11
+    return sorted.map((b, idx) => {
+      const ratio = (b.notional || 0) / maxN
+      const isGoldTier = idx < 5
+      return {
+        ...b,
+        idx,
+        ratio,
+        width: ratio * darkPoolMaxBarWidth,
+        height: MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H),
+        color: isGoldTier ? '#c9a84c' : '#9c9588',
+        // Brightness scales with notional ratio so the biggest print is the
+        // visually dominant one (not just the latest).
+        opacity: isGoldTier ? 0.55 + ratio * 0.45 : 0.30 + ratio * 0.45,
+        isGoldTier,
+      }
+    })
+  }, [darkPoolBars, darkPoolMaxBarWidth])
+
+  // Position bars vertically by calling series.priceToCoordinate() on each
+  // animation frame. This is what the SVG overlay approach couldn't do — only
+  // the chart instance knows the exact pixel Y for a given price, especially
+  // after pan/zoom. By running in rAF, bars stay glued to candles regardless
+  // of how the user interacts with the chart.
+  useEffect(() => {
+    if (!chartReady) return
+    if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
+    const container = dpBarsContainerRef.current
+    if (!container) return
+    let raf = 0
+    const update = () => {
+      const series = candleSeriesRef.current
+      if (series) {
+        const els = container.querySelectorAll('[data-dp-bar]')
+        for (const el of els) {
+          const price = parseFloat(el.dataset.price || '')
+          if (!Number.isFinite(price)) continue
+          let y
+          try { y = series.priceToCoordinate(price) } catch { y = null }
+          if (y == null || !Number.isFinite(y)) {
+            el.style.display = 'none'
+          } else {
+            el.style.display = 'block'
+            el.style.top = `${y}px`
+          }
+        }
+      }
+      raf = requestAnimationFrame(update)
+    }
+    raf = requestAnimationFrame(update)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [chartReady, darkPoolBarsLayout])
 
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
@@ -859,7 +949,6 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
-  const prevCloseByTimeRef = useRef(null)   // net-change lookup, read by the (chartReady-only) crosshair handler
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
@@ -1198,31 +1287,6 @@ export default function StockChart({
     onIndexAnnotationsChange?.((indexAnnotations || []).filter(d => d.id !== id))
   }, [indexAnnotations, onIndexAnnotationsChange])
   const idxAnnClear = useCallback(() => { onIndexAnnotationsChange?.([]) }, [onIndexAnnotationsChange])
-  // The index-pane (Nasdaq) annotations are a single GLOBAL set spanning many
-  // years; the pane is framed to ONE calendar year ([entryDate, exitDate]). For
-  // read-only display, show only the marks anchored in the displayed year so
-  // prior-year marks don't stack at the left edge. NOT filtered while editing —
-  // the editor must keep the full set or a save would drop other years.
-  const visibleIndexAnnotations = useMemo(() => {
-    if (!indexAnnotations || indexAnnotationsEditable || !entryDate) return indexAnnotations
-    const toMs = v => {
-      if (v == null) return NaN
-      if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
-      const s = String(v)
-      return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
-    }
-    const lo = toMs(entryDate)
-    const hi = (exitDate ? toMs(exitDate) : NaN)
-    const hiMs = Number.isNaN(hi) ? Infinity : hi + 86400000  // include all of exit day
-    if (Number.isNaN(lo)) return indexAnnotations
-    return indexAnnotations.filter(d => {
-      const pts = d.points || []
-      const last = pts[pts.length - 1]
-      const t = last ? toMs(last.time) : NaN
-      if (Number.isNaN(t)) return true   // can't place it — don't hide
-      return t >= lo && t <= hiMs
-    })
-  }, [indexAnnotations, indexAnnotationsEditable, entryDate, exitDate])
   // Current line style for NEW annotation lines; also re-styles the selected line.
   const [drawLineStyle, setDrawLineStyle] = useState('solid')
   const setAnnLineStyle = useCallback((style) => {
@@ -1754,44 +1818,10 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(filteredBars) : filteredBars
   }, [filteredBars, cs.heikinAshi])
 
-  const ohlcData = useMemo(() => {
-    if (!displayBars) return []
-    // Default (every other chart): no per-bar color → Lightweight Charts colors
-    // each candle by open-vs-close as usual.
-    if (!colorByNetChange) {
-      return displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c }))
-    }
-    // Model Book: color by NET change vs the prior bar's close — a gap-up day that
-    // fades but still closes above yesterday reads GREEN. Per-bar color overrides
-    // the series up/down defaults (bold mode uses the solid BOLD_* palette).
-    const upC = boldCandles ? BOLD_UP : cs.candles.upColor
-    const downC = boldCandles ? BOLD_DOWN : cs.candles.downColor
-    const upW = boldCandles ? BOLD_UP : (cs.candles.upWick || cs.candles.upColor)
-    const downW = boldCandles ? BOLD_DOWN : (cs.candles.downWick || cs.candles.downColor)
-    const upB = boldCandles ? BOLD_UP : (cs.candles.upBorder || cs.candles.upColor)
-    const downB = boldCandles ? BOLD_DOWN : (cs.candles.downBorder || cs.candles.downColor)
-    return displayBars.map((b, i) => {
-      const prevC = i > 0 ? displayBars[i - 1].c : null
-      const isUp = prevC != null ? b.c >= prevC : b.c >= b.o
-      return {
-        time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c,
-        color: isUp ? upC : downC,
-        wickColor: isUp ? upW : downW,
-        borderColor: isUp ? upB : downB,
-      }
-    })
-  }, [displayBars, adjustTime, colorByNetChange, boldCandles,
-      cs.candles.upColor, cs.candles.downColor, cs.candles.upWick,
-      cs.candles.downWick, cs.candles.upBorder, cs.candles.downBorder])
-  // Net-change mode: map each bar's time → the PRIOR bar's close, so the crosshair
-  // legend can show the day's net change (close vs yesterday) instead of open→close.
-  const prevCloseByTime = useMemo(() => {
-    if (!colorByNetChange) return null
-    const m = new Map()
-    for (let i = 1; i < ohlcData.length; i++) m.set(ohlcData[i].time, ohlcData[i - 1].close)
-    return m
-  }, [colorByNetChange, ohlcData])
-  useEffect(() => { prevCloseByTimeRef.current = prevCloseByTime }, [prevCloseByTime])
+  const ohlcData = useMemo(
+    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
+    [displayBars, adjustTime]
+  )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
   // right-edge bars are never pivots, so live updates can't make labels flicker.
@@ -1845,22 +1875,16 @@ export default function StockChart({
     const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
     const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
-    return filteredBars.map((b, i) => {
-      // Match the candle coloring: net change vs the prior bar's close in
-      // net-change mode (Model Book), else classic open-vs-close.
-      const prevC = (colorByNetChange && i > 0) ? filteredBars[i - 1].c : null
-      const isUp = prevC != null ? b.c >= prevC : b.c >= b.o
-      return {
-        time: adjustTime(b.t),
-        value: b.v,
-        color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
-          ? gold
-          : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
-            ? 'rgba(201,168,76,0.9)'
-            : isUp ? upC : downC,
-      }
-    })
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes, colorByNetChange])
+    return filteredBars.map(b => ({
+      time: adjustTime(b.t),
+      value: b.v,
+      color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
+        ? gold
+        : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
+          ? 'rgba(201,168,76,0.9)'
+          : b.c >= b.o ? upC : downC,
+    }))
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
@@ -2625,17 +2649,16 @@ export default function StockChart({
           borderVisible: false,                       // pure solid bodies (TC2000 look)
           wickUpColor: BOLD_UP, wickDownColor: BOLD_DOWN,
         } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange, lastValueVisible: !hideLastValue, ..._bold })
+        // Optional integer-only price axis (DarkPool page passes precision:0
+        // for large-cap stocks so the axis shows "200" not "200.00").
+        const _priceFormat = priceFormat ? { priceFormat } : {}
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data. Use goldOhlc (highlighted-candle copy) on the MAIN path so
-    // the white/gold setup candles paint on the FIRST render once setups load —
-    // not via a separate effect that can lose the race to updateChart's setData
-    // (the "setup candles show green until you revisit" bug). goldOhlc === ohlcData
-    // by reference when no highlight is set, so every other chart is unaffected.
-    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? goldOhlc : closeData)
+    // Set price data
+    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -3453,7 +3476,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, goldOhlc, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -4125,20 +4148,8 @@ export default function StockChart({
       const h = priceData.high ?? priceData.value
       const l = priceData.low ?? priceData.value
       const c = priceData.close ?? priceData.value
-      // Net-change mode (Model Book): change vs the PRIOR bar's close so it matches
-      // the candle coloring (up on the day vs yesterday); else classic open→close.
-      // Read via ref — this effect only re-subscribes on chartReady, so a direct
-      // closure capture would go stale on a ticker switch.
-      let change, changePct
-      const _pcMap = prevCloseByTimeRef.current
-      const prevC = _pcMap ? _pcMap.get(param.time) : null
-      if (prevC != null && prevC) {
-        change = c - prevC
-        changePct = (change / prevC) * 100
-      } else {
-        change = c - o
-        changePct = o ? ((change / o) * 100) : 0
-      }
+      const change = c - o
+      const changePct = o ? ((change / o) * 100) : 0
 
       let rsiValue = null
       if (rsiSeriesRef.current) {
@@ -4742,6 +4753,114 @@ export default function StockChart({
         className={styles.chart}
         style={{ display: showFatalError ? 'none' : 'block' }}
       />
+      {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
+          stay aligned with candles at any zoom/pan level. Updates every frame
+          via rAF (see darkPoolBarsLayout effect above). The container is
+          pointer-events:none so chart hover passes through; individual bars
+          set pointer-events:auto so the hover tooltip works on them. ── */}
+      {!showFatalError && chartReady && darkPoolBarsLayout.length > 0 && (
+        <div
+          ref={dpBarsContainerRef}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 10,
+            overflow: 'hidden',
+          }}
+        >
+          {darkPoolBarsLayout.map((b) => (
+            <div
+              key={`dp-${b.idx}-${b.price}`}
+              data-dp-bar=""
+              data-price={b.price}
+              style={{
+                position: 'absolute',
+                right: 60,        // leave room for LWC's right price axis
+                height: 0,
+                display: 'none',  // rAF will set display:block once positioned
+                pointerEvents: 'auto',
+                cursor: 'help',
+              }}
+              onMouseEnter={(e) => setDpHover({ bar: b, x: e.clientX, y: e.clientY })}
+              onMouseMove={(e) => setDpHover({ bar: b, x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setDpHover(null)}
+            >
+              <div style={{
+                position: 'absolute',
+                right: 0,
+                top: -b.height / 2,
+                width: b.width,
+                height: b.height,
+                background: b.color,
+                opacity: b.opacity,
+                borderRadius: 1,
+              }}/>
+              <span style={{
+                position: 'absolute',
+                right: b.width + 3,
+                top: -7,
+                fontSize: 9.5,
+                color: b.color,
+                fontWeight: b.isGoldTier ? 700 : 500,
+                opacity: Math.min(1, b.opacity + 0.18),
+                whiteSpace: 'nowrap',
+                fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                pointerEvents: 'none',
+              }}>
+                {formatDpNotional(b.notional)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Dark Pool hover tooltip — fixed positioned near cursor, rendered last
+          so it sits above the chart and other overlays. */}
+      {dpHover && (
+        <div style={{
+          position: 'fixed',
+          left: dpHover.x + 14,
+          top: Math.max(8, dpHover.y - 90),
+          background: '#0e0f0d',
+          border: '1px solid #c9a84c66',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 11,
+          color: '#e0dac8',
+          pointerEvents: 'none',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+          minWidth: 200,
+          lineHeight: 1.5,
+          fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+        }}>
+          <div style={{ fontWeight: 700, color: '#c9a84c', fontSize: 12, marginBottom: 5 }}>
+            🟡 Dark Pool Print{dpHover.bar.isLatest ? ' · LATEST' : ''}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
+            <span style={{ color: '#706b5e' }}>Date</span>
+            <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+              {dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—'}
+            </span>
+            <span style={{ color: '#706b5e' }}>Price</span>
+            <span style={{ color: '#c9a84c', fontWeight: 700 }}>
+              ${Number(dpHover.bar.price).toFixed(2)}
+            </span>
+            <span style={{ color: '#706b5e' }}>Premium</span>
+            <span style={{ color: '#6ba3be', fontWeight: 600 }}>
+              ${Math.round(dpHover.bar.notional).toLocaleString()}
+            </span>
+            {dpHover.bar.pctAvgVol > 0 && (
+              <>
+                <span style={{ color: '#706b5e' }}>Vs avg vol</span>
+                <span style={{ color: '#a78bfa', fontWeight: 600 }}>
+                  {Math.round(dpHover.bar.pctAvgVol)}%
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {!showFatalError && (
         <img
           src={brandMark}
@@ -5076,7 +5195,7 @@ export default function StockChart({
           unmount/remount on each switch = a blink. Bounds stay measured across the
           switch, so the canvas survives and just redraws as the chart reframes. */}
       {indexAnnotations != null && indexPaneSymbol && indexOverlayBounds
-        && (indexAnnotationsEditable || (visibleIndexAnnotations?.length || 0) > 0) && (
+        && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -5091,7 +5210,7 @@ export default function StockChart({
             lineStyle={drawLineStyle}
             fontSize={drawFontSize}
             magnet={magnet}
-            drawings={visibleIndexAnnotations}
+            drawings={indexAnnotations}
             addDrawing={idxAnnAdd}
             updateDrawing={idxAnnUpdate}
             removeDrawing={idxAnnRemove}
