@@ -815,7 +815,9 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   // zooms StockChart since we don't have access to its internal scale.
   const renderProfileBars = () => {
     if (!priceRange || !prints || prints.length === 0) return null;
-    if (containerW <= 0) return null;  // wait for measure
+    // Read width from ref directly (fallback) — ResizeObserver-driven state
+    // sometimes lags the initial mount. Default to 720 if neither available.
+    const cw = containerW || chartContainerRef.current?.clientWidth || 720;
     // Approximate StockChart layout for a 480px-tall chart with showVolume=true.
     // LWC reserves the bottom ~20% for the volume sub-pane and ~25px for the
     // time axis. These constants are tuned for the 480px target; adjust if
@@ -836,14 +838,15 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
 
     return (
       <svg width="100%" height="100%"
-        style={{position:"absolute", top:0, left:0, pointerEvents:"none", overflow:"visible"}}
+        style={{position:"absolute", top:0, left:0, pointerEvents:"none",
+          overflow:"visible", zIndex:50}}
         xmlns="http://www.w3.org/2000/svg">
         {sorted.map((p, idx) => {
           const y = yScale(p.price);
           if (y < PLOT_TOP - 6 || y > PLOT_BOT + 6) return null;
           const w = (p.notional / maxN) * MAX_BAR_W;
-          const barX = containerW - PRICE_AXIS_W - w;
-          const labelX = containerW - PRICE_AXIS_W - w - 3;
+          const barX = cw - PRICE_AXIS_W - w;
+          const labelX = cw - PRICE_AXIS_W - w - 3;
           const isLatest = p.isLatest;
           const opacity = isLatest ? 0.88 : Math.max(0.32, 0.62 - idx * 0.025);
           const color = isLatest ? "#c9a84c" : "#9c9588";
