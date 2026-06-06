@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+/* Fonts (Instrument Sans + Inter + JetBrains Mono) are loaded via a single
+   <link> in app/index.html for proper preload — do NOT re-add an @import here. */
 
 :root {
   --ut-green: #2d8c4e;
@@ -46,7 +47,7 @@
 
   /* Typography scale */
   --font-sans:    'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono:    'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, Menlo, monospace;
   --font-display: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-heading: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 
@@ -58,6 +59,24 @@
   --text-xl: 16px;
   --text-2xl: 20px;
   --text-3xl: 24px;
+
+  /* Line-height scale (was improvised per-component) */
+  --lh-tight: 1.2;
+  --lh-snug: 1.4;
+  --lh-normal: 1.6;
+
+  /* Letter-spacing scale */
+  --ls-tight: -0.2px;
+  --ls-normal: 0;
+  --ls-wide: 0.5px;
+  --ls-label: 1.5px;   /* uppercase labels / eyebrows */
+
+  /* Canonical form-control geometry — one input/button shape across the app.
+     Resolves the 9/10/11px padding + 6/8/10/14px radius spread. */
+  --control-pad-y: 9px;
+  --control-pad-x: 12px;
+  --control-radius: var(--radius-lg);   /* 8px */
+  --control-font: var(--text-md);       /* 13px */
 
   /* Radii */
   --radius-sm: 4px;
@@ -76,6 +95,8 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+  --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);   /* canonical elevated panel/modal */
+  --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);  /* dropdowns, popovers, menus */
 
   /* Z-index scale */
   --z-base: 1;
@@ -131,6 +152,54 @@ body {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─── Typography utilities ─────────────────────────────────────────────────
+   Shared text hierarchy. Use these instead of redeclaring font-family/size/
+   weight/spacing per component. Global (plain class names, not CSS-module). */
+.t-page-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--text-heading);
+}
+.t-section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-normal);
+  color: var(--text-heading);
+}
+.t-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--text);
+}
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ─── Mobile: prevent iOS Safari zoom on input focus ──────────────────────── */
 @media (max-width: 640px) {

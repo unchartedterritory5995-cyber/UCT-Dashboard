@@ -1,0 +1,25 @@
+.input {
+  width: 100%;
+  padding: var(--control-pad-y) var(--control-pad-x);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--control-font);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input::placeholder { color: var(--text-muted); }
+
+.input:focus {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
