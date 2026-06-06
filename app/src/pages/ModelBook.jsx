@@ -1591,6 +1591,10 @@ export default function ModelBook() {
           e.preventDefault()
           setPickedYear(ys[ni])
           setSelectedId(null)
+          // Move focus to the newly-active year button so its focus ring follows
+          // the selection — otherwise the previously-clicked year keeps a stale
+          // gold ring around it while a different year is active.
+          try { document.querySelector(`[data-year="${ys[ni]}"]`)?.focus({ preventScroll: true }) } catch { /* ignore */ }
         }
         return
       }
