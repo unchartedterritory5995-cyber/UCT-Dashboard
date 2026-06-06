@@ -657,6 +657,347 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
   );
 }
 
+// ── Pattern Ticker Row ───────────────────────────────────────────────────────
+// Expandable row used in Patterns Detected groups. Collapsed: compact summary
+// (cap, mkt cap, total $, mult, days seen, latest print, move %, mini spark).
+// Expanded: lazy-fetches /ticker-detail (dark pool prints) + /chart-ohlc
+// (candles from Yahoo) and renders a multi-timeframe chart with hover tooltips.
+const TF_MAP = {
+  "1W": {days: 7,   range: "5d"},
+  "1M": {days: 30,  range: "1mo"},
+  "3M": {days: 90,  range: "3mo"},
+  "6M": {days: 180, range: "6mo"},
+  "1Y": {days: 365, range: "1y"},
+};
+
+function PatternTickerRow({it, sig, mktcap, onJumpTo}){
+  const [expanded, setExpanded] = useState(false);
+  const [timeframe, setTimeframe] = useState("1M");
+  const [prints, setPrints] = useState(null);
+  const [candles, setCandles] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [tip, setTip] = useState(null); // {x, y, html}
+  const containerRef = useRef(null);
+
+  // Lazy-fetch on expand or timeframe change
+  useEffect(() => {
+    if (!expanded) return;
+    const tf = TF_MAP[timeframe];
+    if (!tf) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setTip(null);
+    Promise.all([
+      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed"))),
+      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${tf.range}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("ohlc fetch failed"))),
+    ]).then(([detail, ohlc]) => {
+      if (cancelled) return;
+      setPrints(Array.isArray(detail?.prints) ? detail.prints : []);
+      setCandles(Array.isArray(ohlc?.candles) ? ohlc.candles : []);
+      setLoading(false);
+    }).catch(e => {
+      if (cancelled) return;
+      setError(e?.message || "fetch error");
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [expanded, timeframe, it.t]);
+
+  // Derived values for collapsed row
+  const latestPrintPrice = it.bigPrint;
+  const movePct = (latestPrintPrice && it.last) ? ((it.last - latestPrintPrice) / latestPrintPrice * 100) : null;
+  const moveColor = movePct == null ? C.tx3 : movePct > 0 ? C.green : movePct < 0 ? C.red : C.tx3;
+  const sigMult = sig?.mult;
+  const sigDays = sig?.days;
+
+  // Mini sparkline (collapsed row) — close-only line with print level marker
+  const renderMiniSpark = () => {
+    if (!it.prices || it.prices.length < 2) return <span style={{color:C.tx3, fontSize:10}}>—</span>;
+    const w = 100, h = 22, P = 2;
+    const pts = it.prices.map((p,i) => ({p, i})).filter(x => x.p != null);
+    if (pts.length < 2) return <span style={{color:C.tx3, fontSize:10}}>—</span>;
+    const allP = [...pts.map(x => x.p), latestPrintPrice].filter(p => p != null);
+    const mn = Math.min(...allP), mx = Math.max(...allP);
+    const rng = mx - mn || 1;
+    const y = p => h - P - ((p - mn) / rng) * (h - P * 2);
+    const x = i => P + (i / (it.prices.length - 1 || 1)) * (w - P * 2);
+    const linePts = pts.map(x_ => `${x(x_.i)},${y(x_.p)}`).join(" ");
+    const lastP = pts[pts.length - 1].p;
+    const lastX = x(pts[pts.length - 1].i);
+    const lastY = y(lastP);
+    const lineColor = latestPrintPrice ? (lastP > latestPrintPrice ? C.green : C.red) : C.cyan;
+    const printY = latestPrintPrice ? y(latestPrintPrice) : null;
+    return (
+      <svg width={w} height={h} style={{display:"block"}} xmlns="http://www.w3.org/2000/svg">
+        {printY != null && <line x1={P} y1={printY} x2={w-P} y2={printY} stroke={C.amber} strokeWidth="1" strokeDasharray="2,2" opacity="0.7"/>}
+        <polyline points={linePts} fill="none" stroke={lineColor} strokeWidth="1.4"/>
+        <circle cx={lastX} cy={lastY} r="2" fill={lineColor}/>
+      </svg>
+    );
+  };
+
+  // Expanded chart — candles + print bars + hover tooltips
+  const renderChart = () => {
+    if (loading) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>Loading {timeframe} data…</div>;
+    if (error) return <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load: {error}</div>;
+    if (!candles || candles.length === 0) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>No OHLC data available for this period</div>;
+
+    const W = 720, H = 240, padL = 60, padR = 200, padY = 14;
+    const plotW = W - padL - padR;
+    const plotH = H - padY * 2;
+    const candleData = candles.map(c => ({
+      o: c.open, h: c.high, l: c.low, c: c.close,
+      ts: c.time,
+      date: new Date(c.time * 1000).toLocaleDateString("en-US", {month:"numeric", day:"numeric"}),
+      dateLong: new Date(c.time * 1000).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}),
+    }));
+    const allPrices = [
+      ...candleData.flatMap(c => [c.h, c.l]).filter(p => p != null),
+      ...(prints || []).map(p => p.price).filter(p => p != null),
+    ];
+    if (allPrices.length === 0) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>No price data</div>;
+    const chartMin = Math.min(...allPrices) * 0.995;
+    const chartMax = Math.max(...allPrices) * 1.005;
+    const yScale = p => H - padY - ((p - chartMin) / (chartMax - chartMin)) * plotH;
+    const xScale = i => padL + ((i + 0.5) / candleData.length) * plotW;
+    const candleW = Math.max(2, Math.min(14, plotW / candleData.length * 0.65));
+
+    // Y-axis ticks
+    const ticks = [];
+    for (let i = 0; i <= 5; i++) {
+      const p = chartMin + (i / 5) * (chartMax - chartMin);
+      const y = yScale(p);
+      ticks.push(
+        <g key={`tick-${i}`}>
+          <text x={padL - 6} y={y + 3} fontSize="9" fill={C.tx3} textAnchor="end" fontFamily="inherit">${p.toFixed(2)}</text>
+          <line x1={padL - 2} y1={y} x2={padL} y2={y} stroke={C.tx3} strokeWidth="1"/>
+          <line x1={padL} y1={y} x2={padL + plotW} y2={y} stroke={C.bdr} strokeWidth="1" strokeDasharray="1,3" opacity="0.4"/>
+        </g>
+      );
+    }
+
+    // Hover tooltip helpers (positioned relative to chart container)
+    const tipForPrint = (p, idx) => {
+      const ageDays = Math.round((Date.now() - new Date(p.dateLong || p.dateRaw).getTime()) / (1000 * 60 * 60 * 24));
+      const ageStr = isNaN(ageDays) ? "" : ageDays < 1 ? "today" : ageDays === 1 ? "1 day ago" : `${ageDays} days ago`;
+      return (
+        <>
+          <div style={{fontWeight:700, color:C.amber, fontSize:12, marginBottom:4}}>🟡 Dark Pool Print{p.isLatest ? " · LATEST" : ""}</div>
+          <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px", fontSize:11}}>
+            <span style={{color:C.tx3}}>Date</span><span style={{color:C.tx, fontWeight:600}}>{p.dateLong || p.dateRaw} {ageStr && <span style={{color:C.tx3, fontWeight:400}}>({ageStr})</span>}</span>
+            <span style={{color:C.tx3}}>Price</span><span style={{color:C.amber, fontWeight:700}}>${p.price.toFixed(2)}</span>
+            <span style={{color:C.tx3}}>Premium</span><span style={{color:C.cyan, fontWeight:600}}>${Math.round(p.notional).toLocaleString()}</span>
+            {p.pctAvgVol > 0 && <><span style={{color:C.tx3}}>Vs avg vol</span><span style={{color:C.purple, fontWeight:600}}>{Math.round(p.pctAvgVol)}%</span></>}
+          </div>
+        </>
+      );
+    };
+    const tipForCandle = (c) => {
+      const isUp = c.c >= c.o;
+      const tColor = isUp ? C.green : C.red;
+      const pctMove = ((c.c - c.o) / c.o * 100).toFixed(2);
+      return (
+        <>
+          <div style={{fontWeight:700, color:tColor, fontSize:12, marginBottom:4}}>{isUp ? "▲" : "▼"} {c.dateLong}</div>
+          <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px", fontSize:11}}>
+            <span style={{color:C.tx3}}>Open</span><span style={{color:C.tx}}>${c.o.toFixed(2)}</span>
+            <span style={{color:C.tx3}}>High</span><span style={{color:C.green}}>${c.h.toFixed(2)}</span>
+            <span style={{color:C.tx3}}>Low</span><span style={{color:C.red}}>${c.l.toFixed(2)}</span>
+            <span style={{color:C.tx3}}>Close</span><span style={{color:C.tx, fontWeight:700}}>${c.c.toFixed(2)} <span style={{color:tColor, fontWeight:600}}>({isUp?"+":""}{pctMove}%)</span></span>
+          </div>
+        </>
+      );
+    };
+
+    const showTip = (e, content) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setTip({
+        x: Math.min(e.clientX - rect.left + 14, (containerRef.current.offsetWidth || 720) - 230),
+        y: Math.max(e.clientY - rect.top - 60, 8),
+        content,
+      });
+    };
+    const hideTip = () => setTip(null);
+
+    // Print bars (drawn behind candles, with hit-area rects for hover)
+    const visiblePrints = (prints || []).slice(0, 12);
+    const maxNotional = Math.max(...visiblePrints.map(p => p.notional || 0), 1);
+    const printElements = visiblePrints.map((p, idx) => {
+      if (p.price == null) return null;
+      const y = yScale(p.price);
+      const barW = ((p.notional || 0) / maxNotional) * 170;
+      const ageRatio = idx / Math.max(visiblePrints.length - 1, 1);
+      const opacity = p.isLatest ? 0.9 : 0.7 - ageRatio * 0.4;
+      const showLabel = p.isLatest || (idx < 6 && visiblePrints.length <= 8) || idx < 3;
+      const hitW = Math.max(barW, 30) + 130;
+      return (
+        <g key={`print-${idx}`}>
+          <rect x={padL} y={y - 6} width={hitW} height="12" fill="transparent"
+            style={{cursor:"help"}}
+            onMouseMove={(e) => showTip(e, tipForPrint(p, idx))}
+            onMouseLeave={hideTip}/>
+          <rect x={padL} y={y - 4} width={barW} height="8" fill={C.amber} opacity={opacity} rx="1" pointerEvents="none"/>
+          {showLabel && (
+            <>
+              <text x={padL + barW + 6} y={y - 6} fontSize="9" fill={C.amber} fontWeight="700" fontFamily="inherit" pointerEvents="none">${p.price.toFixed(2)}</text>
+              <text x={padL + barW + 6} y={y + 7} fontSize="8" fill={C.tx2} fontFamily="inherit" pointerEvents="none">{p.date} · {fmt(p.notional)}</text>
+            </>
+          )}
+        </g>
+      );
+    });
+
+    // Candlesticks
+    const candleElements = candleData.map((c, i) => {
+      const xi = xScale(i);
+      const isUp = c.c >= c.o;
+      const color = isUp ? C.green : C.red;
+      const yH = yScale(c.h), yL = yScale(c.l);
+      const yO = yScale(c.o), yC = yScale(c.c);
+      const bodyTop = Math.min(yO, yC);
+      const bodyH = Math.max(1, Math.abs(yO - yC));
+      const hitW = Math.max(candleW + 2, 6);
+      return (
+        <g key={`candle-${i}`}>
+          <rect x={xi - hitW/2} y={yH - 2} width={hitW} height={yL - yH + 4} fill="transparent"
+            style={{cursor:"crosshair"}}
+            onMouseMove={(e) => showTip(e, tipForCandle(c))}
+            onMouseLeave={hideTip}/>
+          <line x1={xi} y1={yH} x2={xi} y2={yL} stroke={color} strokeWidth="1" pointerEvents="none"/>
+          <rect x={xi - candleW/2} y={bodyTop} width={candleW} height={bodyH} fill={color} pointerEvents="none"/>
+        </g>
+      );
+    });
+
+    // NOW marker
+    const lastC = candleData[candleData.length - 1];
+    const lastX = xScale(candleData.length - 1);
+    const nowY = yScale(lastC.c);
+    const nowMarker = (
+      <g>
+        <line x1={lastX + candleW/2 + 4} y1={nowY} x2={padL + plotW} y2={nowY} stroke={C.green} strokeWidth="1" strokeDasharray="3,3" opacity="0.8"/>
+        <text x={padL + plotW + 5} y={nowY + 4} fontSize="10" fill={C.green} fontWeight="700" fontFamily="inherit">NOW ${lastC.c.toFixed(2)}</text>
+      </g>
+    );
+
+    // Date axis (adaptive density)
+    const labelEvery = Math.max(1, Math.ceil(candleData.length / 8));
+    const dateLabels = candleData.map((c, i) => {
+      if (i % labelEvery !== 0 && i !== candleData.length - 1) return null;
+      return <text key={`d-${i}`} x={xScale(i)} y={H - 1} fontSize="8" fill={C.tx3} textAnchor="middle" fontFamily="inherit">{c.date}</text>;
+    });
+
+    return (
+      <svg width={W} height={H} xmlns="http://www.w3.org/2000/svg" style={{display:"block", maxWidth:"100%"}}>
+        <line x1={padL} y1={padY} x2={padL} y2={H - padY} stroke={C.bdr} strokeWidth="1"/>
+        {ticks}
+        {printElements}
+        {candleElements}
+        {nowMarker}
+        {dateLabels}
+      </svg>
+    );
+  };
+
+  return (
+    <div style={{borderBottom:`1px solid ${C.bdr}33`}}>
+      {/* Collapsed row */}
+      <div onClick={() => setExpanded(!expanded)}
+        style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
+          gap:8, alignItems:"center", padding:"8px 6px", cursor:"pointer",
+          background: expanded ? C.bg3 : "transparent",
+          borderRadius:4}}
+        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = C.bgH; }}
+        onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}>
+        <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, fontSize:12,
+          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}
+          onClick={(e) => { e.stopPropagation(); onJumpTo && onJumpTo(it.t); }}>{it.t}</span>
+        <span style={{fontSize:8, padding:"1px 5px", borderRadius:6,
+          background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
+          fontWeight:700, textAlign:"center", letterSpacing:"0.03em"}}>
+          {CAT_SHORT[it.cat] || ""}
+        </span>
+        <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {mktcap > 0 ? fmt(mktcap) : "—"}
+        </span>
+        <span style={{fontSize:10, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {it.n ? fmt(it.n) : "—"}
+        </span>
+        <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {sigMult ? `${sigMult}×` : sigDays ? `${sigDays}d` : "—"}
+        </span>
+        <span style={{fontSize:10, color:C.purple, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {it.days ? `${it.days}d` : "—"}
+        </span>
+        <span style={{fontSize:10, color:C.amber, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {latestPrintPrice ? `$${latestPrintPrice.toFixed(2)}` : "—"}
+        </span>
+        <span style={{fontSize:10, color:moveColor, fontWeight:700, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+          {movePct == null ? "—" : (movePct > 0 ? "+" : "") + movePct.toFixed(2) + "%"}
+        </span>
+        <div>{renderMiniSpark()}</div>
+        <span style={{color:C.tx3, fontSize:11, textAlign:"center"}}>{expanded ? "▼" : "▶"}</span>
+      </div>
+
+      {/* Expanded view */}
+      {expanded && (
+        <div ref={containerRef} style={{background:C.bg3, borderRadius:6, padding:"12px 14px", margin:"4px 0 8px", position:"relative", border:`1px solid ${C.bdr}`}}>
+          {/* Header row with metadata + timeframe selector */}
+          <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:10}}>
+            <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
+              <span style={{color:CAT_COLORS[it.cat]||C.tx, fontWeight:700, fontSize:15}}>{it.t}</span>
+              <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
+                fontWeight:700}}>{it.cat || "—"}</span>
+              {mktcap > 0 && <><span style={{color:C.tx3, fontSize:10}}>Mkt cap</span><span style={{color:C.tx2, fontWeight:600, fontSize:10}}>{fmt(mktcap)}</span></>}
+              <span style={{color:C.tx3, fontSize:10}}>·</span>
+              <span style={{color:C.tx3, fontSize:10}}>Total flow</span>
+              <span style={{color:C.cyan, fontWeight:600, fontSize:10}}>{it.n ? fmt(it.n) : "—"}</span>
+              {prints && <>
+                <span style={{color:C.tx3, fontSize:10}}>·</span>
+                <span style={{color:C.amber, fontWeight:600, fontSize:10}}>{prints.length} prints in {timeframe}</span>
+              </>}
+            </div>
+            <div style={{display:"flex", gap:3}}>
+              {Object.keys(TF_MAP).map(tf => {
+                const active = tf === timeframe;
+                return (
+                  <button key={tf} onClick={() => setTimeframe(tf)}
+                    style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
+                      border:`1px solid ${active ? C.amber : C.bdr2}`,
+                      background: active ? C.amber+"22" : "transparent",
+                      color: active ? C.amber : C.tx2}}>{tf}</button>
+                );
+              })}
+            </div>
+          </div>
+
+          {renderChart()}
+
+          {tip && (
+            <div style={{position:"absolute", left:tip.x, top:tip.y, background:C.bg,
+              border:`1px solid ${C.amber}66`, borderRadius:6, padding:"8px 12px",
+              fontSize:11, color:C.tx, pointerEvents:"none", zIndex:100,
+              boxShadow:"0 4px 12px rgba(0,0,0,0.6)", minWidth:180, lineHeight:1.5}}>
+              {tip.content}
+            </div>
+          )}
+
+          <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
+            <span><span style={{display:"inline-block", width:12, height:5, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Dark pool print (hover for details)</span>
+            <span><span style={{display:"inline-block", width:5, height:8, background:C.green, verticalAlign:"middle", marginRight:3}}></span>Up · <span style={{display:"inline-block", width:5, height:8, background:C.red, verticalAlign:"middle", margin:"0 3px"}}></span>Down (hover for OHLC)</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Overview tab ─────────────────────────────────────────────────────────────
 function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
   // Track which signal-group accordions are expanded in the Signals By Type panel.
@@ -1017,22 +1358,31 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                         <span title={meta.groupTip} style={{color:C.tx3, fontSize:11, cursor:"help", marginLeft:2}}>ⓘ</span>
                       </button>
                       {expanded && items.length > 0 && (
-                        <div style={{paddingLeft:14, paddingBottom:10}}>
-                          <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px, 1fr))", gap:"3px 8px"}}>
-                            {items.slice(0, 30).map((it,i) => (
-                              <div key={it.t+"_"+i} style={{fontSize:11, color:C.tx2, padding:"2px 0", display:"flex", alignItems:"center", gap:4}}>
-                                <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, cursor:"pointer"}} onClick={()=>onJumpTo(it.t)}>
-                                  {it.t}
-                                </span>
-                                {it._sig && it._sig.mult ? (
-                                  <span style={{color:C.tx3, fontSize:10}}>{it._sig.mult}×</span>
-                                ) : it._sig && it._sig.days ? (
-                                  <span style={{color:C.tx3, fontSize:10}}>{it._sig.days}d</span>
-                                ) : null}
-                              </div>
-                            ))}
+                        <div style={{paddingLeft:6, paddingBottom:10}}>
+                          {/* Column header strip — matches PatternTickerRow grid columns */}
+                          <div style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
+                            gap:8, alignItems:"center", padding:"4px 6px",
+                            fontSize:8, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase",
+                            borderBottom:`1px solid ${C.bdr}`}}>
+                            <span>Ticker</span>
+                            <span>Cap</span>
+                            <span>Mkt Cap</span>
+                            <span>Total $</span>
+                            <span>Mult</span>
+                            <span>Days Seen</span>
+                            <span>Print $</span>
+                            <span>Move</span>
+                            <span>Price vs Print</span>
+                            <span></span>
                           </div>
-                          {items.length > 30 && <div style={{fontSize:10, color:C.tx3, marginTop:6}}>+{items.length - 30} more</div>}
+                          {items.slice(0, 30).map((it,i) => (
+                            <PatternTickerRow key={it.t+"_"+i}
+                              it={it}
+                              sig={it._sig}
+                              mktcap={mktcapData?.[it.t]?.mktCap || 0}
+                              onJumpTo={onJumpTo}/>
+                          ))}
+                          {items.length > 30 && <div style={{fontSize:10, color:C.tx3, marginTop:6, paddingLeft:6}}>+{items.length - 30} more</div>}
                         </div>
                       )}
                     </div>
