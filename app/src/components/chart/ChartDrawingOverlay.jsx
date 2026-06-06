@@ -1024,15 +1024,40 @@ export default function ChartDrawingOverlay({
   }
 
   // ── Hit test all drawings ──
+  // Advance/decline % labels render above the candle's HIGH or below its LOW —
+  // and frequently sit ON the candles. A point-only hit box misses them, so make
+  // the WHOLE candle column (high→low, + a margin past each for the label)
+  // right-clickable. Uses the same anchors the renderer does, backfilling the
+  // low for older decline labels so they're deletable too.
+  const hitTestAdvance = useCallback((d, pts, mx, my) => {
+    const p = pts[pts.length - 1]
+    if (!p || p.x == null) return false
+    const hiY = d.advHigh != null ? toPixel(null, d.advHigh)?.y : null
+    let loPrice = d.advLow
+    if (loPrice == null && d.points?.length) {
+      const bi = timeToIndex.get(d.points[d.points.length - 1].time)
+      if (bi != null && bars[bi]) loPrice = bars[bi].l
+    }
+    const loY = loPrice != null ? toPixel(null, loPrice)?.y : null
+    const ys = [hiY, loY, p.y].filter(v => v != null)
+    if (!ys.length) return false
+    const PAD = 30, HALF_W = 30   // label margin past the wick + generous click width
+    return mx >= p.x - HALF_W && mx <= p.x + HALF_W
+      && my >= Math.min(...ys) - PAD && my <= Math.max(...ys) + PAD
+  }, [toPixel, bars, timeToIndex])
+
   const hitTestAll = useCallback((mx, my) => {
     const { w, h } = sizeRef.current
     for (let i = drawings.length - 1; i >= 0; i--) {
       const d = drawings[i]
       const pts = resolvePixels(d.points || [])
-      if (hitTestDrawing(d, pts, mx, my, w, h)) return d.id
+      const hit = d.type === 'advance'
+        ? hitTestAdvance(d, pts, mx, my)
+        : hitTestDrawing(d, pts, mx, my, w, h)
+      if (hit) return d.id
     }
     return null
-  }, [drawings, resolvePixels])
+  }, [drawings, resolvePixels, hitTestAdvance])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
