@@ -79,9 +79,39 @@
 .detailPanel { flex: 1; overflow-y: auto; padding: 0 20px; min-width: 0; }
 .empty { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); padding: 16px 8px; }
 
+/* ── Sticky list head (search + sortable column header) ── */
+.listStickyHead {
+  position: sticky; top: 0; z-index: 2; background: var(--bg, #0d0d0d);
+}
+
+/* ── Ticker quick-search ── */
+.searchWrap {
+  position: relative; display: flex; align-items: center;
+  padding: 6px 10px 4px;
+}
+.searchIcon {
+  position: absolute; left: 18px; font-size: 14px; color: var(--text-muted);
+  pointer-events: none; line-height: 1;
+}
+.searchInput {
+  width: 100%; box-sizing: border-box; padding: 6px 24px 6px 26px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 5px; outline: none; transition: border-color 0.1s, background 0.1s;
+}
+.searchInput::placeholder { color: var(--text-muted); }
+.searchInput:focus { border-color: rgba(201,168,76,0.5); background: rgba(255,255,255,0.06); }
+.searchInput::-webkit-search-cancel-button { display: none; }
+.searchClear {
+  position: absolute; right: 16px; display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; font-size: 16px; line-height: 1;
+  background: transparent; border: none; color: var(--text-muted); cursor: pointer; border-radius: 3px;
+}
+.searchClear:hover { color: var(--ut-gold); background: rgba(255,255,255,0.06); }
+
 /* ── Sortable gallery header ── */
 .galleryHead {
-  position: sticky; top: 0; z-index: 1; display: flex; align-items: center;
+  display: flex; align-items: center;
   gap: 8px; padding: 4px 10px 6px; background: var(--bg, #0d0d0d);
   border-bottom: 1px solid var(--border);
 }

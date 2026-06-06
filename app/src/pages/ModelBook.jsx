@@ -1395,6 +1395,8 @@ export default function ModelBook() {
   )
   const yearStats = useMemo(() => statsData?.stats || {}, [statsData])
 
+  // Quick-filter the year's gallery by ticker or company name.
+  const [query, setQuery] = useState('')
   // Sortable gallery — defaults to top gainers (highest yearly gain first).
   const [sort, setSort] = useState({ key: 'gain', dir: 'desc' })
   function toggleSort(key) {
@@ -1420,6 +1422,15 @@ export default function ModelBook() {
   }, [stocks, yearStats, sort])
   const sortArrow = key => (sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '')
 
+  // Apply the search filter (ticker or company name) on top of the sort.
+  const visibleStocks = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return sortedStocks
+    return sortedStocks.filter(s =>
+      (s.symbol || '').toLowerCase().includes(q) ||
+      (s.company || '').toLowerCase().includes(q))
+  }, [sortedStocks, query])
+
   const [selectedId, setSelectedId] = useState(null)
   // Auto-show the top stock of the current (sorted) list until the user picks
   // one — so switching years immediately renders a chart instead of a prompt.
@@ -1430,6 +1441,7 @@ export default function ModelBook() {
   function selectYear(y) {
     setPickedYear(y)
     setSelectedId(null)
+    setQuery('')
   }
 
   // Year-tab hover → recap popover. A short debounce so scrubbing across many
@@ -1726,19 +1738,38 @@ export default function ModelBook() {
         {/* Left — stock gallery */}
         <div className={styles.listPanel} style={{ width: panelWidth, minWidth: panelWidth }}>
           {stocks.length > 0 && (
-            <div className={styles.galleryHead}>
-              <button className={styles.colHead} onClick={() => toggleSort('rank')}>
-                Stock{sortArrow('rank')}
-              </button>
-              <button className={`${styles.colHead} ${styles.colHeadRight}`} onClick={() => toggleSort('gain')}>
-                {year} Gain{sortArrow('gain')}
-              </button>
+            <div className={styles.listStickyHead}>
+              <div className={styles.searchWrap}>
+                <span className={styles.searchIcon} aria-hidden>⌕</span>
+                <input
+                  className={styles.searchInput}
+                  type="search"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder={`Search ${year ?? ''} tickers…`}
+                  aria-label="Search tickers"
+                />
+                {query && (
+                  <button className={styles.searchClear} onClick={() => setQuery('')} aria-label="Clear search">×</button>
+                )}
+              </div>
+              <div className={styles.galleryHead}>
+                <button className={styles.colHead} onClick={() => toggleSort('rank')}>
+                  Stock{sortArrow('rank')}
+                </button>
+                <button className={`${styles.colHead} ${styles.colHeadRight}`} onClick={() => toggleSort('gain')}>
+                  {year} Gain{sortArrow('gain')}
+                </button>
+              </div>
             </div>
           )}
           {stocks.length === 0 && year != null && (
             <div className={styles.empty}>No stocks curated for {year}.</div>
           )}
-          {sortedStocks.map((s) => {
+          {stocks.length > 0 && visibleStocks.length === 0 && (
+            <div className={styles.empty}>No tickers match “{query}”.</div>
+          )}
+          {visibleStocks.map((s) => {
             const st = yearStats[s.symbol]
             return (
               <div
