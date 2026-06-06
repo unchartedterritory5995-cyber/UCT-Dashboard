@@ -234,9 +234,12 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
   ctx.textAlign = 'center'
   ctx.textBaseline = isDecline ? 'top' : 'bottom'
   ctx.lineJoin = 'round'
-  const text = `${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`
+  // Thousands separator for big moves: +1,156% (toLocaleString carries the sign).
+  const n = Math.round(drawing.advPct)
+  const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
   // Keep the (center-aligned) label fully on-canvas: if a label on one of the
-  // last candles would overflow the right edge (or the left), shift it inward.
+  // last candles would overflow the right edge (the plot area, price-axis
+  // excluded) or the left, shift it inward so it's never clipped.
   let px = Math.round(p.x)
   if (canvasW) {
     const half = ctx.measureText(text).width / 2 + 3
@@ -844,7 +847,8 @@ export default function ChartDrawingOverlay({
     try { axisW = seriesRef?.current?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
     ctx.save()
     ctx.beginPath()
-    ctx.rect(0, 0, Math.max(0, w - axisW - 1), h)
+    const plotRight = Math.max(0, w - axisW - 1)   // right edge of the plot area (price axis excluded)
+    ctx.rect(0, 0, plotRight, h)
     ctx.clip()
 
     // Focus-zoom fade (Model Book). `fadeVal` eases 0→1 over the last sliver of the
@@ -965,7 +969,7 @@ export default function ChartDrawingOverlay({
               if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
             }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, w)
+          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight)
           break
         }
       }
@@ -1012,14 +1016,14 @@ export default function ChartDrawingOverlay({
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
               if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, w)
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight)
               }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai] && bars[bi]) {
                 const pct = computeAdvancePct(bars[ai], bars[bi])
-                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, w)
+                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight)
               }
             }
             break
