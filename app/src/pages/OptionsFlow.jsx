@@ -3987,25 +3987,37 @@ export default function OptionsFlowDashboard() {
                         </div>
                       )}
                         </div>
-                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, width:"26%", gap:4 }}>
-                          {/* Concentration mini-readout (centered, matches 64% below) */}
-                          <div style={{ fontSize:10, color:P.mt, lineHeight:1.5, textAlign:"center" }}>
-                            <span style={{ color:P.dm, fontWeight:700, letterSpacing:0.5 }}>CONCENTRATION </span>
-                            <span style={{ color:P.dm }}>· bull </span>
-                            <span style={{ fontWeight:800, color:top3BullPct>=50?P.ac:P.wh }}>{top3BullPct}%</span>
-                            <span style={{ color:P.dm }}> · bear </span>
-                            <span style={{ fontWeight:800, color:top3BearPct>=50?P.ac:P.wh }}>{top3BearPct}%</span>
-                            {concentrationWarn && (
-                              <span style={{ fontWeight:700, color:P.ac, marginLeft:6, padding:"1px 5px", borderRadius:3, background:P.ac+"22", fontSize:8, letterSpacing:0.5 }}>⚠ NARROW</span>
-                            )}
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, width:"26%", gap:6 }}>
+                          {/* Plain-English narrative: describes whether flow is narrow */}
+                          {/* (single-bet skewed) or broad (many tickers contributing). */}
+                          <div style={{ fontSize:10, color:concentrationWarn?P.ac:P.mt, lineHeight:1.45, textAlign:"center", maxWidth:"100%" }}>
+                            {(() => {
+                              const bullNarrow = top3BullPct >= 50;
+                              const bearNarrow = top3BearPct >= 50;
+                              if (bullNarrow && bearNarrow) {
+                                return <><span style={{ fontWeight:800 }}>⚠ Narrow on both sides</span> — top 3 names carry {top3BullPct}% of bull and {top3BearPct}% of bear flow.</>;
+                              }
+                              if (bullNarrow) {
+                                return <><span style={{ fontWeight:800 }}>⚠ Narrow bull flow</span> — 3 names carry {top3BullPct}% of bull premium. Bear flow is broad ({top3BearPct}%).</>;
+                              }
+                              if (bearNarrow) {
+                                return <><span style={{ fontWeight:800 }}>⚠ Narrow bear flow</span> — 3 names carry {top3BearPct}% of bear premium. Bull flow is broad ({top3BullPct}%).</>;
+                              }
+                              return <>Broad flow — top 3 carry {top3BullPct}% of bull, {top3BearPct}% of bear.</>;
+                            })()}
                           </div>
-                          {/* Exclusion toggle — compact, centered */}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>
-                            <span style={{ fontSize:9, color:P.dm, fontWeight:700, letterSpacing:0.5 }}>RECALC:</span>
+                          {/* The big Bull Flow % — the anchor */}
+                          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginTop:4 }}>
+                            <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
+                            <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
+                          </div>
+                          {/* Recheck toggle: subtle, sits below the 65% as a "what if" tool */}
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
+                            <span style={{ fontSize:9, color:P.dm, fontStyle:"italic" }}>recheck without:</span>
                             {[
-                              { val:0, lbl:"None" },
-                              { val:1, lbl:"Top 1" },
-                              { val:3, lbl:"Top 3" },
+                              { val:0, lbl:"none" },
+                              { val:1, lbl:"top 1" },
+                              { val:3, lbl:"top 3" },
                             ].map(opt => {
                               const active = flowExcludeTop===opt.val;
                               return (
@@ -4019,17 +4031,11 @@ export default function OptionsFlowDashboard() {
                               );
                             })}
                           </div>
-                          {/* Excluded tickers callout when toggle is on */}
                           {excludedSyms.size > 0 && (
                             <div style={{ fontSize:8, color:P.ac, textAlign:"center", maxWidth:"100%", lineHeight:1.4 }}>
-                              excl: {[...excludedSyms].join(", ")}
+                              now excluding: {[...excludedSyms].join(", ")}
                             </div>
                           )}
-                          {/* The big Bull Flow % — anchor of the right column */}
-                          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginTop:8 }}>
-                            <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
-                            <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
-                          </div>
                         </div>
                       </div>
                       {/* Timeframe Outlook */}
