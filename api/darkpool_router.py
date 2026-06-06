@@ -35,7 +35,7 @@ from fastapi.responses import JSONResponse, Response
 from collections import OrderedDict
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
-    get_stats, prune_old_data, clear_all
+    get_stats, prune_old_data, clear_all, get_ticker_prints
 )
 from api.darkpool_aggregator import (
     get_aggregated as get_aggregated_payload,
@@ -304,3 +304,46 @@ async def clear_data():
         return JSONResponse({"status": "ok", "message": "All dark pool data cleared"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Public: Ticker drill-down (print history for one ticker) ─────────────────
+@router.get("/ticker-detail")
+async def get_ticker_detail(
+    sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
+    days: int = Query(default=30, ge=5, le=365, description="Trading-day window"),
+    limit: int = Query(default=30, ge=5, le=100, description="Max prints to return"),
+):
+    """Return the dark pool print history for a single ticker.
+
+    Powers the expandable row in the Patterns Detected panel. Frontend
+    pairs this with /api/schwab/chart-ohlc to overlay print bars on a
+    candlestick chart over the requested timeframe.
+
+    Response shape:
+        {
+          "ticker": "UBER",
+          "days": 30,
+          "count": 12,
+          "totalNotional": 42500000,
+          "prints": [
+            {"date": "5/8", "dateLong": "May 8, 2026", "dateRaw": "5/8/2026",
+             "price": 128.50, "notional": 12500000, "pctAvgVol": 350,
+             "volume": 97276, "type": "B"},
+            ...
+          ]
+        }
+    """
+    try:
+        prints = get_ticker_prints(sym.upper().strip(), days=days, limit=limit)
+        total = sum(p.get("notional") or 0 for p in prints)
+        if prints:
+            prints[0]["isLatest"] = True  # mark most-recent print
+        return JSONResponse({
+            "ticker": sym.upper().strip(),
+            "days": days,
+            "count": len(prints),
+            "totalNotional": total,
+            "prints": prints,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ticker-detail failed: {e}")
