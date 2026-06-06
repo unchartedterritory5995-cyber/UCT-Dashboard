@@ -724,24 +724,35 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     return () => ro.disconnect();
   }, [expanded]);
 
-  // Block chart zoom/scroll/pinch so the dark-pool bars stay aligned with
-  // the candle prices. Path 1 trade-off — we can't sync bars with LWC's
-  // internal scale, so we just lock the scale. Wheel events are blocked at
-  // capture phase before LWC sees them; multi-touch (pinch) is blocked too.
+  // Lock ALL chart interactions so dark-pool bars stay aligned with candle
+  // prices. LWC's autoScale=true (default) re-fits the y-axis whenever the
+  // visible candle set changes (pan, wheel, live updates), so the only way
+  // to keep bars at fixed price coords without StockChart access is to
+  // freeze the chart entirely. Crosshair hover via mousemove still works
+  // since we only block initiation events, not movement.
+  // Use timeframe buttons (1W/1M/3M/6M/1Y/All) for navigation.
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!expanded || !container) return;
-    const blockWheel = (e) => { e.stopPropagation(); e.preventDefault(); };
-    const blockPinch = (e) => {
-      if (e.touches && e.touches.length > 1) { e.preventDefault(); }
+    const block = (e) => { e.stopPropagation(); e.preventDefault(); };
+    const blockTouchInitiation = (e) => {
+      // Allow single-touch hover (for crosshair on mobile) but block any drag
+      // or pinch by capturing initiation. The chart's crosshair will still
+      // appear on touchstart, but follow-up moves won't pan the chart.
+      e.stopPropagation();
+      if (e.touches && e.touches.length > 1) e.preventDefault();
     };
-    container.addEventListener("wheel", blockWheel, {capture: true, passive: false});
-    container.addEventListener("touchstart", blockPinch, {capture: true, passive: false});
-    container.addEventListener("touchmove", blockPinch, {capture: true, passive: false});
+    container.addEventListener("wheel", block, {capture: true, passive: false});
+    container.addEventListener("mousedown", block, {capture: true});
+    container.addEventListener("dblclick", block, {capture: true});
+    container.addEventListener("touchstart", blockTouchInitiation, {capture: true, passive: false});
+    container.addEventListener("touchmove", block, {capture: true, passive: false});
     return () => {
-      container.removeEventListener("wheel", blockWheel, {capture: true});
-      container.removeEventListener("touchstart", blockPinch, {capture: true});
-      container.removeEventListener("touchmove", blockPinch, {capture: true});
+      container.removeEventListener("wheel", block, {capture: true});
+      container.removeEventListener("mousedown", block, {capture: true});
+      container.removeEventListener("dblclick", block, {capture: true});
+      container.removeEventListener("touchstart", blockTouchInitiation, {capture: true});
+      container.removeEventListener("touchmove", block, {capture: true});
     };
   }, [expanded]);
 
@@ -1083,7 +1094,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
             <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (biggest = brightest gold)</span>
             <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (faded by relative size)</span>
             <span>·</span>
-            <span>Bar width + height = $ size · Chart zoom locked so bars stay aligned · Hover any bar for details</span>
+            <span>Bar width + height = $ size · Chart is static (use timeframe buttons to navigate) · Hover any bar for details</span>
           </div>
         </div>
       )}
