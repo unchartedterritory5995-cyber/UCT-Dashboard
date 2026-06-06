@@ -206,11 +206,14 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
-  const anchorY = drawing.advHigh != null ? toPixelY(null, drawing.advHigh) : null
-  const baseY = anchorY != null ? anchorY : p.y
-  // Advance → label ABOVE the final point; decline → label BELOW it (so a market
-  // drop reads "-24%" tucked under the trough, not floating over the line).
+  // Advance → label ABOVE the candle's HIGH; decline → BELOW its LOW, so a drop
+  // reads "-24%" tucked under the trough. Anchoring a decline to the LOW (not the
+  // high) gives it the SAME clearance from the candle as an advance gets above the
+  // high — otherwise "below the high" lands on the candle body, looking closer.
   const isDecline = drawing.advPct < 0
+  const anchorPrice = (isDecline && drawing.advLow != null) ? drawing.advLow : drawing.advHigh
+  const anchorY = anchorPrice != null ? toPixelY(null, anchorPrice) : null
+  const baseY = anchorY != null ? anchorY : p.y
   const y = isDecline ? baseY + offset : baseY - offset
   ctx.save()
   ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
@@ -926,7 +929,17 @@ export default function ChartDrawingOverlay({
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
-        case 'advance': renderAdvance(ctx, pts, d, toPixelY, lineData ? 9 : 16); break
+        case 'advance': {
+          // Backfill the "to" candle's LOW for older decline labels saved before
+          // advLow existed, so they anchor below the low (equal clearance) too.
+          let ad = d
+          if (!lineData && d.advPct < 0 && d.advLow == null && d.points?.length) {
+            const bi = timeToIndex.get(d.points[d.points.length - 1].time)
+            if (bi != null && bars[bi]) ad = { ...d, advLow: bars[bi].l }
+          }
+          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16)
+          break
+        }
       }
 
       if (d.id === selectedId) renderSelectionHandles(ctx, pts)
@@ -977,7 +990,7 @@ export default function ChartDrawingOverlay({
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
-                renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h }, toPixelY)
+                renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY)
               }
             }
             break
@@ -1160,6 +1173,7 @@ export default function ChartDrawingOverlay({
             if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
               drawingData.advPct = ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100
               drawingData.advHigh = bars[bi].h
+              drawingData.advLow = bars[bi].l   // decline labels anchor below this
             }
           }
         }
