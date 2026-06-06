@@ -706,7 +706,6 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       return s.id === focusedId ? ds : ds.filter(d => d.type !== 'text')
     })
   }, [setups, focusActive, focusDate, focus.id])
-  const hasAnnotations = allDrawings.length > 0
   // All setup days — painted gold on the chart while "show all" is on so each
   // setup candle stands out alongside its annotations. Stable ref for StockChart.
   const setupTimes = useMemo(() => setups.map(s => s.label_date).filter(Boolean), [setups])
@@ -776,7 +775,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const chartAnnotateMode = annotatingPrice
   const chartHighlight = onCatalystTab
     ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
-    : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
+    : (showAllAnnotations && setupTimes.length ? setupTimes : focusDate)
   // Uploaded-bars override for the chart: daily as stored, resampled for Weekly.
   const chartBars = useMemo(() => {
     if (!customBars) return null
@@ -1160,14 +1159,14 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                   </button>
                 </div>
                 <div className={styles.setupHeadTools}>
-                  {onSetupsTab && hasAnnotations && (
+                  {onSetupsTab && setups.length > 0 && (
                     <button
                       className={`${styles.showAllToggle} ${showAllAnnotations ? styles.showAllToggleOn : ''}`}
                       onClick={toggleShowAll}
                       aria-pressed={showAllAnnotations}
                       title={showAllAnnotations
-                        ? 'Hide setup annotations (only show on click)'
-                        : 'Show every setup’s annotations on the chart'}
+                        ? 'Hide all setups (only show on click)'
+                        : 'Show every setup on the chart'}
                     >
                       <span className={styles.showAllTrack}><span className={styles.showAllKnob} /></span>
                       Show all
