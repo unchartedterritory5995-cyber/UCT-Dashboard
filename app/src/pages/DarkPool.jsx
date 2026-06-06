@@ -2334,7 +2334,23 @@ export default function DarkPool({embedded}){
           if (cancelled) return;
           try {
             const rows = parseCSV(text);
-            if (!rows || rows.length === 0) throw new Error("No data returned");
+            // 0 rows is only a real error if we asked for the smallest window
+            // (1d) and even that came back empty. If we asked for 90d/60d/etc.
+            // and got header-only, the DB likely has fewer days than requested
+            // OR the backend returned an empty response — either way, fall back
+            // to 1d so the page renders something rather than a wall-of-error.
+            if (!rows || rows.length === 0) {
+              if (fetchDays > 1) {
+                // Auto-fallback: bump down to 1d so the user can at least see
+                // today's data. The state change re-runs this effect with the
+                // new csvFile URL.
+                setLoadStatus("No data for this range — loading 1d…");
+                setDateFilter("Last1");
+                setFetchDays(1);
+                return;
+              }
+              throw new Error("No data returned");
+            }
             setParsedRows(rows);
             setCsvLoading(false);
           } catch(err) {
