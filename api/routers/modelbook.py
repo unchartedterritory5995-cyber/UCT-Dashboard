@@ -197,6 +197,18 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
+    # Always show "TICKER (Company)" in the header: if a stock was added without a
+    # company name typed in, fill it from live ticker-meta (same source as the
+    # chart watermark) and persist it so it's there permanently.
+    if not stock.get("company") and stock.get("symbol"):
+        try:
+            from api.services.ticker_meta import get_ticker_meta as _gtm
+            nm = (_gtm(stock["symbol"]) or {}).get("name")
+            if nm:
+                stock["company"] = nm
+                svc.backfill_company(stock_id, nm)
+        except Exception:
+            pass
     # Auto-generate the company/story descriptions + watermark sector/industry on
     # first view (background). _needs_desc also fires when an older stock still
     # lacks sector/industry, so the new watermark fields backfill on next view.

@@ -278,6 +278,21 @@ def save_watermark_meta(stock_id: int, sector=None, industry=None) -> None:
         c.commit()
 
 
+def backfill_company(stock_id: int, company) -> None:
+    """Fill the curated company NAME only when it's still empty (COALESCE — never
+    clobber a manually-entered name). Lets the detail header always show
+    "TICKER (Company)" even for stocks added without a name typed in."""
+    company = (company or "").strip() or None
+    if not company:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE modelbook_stocks SET company = COALESCE(NULLIF(company, ''), ?) WHERE id = ?",
+            (company, int(stock_id)),
+        )
+        c.commit()
+
+
 def reset_year_derived(stock_id: int) -> None:
     """Invalidate a stock's cached year data after its bars are replaced/cleared:
     clear the price stats (oc/lh/avg_vol) so the warm recomputes them, drop any
