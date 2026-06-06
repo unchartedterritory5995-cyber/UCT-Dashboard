@@ -1746,7 +1746,7 @@ export default function ModelBook() {
                   type="search"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder={`Search ${year ?? ''} tickers…`}
+                  placeholder={`Search ${year ?? ''}`}
                   aria-label="Search tickers"
                 />
                 {query && (
