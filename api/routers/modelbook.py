@@ -209,6 +209,20 @@ def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
     return stock
 
 
+@router.post("/stock/{stock_id}/descriptions/generate")
+def regenerate_descriptions(stock_id: int, _admin: dict = Depends(require_admin)):
+    """Force-regenerate a stock's company description + year narrative now
+    (synchronously) — the manual fallback when the auto pass returned nothing.
+    Returns the refreshed stock detail."""
+    stock = svc.get_stock_detail(stock_id)
+    if not stock:
+        raise HTTPException(404, "Stock not found")
+    d = _generate_descriptions(stock["symbol"], stock.get("company"),
+                               stock["year"], stock.get("oc_pct"))
+    _persist_desc_result(stock_id, d)
+    return svc.get_stock_detail(stock_id)
+
+
 def _load_year_bars(symbol: str, year: int, stock_id=None) -> list:
     """Sorted daily bars for (symbol, year). PREFERS admin-uploaded custom bars
     (svc.modelbook_stock_bars) when present — a since-renamed/delisted ticker
@@ -392,7 +406,7 @@ import os as _os
 import time as _time_mod
 _DESC_ENABLED = _os.environ.get("MODELBOOK_DESC_ENABLED", "1") == "1"
 _DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
-_DESC_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
+_DESC_RETRY_AFTER = 3 * 3600  # re-attempt a failed/empty generation after ~3h (self-heals on re-view)
 _gen_lock = _threading.Lock()
 _generating = set()  # stock ids with a description generation in flight
 
@@ -461,11 +475,24 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             "'breakneck', 'frenzy', or 'on fire'. Use precise, varied, plain language and a "
             "different opening word than other notes would naturally use."
         )
-        msg = client.messages.create(
-            model=_DESC_MODEL, max_tokens=400, temperature=0.7,
-            system=system, messages=[{"role": "user", "content": prompt}],
-        )
-        text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+        # Retry transient failures: when stocks are added, catalysts + recap +
+        # description generation can fire together and transiently overload the
+        # API. A single failure would otherwise stamp desc_at and blank the note.
+        text = None
+        for attempt in range(3):
+            try:
+                msg = client.messages.create(
+                    model=_DESC_MODEL, max_tokens=400, temperature=0.7,
+                    system=system, messages=[{"role": "user", "content": prompt}],
+                )
+                text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+                if text:
+                    break
+            except Exception:
+                text = None
+            _time_mod.sleep(1.5 * (attempt + 1))
+        if not text:
+            return None
         s, e = text.find("{"), text.rfind("}")
         if s == -1 or e == -1:
             return None
@@ -474,11 +501,31 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         rs = (obj.get("run_story") or "").strip()
         sec = (obj.get("sector") or "").strip() or None
         ind = (obj.get("industry") or "").strip() or None
-        if not (cd or rs or sec or ind):
-            return None
-        return {"company_desc": cd, "run_story": rs, "sector": sec, "industry": ind}
+        if cd or rs:
+            return {"company_desc": cd, "run_story": rs, "sector": sec, "industry": ind}
+        # Got the GICS meta but no usable description — surface the meta so the
+        # watermark fills, flagged so the caller re-attempts the description later.
+        if sec or ind:
+            return {"company_desc": "", "run_story": "", "sector": sec, "industry": ind, "_meta_only": True}
+        return None
     except Exception:
         return None
+
+
+def _persist_desc_result(stock_id, d) -> None:
+    """Persist a _generate_descriptions result: a real description is saved as
+    done; a meta-only result fills the watermark but leaves the description to
+    re-attempt later; a None failure just stamps the attempt (avoids tight loop)."""
+    try:
+        if d and not d.get("_meta_only"):
+            svc.save_descriptions(stock_id, d["company_desc"], d["run_story"],
+                                  d.get("sector"), d.get("industry"))
+        else:
+            if d and (d.get("sector") or d.get("industry")):
+                svc.save_watermark_meta(stock_id, d.get("sector"), d.get("industry"))
+            svc.mark_desc_attempt(stock_id)  # stamp attempt so we don't loop
+    except Exception:
+        pass
 
 
 def _generate_descriptions_for(stocks, max_workers=3):
@@ -489,14 +536,7 @@ def _generate_descriptions_for(stocks, max_workers=3):
 
     def _work(s):
         d = _generate_descriptions(s["symbol"], s.get("company"), s["year"], s.get("oc_pct"))
-        try:
-            if d:
-                svc.save_descriptions(s["id"], d["company_desc"], d["run_story"],
-                                      d.get("sector"), d.get("industry"))
-            else:
-                svc.mark_desc_attempt(s["id"])  # stamp attempt so we don't loop
-        except Exception:
-            pass
+        _persist_desc_result(s["id"], d)
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         list(ex.map(_work, pending))
 
@@ -515,11 +555,7 @@ def _gen_desc_async(stock):
         try:
             d = _generate_descriptions(stock["symbol"], stock.get("company"),
                                        stock["year"], stock.get("oc_pct"))
-            if d:
-                svc.save_descriptions(sid, d["company_desc"], d["run_story"],
-                                      d.get("sector"), d.get("industry"))
-            else:
-                svc.mark_desc_attempt(sid)  # stamp attempt so we don't loop
+            _persist_desc_result(sid, d)
         finally:
             with _gen_lock:
                 _generating.discard(sid)

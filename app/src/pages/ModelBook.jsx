@@ -590,6 +590,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   const [editNarr, setEditNarr] = useState(false)
   const [descDraft, setDescDraft] = useState('')
   const [storyDraft, setStoryDraft] = useState('')
+  const [genningDesc, setGenningDesc] = useState(false)  // admin: forcing a description regen
 
   // When the user switches to a DIFFERENT stock, hard-clear the prior stock's
   // focus + annotation state. Stamping stockId on `focus` only DEACTIVATES it
@@ -966,6 +967,23 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     mutate()
   }
 
+  // Admin: force-regenerate the AI company description + year narrative when the
+  // auto pass came back empty. Synchronous on the server (one LLM call).
+  async function generateDescription() {
+    if (genningDesc) return
+    setGenningDesc(true)
+    try {
+      const r = await fetch(`/api/modelbook/stock/${stock.id}/descriptions/generate`,
+        { method: 'POST', credentials: 'include' })
+      if (r.ok) {
+        const updated = await r.json()
+        mutate(updated, { revalidate: false })
+      }
+    } finally {
+      setGenningDesc(false)
+    }
+  }
+
   if (!stockId) {
     return <div className={styles.emptyDetail}><p>Select a stock to view its chart and labeled setups.</p></div>
   }
@@ -1134,11 +1152,22 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                   {stock.run_story && <p className={styles.infoStory}>{stock.run_story}</p>}
                   {!stock.company_desc && !stock.run_story && !stock.desc_at &&
                     <p className={styles.infoStoryMuted}>Generating summary…</p>}
+                  {/* Auto pass already ran (desc_at set) but produced nothing — let
+                      an admin retry it on demand instead of waiting for the window. */}
+                  {!stock.company_desc && !stock.run_story && stock.desc_at &&
+                    <p className={styles.infoStoryMuted}>{genningDesc ? 'Generating summary…' : 'No summary generated yet.'}</p>}
                   {isAdmin && (
-                    <button className={styles.infoEditLink}
-                      onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
-                      edit
-                    </button>
+                    <div className={styles.infoNarrActions}>
+                      {!stock.company_desc && !stock.run_story && (
+                        <button className={styles.infoEditLink} disabled={genningDesc} onClick={generateDescription}>
+                          {genningDesc ? 'generating…' : 'generate'}
+                        </button>
+                      )}
+                      <button className={styles.infoEditLink}
+                        onClick={() => { setDescDraft(stock.company_desc || ''); setStoryDraft(stock.run_story || ''); setEditNarr(true) }}>
+                        edit
+                      </button>
+                    </div>
                   )}
                 </>
               )}

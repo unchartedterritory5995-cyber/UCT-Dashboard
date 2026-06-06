@@ -258,6 +258,26 @@ def mark_desc_attempt(stock_id: int) -> None:
         c.commit()
 
 
+def save_watermark_meta(stock_id: int, sector=None, industry=None) -> None:
+    """Backfill ONLY the watermark sector/industry (COALESCE — never clobber a
+    curated value), without touching company_desc/run_story/desc_at. Used when an
+    LLM pass yielded the GICS meta but no usable description, so the description
+    still re-attempts later while the watermark fills now."""
+    sector = (sector or "").strip() or None
+    industry = (industry or "").strip() or None
+    if not (sector or industry):
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """UPDATE modelbook_stocks
+               SET sector   = COALESCE(NULLIF(sector, ''), ?),
+                   industry = COALESCE(NULLIF(industry, ''), ?)
+               WHERE id = ?""",
+            (sector, industry, int(stock_id)),
+        )
+        c.commit()
+
+
 def reset_year_derived(stock_id: int) -> None:
     """Invalidate a stock's cached year data after its bars are replaced/cleared:
     clear the price stats (oc/lh/avg_vol) so the warm recomputes them, drop any
