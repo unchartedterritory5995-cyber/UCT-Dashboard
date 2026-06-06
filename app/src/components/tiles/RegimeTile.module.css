@@ -70,3 +70,7 @@
   font-weight: 700;
   color: var(--text-bright);
 }
+
+@media (max-width: 640px) {
+  .signals { grid-template-columns: repeat(2, 1fr); }
+}

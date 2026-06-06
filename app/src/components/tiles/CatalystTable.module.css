@@ -403,9 +403,40 @@
   font-style: italic;
 }
 
-@media (max-width: 768px) {
-  .colSym    { width: auto; }
-  .colPrice, .colVol, .colTag, .colUpdated { display: none; }
-  .table { font-size: 11px; }
-  .table td { padding: 8px 6px; }
+/* Phone: each row becomes a card (thesis-forward) — keep every field, none hidden. */
+@media (max-width: 640px) {
+  .tile { padding: 14px 14px; }
+  .tableWrap { overflow: visible; }
+  .table, .table tbody, .table tr, .table td { display: block; width: auto; }
+  .table thead { display: none; }
+  .table tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg-surface);
+  }
+  .table tr:hover { background: var(--bg-surface); }
+  .table tr:last-child td { border-bottom: none; }
+  .table td { border: none; padding: 2px 0; white-space: normal; }
+
+  /* Headline cluster: sym · price · %change · vol× wrap onto one line */
+  .colSym, .colPrice, .colGap, .colVol {
+    display: inline-flex;
+    align-items: baseline;
+    width: auto;
+    margin-right: 12px;
+  }
+  .colSym  { font-size: 15px; font-weight: 700; }
+  .colGap  { font-size: 14px; }
+  .colPrice { font-size: 13px; color: var(--text-muted); }
+  .colVol  { font-size: 12px; color: var(--text-muted); }
+  .colVol::before { content: 'Vol '; opacity: 0.6; }
+
+  .colTag    { display: block; width: auto; margin: 6px 0 4px; }
+  .colThesis { display: block; width: auto; font-size: 13px; line-height: 1.55; }
+  .colUpdated {
+    display: block; width: auto; text-align: left;
+    margin-top: 6px; font-size: 10px;
+  }
 }
