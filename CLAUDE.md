@@ -134,6 +134,23 @@ The whole app is being made mobile-seamless with **near-full feature parity** (T
 ### Tap targets
 `--tap-min: 44px` is defined in tokens.css. Enforce on all interactive elements on touch (use `.touchTarget` or `min-height/width: var(--tap-min)`).
 
+### Mobile audit harness — `tools/mobile_audit.py` (no device needed)
+Playwright sweep (Python Playwright + Chromium already installed). Boots phone/tablet viewports, dismisses the intro overlay, visits each route, flags **horizontal overflow** (the #1 objective mobile bug) + sub-44px tap targets, saves a full-page screenshot per route/viewport to `tools/mobile_audit_out/` (gitignored) + `report.md`.
+
+**Tightest loop = local backend + admin account (sees ALL routes, no deploy wait):**
+```
+# 1. Start backend (heavy jobs off). ADMIN_EMAILS auto-promotes the test user → admin (admins skip email-verify + see every route)
+$env:ADMIN_EMAILS="mobtest@local.dev"; $env:WORKER_ENABLED="0"; $env:CATALYST_ENGINE_ENABLED="0"; $env:TWITTERAPI_IO_ENABLED="0"; $env:BARS_PREWARM_DISABLED="1"; $env:TICKER_NAMES_PREWARM_DISABLED="1"
+python -m uvicorn api.main:app --port 8077
+# 2. One-time: create the admin account
+curl -X POST http://localhost:8077/api/auth/signup -H "Content-Type: application/json" -d '{"email":"mobtest@local.dev","password":"LocalTest2026!","display_name":"x"}'
+# 3. Audit (rebuild `app` first so the backend serves fresh dist/)
+$env:MOBILE_AUDIT_EMAIL="mobtest@local.dev"; $env:MOBILE_AUDIT_PASSWORD="LocalTest2026!"
+python tools/mobile_audit.py --base http://localhost:8077 --auth                                   # all routes, all viewports
+python tools/mobile_audit.py --base http://localhost:8077 --auth --viewport phone --routes /journal # focused
+```
+Loop: edit CSS → `cd app && npm run build` → re-run audit → read `report.md` + screenshots. Against live Railway instead: `--base https://uctintelligence.com` (a free test account only sees FREE_PAGES + /settings). Auth uses `page.request.post('/api/auth/login')` so the cookie lands in the context jar — robust vs the intro overlay. **Must pass `--auth`** to log in (the `--routes` flag alone does not).
+
 ## Cinematic Intro Animation (LIVE — 2026-05-09)
 
 **Brand identity reveal that plays on every page load.** Mounted at `App.jsx` root inside `<AuthProvider>` so it has access to `useAuth().user.name`. Internal route changes don't remount the App, so it does NOT replay during in-app navigation — only on actual page loads (initial visit, refresh, bookmark hit, post-deploy reload).
