@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import TickerPopup from "../components/TickerPopup";
+import StockChart from "../components/StockChart";
 
 // ── Built-in CSV parser (no external dependencies) ───────────────────────────
 function parseCSVLine(line) {
@@ -660,14 +661,16 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
 // ── Pattern Ticker Row ───────────────────────────────────────────────────────
 // Expandable row used in Patterns Detected groups. Collapsed: compact summary
 // (cap, mkt cap, total $, mult, days seen, latest print, move %, mini spark).
-// Expanded: lazy-fetches /ticker-detail (dark pool prints) + /chart-ohlc
-// (candles from Yahoo) and renders a multi-timeframe chart with hover tooltips.
+// Expanded: lazy-fetches /ticker-detail (dark pool prints) and renders them
+// as priceLines on the shared <StockChart> component (TradingView Lightweight
+// Charts, same component GEX uses for gamma walls). chartTf controls candle
+// aggregation that StockChart fetches itself.
 const TF_MAP = {
-  "1W": {days: 7,   range: "5d"},
-  "1M": {days: 30,  range: "1mo"},
-  "3M": {days: 90,  range: "3mo"},
-  "6M": {days: 180, range: "6mo"},
-  "1Y": {days: 365, range: "1y"},
+  "1W": {days: 7,   chartTf: "D"},
+  "1M": {days: 30,  chartTf: "D"},
+  "3M": {days: 90,  chartTf: "D"},
+  "6M": {days: 180, chartTf: "W"},
+  "1Y": {days: 365, chartTf: "W"},
 };
 
 // Plain-English signal labels + tooltips. Lifted to module scope so both
@@ -700,13 +703,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   const [expanded, setExpanded] = useState(false);
   const [timeframe, setTimeframe] = useState("1M");
   const [prints, setPrints] = useState(null);
-  const [candles, setCandles] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [tip, setTip] = useState(null); // {x, y, html}
-  const containerRef = useRef(null);
 
-  // Lazy-fetch on expand or timeframe change
+  // Lazy-fetch prints on expand or timeframe change. StockChart fetches its
+  // own OHLC internally — we just supply ticker, tf aggregation, and the
+  // print levels as priceLines overlays.
   useEffect(() => {
     if (!expanded) return;
     const tf = TF_MAP[timeframe];
@@ -714,22 +716,18 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setTip(null);
-    Promise.all([
-      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed"))),
-      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${tf.range}`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error("ohlc fetch failed"))),
-    ]).then(([detail, ohlc]) => {
-      if (cancelled) return;
-      setPrints(Array.isArray(detail?.prints) ? detail.prints : []);
-      setCandles(Array.isArray(ohlc?.candles) ? ohlc.candles : []);
-      setLoading(false);
-    }).catch(e => {
-      if (cancelled) return;
-      setError(e?.message || "fetch error");
-      setLoading(false);
-    });
+    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed")))
+      .then(detail => {
+        if (cancelled) return;
+        setPrints(Array.isArray(detail?.prints) ? detail.prints : []);
+        setLoading(false);
+      })
+      .catch(e => {
+        if (cancelled) return;
+        setError(e?.message || "fetch error");
+        setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [expanded, timeframe, it.t]);
 
@@ -766,169 +764,28 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     );
   };
 
-  // Expanded chart — candles + print bars + hover tooltips
-  const renderChart = () => {
-    if (loading) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>Loading {timeframe} data…</div>;
-    if (error) return <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load: {error}</div>;
-    if (!candles || candles.length === 0) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>No OHLC data available for this period</div>;
-
-    const W = 720, H = 240, padL = 60, padR = 200, padY = 14;
-    const plotW = W - padL - padR;
-    const plotH = H - padY * 2;
-    const candleData = candles.map(c => ({
-      o: c.open, h: c.high, l: c.low, c: c.close,
-      ts: c.time,
-      date: new Date(c.time * 1000).toLocaleDateString("en-US", {month:"numeric", day:"numeric"}),
-      dateLong: new Date(c.time * 1000).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}),
-    }));
-    const allPrices = [
-      ...candleData.flatMap(c => [c.h, c.l]).filter(p => p != null),
-      ...(prints || []).map(p => p.price).filter(p => p != null),
-    ];
-    if (allPrices.length === 0) return <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>No price data</div>;
-    const chartMin = Math.min(...allPrices) * 0.995;
-    const chartMax = Math.max(...allPrices) * 1.005;
-    const yScale = p => H - padY - ((p - chartMin) / (chartMax - chartMin)) * plotH;
-    const xScale = i => padL + ((i + 0.5) / candleData.length) * plotW;
-    const candleW = Math.max(2, Math.min(14, plotW / candleData.length * 0.65));
-
-    // Y-axis ticks
-    const ticks = [];
-    for (let i = 0; i <= 5; i++) {
-      const p = chartMin + (i / 5) * (chartMax - chartMin);
-      const y = yScale(p);
-      ticks.push(
-        <g key={`tick-${i}`}>
-          <text x={padL - 6} y={y + 3} fontSize="9" fill={C.tx3} textAnchor="end" fontFamily="inherit">${p.toFixed(2)}</text>
-          <line x1={padL - 2} y1={y} x2={padL} y2={y} stroke={C.tx3} strokeWidth="1"/>
-          <line x1={padL} y1={y} x2={padL + plotW} y2={y} stroke={C.bdr} strokeWidth="1" strokeDasharray="1,3" opacity="0.4"/>
-        </g>
-      );
-    }
-
-    // Hover tooltip helpers (positioned relative to chart container)
-    const tipForPrint = (p, idx) => {
-      const ageDays = Math.round((Date.now() - new Date(p.dateLong || p.dateRaw).getTime()) / (1000 * 60 * 60 * 24));
-      const ageStr = isNaN(ageDays) ? "" : ageDays < 1 ? "today" : ageDays === 1 ? "1 day ago" : `${ageDays} days ago`;
-      return (
-        <>
-          <div style={{fontWeight:700, color:C.amber, fontSize:12, marginBottom:4}}>🟡 Dark Pool Print{p.isLatest ? " · LATEST" : ""}</div>
-          <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px", fontSize:11}}>
-            <span style={{color:C.tx3}}>Date</span><span style={{color:C.tx, fontWeight:600}}>{p.dateLong || p.dateRaw} {ageStr && <span style={{color:C.tx3, fontWeight:400}}>({ageStr})</span>}</span>
-            <span style={{color:C.tx3}}>Price</span><span style={{color:C.amber, fontWeight:700}}>${p.price.toFixed(2)}</span>
-            <span style={{color:C.tx3}}>Premium</span><span style={{color:C.cyan, fontWeight:600}}>${Math.round(p.notional).toLocaleString()}</span>
-            {p.pctAvgVol > 0 && <><span style={{color:C.tx3}}>Vs avg vol</span><span style={{color:C.purple, fontWeight:600}}>{Math.round(p.pctAvgVol)}%</span></>}
-          </div>
-        </>
-      );
-    };
-    const tipForCandle = (c) => {
-      const isUp = c.c >= c.o;
-      const tColor = isUp ? C.green : C.red;
-      const pctMove = ((c.c - c.o) / c.o * 100).toFixed(2);
-      return (
-        <>
-          <div style={{fontWeight:700, color:tColor, fontSize:12, marginBottom:4}}>{isUp ? "▲" : "▼"} {c.dateLong}</div>
-          <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px", fontSize:11}}>
-            <span style={{color:C.tx3}}>Open</span><span style={{color:C.tx}}>${c.o.toFixed(2)}</span>
-            <span style={{color:C.tx3}}>High</span><span style={{color:C.green}}>${c.h.toFixed(2)}</span>
-            <span style={{color:C.tx3}}>Low</span><span style={{color:C.red}}>${c.l.toFixed(2)}</span>
-            <span style={{color:C.tx3}}>Close</span><span style={{color:C.tx, fontWeight:700}}>${c.c.toFixed(2)} <span style={{color:tColor, fontWeight:600}}>({isUp?"+":""}{pctMove}%)</span></span>
-          </div>
-        </>
-      );
-    };
-
-    const showTip = (e, content) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setTip({
-        x: Math.min(e.clientX - rect.left + 14, (containerRef.current.offsetWidth || 720) - 230),
-        y: Math.max(e.clientY - rect.top - 60, 8),
-        content,
-      });
-    };
-    const hideTip = () => setTip(null);
-
-    // Print bars (drawn behind candles, with hit-area rects for hover)
-    const visiblePrints = (prints || []).slice(0, 12);
-    const maxNotional = Math.max(...visiblePrints.map(p => p.notional || 0), 1);
-    const printElements = visiblePrints.map((p, idx) => {
-      if (p.price == null) return null;
-      const y = yScale(p.price);
-      const barW = ((p.notional || 0) / maxNotional) * 170;
-      const ageRatio = idx / Math.max(visiblePrints.length - 1, 1);
-      const opacity = p.isLatest ? 0.9 : 0.7 - ageRatio * 0.4;
-      const showLabel = p.isLatest || (idx < 6 && visiblePrints.length <= 8) || idx < 3;
-      const hitW = Math.max(barW, 30) + 130;
-      return (
-        <g key={`print-${idx}`}>
-          <rect x={padL} y={y - 6} width={hitW} height="12" fill="transparent"
-            style={{cursor:"help"}}
-            onMouseMove={(e) => showTip(e, tipForPrint(p, idx))}
-            onMouseLeave={hideTip}/>
-          <rect x={padL} y={y - 4} width={barW} height="8" fill={C.amber} opacity={opacity} rx="1" pointerEvents="none"/>
-          {showLabel && (
-            <>
-              <text x={padL + barW + 6} y={y - 6} fontSize="9" fill={C.amber} fontWeight="700" fontFamily="inherit" pointerEvents="none">${p.price.toFixed(2)}</text>
-              <text x={padL + barW + 6} y={y + 7} fontSize="8" fill={C.tx2} fontFamily="inherit" pointerEvents="none">{p.date} · {fmt(p.notional)}</text>
-            </>
-          )}
-        </g>
-      );
+  // Convert dark pool prints to StockChart priceLines (same format GEX uses
+  // for gamma walls — see OptionsFlow gexPriceLines builder).
+  // Limit to top 15 by notional so the right-axis labels don't stack.
+  const priceLines = useMemo(() => {
+    if (!prints || prints.length === 0) return [];
+    const top = [...prints]
+      .filter(p => p && p.price != null && p.notional != null)
+      .sort((a,b) => (b.notional || 0) - (a.notional || 0))
+      .slice(0, 15);
+    return top.map(p => {
+      const isLatest = p.isLatest;
+      const sizeFmt = fmt(p.notional);
+      return {
+        price: p.price,
+        color: isLatest ? "#c9a84c" : "#c9a84cAA",
+        lineWidth: isLatest ? 2 : 1,
+        lineStyle: 2, // Dashed
+        title: `${p.date} ${sizeFmt}`,
+        axisLabelVisible: true,
+      };
     });
-
-    // Candlesticks
-    const candleElements = candleData.map((c, i) => {
-      const xi = xScale(i);
-      const isUp = c.c >= c.o;
-      const color = isUp ? C.green : C.red;
-      const yH = yScale(c.h), yL = yScale(c.l);
-      const yO = yScale(c.o), yC = yScale(c.c);
-      const bodyTop = Math.min(yO, yC);
-      const bodyH = Math.max(1, Math.abs(yO - yC));
-      const hitW = Math.max(candleW + 2, 6);
-      return (
-        <g key={`candle-${i}`}>
-          <rect x={xi - hitW/2} y={yH - 2} width={hitW} height={yL - yH + 4} fill="transparent"
-            style={{cursor:"crosshair"}}
-            onMouseMove={(e) => showTip(e, tipForCandle(c))}
-            onMouseLeave={hideTip}/>
-          <line x1={xi} y1={yH} x2={xi} y2={yL} stroke={color} strokeWidth="1" pointerEvents="none"/>
-          <rect x={xi - candleW/2} y={bodyTop} width={candleW} height={bodyH} fill={color} pointerEvents="none"/>
-        </g>
-      );
-    });
-
-    // NOW marker
-    const lastC = candleData[candleData.length - 1];
-    const lastX = xScale(candleData.length - 1);
-    const nowY = yScale(lastC.c);
-    const nowMarker = (
-      <g>
-        <line x1={lastX + candleW/2 + 4} y1={nowY} x2={padL + plotW} y2={nowY} stroke={C.green} strokeWidth="1" strokeDasharray="3,3" opacity="0.8"/>
-        <text x={padL + plotW + 5} y={nowY + 4} fontSize="10" fill={C.green} fontWeight="700" fontFamily="inherit">NOW ${lastC.c.toFixed(2)}</text>
-      </g>
-    );
-
-    // Date axis (adaptive density)
-    const labelEvery = Math.max(1, Math.ceil(candleData.length / 8));
-    const dateLabels = candleData.map((c, i) => {
-      if (i % labelEvery !== 0 && i !== candleData.length - 1) return null;
-      return <text key={`d-${i}`} x={xScale(i)} y={H - 1} fontSize="8" fill={C.tx3} textAnchor="middle" fontFamily="inherit">{c.date}</text>;
-    });
-
-    return (
-      <svg width={W} height={H} xmlns="http://www.w3.org/2000/svg" style={{display:"block", maxWidth:"100%"}}>
-        <line x1={padL} y1={padY} x2={padL} y2={H - padY} stroke={C.bdr} strokeWidth="1"/>
-        {ticks}
-        {printElements}
-        {candleElements}
-        {nowMarker}
-        {dateLabels}
-      </svg>
-    );
-  };
+  }, [prints]);
 
   return (
     <div style={{borderBottom:`1px solid ${C.bdr}33`}}>
@@ -998,9 +855,9 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
         </div>
       )}
 
-      {/* Expanded view */}
+      {/* Expanded view — TradingView-style StockChart with dark pool prints overlaid */}
       {expanded && (
-        <div ref={containerRef} style={{background:C.bg3, borderRadius:6, padding:"12px 14px", margin:"4px 0 8px", position:"relative", border:`1px solid ${C.bdr}`}}>
+        <div style={{background:C.bg3, borderRadius:6, padding:"12px 14px", margin:"4px 0 8px", border:`1px solid ${C.bdr}`}}>
           {/* Header row with metadata + timeframe selector */}
           <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:10}}>
             <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
@@ -1031,20 +888,32 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
             </div>
           </div>
 
-          {renderChart()}
+          {loading && <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>Loading dark pool prints…</div>}
+          {error && <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load prints: {error}</div>}
 
-          {tip && (
-            <div style={{position:"absolute", left:tip.x, top:tip.y, background:C.bg,
-              border:`1px solid ${C.amber}66`, borderRadius:6, padding:"8px 12px",
-              fontSize:11, color:C.tx, pointerEvents:"none", zIndex:100,
-              boxShadow:"0 4px 12px rgba(0,0,0,0.6)", minWidth:180, lineHeight:1.5}}>
-              {tip.content}
-            </div>
-          )}
+          {/* TradingView-style chart — handles candles, volume, crosshair, zoom natively.
+              Dark pool prints render as horizontal price lines (same mechanism GEX uses
+              for gamma walls). Each line is labeled with date + $ amount on the right axis. */}
+          <div style={{width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
+            <StockChart
+              sym={it.t}
+              tf={TF_MAP[timeframe].chartTf}
+              height={480}
+              liveUpdates={true}
+              showDrawingTools={true}
+              showVolume={true}
+              priceLines={priceLines}
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
+            />
+          </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
-            <span><span style={{display:"inline-block", width:12, height:5, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Dark pool print (hover for details)</span>
-            <span><span style={{display:"inline-block", width:5, height:8, background:C.green, verticalAlign:"middle", marginRight:3}}></span>Up · <span style={{display:"inline-block", width:5, height:8, background:C.red, verticalAlign:"middle", margin:"0 3px"}}></span>Down (hover for OHLC)</span>
+            <span><span style={{display:"inline-block", width:12, height:0, borderTop:`1.5px dashed ${C.amber}`, verticalAlign:"middle", marginRight:4}}></span>Dark pool print level — date · $ amount labeled on right axis</span>
+            <span>·</span>
+            <span>Latest print is brighter; older prints faded</span>
           </div>
         </div>
       )}
