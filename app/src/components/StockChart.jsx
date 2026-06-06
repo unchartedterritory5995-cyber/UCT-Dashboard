@@ -2056,7 +2056,14 @@ export default function StockChart({
       if (b.c < min) min = b.c
       if (b.c > max) max = b.c
     }
-    return min <= max ? { min, max } : null
+    if (!(min <= max)) return null
+    // Pad the pinned range with HEADROOM below the line (and a touch above) so the
+    // "-X%" decline annotations placed under the Nasdaq line aren't clipped at the
+    // pane's bottom edge. The pinned provider range overrides the price-scale's
+    // bottom scaleMargin, so the room has to come from the range itself — 28% of
+    // the span below, 6% above.
+    const span = (max - min) || Math.abs(max) || 1
+    return { min: min - span * 0.28, max: max + span * 0.06 }
   }, [indexPaneSymbol, indexPaneData, adjustTime, entryDate, exitDate])
   // Keep the autoscaleInfoProvider's source current (it reads this ref). Pin only
   // in arithmetic/log modes; in Percent mode LWC rebases to the visible window, so
@@ -3765,7 +3772,7 @@ export default function StockChart({
         }, paneCount)
         indexPaneSeriesRef.current = s
         try { s.getPane().moveTo(0) } catch {}
-        try { s.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.3 } }) } catch {}
+        try { s.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.2 } }) } catch {}
       } catch { /* pane API unavailable — index pane optional */ }
     }
 
@@ -3799,7 +3806,7 @@ export default function StockChart({
       try { indexPaneSeriesRef.current.setData(indexPaneSeries) } catch {}
       // Keep extra room below the line so a decline's "-X%" label fits under the
       // trough without crowding the pane edge (idempotent — also set at creation).
-      try { indexPaneSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0.3 } }) } catch {}
+      try { indexPaneSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0.2 } }) } catch {}
 
       // 50-period SMA line on the index pane. Shares the index line's pane +
       // 'right' price scale (so it tracks log/pct mode and aligns with the
