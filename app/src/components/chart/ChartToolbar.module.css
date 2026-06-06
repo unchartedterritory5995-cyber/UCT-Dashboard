@@ -379,7 +379,16 @@
 }
 
 /* ── Mobile: hide toolbar on very small screens ── */
+/* Touch devices: enlarge the (otherwise 24px) tool buttons toward the 44px
+   tap target so they're finger-usable. The strip already scrolls horizontally.
+   Applies on tablets/touch-laptops where the toolbar is shown. */
+@media (pointer: coarse) {
+  .btn { width: 40px; height: 40px; }
+}
+
 @media (max-width: 640px) {
+  /* Phone: drawing toolbar hidden (chart is view + pinch/pan). Drawing tools
+     are reachable on tablet+; a dedicated phone tool launcher is a follow-up. */
   .toolbar {
     display: none;
   }
