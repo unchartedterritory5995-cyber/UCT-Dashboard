@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react'
 import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsModal from '../components/tiles/EarningsModal'
 import { toModalRow, timingLabel } from './calendar/earningsModalRow'
-import usePreferences from '../hooks/usePreferences'
+import usePreferences, { parsePref } from '../hooks/usePreferences'
 import {
   useCalendar,
   useCalendarMySets,
@@ -75,14 +75,14 @@ export default function Calendar() {
 
   // Persisted view / filter preferences
   const view = prefs.calendar_view || 'feed'
-  const filters = { ...DEFAULT_FILTERS, ...(prefs.calendar_filters || {}) }
-  const mySources = prefs.calendar_mystocks_sources || ALL_SOURCES
+  const filters = { ...DEFAULT_FILTERS, ...parsePref(prefs.calendar_filters, {}) }
+  const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
   const setView = v => setPref('calendar_view', v)
   const setFilters = f => setPref('calendar_filters', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
 
   // B3: event type filter — persisted as array (Set not JSON-serializable)
-  const _savedEventTypes = prefs.calendar_event_types
+  const _savedEventTypes = parsePref(prefs.calendar_event_types, null)
   const eventTypes = useMemo(
     () => _savedEventTypes ? new Set(_savedEventTypes) : DEFAULT_EVENT_TYPES,
     [_savedEventTypes],

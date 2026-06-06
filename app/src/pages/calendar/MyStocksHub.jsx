@@ -14,7 +14,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
-import usePreferences from '../../hooks/usePreferences'
+import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import {
   useCalendar,
   useCalendarMySets,
@@ -329,7 +329,7 @@ export default function MyStocksHub() {
     [],
   )
 
-  const mySources = prefs.calendar_mystocks_sources || ALL_SOURCES
+  const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
 
   const mineSyms = useMemo(

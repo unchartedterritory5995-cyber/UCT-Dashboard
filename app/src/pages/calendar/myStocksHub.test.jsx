@@ -18,6 +18,11 @@ vi.mock('../../hooks/usePreferences', () => ({
     prefs: { calendar_mystocks_sources: ['watchlist', 'flagged', 'positions', 'uct20'] },
     setPref: vi.fn(),
   })),
+  parsePref: (raw, fallback) => {
+    if (raw == null) return fallback
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return fallback }
+  },
 }))
 
 vi.mock('./useCalendarData', () => ({
