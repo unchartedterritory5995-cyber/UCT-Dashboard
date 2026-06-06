@@ -708,76 +708,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   const [expanded, setExpanded] = useState(noCollapsedRow);
   const [timeframe, setTimeframe] = useState("1M");
   const [prints, setPrints] = useState(null);
-  const [ohlcData, setOhlcData] = useState(null); // for overlay price-range calc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  // Ref + width state for the overlay — needed because SVG <rect> x attribute
-  // doesn't accept CSS calc(), so we have to compute pixel positions in JS.
-  const chartContainerRef = useRef(null);
-  const [containerW, setContainerW] = useState(0);
 
-  // Track container width so the overlay can right-align bars correctly.
-  useEffect(() => {
-    if (!expanded || !chartContainerRef.current) return;
-    const measure = () => setContainerW(chartContainerRef.current?.clientWidth || 0);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(chartContainerRef.current);
-    return () => ro.disconnect();
-  }, [expanded]);
-
-  // Allow horizontal navigation (drag-pan + wheel zoom) so the user can
-  // scroll the chart side to side. Block ONLY interactions that change the
-  // y-axis scale, to minimize bar drift. Note: LWC's autoScale=true (default)
-  // can still cause minor y-axis shifts when the visible candle set changes
-  // during pan/zoom — that's a structural Path 1 limitation we accept.
-  // Blocked: drag on price axis (changes Y), pinch (changes both axes),
-  // double-click on price axis (resets Y).
-  // Allowed: drag in chart body (horizontal pan), wheel (horizontal zoom),
-  // crosshair hover, drawing tools.
-  useEffect(() => {
-    const container = chartContainerRef.current;
-    if (!expanded || !container) return;
-    const PRICE_AXIS_W = 60;
-    const isOnPriceAxis = (clientX) => {
-      if (clientX == null) return false;
-      const rect = container.getBoundingClientRect();
-      return (rect.right - clientX) < PRICE_AXIS_W;
-    };
-    const onMouseDown = (e) => {
-      if (isOnPriceAxis(e.clientX)) { e.stopPropagation(); e.preventDefault(); }
-    };
-    const onDblClick = (e) => {
-      if (isOnPriceAxis(e.clientX)) { e.stopPropagation(); e.preventDefault(); }
-    };
-    const onTouchStart = (e) => {
-      // Block pinch (multi-touch zooms both axes)
-      if (e.touches && e.touches.length > 1) { e.preventDefault(); e.stopPropagation(); return; }
-      // Block single-touch drag starting on price axis
-      if (e.touches && e.touches.length === 1 && isOnPriceAxis(e.touches[0].clientX)) {
-        e.preventDefault(); e.stopPropagation();
-      }
-    };
-    const onTouchMove = (e) => {
-      if (e.touches && e.touches.length > 1) { e.preventDefault(); e.stopPropagation(); }
-    };
-    container.addEventListener("mousedown", onMouseDown, {capture: true});
-    container.addEventListener("dblclick",  onDblClick, {capture: true});
-    container.addEventListener("touchstart", onTouchStart, {capture: true, passive: false});
-    container.addEventListener("touchmove",  onTouchMove, {capture: true, passive: false});
-    return () => {
-      container.removeEventListener("mousedown", onMouseDown, {capture: true});
-      container.removeEventListener("dblclick",  onDblClick, {capture: true});
-      container.removeEventListener("touchstart", onTouchStart, {capture: true});
-      container.removeEventListener("touchmove",  onTouchMove, {capture: true});
-    };
-  }, [expanded]);
-
-  // Hover tooltip state for bars
-  const [tip, setTip] = useState(null);
-
-  // Lazy-fetch prints (+ OHLC for the volume-profile overlay's price range)
-  // on expand or timeframe change. StockChart fetches its own OHLC for the
+  // Lazy-fetch prints on expand or timeframe change. StockChart now renders
+  // bars natively via its darkPoolBars prop (pixel-perfect alignment via
+  // priceToCoordinate), so we no longer need OHLC for our own overlay calc.
   // visible chart, but we need a parallel fetch here so we can compute Y
   // positions for the print bars without needing access to the chart's
   // internal price scale. Path 1: accept slight misalignment if the user
@@ -790,19 +726,11 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setOhlcData(null);
-    Promise.all([
-      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=${tf.limit}`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed"))),
-      // OHLC is best-effort; if it fails the bars fall back to print-only range
-      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${tf.ohlcRange}`)
-        .then(r => r.ok ? r.json() : Promise.resolve({candles: []}))
-        .catch(() => ({candles: []})),
-    ])
-      .then(([detail, ohlc]) => {
+    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=${tf.limit}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed")))
+      .then(detail => {
         if (cancelled) return;
         setPrints(Array.isArray(detail?.prints) ? detail.prints : []);
-        setOhlcData(Array.isArray(ohlc?.candles) ? ohlc.candles : []);
         setLoading(false);
       })
       .catch(e => {
@@ -843,155 +771,6 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
         <polyline points={linePts} fill="none" stroke={lineColor} strokeWidth="1.4"/>
         <circle cx={lastX} cy={lastY} r="2" fill={lineColor}/>
       </svg>
-    );
-  };
-
-  // Compute the chart's approximate visible price range. We use only candle
-  // highs/lows (not print prices) so the range matches LWC's autoScale, which
-  // fits to visible candles. Prints that fall outside the candle range will
-  // be clipped (matching LWC's off-screen behavior).
-  // Padding 8% matches LWC's default top/bottom autoScale padding.
-  const priceRange = useMemo(() => {
-    const candlePrices = (ohlcData || []).flatMap(c => [c.high, c.low]).filter(v => v != null);
-    if (candlePrices.length === 0) {
-      // Fallback: use print prices when no OHLC available
-      const printPrices = (prints || []).map(p => p.price).filter(v => v != null);
-      if (printPrices.length === 0) return null;
-      const min = Math.min(...printPrices);
-      const max = Math.max(...printPrices);
-      const pad = (max - min) * 0.08 || 1;
-      return { min: min - pad, max: max + pad };
-    }
-    const min = Math.min(...candlePrices);
-    const max = Math.max(...candlePrices);
-    const pad = (max - min) * 0.08;
-    return { min: min - pad, max: max + pad };
-  }, [ohlcData, prints]);
-
-  // Volume-profile bars overlay. Sits on top of StockChart, right edge.
-  // Bar width AND height scale with $ notional. Top 5 by notional render in
-  // gold (biggest = brightest); rest in gray with opacity scaled by share
-  // of max. Hover any bar to see date / price / premium details.
-  const renderProfileBars = () => {
-    if (!priceRange || !prints || prints.length === 0) return null;
-    const cw = containerW || chartContainerRef.current?.clientWidth || 720;
-    // LWC defaults for a 480px chart with showVolume=true:
-    // - Volume series scaleMargins {top: 0.7, bottom: 0} → volume gets bottom ~30%
-    // - Time axis at the bottom takes ~25px
-    // - Top padding for axis labels ~4px
-    // → Main candle plot area: y ≈ 4 to y ≈ 320
-    const PLOT_TOP = 4;
-    const PLOT_BOT = 320;
-    const PLOT_H = PLOT_BOT - PLOT_TOP;
-    const PRICE_AXIS_W = 58; // right-side area reserved for LWC's price scale
-    const yScale = p => PLOT_TOP + ((priceRange.max - p) / (priceRange.max - priceRange.min)) * PLOT_H;
-
-    const sorted = [...prints]
-      .filter(p => p && p.price != null && p.notional != null)
-      .sort((a,b) => (b.notional || 0) - (a.notional || 0))
-      .slice(0, 25);
-    const maxN = Math.max(...sorted.map(p => p.notional || 0));
-    if (maxN <= 0) return null;
-    const MAX_BAR_W = 250;   // bars extend further into the chart now
-    const MIN_BAR_H = 4;
-    const MAX_BAR_H = 11;
-
-    return (
-      <svg width="100%" height="100%"
-        style={{position:"absolute", top:0, left:0, pointerEvents:"none",
-          overflow:"visible", zIndex:50}}
-        xmlns="http://www.w3.org/2000/svg">
-        {sorted.map((p, idx) => {
-          const y = yScale(p.price);
-          if (y < PLOT_TOP - 6 || y > PLOT_BOT + 6) return null;
-          const ratio = (p.notional || 0) / maxN;          // 0..1
-          const w = ratio * MAX_BAR_W;
-          const h = MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H);
-          const barX = cw - PRICE_AXIS_W - w;
-          const labelX = cw - PRICE_AXIS_W - w - 4;
-          // Top 5 by notional get gold; rest gray.
-          // Brightness within gold tier scales with notional ratio.
-          const isGoldTier = idx < 5;
-          let color, opacity;
-          if (isGoldTier) {
-            color = "#c9a84c";
-            opacity = 0.55 + ratio * 0.45;  // 0.55..1.0
-          } else {
-            color = "#9c9588";
-            opacity = 0.30 + ratio * 0.45;  // 0.30..0.75
-          }
-          const onEnter = (e) => {
-            const rect = chartContainerRef.current?.getBoundingClientRect();
-            if (!rect) return;
-            // Compute "X days ago" from dateLong if parseable
-            let ageStr = "";
-            try {
-              const d = new Date(p.dateLong || p.dateRaw);
-              if (!isNaN(d.getTime())) {
-                const days = Math.round((Date.now() - d.getTime()) / 86400000);
-                ageStr = days < 1 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`;
-              }
-            } catch (e) {}
-            setTip({
-              x: Math.min(e.clientX - rect.left + 14, cw - 240),
-              y: Math.max(e.clientY - rect.top - 80, 8),
-              content: {
-                date: p.dateLong || p.dateRaw || p.date,
-                age: ageStr,
-                price: p.price,
-                notional: p.notional,
-                pctAvgVol: p.pctAvgVol,
-                isLatest: p.isLatest,
-              }
-            });
-          };
-          return (
-            <g key={`${p.dateRaw||p.date}-${idx}-${p.price}`}
-              style={{pointerEvents:"auto", cursor:"help"}}
-              onMouseEnter={onEnter}
-              onMouseMove={onEnter}
-              onMouseLeave={() => setTip(null)}>
-              <rect x={barX} y={y - h/2} width={w} height={h}
-                fill={color} opacity={opacity} rx="1"/>
-              <text x={labelX} y={y + 3.5}
-                fontSize="9.5" fill={isGoldTier ? "#c9a84c" : "#a8a290"} textAnchor="end"
-                fontWeight={isGoldTier ? 700 : 500} opacity={Math.min(1, opacity + 0.18)}
-                fontFamily="'Instrument Sans','SF Pro Display',system-ui,sans-serif">
-                {fmt(p.notional)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    );
-  };
-
-  // Render hover tooltip — positioned over the chart container at the cursor
-  const renderTip = () => {
-    if (!tip) return null;
-    const c = tip.content;
-    return (
-      <div style={{position:"absolute", left:tip.x, top:tip.y,
-        background:C.bg, border:`1px solid ${C.amber}66`, borderRadius:6,
-        padding:"8px 12px", fontSize:11, color:C.tx,
-        pointerEvents:"none", zIndex:100,
-        boxShadow:"0 4px 12px rgba(0,0,0,0.6)", minWidth:200, lineHeight:1.5}}>
-        <div style={{fontWeight:700, color:C.amber, fontSize:12, marginBottom:5}}>
-          🟡 Dark Pool Print{c.isLatest ? " · LATEST" : ""}
-        </div>
-        <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px"}}>
-          <span style={{color:C.tx3}}>Date</span>
-          <span style={{color:C.tx, fontWeight:600}}>{c.date} {c.age && <span style={{color:C.tx3, fontWeight:400}}>({c.age})</span>}</span>
-          <span style={{color:C.tx3}}>Price</span>
-          <span style={{color:C.amber, fontWeight:700}}>${c.price?.toFixed(2)}</span>
-          <span style={{color:C.tx3}}>Premium</span>
-          <span style={{color:C.cyan, fontWeight:600}}>${Math.round(c.notional).toLocaleString()}</span>
-          {c.pctAvgVol > 0 && <>
-            <span style={{color:C.tx3}}>Vs avg vol</span>
-            <span style={{color:C.purple, fontWeight:600}}>{Math.round(c.pctAvgVol)}%</span>
-          </>}
-        </div>
-      </div>
     );
   };
 
@@ -1112,9 +891,10 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
           {error && <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load prints: {error}</div>}
 
           {/* TradingView-style chart from the shared StockChart component (same
-              one GEX uses). Volume-profile bars overlay on top via SVG — bars at
-              dark pool print levels, sized by $, latest in gold. */}
-          <div ref={chartContainerRef} style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
+              one GEX uses). Dark pool bars now render natively inside StockChart
+              via the darkPoolBars prop — uses series.priceToCoordinate() for
+              pixel-perfect alignment that follows zoom/pan. */}
+          <div style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
             <StockChart
               sym={it.t}
               tf={TF_MAP[timeframe].chartTf}
@@ -1122,20 +902,20 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               liveUpdates={true}
               showDrawingTools={true}
               showVolume={true}
+              darkPoolBars={prints || []}
+              priceFormat={{ type: 'price', precision: 0, minMove: 1 }}
               hideReplay
               hidePatterns
               hideCompare
               hideCountdown
             />
-            {renderProfileBars()}
-            {renderTip()}
           </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
             <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (biggest = brightest gold)</span>
             <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (faded by relative size)</span>
             <span>·</span>
-            <span>Bar width + height = $ size · Drag chart left/right to scan history · Hover any bar for details</span>
+            <span>Bars follow chart zoom/pan · Hover any bar for details</span>
           </div>
         </div>
       )}
