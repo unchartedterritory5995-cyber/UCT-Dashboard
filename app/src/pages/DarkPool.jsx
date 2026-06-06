@@ -724,6 +724,30 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     return () => ro.disconnect();
   }, [expanded]);
 
+  // Block chart zoom/scroll/pinch so the dark-pool bars stay aligned with
+  // the candle prices. Path 1 trade-off — we can't sync bars with LWC's
+  // internal scale, so we just lock the scale. Wheel events are blocked at
+  // capture phase before LWC sees them; multi-touch (pinch) is blocked too.
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!expanded || !container) return;
+    const blockWheel = (e) => { e.stopPropagation(); e.preventDefault(); };
+    const blockPinch = (e) => {
+      if (e.touches && e.touches.length > 1) { e.preventDefault(); }
+    };
+    container.addEventListener("wheel", blockWheel, {capture: true, passive: false});
+    container.addEventListener("touchstart", blockPinch, {capture: true, passive: false});
+    container.addEventListener("touchmove", blockPinch, {capture: true, passive: false});
+    return () => {
+      container.removeEventListener("wheel", blockWheel, {capture: true});
+      container.removeEventListener("touchstart", blockPinch, {capture: true});
+      container.removeEventListener("touchmove", blockPinch, {capture: true});
+    };
+  }, [expanded]);
+
+  // Hover tooltip state for bars
+  const [tip, setTip] = useState(null);
+
   // Lazy-fetch prints (+ OHLC for the volume-profile overlay's price range)
   // on expand or timeframe change. StockChart fetches its own OHLC for the
   // visible chart, but we need a parallel fetch here so we can compute Y
@@ -810,18 +834,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   }, [ohlcData, prints]);
 
   // Volume-profile bars overlay. Sits on top of StockChart, right edge.
-  // Bar width = $ size of dark pool print, latest in gold, older faded.
-  // Y positions computed from priceRange — may drift slightly when user
-  // zooms StockChart since we don't have access to its internal scale.
+  // Bar width AND height scale with $ notional. Top 5 by notional render in
+  // gold (biggest = brightest); rest in gray with opacity scaled by share
+  // of max. Hover any bar to see date / price / premium details.
   const renderProfileBars = () => {
     if (!priceRange || !prints || prints.length === 0) return null;
-    // Read width from ref directly (fallback) — ResizeObserver-driven state
-    // sometimes lags the initial mount. Default to 720 if neither available.
     const cw = containerW || chartContainerRef.current?.clientWidth || 720;
-    // Approximate StockChart layout for a 480px-tall chart with showVolume=true.
-    // LWC reserves the bottom ~20% for the volume sub-pane and ~25px for the
-    // time axis. These constants are tuned for the 480px target; adjust if
-    // chart height changes.
     const PLOT_TOP = 0;
     const PLOT_BOT = 360; // main candlestick area ends here
     const PLOT_H = PLOT_BOT - PLOT_TOP;
@@ -831,10 +849,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     const sorted = [...prints]
       .filter(p => p && p.price != null && p.notional != null)
       .sort((a,b) => (b.notional || 0) - (a.notional || 0))
-      .slice(0, 20);
+      .slice(0, 25);
     const maxN = Math.max(...sorted.map(p => p.notional || 0));
     if (maxN <= 0) return null;
-    const MAX_BAR_W = 130;
+    const MAX_BAR_W = 250;   // bars extend further into the chart now
+    const MIN_BAR_H = 4;
+    const MAX_BAR_H = 11;
 
     return (
       <svg width="100%" height="100%"
@@ -844,19 +864,58 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
         {sorted.map((p, idx) => {
           const y = yScale(p.price);
           if (y < PLOT_TOP - 6 || y > PLOT_BOT + 6) return null;
-          const w = (p.notional / maxN) * MAX_BAR_W;
+          const ratio = (p.notional || 0) / maxN;          // 0..1
+          const w = ratio * MAX_BAR_W;
+          const h = MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H);
           const barX = cw - PRICE_AXIS_W - w;
-          const labelX = cw - PRICE_AXIS_W - w - 3;
-          const isLatest = p.isLatest;
-          const opacity = isLatest ? 0.88 : Math.max(0.32, 0.62 - idx * 0.025);
-          const color = isLatest ? "#c9a84c" : "#9c9588";
+          const labelX = cw - PRICE_AXIS_W - w - 4;
+          // Top 5 by notional get gold; rest gray.
+          // Brightness within gold tier scales with notional ratio.
+          const isGoldTier = idx < 5;
+          let color, opacity;
+          if (isGoldTier) {
+            color = "#c9a84c";
+            opacity = 0.55 + ratio * 0.45;  // 0.55..1.0
+          } else {
+            color = "#9c9588";
+            opacity = 0.30 + ratio * 0.45;  // 0.30..0.75
+          }
+          const onEnter = (e) => {
+            const rect = chartContainerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            // Compute "X days ago" from dateLong if parseable
+            let ageStr = "";
+            try {
+              const d = new Date(p.dateLong || p.dateRaw);
+              if (!isNaN(d.getTime())) {
+                const days = Math.round((Date.now() - d.getTime()) / 86400000);
+                ageStr = days < 1 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`;
+              }
+            } catch (e) {}
+            setTip({
+              x: Math.min(e.clientX - rect.left + 14, cw - 240),
+              y: Math.max(e.clientY - rect.top - 80, 8),
+              content: {
+                date: p.dateLong || p.dateRaw || p.date,
+                age: ageStr,
+                price: p.price,
+                notional: p.notional,
+                pctAvgVol: p.pctAvgVol,
+                isLatest: p.isLatest,
+              }
+            });
+          };
           return (
-            <g key={`${p.dateRaw||p.date}-${idx}-${p.price}`}>
-              <rect x={barX} y={y - 3} width={w} height="6"
-                fill={color} opacity={opacity}/>
+            <g key={`${p.dateRaw||p.date}-${idx}-${p.price}`}
+              style={{pointerEvents:"auto", cursor:"help"}}
+              onMouseEnter={onEnter}
+              onMouseMove={onEnter}
+              onMouseLeave={() => setTip(null)}>
+              <rect x={barX} y={y - h/2} width={w} height={h}
+                fill={color} opacity={opacity} rx="1"/>
               <text x={labelX} y={y + 3.5}
-                fontSize="9.5" fill={isLatest ? "#c9a84c" : "#a8a290"} textAnchor="end"
-                fontWeight={isLatest ? 700 : 500} opacity={Math.min(1, opacity + 0.18)}
+                fontSize="9.5" fill={isGoldTier ? "#c9a84c" : "#a8a290"} textAnchor="end"
+                fontWeight={isGoldTier ? 700 : 500} opacity={Math.min(1, opacity + 0.18)}
                 fontFamily="'Instrument Sans','SF Pro Display',system-ui,sans-serif">
                 {fmt(p.notional)}
               </text>
@@ -864,6 +923,35 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
           );
         })}
       </svg>
+    );
+  };
+
+  // Render hover tooltip — positioned over the chart container at the cursor
+  const renderTip = () => {
+    if (!tip) return null;
+    const c = tip.content;
+    return (
+      <div style={{position:"absolute", left:tip.x, top:tip.y,
+        background:C.bg, border:`1px solid ${C.amber}66`, borderRadius:6,
+        padding:"8px 12px", fontSize:11, color:C.tx,
+        pointerEvents:"none", zIndex:100,
+        boxShadow:"0 4px 12px rgba(0,0,0,0.6)", minWidth:200, lineHeight:1.5}}>
+        <div style={{fontWeight:700, color:C.amber, fontSize:12, marginBottom:5}}>
+          🟡 Dark Pool Print{c.isLatest ? " · LATEST" : ""}
+        </div>
+        <div style={{display:"grid", gridTemplateColumns:"auto 1fr", gap:"4px 10px"}}>
+          <span style={{color:C.tx3}}>Date</span>
+          <span style={{color:C.tx, fontWeight:600}}>{c.date} {c.age && <span style={{color:C.tx3, fontWeight:400}}>({c.age})</span>}</span>
+          <span style={{color:C.tx3}}>Price</span>
+          <span style={{color:C.amber, fontWeight:700}}>${c.price?.toFixed(2)}</span>
+          <span style={{color:C.tx3}}>Premium</span>
+          <span style={{color:C.cyan, fontWeight:600}}>${Math.round(c.notional).toLocaleString()}</span>
+          {c.pctAvgVol > 0 && <>
+            <span style={{color:C.tx3}}>Vs avg vol</span>
+            <span style={{color:C.purple, fontWeight:600}}>{Math.round(c.pctAvgVol)}%</span>
+          </>}
+        </div>
+      </div>
     );
   };
 
@@ -988,13 +1076,14 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
               hideCountdown
             />
             {renderProfileBars()}
+            {renderTip()}
           </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
-            <span><span style={{display:"inline-block", width:14, height:5, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Latest dark pool print</span>
-            <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Older prints (faded by size rank)</span>
+            <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (biggest = brightest gold)</span>
+            <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (faded by relative size)</span>
             <span>·</span>
-            <span>Bar width = $ size of print · Positioned at print's price level</span>
+            <span>Bar width + height = $ size · Chart zoom locked so bars stay aligned · Hover any bar for details</span>
           </div>
         </div>
       )}
