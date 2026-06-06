@@ -1845,16 +1845,22 @@ export default function StockChart({
     const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
     const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
-    return filteredBars.map(b => ({
-      time: adjustTime(b.t),
-      value: b.v,
-      color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
-        ? gold
-        : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
-          ? 'rgba(201,168,76,0.9)'
-          : b.c >= b.o ? upC : downC,
-    }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes])
+    return filteredBars.map((b, i) => {
+      // Match the candle coloring: net change vs the prior bar's close in
+      // net-change mode (Model Book), else classic open-vs-close.
+      const prevC = (colorByNetChange && i > 0) ? filteredBars[i - 1].c : null
+      const isUp = prevC != null ? b.c >= prevC : b.c >= b.o
+      return {
+        time: adjustTime(b.t),
+        value: b.v,
+        color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
+          ? gold
+          : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
+            ? 'rgba(201,168,76,0.9)'
+            : isUp ? upC : downC,
+      }
+    })
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes, colorByNetChange])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
