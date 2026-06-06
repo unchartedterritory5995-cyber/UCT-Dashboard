@@ -2563,8 +2563,12 @@ export default function StockChart({
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data
-    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
+    // Set price data. Use goldOhlc (highlighted-candle copy) on the MAIN path so
+    // the white/gold setup candles paint on the FIRST render once setups load —
+    // not via a separate effect that can lose the race to updateChart's setData
+    // (the "setup candles show green until you revisit" bug). goldOhlc === ohlcData
+    // by reference when no highlight is set, so every other chart is unaffected.
+    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? goldOhlc : closeData)
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -3382,7 +3386,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
+  }, [filteredBars, ohlcData, goldOhlc, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
