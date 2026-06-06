@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment } from "react";
 import TickerPopup from "../components/TickerPopup";
 import StockChart from "../components/StockChart";
 
@@ -702,8 +702,10 @@ function renderSignalTag(s, idx) {
   );
 }
 
-function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
-  const [expanded, setExpanded] = useState(false);
+function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noCollapsedRow=false}){
+  // When noCollapsedRow is true (search modal use case), start in expanded
+  // state — caller is responsible for mount/unmount to toggle visibility.
+  const [expanded, setExpanded] = useState(noCollapsedRow);
   const [timeframe, setTimeframe] = useState("1M");
   const [prints, setPrints] = useState(null);
   const [ohlcData, setOhlcData] = useState(null); // for overlay price-range calc
@@ -724,35 +726,50 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     return () => ro.disconnect();
   }, [expanded]);
 
-  // Lock ALL chart interactions so dark-pool bars stay aligned with candle
-  // prices. LWC's autoScale=true (default) re-fits the y-axis whenever the
-  // visible candle set changes (pan, wheel, live updates), so the only way
-  // to keep bars at fixed price coords without StockChart access is to
-  // freeze the chart entirely. Crosshair hover via mousemove still works
-  // since we only block initiation events, not movement.
-  // Use timeframe buttons (1W/1M/3M/6M/1Y/All) for navigation.
+  // Allow horizontal navigation (drag-pan + wheel zoom) so the user can
+  // scroll the chart side to side. Block ONLY interactions that change the
+  // y-axis scale, to minimize bar drift. Note: LWC's autoScale=true (default)
+  // can still cause minor y-axis shifts when the visible candle set changes
+  // during pan/zoom — that's a structural Path 1 limitation we accept.
+  // Blocked: drag on price axis (changes Y), pinch (changes both axes),
+  // double-click on price axis (resets Y).
+  // Allowed: drag in chart body (horizontal pan), wheel (horizontal zoom),
+  // crosshair hover, drawing tools.
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!expanded || !container) return;
-    const block = (e) => { e.stopPropagation(); e.preventDefault(); };
-    const blockTouchInitiation = (e) => {
-      // Allow single-touch hover (for crosshair on mobile) but block any drag
-      // or pinch by capturing initiation. The chart's crosshair will still
-      // appear on touchstart, but follow-up moves won't pan the chart.
-      e.stopPropagation();
-      if (e.touches && e.touches.length > 1) e.preventDefault();
+    const PRICE_AXIS_W = 60;
+    const isOnPriceAxis = (clientX) => {
+      if (clientX == null) return false;
+      const rect = container.getBoundingClientRect();
+      return (rect.right - clientX) < PRICE_AXIS_W;
     };
-    container.addEventListener("wheel", block, {capture: true, passive: false});
-    container.addEventListener("mousedown", block, {capture: true});
-    container.addEventListener("dblclick", block, {capture: true});
-    container.addEventListener("touchstart", blockTouchInitiation, {capture: true, passive: false});
-    container.addEventListener("touchmove", block, {capture: true, passive: false});
+    const onMouseDown = (e) => {
+      if (isOnPriceAxis(e.clientX)) { e.stopPropagation(); e.preventDefault(); }
+    };
+    const onDblClick = (e) => {
+      if (isOnPriceAxis(e.clientX)) { e.stopPropagation(); e.preventDefault(); }
+    };
+    const onTouchStart = (e) => {
+      // Block pinch (multi-touch zooms both axes)
+      if (e.touches && e.touches.length > 1) { e.preventDefault(); e.stopPropagation(); return; }
+      // Block single-touch drag starting on price axis
+      if (e.touches && e.touches.length === 1 && isOnPriceAxis(e.touches[0].clientX)) {
+        e.preventDefault(); e.stopPropagation();
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches && e.touches.length > 1) { e.preventDefault(); e.stopPropagation(); }
+    };
+    container.addEventListener("mousedown", onMouseDown, {capture: true});
+    container.addEventListener("dblclick",  onDblClick, {capture: true});
+    container.addEventListener("touchstart", onTouchStart, {capture: true, passive: false});
+    container.addEventListener("touchmove",  onTouchMove, {capture: true, passive: false});
     return () => {
-      container.removeEventListener("wheel", block, {capture: true});
-      container.removeEventListener("mousedown", block, {capture: true});
-      container.removeEventListener("dblclick", block, {capture: true});
-      container.removeEventListener("touchstart", blockTouchInitiation, {capture: true});
-      container.removeEventListener("touchmove", block, {capture: true});
+      container.removeEventListener("mousedown", onMouseDown, {capture: true});
+      container.removeEventListener("dblclick",  onDblClick, {capture: true});
+      container.removeEventListener("touchstart", onTouchStart, {capture: true});
+      container.removeEventListener("touchmove",  onTouchMove, {capture: true});
     };
   }, [expanded]);
 
@@ -829,18 +846,25 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     );
   };
 
-  // Compute the chart's approximate visible price range from OHLC + prints.
-  // Used by the overlay to position bars at Y coordinates. This is an
-  // approximation — StockChart's actual scale may differ slightly,
-  // especially after the user zooms. Path 1 trade-off (per design call).
+  // Compute the chart's approximate visible price range. We use only candle
+  // highs/lows (not print prices) so the range matches LWC's autoScale, which
+  // fits to visible candles. Prints that fall outside the candle range will
+  // be clipped (matching LWC's off-screen behavior).
+  // Padding 8% matches LWC's default top/bottom autoScale padding.
   const priceRange = useMemo(() => {
     const candlePrices = (ohlcData || []).flatMap(c => [c.high, c.low]).filter(v => v != null);
-    const printPrices = (prints || []).map(p => p.price).filter(v => v != null);
-    const allP = [...candlePrices, ...printPrices];
-    if (allP.length === 0) return null;
-    const min = Math.min(...allP);
-    const max = Math.max(...allP);
-    const pad = (max - min) * 0.04 || 1;
+    if (candlePrices.length === 0) {
+      // Fallback: use print prices when no OHLC available
+      const printPrices = (prints || []).map(p => p.price).filter(v => v != null);
+      if (printPrices.length === 0) return null;
+      const min = Math.min(...printPrices);
+      const max = Math.max(...printPrices);
+      const pad = (max - min) * 0.08 || 1;
+      return { min: min - pad, max: max + pad };
+    }
+    const min = Math.min(...candlePrices);
+    const max = Math.max(...candlePrices);
+    const pad = (max - min) * 0.08;
     return { min: min - pad, max: max + pad };
   }, [ohlcData, prints]);
 
@@ -851,8 +875,13 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   const renderProfileBars = () => {
     if (!priceRange || !prints || prints.length === 0) return null;
     const cw = containerW || chartContainerRef.current?.clientWidth || 720;
-    const PLOT_TOP = 0;
-    const PLOT_BOT = 360; // main candlestick area ends here
+    // LWC defaults for a 480px chart with showVolume=true:
+    // - Volume series scaleMargins {top: 0.7, bottom: 0} → volume gets bottom ~30%
+    // - Time axis at the bottom takes ~25px
+    // - Top padding for axis labels ~4px
+    // → Main candle plot area: y ≈ 4 to y ≈ 320
+    const PLOT_TOP = 4;
+    const PLOT_BOT = 320;
     const PLOT_H = PLOT_BOT - PLOT_TOP;
     const PRICE_AXIS_W = 58; // right-side area reserved for LWC's price scale
     const yScale = p => PLOT_TOP + ((priceRange.max - p) / (priceRange.max - priceRange.min)) * PLOT_H;
@@ -968,8 +997,8 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
 
   return (
     <div style={{borderBottom:`1px solid ${C.bdr}33`}}>
-      {/* Collapsed row — layout depends on variant ("pattern" or "notable") */}
-      {variant === "notable" ? (
+      {/* Collapsed row — hidden when noCollapsedRow=true (caller controls expansion) */}
+      {!noCollapsedRow && (variant === "notable" ? (
         // Notable Stocks variant — wider ticker name, signal badges, $ and move
         <div onClick={() => setExpanded(!expanded)}
           style={{display:"flex", alignItems:"center", justifyContent:"space-between",
@@ -1032,7 +1061,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
           <div>{renderMiniSpark()}</div>
           <span style={{color:C.tx3, fontSize:11, textAlign:"center"}}>{expanded ? "▼" : "▶"}</span>
         </div>
-      )}
+      ))}
 
       {/* Expanded view — TradingView-style StockChart with dark pool prints overlaid */}
       {expanded && (
@@ -1044,10 +1073,22 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
               <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
                 background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
                 fontWeight:700}}>{it.cat || "—"}</span>
-              {mktcap > 0 && <><span style={{color:C.tx3, fontSize:10}}>Mkt cap</span><span style={{color:C.tx2, fontWeight:600, fontSize:10}}>{fmt(mktcap)}</span></>}
+              {/* Market cap — always shown so user can compare flow size vs company size */}
+              <span style={{color:C.tx3, fontSize:10}}>·</span>
+              <span style={{color:C.tx3, fontSize:10}}>Mkt cap</span>
+              <span style={{color:C.tx2, fontWeight:600, fontSize:10}}>{mktcap > 0 ? fmt(mktcap) : "—"}</span>
+              {/* Total flow + ratio vs market cap */}
               <span style={{color:C.tx3, fontSize:10}}>·</span>
               <span style={{color:C.tx3, fontSize:10}}>Total flow</span>
               <span style={{color:C.cyan, fontWeight:600, fontSize:10}}>{it.n ? fmt(it.n) : "—"}</span>
+              {it.n > 0 && mktcap > 0 && (
+                <span style={{color:C.amber, fontWeight:600, fontSize:10,
+                  padding:"1px 6px", borderRadius:6,
+                  background:C.amber + "15", border:`1px solid ${C.amber}33`}}
+                  title="Total dark pool flow as a percentage of the stock's market cap. Higher = bigger relative move.">
+                  {(it.n / mktcap * 100).toFixed(2)}% of mkt cap
+                </span>
+              )}
               {prints && <>
                 <span style={{color:C.tx3, fontSize:10}}>·</span>
                 <span style={{color:C.amber, fontWeight:600, fontSize:10}}>{prints.length} prints in {timeframe}</span>
@@ -1094,7 +1135,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
             <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (biggest = brightest gold)</span>
             <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (faded by relative size)</span>
             <span>·</span>
-            <span>Bar width + height = $ size · Chart is static (use timeframe buttons to navigate) · Hover any bar for details</span>
+            <span>Bar width + height = $ size · Drag chart left/right to scan history · Hover any bar for details</span>
           </div>
         </div>
       )}
@@ -1387,7 +1428,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                     it={t}
                     sig={null}
                     variant="notable"
-                    mktcap={mktcapData?.[t.t]?.mktCap || 0}
+                    mktcap={mktcapData?.[t.t] || 0}
                     onJumpTo={onJumpTo}/>
                 ))}
               </div>
@@ -1445,7 +1486,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                             <PatternTickerRow key={it.t+"_"+i}
                               it={it}
                               sig={it._sig}
-                              mktcap={mktcapData?.[it.t]?.mktCap || 0}
+                              mktcap={mktcapData?.[it.t] || 0}
                               onJumpTo={onJumpTo}/>
                           ))}
                           {items.length > 30 && <div style={{fontSize:10, color:C.tx3, marginTop:6, paddingLeft:6}}>+{items.length - 30} more</div>}
@@ -1779,8 +1820,10 @@ function OptionsPane(){
 // ── Signals + Search tab ─────────────────────────────────────────────────────
 // ── Search Modal ──────────────────────────────────────────────────────────────
 // ── Search Results Table — shows ticker row + top 5 prints expanded ───────────
-function SearchResultsTable({items}){
+function SearchResultsTable({items, mktcapData = {}}){
   if(!items||items.length===0) return null;
+  // Track which ticker (if any) is expanded to show the dark-pool chart
+  const [expandedTicker, setExpandedTicker] = useState(null);
   return (
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -1802,11 +1845,19 @@ function SearchResultsTable({items}){
             const cc=CAT_COLORS[it.cat]||C.tx;
             const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
             const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+            const isExpanded = expandedTicker === it.t;
             return (
-              <>
-                {/* Main ticker row */}
-                <tr key={it.t} style={{background:C.bgH}}>
-                  <TD><TickerCell it={it} catColor={cc}/></TD>
+              <Fragment key={it.t}>
+                {/* Main ticker row — click to toggle the chart view */}
+                <tr style={{background: isExpanded ? C.bg3 : C.bgH, cursor:"pointer"}}
+                  onClick={() => setExpandedTicker(isExpanded ? null : it.t)}
+                  title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}>
+                  <TD>
+                    <span style={{display:"inline-flex", alignItems:"center", gap:6}}>
+                      <span style={{color:C.tx3, fontSize:10, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
+                      <TickerCell it={it} catColor={cc}/>
+                    </span>
+                  </TD>
                   <TD><CatPill cat={it.cat}/></TD>
                   <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:zC(it.last,it.lo,it.hi)}}>
                     {fP(it.last)}
@@ -1826,8 +1877,20 @@ function SearchResultsTable({items}){
                   <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.c}</TD>
                   <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.days}</TD>
                 </tr>
-                {/* Top 5 individual prints */}
-                {it.top5&&it.top5.map((row,i)=>(
+                {/* Expanded view: dark pool chart with overlay bars */}
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={9} style={{padding:"4px 8px 12px", background:C.bg2}}>
+                      <PatternTickerRow
+                        it={it}
+                        sig={null}
+                        mktcap={mktcapData?.[it.t] || 0}
+                        noCollapsedRow={true}/>
+                    </td>
+                  </tr>
+                )}
+                {/* Top 5 individual prints — only when collapsed */}
+                {!isExpanded && it.top5 && it.top5.map((row,i)=>(
                   <tr key={it.t+"-print-"+i} style={{background:"transparent"}}>
                     <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
                       #{i+1}
@@ -1839,7 +1902,7 @@ function SearchResultsTable({items}){
                     </TD>
                   </tr>
                 ))}
-              </>
+              </Fragment>
             );
           })}
         </tbody>
@@ -1848,7 +1911,7 @@ function SearchResultsTable({items}){
   );
 }
 
-function SearchModal({onClose}){
+function SearchModal({onClose, mktcapData = {}}){
   const [query,setQuery]=useState("");
   const allItems = (()=>{
     const map={};
@@ -1904,7 +1967,7 @@ function SearchModal({onClose}){
             {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
           </div>
         )}
-        {results.length>0 && <SearchResultsTable items={results}/>}
+        {results.length>0 && <SearchResultsTable items={results} mktcapData={mktcapData}/>}
         {query.length>0 && results.length===0 && (
           <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
         )}
@@ -2777,7 +2840,7 @@ export default function DarkPool({embedded}){
         {tab==="options"  && <OptionsPane/>}
       </div>
 
-      {showSearch && <SearchModal onClose={()=>setShowSearch(false)}/>}
+      {showSearch && <SearchModal onClose={()=>setShowSearch(false)} mktcapData={mktcapData}/>}
     </div>
   );
 }
