@@ -1569,6 +1569,50 @@ export default function ModelBook() {
   // A ref holds the latest list/selection/years so the listener is bound once.
   const navRef = useRef({ list: [], id: null, years: [], year: null })
   useEffect(() => { navRef.current = { list: sortedStocks, id: activeId, years, year } }, [sortedStocks, activeId, years, year])
+
+  // Warm the DIRECTION OF TRAVEL: whenever the selection changes, prefetch the
+  // nearest neighbours (a few rows up and down the gallery) at PRIORITY so the
+  // next ↑/↓ scroll lands on an already-warm SWR cache. A COLD ticker loads its
+  // bars in two phases (empty IDB → network ~1s) and re-frames the book year
+  // across a ~1.2s settle window; meanwhile the ^IXIC pane line — already cached
+  // and the same for every stock in the year — gets drawn/re-positioned during
+  // that settle. That is the "Nasdaq pane skips for a second on each new ticker"
+  // glitch (the price pane is still blank so only the thin line is seen moving).
+  // Warming the neighbours collapses the cold two-phase load to a single instant
+  // phase, so the line stays locked in place from the FIRST scroll-through —
+  // recreating the smoothness you previously only got after scanning the whole
+  // year once. Forward neighbours are queued first (scrolling down is the common
+  // direction); the bounded/deferred prefetch queue still lets the active chart
+  // fetch win, so this never starves the chart you just landed on.
+  useEffect(() => {
+    if (!sortedStocks.length || activeId == null) return
+    const idx = sortedStocks.findIndex(s => s.id === activeId)
+    if (idx < 0) return
+    const RADIUS = 3
+    const syms = []
+    for (let d = 1; d <= RADIUS; d++) {
+      const nxt = sortedStocks[idx + d]?.symbol
+      const prv = sortedStocks[idx - d]?.symbol
+      if (nxt) syms.push(nxt)
+      if (prv) syms.push(prv)
+    }
+    if (syms.length) prefetchBars(syms, 'D', { priority: true })
+  }, [activeId, sortedStocks])
+
+  // Warm the ^IXIC index-pane bars ONCE on open, into the exact SWR key StockChart
+  // uses for the Nasdaq top pane (an ARRAY key, so prefetchBars' URL-string cache
+  // doesn't cover it). The line is shared by every chart, so warming it up front
+  // means even the very first ticker's Nasdaq pane paints in its final position
+  // instead of fetching on first view. Matches StockChart's fetcher shape (returns
+  // the bars array) so the cached value is used directly.
+  useEffect(() => {
+    preload(['index-pane-bars', '^IXIC', 'D', 8000], async () => {
+      const res = await fetch('/api/bars/%5EIXIC?tf=D&bars=8000')
+        .then(r => (r.ok ? r.json() : { bars: [] }))
+        .catch(() => ({ bars: [] }))
+      return res?.bars || []
+    })
+  }, [])
   // When "clicked into" a catalyst (expanded on the Catalysts tab), ↑/↓ scroll
   // through the catalysts instead of the stock list. StockDetail populates this
   // ref (it owns the catalyst state); cleared when none is open, so the arrows
