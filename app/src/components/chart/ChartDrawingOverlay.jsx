@@ -13,7 +13,10 @@ const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a
 
 const FIB_EXT_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618]
 const FIB_EXT_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#22d3ee', '#818cf8']
-const HIT_THRESHOLD = 8 // pixels
+// Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
+const _COARSE_POINTER = typeof window !== 'undefined'
+  && !!window.matchMedia?.('(pointer: coarse)')?.matches
+const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8 // pixels
 
 // ─── Geometry helpers ────────────────────────────────────────────────────────
 
@@ -607,6 +610,10 @@ export default function ChartDrawingOverlay({
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
   const dragRef = useRef(null)
+  // Touch support: track concurrent pointers (so a 2nd finger aborts a draw and
+  // lets the chart pinch) + a long-press timer that opens the context menu.
+  const activePointersRef = useRef(new Set())
+  const longPressRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [hoverDrawingId, setHoverDrawingId] = useState(null)
 
@@ -1029,11 +1036,39 @@ export default function ChartDrawingOverlay({
   }, [selectedId, drawings, resolvePixels])
 
   // ── Mouse handlers ──
-  const handleMouseDown = useCallback((e) => {
-    if (e.button !== 0) return
+  const handlePointerDown = useCallback((e) => {
+    // Right mouse button is the context-menu path, not draw/drag.
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+
+    // Multi-touch: a 2nd finger means the user is pinch-zooming the chart —
+    // abort any in-progress placement/drag so we don't fight the gesture.
+    activePointersRef.current.add(e.pointerId)
+    if (activePointersRef.current.size > 1) {
+      if (isDragging) { dragRef.current = null; setIsDragging(false) }
+      if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
+      return
+    }
 
     const pos = getCanvasPos(e)
     if (!pos) return
+
+    // Capture so a drag keeps tracking even if the finger leaves the canvas.
+    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* noop */ }
+
+    // Touch long-press over a drawing → open its context menu (no right-click on touch).
+    if (e.pointerType !== 'mouse') {
+      const lpHitId = hitTestAll(pos.x, pos.y)
+      if (lpHitId) {
+        const cx = e.clientX, cy = e.clientY
+        longPressRef.current = setTimeout(() => {
+          longPressRef.current = null
+          try { navigator.vibrate?.(10) } catch { /* noop */ }
+          setSelectedId(lpHitId)
+          setCtxMenu({ x: cx, y: cy, drawingId: lpHitId })
+        }, 450)
+      }
+    }
+
     const coords = snap(toChart(pos.x, pos.y))
 
     // ── CURSOR MODE: select + drag ──
@@ -1135,12 +1170,15 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode])
+  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging])
 
-  const handleMouseMove = useCallback((e) => {
+  const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
     if (!pos) return
     const coords = toChart(pos.x, pos.y)
+
+    // Movement cancels a pending long-press (it was a pan, not a press).
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
 
     // ── DRAGGING ──
     if (isDragging && dragRef.current && coords) {
@@ -1200,7 +1238,9 @@ export default function ChartDrawingOverlay({
     requestRedraw()
   }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, hitTestAll, hitTestHandle])
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback((e) => {
+    if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
     if (isDragging) {
       dragRef.current = null
       setIsDragging(false)
@@ -1279,6 +1319,10 @@ export default function ChartDrawingOverlay({
   // ── Determine cursor ──
   const isDrawingTool = activeTool && activeTool !== 'cursor'
   const canvasPointerEvents = activeTool ? 'auto' : 'none'
+  // When a tool is armed the overlay owns touch input (so taps/drags aren't
+  // hijacked by browser scroll/zoom). When no tool is armed the overlay is
+  // transparent (pointerEvents:none) and the chart keeps its native pinch/pan.
+  const canvasTouchAction = activeTool ? 'none' : 'auto'
   let canvasCursor = 'default'
   if (isDrawingTool) canvasCursor = 'crosshair'
   else if (isDragging) canvasCursor = 'grabbing'
@@ -1299,12 +1343,12 @@ export default function ChartDrawingOverlay({
     }
   }, [hitTestAll, setSelectedId])
 
-  // Close context menu on any click
+  // Close context menu on any click/tap (pointerdown covers touch + mouse)
   useEffect(() => {
     if (!ctxMenu) return
     const close = () => setCtxMenu(null)
-    window.addEventListener('mousedown', close)
-    return () => window.removeEventListener('mousedown', close)
+    window.addEventListener('pointerdown', close)
+    return () => window.removeEventListener('pointerdown', close)
   }, [ctxMenu])
 
   return (
@@ -1315,14 +1359,16 @@ export default function ChartDrawingOverlay({
           position: 'absolute',
           inset: 0,
           pointerEvents: canvasPointerEvents,
+          touchAction: canvasTouchAction,
           cursor: canvasCursor,
           zIndex: 4,
         }}
-        onMouseDown={(e) => { setCtxMenu(null); handleMouseDown(e) }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onPointerDown={(e) => { setCtxMenu(null); handlePointerDown(e) }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onContextMenu={handleContextMenu}
-        onMouseLeave={() => {
+        onPointerLeave={() => {
           if (!isDragging) { setMouseCoords(null); setHoverDrawingId(null) }
           requestRedraw()
         }}
@@ -1379,7 +1425,7 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
         if (e.key === 'Escape') onCancel()
         e.stopPropagation()
       }}
-      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       onBlur={submit}
       placeholder="Type note..."
       style={{
@@ -1420,7 +1466,7 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
   return (
     <div
       ref={menuRef}
-      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',
         left: x,
