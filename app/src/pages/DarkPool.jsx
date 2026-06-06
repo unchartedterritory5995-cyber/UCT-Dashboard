@@ -665,12 +665,15 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
 // as priceLines on the shared <StockChart> component (TradingView Lightweight
 // Charts, same component GEX uses for gamma walls). chartTf controls candle
 // aggregation that StockChart fetches itself.
+// ohlcRange = the range we fetch for the overlay's price-axis calculation
+// (StockChart fetches its own OHLC internally for display).
 const TF_MAP = {
-  "1W": {days: 7,   chartTf: "D"},
-  "1M": {days: 30,  chartTf: "D"},
-  "3M": {days: 90,  chartTf: "D"},
-  "6M": {days: 180, chartTf: "W"},
-  "1Y": {days: 365, chartTf: "W"},
+  "1W":  {days: 7,    chartTf: "D", ohlcRange: "3mo", limit: 40},
+  "1M":  {days: 30,   chartTf: "D", ohlcRange: "3mo", limit: 40},
+  "3M":  {days: 90,   chartTf: "D", ohlcRange: "6mo", limit: 60},
+  "6M":  {days: 180,  chartTf: "W", ohlcRange: "1y",  limit: 80},
+  "1Y":  {days: 365,  chartTf: "W", ohlcRange: "1y",  limit: 100},
+  "All": {days: 1825, chartTf: "M", ohlcRange: "5y",  limit: 100},
 };
 
 // Plain-English signal labels + tooltips. Lifted to module scope so both
@@ -706,6 +709,20 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   const [ohlcData, setOhlcData] = useState(null); // for overlay price-range calc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Ref + width state for the overlay — needed because SVG <rect> x attribute
+  // doesn't accept CSS calc(), so we have to compute pixel positions in JS.
+  const chartContainerRef = useRef(null);
+  const [containerW, setContainerW] = useState(0);
+
+  // Track container width so the overlay can right-align bars correctly.
+  useEffect(() => {
+    if (!expanded || !chartContainerRef.current) return;
+    const measure = () => setContainerW(chartContainerRef.current?.clientWidth || 0);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(chartContainerRef.current);
+    return () => ro.disconnect();
+  }, [expanded]);
 
   // Lazy-fetch prints (+ OHLC for the volume-profile overlay's price range)
   // on expand or timeframe change. StockChart fetches its own OHLC for the
@@ -722,12 +739,11 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     setLoading(true);
     setError(null);
     setOhlcData(null);
-    const rangeForChart = tf.chartTf === "W" ? "1y" : "3mo";
     Promise.all([
-      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
+      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=${tf.limit}`)
         .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed"))),
       // OHLC is best-effort; if it fails the bars fall back to print-only range
-      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${rangeForChart}`)
+      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${tf.ohlcRange}`)
         .then(r => r.ok ? r.json() : Promise.resolve({candles: []}))
         .catch(() => ({candles: []})),
     ])
@@ -799,11 +815,11 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   // zooms StockChart since we don't have access to its internal scale.
   const renderProfileBars = () => {
     if (!priceRange || !prints || prints.length === 0) return null;
+    if (containerW <= 0) return null;  // wait for measure
     // Approximate StockChart layout for a 480px-tall chart with showVolume=true.
     // LWC reserves the bottom ~20% for the volume sub-pane and ~25px for the
     // time axis. These constants are tuned for the 480px target; adjust if
     // chart height changes.
-    const CHART_H = 480;
     const PLOT_TOP = 0;
     const PLOT_BOT = 360; // main candlestick area ends here
     const PLOT_H = PLOT_BOT - PLOT_TOP;
@@ -813,27 +829,29 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     const sorted = [...prints]
       .filter(p => p && p.price != null && p.notional != null)
       .sort((a,b) => (b.notional || 0) - (a.notional || 0))
-      .slice(0, 18);
+      .slice(0, 20);
     const maxN = Math.max(...sorted.map(p => p.notional || 0));
     if (maxN <= 0) return null;
     const MAX_BAR_W = 130;
 
     return (
-      <svg style={{position:"absolute", top:0, left:0, width:"100%", height:"100%",
-        pointerEvents:"none", overflow:"visible"}}
+      <svg width="100%" height="100%"
+        style={{position:"absolute", top:0, left:0, pointerEvents:"none", overflow:"visible"}}
         xmlns="http://www.w3.org/2000/svg">
         {sorted.map((p, idx) => {
           const y = yScale(p.price);
           if (y < PLOT_TOP - 6 || y > PLOT_BOT + 6) return null;
           const w = (p.notional / maxN) * MAX_BAR_W;
+          const barX = containerW - PRICE_AXIS_W - w;
+          const labelX = containerW - PRICE_AXIS_W - w - 3;
           const isLatest = p.isLatest;
-          const opacity = isLatest ? 0.85 : Math.max(0.32, 0.62 - idx * 0.025);
+          const opacity = isLatest ? 0.88 : Math.max(0.32, 0.62 - idx * 0.025);
           const color = isLatest ? "#c9a84c" : "#9c9588";
           return (
             <g key={`${p.dateRaw||p.date}-${idx}-${p.price}`}>
-              <rect x={`calc(100% - ${PRICE_AXIS_W + w}px)`} y={y - 3} width={w} height="6"
+              <rect x={barX} y={y - 3} width={w} height="6"
                 fill={color} opacity={opacity}/>
-              <text x={`calc(100% - ${PRICE_AXIS_W + w + 3}px)`} y={y + 3.5}
+              <text x={labelX} y={y + 3.5}
                 fontSize="9.5" fill={isLatest ? "#c9a84c" : "#a8a290"} textAnchor="end"
                 fontWeight={isLatest ? 700 : 500} opacity={Math.min(1, opacity + 0.18)}
                 fontFamily="'Instrument Sans','SF Pro Display',system-ui,sans-serif">
@@ -953,7 +971,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
           {/* TradingView-style chart from the shared StockChart component (same
               one GEX uses). Volume-profile bars overlay on top via SVG — bars at
               dark pool print levels, sized by $, latest in gold. */}
-          <div style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
+          <div ref={chartContainerRef} style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
             <StockChart
               sym={it.t}
               tf={TF_MAP[timeframe].chartTf}
