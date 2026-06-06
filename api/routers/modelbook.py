@@ -549,6 +549,27 @@ def _parse_desc_json(text):
         return None
 
 
+@router.get("/debug-index-drawings")
+def debug_index_drawings(symbol: str = Query("^IXIC")):
+    """Diagnostic (no auth): dump the raw global index-pane annotations so we can
+    see the stored point-time format (string / number / business-day object)."""
+    import json as _json
+    raw = svc.get_index_drawings(symbol)
+    out = {"symbol": symbol.upper(), "raw_len": len(raw or "")}
+    try:
+        arr = _json.loads(raw) if raw else []
+        out["count"] = len(arr)
+        out["sample_point_times"] = [
+            {"type": d.get("type"), "times": [p.get("time") for p in (d.get("points") or [])],
+             "time_pytypes": [type(p.get("time")).__name__ for p in (d.get("points") or [])],
+             "advPct": d.get("advPct")}
+            for d in arr[:12]
+        ]
+    except Exception as ex:
+        out["error"] = f"{type(ex).__name__}: {ex}"
+    return out
+
+
 @router.get("/debug-desc/{sym}")
 def debug_desc(sym: str, year: int = Query(default=0)):
     """Diagnostic (no auth): show exactly what the description LLM returns for a

@@ -511,6 +511,7 @@ export default function StockChart({
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  colorByNetChange = false,     // Model Book: color each candle by NET change vs the PRIOR bar's close (green = up on the day vs yesterday), not open-vs-close — and the crosshair legend's change% follows suit
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
   // ── Index comparison pane (Model Book) — additive, default-off ──
   indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
@@ -949,6 +950,7 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  const prevCloseByTimeRef = useRef(null)   // net-change lookup, read by the (chartReady-only) crosshair handler
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
@@ -1287,6 +1289,36 @@ export default function StockChart({
     onIndexAnnotationsChange?.((indexAnnotations || []).filter(d => d.id !== id))
   }, [indexAnnotations, onIndexAnnotationsChange])
   const idxAnnClear = useCallback(() => { onIndexAnnotationsChange?.([]) }, [onIndexAnnotationsChange])
+  // The index-pane (Nasdaq) annotations are a single GLOBAL set spanning many
+  // years; the pane is framed to ONE calendar year ([entryDate, exitDate]). For
+  // read-only display, show only the marks anchored in the displayed year so
+  // prior-year marks don't stack at the left edge. NOT filtered while editing —
+  // the editor must keep the full set or a save would drop other years.
+  const visibleIndexAnnotations = useMemo(() => {
+    if (!indexAnnotations || indexAnnotationsEditable || !entryDate) return indexAnnotations
+    // Extract the calendar YEAR from a Lightweight-Charts time value WHATEVER its
+    // shape: ISO string 'YYYY-…', a UNIX timestamp (s or ms), or a business-day
+    // object {year,month,day}. Year-compare is robust where ms-range parsing was
+    // not (the prior version silently kept marks whose time it couldn't parse,
+    // so prior-year marks still stacked at the edges). The pane is always a full
+    // Jan–Dec calendar year, so a year match is exactly right.
+    const yearOf = v => {
+      if (v == null) return null
+      if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v).getUTCFullYear()
+      if (typeof v === 'object') return v.year ?? null
+      const m = String(v).match(/(\d{4})/)
+      return m ? Number(m[1]) : null
+    }
+    const shownYear = yearOf(entryDate)
+    if (shownYear == null) return indexAnnotations
+    return indexAnnotations.filter(d => {
+      const pts = d.points || []
+      const last = pts[pts.length - 1]
+      const y = last ? yearOf(last.time) : null
+      if (y == null) return true        // can't place it — don't hide
+      return y === shownYear
+    })
+  }, [indexAnnotations, indexAnnotationsEditable, entryDate])
   // Current line style for NEW annotation lines; also re-styles the selected line.
   const [drawLineStyle, setDrawLineStyle] = useState('solid')
   const setAnnLineStyle = useCallback((style) => {
@@ -1818,10 +1850,44 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(filteredBars) : filteredBars
   }, [filteredBars, cs.heikinAshi])
 
-  const ohlcData = useMemo(
-    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
-    [displayBars, adjustTime]
-  )
+  const ohlcData = useMemo(() => {
+    if (!displayBars) return []
+    // Default (every other chart): no per-bar color → Lightweight Charts colors
+    // each candle by open-vs-close as usual.
+    if (!colorByNetChange) {
+      return displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c }))
+    }
+    // Model Book: color by NET change vs the prior bar's close — a gap-up day that
+    // fades but still closes above yesterday reads GREEN. Per-bar color overrides
+    // the series up/down defaults (bold mode uses the solid BOLD_* palette).
+    const upC = boldCandles ? BOLD_UP : cs.candles.upColor
+    const downC = boldCandles ? BOLD_DOWN : cs.candles.downColor
+    const upW = boldCandles ? BOLD_UP : (cs.candles.upWick || cs.candles.upColor)
+    const downW = boldCandles ? BOLD_DOWN : (cs.candles.downWick || cs.candles.downColor)
+    const upB = boldCandles ? BOLD_UP : (cs.candles.upBorder || cs.candles.upColor)
+    const downB = boldCandles ? BOLD_DOWN : (cs.candles.downBorder || cs.candles.downColor)
+    return displayBars.map((b, i) => {
+      const prevC = i > 0 ? displayBars[i - 1].c : null
+      const isUp = prevC != null ? b.c >= prevC : b.c >= b.o
+      return {
+        time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c,
+        color: isUp ? upC : downC,
+        wickColor: isUp ? upW : downW,
+        borderColor: isUp ? upB : downB,
+      }
+    })
+  }, [displayBars, adjustTime, colorByNetChange, boldCandles,
+      cs.candles.upColor, cs.candles.downColor, cs.candles.upWick,
+      cs.candles.downWick, cs.candles.upBorder, cs.candles.downBorder])
+  // Net-change mode: map each bar's time → the PRIOR bar's close, so the crosshair
+  // legend can show the day's net change (close vs yesterday) instead of open→close.
+  const prevCloseByTime = useMemo(() => {
+    if (!colorByNetChange) return null
+    const m = new Map()
+    for (let i = 1; i < ohlcData.length; i++) m.set(ohlcData[i].time, ohlcData[i - 1].close)
+    return m
+  }, [colorByNetChange, ohlcData])
+  useEffect(() => { prevCloseByTimeRef.current = prevCloseByTime }, [prevCloseByTime])
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
   // right-edge bars are never pivots, so live updates can't make labels flicker.
@@ -1875,16 +1941,22 @@ export default function StockChart({
     const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
     const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
-    return filteredBars.map(b => ({
-      time: adjustTime(b.t),
-      value: b.v,
-      color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
-        ? gold
-        : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
-          ? 'rgba(201,168,76,0.9)'
-          : b.c >= b.o ? upC : downC,
-    }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes])
+    return filteredBars.map((b, i) => {
+      // Match the candle coloring: net change vs the prior bar's close in
+      // net-change mode (Model Book), else classic open-vs-close.
+      const prevC = (colorByNetChange && i > 0) ? filteredBars[i - 1].c : null
+      const isUp = prevC != null ? b.c >= prevC : b.c >= b.o
+      return {
+        time: adjustTime(b.t),
+        value: b.v,
+        color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
+          ? gold
+          : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
+            ? 'rgba(201,168,76,0.9)'
+            : isUp ? upC : downC,
+      }
+    })
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes, colorByNetChange])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
@@ -4148,8 +4220,20 @@ export default function StockChart({
       const h = priceData.high ?? priceData.value
       const l = priceData.low ?? priceData.value
       const c = priceData.close ?? priceData.value
-      const change = c - o
-      const changePct = o ? ((change / o) * 100) : 0
+      // Net-change mode (Model Book): change vs the PRIOR bar's close so it matches
+      // the candle coloring (up on the day vs yesterday); else classic open→close.
+      // Read via ref — this effect only re-subscribes on chartReady, so a direct
+      // closure capture would go stale on a ticker switch.
+      let change, changePct
+      const _pcMap = prevCloseByTimeRef.current
+      const prevC = _pcMap ? _pcMap.get(param.time) : null
+      if (prevC != null && prevC) {
+        change = c - prevC
+        changePct = (change / prevC) * 100
+      } else {
+        change = c - o
+        changePct = o ? ((change / o) * 100) : 0
+      }
 
       let rsiValue = null
       if (rsiSeriesRef.current) {
@@ -5195,7 +5279,7 @@ export default function StockChart({
           unmount/remount on each switch = a blink. Bounds stay measured across the
           switch, so the canvas survives and just redraws as the chart reframes. */}
       {indexAnnotations != null && indexPaneSymbol && indexOverlayBounds
-        && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
+        && (indexAnnotationsEditable || (visibleIndexAnnotations?.length || 0) > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -5210,7 +5294,7 @@ export default function StockChart({
             lineStyle={drawLineStyle}
             fontSize={drawFontSize}
             magnet={magnet}
-            drawings={indexAnnotations}
+            drawings={visibleIndexAnnotations}
             addDrawing={idxAnnAdd}
             updateDrawing={idxAnnUpdate}
             removeDrawing={idxAnnRemove}
