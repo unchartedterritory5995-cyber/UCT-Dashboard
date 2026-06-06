@@ -1235,6 +1235,21 @@ tbody tr { cursor: pointer; }
   .drillChartHint {
     display: none;
   }
+  /* Finviz PNGs are ~1200px wide — fit-to-width makes candles unreadable.
+     Render at a legible min width inside a scroll/pinch-zoom wrapper instead. */
+  .drillChartImgWrap {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y pinch-zoom;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .drillChartImg {
+    width: auto;
+    height: auto;
+    max-width: none;
+    min-width: 720px;
+  }
 }
 
 /* ── Historical Analogues ──────────────────────────────────────────────────── */
