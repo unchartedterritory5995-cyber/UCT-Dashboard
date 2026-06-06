@@ -387,11 +387,22 @@
 }
 
 @media (max-width: 640px) {
-  /* Phone: drawing toolbar hidden (chart is view + pinch/pan). Drawing tools
-     are reachable on tablet+; a dedicated phone tool launcher is a follow-up. */
+  /* Phone: the toolbar's hover-reveal (opacity 0.3 → 1) can't work on touch,
+     so it used to be hidden. Instead make it an always-visible scrollable
+     strip so drawing tools are reachable on phone too. */
   .toolbar {
-    display: none;
+    opacity: 1;
+    right: 4px;
+    height: auto;
+    background: rgba(14, 15, 13, 0.72);
+    border-radius: var(--radius-md);
+    padding: 2px;
   }
+}
+
+/* Touch has no hover — keep the toolbar fully visible (don't depend on :hover). */
+@media (hover: none) {
+  .toolbar { opacity: 1; }
 }
 
 /* ── Replay / Time Machine controls ── */
