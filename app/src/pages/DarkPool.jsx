@@ -659,6 +659,14 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
 function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
+  // Track which signal-group accordions are expanded in the Signals By Type panel.
+  const [expandedSignals, setExpandedSignals] = useState(new Set());
+  const toggleSignal = (type) => setExpandedSignals(prev => {
+    const next = new Set(prev);
+    if (next.has(type)) next.delete(type); else next.add(type);
+    return next;
+  });
+
   const sectionLabel = txt => (
     <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
       textTransform:"uppercase",marginBottom:10}}>{txt}</div>
@@ -823,129 +831,199 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-      {/* ── Intelligence Panel ────────────────────────────────────── */}
-      {hasIntel && (
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-        {/* Title row with zone lean */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-            textTransform:"uppercase"}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
-          {Math.abs(abovePct-belowPct)>=5 && (
-            <span style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:12,
-              background:(belowPct>abovePct?C.red:C.green)+"18",
-              color:belowPct>abovePct?C.red:C.green,
-              border:`1px solid ${belowPct>abovePct?C.red:C.green}33`}}>
-              {belowPct>abovePct?"Bearish":"Bullish"} Lean · {abovePct}%↑ {belowPct}%↓
-            </span>
-          )}
-        </div>
+      {/* ── New Intelligence Panel: narrative + outliers + grouped signals ── */}
+      {(()=>{
+        // ── Expanded "junk" filter — bonds, treasuries, money-market, mega caps
+        // (these always show up in dark pool flow; they're noise for a trader).
+        const USUAL_EXPANDED = new Set([
+          // Index/sector ETFs
+          "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+          "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND",
+          "EEM","EFA","VEA","VWO","FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
+          "IWF","IWD","IWB","IWR","IWS",
+          // Mega caps (always have flow)
+          "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
+          "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
+          // Bond / treasury ETFs (the ones flooding your data)
+          "IEF","BIL","JPST","IQMM","BSV","PULS","MAGS","VONV","SPIB","USFR","SGOV","STIP","TIP","BIV","TLH","GOVZ","EDV","VGLT",
+          "GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT","SHY","BNDX","VWOB","EMB","JNK","SPHY","FALN","BKLN","SJNK","SRLN",
+          // Muni / short-term
+          "SUB","MUB","TFI","BSCS","BSCT","NEAR","ICSH","JIVI","MINT","SHV","FLOT","GBIL","BILS",
+        ]);
+        const isJunk = (it) => USUAL_EXPANDED.has(it.t) ||
+          it.cat === "Bond ETFs" || it.cat === "Commodity ETFs" || it.cat === "Intl/EM ETFs" || it.cat === "Sector ETFs";
 
-        {/* Two-column grid: Repeat Flow + Unusual/Outsized combined */}
-        <div style={{display:"grid",gridTemplateColumns:repeats.length>0&&(unusualNames.length>0||outsized.length>0)?"1fr 1fr":"1fr",gap:12}}>
+        // Headline regime narrative
+        const totalNotional = allItems.reduce((s,i) => s + (i.bigPrintN || 0), 0);
+        const junkNotional = allItems.filter(isJunk).reduce((s,i) => s + (i.bigPrintN || 0), 0);
+        const junkPct = totalNotional > 0 ? Math.round(junkNotional / totalNotional * 100) : 0;
+        const narrativeText =
+          junkPct >= 70 ? "Bond, treasury, and passive ETF flow dominates — risk-off positioning. Limited tradeable equity signal." :
+          junkPct >= 50 ? "Mixed flow — moderate passive/bond activity alongside selective equity prints." :
+          junkPct <= 25 ? "Active equity flow — broad participation, low passive concentration." :
+          "Balanced flow across equity and passive vehicles.";
+        const narrativeColor = junkPct >= 70 ? C.red : junkPct >= 50 ? C.amber : junkPct <= 25 ? C.green : C.tx2;
 
-          {/* Repeat Flow */}
-          {repeats.length>0 && (
-            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
-                textTransform:"uppercase",marginBottom:8}}>🔄 Repeat Flow</div>
-              {repeats.slice(0,7).map(t=>{
-                const pct = Math.round((t.days/days)*100);
-                return (
-                  <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",
-                    borderBottom:`1px solid ${C.bdr}22`}}>
-                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,
-                      color:CAT_COLORS[t.cat]||C.tx,minWidth:50}}>{t.t}</span>
-                    {/* Frequency bar */}
-                    <div style={{flex:1,height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
-                      <div style={{width:pct+"%",height:"100%",borderRadius:2,
-                        background:pct>=90?C.green:pct>=70?C.amber:C.tx3,opacity:0.7}}/>
-                    </div>
-                    <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:44,textAlign:"right"}}>{t.days}/{days}d</span>
-                  </div>
-                );
-              })}
-              {repeats.length>7 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{repeats.length-7} more</div>}
+        // Equity outliers — Large/Mid/Small Cap only, with signals, NOT in USUAL
+        const equityOutliers = allItems
+          .filter(i => ["Large Cap","Mid Cap","Small Cap"].includes(i.cat))
+          .filter(i => !USUAL_EXPANDED.has(i.t))
+          .filter(i => (i.signals || []).length > 0)
+          .sort((a,b) => ((b.signals||[]).length - (a.signals||[]).length) || ((b.bigPrintN||0) - (a.bigPrintN||0)))
+          .slice(0, 10);
+
+        // Group ALL signaled items by signal type for the collapsible accordion
+        const signalGroups = {
+          YEARLY_RECORD: [], MONTHLY_RECORD: [], NOTIONAL_SPIKE: [],
+          ZONE_BREAK_RECORD: [], SIZE_ESCALATION: [], RARE_FLOW: [],
+        };
+        allItems.forEach(it => {
+          (it.signals || []).forEach(s => {
+            if (signalGroups[s.type]) signalGroups[s.type].push({...it, _sig: s});
+          });
+        });
+        Object.keys(signalGroups).forEach(k => {
+          signalGroups[k].sort((a,b) => (b._sig.mult || 0) - (a._sig.mult || 0) || (b.bigPrintN || 0) - (a.bigPrintN || 0));
+        });
+
+        const sigMeta = {
+          YEARLY_RECORD:   {label:"Yearly Records",  color:"#c9a84c"},
+          MONTHLY_RECORD:  {label:"Monthly Records", color:"#3cb868"},
+          NOTIONAL_SPIKE:  {label:"Volume Surges",   color:"#e74c3c"},
+          ZONE_BREAK_RECORD:{label:"Zone Breaks",     color:"#c9a84c"},
+          SIZE_ESCALATION: {label:"Escalating",      color:"#a78bfa"},
+          RARE_FLOW:       {label:"Rare/New Flow",   color:"#6ba3be"},
+        };
+
+        const hasAnySignal = Object.values(signalGroups).some(arr => arr.length > 0);
+
+        return (
+          <>
+            {/* 1. Headline narrative + outlier callouts */}
+            <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
+                <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.amber, textTransform:"uppercase"}}>
+                  📋 Dark Pool Read — {D.meta.dateRange || "Selected Period"}
+                </div>
+                <div style={{fontSize:9, color:C.tx3}}>
+                  passive/bond = <span style={{color:narrativeColor, fontWeight:700}}>{junkPct}%</span> of notional
+                </div>
+              </div>
+              <div style={{fontSize:13, color:narrativeColor, lineHeight:1.5, fontWeight:600}}>
+                {narrativeText}
+              </div>
+              {equityOutliers.length > 0 && (
+                <div style={{fontSize:12, color:C.tx2, lineHeight:1.6, marginTop:6}}>
+                  <span style={{color:C.tx3}}>Equity outliers worth watching: </span>
+                  {equityOutliers.slice(0,5).map((t,i,a) => (
+                    <span key={t.t}>
+                      <span style={{color:C.amber, fontWeight:700, cursor:"pointer"}} onClick={()=>onJumpTo(t.t)}>{t.t}</span>
+                      {i < a.length - 1 && <span style={{color:C.tx3}}>, </span>}
+                    </span>
+                  ))}
+                  {equityOutliers.length > 5 && <span style={{color:C.tx3}}> +{equityOutliers.length - 5} more</span>}
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Unusual + Outsized merged */}
-          {(unusualNames.length>0||outsized.length>0) && (
-            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
-                textTransform:"uppercase",marginBottom:8}}>🔍 Unusual Activity</div>
-              {/* Merge and dedupe unusual names + outsized prints, sort by notional */}
-              {(()=>{
-                const seen = new Set();
-                const merged = [];
-                for (const t of [...unusualNames, ...outsized]) {
-                  if (!seen.has(t.t)) { seen.add(t.t); merged.push(t); }
-                }
-                merged.sort((a,b) => b.bigPrintN - a.bigPrintN);
-                return merged.slice(0,7).map(t => {
-                  const hasVol = t.bigPrintPctAvgVol >= 30;
+            {/* 2. Equity Outliers panel — filtered, tradeable focus */}
+            {equityOutliers.length > 0 && (
+              <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10}}>
+                  <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3, textTransform:"uppercase"}}>
+                    🎯 Equity Outliers ({equityOutliers.length})
+                  </div>
+                  <div style={{fontSize:9, color:C.tx3, fontStyle:"italic"}}>
+                    bonds · treasuries · money-market · index/sector ETFs filtered out
+                  </div>
+                </div>
+                {equityOutliers.map((t) => {
+                  const bpPct = t.bigPrint > 0 ? ((t.last - t.bigPrint) / t.bigPrint * 100) : null;
+                  const bpColor = bpPct == null ? C.tx3 : bpPct > 0 ? C.green : bpPct < 0 ? C.red : C.tx3;
+                  const topSigs = (t.signals || []).slice(0,3);
                   return (
-                    <div key={t.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                      padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,fontSize:12,
-                          color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
-
+                    <div key={t.t} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.bdr}22`, gap:10}}>
+                      <div style={{display:"flex", alignItems:"center", gap:10, minWidth:0, flex:1}}>
+                        <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                          fontWeight:700, fontSize:13, color:CAT_COLORS[t.cat]||C.tx, minWidth:56, cursor:"pointer"}}
+                          onClick={()=>onJumpTo(t.t)}>{t.t}</span>
+                        <div style={{display:"flex", gap:4, flexWrap:"wrap"}}>
+                          {topSigs.map((s,i) => {
+                            const sc = ({YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c", RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c"})[s.type] || C.amber;
+                            const lbl = ({YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge", RARE_FLOW:"New Flow", SIZE_ESCALATION:"Escalating", ZONE_BREAK_RECORD:"Zone Break"})[s.type] || s.label;
+                            return (
+                              <span key={i} style={{fontSize:9, padding:"1px 6px", borderRadius:8,
+                                background:sc+"18", color:sc, fontWeight:700, border:`1px solid ${sc}33`}}>
+                                {lbl}{s.mult ? ` ${s.mult}×` : ""}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:10,fontWeight:600,color:C.cyan,
-                          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
-                        {hasVol && <span style={{fontSize:9,padding:"1px 6px",borderRadius:8,
-                          background:C.purple+"18",color:C.purple,fontWeight:600,
-                          border:`1px solid ${C.purple}33`}}>
-                          {fmtAvgVol(t.bigPrintPctAvgVol)} vol
-                        </span>}
+                      <div style={{display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
+                        <span style={{fontSize:11, color:C.cyan, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
+                        <span style={{fontSize:11, fontWeight:700, color:bpColor, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                          minWidth:54, textAlign:"right"}}>
+                          {bpPct == null ? "—" : (bpPct > 0 ? "+" : "") + bpPct.toFixed(2) + "%"}
+                        </span>
                       </div>
                     </div>
                   );
-                });
-              })()}
-            </div>
-          )}
-        </div>
+                })}
+              </div>
+            )}
 
-        {/* Flagged tickers — clean table */}
-        {flaggedAll.length>0 && (
-          <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.bdr}`}}>
-            <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
-              textTransform:"uppercase",marginBottom:8}}>⚡ Flagged ({flaggedAll.length})</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-              {flaggedAll.slice(0,12).map(t=>{
-                const topSignal = t.signals[0];
-                const color = topSignal ? ({"YEARLY_RECORD":"#c9a84c","MONTHLY_RECORD":"#3cb868","NOTIONAL_SPIKE":"#e74c3c","RARE_FLOW":"#6ba3be","SIZE_ESCALATION":"#a78bfa","ZONE_BREAK_RECORD":"#c9a84c"}[topSignal.type]||C.amber) : C.tx3;
-                return (
-                  <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,
-                    padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                    <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx,
-                      minWidth:42}}>{t.t}</span>
-                    <div style={{display:"flex",gap:3,flex:1,overflow:"hidden"}}>
-                      {t.signals.slice(0,2).map(s=>{
-                        const sc = {"YEARLY_RECORD":"#c9a84c","MONTHLY_RECORD":"#3cb868","NOTIONAL_SPIKE":"#e74c3c","RARE_FLOW":"#6ba3be","SIZE_ESCALATION":"#a78bfa","ZONE_BREAK_RECORD":"#c9a84c"}[s.type]||C.amber;
-                        const short = {"YEARLY_RECORD":"Yr Record","MONTHLY_RECORD":"Mo Record","NOTIONAL_SPIKE":"Vol Surge","RARE_FLOW":"New Flow","SIZE_ESCALATION":"Escalating","ZONE_BREAK_RECORD":"Zone Break"}[s.type]||s.label;
-                        return (
-                          <span key={s.type} style={{fontSize:8,padding:"1px 5px",borderRadius:6,
-                            background:sc+"15",color:sc,fontWeight:600,whiteSpace:"nowrap",
-                            border:`1px solid ${sc}25`}}>
-                            {short}{s.mult?"·"+s.mult+"×":""}{s.days?"·"+s.days+"d":""}
-                          </span>
-                        );
-                      })}
-                      {t.signals.length>2 && <span style={{fontSize:8,color:C.tx3}}>+{t.signals.length-2}</span>}
+            {/* 3. All Signals by Type — collapsible groups */}
+            {hasAnySignal && (
+              <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
+                <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3, textTransform:"uppercase", marginBottom:6}}>
+                  ⚡ All Signals by Type
+                </div>
+                {Object.keys(sigMeta).map(key => {
+                  const items = signalGroups[key] || [];
+                  const meta = sigMeta[key];
+                  const expanded = expandedSignals.has(key);
+                  const disabled = items.length === 0;
+                  return (
+                    <div key={key} style={{borderBottom:`1px solid ${C.bdr}22`}}>
+                      <button onClick={() => !disabled && toggleSignal(key)}
+                        disabled={disabled}
+                        style={{
+                          width:"100%", padding:"8px 4px", textAlign:"left",
+                          background:"transparent", border:"none", cursor:disabled ? "default" : "pointer",
+                          fontFamily:"inherit",
+                          display:"flex", alignItems:"center", gap:8
+                        }}>
+                        <span style={{fontSize:11, fontWeight:700, color: disabled ? C.tx3 : (expanded ? meta.color : C.tx)}}>
+                          {disabled ? "·" : (expanded ? "▼" : "▶")} {meta.label}
+                        </span>
+                        <span style={{fontSize:11, color:C.tx3}}>({items.length})</span>
+                      </button>
+                      {expanded && items.length > 0 && (
+                        <div style={{paddingLeft:14, paddingBottom:10}}>
+                          <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px, 1fr))", gap:"3px 8px"}}>
+                            {items.slice(0, 30).map((it,i) => (
+                              <div key={it.t+"_"+i} style={{fontSize:11, color:C.tx2, padding:"2px 0", display:"flex", alignItems:"center", gap:4}}>
+                                <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, cursor:"pointer"}} onClick={()=>onJumpTo(it.t)}>
+                                  {it.t}
+                                </span>
+                                {it._sig && it._sig.mult ? (
+                                  <span style={{color:C.tx3, fontSize:10}}>{it._sig.mult}×</span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                          {items.length > 30 && <div style={{fontSize:10, color:C.tx3, marginTop:6}}>+{items.length - 30} more</div>}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-            {flaggedAll.length>12 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{flaggedAll.length-12} more</div>}
-          </div>
-        )}
-      </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
@@ -1222,47 +1300,43 @@ function OptionsPane(){
   return (
     <div>
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:15,fontWeight:700,color:C.pink,marginBottom:4}}>
-          Options Flow <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.options.length} alerts)</span>
+        <div style={{fontSize:15,fontWeight:700,color:C.amber,marginBottom:4}}>
+          ⭐ Alpha Gold <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.alpha.length} signals)</span>
         </div>
         <div style={{fontSize:12,color:C.tx3}}>
-          Notable options activity flagged alongside dark pool data. Repeater, Roulette, Large, and Steady flow types.
+          Highest-conviction options signals from the source feed — top 10 most recent, deduped by ticker.
         </div>
       </div>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead>
-            <tr>
-              <TH>Date</TH>
-              <TH>Ticker</TH>
-              <TH>Price</TH>
-              <TH>Alert</TH>
-              <TH>Direction</TH>
-            </tr>
-          </thead>
-          <tbody>
-            {D.options.map((o,i)=>{
-              const isBull=o.message.includes("Bullish");
-              const isBear=o.message.includes("Bearish");
-              const dirColor=isBull?C.green:isBear?C.red:C.tx2;
-              const dir=isBull?"BULL":isBear?"BEAR":"NEUTRAL";
-              return (
+      {D.alpha.length === 0 ? (
+        <div style={{padding:24,textAlign:"center",color:C.tx3,fontSize:13,
+          background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8}}>
+          No Alpha Gold signals in this period.
+        </div>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr>
+                <TH>Date</TH>
+                <TH>Ticker</TH>
+                <TH>Price</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {D.alpha.map((a,i)=>(
                 <tr key={i} style={{background:"transparent"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{o.date}</TD>
-                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-                    ${o.ticker}</span></TickerPopup></TD>
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>{fP(o.price)}</TD>
-                  <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
-                  <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,
-                    background:dirColor+"18",padding:"2px 8px",borderRadius:10}}>{dir}</span></TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{a.date}</TD>
+                  <TD><TickerPopup sym={a.ticker}><span style={{color:C.amber,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+                    ${a.ticker}</span></TickerPopup></TD>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>{fP(a.price)}</TD>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -1802,19 +1876,6 @@ export default function DarkPool({embedded}){
   const [loadErr,setLoadErr]=useState(null);
   const [loadStatus,setLoadStatus]=useState("Loading…");
   const [parsedRows,setParsedRows]=useState(null);
-  const [version,setVersion]=useState(null);
-
-  // Fetch cache-busting version once on mount (matches OptionsFlow.jsx pattern).
-  // The version (= DB total_rows) is appended to /api/darkpool/aggregated
-  // as ?v=<n> so Cloudflare caches each version separately and admin
-  // uploads invalidate the cache cleanly. Until version arrives, csvFile
-  // is null and the data fetch effect short-circuits.
-  useEffect(() => {
-    fetch("/api/darkpool/version")
-      .then(r => r.json())
-      .then(j => setVersion(j.version || 0))
-      .catch(() => setVersion(0));
-  }, []);
 
   // Date picker state (matches OptionsFlow pattern)
   const [dateFilter,setDateFilter]=useState("Last1");
@@ -1828,30 +1889,12 @@ export default function DarkPool({embedded}){
   const calRef=useRef(null);
   const [csvLoading,setCsvLoading]=useState(true);
 
-  // Hits the new server-side aggregation endpoint. The response is JSON
-  // (already shaped like the old parseCSVtoD output), not CSV — so the
-  // fetch effect below sets dpData directly without any client-side
-  // processing. ?v=<n> in the URL is CF's cache key so admin uploads
-  // invalidate cleanly.
-  const csvFile = version === null
-    ? null
-    : fetchDays === 0
-      ? `/api/darkpool/aggregated?all_data=true&v=${version}`
-      : `/api/darkpool/aggregated?days=${fetchDays}&v=${version}`;
+  const csvFile = fetchDays === 0
+    ? "/api/darkpool/data?all_data=true"
+    : `/api/darkpool/data?days=${fetchDays}`;
 
-  // availableDates is consumed by the date picker UI in M/D/YYYY format.
-  // The aggregated endpoint returns dates as YYYY-MM-DD in dpData.dates,
-  // so we convert here. parsedRows path retained as a fallback in case an
-  // older code path sets it directly during transition.
+  // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
-    // Primary: derive from aggregated JSON
-    if (dpData && Array.isArray(dpData.dates) && dpData.dates.length > 0) {
-      return dpData.dates.map(iso => {
-        const [y, m, d] = iso.split("-").map(Number);
-        return `${m}/${d}/${y}`;  // M/D/YYYY — no leading zeros
-      });
-    }
-    // Legacy fallback (kept for safety; shouldn't normally fire)
     if (!parsedRows || parsedRows.length === 0) return [];
     const dateSet = new Set();
     parsedRows.forEach(r => { if (r.Date) dateSet.add(r.Date.trim()); });
@@ -1862,7 +1905,7 @@ export default function DarkPool({embedded}){
       const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
       return new Date(ya, pa[0]-1, pa[1]||1) - new Date(yb, pb[0]-1, pb[1]||1);
     });
-  }, [dpData, parsedRows]);
+  }, [parsedRows]);
 
   const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
 
@@ -1874,51 +1917,79 @@ export default function DarkPool({embedded}){
     return () => document.removeEventListener("mousedown", handler);
   }, [showCal]);
 
-  // Fetch aggregated data from API.
-  //
-  // Server now does all the heavy lifting that parseCSVtoD used to do —
-  // we just receive a JSON payload with the same dpData shape and set
-  // it directly. No more parseCSV, no more parseCSVtoD, no more
-  // ~3M-row arrays in browser memory.
-  //
-  // Date-filter side effects (dateFilter, dateFrom, dateTo) intentionally
-  // omitted from this effect's deps: fetchDays already changes when the
-  // user clicks day buttons, which re-derives csvFile, which retriggers.
-  // Custom date-range picker is currently best-effort — server doesn't
-  // yet support arbitrary from/to, so a custom range falls back to All
-  // until the next iteration adds /aggregated?from=&to=.
+  // Process data whenever parsedRows or dateFilter changes
   useEffect(() => {
-    if (!csvFile) return;  // wait for version to load
+    if (!parsedRows || parsedRows.length === 0) return;
+    let filtered;
+    if (dateFrom && dateTo) {
+      const from = isoToDate(dateFrom);
+      const to = isoToDate(dateTo);
+      to.setHours(23,59,59);
+      filtered = parsedRows.filter(r => {
+        if (!r.Date) return false;
+        const d = mdyToDate(r.Date.trim());
+        return d >= from && d <= to;
+      });
+    } else if (dateFilter === "All") {
+      filtered = parsedRows;
+    } else if (dateFilter.startsWith("Last")) {
+      const n = parseInt(dateFilter.replace("Last",""))||1;
+      const recentDates = new Set(availableDates.slice(-n));
+      filtered = parsedRows.filter(r => r.Date && recentDates.has(r.Date.trim()));
+    } else {
+      filtered = parsedRows.filter(r => r.Date && r.Date.trim() === dateFilter);
+    }
+    if (filtered.length === 0) { setDpData(null); return; }
+    try {
+      const d = parseCSVtoD(filtered);
+      setDpData(d);
+    } catch(err) {
+      setLoadErr("Processing error: "+err.message);
+    }
+  }, [parsedRows, dateFilter, dateFrom, dateTo]);
+
+  // Fetch data from API
+  useEffect(() => {
     let cancelled = false;
     setCsvLoading(true);
     setLoadErr(null);
     setLoadStatus("Fetching dark pool data…");
 
-    fetch(csvFile)
-      .then(r => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      })
-      .then(json => {
-        if (cancelled) return;
-        // Server returned the same shape parseCSVtoD used to produce.
-        // Empty windows come back as a valid dict with tradingDays=0 —
-        // treat that as "no data" so the UI shows the empty state.
-        if (!json || !json.meta || json.meta.tradingDays === 0) {
-          setLoadErr("No data returned for this window");
-          setDpData(null);
-          setCsvLoading(false);
-          return;
-        }
-        setDpData(json);
-        setCsvLoading(false);
-      })
-      .catch(e => {
-        if (cancelled) return;
-        setLoadErr(e.message || "Failed to fetch aggregated data");
-        setCsvLoading(false);
-      });
+    function tryFetch(url) {
+      return fetch(url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now())
+        .then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.text();
+        })
+        .then(text => {
+          const trimmed = text.trim();
+          if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("HTML");
+          return text;
+        });
+    }
 
+    // Try API first, fall back to static CSV
+    tryFetch(csvFile)
+      .catch(() => {
+        setLoadStatus("API unavailable — loading static CSV…");
+        return tryFetch("/Darkpool-data.csv");
+      })
+      .then(text => {
+        if (cancelled) return;
+        setLoadStatus("Parsing…");
+        setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const rows = parseCSV(text);
+            if (!rows || rows.length === 0) throw new Error("No data returned");
+            setParsedRows(rows);
+            setCsvLoading(false);
+          } catch(err) {
+            if (!cancelled) { setLoadErr(err.message); setCsvLoading(false); }
+          }
+        }, 0);
+      })
+      .catch(e => { if (!cancelled) { setLoadErr("Could not load data from API or static CSV"); setCsvLoading(false); } });
     return () => { cancelled = true; };
   }, [csvFile]);
 
