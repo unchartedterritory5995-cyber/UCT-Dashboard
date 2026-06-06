@@ -670,7 +670,33 @@ const TF_MAP = {
   "1Y": {days: 365, range: "1y"},
 };
 
-function PatternTickerRow({it, sig, mktcap, onJumpTo}){
+// Plain-English signal labels + tooltips. Lifted to module scope so both
+// PatternTickerRow (badges in notable variant) and OverviewPane (group
+// headers in Patterns Detected) can read from the same source.
+const SIG_META = {
+  MONTHLY_RECORD:    {color:"#3cb868", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
+  YEARLY_RECORD:     {color:"#c9a84c", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
+  NOTIONAL_SPIKE:    {color:"#e74c3c", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
+  ZONE_BREAK_RECORD: {color:"#c9a84c", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
+  SIZE_ESCALATION:   {color:"#a78bfa", short:"Growing Daily", groupLabel:"Building Up Over Days",      groupTip:"Print sizes are getting bigger each day in a row — possible accumulation", tagTip:"Print sizes are getting bigger each day in a row"},
+  RARE_FLOW:         {color:"#6ba3be", short:"First Seen",    groupLabel:"First Time Seen",            groupTip:"These stocks haven't appeared in dark pool prints recently — fresh interest", tagTip:"Hasn't shown up in dark pool prints recently"},
+};
+
+// Renders a signal as a colored badge with hover tooltip (browser title attr).
+function renderSignalTag(s, idx) {
+  const m = SIG_META[s.type]; if (!m) return null;
+  const suffix = s.mult ? ` · ${s.mult}×` : (s.days ? ` · ${s.days}d` : "");
+  return (
+    <span key={idx} title={m.tagTip}
+      style={{fontSize:10, padding:"2px 8px", borderRadius:10,
+        background:m.color+"22", color:m.color, fontWeight:700,
+        border:`1px solid ${m.color}55`, cursor:"help", whiteSpace:"nowrap"}}>
+      {m.short}{suffix}
+    </span>
+  );
+}
+
+function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   const [expanded, setExpanded] = useState(false);
   const [timeframe, setTimeframe] = useState("1M");
   const [prints, setPrints] = useState(null);
@@ -906,43 +932,71 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo}){
 
   return (
     <div style={{borderBottom:`1px solid ${C.bdr}33`}}>
-      {/* Collapsed row */}
-      <div onClick={() => setExpanded(!expanded)}
-        style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
-          gap:8, alignItems:"center", padding:"8px 6px", cursor:"pointer",
-          background: expanded ? C.bg3 : "transparent",
-          borderRadius:4}}
-        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = C.bgH; }}
-        onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}>
-        <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, fontSize:12,
-          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}
-          onClick={(e) => { e.stopPropagation(); onJumpTo && onJumpTo(it.t); }}>{it.t}</span>
-        <span style={{fontSize:8, padding:"1px 5px", borderRadius:6,
-          background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
-          fontWeight:700, textAlign:"center", letterSpacing:"0.03em"}}>
-          {CAT_SHORT[it.cat] || ""}
-        </span>
-        <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {mktcap > 0 ? fmt(mktcap) : "—"}
-        </span>
-        <span style={{fontSize:10, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {it.n ? fmt(it.n) : "—"}
-        </span>
-        <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {sigMult ? `${sigMult}×` : sigDays ? `${sigDays}d` : "—"}
-        </span>
-        <span style={{fontSize:10, color:C.purple, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {it.days ? `${it.days}d` : "—"}
-        </span>
-        <span style={{fontSize:10, color:C.amber, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {latestPrintPrice ? `$${latestPrintPrice.toFixed(2)}` : "—"}
-        </span>
-        <span style={{fontSize:10, color:moveColor, fontWeight:700, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-          {movePct == null ? "—" : (movePct > 0 ? "+" : "") + movePct.toFixed(2) + "%"}
-        </span>
-        <div>{renderMiniSpark()}</div>
-        <span style={{color:C.tx3, fontSize:11, textAlign:"center"}}>{expanded ? "▼" : "▶"}</span>
-      </div>
+      {/* Collapsed row — layout depends on variant ("pattern" or "notable") */}
+      {variant === "notable" ? (
+        // Notable Stocks variant — wider ticker name, signal badges, $ and move
+        <div onClick={() => setExpanded(!expanded)}
+          style={{display:"flex", alignItems:"center", justifyContent:"space-between",
+            padding:"9px 6px", cursor:"pointer", gap:10,
+            background: expanded ? C.bg3 : "transparent", borderRadius:4}}
+          onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = C.bgH; }}
+          onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}>
+          <div style={{display:"flex", alignItems:"center", gap:12, minWidth:0, flex:1}}>
+            <span style={{color:CAT_COLORS[it.cat]||C.tx, fontWeight:700, fontSize:14, minWidth:54,
+              fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.t}</span>
+            <div style={{display:"flex", gap:5, flexWrap:"wrap"}}>
+              {(it.signals || []).slice(0,3).map(renderSignalTag)}
+            </div>
+          </div>
+          <div style={{display:"flex", alignItems:"center", gap:18, flexShrink:0}}>
+            <span style={{fontSize:12, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+              {it.bigPrintN ? fmt(it.bigPrintN) : "—"}
+            </span>
+            <span style={{fontSize:12, fontWeight:700, color:moveColor, minWidth:54, textAlign:"right",
+              fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+              {movePct == null ? "—" : (movePct > 0 ? "+" : "") + movePct.toFixed(2) + "%"}
+            </span>
+            <span style={{color:C.tx3, fontSize:11, width:14, textAlign:"center"}}>{expanded ? "▼" : "▶"}</span>
+          </div>
+        </div>
+      ) : (
+        // Pattern variant — full grid with all columns
+        <div onClick={() => setExpanded(!expanded)}
+          style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
+            gap:8, alignItems:"center", padding:"8px 6px", cursor:"pointer",
+            background: expanded ? C.bg3 : "transparent",
+            borderRadius:4}}
+          onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = C.bgH; }}
+          onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}>
+          <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, fontSize:12,
+            fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.t}</span>
+          <span style={{fontSize:8, padding:"1px 5px", borderRadius:6,
+            background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
+            fontWeight:700, textAlign:"center", letterSpacing:"0.03em"}}>
+            {CAT_SHORT[it.cat] || ""}
+          </span>
+          <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {mktcap > 0 ? fmt(mktcap) : "—"}
+          </span>
+          <span style={{fontSize:10, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {it.n ? fmt(it.n) : "—"}
+          </span>
+          <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {sigMult ? `${sigMult}×` : sigDays ? `${sigDays}d` : "—"}
+          </span>
+          <span style={{fontSize:10, color:C.purple, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {it.days ? `${it.days}d` : "—"}
+          </span>
+          <span style={{fontSize:10, color:C.amber, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {latestPrintPrice ? `$${latestPrintPrice.toFixed(2)}` : "—"}
+          </span>
+          <span style={{fontSize:10, color:moveColor, fontWeight:700, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+            {movePct == null ? "—" : (movePct > 0 ? "+" : "") + movePct.toFixed(2) + "%"}
+          </span>
+          <div>{renderMiniSpark()}</div>
+          <span style={{color:C.tx3, fontSize:11, textAlign:"center"}}>{expanded ? "▼" : "▶"}</span>
+        </div>
+      )}
 
       {/* Expanded view */}
       {expanded && (
@@ -1227,31 +1281,8 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
           signalGroups[k].sort((a,b) => (b._sig.mult || 0) - (a._sig.mult || 0) || (b.bigPrintN || 0) - (a.bigPrintN || 0));
         });
 
-        // Plain-English labels + one-sentence explanations for each signal type
-        const sigMeta = {
-          MONTHLY_RECORD:    {color:"#3cb868", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
-          YEARLY_RECORD:     {color:"#c9a84c", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
-          NOTIONAL_SPIKE:    {color:"#e74c3c", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
-          ZONE_BREAK_RECORD: {color:"#c9a84c", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
-          SIZE_ESCALATION:   {color:"#a78bfa", short:"Growing Daily", groupLabel:"Building Up Over Days",      groupTip:"Print sizes are getting bigger each day in a row — possible accumulation", tagTip:"Print sizes are getting bigger each day in a row"},
-          RARE_FLOW:         {color:"#6ba3be", short:"First Seen",    groupLabel:"First Time Seen",            groupTip:"These stocks haven't appeared in dark pool prints recently — fresh interest", tagTip:"Hasn't shown up in dark pool prints recently"},
-        };
         const totalSignalCount = Object.values(signalGroups).reduce((s,arr) => s + arr.length, 0);
         const hasAnySignal = totalSignalCount > 0;
-
-        // Build a signal tag with hover tooltip (uses native title attribute)
-        const renderTag = (s, idx) => {
-          const m = sigMeta[s.type]; if (!m) return null;
-          const suffix = s.mult ? ` · ${s.mult}×` : (s.days ? ` · ${s.days}d` : "");
-          return (
-            <span key={idx} title={m.tagTip}
-              style={{fontSize:10, padding:"2px 8px", borderRadius:10,
-                background:m.color+"22", color:m.color, fontWeight:700,
-                border:`1px solid ${m.color}55`, cursor:"help", whiteSpace:"nowrap"}}>
-              {m.short}{suffix}
-            </span>
-          );
-        };
 
         return (
           <>
@@ -1301,29 +1332,14 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                     <span style={{minWidth:54, textAlign:"right"}}>Since Print</span>
                   </div>
                 </div>
-                {notableStocks.map((t) => {
-                  const bpPct = t.bigPrint > 0 ? ((t.last - t.bigPrint) / t.bigPrint * 100) : null;
-                  const bpColor = bpPct == null ? C.tx3 : bpPct > 0 ? C.green : bpPct < 0 ? C.red : C.tx3;
-                  return (
-                    <div key={t.t} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom:`1px solid ${C.bdr}44`, gap:10}}>
-                      <div style={{display:"flex", alignItems:"center", gap:12, minWidth:0, flex:1}}>
-                        <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                          fontWeight:700, fontSize:14, color:CAT_COLORS[t.cat]||C.tx, minWidth:54, cursor:"pointer"}}
-                          onClick={()=>onJumpTo(t.t)}>{t.t}</span>
-                        <div style={{display:"flex", gap:5, flexWrap:"wrap"}}>
-                          {(t.signals || []).slice(0,3).map(renderTag)}
-                        </div>
-                      </div>
-                      <div style={{display:"flex", alignItems:"center", gap:18, flexShrink:0}}>
-                        <span style={{fontSize:12, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
-                        <span style={{fontSize:12, fontWeight:700, color:bpColor, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                          minWidth:54, textAlign:"right"}}>
-                          {bpPct == null ? "—" : (bpPct > 0 ? "+" : "") + bpPct.toFixed(2) + "%"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {notableStocks.map((t) => (
+                  <PatternTickerRow key={t.t}
+                    it={t}
+                    sig={null}
+                    variant="notable"
+                    mktcap={mktcapData?.[t.t]?.mktCap || 0}
+                    onJumpTo={onJumpTo}/>
+                ))}
               </div>
             )}
 
@@ -1336,9 +1352,9 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                 <div style={{fontSize:10, color:C.tx3, marginBottom:6, fontStyle:"italic"}}>
                   Each pattern below describes a different way today's flow stood out. Click any group to see which stocks show that pattern.
                 </div>
-                {Object.keys(sigMeta).map(key => {
+                {Object.keys(SIG_META).map(key => {
                   const items = signalGroups[key] || [];
-                  const meta = sigMeta[key];
+                  const meta = SIG_META[key];
                   const expanded = expandedSignals.has(key);
                   const disabled = items.length === 0;
                   return (
