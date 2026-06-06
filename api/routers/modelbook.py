@@ -426,6 +426,47 @@ def _needs_desc(s) -> bool:
     return (not da) or (int(_time_mod.time()) - da > _DESC_RETRY_AFTER)
 
 
+def _desc_messages(symbol, company, year, gain_pct):
+    """Build (system, prompt) for the description LLM call. Extracted so the debug
+    endpoint can exercise the EXACT same prompt."""
+    gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
+    system = ("You write concise, factual stock study notes for a trader's model book. "
+              "Output JSON only — no preamble, no markdown fences.")
+    prompt = (
+        f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
+        f"The stock rose {gain_txt} that year.\n\n"
+        'Return JSON exactly: {"company_desc": "...", "run_story": "...", '
+        '"sector": "...", "industry": "..."}\n'
+        "- company_desc: ONE plain sentence on what the company does.\n"
+        "- sector: the company's GICS sector AS OF that year (e.g. \"Technology\", "
+        "\"Communication Services\", \"Consumer Cyclical\", \"Healthcare\", "
+        "\"Financial Services\", \"Industrials\", \"Energy\"). Use the name the "
+        "company traded under that year, even if it was later renamed or acquired.\n"
+        "- industry: the company's specific GICS industry that year (e.g. "
+        "\"Software - Infrastructure\", \"Entertainment\", \"Personal Services\", "
+        "\"Semiconductors\"). Keep it short — 1-4 words.\n"
+        "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
+        "the specific catalysts/drivers, or the broader market theme it rode. "
+        "Be factual and specific to that year; if unsure of specifics, describe the "
+        "dominant theme/driver. No price targets, no buy/sell advice.\n\n"
+        "STYLE — IMPORTANT (these notes sit next to each other, so they must read "
+        "differently):\n"
+        "- The ticker and the % gain are ALREADY shown above the note. Do NOT restate "
+        "them. Do NOT begin with the ticker symbol or company name.\n"
+        "- Do NOT open with 'surged', 'soared', 'rallied', 'rose', 'skyrocketed', "
+        "'jumped' or any generic move-verb. Lead straight with the actual driver, "
+        "catalyst, product, or theme.\n"
+        "- Vary the sentence structure from a typical writeup — open with the catalyst, "
+        "the demand story, the macro theme, an event, or a fundamental shift, not a "
+        "price statement. Get straight to substance.\n"
+        "- AVOID cliche/hype words: do NOT use 'explosive', 'explosive demand', "
+        "'massive', 'skyrocketing', 'red-hot', 'insatiable', 'meteoric', 'parabolic', "
+        "'breakneck', 'frenzy', or 'on fire'. Use precise, varied, plain language and a "
+        "different opening word than other notes would naturally use."
+    )
+    return system, prompt
+
+
 def _generate_descriptions(symbol, company, year, gain_pct):
     """Claude → {company_desc, run_story, sector, industry}. One sentence on what
     the company does, a brief factual reason it ran that year, plus its GICS
@@ -440,41 +481,7 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         client = _get_anthropic_client()
         if client is None:
             return None
-        gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
-        system = ("You write concise, factual stock study notes for a trader's model book. "
-                  "Output JSON only — no preamble, no markdown fences.")
-        prompt = (
-            f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
-            f"The stock rose {gain_txt} that year.\n\n"
-            'Return JSON exactly: {"company_desc": "...", "run_story": "...", '
-            '"sector": "...", "industry": "..."}\n'
-            "- company_desc: ONE plain sentence on what the company does.\n"
-            "- sector: the company's GICS sector AS OF that year (e.g. \"Technology\", "
-            "\"Communication Services\", \"Consumer Cyclical\", \"Healthcare\", "
-            "\"Financial Services\", \"Industrials\", \"Energy\"). Use the name the "
-            "company traded under that year, even if it was later renamed or acquired.\n"
-            "- industry: the company's specific GICS industry that year (e.g. "
-            "\"Software - Infrastructure\", \"Entertainment\", \"Personal Services\", "
-            "\"Semiconductors\"). Keep it short — 1-4 words.\n"
-            "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
-            "the specific catalysts/drivers, or the broader market theme it rode. "
-            "Be factual and specific to that year; if unsure of specifics, describe the "
-            "dominant theme/driver. No price targets, no buy/sell advice.\n\n"
-            "STYLE — IMPORTANT (these notes sit next to each other, so they must read "
-            "differently):\n"
-            "- The ticker and the % gain are ALREADY shown above the note. Do NOT restate "
-            "them. Do NOT begin with the ticker symbol or company name.\n"
-            "- Do NOT open with 'surged', 'soared', 'rallied', 'rose', 'skyrocketed', "
-            "'jumped' or any generic move-verb. Lead straight with the actual driver, "
-            "catalyst, product, or theme.\n"
-            "- Vary the sentence structure from a typical writeup — open with the catalyst, "
-            "the demand story, the macro theme, an event, or a fundamental shift, not a "
-            "price statement. Get straight to substance.\n"
-            "- AVOID cliche/hype words: do NOT use 'explosive', 'explosive demand', "
-            "'massive', 'skyrocketing', 'red-hot', 'insatiable', 'meteoric', 'parabolic', "
-            "'breakneck', 'frenzy', or 'on fire'. Use precise, varied, plain language and a "
-            "different opening word than other notes would naturally use."
-        )
+        system, prompt = _desc_messages(symbol, company, year, gain_pct)
         # Retry transient failures: when stocks are added, catalysts + recap +
         # description generation can fire together and transiently overload the
         # API. A single failure would otherwise stamp desc_at and blank the note.
@@ -482,7 +489,7 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         for attempt in range(3):
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=400, temperature=0.7,
+                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -493,10 +500,9 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             _time_mod.sleep(1.5 * (attempt + 1))
         if not text:
             return None
-        s, e = text.find("{"), text.rfind("}")
-        if s == -1 or e == -1:
+        obj = _parse_desc_json(text)
+        if obj is None:
             return None
-        obj = _json.loads(text[s:e + 1])
         cd = (obj.get("company_desc") or "").strip()
         rs = (obj.get("run_story") or "").strip()
         sec = (obj.get("sector") or "").strip() or None
@@ -510,6 +516,62 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         return None
     except Exception:
         return None
+
+
+def _parse_desc_json(text):
+    """Tolerant JSON extraction from an LLM reply: strip ```json fences, then take
+    the outermost {...}. Returns the dict, or None if it can't parse."""
+    import json as _json
+    if not text:
+        return None
+    t = text.strip()
+    # Strip markdown code fences if present.
+    if t.startswith("```"):
+        t = t.split("```", 2)[1] if t.count("```") >= 2 else t.strip("`")
+        if t.lstrip().lower().startswith("json"):
+            t = t.lstrip()[4:]
+    s, e = t.find("{"), t.rfind("}")
+    if s == -1 or e == -1 or e <= s:
+        return None
+    try:
+        return _json.loads(t[s:e + 1])
+    except Exception:
+        return None
+
+
+@router.get("/debug-desc/{sym}")
+def debug_desc(sym: str, year: int = Query(default=0)):
+    """Diagnostic (no auth): show exactly what the description LLM returns for a
+    ticker, so we can see why a summary won't generate. Reports the raw text,
+    stop_reason, parse result, and the final _generate_descriptions output."""
+    import os as _osd
+    from datetime import datetime, timezone
+    y = year or (datetime.now(timezone.utc).year - 1)
+    out = {
+        "sym": sym.upper(), "year": y, "desc_enabled": _DESC_ENABLED, "model": _DESC_MODEL,
+        "anthropic_key": "set" if _osd.environ.get("ANTHROPIC_API_KEY") else "MISSING",
+    }
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        out["client"] = "ok" if client else "None"
+        if client:
+            system, prompt = _desc_messages(sym.upper(), None, y, None)
+            try:
+                msg = client.messages.create(
+                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
+                    system=system, messages=[{"role": "user", "content": prompt}],
+                )
+                text = "".join(getattr(b, "text", "") for b in msg.content)
+                out["stop_reason"] = getattr(msg, "stop_reason", None)
+                out["raw_text"] = text[:2500]
+                out["parsed"] = _parse_desc_json(text)
+            except Exception as ex:
+                out["llm_error"] = f"{type(ex).__name__}: {ex}"
+    except Exception as ex:
+        out["error"] = f"{type(ex).__name__}: {ex}"
+    out["generate_result"] = _generate_descriptions(sym.upper(), None, y, None)
+    return out
 
 
 def _persist_desc_result(stock_id, d) -> None:

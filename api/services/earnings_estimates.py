@@ -352,18 +352,32 @@ def get_year_earnings(ticker: str, year: int) -> list:
     if closed and len(by_q) < 4:
         _fill(_year_earnings_from_av(ticker, year))
 
-    rows = sorted(by_q.values(), key=lambda r: (r.get("quarter") or 99, r.get("date") or ""))
-    if len(by_q) < 4:
-        _logger.info("get_year_earnings %s %s: only %d/4 quarters across sources",
-                     ticker, year, len(by_q))
+    if not by_q:
+        return []  # no earnings at all for this stock/year — no table; don't cache
 
-    if rows:  # don't cache transient failures
-        complete = len(by_q) >= 4
-        # Long cache ONLY for a closed, complete year (static). An incomplete year
-        # gets the short TTL so it re-attempts the fill sources later.
-        ttl = 30 * 86400 if (closed and complete) else _CACHE_TTL
-        cache.set(ckey, rows, ttl=ttl)
-    return rows
+    # Always present ALL FOUR quarters Q1→Q4: fill the ones a report exists for,
+    # placeholder ("—") the rest. Semi-annual filers (e.g. SBSW and many foreign
+    # ADRs) only report H1/H2, so Q1/Q3 genuinely have no data and read "—"
+    # rather than silently dropping to a 2-row table.
+    def _empty_q(q):
+        return {
+            "date": None, "quarter": q, "year": int(year),
+            "eps_actual": None, "eps_estimate": None, "eps_surprise_pct": None,
+            "revenue_actual": None, "revenue_estimate": None, "revenue_surprise_pct": None,
+        }
+    full = [by_q.get(q) or _empty_q(q) for q in (1, 2, 3, 4)]
+    real_count = len(by_q)
+    if real_count < 4:
+        _logger.info("get_year_earnings %s %s: %d/4 quarters had a report (rest shown as —)",
+                     ticker, year, real_count)
+
+    # Long cache ONLY for a closed year whose 4 quarters are all REAL (static). An
+    # incomplete year gets the short TTL so it re-attempts the fill sources later
+    # (e.g. once an AV rate-limit clears, or a semi-annual filer's H2 report lands).
+    complete = real_count >= 4
+    ttl = 30 * 86400 if (closed and complete) else _CACHE_TTL
+    cache.set(ckey, full, ttl=ttl)
+    return full
 
 
 def get_chart_markers(ticker: str) -> dict:

@@ -200,9 +200,23 @@ function renderText(ctx, pts, drawing, opacity = 1) {
   ctx.globalAlpha = prevAlpha
 }
 
+// Directional price move between two candles, using the TRUE extremes so the
+// label reflects the real swing (independent of log/linear scale):
+//   • advance (B sits higher than A): A's LOW → B's HIGH   → the full run-up
+//   • decline (B sits lower  than A): A's HIGH → B's LOW    → the full draw-down
+// Returns a signed % (negative = decline), or null if it can't be computed.
+function computeAdvancePct(A, B) {
+  if (!A || !B) return null
+  const aHi = A.h, aLo = A.l, bHi = B.h, bLo = B.l
+  if ([aHi, aLo, bHi, bLo].some(v => v == null)) return null
+  const isDecline = (bHi + bLo) < (aHi + aLo)   // B lower than A on average
+  if (isDecline) return aHi > 0 ? (bLo - aHi) / aHi * 100 : null
+  return aLo > 0 ? (bHi - aLo) / aLo * 100 : null
+}
+
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
-// % = open of the 1st clicked candle → high of the 2nd; drawn white above that high.
-function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
+// % = directional move between the 1st and 2nd clicked candles (see computeAdvancePct).
+function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null) {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
@@ -221,7 +235,14 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
   ctx.textBaseline = isDecline ? 'top' : 'bottom'
   ctx.lineJoin = 'round'
   const text = `${drawing.advPct >= 0 ? '+' : ''}${Math.round(drawing.advPct)}%`
-  const px = Math.round(p.x), py = Math.round(y)
+  // Keep the (center-aligned) label fully on-canvas: if a label on one of the
+  // last candles would overflow the right edge (or the left), shift it inward.
+  let px = Math.round(p.x)
+  if (canvasW) {
+    const half = ctx.measureText(text).width / 2 + 3
+    px = Math.max(half, Math.min(px, canvasW - half))
+  }
+  const py = Math.round(y)
   ctx.lineWidth = 3
   ctx.strokeStyle = 'rgba(0,0,0,0.85)'
   ctx.strokeText(text, px, py)
@@ -930,14 +951,21 @@ export default function ChartDrawingOverlay({
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
         case 'advance': {
-          // Backfill the "to" candle's LOW for older decline labels saved before
-          // advLow existed, so they anchor below the low (equal clearance) too.
+          // Recompute the % from the live bars (candle mode) so EXISTING labels are
+          // corrected — older ones were stored with a wrong formula (open→high,
+          // direction-blind), which mis-stated declines. Also refreshes advHigh/
+          // advLow so the label anchors correctly. Line-mode (index pane) keeps its
+          // stored value (% between the two clicked line points).
           let ad = d
-          if (!lineData && d.advPct < 0 && d.advLow == null && d.points?.length) {
+          if (!lineData && d.points?.length >= 2) {
+            const ai = timeToIndex.get(d.points[0].time)
             const bi = timeToIndex.get(d.points[d.points.length - 1].time)
-            if (bi != null && bars[bi]) ad = { ...d, advLow: bars[bi].l }
+            if (ai != null && bi != null && bars[ai] && bars[bi]) {
+              const pct = computeAdvancePct(bars[ai], bars[bi])
+              if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
+            }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16)
+          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, w)
           break
         }
       }
@@ -984,13 +1012,14 @@ export default function ChartDrawingOverlay({
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
               if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9)
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, w)
               }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
-              if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
-                renderAdvance(ctx, previewPts, { advPct: ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY)
+              if (ai != null && bi != null && bars[ai] && bars[bi]) {
+                const pct = computeAdvancePct(bars[ai], bars[bi])
+                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, w)
               }
             }
             break
@@ -1195,8 +1224,9 @@ export default function ChartDrawingOverlay({
           } else {
             const ai = timeToIndex.get(newPending[0].time)
             const bi = timeToIndex.get(newPending[1].time)
-            if (ai != null && bi != null && bars[ai]?.o > 0 && bars[bi]) {
-              drawingData.advPct = ((bars[bi].h - bars[ai].o) / bars[ai].o) * 100
+            if (ai != null && bi != null && bars[ai] && bars[bi]) {
+              const pct = computeAdvancePct(bars[ai], bars[bi])
+              if (pct != null) drawingData.advPct = pct
               drawingData.advHigh = bars[bi].h
               drawingData.advLow = bars[bi].l   // decline labels anchor below this
             }
