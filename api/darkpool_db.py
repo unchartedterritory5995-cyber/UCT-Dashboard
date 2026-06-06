@@ -36,10 +36,7 @@ _SELECT_COLS = ", ".join(_DB_COLS)
 
 # Stream batch size: balance ASGI round-trips vs memory.
 # Larger = fewer yields, smaller = lower peak memory.
-# Kept on the small side to keep first-byte arriving fast and the
-# connection visibly active to the proxy (Railway/CF will close idle
-# connections after ~30s of no progress).
-_STREAM_BATCH = 1000
+_STREAM_BATCH = 2000
 
 
 def get_conn():
@@ -185,55 +182,37 @@ def stream_csv(days=None, all_data: bool = False):
     """
     Generator that yields CSV chunks from the database.
 
-    Two important properties for serving large windows reliably:
-
-    (1) Header line yields BEFORE conn.execute(). This gets the first byte
-        on the wire immediately — Railway's edge proxy won't close the
-        connection waiting for SQLite to start producing rows. (Before
-        this, the header didn't yield until after execute() returned,
-        which on 60+ day windows could be 10-30s and tripped proxy
-        timeouts mid-handshake.)
-
-    (2) No ORDER BY in the SELECT. The previous query used
-        ``ORDER BY date DESC, timestamp DESC`` which is not covered by
-        any index (we have idx_dp_date and idx_dp_date_ticker, but
-        nothing on timestamp). SQLite was forced to materialize the
-        full result set and sort it in memory before yielding the first
-        row — fine at 20d (~720K rows) but the 2.2M+ rows at 60d turned
-        into a multi-second blocking sort that ran out the proxy budget.
-        The frontend doesn't depend on row order — parseCSVtoD aggregates
-        per-ticker regardless of input order — so dropping the ORDER BY
-        is safe.
+    Uses cursor iteration (no fetchall) so memory stays flat regardless
+    of result size, and rows ship as soon as the first batch is ready —
+    no server-side wait for a giant string to be built.
 
     ``days=None`` or ``all_data=True`` means everything.
+    Matches the flow_db.FlowDB.stream_csv pattern.
     """
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     try:
-        # (1) Header out the door FIRST — guarantees an immediate first byte.
-        yield _HEADER_LINE
-
-        # Resolve date window. If empty, just the header has shipped — done.
         if all_data or days is None:
-            # No date filter — stream every row.
             cursor = conn.execute(
-                f"SELECT {_SELECT_COLS} FROM darkpool_trades"
+                f"SELECT {_SELECT_COLS} FROM darkpool_trades "
+                f"ORDER BY date DESC, timestamp DESC"
             )
         else:
             selected_dates = _resolve_dates(conn, days)
             if not selected_dates:
+                yield _HEADER_LINE
                 return
             placeholders = ",".join(["?"] * len(selected_dates))
             cursor = conn.execute(
                 f"SELECT {_SELECT_COLS} FROM darkpool_trades "
-                f"WHERE date IN ({placeholders})",
+                f"WHERE date IN ({placeholders}) "
+                f"ORDER BY date DESC, timestamp DESC",
                 selected_dates,
             )
 
-        # (2) Stream rows in batches. Smaller batches keep more frequent
-        # progress signals on the wire so the proxy keeps the connection
-        # open even on slow networks.
+        yield _HEADER_LINE
+
         buf = io.StringIO()
         writer = csv.writer(buf)
         count = 0
@@ -340,6 +319,111 @@ def _float(val):
         return float(val) if val else None
     except (ValueError, TypeError):
         return None
+
+
+def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
+    """Return top dark pool prints for a single ticker, ordered by date desc.
+
+    For the ticker-detail endpoint that powers the Patterns Detected drilldown.
+    Returns the most recent ``limit`` prints over the last ``days`` trading days,
+    sorted by date descending then notional descending so the latest big prints
+    are first.
+
+    Each row dict contains the fields the frontend needs to render print bars:
+    date (M/D), price, notional, pctAvgVol, volume, type.
+    """
+    if not ticker:
+        return []
+    ticker = ticker.upper().strip()
+    if not ticker.replace(".", "").isalnum():
+        return []
+    if days <= 0 or days > 365:
+        days = 30
+    if limit <= 0 or limit > 200:
+        limit = 30
+
+    conn = get_conn()
+    try:
+        # Use sortable dates (YYYY-MM-DD) for proper range filtering. Take
+        # the last N distinct dates, then pull all trades for the ticker on
+        # those dates and let the caller filter / rank.
+        cur = conn.execute(
+            """
+            WITH recent_dates AS (
+                SELECT DISTINCT date FROM darkpool_trades
+                ORDER BY parse_sort_date(date) DESC LIMIT ?
+            )
+            SELECT date, timestamp, price, notional, pct_avg30, volume, type, message
+            FROM darkpool_trades
+            WHERE ticker = ?
+              AND date IN (SELECT date FROM recent_dates)
+              AND notional IS NOT NULL
+            ORDER BY parse_sort_date(date) DESC, notional DESC
+            LIMIT ?
+            """,
+            (days, ticker, limit),
+        )
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        # parse_sort_date isn't a SQL function — fall back to Python-side sort.
+        cur = conn.execute(
+            "SELECT DISTINCT date FROM darkpool_trades",
+        )
+        all_dates = [r[0] for r in cur.fetchall()]
+        all_dates.sort(key=parse_date_to_sortable, reverse=True)
+        recent = set(all_dates[:days])
+        if not recent:
+            conn.close()
+            return []
+        placeholders = ",".join("?" for _ in recent)
+        cur = conn.execute(
+            f"""
+            SELECT date, timestamp, price, notional, pct_avg30, volume, type, message
+            FROM darkpool_trades
+            WHERE ticker = ?
+              AND date IN ({placeholders})
+              AND notional IS NOT NULL
+            """,
+            (ticker, *recent),
+        )
+        raw = cur.fetchall()
+        raw.sort(key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0), reverse=True)
+        rows = raw[:limit]
+    finally:
+        conn.close()
+
+    out = []
+    for row in rows:
+        date_str = row[0]
+        # Convert M/D/YYYY to short M/D for compact display
+        date_short = date_str
+        try:
+            parts = date_str.split("/")
+            if len(parts) >= 2:
+                date_short = f"{int(parts[0])}/{int(parts[1])}"
+        except (ValueError, IndexError):
+            pass
+        # Full date for tooltip
+        date_long = date_str
+        try:
+            sortable = parse_date_to_sortable(date_str)
+            y, m, d = sortable.split("-")
+            months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+            date_long = f"{months[int(m)-1]} {int(d)}, {y}"
+        except (ValueError, IndexError):
+            pass
+
+        out.append({
+            "date": date_short,
+            "dateLong": date_long,
+            "dateRaw": date_str,
+            "price": _float(row[2]),
+            "notional": _float(row[3]),
+            "pctAvgVol": _float(row[4]) or 0,
+            "volume": _float(row[5]),
+            "type": row[6] or "",
+        })
+    return out
 
 
 # Auto-init tables on import (idempotent, fast — just CREATE IF NOT EXISTS).
