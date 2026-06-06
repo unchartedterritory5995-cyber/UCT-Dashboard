@@ -9,6 +9,7 @@ import {
 } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
 import styles from './CotData.module.css'
+import { CHART_FONT_FAMILY } from '../utils/chartFont'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -16,6 +17,9 @@ ChartJS.register(
   LineController, LineElement, PointElement,
   Title, Tooltip, Legend,
 )
+
+// Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
+ChartJS.defaults.font.family = CHART_FONT_FAMILY
 
 // ── Symbol data ────────────────────────────────────────────────────────────────
 

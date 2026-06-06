@@ -9,6 +9,7 @@ import {
   HM_METRICS_BY_KEY, TREEMAP_DEF, TIER_CELL_COLORS,
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS,
 } from '../../Breadth'
+import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 
 export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill, options = {} }) {
   const option = useMemo(() => {
@@ -62,7 +63,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
       tooltip: {
         trigger: 'item', backgroundColor: 'rgba(8,8,8,0.96)', borderColor: '#c9a84c',
         borderWidth: 1, padding: [8, 12],
-        textStyle: { color: '#e0e0e0', fontFamily: 'Instrument Sans, sans-serif', fontSize: 11 },
+        textStyle: { color: '#e0e0e0', fontFamily: CHART_FONT_FAMILY, fontSize: 11 },
         formatter: params => {
           const d = params.data
           if (!d || !d.tier) return ''

@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
+import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import useJ2Analytics from '../hooks/useJ2Analytics'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
@@ -38,7 +39,7 @@ const CHART_COLORS = {
 const baseChart = {
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: 'Instrument Sans, system-ui',
+    fontFamily: CHART_FONT_FAMILY,
     color: CHART_COLORS.text,
   },
   grid: { left: 50, right: 18, top: 20, bottom: 30, containLabel: true },

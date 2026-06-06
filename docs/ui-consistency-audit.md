@@ -104,23 +104,35 @@ Legend: ✅ consistent · 🟡 minor maintainability drift (not visible; deferre
 
 ---
 
+## Chart-library text — RESOLVED (2026-06-06)
+
+All four charting libraries now render text in the app font (`Instrument Sans`):
+- **Lightweight Charts** (StockChart) — already set `layout.fontFamily` ✅
+- **ECharts** — `AnalyticsTab` (`baseChart`) + `TreemapView` already used it;
+  `BreadthCharts` root `textStyle.fontFamily` added. All point at the shared
+  `app/src/utils/chartFont.js` `CHART_FONT_FAMILY` constant.
+- **Chart.js** (CotData / COT charts) — `ChartJS.defaults.font.family` set.
+- **Recharts** (Options Flow, Live Flow, UCT20 Backtest) — global `.recharts-text`
+  rule in `tokens.css` (SVG text; covers partner pages with no JSX edits).
+
+Note: residual `Arial` counts in `_font_report.json` (e.g. patterns: 104) are a
+DOM-probe artifact from SVG/hidden elements — verified visually that the rendered
+text is Instrument Sans, not Arial. Canvas chart text (ECharts/Chart.js/LWC) is
+not visible to the DOM probe at all; it was fixed via the JS font settings above.
+
 ## Deferred maintainability backlog (no visible drift — optional polish)
 
-These are token-discipline cleanups, not user-visible inconsistencies. They were
-intentionally deferred under ship-then-polish (and to avoid churn in a
-partner-active repo):
+These are token-discipline cleanups, not user-visible inconsistencies:
 
 1. **Admin / Breadth hardcoded micro-radii** (3/4/5/6/8px) → `--radius-*`.
    Imperceptible on small pills/cells; admin is not customer-facing.
 2. **Divergent mono declarations** (e.g. `IBM Plex Mono`-first stacks, bare
    `monospace`) → normalize to `var(--font-mono)`. All already resolve to
    JetBrains Mono at runtime, so no visible change.
-3. **`Instrument Sans, SF Pro Display, system-ui`** in Options Flow / Dark Pool →
-   `var(--font-sans)` (partner-owned; coordinate before touching).
-4. **Chart-library text rendered in the platform default (Arial)** — ECharts /
-   Recharts / Chart.js axis & label text doesn't inherit the app font. To unify,
-   set a global `textStyle.fontFamily` on the chart themes. Cross-cutting; its own task.
-5. **Migrate remaining bespoke buttons/inputs onto `components/ui/`** primitives
+3. **`Instrument Sans, SF Pro Display, system-ui`** inline styles in Options Flow /
+   Dark Pool → `var(--font-sans)` (partner-owned files; renders identically since
+   Instrument Sans is first — coordinate before touching).
+4. **Migrate remaining bespoke buttons/inputs onto `components/ui/`** primitives
    opportunistically as files are touched (Settings buttons, modal footers, filter panels).
 
 ---

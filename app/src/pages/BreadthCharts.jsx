@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import ReactECharts from 'echarts-for-react'
+import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import styles from './BreadthCharts.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -180,7 +181,7 @@ export default function BreadthCharts() {
 
     return {
       backgroundColor: 'transparent',
-      textStyle: { color: '#e0dac8' },
+      textStyle: { color: '#e0dac8', fontFamily: CHART_FONT_FAMILY },
       legend: {
         top: 8,
         data: selected.map(key => LABEL_MAP[key] ?? key),

@@ -229,6 +229,16 @@ body {
   }
 }
 
+/* Recharts renders SVG <text> that doesn't inherit the body font — pin it to
+   the UI font so chart axis/label text matches the rest of the app. (ECharts +
+   Chart.js are canvas; they set fontFamily via CHART_FONT_FAMILY in JS.) */
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-label,
+.recharts-legend-item-text {
+  font-family: var(--font-sans);
+}
+
 /* Accessibility: Screen reader only utility */
 .sr-only {
   position: absolute;
