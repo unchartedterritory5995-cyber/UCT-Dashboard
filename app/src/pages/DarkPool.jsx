@@ -703,12 +703,17 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
   const [expanded, setExpanded] = useState(false);
   const [timeframe, setTimeframe] = useState("1M");
   const [prints, setPrints] = useState(null);
+  const [ohlcData, setOhlcData] = useState(null); // for overlay price-range calc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Lazy-fetch prints on expand or timeframe change. StockChart fetches its
-  // own OHLC internally — we just supply ticker, tf aggregation, and the
-  // print levels as priceLines overlays.
+  // Lazy-fetch prints (+ OHLC for the volume-profile overlay's price range)
+  // on expand or timeframe change. StockChart fetches its own OHLC for the
+  // visible chart, but we need a parallel fetch here so we can compute Y
+  // positions for the print bars without needing access to the chart's
+  // internal price scale. Path 1: accept slight misalignment if the user
+  // zooms; bars are positioned from data range we computed here, not from
+  // StockChart's actual rendered scale.
   useEffect(() => {
     if (!expanded) return;
     const tf = TF_MAP[timeframe];
@@ -716,11 +721,20 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed")))
-      .then(detail => {
+    setOhlcData(null);
+    const rangeForChart = tf.chartTf === "W" ? "1y" : "3mo";
+    Promise.all([
+      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(it.t)}&days=${tf.days}&limit=30`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("prints fetch failed"))),
+      // OHLC is best-effort; if it fails the bars fall back to print-only range
+      fetch(`/api/schwab/chart-ohlc?sym=${encodeURIComponent(it.t)}&range=${rangeForChart}`)
+        .then(r => r.ok ? r.json() : Promise.resolve({candles: []}))
+        .catch(() => ({candles: []})),
+    ])
+      .then(([detail, ohlc]) => {
         if (cancelled) return;
         setPrints(Array.isArray(detail?.prints) ? detail.prints : []);
+        setOhlcData(Array.isArray(ohlc?.candles) ? ohlc.candles : []);
         setLoading(false);
       })
       .catch(e => {
@@ -764,28 +778,73 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
     );
   };
 
-  // Convert dark pool prints to StockChart priceLines (same format GEX uses
-  // for gamma walls — see OptionsFlow gexPriceLines builder).
-  // Limit to top 15 by notional so the right-axis labels don't stack.
-  const priceLines = useMemo(() => {
-    if (!prints || prints.length === 0) return [];
-    const top = [...prints]
+  // Compute the chart's approximate visible price range from OHLC + prints.
+  // Used by the overlay to position bars at Y coordinates. This is an
+  // approximation — StockChart's actual scale may differ slightly,
+  // especially after the user zooms. Path 1 trade-off (per design call).
+  const priceRange = useMemo(() => {
+    const candlePrices = (ohlcData || []).flatMap(c => [c.high, c.low]).filter(v => v != null);
+    const printPrices = (prints || []).map(p => p.price).filter(v => v != null);
+    const allP = [...candlePrices, ...printPrices];
+    if (allP.length === 0) return null;
+    const min = Math.min(...allP);
+    const max = Math.max(...allP);
+    const pad = (max - min) * 0.04 || 1;
+    return { min: min - pad, max: max + pad };
+  }, [ohlcData, prints]);
+
+  // Volume-profile bars overlay. Sits on top of StockChart, right edge.
+  // Bar width = $ size of dark pool print, latest in gold, older faded.
+  // Y positions computed from priceRange — may drift slightly when user
+  // zooms StockChart since we don't have access to its internal scale.
+  const renderProfileBars = () => {
+    if (!priceRange || !prints || prints.length === 0) return null;
+    // Approximate StockChart layout for a 480px-tall chart with showVolume=true.
+    // LWC reserves the bottom ~20% for the volume sub-pane and ~25px for the
+    // time axis. These constants are tuned for the 480px target; adjust if
+    // chart height changes.
+    const CHART_H = 480;
+    const PLOT_TOP = 0;
+    const PLOT_BOT = 360; // main candlestick area ends here
+    const PLOT_H = PLOT_BOT - PLOT_TOP;
+    const PRICE_AXIS_W = 58; // right-side area reserved for LWC's price scale
+    const yScale = p => PLOT_TOP + ((priceRange.max - p) / (priceRange.max - priceRange.min)) * PLOT_H;
+
+    const sorted = [...prints]
       .filter(p => p && p.price != null && p.notional != null)
       .sort((a,b) => (b.notional || 0) - (a.notional || 0))
-      .slice(0, 15);
-    return top.map(p => {
-      const isLatest = p.isLatest;
-      const sizeFmt = fmt(p.notional);
-      return {
-        price: p.price,
-        color: isLatest ? "#c9a84c" : "#c9a84cAA",
-        lineWidth: isLatest ? 2 : 1,
-        lineStyle: 2, // Dashed
-        title: `${p.date} ${sizeFmt}`,
-        axisLabelVisible: true,
-      };
-    });
-  }, [prints]);
+      .slice(0, 18);
+    const maxN = Math.max(...sorted.map(p => p.notional || 0));
+    if (maxN <= 0) return null;
+    const MAX_BAR_W = 130;
+
+    return (
+      <svg style={{position:"absolute", top:0, left:0, width:"100%", height:"100%",
+        pointerEvents:"none", overflow:"visible"}}
+        xmlns="http://www.w3.org/2000/svg">
+        {sorted.map((p, idx) => {
+          const y = yScale(p.price);
+          if (y < PLOT_TOP - 6 || y > PLOT_BOT + 6) return null;
+          const w = (p.notional / maxN) * MAX_BAR_W;
+          const isLatest = p.isLatest;
+          const opacity = isLatest ? 0.85 : Math.max(0.32, 0.62 - idx * 0.025);
+          const color = isLatest ? "#c9a84c" : "#9c9588";
+          return (
+            <g key={`${p.dateRaw||p.date}-${idx}-${p.price}`}>
+              <rect x={`calc(100% - ${PRICE_AXIS_W + w}px)`} y={y - 3} width={w} height="6"
+                fill={color} opacity={opacity}/>
+              <text x={`calc(100% - ${PRICE_AXIS_W + w + 3}px)`} y={y + 3.5}
+                fontSize="9.5" fill={isLatest ? "#c9a84c" : "#a8a290"} textAnchor="end"
+                fontWeight={isLatest ? 700 : 500} opacity={Math.min(1, opacity + 0.18)}
+                fontFamily="'Instrument Sans','SF Pro Display',system-ui,sans-serif">
+                {fmt(p.notional)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  };
 
   return (
     <div style={{borderBottom:`1px solid ${C.bdr}33`}}>
@@ -891,10 +950,10 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
           {loading && <div style={{textAlign:"center", padding:"40px 0", color:C.tx3, fontSize:12}}>Loading dark pool prints…</div>}
           {error && <div style={{textAlign:"center", padding:"40px 0", color:C.red, fontSize:12}}>Failed to load prints: {error}</div>}
 
-          {/* TradingView-style chart — handles candles, volume, crosshair, zoom natively.
-              Dark pool prints render as horizontal price lines (same mechanism GEX uses
-              for gamma walls). Each line is labeled with date + $ amount on the right axis. */}
-          <div style={{width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
+          {/* TradingView-style chart from the shared StockChart component (same
+              one GEX uses). Volume-profile bars overlay on top via SVG — bars at
+              dark pool print levels, sized by $, latest in gold. */}
+          <div style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
             <StockChart
               sym={it.t}
               tf={TF_MAP[timeframe].chartTf}
@@ -902,18 +961,19 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern"}){
               liveUpdates={true}
               showDrawingTools={true}
               showVolume={true}
-              priceLines={priceLines}
               hideReplay
               hidePatterns
               hideCompare
               hideCountdown
             />
+            {renderProfileBars()}
           </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
-            <span><span style={{display:"inline-block", width:12, height:0, borderTop:`1.5px dashed ${C.amber}`, verticalAlign:"middle", marginRight:4}}></span>Dark pool print level — date · $ amount labeled on right axis</span>
+            <span><span style={{display:"inline-block", width:14, height:5, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Latest dark pool print</span>
+            <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Older prints (faded by size rank)</span>
             <span>·</span>
-            <span>Latest print is brighter; older prints faded</span>
+            <span>Bar width = $ size of print · Positioned at print's price level</span>
           </div>
         </div>
       )}
