@@ -70,6 +70,12 @@ export default function useHandsFreeMorningWire({ rundownHtml }) {
         })
         if (!ttsResp.ok || cancelled) return
         const blob = await ttsResp.blob()
+        // Guard against an empty / non-audio body. A 200 with a 0-byte blob
+        // (TTS provider hiccup) still makes createObjectURL succeed, but the
+        // <audio> element's `Range: bytes=0-` request can't be satisfied →
+        // a noisy `ERR_REQUEST_RANGE_NOT_SATISFIABLE` in the console. Bail
+        // silently instead — this is a best-effort proactive read.
+        if (!blob || blob.size === 0 || !/^audio\//.test(blob.type || '')) return
         const url = URL.createObjectURL(blob)
         if (cancelled) {
           URL.revokeObjectURL(url)
