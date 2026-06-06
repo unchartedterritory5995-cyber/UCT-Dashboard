@@ -276,7 +276,12 @@ const TD = ({children,style={}}) => (
 // ── Module-level data ref (set when CSV loads) ─────────────────────────────
 let D = null;
 
-function FlowTable({items, showCat=true, showZone=false}){
+function FlowTable({items, showCat=true, showZone=false, mktcapData = {}}){
+  // Track which ticker (if any) is expanded to show the dark-pool chart.
+  // One expansion at a time keeps the table layout readable.
+  const [expandedTicker, setExpandedTicker] = useState(null);
+  // Column count for the colSpan on the expanded row
+  const colCount = 8 + (showCat ? 1 : 0) + (showZone ? 1 : 0);
   return (
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -299,34 +304,55 @@ function FlowTable({items, showCat=true, showZone=false}){
             const cc=CAT_COLORS[it.cat]||C.tx;
             const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
             const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+            const isExpanded = expandedTicker === it.t;
             return (
-              <tr key={it.t+it.cat} style={{background:"transparent"}}
-                onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
-                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <TD><TickerCell it={it} catColor={cc}/></TD>
-                {showCat && <TD><CatPill cat={it.cat}/></TD>}
-                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:zC(it.last,it.lo,it.hi)}}>
-                  {fP(it.last)}
-                </TD>
-                {showZone && (
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2,fontSize:11}}>
-                    {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+              <Fragment key={it.t+it.cat}>
+                <tr style={{background:isExpanded ? C.bg3 : "transparent", cursor:"pointer"}}
+                  onClick={() => setExpandedTicker(isExpanded ? null : it.t)}
+                  onMouseEnter={e=>{if(!isExpanded) e.currentTarget.style.background=C.bgH;}}
+                  onMouseLeave={e=>{if(!isExpanded) e.currentTarget.style.background="transparent";}}
+                  title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}>
+                  <TD>
+                    <span style={{display:"inline-flex", alignItems:"center", gap:6}}>
+                      <span style={{color:C.tx3, fontSize:10, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
+                      <TickerCell it={it} catColor={cc}/>
+                    </span>
                   </TD>
+                  {showCat && <TD><CatPill cat={it.cat}/></TD>}
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:zC(it.last,it.lo,it.hi)}}>
+                    {fP(it.last)}
+                  </TD>
+                  {showZone && (
+                    <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2,fontSize:11}}>
+                      {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                    </TD>
+                  )}
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11}}>
+                    <BigPrintCell it={it}/>
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
+                    color:bpMoveColor}}>
+                    {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.cyan,fontWeight:600}}>
+                    {fmt(it.n)}
+                  </TD>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.c}</TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.days}</TD>
+                  <TD><Sparkline it={it}/></TD>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={colCount} style={{padding:"4px 8px 12px", background:C.bg2}}>
+                      <PatternTickerRow
+                        it={it}
+                        sig={null}
+                        mktcap={mktcapData?.[it.t] || 0}
+                        noCollapsedRow={true}/>
+                    </td>
+                  </tr>
                 )}
-                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11}}>
-                  <BigPrintCell it={it}/>
-                </TD>
-                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
-                  color:bpMoveColor}}>
-                  {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
-                </TD>
-                <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.cyan,fontWeight:600}}>
-                  {fmt(it.n)}
-                </TD>
-                <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.c}</TD>
-                <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.days}</TD>
-                <TD><Sparkline it={it}/></TD>
-              </tr>
+              </Fragment>
             );
           })}
         </tbody>
@@ -706,7 +732,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   // When noCollapsedRow is true (search modal use case), start in expanded
   // state — caller is responsible for mount/unmount to toggle visibility.
   const [expanded, setExpanded] = useState(noCollapsedRow);
-  const [timeframe, setTimeframe] = useState("1M");
+  const [timeframe, setTimeframe] = useState("3M");
   const [prints, setPrints] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1443,7 +1469,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
 }
 
 // ── Above / Below tabs ───────────────────────────────────────────────────────
-function AbovePane({filterByCat}){
+function AbovePane({filterByCat, mktcapData}){
   const items=filterByCat([...D.above]).sort((a,b)=>b.pct-a.pct);
   return (
     <div>
@@ -1456,12 +1482,12 @@ function AbovePane({filterByCat}){
           Sorted by % distance above zone. Bullish momentum signal.
         </div>
       </div>
-      <FlowTable items={items}/>
+      <FlowTable items={items} mktcapData={mktcapData}/>
     </div>
   );
 }
 
-function BelowPane({filterByCat}){
+function BelowPane({filterByCat, mktcapData}){
   const items=filterByCat([...D.below]).sort((a,b)=>a.pct-b.pct);
   return (
     <div>
@@ -1474,13 +1500,13 @@ function BelowPane({filterByCat}){
           Sorted by % distance below zone. Bearish pressure signal.
         </div>
       </div>
-      <FlowTable items={items}/>
+      <FlowTable items={items} mktcapData={mktcapData}/>
     </div>
   );
 }
 
 // ── Unusual Flow tab ─────────────────────────────────────────────────────────
-function UnusualPane({filterByCat}){
+function UnusualPane({filterByCat, mktcapData}){
   const items=filterByCat(D.unusual);
   return (
     <div>
@@ -1492,13 +1518,15 @@ function UnusualPane({filterByCat}){
           Tickers with UOA flag — unusual options/dark pool activity relative to historical norms.
         </div>
       </div>
-      <FlowTable items={items}/>
+      <FlowTable items={items} mktcapData={mktcapData}/>
     </div>
   );
 }
 
 // ── Phantom Prints tab ───────────────────────────────────────────────────────
-function PhantomPane(){
+function PhantomPane({mktcapData = {}}){
+  // Track which row is expanded to show the dark-pool chart
+  const [expandedKey, setExpandedKey] = useState(null);
   return (
     <div>
       <div style={{marginBottom:14}}>
@@ -1526,22 +1554,43 @@ function PhantomPane(){
             {D.phantom.map((p,i)=>{
               const dev=((p.dpPrice-p.spotPrice)/p.spotPrice*100);
               const devColor=dev>0?C.green:C.red;
+              const key = `${p.ticker}-${p.date}-${i}`;
+              const isExpanded = expandedKey === key;
               return (
-                <tr key={i} style={{background:"transparent"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-                    ${p.ticker}</span></TickerPopup></TD>
-                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{p.date}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx}}>
-                    {fP(p.dpPrice)}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>
-                    {fP(p.spotPrice)}</TD>
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:devColor,fontWeight:700}}>
-                    {dev>0?"+":""}{dev.toFixed(2)}%</TD>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-                    {p.volume||"—"}</TD>
-                </tr>
+                <Fragment key={key}>
+                  <tr style={{background:isExpanded?C.bg3:"transparent", cursor:"pointer"}}
+                    onClick={()=>setExpandedKey(isExpanded ? null : key)}
+                    onMouseEnter={e=>{if(!isExpanded) e.currentTarget.style.background=C.bgH;}}
+                    onMouseLeave={e=>{if(!isExpanded) e.currentTarget.style.background="transparent";}}
+                    title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}>
+                    <TD>
+                      <span style={{display:"inline-flex", alignItems:"center", gap:6}}>
+                        <span style={{color:C.tx3, fontSize:10, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
+                        <span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>${p.ticker}</span>
+                      </span>
+                    </TD>
+                    <TD style={{color:C.tx2,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{p.date}</TD>
+                    <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx}}>
+                      {fP(p.dpPrice)}</TD>
+                    <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>
+                      {fP(p.spotPrice)}</TD>
+                    <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:devColor,fontWeight:700}}>
+                      {dev>0?"+":""}{dev.toFixed(2)}%</TD>
+                    <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+                      {p.volume||"—"}</TD>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={6} style={{padding:"4px 8px 12px", background:C.bg2}}>
+                        <PatternTickerRow
+                          it={{ t: p.ticker, cat: undefined }}
+                          sig={null}
+                          mktcap={mktcapData?.[p.ticker] || 0}
+                          noCollapsedRow={true}/>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -1552,7 +1601,8 @@ function PhantomPane(){
 }
 
 // ── Options Flow tab ─────────────────────────────────────────────────────────
-function OptionsPane(){
+function OptionsPane({mktcapData = {}}){
+  const [expandedKey, setExpandedKey] = useState(null);
   return (
     <div>
       <div style={{marginBottom:14}}>
@@ -1579,16 +1629,41 @@ function OptionsPane(){
               </tr>
             </thead>
             <tbody>
-              {D.alpha.map((a,i)=>(
-                <tr key={i} style={{background:"transparent"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{a.date}</TD>
-                  <TD><TickerPopup sym={a.ticker}><span style={{color:C.amber,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-                    ${a.ticker}</span></TickerPopup></TD>
-                  <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>{fP(a.price)}</TD>
-                </tr>
-              ))}
+              {D.alpha.map((a,i)=>{
+                // Each row keyed by date+ticker+i since the same ticker can
+                // appear multiple times across dates.
+                const key = `${a.ticker}-${a.date}-${i}`;
+                const isExpanded = expandedKey === key;
+                return (
+                  <Fragment key={key}>
+                    <tr style={{background:isExpanded?C.bg3:"transparent", cursor:"pointer"}}
+                      onClick={()=>setExpandedKey(isExpanded ? null : key)}
+                      onMouseEnter={e=>{if(!isExpanded) e.currentTarget.style.background=C.bgH;}}
+                      onMouseLeave={e=>{if(!isExpanded) e.currentTarget.style.background="transparent";}}
+                      title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}>
+                      <TD style={{color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{a.date}</TD>
+                      <TD>
+                        <span style={{display:"inline-flex", alignItems:"center", gap:6}}>
+                          <span style={{color:C.tx3, fontSize:10, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
+                          <span style={{color:C.amber,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>${a.ticker}</span>
+                        </span>
+                      </TD>
+                      <TD style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",color:C.tx2}}>{fP(a.price)}</TD>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={3} style={{padding:"4px 8px 12px", background:C.bg2}}>
+                          <PatternTickerRow
+                            it={{ t: a.ticker, cat: undefined }}
+                            sig={null}
+                            mktcap={mktcapData?.[a.ticker] || 0}
+                            noCollapsedRow={true}/>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1755,7 +1830,7 @@ function SearchModal({onClose, mktcapData = {}}){
           <div>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:C.tx3,
               textTransform:"uppercase",marginBottom:10}}>Top 20 by Notional</div>
-            <FlowTable items={top5} showZone={true}/>
+            <FlowTable items={top5} showZone={true} mktcapData={mktcapData}/>
           </div>
         )}
       </div>
@@ -2156,8 +2231,8 @@ export default function DarkPool({embedded}){
   const [parsedRows,setParsedRows]=useState(null);
 
   // Date picker state (matches OptionsFlow pattern)
-  const [dateFilter,setDateFilter]=useState("Last1");
-  const [fetchDays,setFetchDays]=useState(1);
+  const [dateFilter,setDateFilter]=useState("Last90");
+  const [fetchDays,setFetchDays]=useState(90);
   const [dateFrom,setDateFrom]=useState("");
   const [dateTo,setDateTo]=useState("");
   const [showCal,setShowCal]=useState(false);
@@ -2612,12 +2687,12 @@ export default function DarkPool({embedded}){
       {/* Content */}
       <div style={{padding:"14px 20px",maxWidth:1400,margin:"0 auto"}}>
         {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo} filterByCat={filterByCat} mktcapData={mktcapData} fetchMktCap={fetchMktCap} mktcapLoading={mktcapLoading}/>}
-        {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
-        {tab==="above"    && <AbovePane filterByCat={filterByCat}/>}
-        {tab==="below"    && <BelowPane filterByCat={filterByCat}/>}
-        {tab==="unusual"  && <UnusualPane filterByCat={filterByCat}/>}
-        {tab==="phantom"  && <PhantomPane/>}
-        {tab==="options"  && <OptionsPane/>}
+        {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)} mktcapData={mktcapData}/>}
+        {tab==="above"    && <AbovePane filterByCat={filterByCat} mktcapData={mktcapData}/>}
+        {tab==="below"    && <BelowPane filterByCat={filterByCat} mktcapData={mktcapData}/>}
+        {tab==="unusual"  && <UnusualPane filterByCat={filterByCat} mktcapData={mktcapData}/>}
+        {tab==="phantom"  && <PhantomPane mktcapData={mktcapData}/>}
+        {tab==="options"  && <OptionsPane mktcapData={mktcapData}/>}
       </div>
 
       {showSearch && <SearchModal onClose={()=>setShowSearch(false)} mktcapData={mktcapData}/>}
@@ -2626,7 +2701,7 @@ export default function DarkPool({embedded}){
 }
 
 // Wrapper to handle jump-to-category
-function CategoryPaneWrapper({jump,onJumpDone}){
+function CategoryPaneWrapper({jump,onJumpDone,mktcapData}){
   const [active,setActive]=useState(jump||D.categories[0].name);
   // If a new jump arrives, switch to it
   useMemo(()=>{ if(jump){ setActive(jump); onJumpDone(); } },[jump]);
@@ -2656,7 +2731,7 @@ function CategoryPaneWrapper({jump,onJumpDone}){
           {" · "}{cat.count} tickers
         </div>
       </div>
-      <FlowTable items={cat.items} showCat={false}/>
+      <FlowTable items={cat.items} showCat={false} mktcapData={mktcapData}/>
     </div>
   );
 }
