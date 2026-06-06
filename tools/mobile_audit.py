@@ -88,6 +88,24 @@ PROBE_JS = r"""
 """
 
 
+def _dismiss_intro(page):
+    """The cinematic intro overlay plays on every page load — skip it so we
+    screenshot the real page. Tries the Skip button, then Escape, then a click."""
+    try:
+        skip = page.query_selector('[aria-label="Skip intro"]')
+        if skip:
+            skip.click(timeout=1000)
+            page.wait_for_timeout(400)
+            return
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(400)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def slug(route: str) -> str:
     s = route.strip("/").replace("/", "_") or "root"
     return re.sub(r"[^a-z0-9_]+", "-", s.lower())
@@ -99,14 +117,20 @@ def do_login(page, base: str) -> bool:
     if not email or not pw:
         print("  ! --auth requested but MOBILE_AUDIT_EMAIL / MOBILE_AUDIT_PASSWORD not set", file=sys.stderr)
         return False
-    page.goto(f"{base}/login", wait_until="networkidle")
-    # Fill the first email + password fields the form exposes
+    # POST the login via the context's request API — the Set-Cookie persists
+    # into the browser context's cookie jar, so subsequent navigations are
+    # authenticated. Far more robust than driving the form past the intro overlay.
     try:
-        page.fill("input[type=email], input[name=email]", email)
-        page.fill("input[type=password], input[name=password]", pw)
-        page.click("button[type=submit], button:has-text('Sign in'), button:has-text('Log in')")
-        page.wait_for_url(re.compile(r"/(dashboard|morning-wire)"), timeout=15000)
-        print("  ✓ logged in")
+        resp = page.request.post(
+            f"{base}/api/auth/login",
+            data={"email": email, "password": pw},
+            headers={"Content-Type": "application/json"},
+        )
+        if not resp.ok:
+            print(f"  ! login HTTP {resp.status}", file=sys.stderr)
+            return False
+        body = resp.json()
+        print(f"  [ok] logged in as {body.get('user', {}).get('email')} (plan={body.get('plan')})")
         return True
     except Exception as e:  # noqa: BLE001
         print(f"  ! login failed: {e}", file=sys.stderr)
@@ -145,6 +169,7 @@ def main():
                 is_mobile=vp.get("isMobile", True),
                 has_touch=True,
                 user_agent=vp.get("userAgent"),
+                reduced_motion="reduce",  # shortens the cinematic intro overlay
             )
             page = ctx.new_page()
 
@@ -155,7 +180,13 @@ def main():
                 url = f"{base}{route}"
                 entry = {"viewport": vp_name, "route": route}
                 try:
-                    page.goto(url, wait_until="networkidle", timeout=30000)
+                    # Streaming pages (charts, options-flow) never reach
+                    # networkidle — use domcontentloaded and lean on the settle.
+                    try:
+                        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    except Exception:  # noqa: BLE001
+                        pass  # partial load is fine; we still probe + screenshot
+                    _dismiss_intro(page)
                     page.wait_for_timeout(int(args.settle * 1000))
                     probe = page.evaluate(PROBE_JS)
                     shot = OUT_DIR / vp_name / f"{slug(route)}.png"
