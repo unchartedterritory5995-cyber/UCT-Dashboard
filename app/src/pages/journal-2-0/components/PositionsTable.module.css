@@ -151,3 +151,20 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* Phone: 16 columns scroll horizontally — freeze the Symbol (first) column so
+   you never lose which row you're reading while scanning the numbers. */
+@media (max-width: 640px) {
+  .table th:first-child,
+  .table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--bg-surface);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .table th:first-child {
+    background: var(--bg-elevated);
+    z-index: 3;
+  }
+  .table td:first-child { z-index: 2; }
+}
