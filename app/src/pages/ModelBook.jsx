@@ -1095,7 +1095,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             annotationsVisible={chartAnnotationsVisible}
             annotationsOpacity={annoOpacity}
             annotationsFadeWhole={!showAllAnnotations}
-            staticAnnotations={(showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
+            staticAnnotations={(onSetupsTab && showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
