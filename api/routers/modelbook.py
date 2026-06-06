@@ -481,6 +481,16 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         client = _get_anthropic_client()
         if client is None:
             return None
+        # The curated company column is often empty (the watermark reads the name
+        # from live ticker-meta, not this column). Without a name the model burns
+        # its token budget GUESSING what the ticker is (e.g. "NB") and truncates the
+        # JSON → no summary. Fall back to the same live name source the watermark uses.
+        if not company:
+            try:
+                from api.services.ticker_meta import get_ticker_meta as _get_ticker_meta
+                company = (_get_ticker_meta(symbol) or {}).get("name") or None
+            except Exception:
+                company = None
         system, prompt = _desc_messages(symbol, company, year, gain_pct)
         # Retry transient failures: when stocks are added, catalysts + recap +
         # description generation can fire together and transiently overload the
@@ -490,15 +500,10 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
-                    system=system,
-                    # Prefill the reply with "{" so the model emits JSON IMMEDIATELY
-                    # — no reasoning preamble (which, when the model was unsure of the
-                    # ticker, ate the token budget and truncated the JSON → no summary).
-                    messages=[{"role": "user", "content": prompt},
-                              {"role": "assistant", "content": "{"}],
+                    system=system, messages=[{"role": "user", "content": prompt}],
                 )
-                text = "{" + "".join(getattr(b, "text", "") for b in msg.content).strip()
-                if text.strip() != "{":
+                text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+                if text:
                     break
             except Exception:
                 text = None
@@ -566,6 +571,12 @@ def debug_desc(sym: str, year: int = Query(default=0)):
                 break
     except Exception:
         pass
+    if not company:
+        try:
+            from api.services.ticker_meta import get_ticker_meta as _gtm
+            company = (_gtm(sym.upper()) or {}).get("name") or None
+        except Exception:
+            company = None
     out["company"] = company
     try:
         from api.services.engine import _get_anthropic_client
@@ -576,11 +587,9 @@ def debug_desc(sym: str, year: int = Query(default=0)):
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
-                    system=system,
-                    messages=[{"role": "user", "content": prompt},
-                              {"role": "assistant", "content": "{"}],
+                    system=system, messages=[{"role": "user", "content": prompt}],
                 )
-                text = "{" + "".join(getattr(b, "text", "") for b in msg.content)
+                text = "".join(getattr(b, "text", "") for b in msg.content)
                 out["stop_reason"] = getattr(msg, "stop_reason", None)
                 out["raw_text"] = text[:2500]
                 out["parsed"] = _parse_desc_json(text)
