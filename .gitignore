@@ -16,3 +16,6 @@ data/
 backups/
 .superpowers/
 app/public/dev-login.html
+
+# Mobile audit screenshots (local only)
+tools/mobile_audit_out/
