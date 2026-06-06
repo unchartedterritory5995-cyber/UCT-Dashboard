@@ -490,10 +490,15 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
-                    system=system, messages=[{"role": "user", "content": prompt}],
+                    system=system,
+                    # Prefill the reply with "{" so the model emits JSON IMMEDIATELY
+                    # — no reasoning preamble (which, when the model was unsure of the
+                    # ticker, ate the token budget and truncated the JSON → no summary).
+                    messages=[{"role": "user", "content": prompt},
+                              {"role": "assistant", "content": "{"}],
                 )
-                text = "".join(getattr(b, "text", "") for b in msg.content).strip()
-                if text:
+                text = "{" + "".join(getattr(b, "text", "") for b in msg.content).strip()
+                if text.strip() != "{":
                     break
             except Exception:
                 text = None
@@ -551,18 +556,31 @@ def debug_desc(sym: str, year: int = Query(default=0)):
         "sym": sym.upper(), "year": y, "desc_enabled": _DESC_ENABLED, "model": _DESC_MODEL,
         "anthropic_key": "set" if _osd.environ.get("ANTHROPIC_API_KEY") else "MISSING",
     }
+    # Use the curated company name (as the real call does) so the model isn't left
+    # guessing the ticker.
+    company = None
+    try:
+        for s in svc.get_stocks_for_year(y):
+            if (s.get("symbol") or "").upper() == sym.upper():
+                company = s.get("company")
+                break
+    except Exception:
+        pass
+    out["company"] = company
     try:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
         out["client"] = "ok" if client else "None"
         if client:
-            system, prompt = _desc_messages(sym.upper(), None, y, None)
+            system, prompt = _desc_messages(sym.upper(), company, y, None)
             try:
                 msg = client.messages.create(
                     model=_DESC_MODEL, max_tokens=700, temperature=0.7,
-                    system=system, messages=[{"role": "user", "content": prompt}],
+                    system=system,
+                    messages=[{"role": "user", "content": prompt},
+                              {"role": "assistant", "content": "{"}],
                 )
-                text = "".join(getattr(b, "text", "") for b in msg.content)
+                text = "{" + "".join(getattr(b, "text", "") for b in msg.content)
                 out["stop_reason"] = getattr(msg, "stop_reason", None)
                 out["raw_text"] = text[:2500]
                 out["parsed"] = _parse_desc_json(text)
@@ -570,7 +588,7 @@ def debug_desc(sym: str, year: int = Query(default=0)):
                 out["llm_error"] = f"{type(ex).__name__}: {ex}"
     except Exception as ex:
         out["error"] = f"{type(ex).__name__}: {ex}"
-    out["generate_result"] = _generate_descriptions(sym.upper(), None, y, None)
+    out["generate_result"] = _generate_descriptions(sym.upper(), company, y, None)
     return out
 
 
