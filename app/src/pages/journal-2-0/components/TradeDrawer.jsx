@@ -13,9 +13,11 @@ import { useEffect } from 'react'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 
 export default function TradeDrawer({ trade, accountId, onClose }) {
+  const isPhone = useIsPhone()
   const {
     review, isLoading: reviewLoading,
     generate: generateReview,
@@ -63,11 +65,12 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
         aria-label={`Trade detail — ${trade.symbol}`}
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 201,
-          width: 440, maxWidth: '92vw',
+          width: isPhone ? '100vw' : 440, maxWidth: isPhone ? '100vw' : '92vw',
           background: 'var(--bg-surface, #161b22)',
-          borderLeft: '1px solid var(--border)',
+          borderLeft: isPhone ? 'none' : '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
           overflowY: 'auto',
+          paddingBottom: isPhone ? 'env(safe-area-inset-bottom)' : undefined,
         }}
       >
         {/* Header */}

@@ -68,10 +68,27 @@
 .body {
   padding: 18px 22px;
   overflow-y: auto;
+  /* Keep a nested scroller (e.g. the Compass verdict chat) from chaining its
+     scroll up into the modal body. */
+  overscroll-behavior: contain;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* Phone: go fullscreen so the form + nested Compass surfaces get real room. */
+@media (max-width: 640px) {
+  .backdrop { padding: 0; align-items: stretch; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
+  .body { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
 }
 
 .grid2 {
