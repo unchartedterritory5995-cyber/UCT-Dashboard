@@ -831,48 +831,48 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-      {/* ── New Intelligence Panel: narrative + outliers + grouped signals ── */}
+      {/* ── Intelligence Panel v2 — newbie-friendly: plain English narrative, ─ */}
+      {/* renamed signal labels with hover tooltips, expanded ETF filter. ────── */}
       {(()=>{
-        // ── Expanded "junk" filter — bonds, treasuries, money-market, mega caps
-        // (these always show up in dark pool flow; they're noise for a trader).
+        // Expanded filter: bonds, treasuries, money-market, index/sector ETFs, mega caps
         const USUAL_EXPANDED = new Set([
-          // Index/sector ETFs
+          // Index/sector ETFs (anything passive that always has flow)
           "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
           "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND",
           "EEM","EFA","VEA","VWO","FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
-          "IWF","IWD","IWB","IWR","IWS",
+          "IWF","IWD","IWB","IWR","IWS","IWP","IJH","IJR","SPYM","SPYG","SPYV","SPMD","SPSM","IGV","IGE","IGM","ITB","ITA",
           // Mega caps (always have flow)
           "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
           "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
-          // Bond / treasury ETFs (the ones flooding your data)
+          // Bond / treasury / money-market ETFs (the noise floor)
           "IEF","BIL","JPST","IQMM","BSV","PULS","MAGS","VONV","SPIB","USFR","SGOV","STIP","TIP","BIV","TLH","GOVZ","EDV","VGLT",
           "GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT","SHY","BNDX","VWOB","EMB","JNK","SPHY","FALN","BKLN","SJNK","SRLN",
-          // Muni / short-term
           "SUB","MUB","TFI","BSCS","BSCT","NEAR","ICSH","JIVI","MINT","SHV","FLOT","GBIL","BILS",
         ]);
         const isJunk = (it) => USUAL_EXPANDED.has(it.t) ||
           it.cat === "Bond ETFs" || it.cat === "Commodity ETFs" || it.cat === "Intl/EM ETFs" || it.cat === "Sector ETFs";
 
-        // Headline regime narrative
+        // Compute regime: what % of notional is "junk" (passive/bonds)
         const totalNotional = allItems.reduce((s,i) => s + (i.bigPrintN || 0), 0);
         const junkNotional = allItems.filter(isJunk).reduce((s,i) => s + (i.bigPrintN || 0), 0);
         const junkPct = totalNotional > 0 ? Math.round(junkNotional / totalNotional * 100) : 0;
+        // Plain-English narrative — no jargon, explains what the percentage means
         const narrativeText =
-          junkPct >= 70 ? "Bond, treasury, and passive ETF flow dominates — risk-off positioning. Limited tradeable equity signal." :
-          junkPct >= 50 ? "Mixed flow — moderate passive/bond activity alongside selective equity prints." :
-          junkPct <= 25 ? "Active equity flow — broad participation, low passive concentration." :
-          "Balanced flow across equity and passive vehicles.";
+          junkPct >= 70 ? `Most of the big money today went into bonds, treasuries, and broad index ETFs (${junkPct}% of total volume). That's a risk-off signal — institutions parking cash, not buying individual stocks.` :
+          junkPct >= 50 ? `Flow is split between safe-haven ETFs and individual stocks (${junkPct}% passive). Mixed signal — not a strong directional read either way.` :
+          junkPct <= 25 ? `Most of the big money today went into individual stocks (only ${junkPct}% in bonds/ETFs). That's a healthy risk-on signal — institutions actively positioning.` :
+          `Balanced flow today — money split fairly evenly between individual stocks and broad ETFs (${junkPct}% passive).`;
         const narrativeColor = junkPct >= 70 ? C.red : junkPct >= 50 ? C.amber : junkPct <= 25 ? C.green : C.tx2;
 
-        // Equity outliers — Large/Mid/Small Cap only, with signals, NOT in USUAL
-        const equityOutliers = allItems
+        // Notable stocks: tradeable equity caps only, with at least one signal, not in junk filter
+        const notableStocks = allItems
           .filter(i => ["Large Cap","Mid Cap","Small Cap"].includes(i.cat))
           .filter(i => !USUAL_EXPANDED.has(i.t))
           .filter(i => (i.signals || []).length > 0)
           .sort((a,b) => ((b.signals||[]).length - (a.signals||[]).length) || ((b.bigPrintN||0) - (a.bigPrintN||0)))
           .slice(0, 10);
 
-        // Group ALL signaled items by signal type for the collapsible accordion
+        // Group signals by pattern type
         const signalGroups = {
           YEARLY_RECORD: [], MONTHLY_RECORD: [], NOTIONAL_SPIKE: [],
           ZONE_BREAK_RECORD: [], SIZE_ESCALATION: [], RARE_FLOW: [],
@@ -886,83 +886,96 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
           signalGroups[k].sort((a,b) => (b._sig.mult || 0) - (a._sig.mult || 0) || (b.bigPrintN || 0) - (a.bigPrintN || 0));
         });
 
+        // Plain-English labels + one-sentence explanations for each signal type
         const sigMeta = {
-          YEARLY_RECORD:   {label:"Yearly Records",  color:"#c9a84c"},
-          MONTHLY_RECORD:  {label:"Monthly Records", color:"#3cb868"},
-          NOTIONAL_SPIKE:  {label:"Volume Surges",   color:"#e74c3c"},
-          ZONE_BREAK_RECORD:{label:"Zone Breaks",     color:"#c9a84c"},
-          SIZE_ESCALATION: {label:"Escalating",      color:"#a78bfa"},
-          RARE_FLOW:       {label:"Rare/New Flow",   color:"#6ba3be"},
+          MONTHLY_RECORD:    {color:"#3cb868", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
+          YEARLY_RECORD:     {color:"#c9a84c", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
+          NOTIONAL_SPIKE:    {color:"#e74c3c", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
+          ZONE_BREAK_RECORD: {color:"#c9a84c", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
+          SIZE_ESCALATION:   {color:"#a78bfa", short:"Growing Daily", groupLabel:"Building Up Over Days",      groupTip:"Print sizes are getting bigger each day in a row — possible accumulation", tagTip:"Print sizes are getting bigger each day in a row"},
+          RARE_FLOW:         {color:"#6ba3be", short:"First Seen",    groupLabel:"First Time Seen",            groupTip:"These stocks haven't appeared in dark pool prints recently — fresh interest", tagTip:"Hasn't shown up in dark pool prints recently"},
         };
+        const totalSignalCount = Object.values(signalGroups).reduce((s,arr) => s + arr.length, 0);
+        const hasAnySignal = totalSignalCount > 0;
 
-        const hasAnySignal = Object.values(signalGroups).some(arr => arr.length > 0);
+        // Build a signal tag with hover tooltip (uses native title attribute)
+        const renderTag = (s, idx) => {
+          const m = sigMeta[s.type]; if (!m) return null;
+          const suffix = s.mult ? ` · ${s.mult}×` : (s.days ? ` · ${s.days}d` : "");
+          return (
+            <span key={idx} title={m.tagTip}
+              style={{fontSize:10, padding:"2px 8px", borderRadius:10,
+                background:m.color+"22", color:m.color, fontWeight:700,
+                border:`1px solid ${m.color}55`, cursor:"help", whiteSpace:"nowrap"}}>
+              {m.short}{suffix}
+            </span>
+          );
+        };
 
         return (
           <>
-            {/* 1. Headline narrative + outlier callouts */}
+            {/* 1. Headline — plain English explanation of today's flow regime */}
             <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
-              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
-                <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.amber, textTransform:"uppercase"}}>
-                  📋 Dark Pool Read — {D.meta.dateRange || "Selected Period"}
-                </div>
-                <div style={{fontSize:9, color:C.tx3}}>
-                  passive/bond = <span style={{color:narrativeColor, fontWeight:700}}>{junkPct}%</span> of notional
-                </div>
+              <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
+                <div style={{fontSize:13, fontWeight:700, color:C.amber}}>📋 What's Happening Today</div>
+                <div style={{fontSize:9, color:C.tx3}}>{D.meta.dateRange || "Selected Period"}</div>
+              </div>
+              <div style={{fontSize:10, color:C.tx3, marginBottom:10, fontStyle:"italic"}}>
+                A plain-English read on where institutional money is moving
               </div>
               <div style={{fontSize:13, color:narrativeColor, lineHeight:1.5, fontWeight:600}}>
                 {narrativeText}
               </div>
-              {equityOutliers.length > 0 && (
-                <div style={{fontSize:12, color:C.tx2, lineHeight:1.6, marginTop:6}}>
-                  <span style={{color:C.tx3}}>Equity outliers worth watching: </span>
-                  {equityOutliers.slice(0,5).map((t,i,a) => (
+              {notableStocks.length > 0 && (
+                <div style={{fontSize:12, color:C.tx2, lineHeight:1.6, marginTop:8}}>
+                  <span style={{color:C.tx3}}>A few individual stocks did show unusual activity worth watching: </span>
+                  {notableStocks.slice(0,5).map((t,i,a) => (
                     <span key={t.t}>
                       <span style={{color:C.amber, fontWeight:700, cursor:"pointer"}} onClick={()=>onJumpTo(t.t)}>{t.t}</span>
                       {i < a.length - 1 && <span style={{color:C.tx3}}>, </span>}
                     </span>
                   ))}
-                  {equityOutliers.length > 5 && <span style={{color:C.tx3}}> +{equityOutliers.length - 5} more</span>}
+                  {notableStocks.length > 5 && <span style={{color:C.tx3}}> +{notableStocks.length - 5} more below</span>}
                 </div>
               )}
             </div>
 
-            {/* 2. Equity Outliers panel — filtered, tradeable focus */}
-            {equityOutliers.length > 0 && (
+            {/* 2. Notable Stocks — tradeable equities with signals, plain-English tags */}
+            {notableStocks.length > 0 && (
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
-                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10}}>
-                  <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3, textTransform:"uppercase"}}>
-                    🎯 Equity Outliers ({equityOutliers.length})
-                  </div>
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2}}>
+                  <div style={{fontSize:13, fontWeight:700, color:C.tx}}>🎯 Notable Stocks ({notableStocks.length})</div>
                   <div style={{fontSize:9, color:C.tx3, fontStyle:"italic"}}>
-                    bonds · treasuries · money-market · index/sector ETFs filtered out
+                    bonds · treasuries · index ETFs filtered out
                   </div>
                 </div>
-                {equityOutliers.map((t) => {
+                <div style={{fontSize:10, color:C.tx3, marginBottom:12, fontStyle:"italic"}}>
+                  Individual stocks where big institutional buyers were active. The colored tags show what kind of unusual activity. Hover any tag to learn what it means.
+                </div>
+                {/* Column header strip */}
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"4px 0", marginBottom:4, borderBottom:`1px solid ${C.bdr}`}}>
+                  <div style={{fontSize:9, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>Stock</div>
+                  <div style={{display:"flex", gap:18, alignItems:"center", fontSize:9, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>
+                    <span>Big $ Amount</span>
+                    <span style={{minWidth:54, textAlign:"right"}}>Since Print</span>
+                  </div>
+                </div>
+                {notableStocks.map((t) => {
                   const bpPct = t.bigPrint > 0 ? ((t.last - t.bigPrint) / t.bigPrint * 100) : null;
                   const bpColor = bpPct == null ? C.tx3 : bpPct > 0 ? C.green : bpPct < 0 ? C.red : C.tx3;
-                  const topSigs = (t.signals || []).slice(0,3);
                   return (
-                    <div key={t.t} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.bdr}22`, gap:10}}>
-                      <div style={{display:"flex", alignItems:"center", gap:10, minWidth:0, flex:1}}>
+                    <div key={t.t} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom:`1px solid ${C.bdr}44`, gap:10}}>
+                      <div style={{display:"flex", alignItems:"center", gap:12, minWidth:0, flex:1}}>
                         <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                          fontWeight:700, fontSize:13, color:CAT_COLORS[t.cat]||C.tx, minWidth:56, cursor:"pointer"}}
+                          fontWeight:700, fontSize:14, color:CAT_COLORS[t.cat]||C.tx, minWidth:54, cursor:"pointer"}}
                           onClick={()=>onJumpTo(t.t)}>{t.t}</span>
-                        <div style={{display:"flex", gap:4, flexWrap:"wrap"}}>
-                          {topSigs.map((s,i) => {
-                            const sc = ({YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c", RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c"})[s.type] || C.amber;
-                            const lbl = ({YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge", RARE_FLOW:"New Flow", SIZE_ESCALATION:"Escalating", ZONE_BREAK_RECORD:"Zone Break"})[s.type] || s.label;
-                            return (
-                              <span key={i} style={{fontSize:9, padding:"1px 6px", borderRadius:8,
-                                background:sc+"18", color:sc, fontWeight:700, border:`1px solid ${sc}33`}}>
-                                {lbl}{s.mult ? ` ${s.mult}×` : ""}
-                              </span>
-                            );
-                          })}
+                        <div style={{display:"flex", gap:5, flexWrap:"wrap"}}>
+                          {(t.signals || []).slice(0,3).map(renderTag)}
                         </div>
                       </div>
-                      <div style={{display:"flex", alignItems:"center", gap:12, flexShrink:0}}>
-                        <span style={{fontSize:11, color:C.cyan, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
-                        <span style={{fontSize:11, fontWeight:700, color:bpColor, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                      <div style={{display:"flex", alignItems:"center", gap:18, flexShrink:0}}>
+                        <span style={{fontSize:12, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{fmt(t.bigPrintN)}</span>
+                        <span style={{fontSize:12, fontWeight:700, color:bpColor, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                           minWidth:54, textAlign:"right"}}>
                           {bpPct == null ? "—" : (bpPct > 0 ? "+" : "") + bpPct.toFixed(2) + "%"}
                         </span>
@@ -973,11 +986,14 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
               </div>
             )}
 
-            {/* 3. All Signals by Type — collapsible groups */}
+            {/* 3. Patterns Detected — collapsible groups with plain-English labels */}
             {hasAnySignal && (
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
-                <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3, textTransform:"uppercase", marginBottom:6}}>
-                  ⚡ All Signals by Type
+                <div style={{fontSize:13, fontWeight:700, color:C.tx, marginBottom:2}}>
+                  📊 Patterns Detected ({totalSignalCount} total)
+                </div>
+                <div style={{fontSize:10, color:C.tx3, marginBottom:6, fontStyle:"italic"}}>
+                  Each pattern below describes a different way today's flow stood out. Click any group to see which stocks show that pattern.
                 </div>
                 {Object.keys(sigMeta).map(key => {
                   const items = signalGroups[key] || [];
@@ -985,7 +1001,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                   const expanded = expandedSignals.has(key);
                   const disabled = items.length === 0;
                   return (
-                    <div key={key} style={{borderBottom:`1px solid ${C.bdr}22`}}>
+                    <div key={key} style={{borderBottom:`1px solid ${C.bdr}44`}}>
                       <button onClick={() => !disabled && toggleSignal(key)}
                         disabled={disabled}
                         style={{
@@ -994,10 +1010,11 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                           fontFamily:"inherit",
                           display:"flex", alignItems:"center", gap:8
                         }}>
-                        <span style={{fontSize:11, fontWeight:700, color: disabled ? C.tx3 : (expanded ? meta.color : C.tx)}}>
-                          {disabled ? "·" : (expanded ? "▼" : "▶")} {meta.label}
+                        <span style={{fontSize:12, fontWeight:700, color: disabled ? C.tx3 : (expanded ? meta.color : C.tx)}}>
+                          {disabled ? "·" : (expanded ? "▼" : "▶")} {meta.groupLabel}
                         </span>
                         <span style={{fontSize:11, color:C.tx3}}>({items.length})</span>
+                        <span title={meta.groupTip} style={{color:C.tx3, fontSize:11, cursor:"help", marginLeft:2}}>ⓘ</span>
                       </button>
                       {expanded && items.length > 0 && (
                         <div style={{paddingLeft:14, paddingBottom:10}}>
@@ -1009,6 +1026,8 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                                 </span>
                                 {it._sig && it._sig.mult ? (
                                   <span style={{color:C.tx3, fontSize:10}}>{it._sig.mult}×</span>
+                                ) : it._sig && it._sig.days ? (
+                                  <span style={{color:C.tx3, fontSize:10}}>{it._sig.days}d</span>
                                 ) : null}
                               </div>
                             ))}
