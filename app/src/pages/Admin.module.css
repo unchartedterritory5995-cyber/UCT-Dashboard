@@ -63,7 +63,7 @@
   transform: translateX(-50%);
   background: #1a1c17;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 16px;
   z-index: 30;
   min-width: 200px;
@@ -152,7 +152,7 @@
   transform: translateX(-50%);
   background: #1a1c17;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 10px;
   white-space: nowrap;
   z-index: 20;
@@ -224,7 +224,7 @@
 .actBadge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.6px;
@@ -365,7 +365,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: rgba(99,91,255,0.15);
   color: #a78bfa;
   font-weight: 700;
@@ -474,7 +474,7 @@
   background: rgba(201,168,76,0.2);
   color: var(--ut-gold);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.8px;
@@ -754,7 +754,7 @@
   border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-muted);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 9px;
   cursor: pointer;
   transition: all 0.15s;
@@ -973,13 +973,13 @@
   flex: 1;
   height: 14px;
   background: rgba(255,255,255,0.04);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .analyticsBar {
   height: 100%;
   background: var(--ut-gold);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   min-width: 2px;
   transition: width 0.3s ease;
 }
@@ -1091,7 +1091,7 @@
   background: rgba(74,222,128,0.1);
   border: 1px solid rgba(74,222,128,0.2);
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 12px;
   font-weight: 500;
   color: #4ade80;
@@ -1118,7 +1118,7 @@
   left: 0;
   background: #1a1c17;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 0;
   z-index: 30;
   min-width: 280px;
@@ -1171,7 +1171,7 @@
   width: 16px;
   height: 16px;
   border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: rgba(255,255,255,0.04);
   cursor: pointer;
   position: relative;
@@ -1199,7 +1199,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.4px;
@@ -1260,7 +1260,7 @@
   position: absolute;
   inset: 0;
   background: rgba(255,255,255,0.1);
-  border-radius: 11px;
+  border-radius: var(--radius-xl);
   transition: background 0.2s;
 }
 .maintenanceSwitch::before {
@@ -1297,7 +1297,7 @@
 .ticketStatMini {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   text-align: center;
 }
@@ -1357,7 +1357,7 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   padding: 1px 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   white-space: nowrap;
 }
 .tCat_bug { background: rgba(239,68,68,0.12); color: #f87171; }
@@ -1372,7 +1372,7 @@
   text-transform: capitalize;
   letter-spacing: 0.4px;
   padding: 1px 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   white-space: nowrap;
 }
 .tStatus_open { background: rgba(74,222,128,0.12); color: #4ade80; }
@@ -1412,7 +1412,7 @@
 .ticketDrawerSelect {
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-size: 12px;
   padding: 6px 8px;
@@ -1433,7 +1433,7 @@
 .ticketDrawerMessages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 .ticketDrawerMsg {
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -1474,7 +1474,7 @@
   flex: 1;
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-bright);
   font-size: 13px;
   padding: 8px 10px;
@@ -1490,7 +1490,7 @@
   background: rgba(201,168,76,0.15);
   color: #c9a84c;
   border: 1px solid rgba(201,168,76,0.3);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 14px;
   font-size: 12px;
   font-weight: 600;
@@ -1599,7 +1599,7 @@
   height: 18px;
   margin-top: 1px;
   border: 1.5px solid rgba(255,255,255,0.25);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #1a1c17;
   font-size: 12px;

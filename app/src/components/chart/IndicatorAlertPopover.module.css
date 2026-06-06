@@ -30,7 +30,7 @@
 }
 .sym {
   margin-left: 6px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--ut-gold, #c9a84c);
   font-size: 12px;
 }
@@ -148,7 +148,7 @@
   gap: 2px;
 }
 .alertText {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-heading, #f0f0f0);
   font-size: 11px;
   white-space: nowrap;

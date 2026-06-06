@@ -79,7 +79,7 @@
   font-size: 11px;
   background: var(--bg-elevated);
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Table scroll container ─────────────────────────────────────────────────── */
@@ -400,12 +400,12 @@
   width: 100px;
   height: 6px;
   background: rgba(255,255,255,0.08);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .scoreBarFill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   transition: width 0.4s ease;
 }
 .scoreMeta {
@@ -586,7 +586,7 @@
   font-size: 10px;
   color: var(--ut-gold, #c9a84c);
   background: rgba(201,168,76,0.14);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   text-align: center;
 }
 .drillGroupAvgUp, .drillGroupAvgDn {
@@ -664,7 +664,7 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
   color: #555;
@@ -1023,7 +1023,7 @@ tbody tr { cursor: pointer; }
   color: var(--ut-gold, #c9a84c);
   background: rgba(201,168,76,0.12);
   border: 1px solid rgba(201,168,76,0.3);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
 }
 
@@ -1082,7 +1082,7 @@ tbody tr { cursor: pointer; }
   color: var(--ut-gold, #c9a84c);
   background: rgba(201, 168, 76, 0.1);
   border: 1px solid rgba(201, 168, 76, 0.25);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -1463,7 +1463,7 @@ tbody tr { cursor: pointer; }
   text-transform: uppercase;
   background: none;
   border: 1px solid var(--border, rgba(255,255,255,0.08));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted, #777);
   padding: 3px 10px;
   cursor: pointer;
@@ -1483,7 +1483,7 @@ tbody tr { cursor: pointer; }
   font-weight: 700;
   letter-spacing: 0.8px;
   padding: 3px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   animation: flagFade 1.5s ease-in-out forwards;
 }
 .flagToastAdded { color: var(--ut-gold, #c9a84c); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }

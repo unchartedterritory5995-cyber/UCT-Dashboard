@@ -62,7 +62,7 @@
   color: #e8e3d4;
   padding: 6px 10px;
   font-size: 12px;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   min-width: 110px;
   outline: none;
 }

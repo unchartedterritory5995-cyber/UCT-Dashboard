@@ -35,7 +35,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 11px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 .layoutBtn:hover {
   color: var(--text, #e5e5e5);

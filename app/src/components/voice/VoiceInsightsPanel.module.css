@@ -147,7 +147,7 @@
   font-weight: 700;
 }
 .rowSymbol {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: #c9a84c;
   background: rgba(201, 168, 76, 0.10);

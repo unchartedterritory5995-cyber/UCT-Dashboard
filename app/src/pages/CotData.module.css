@@ -29,7 +29,7 @@
   min-width: 240px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   cursor: pointer;
   font-size: 13px;
@@ -53,7 +53,7 @@
   flex-direction: column;
   background: #1a1a1a;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
@@ -121,7 +121,7 @@
   padding: 7px 18px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
   font-size: 12px;
@@ -141,7 +141,7 @@
   position: relative;
   background: #000000;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 24px;
   height: calc(100vh - 160px);
   min-height: 400px;
@@ -155,7 +155,7 @@
   justify-content: center;
   font-size: 13px;
   color: var(--text-muted);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 .overlayError { color: #f87171; }
 
@@ -245,7 +245,7 @@
   margin-left: 8px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
   font-size: 11px;

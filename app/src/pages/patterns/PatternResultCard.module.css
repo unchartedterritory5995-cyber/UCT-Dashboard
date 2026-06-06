@@ -35,7 +35,7 @@
 }
 
 .sym {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
   color: #c9a84c;
@@ -43,7 +43,7 @@
 }
 
 .tfBadge {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: #a8a290;
   background: #0e0f0d;
@@ -71,7 +71,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   color: #e8e3d4;
@@ -120,7 +120,7 @@
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.25);
   flex-shrink: 0;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   cursor: help;
 }
 
@@ -134,7 +134,7 @@
   background: rgba(201, 168, 76, 0.18);
   color: #c9a84c;
   flex-shrink: 0;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   cursor: help;
 }
 
@@ -172,7 +172,7 @@
   color: #706b5e;
 }
 .levelBlock strong {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: #e8e3d4;
   overflow: hidden;
@@ -197,7 +197,7 @@
 
 .timeAgo {
   color: #706b5e;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 
 @media (max-width: 640px) {

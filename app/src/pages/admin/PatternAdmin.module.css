@@ -94,7 +94,7 @@
   color: var(--text, #e5e5e5);
   border: 1px solid var(--border, #2a2a2a);
   padding: 5px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
@@ -111,7 +111,7 @@
   color: #000;
   border: none;
   padding: 6px 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -194,7 +194,7 @@
   font-weight: 700;
   color: var(--text-heading);
   letter-spacing: 1px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .metaLine {
@@ -210,7 +210,7 @@
   letter-spacing: 0.5px;
   background: rgba(255, 255, 255, 0.04);
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .conf {
@@ -257,11 +257,11 @@
 .levelChip {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 3px 8px;
   font-size: 11px;
   color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .levelChip label {
@@ -288,7 +288,7 @@
   display: inline-block;
   font-size: 11px;
   border: 1px solid #c9a84c;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   margin-top: 4px;
   letter-spacing: 0.5px;
@@ -315,7 +315,7 @@
   color: var(--text, #e5e5e5);
   border: 1px solid var(--border, #2a2a2a);
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-family: inherit;
   resize: vertical;
@@ -338,7 +338,7 @@
   background: var(--bg-elevated, #1f1f1f);
   color: var(--text);
   padding: 7px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

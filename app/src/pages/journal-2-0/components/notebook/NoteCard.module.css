@@ -68,7 +68,7 @@
 .ticker {
   color: #c9a84c;
   font-weight: 600;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.5px;
 }
 .tag {

@@ -115,7 +115,7 @@
 }
 .sym {
   flex: 1;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--text-heading, #f0f0f0);
 }

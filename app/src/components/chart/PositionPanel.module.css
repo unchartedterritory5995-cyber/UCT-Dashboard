@@ -67,7 +67,7 @@
   border: 1px solid #3a3d2e;
   padding: 4px 8px;
   border-radius: 3px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   min-width: 0;
 }
@@ -110,7 +110,7 @@
 }
 
 .calcValue {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: #e8e4d0;
   font-size: 12px;

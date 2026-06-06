@@ -204,7 +204,7 @@
 .barLabel {
   font-weight: 700;
   color: var(--text-bright);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.5px;
 }
@@ -229,7 +229,7 @@
 .barValue {
   text-align: right;
   color: var(--text-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 

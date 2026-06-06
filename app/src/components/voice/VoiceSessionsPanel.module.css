@@ -114,7 +114,7 @@
   background: rgba(255, 255, 255, 0.08);
   padding: 1px 6px;
   border-radius: 3px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
 }
 .rowDur, .rowCount {
@@ -203,11 +203,11 @@
   text-transform: uppercase;
 }
 .toolName {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: #c9a84c;
 }
 .args {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: rgba(255, 255, 255, 0.6);
 }
 .args code {

@@ -847,12 +847,12 @@
   animation: slideIn 0.2s ease;
 }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
-.feedTime { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
-.feedSym { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--color-accent, #c9a84c); cursor: pointer; }
+.feedTime { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.feedSym { font-family: var(--font-mono); font-weight: 700; color: var(--color-accent, #c9a84c); cursor: pointer; }
 .feedSym:hover { text-decoration: underline; }
 .feedTrig { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; flex-shrink: 0; }
-.feedPrice { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #e2e0d8; margin-left: auto; }
-.feedChg { font-family: 'IBM Plex Mono', monospace; font-size: 11px; flex-shrink: 0; }
+.feedPrice { font-family: var(--font-mono); font-size: 11px; color: #e2e0d8; margin-left: auto; }
+.feedChg { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; }
 
 /* Watch table */
 .watchTable { flex: 1; overflow-y: auto; padding: 0; }
@@ -872,11 +872,11 @@
 .watchRowFlash { animation: rowFlash 1.5s ease; }
 @keyframes rowFlash { 0%,100% { background: transparent; } 20% { background: rgba(201,168,76,0.15); } }
 .watchRowTriggered { background: rgba(201,168,76,0.04); }
-.watchSym { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--color-accent, #c9a84c); cursor: pointer; }
+.watchSym { font-family: var(--font-mono); font-weight: 700; color: var(--color-accent, #c9a84c); cursor: pointer; }
 .watchSym:hover { text-decoration: underline; }
-.watchPrice { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #e2e0d8; }
-.watchChg { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
-.watchPdh { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.watchPrice { font-family: var(--font-mono); font-size: 11px; color: #e2e0d8; }
+.watchChg { font-family: var(--font-mono); font-size: 11px; }
+.watchPdh { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .watchTrigs { display: flex; gap: 4px; flex-wrap: wrap; }
 .watchTrigBadge {
   font-size: 9px; padding: 1px 6px; border-radius: 10px; border: 1px solid; font-weight: 700; letter-spacing: 0.3px;

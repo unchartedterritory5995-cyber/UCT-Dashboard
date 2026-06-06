@@ -112,7 +112,7 @@
   text-transform: uppercase;
 }
 .toolName {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: #c9a84c;
 }
@@ -134,7 +134,7 @@
   font-size: 12px;
 }
 .failureTool {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: #c9a84c;
   margin-bottom: 2px;
 }
@@ -239,7 +239,7 @@
   font-size: 12px;
 }
 .patternName {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   color: #fbbf24;
 }
 .patternRate {
