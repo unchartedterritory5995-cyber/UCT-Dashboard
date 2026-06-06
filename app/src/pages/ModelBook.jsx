@@ -768,9 +768,12 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         : (focusedCatalyst && focusDate ? [{ time: focusedCatalyst.catalyst_date, text: focusedCatalyst.title }] : null))
     : null
   const chartPriceLines = onSetupsTab ? priceLines : NO_PRICE_LINES
-  const chartAnnotations = onSetupsTab ? annotations : null
-  const chartAnnotationsVisible = onSetupsTab ? annotationsVisible : false
-  const chartAnnotateMode = onSetupsTab ? annotatingPrice : false
+  // Price-pane annotations render/edit on ANY tab while annotating the price pane
+  // (so you can annotate the main chart from the Catalysts tab too); otherwise
+  // they stay scoped to the Setups tab (setup overlays don't bleed onto Catalysts).
+  const chartAnnotations = (onSetupsTab || annotatingPrice) ? annotations : null
+  const chartAnnotationsVisible = (onSetupsTab || annotatingPrice) ? annotationsVisible : false
+  const chartAnnotateMode = annotatingPrice
   const chartHighlight = onCatalystTab
     ? (showAllCatalysts && catalystTimes.length ? catalystTimes : focusDate)
     : (showAllAnnotations && hasAnnotations ? setupTimes : focusDate)
@@ -858,6 +861,11 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         : target === 'stock' ? stockDrawings
         : savedDrawings,
     )
+    // Stock-chart annotations belong to the full main chart — if zoomed into a
+    // setup, zoom back out first so you're drawing on the whole year.
+    if (target === 'stock' && focusDate) {
+      setFocus(f => ({ id: null, date: null, startDate: null, nonce: f.nonce + 1, stockId, tf: chartTf }))
+    }
     setAnnotateMode(true)
   }
   function cancelAnnotate() {
@@ -986,12 +994,14 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
           </h2>
         </div>
         <div className={styles.headerTools}>
-          {/* Annotate a focused setup (zoomed in) OR the full-year chart (zoomed out). */}
+          {/* Annotate the focused setup (only when zoomed into one). */}
           {isAdmin && onSetupsTab && focusDate && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={() => startAnnotate('setup')} title="Draw annotations on this setup">✏️ Annotate</button>
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('setup')} title="Draw annotations on this focused setup">✏️ Annotate Setup</button>
           )}
-          {isAdmin && onSetupsTab && !focusDate && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the full-year chart (not tied to a setup)">✏️ Annotate Chart</button>
+          {/* Annotate the stock's main price chart (saved per stock) — always
+              available, exactly like Annotate Nasdaq but on the price pane. */}
+          {isAdmin && !annotateMode && (
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the stock's main chart (saved per stock)">✏️ Annotate Chart</button>
           )}
           {/* Measure-mark the Nasdaq pane (GLOBAL — shown on every stock). */}
           {isAdmin && !annotateMode && (
@@ -1068,7 +1078,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             annotationsVisible={chartAnnotationsVisible}
             annotationsOpacity={annoOpacity}
             annotationsFadeWhole={!showAllAnnotations}
-            staticAnnotations={(onSetupsTab && showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
+            staticAnnotations={(showAllAnnotations && !(annotateMode && annotateTarget === 'stock')) ? stockDrawings : null}
             annotationsEditable={chartAnnotateMode}
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
