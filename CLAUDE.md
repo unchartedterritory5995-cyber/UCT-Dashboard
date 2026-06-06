@@ -115,6 +115,25 @@ Whisper-backed push-to-talk dictation + Compass voice conversation are paired on
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
 
+## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
+
+The whole app is being made mobile-seamless with **near-full feature parity** (TradingView-mobile quality, including touch charting). Plan: `C:\Users\Patrick\.claude\plans\we-need-to-go-enchanted-crown.md`.
+
+### Breakpoints — 3 tiers, 2 boundaries (canonical; do NOT invent new literals)
+- **phone** ≤ 640px · **tablet** 641–1024px · **desktop** ≥ 1025px
+- **Source of truth:** `app/src/styles/breakpoints.js` (`BP`, `MQ`) + `app/src/hooks/useBreakpoint.js` (`useIsPhone`/`useIsTablet`/`useIsTouch`/`useIsDesktop`/`useHasCoarsePointer`/`useHasNoHover`). All wrap the existing `useMediaQuery.js`.
+- **CSS:** copy the canonical `@media` strings from `app/src/styles/breakpoints.css` (imported in `index.css`). PHONE `@media (max-width:640px)` · TABLET `@media (min-width:641px) and (max-width:1024px)` · TOUCH `@media (max-width:1024px)` · DESKTOP `@media (min-width:1025px)`. Utilities: `.hideOnPhone`/`.showOnPhone`/`.hideOnTouch`/`.touchTarget`/`.hoverReveal`.
+- **Convention:** new/touched CSS uses ONLY 640 and 1024; new JS uses the `useBreakpoint` hooks. Snap legacy literals when you touch a file (768/900/720 → 1024, 600/480 → 640). Never add a new non-canonical literal.
+
+### Reusable mobile primitives (`app/src/components/mobile/`)
+- **`Sheet.jsx`** — responsive modal/drawer: centered modal on desktop, bottom-sheet or fullscreen on touch (`variant="auto|modal|bottom-sheet|fullscreen"`). Portal, focus-trap, Escape, drag-to-dismiss, body-scroll-lock, safe-area. Use for ALL new modals/drawers/popovers on mobile.
+- **`useLongPress.js`** — pointer-based long-press (450ms, 10px tolerance, haptic); also accepts right-click on desktop so one binding serves both inputs. Replaces right-click-only context menus.
+- **`ContextPopover.jsx`** — action menu via `Sheet` bottom-sheet on touch / anchored menu on desktop; 44px rows.
+- **`ResponsiveTable.jsx`** — `<table>` on desktop; on phone either **card mode** (entity rows, 3–5 key fields) or **frozen-first-column scroll** (dense comparison grids where per-cell heat/color matters). Pick per surface.
+
+### Tap targets
+`--tap-min: 44px` is defined in tokens.css. Enforce on all interactive elements on touch (use `.touchTarget` or `min-height/width: var(--tap-min)`).
+
 ## Cinematic Intro Animation (LIVE — 2026-05-09)
 
 **Brand identity reveal that plays on every page load.** Mounted at `App.jsx` root inside `<AuthProvider>` so it has access to `useAuth().user.name`. Internal route changes don't remount the App, so it does NOT replay during in-app navigation — only on actual page loads (initial visit, refresh, bookmark hit, post-deploy reload).

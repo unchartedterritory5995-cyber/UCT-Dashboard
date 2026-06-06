@@ -1,0 +1,71 @@
+/* Desktop anchored menu */
+.menu {
+  position: fixed;
+  z-index: var(--z-modal);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.menuTitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  letter-spacing: var(--ls-wide);
+}
+
+/* Touch bottom-sheet list */
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Shared item button */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.item:hover:not(:disabled) { background: var(--bg-hover); }
+.item:disabled { opacity: 0.4; cursor: default; }
+.item.danger { color: var(--loss); }
+
+.icon {
+  flex: 0 0 auto;
+  width: 18px;
+  text-align: center;
+  font-size: var(--text-lg);
+}
+.label { flex: 1 1 auto; min-width: 0; }
+
+.separator {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-xs) 0;
+}
+
+/* On touch, rows must hit the 44px tap-target minimum */
+@media (max-width: 1024px) {
+  .sheetList .item {
+    min-height: var(--tap-min);
+    font-size: var(--text-lg);
+    padding: var(--space-md);
+  }
+  .sheetList .icon { font-size: var(--text-xl); width: 24px; }
+}

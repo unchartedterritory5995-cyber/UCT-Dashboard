@@ -1,0 +1,51 @@
+/* Canonical responsive breakpoints — CSS side of styles/breakpoints.js.
+ *
+ * No PostCSS custom-media plugin (avoids build risk across the CSS-module
+ * surface). Instead: copy these EXACT @media strings by convention, and use
+ * the small utility classes below for the most common responsive needs.
+ *
+ *   --bp-phone:  640px
+ *   --bp-tablet: 1024px
+ *
+ *   PHONE    @media (max-width: 640px)
+ *   TABLET   @media (min-width: 641px) and (max-width: 1024px)
+ *   TOUCH    @media (max-width: 1024px)            (phone + tablet)
+ *   DESKTOP  @media (min-width: 1025px)
+ *
+ * Rule: new / touched CSS uses ONLY the 640 and 1024 boundaries. Never add a
+ * new non-canonical literal (768/900/720/480). Snap legacy ones when you touch
+ * a file: 768/900/720 -> 1024, 600/480 -> 640.
+ */
+
+:root {
+  --bp-phone: 640px;
+  --bp-tablet: 1024px;
+}
+
+/* ── Visibility utilities (global plain classes; usable via :global or composes) ── */
+.hideOnPhone { }
+@media (max-width: 640px) {
+  .hideOnPhone { display: none !important; }
+}
+
+.showOnPhone { display: none; }
+@media (max-width: 640px) {
+  .showOnPhone { display: revert; }
+}
+
+.hideOnTouch { }
+@media (max-width: 1024px) {
+  .hideOnTouch { display: none !important; }
+}
+
+/* ── Tap-target helper — enforces the 44px minimum on touch ── */
+.touchTarget {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+}
+
+/* On coarse pointers, neutralize hover-only reveals that have no tap fallback.
+   Components opt in by tagging hover-reveal elements with .hoverReveal. */
+@media (hover: none) {
+  .hoverReveal { opacity: 1 !important; visibility: visible !important; }
+}
