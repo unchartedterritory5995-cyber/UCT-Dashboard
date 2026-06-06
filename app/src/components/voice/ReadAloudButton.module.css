@@ -7,7 +7,7 @@
   color: #c9a84c;
   border-radius: 999px;
   cursor: pointer;
-  font: 12px/1.2 'IBM Plex Sans', system-ui, sans-serif;
+  font: 12px/1.2 var(--font-sans);
   transition: background 120ms ease, border-color 120ms ease;
 }
 .btn:hover {

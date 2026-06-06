@@ -9,7 +9,7 @@
   color: #e8e6df;
   border: 1px solid rgba(201, 168, 76, 0.35);
   border-radius: 14px;
-  font: 13px/1.4 'IBM Plex Sans', system-ui, sans-serif;
+  font: 13px/1.4 var(--font-sans);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   animation: rise 200ms ease-out;
 }

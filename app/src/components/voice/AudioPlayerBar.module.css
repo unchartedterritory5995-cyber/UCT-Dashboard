@@ -12,7 +12,7 @@
   border-radius: 999px;
   padding: 8px 16px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  font: 13px/1.2 'IBM Plex Sans', system-ui, sans-serif;
+  font: 13px/1.2 var(--font-sans);
   color: #e8e6df;
   max-width: min(760px, calc(100vw - 24px));
 }
