@@ -200,8 +200,13 @@ function renderText(ctx, pts, drawing, opacity = 1) {
   ctx.globalAlpha = prevAlpha
 }
 
+// Model Book gain/loss colors (match the .gain/.loss percentages elsewhere on
+// the page): advances render green, declines red.
+const ADV_GREEN = '#4ade80'
+const ADV_RED = '#e74c3c'
+
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
-// % = open of the 1st clicked candle → high of the 2nd; drawn white above that high.
+// % = open of the 1st clicked candle → high of the 2nd. Advance green / decline red.
 function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
@@ -225,7 +230,7 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16) {
   ctx.lineWidth = 3
   ctx.strokeStyle = 'rgba(0,0,0,0.85)'
   ctx.strokeText(text, px, py)
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = isDecline ? ADV_RED : ADV_GREEN
   ctx.fillText(text, px, py)
   ctx.restore()
 }
