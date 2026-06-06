@@ -11,7 +11,7 @@ import { render, screen } from '@testing-library/react'
 vi.mock('../../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('../../components/TickerActions', () => ({
   default: () => null,
-  useTickerActions: () => ({ menu: null, openMenu: vi.fn(), closeMenu: vi.fn() }),
+  useTickerActions: () => ({ menu: null, openMenu: vi.fn(), closeMenu: vi.fn(), longPressProps: () => ({}) }),
 }))
 
 import EarningsCard from './EarningsCard'

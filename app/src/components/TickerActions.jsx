@@ -1,10 +1,13 @@
-// TickerActions — universal right-click context menu for any ticker symbol
-// Provides: color tagging, flag toggle, add to watchlist, set price alert
-import { useState } from 'react'
+// TickerActions — universal context menu for any ticker symbol.
+// Right-click (desktop) or long-press (touch) → color tagging, flag toggle,
+// add to watchlist, set price alert. On touch it renders as a bottom-sheet.
+import { useState, useRef } from 'react'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
+import { useIsTouch } from '../hooks/useBreakpoint'
+import Sheet from './mobile/Sheet'
 import styles from './TickerActions.module.css'
 
 export function useTickerActions() {
@@ -14,17 +17,53 @@ export function useTickerActions() {
   const [alertDir, setAlertDir] = useState('above')
   const [addToListSym, setAddToListSym] = useState(null)
 
+  // Shared long-press timer state (one set of refs serves every call site)
+  const lpTimer = useRef(null)
+  const lpStart = useRef({ x: 0, y: 0 })
+  const lpFiredAt = useRef(0)
+  const clearLp = () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } }
+
   function openMenu(e, sym) {
-    e.preventDefault()
-    e.stopPropagation()
-    const x = Math.min(e.clientX, window.innerWidth - 220)
-    const y = Math.min(e.clientY, window.innerHeight - 350)
-    setMenu({ sym: sym.toUpperCase(), x, y })
+    e.preventDefault?.()
+    e.stopPropagation?.()
+    const x = Math.min(e.clientX ?? 0, window.innerWidth - 220)
+    const y = Math.min(e.clientY ?? 0, window.innerHeight - 350)
+    setMenu({ sym: String(sym).toUpperCase(), x, y })
   }
 
   function closeMenu() { setMenu(null) }
 
-  return { menu, openMenu, closeMenu, alertForm, setAlertForm, alertPrice, setAlertPrice, alertDir, setAlertDir, addToListSym, setAddToListSym }
+  // Spread onto any ticker element to get touch long-press + desktop right-click.
+  //   <span {...longPressProps(sym)} onContextMenu={e => openMenu(e, sym)}>…
+  function longPressProps(sym) {
+    return {
+      onContextMenu: (e) => openMenu(e, sym),
+      onPointerDown: (e) => {
+        if (e.pointerType === 'mouse') return
+        lpStart.current = { x: e.clientX, y: e.clientY }
+        clearLp()
+        lpTimer.current = setTimeout(() => {
+          try { navigator.vibrate?.(10) } catch { /* noop */ }
+          lpFiredAt.current = e.timeStamp || performance.now()
+          openMenu({ clientX: e.clientX, clientY: e.clientY }, sym)
+        }, 450)
+      },
+      onPointerMove: (e) => {
+        if (!lpTimer.current) return
+        if (Math.abs(e.clientX - lpStart.current.x) > 10 || Math.abs(e.clientY - lpStart.current.y) > 10) clearLp()
+      },
+      onPointerUp: clearLp,
+      onPointerCancel: clearLp,
+      // Swallow the tap-click that follows a long-press so the element's own
+      // onClick (e.g. "open modal") doesn't also fire.
+      onClickCapture: (e) => {
+        const now = e.timeStamp || performance.now()
+        if (now - lpFiredAt.current < 600) { e.preventDefault(); e.stopPropagation() }
+      },
+    }
+  }
+
+  return { menu, openMenu, closeMenu, longPressProps, alertForm, setAlertForm, alertPrice, setAlertPrice, alertDir, setAlertDir, addToListSym, setAddToListSym }
 }
 
 export default function TickerActionsMenu({ menu, onClose, lists, mutateLists }) {
@@ -32,6 +71,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const { tagColors: TAG_COLORS } = useTagColors()
   const { getTag, setTag, removeTag } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym, hasAlert } = useWatchlistAlerts()
+  const isTouch = useIsTouch()
   const [showAlert, setShowAlert] = useState(false)
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
@@ -53,12 +93,9 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
     onClose()
   }
 
-  return (
-    <div className={styles.backdrop} onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose() }}>
-      <div className={styles.menu} style={{ top: y, left: x }} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>{sym}</div>
-
-        {/* Flag */}
+  const body = (
+    <>
+      {/* Flag */}
         <button className={styles.item} onClick={() => { toggleFlag(sym); onClose() }}>
           {flagged ? '⚑ Unflag' : '⚑ Flag'}
         </button>
@@ -128,6 +165,24 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
             ))}
           </div>
         )}
+    </>
+  )
+
+  // Touch: bottom-sheet with big tap targets
+  if (isTouch) {
+    return (
+      <Sheet open onClose={onClose} variant="bottom-sheet" title={sym}>
+        <div className={styles.sheetBody}>{body}</div>
+      </Sheet>
+    )
+  }
+
+  // Desktop: anchored floating menu
+  return (
+    <div className={styles.backdrop} onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose() }}>
+      <div className={styles.menu} style={{ top: y, left: x }} onClick={e => e.stopPropagation()}>
+        <div className={styles.header}>{sym}</div>
+        {body}
       </div>
     </div>
   )

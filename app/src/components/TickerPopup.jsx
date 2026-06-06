@@ -67,7 +67,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => { setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym) }}
         onMouseEnter={() => prefetchBar(sym, 'D')}
-        onContextMenu={e => tickerActions.openMenu(e, sym)}
+        {...tickerActions.longPressProps(sym)}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}

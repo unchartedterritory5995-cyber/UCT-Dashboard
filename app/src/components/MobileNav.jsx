@@ -5,6 +5,8 @@ import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
+import Sheet from './mobile/Sheet'
+import MoversSidebar from './MoversSidebar'
 import styles from './MobileNav.module.css'
 
 const fetcher = (url) =>
@@ -69,6 +71,7 @@ const EXTRA_ROUTES = {
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false)
+  const [moversOpen, setMoversOpen] = useState(false)
   const location = useLocation()
   const keyboardOpen = useKeyboardVisible()
   const { user, plan } = useAuth()
@@ -129,9 +132,23 @@ export default function MobileNav() {
         </button>
         <span className={styles.pageTitle}>{pageTitle}</span>
         <div className={styles.topBarRight}>
+          <button
+            className={styles.moversBtn}
+            onClick={() => setMoversOpen(true)}
+            aria-label="Market movers"
+          >
+            📈
+          </button>
           <AlertBell />
         </div>
       </header>
+
+      {/* ── Movers bottom-sheet (the desktop right-rail's mobile home) ── */}
+      {moversOpen && (
+        <Sheet open onClose={() => setMoversOpen(false)} variant="bottom-sheet" title="Movers">
+          <MoversSidebar />
+        </Sheet>
+      )}
 
       {/* ── Backdrop ── */}
       {open && (

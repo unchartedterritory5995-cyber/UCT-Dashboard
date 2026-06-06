@@ -156,3 +156,24 @@
 }
 
 .alertDel:hover { opacity: 1; }
+
+/* ── Touch bottom-sheet body: bigger everything for fingers ── */
+.sheetBody .item,
+.sheetBody .listOption {
+  min-height: var(--tap-min);
+  font-size: var(--text-lg);
+  padding: var(--space-md);
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+}
+.sheetBody .tagSection,
+.sheetBody .alertSection { padding: var(--space-md) 0; }
+.sheetBody .swatches { gap: var(--space-md); }
+.sheetBody .swatch { width: 32px; height: 32px; }
+.sheetBody .tagLabel { font-size: var(--text-sm); margin-bottom: var(--space-sm); }
+.sheetBody .alertSelect,
+.sheetBody .alertInput { font-size: 16px; padding: var(--space-sm) var(--space-md); min-height: var(--tap-min); }
+.sheetBody .alertInput { width: 100px; }
+.sheetBody .alertSet { min-height: var(--tap-min); padding: 0 var(--space-lg); font-size: var(--text-md); }
+.sheetBody .listPicker { max-height: 40vh; }

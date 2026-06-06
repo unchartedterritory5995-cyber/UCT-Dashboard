@@ -87,7 +87,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
             onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
-            onContextMenu={tickerActions ? e => tickerActions.openMenu(e, h.sym) : undefined}
+            {...(tickerActions ? tickerActions.longPressProps(h.sym) : {})}
           >
             {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
             <span className={styles.sym}>{h.sym}</span>

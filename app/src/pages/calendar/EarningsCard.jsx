@@ -74,14 +74,14 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
   // Fallback timing label when no countdown
   const sessionLabel = timing === 'bmo' ? 'BMO' : 'AMC'
 
-  const { menu, openMenu, closeMenu } = useTickerActions()
+  const { menu, openMenu, closeMenu, longPressProps } = useTickerActions()
 
   return (
     <>
       <div
         className={`${styles.card} ${entry.mine ? styles.cardMine : ''}`}
         onClick={() => onSelect?.(entry, timing)}
-        onContextMenu={e => openMenu(e, entry.sym)}
+        {...longPressProps(entry.sym)}
       >
         {entry.mine && <span className={styles.star}>★</span>}
         <div className={styles.cardTop}>
