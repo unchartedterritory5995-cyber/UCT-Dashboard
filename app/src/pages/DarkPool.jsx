@@ -2506,10 +2506,15 @@ export default function DarkPool({embedded}){
             ].map(({key, label, days}) => {
               const filterKey = days === 0 ? "All" : "Last" + days;
               const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
-              const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
+              // Was an optimization: skip the refetch when the new range fit
+              // inside the already-loaded parsedRows (in-memory date filter).
+              // That code path is gone — we now fetch a pre-aggregated payload
+              // per window, so every button click MUST trigger a refetch to
+              // get the right aggregation. The fetch effect dedups on
+              // [fetchDays] so re-clicking the same button is still a no-op.
               return (
                 <button key={key} onClick={()=>{
-                  if (needsFetch) setFetchDays(days);
+                  setFetchDays(days);
                   setDateFilter(filterKey);
                   setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
                 }} style={{
