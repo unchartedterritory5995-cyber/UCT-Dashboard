@@ -747,7 +747,13 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   // result lives only in this row's local state so other rows are unaffected.
   // If the prop later updates (parent fetches a bulk batch), the prop wins
   // automatically via the `effectiveMktcap` selector below.
+  //
+  // Three load states are tracked so the header can show a loading hint
+  // (so it's obvious whether the fetch even fired) and an error fallback
+  // (with a console line for debugging response-shape mismatches).
   const [fetchedMktcap, setFetchedMktcap] = useState(0);
+  const [mktcapLoading, setMktcapLoading] = useState(false);
+  const [mktcapErr, setMktcapErr] = useState(null);
   const effectiveMktcap = mktcap > 0 ? mktcap : fetchedMktcap;
 
   useEffect(() => {
@@ -755,15 +761,37 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
     if (mktcap > 0) return;                // parent already has it
     if (fetchedMktcap > 0) return;         // already fetched once for this row
     let cancelled = false;
+    setMktcapLoading(true);
+    setMktcapErr(null);
     const base = typeof API_BASE !== "undefined" ? API_BASE : "";
-    fetch(`${base}/api/schwab/mktcap-batch?symbols=${encodeURIComponent(it.t)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data) return;
-        const v = data?.mktcap?.[it.t];
-        if (typeof v === "number" && v > 0) setFetchedMktcap(v);
+    const url = `${base}/api/schwab/mktcap-batch?symbols=${encodeURIComponent(it.t)}`;
+    fetch(url)
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .catch(() => { /* silent — the cat pill fallback is fine */ });
+      .then(data => {
+        if (cancelled) return;
+        // Accept several shapes defensively: {mktcap: {SYM: N}} (what the
+        // parent's bulk-fetch code reads), {SYM: N}, or {result: {SYM: N}}.
+        // If the backend ever changes shape, console will tell us which one
+        // we actually got rather than the row silently going stale.
+        const v =
+          (data?.mktcap?.[it.t] ?? data?.[it.t] ?? data?.result?.[it.t] ?? 0);
+        if (typeof v === "number" && v > 0) {
+          setFetchedMktcap(v);
+        } else {
+          console.warn(`[PatternTickerRow] mktcap missing for ${it.t} — response:`, data);
+          setMktcapErr("no value");
+        }
+        setMktcapLoading(false);
+      })
+      .catch(e => {
+        if (cancelled) return;
+        console.warn(`[PatternTickerRow] mktcap fetch failed for ${it.t}:`, e?.message || e);
+        setMktcapErr(e?.message || "fetch failed");
+        setMktcapLoading(false);
+      });
     return () => { cancelled = true; };
   }, [expanded, it.t, mktcap]);
 
@@ -907,15 +935,22 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               <span style={{color:CAT_COLORS[it.cat]||C.tx, fontWeight:700, fontSize:15}}>{it.t}</span>
               {/* Market cap (or category fallback when mkt cap data hasn't loaded).
                   Color-coded by cap tier — same palette as the ticker — so the
-                  size context is preserved without printing the category twice. */}
+                  size context is preserved without printing the category twice.
+                  Three states: (1) loaded → "$144B mkt cap", (2) loading →
+                  "loading mkt cap…", (3) failed/missing → cat pill ("Large Cap"). */}
               {effectiveMktcap > 0 ? (
                 <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
                   fontWeight:700}}>{fmt(effectiveMktcap)} mkt cap</span>
+              ) : mktcapLoading ? (
+                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                  background:C.bg3, color:C.tx3,
+                  fontWeight:600, fontStyle:"italic"}}>loading mkt cap…</span>
               ) : (
                 <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
-                  fontWeight:700}}>{it.cat || "—"}</span>
+                  fontWeight:700}}
+                  title={mktcapErr ? `Mkt cap fetch: ${mktcapErr}` : undefined}>{it.cat || "—"}</span>
               )}
               {/* Total dark pool premium — sum of $ notional of all prints in
                   the current per-ticker window. Renamed from "Total flow"
