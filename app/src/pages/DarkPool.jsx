@@ -2246,19 +2246,18 @@ export default function DarkPool({embedded}){
     ? "/api/darkpool/data?all_data=true"
     : `/api/darkpool/data?days=${fetchDays}`;
 
-  // Extract unique dates from parsed rows
+  // Available trading dates — sourced from the aggregated response's `dates`
+  // field (ISO yyyy-mm-dd, sorted oldest → newest). The legacy code derived
+  // these from parsedRows, but we no longer load raw rows. We convert ISO
+  // back to M/D/YYYY here to keep the rest of the date-picker UI unchanged.
   const availableDates = useMemo(() => {
-    if (!parsedRows || parsedRows.length === 0) return [];
-    const dateSet = new Set();
-    parsedRows.forEach(r => { if (r.Date) dateSet.add(r.Date.trim()); });
-    return [...dateSet].sort((a, b) => {
-      const pa = a.split("/").map(Number);
-      const pb = b.split("/").map(Number);
-      const ya = pa.length >= 3 ? (pa[2] < 100 ? pa[2] + 2000 : pa[2]) : new Date().getFullYear();
-      const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
-      return new Date(ya, pa[0]-1, pa[1]||1) - new Date(yb, pb[0]-1, pb[1]||1);
+    if (!dpData || !Array.isArray(dpData.dates)) return [];
+    return dpData.dates.map(iso => {
+      const [y, m, d] = iso.split("-");
+      if (!y || !m || !d) return iso;
+      return `${parseInt(m,10)}/${parseInt(d,10)}/${y}`;
     });
-  }, [parsedRows]);
+  }, [dpData]);
 
   const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
 
@@ -2301,66 +2300,67 @@ export default function DarkPool({embedded}){
     }
   }, [parsedRows, dateFilter, dateFrom, dateTo]);
 
-  // Fetch data from API
+  // ── Fetch aggregated dark pool data ─────────────────────────────────────
+  // Switched from the raw CSV endpoint (/api/darkpool/data) to the
+  // pre-aggregated JSON endpoint (/api/darkpool/aggregated). 90d of raw CSV
+  // is ~2.25M rows / ~270MB decompressed — large enough to OOM Chrome on a
+  // typical 4GB tab heap. The aggregated endpoint returns the same dpData
+  // shape that parseCSVtoD used to produce client-side (categories, above,
+  // below, unusual, phantom, options, alpha, themes, allItems, meta, dates)
+  // — pre-computed server-side, file-cached on /data, sub-second after first
+  // hit. The backend's own comment confirms this contract.
+  //
+  // Falls back to the legacy CSV path only if /aggregated 404s (older backend
+  // builds). Static CSV fallback removed — it was only a backup for the API
+  // being down, and a stale static file is worse than a clean error.
   useEffect(() => {
     let cancelled = false;
     setCsvLoading(true);
     setLoadErr(null);
-    setLoadStatus("Fetching dark pool data…");
+    setLoadStatus("Fetching aggregated data…");
 
-    function tryFetch(url) {
-      return fetch(url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now())
-        .then(r => {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.text();
-        })
-        .then(text => {
-          const trimmed = text.trim();
-          if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("HTML");
-          return text;
-        });
-    }
+    const aggUrl = fetchDays === 0
+      ? "/api/darkpool/aggregated?all_data=true"
+      : `/api/darkpool/aggregated?days=${fetchDays}`;
+    const url = aggUrl + (aggUrl.includes("?") ? "&" : "?") + "_t=" + Date.now();
 
-    // Try API first, fall back to static CSV
-    tryFetch(csvFile)
-      .catch(() => {
-        setLoadStatus("API unavailable — loading static CSV…");
-        return tryFetch("/Darkpool-data.csv");
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
       })
-      .then(text => {
+      .then(data => {
         if (cancelled) return;
-        setLoadStatus("Parsing…");
-        setTimeout(() => {
-          if (cancelled) return;
-          try {
-            const rows = parseCSV(text);
-            // 0 rows is only a real error if we asked for the smallest window
-            // (1d) and even that came back empty. If we asked for 90d/60d/etc.
-            // and got header-only, the DB likely has fewer days than requested
-            // OR the backend returned an empty response — either way, fall back
-            // to 1d so the page renders something rather than a wall-of-error.
-            if (!rows || rows.length === 0) {
-              if (fetchDays > 1) {
-                // Auto-fallback: bump down to 1d so the user can at least see
-                // today's data. The state change re-runs this effect with the
-                // new csvFile URL.
-                setLoadStatus("No data for this range — loading 1d…");
-                setDateFilter("Last1");
-                setFetchDays(1);
-                return;
-              }
-              throw new Error("No data returned");
-            }
-            setParsedRows(rows);
-            setCsvLoading(false);
-          } catch(err) {
-            if (!cancelled) { setLoadErr(err.message); setCsvLoading(false); }
+        // Validate shape — aggregated response must have allItems + categories.
+        // Backend returns an _empty_result() shell (all arrays empty) when the
+        // DB has no data; we treat that as "no data" and fall back if possible.
+        const hasData = data && Array.isArray(data.allItems) && data.allItems.length > 0;
+        if (!hasData) {
+          if (fetchDays > 1) {
+            // Auto-fallback to 1d so the page still renders something useful.
+            // The state change re-runs this effect with the new URL.
+            setLoadStatus("No data for this range — loading 1d…");
+            setDateFilter("Last1");
+            setFetchDays(1);
+            return;
           }
-        }, 0);
+          throw new Error("No data returned");
+        }
+        // Aggregated response IS the dpData shape — use directly, skip
+        // parseCSVtoD entirely. Also keep parsedRows null so the in-memory
+        // date-filter effect below stays a no-op.
+        setDpData(data);
+        setParsedRows(null);
+        setCsvLoading(false);
       })
-      .catch(e => { if (!cancelled) { setLoadErr("Could not load data from API or static CSV"); setCsvLoading(false); } });
+      .catch(e => {
+        if (cancelled) return;
+        setLoadErr(e?.message || "Could not load aggregated data");
+        setCsvLoading(false);
+      });
+
     return () => { cancelled = true; };
-  }, [csvFile]);
+  }, [fetchDays]);
 
 
 
@@ -2405,7 +2405,7 @@ export default function DarkPool({embedded}){
       minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
       <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
-      <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{csvFile}</code></div>
+      <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{fetchDays === 0 ? "/api/darkpool/aggregated?all_data=true" : `/api/darkpool/aggregated?days=${fetchDays}`}</code></div>
       <div style={{fontSize:12,color:C.red,background:C.bg2,border:`1px solid ${C.red}44`,
         borderRadius:8,padding:"8px 16px",maxWidth:480,textAlign:"center"}}>
         {loadErr}
