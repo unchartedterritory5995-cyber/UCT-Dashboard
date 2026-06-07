@@ -76,4 +76,7 @@
 
 @media (max-width: 640px) {
   .wrap { flex-direction: column; }
+  /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
+  .search, .sortSelect { font-size: 16px; }
+  .newBtn { margin-left: 0; }
 }

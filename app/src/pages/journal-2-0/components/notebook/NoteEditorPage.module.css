@@ -183,3 +183,16 @@
   padding: 60px;
   color: var(--color-text-muted, #98a0aa);
 }
+
+/* ── Phone: fullscreen FORM — 16px inputs (no iOS zoom), finger targets, and a
+   non-sticky toolbar so it can't overlap a wrapped header. ── */
+@media (max-width: 640px) {
+  .column { padding: 0 16px; margin: 16px auto 72px; }
+  .header { padding: 8px 12px; }
+  .saveStatus { min-width: 0; order: 3; flex-basis: 100%; }
+  .headerSelect, .headerInput { font-size: 16px; padding: 8px 10px; }
+  .titleInput { font-size: 28px; }
+  .subtitleInput { font-size: 16px; }
+  .toolbar { position: static; top: auto; }
+  .toolBtn { padding: 8px 12px; font-size: 15px; min-height: var(--tap-min, 44px); }
+}
