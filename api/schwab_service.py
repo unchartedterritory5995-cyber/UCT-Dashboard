@@ -546,28 +546,49 @@ def stop_auto_refresh():
 
 async def get_mktcap_batch(symbols: list[str]) -> dict:
     """
-    Fetch market cap for a batch of tickers. Tries Schwab first; on auth
-    failure, empty response, or any unexpected shape, falls back to Yahoo's
-    v7 quote endpoint (batch-capable, returns marketCap directly). The
-    previous v8/finance/chart fallback was broken — that endpoint returns
-    OHLC time series, not marketCap, so it silently produced 0 for every
-    symbol and the whole batch came back as {}.
+    Fetch market cap for a batch of tickers. Tries the local flow DB first
+    (instant, no external calls — covers any ticker that has ever appeared
+    in options flow). Then Schwab via the fundamental quote field. Then
+    Yahoo's v7 quote endpoint as a final fallback.
 
     Returns: { "AAPL": 2940000000000, "MSFT": 3100000000000, ... }
-    Symbols missing from both providers are simply omitted.
+    Symbols missing from all providers are simply omitted.
     """
     results = {}
     symbols = [s.strip().upper() for s in symbols if s]
     if not symbols:
         return results
 
+    # ── Path 0: flow DB (fastest — no network, no auth, ~100% coverage on
+    # any ticker that's appeared in options flow CSV exports) ──
+    try:
+        # Import lazily so this module doesn't hard-fail if flow_db isn't
+        # available (some deploys may not have it).
+        try:
+            from api.flow_db import FlowDB
+        except ImportError:
+            from flow_db import FlowDB
+        flow = FlowDB()
+        flow_mc = flow.get_mktcap_batch(symbols)
+        if flow_mc:
+            results.update(flow_mc)
+            logger.info("[mktcap] flow DB resolved %d/%d", len(flow_mc), len(symbols))
+    except Exception as e:
+        logger.warning("[mktcap] flow DB lookup failed: %s", e)
+
+    # If flow DB gave us everything, skip the external API calls entirely
+    missing = [s for s in symbols if s not in results]
+    if not missing:
+        return results
+
     token = await get_valid_token()
 
-    # ── Path 1: Schwab (preferred — same auth path as the rest of the app) ──
+    # ── Path 1: Schwab (preferred for non-flow tickers — same auth as the
+    # rest of the app) ──
     if token:
         async with httpx.AsyncClient(timeout=12.0) as client:
-            for i in range(0, len(symbols), 50):
-                batch = symbols[i:i+50]
+            for i in range(0, len(missing), 50):
+                batch = missing[i:i+50]
                 try:
                     resp = await client.get(
                         QUOTES_URL,
@@ -597,9 +618,6 @@ async def get_mktcap_batch(symbols: list[str]) -> dict:
                             if mc and mc > 0:
                                 results[sym] = mc
                         if len(results) == before:
-                            # Schwab returned 200 but no usable mktcap. Log the
-                            # actual response shape once per batch so we can fix
-                            # the selector instead of guessing.
                             sample = next(iter(data.items()), None)
                             logger.warning(
                                 "[schwab] mktcap: no marketCap in response for batch %s. Sample: %s",
@@ -611,9 +629,9 @@ async def get_mktcap_batch(symbols: list[str]) -> dict:
                 except Exception as e:
                     logger.warning("[schwab] mktcap batch error: %s", e)
 
-    # If Schwab gave us full coverage, skip Yahoo
-    missing = [s for s in symbols if s not in results]
-    if not missing:
+    # If Schwab + flow gave us full coverage, skip Yahoo
+    still_missing = [s for s in symbols if s not in results]
+    if not still_missing:
         return results
 
     # ── Path 2: Yahoo v7 quote (batch capable, returns marketCap field) ──
@@ -621,14 +639,15 @@ async def get_mktcap_batch(symbols: list[str]) -> dict:
     # in quoteResponse.result[]. Sometimes Yahoo demands a "crumb" cookie;
     # most of the time the bare call still works for US equities. We send
     # all missing symbols in one request (Yahoo allows ~200 per call).
-    logger.info("[mktcap] Yahoo v7 fallback for %d symbol(s): %s", len(missing), missing[:5])
+    logger.info("[mktcap] Yahoo v7 fallback for %d symbol(s): %s",
+                len(still_missing), still_missing[:5])
     ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         try:
             resp = await client.get(
                 "https://query1.finance.yahoo.com/v7/finance/quote",
-                params={"symbols": ",".join(missing[:200])},
+                params={"symbols": ",".join(still_missing[:200])},
                 headers={"User-Agent": ua, "Accept": "application/json"},
             )
             if resp.status_code == 200:
@@ -647,12 +666,12 @@ async def get_mktcap_batch(symbols: list[str]) -> dict:
     # Some symbols (recent IPOs, non-US listings) fail the v7 batch. Hit
     # quoteSummary one at a time as a final attempt. modules=price returns
     # marketCap.raw which is the canonical Yahoo number.
-    still_missing = [s for s in missing if s not in results]
-    if still_missing:
+    final_missing = [s for s in symbols if s not in results]
+    if final_missing:
         logger.info("[mktcap] Yahoo v10 per-symbol fallback for %d: %s",
-                    len(still_missing), still_missing[:5])
+                    len(final_missing), final_missing[:5])
         async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-            for sym in still_missing[:50]:
+            for sym in final_missing[:50]:
                 try:
                     resp = await client.get(
                         f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{sym}",
