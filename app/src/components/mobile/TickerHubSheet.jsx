@@ -1,9 +1,21 @@
+import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sheet from './Sheet'
 import { useTickerHub } from './TickerHubContext'
 import { useFlagged } from '../../hooks/useFlagged'
 import useLivePrices from '../../hooks/useLivePrices'
+import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
+import useTickerTweets from '../../hooks/useTickerTweets'
+import CompassAssistButton from '../voice/CompassAssistButton'
 import styles from './TickerHubSheet.module.css'
+
+const StockChart = lazy(() => import('../StockChart'))
+
+const TFS = [
+  { key: 'D', label: '1D' },
+  { key: 'W', label: '1W' },
+  { key: 'M', label: '1M' },
+]
 
 // Outer gate: only mount the body (and its data hooks) when a ticker is open,
 // so live-price polling / flag state don't run app-wide while the hub is closed.
@@ -17,15 +29,31 @@ function TickerHubBody({ sym, onClose }) {
   const navigate = useNavigate()
   const { isFlagged, toggle } = useFlagged()
   const { prices } = useLivePrices([sym])
+  const { createAlert, hasAlert } = useWatchlistAlerts()
+  const { data: tweets } = useTickerTweets(sym, { hours: 24 })
+
+  const [tf, setTf] = useState('D')
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertDir, setAlertDir] = useState('above')
+  const [alertPrice, setAlertPrice] = useState('')
 
   const live = prices[sym] || prices[String(sym).toUpperCase()]
   const flagged = isFlagged(sym)
 
+  const go = (to) => { onClose(); navigate(to) }
   const openChart = () => {
     try { localStorage.setItem('charts_mobile_sym', sym) } catch { /* noop */ }
-    onClose()
-    navigate('/charts')
+    go('/charts')
   }
+  const submitAlert = () => {
+    const p = parseFloat(alertPrice)
+    if (!p || p <= 0) return
+    createAlert(sym, p, alertDir)
+    setAlertPrice('')
+    setAlertOpen(false)
+  }
+
+  const topTweets = Array.isArray(tweets) ? tweets.slice(0, 2) : []
 
   return (
     <Sheet open onClose={onClose} variant="bottom-sheet" title={sym}>
@@ -40,9 +68,44 @@ function TickerHubBody({ sym, onClose }) {
             )}
           </div>
         )}
+
+        {/* Mini-chart with TF chips */}
+        <div className={styles.tfRow}>
+          {TFS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={`${styles.tfChip} ${tf === t.key ? styles.tfOn : ''}`}
+              onClick={() => setTf(t.key)}
+            >{t.label}</button>
+          ))}
+        </div>
+        <div className={styles.chartWrap}>
+          <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
+            <StockChart
+              sym={sym}
+              tf={tf}
+              height="240px"
+              showDrawingTools={false}
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
+            />
+          </Suspense>
+        </div>
+
+        {/* Action row */}
         <div className={styles.actions}>
           <button type="button" className={styles.action} onClick={openChart}>
             <span className={styles.aicon} aria-hidden="true">📈</span>Chart
+          </button>
+          <button
+            type="button"
+            className={`${styles.action} ${hasAlert(sym) ? styles.on : ''}`}
+            onClick={() => setAlertOpen((o) => !o)}
+          >
+            <span className={styles.aicon} aria-hidden="true">🔔</span>Alert
           </button>
           <button
             type="button"
@@ -51,8 +114,50 @@ function TickerHubBody({ sym, onClose }) {
           >
             <span className={styles.aicon} aria-hidden="true">⚑</span>Flag
           </button>
+          <button type="button" className={styles.action} onClick={() => go('/journal')}>
+            <span className={styles.aicon} aria-hidden="true">📓</span>Journal
+          </button>
         </div>
-        <p className={styles.note}>More — alerts, journal, Compass — coming to this hub next.</p>
+
+        {/* Inline alert form */}
+        {alertOpen && (
+          <div className={styles.alertForm}>
+            <select className={styles.alertSel} value={alertDir} onChange={(e) => setAlertDir(e.target.value)}>
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+            <input
+              className={styles.alertInput}
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              placeholder="$ price"
+              value={alertPrice}
+              onChange={(e) => setAlertPrice(e.target.value)}
+            />
+            <button
+              type="button"
+              className={styles.alertSet}
+              disabled={!alertPrice || parseFloat(alertPrice) <= 0}
+              onClick={submitAlert}
+            >Set</button>
+          </div>
+        )}
+
+        {/* Compass voice (real; self-hides if no VoiceProvider) */}
+        <div className={styles.compassRow}>
+          <CompassAssistButton pageHint={`chart of ${sym}`} label={`🧭 Ask Compass about ${sym}`} />
+        </div>
+
+        {/* Why it's moving — recent tweets */}
+        {topTweets.length > 0 && (
+          <div className={styles.why}>
+            <div className={styles.whyHdr}>Why it's moving</div>
+            {topTweets.map((t) => (
+              <p key={t.id} className={styles.tweet}>{t.text}</p>
+            ))}
+          </div>
+        )}
       </div>
     </Sheet>
   )

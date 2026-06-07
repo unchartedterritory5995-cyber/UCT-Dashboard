@@ -6,6 +6,8 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
+import { useTickerHub } from './mobile/TickerHubContext'
+import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
 
@@ -25,6 +27,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const { getTag } = useTickerTags()
   const tagColor = getTag(sym)
   const tickerActions = useTickerActions()
+  const { openTicker } = useTickerHub()
+  const isTouch = useIsTouch()
 
   // Fetch live price only when modal is open
   const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
@@ -65,7 +69,12 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     <>
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
-        onClick={() => { setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym) }}
+        onClick={() => {
+          // On touch, a tap opens the universal Ticker Hub sheet; desktop keeps
+          // the full chart modal.
+          if (isTouch) { openTicker(sym); return }
+          setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym)
+        }}
         onMouseEnter={() => prefetchBar(sym, 'D')}
         {...tickerActions.longPressProps(sym)}
         role="button"
