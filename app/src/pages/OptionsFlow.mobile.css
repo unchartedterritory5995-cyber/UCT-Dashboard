@@ -1,0 +1,58 @@
+/* OptionsFlow — phone mobile layer (ADDITIVE / rebase-safe).
+ *
+ * OptionsFlow.jsx is a ~7k-line partner-owned component styled almost entirely
+ * with inline style={{}} objects and zero classNames. To avoid editing the
+ * partner's inline styles (which would create rebase conflicts), this file
+ * rides on a single `.of-mroot` wrapper class added to the component root and
+ * overrides only what's needed on phones, all behind @media (max-width:640px)
+ * with !important (the only way to beat inline styles). Desktop is untouched.
+ *
+ * Touch-points in OptionsFlow.jsx: the CSS import, className="of-mroot" on the
+ * root div, and className="of-tabs" on the tab bar. Nothing else.
+ */
+
+@media (max-width: 640px) {
+  /* The root carries an inline `zoom:1.18` that magnifies the whole dashboard —
+     on a phone that just amplifies the cramping. Reset it and tighten padding. */
+  .of-mroot {
+    zoom: 1 !important;
+    padding: 12px 10px !important;
+    overflow-x: hidden;
+  }
+
+  /* Collapse the fixed multi-column inline grids to a single column. These have
+     no classNames, so target them by their rendered inline style attribute.
+     `auto-fill` grids and `auto 1fr` label/value rows are intentionally left
+     alone (they already reflow sensibly). */
+  .of-mroot [style*="grid-template-columns:1fr 1fr"],
+  .of-mroot [style*="grid-template-columns: 1fr 1fr"],
+  .of-mroot [style*="repeat(3,"],
+  .of-mroot [style*="repeat(3 ,"],
+  .of-mroot [style*="repeat(4,"],
+  .of-mroot [style*="repeat(5,"],
+  .of-mroot [style*="repeat(6,"],
+  .of-mroot [style*="repeat(7,"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tab bar: a horizontal scroll strip with finger-sized targets instead of a
+     multi-row wrap. */
+  .of-mroot .of-tabs {
+    flex-wrap: nowrap !important;
+    width: 100% !important;       /* override inline fit-content so it scrolls
+                                     internally instead of widening the page */
+    max-width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .of-mroot .of-tabs::-webkit-scrollbar { display: none; }
+  .of-mroot .of-tabs > button {
+    flex: 0 0 auto;
+    padding: 10px 14px !important;
+    min-height: var(--tap-min, 44px);
+  }
+
+  /* Dense data tables read at 9px on desktop; nudge up for thumbs. */
+  .of-mroot table { font-size: 11px !important; }
+}
