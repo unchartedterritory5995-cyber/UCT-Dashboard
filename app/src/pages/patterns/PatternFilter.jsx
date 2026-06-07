@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import useSWR from 'swr'
+import { useIsPhone } from '../../hooks/useBreakpoint'
+import { FiltersSheet } from '../../components/mobile'
 import styles from './PatternFilter.module.css'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -30,6 +32,8 @@ const DEFAULT_FILTERS = {
 }
 
 export default function PatternFilter({ filters, onChange }) {
+  const isPhone = useIsPhone()
+  const [sheetOpen, setSheetOpen] = useState(false)
   const { data } = useSWR('/api/patterns/types', fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60_000,
@@ -52,8 +56,16 @@ export default function PatternFilter({ filters, onChange }) {
   }
   const reset = () => onChange(DEFAULT_FILTERS)
 
-  return (
-    <div className={styles.filterBar}>
+  // Non-default selections — drives the phone "Filters · N" badge.
+  const activeCount =
+    (filters.types?.length || 0) +
+    (filters.category ? 1 : 0) +
+    (filters.tf !== DEFAULT_FILTERS.tf ? 1 : 0) +
+    (filters.min_conf !== DEFAULT_FILTERS.min_conf ? 1 : 0) +
+    (filters.leaders_only !== DEFAULT_FILTERS.leaders_only ? 1 : 0)
+
+  const body = (
+    <>
       {/* Row 1: category + tf + slider + reset */}
       <div className={styles.row}>
         <div className={styles.group}>
@@ -139,6 +151,39 @@ export default function PatternFilter({ filters, onChange }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
+
+  // Phone: collapse the whole bar into a "Filters" button → bottom-sheet so the
+  // results grid owns the viewport. Desktop keeps the inline filter bar.
+  if (isPhone) {
+    const tfLabel = TIMEFRAMES.find(t => t.value === filters.tf)?.label || filters.tf
+    return (
+      <>
+        <div className={styles.mobileBar}>
+          <button
+            type="button"
+            className={`${styles.mobileFiltersBtn} ${activeCount > 0 ? styles.mobileFiltersBtnActive : ''}`}
+            onClick={() => setSheetOpen(true)}
+          >
+            ⚙ Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
+          </button>
+          <span className={styles.mobileSummary}>{tfLabel} · conf {filters.min_conf}{filters.leaders_only ? ' · leaders' : ''}</span>
+        </div>
+        <FiltersSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          onClear={reset}
+          onApply={() => setSheetOpen(false)}
+          title="Pattern Filters"
+          activeCount={activeCount}
+          applyLabel="Show patterns"
+        >
+          {body}
+        </FiltersSheet>
+      </>
+    )
+  }
+
+  return <div className={styles.filterBar}>{body}</div>
 }

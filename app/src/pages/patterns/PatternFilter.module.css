@@ -152,9 +152,45 @@
   color: #ef4444;
 }
 
+/* ── Mobile: collapsed filter bar (button → FiltersSheet) ── */
+.mobileBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mobileFiltersBtn {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: #15161a;
+  color: #d8d2c2;
+  border: 1px solid #2a2723;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-height: var(--tap-min, 44px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mobileFiltersBtnActive {
+  color: #c9a84c;
+  border-color: rgba(201, 168, 76, 0.45);
+  background: rgba(201, 168, 76, 0.08);
+}
+.mobileSummary {
+  font-size: 12px;
+  color: #a8a290;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 640px) {
-  .row { gap: 12px; }
+  .row { gap: 14px; }
+  .group { flex: 1 1 100%; }
   .slider { width: 100%; }
+  .select { font-size: 16px; padding: 9px 10px; }  /* 16px avoids iOS focus-zoom */
   .resetBtn { margin-left: 0; }
-  .typesGroup { max-height: 140px; }
+  /* In the sheet the type list can breathe — no clipped scroll box. */
+  .typesGroup { max-height: none; }
 }
