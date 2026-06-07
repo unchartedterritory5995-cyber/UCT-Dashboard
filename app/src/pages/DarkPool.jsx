@@ -2517,11 +2517,20 @@ export default function DarkPool({embedded}){
   // Falls back to the legacy CSV path only if /aggregated 404s (older backend
   // builds). Static CSV fallback removed — it was only a backup for the API
   // being down, and a stale static file is worse than a clean error.
+  const prewarmedRef = useRef(false);  // page-mount pre-warm only fires once
   useEffect(() => {
     let cancelled = false;
     setCsvLoading(true);
     setLoadErr(null);
-    setLoadStatus("Fetching aggregated data…");
+    // More informative copy than "Fetching aggregated data…" — the first
+    // load on a cold cache really does take 5-15s (backend builds the
+    // aggregation across millions of rows), so set expectations.
+    setLoadStatus(`Loading ${fetchDays === 0 ? "all" : fetchDays} day window…`);
+    const loadStart = performance.now();
+    // Switch to a long-load hint after 4s so the user knows we haven't hung.
+    const slowHintTimer = setTimeout(() => {
+      if (!cancelled) setLoadStatus("Building aggregation… first load is slow, subsequent are instant");
+    }, 4000);
 
     const aggUrl = fetchDays === 0
       ? "/api/darkpool/aggregated?all_data=true"
@@ -2535,6 +2544,7 @@ export default function DarkPool({embedded}){
       })
       .then(data => {
         if (cancelled) return;
+        clearTimeout(slowHintTimer);
         // Validate shape — aggregated response must have allItems + categories.
         // Backend returns an _empty_result() shell (all arrays empty) when the
         // DB has no data; we treat that as "no data" and fall back if possible.
@@ -2556,14 +2566,34 @@ export default function DarkPool({embedded}){
         setDpData(data);
         setParsedRows(null);
         setCsvLoading(false);
+        const elapsed = Math.round(performance.now() - loadStart);
+        console.log(`[DarkPool] window=${fetchDays} loaded in ${elapsed}ms`);
+
+        // Background pre-warm: after the primary load succeeds, fire off a
+        // /prebuild on the backend so every other date window (1d / 5d /
+        // 20d / 60d / 90d / all) gets cached. The backend has a lock so
+        // concurrent requests are idempotent; this is harmless if it's
+        // already warm. Once per page session — toggling date ranges later
+        // shouldn't keep re-warming.
+        if (!prewarmedRef.current) {
+          prewarmedRef.current = true;
+          // Fire-and-forget. Tiny delay so it doesn't fight the mktcap
+          // batch requests for backend CPU.
+          setTimeout(() => {
+            fetch("/api/darkpool/prebuild", { method: "POST" })
+              .then(() => console.log("[DarkPool] background prewarm kicked off"))
+              .catch(() => { /* silent — best effort */ });
+          }, 500);
+        }
       })
       .catch(e => {
         if (cancelled) return;
+        clearTimeout(slowHintTimer);
         setLoadErr(e?.message || "Could not load aggregated data");
         setCsvLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(slowHintTimer); };
   }, [fetchDays]);
 
 
@@ -2699,14 +2729,29 @@ export default function DarkPool({embedded}){
       <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>
         <div style={{maxWidth:1400,margin:"0 auto"}}>
         {/* Title row */}
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2,flexWrap:"wrap"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
             boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
           <span style={{fontSize:18,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
             fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>DARK POOL SCANNER</span>
-          <span style={{fontSize:11,color:C.tx3,marginLeft:4}}>
-            · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
-            <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</span>
+          {/* Date range — moved to the front of the meta line so the user
+              knows immediately what window the rest of the page reflects.
+              The bullet-separated metrics below remain for context. */}
+          {D.meta?.dateRange && (
+            <span style={{fontSize:11,fontWeight:600,color:C.amber,
+              fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+              marginLeft:4}}>
+              {D.meta.dateRange}
+            </span>
+          )}
+          <span style={{fontSize:11,color:C.tx3}}>
+            · {D.meta?.tradingDays??""} trading {(D.meta?.tradingDays??0) === 1 ? "day" : "days"}
+            · {(D.meta?.totalTrades??0).toLocaleString()} block trades
+            · {(D.meta?.totalTickers??0).toLocaleString()} tickers
+            ·{" "}
+            <span style={{color:C.cyan}} title="Total dark pool $ notional across all tickers in this window">
+              {D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} premium
+            </span>
           </span>
         </div>
         {/* Zone cards */}
