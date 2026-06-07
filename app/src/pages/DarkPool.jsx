@@ -2464,20 +2464,68 @@ export default function DarkPool({embedded}){
   const [mktcapData,setMktcapData]=useState({}); // {AAPL: 2940000000000, ...}
   const [mktcapLoading,setMktcapLoading]=useState(false);
 
-  // Fetch market cap from Schwab API for visible tickers
+  // Tickers we've already attempted to fetch this session — kept in a ref
+  // (not state) so updating it doesn't trigger renders. Stops repeat
+  // fetches when the user toggles date ranges back and forth and dpData
+  // re-loads with overlapping ticker sets.
+  const mktcapAttemptedRef = useRef(new Set());
+
+  // Batched market-cap fetch — splits into chunks of 50 (backend's cap on
+  // /api/schwab/mktcap-batch) and runs them in parallel. Each response is
+  // merged into the central mktcapData store so every consumer (Notable
+  // Activity, Biggest Prints, FlowTable, PatternTickerRow header) sees
+  // the value immediately.
   async function fetchMktCap(tickers) {
     if (!tickers || tickers.length === 0) return;
     setMktcapLoading(true);
     try {
       const base = typeof API_BASE !== "undefined" ? API_BASE : "";
-      const resp = await fetch(`${base}/api/schwab/mktcap-batch?symbols=${tickers.slice(0,50).join(",")}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        setMktcapData(prev => ({ ...prev, ...(data.mktcap || {}) }));
+      // Mark attempted up front so the auto-fetch effect doesn't re-queue
+      // these symbols while requests are still in flight.
+      tickers.forEach(t => mktcapAttemptedRef.current.add(t));
+      // Chunk by 50 (matches schwab_router's per-request cap)
+      const batches = [];
+      for (let i = 0; i < tickers.length; i += 50) {
+        batches.push(tickers.slice(i, i + 50));
       }
-    } catch (e) { console.warn("[DarkPool] mktcap fetch failed:", e); }
+      const responses = await Promise.all(
+        batches.map(batch =>
+          fetch(`${base}/api/schwab/mktcap-batch?symbols=${batch.join(",")}`)
+            .then(r => (r.ok ? r.json() : null))
+            .catch(() => null)
+        )
+      );
+      const merged = {};
+      for (const data of responses) {
+        if (data?.mktcap) Object.assign(merged, data.mktcap);
+      }
+      if (Object.keys(merged).length > 0) {
+        setMktcapData(prev => ({ ...prev, ...merged }));
+      }
+    } catch (e) {
+      console.warn("[DarkPool] mktcap fetch failed:", e);
+    }
     setMktcapLoading(false);
   }
+
+  // Auto-fetch market caps for every ticker in the current dpData payload
+  // the moment it loads. Was previously gated behind a manual "Fetch Mkt
+  // Cap" button on Overview — easy to miss, and broke the Notable Activity
+  // / Biggest Prints panels which assumed the data would be there.
+  // Skip tickers we already have or have already requested.
+  useEffect(() => {
+    if (!dpData || !Array.isArray(dpData.allItems)) return;
+    const wanted = dpData.allItems
+      .map(i => i.t)
+      .filter(t => t && !mktcapAttemptedRef.current.has(t) && !mktcapData[t]);
+    if (wanted.length > 0) {
+      fetchMktCap(wanted);
+    }
+    // mktcapData intentionally omitted from deps — the ref handles
+    // dedup, and listing it here would cause infinite re-fetching.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dpData]);
+
 
   // Global category filter helper
   const ETF_CATS_SET=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
