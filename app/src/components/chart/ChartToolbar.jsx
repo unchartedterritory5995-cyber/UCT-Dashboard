@@ -1098,7 +1098,7 @@ function ChartToolbar({
             className={`${styles.btn} ${lineStyle === 'dashed' ? styles.active : ''}`}
             onClick={() => setLineStyle(lineStyle === 'dashed' ? 'solid' : 'dashed')}
             title="Line style — applies to new lines and the selected line"
-            style={{ width: 'auto', padding: '0 8px', fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap' }}
+            style={{ width: 'auto', padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap' }}
           >
             {lineStyle === 'dashed' ? '┄ Dashed' : '─ Solid'}
           </button>

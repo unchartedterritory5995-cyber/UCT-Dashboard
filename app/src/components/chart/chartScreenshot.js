@@ -91,7 +91,7 @@ export async function composeScreenshot(chart, opts = {}) {
   ctx.fillStyle = '#161616';
   ctx.fillRect(0, 0, totalW, HEADER_H);
   ctx.fillStyle = '#c9a84c';  // UCT gold
-  ctx.font = 'bold 18px "IBM Plex Mono", monospace';
+  ctx.font = 'bold 18px "Instrument Sans", -apple-system, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.fillText(opts.sym || '', 16, HEADER_H / 2);
   ctx.fillStyle = '#888';
@@ -108,7 +108,7 @@ export async function composeScreenshot(chart, opts = {}) {
   }
   // UCT brand on right
   ctx.fillStyle = '#c9a84c';
-  ctx.font = 'bold 12px "IBM Plex Mono", monospace';
+  ctx.font = 'bold 12px "Instrument Sans", -apple-system, sans-serif';
   ctx.textAlign = 'right';
   ctx.fillText('UCT INTELLIGENCE', totalW - 16, HEADER_H / 2);
   ctx.textAlign = 'left';

@@ -74,7 +74,7 @@ export default function AppErrorFallback({ error }) {
           background: '#1a1b18',
           color: '#a8a290',
           fontSize: '11px',
-          fontFamily: 'IBM Plex Mono, monospace',
+          fontFamily: 'var(--font-mono)',
           maxWidth: '90vw',
           overflow: 'auto',
           textAlign: 'left',

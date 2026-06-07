@@ -143,7 +143,7 @@ export default function CatalystFlow({ data: propData }) {
       </TileCard>
 
       {selected && (
-        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace', padding: '12px' }}>Unable to load — click a ticker to retry.</div>} key={selected.row.sym}>
+        <ErrorBoundary fallback={<div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px' }}>Unable to load — click a ticker to retry.</div>} key={selected.row.sym}>
           <EarningsModal
             row={selected.row}
             label={selected.label}

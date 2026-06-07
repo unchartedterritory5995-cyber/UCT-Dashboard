@@ -29,7 +29,7 @@ export default class ErrorBoundary extends Component {
         return cloneElement(fallback, { error: this.state.error })
       }
       return fallback ?? (
-        <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'monospace' }}>
+        <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
           Component error — reload to retry
         </div>
       )

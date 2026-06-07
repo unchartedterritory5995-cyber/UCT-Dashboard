@@ -100,7 +100,7 @@ class ChartErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: '24px', color: '#ff6b6b', fontSize: '13px', fontFamily: 'monospace' }}>
+        <div style={{ padding: '24px', color: '#ff6b6b', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
           Chart error: {String(this.state.error.message || this.state.error)}
         </div>
       )
