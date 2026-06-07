@@ -99,10 +99,27 @@
 .gB { color: var(--ut-cream); background: rgba(201,168,76,0.4); }
 .gC { color: var(--text-muted); background: rgba(255,255,255,0.08); }
 
-/* ── Mobile ── */
-@media (max-width: 768px) {
+/* ── Phone: list ⇄ detail view-switch back button ── */
+.mobileBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap-min, 44px);
+  margin-bottom: 4px;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--ut-gold);
+  cursor: pointer;
+}
+
+/* ── Mobile (phone) — only one pane renders at a time; it fills naturally ── */
+@media (max-width: 640px) {
   .layout { flex-direction: column; height: auto; }
-  .listPanel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
-  .detailPanel { padding: 12px 0; }
+  .listPanel { width: 100%; min-width: 0; border-right: none; max-height: none; }
+  .detailPanel { padding: 4px 0 24px; }
   .heading { font-size: 18px; letter-spacing: 3px; }
 }

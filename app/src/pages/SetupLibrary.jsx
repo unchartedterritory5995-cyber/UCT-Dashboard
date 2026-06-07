@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import TileCard from '../components/TileCard'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
+import { useIsPhone } from '../hooks/useBreakpoint'
 import styles from './SetupLibrary.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -150,6 +151,8 @@ export default function SetupLibrary() {
   const [family, setFamily] = useState('All')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
+  // Phone: two-pane → list ⇄ detail view-switch (selected drives which shows).
+  const isPhone = useIsPhone()
 
   const { data } = useSWR('/api/setup-templates', fetcher, { revalidateOnFocus: false })
   const templates = data?.templates || []
@@ -197,6 +200,7 @@ export default function SetupLibrary() {
 
       <div className={styles.layout}>
         {/* Left panel — list */}
+        {(!isPhone || !selected) && (
         <div className={styles.listPanel}>
           {/* Filters */}
           <div className={styles.filters}>
@@ -278,9 +282,16 @@ export default function SetupLibrary() {
             )}
           </div>
         </div>
+        )}
 
         {/* Right panel — detail */}
+        {(!isPhone || selected) && (
         <div className={styles.detailPanel}>
+          {isPhone && selected && (
+            <button className={styles.mobileBack} onClick={() => setSelected(null)}>
+              ‹ All setups
+            </button>
+          )}
           {detailData && !detailData.error ? (
             <TemplateDetail template={detailData} onClose={() => setSelected(null)} />
           ) : selected ? (
@@ -291,6 +302,7 @@ export default function SetupLibrary() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   )
