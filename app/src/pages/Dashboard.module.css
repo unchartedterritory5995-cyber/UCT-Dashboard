@@ -92,6 +92,24 @@
     gap: 4px;
   }
 
+  /* Morning Wire entry link in the triaged Home stack */
+  .mwLink {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    min-height: var(--tap-min);
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-bright);
+    font-size: var(--text-md);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .mwLink:active { background: var(--bg-hover); }
+
   /* ── Accordion section ──────────────────────────────────────────────────── */
   .mSection {
     background: var(--bg-surface);
