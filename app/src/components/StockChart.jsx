@@ -648,10 +648,11 @@ export default function StockChart({
         // Bar opacity scales with notional ratio so the largest print is still
         // the most visible. Ceiling was 1.0 which fully solid-colored the top
         // 5 against dark candles — too dominant, drowned out the price action.
-        // Dropped to a 0.65 ceiling for top tier (≈35% less bright at max),
-        // and the smaller tier caps at 0.50. The label below gets a separate
-        // opacity bump so the $ amount stays readable even when the bar fades.
-        opacity: isGoldTier ? 0.30 + ratio * 0.35 : 0.18 + ratio * 0.32,
+        // Iterated down: first cut to 0.65 was still bright, dropped again to
+        // 0.50 max for the top tier (≈50% less bright than original at max),
+        // 0.40 max for smaller bars. The label below gets a separate opacity
+        // bump so the $ amount stays readable even when the bar fades.
+        opacity: isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26,
         isGoldTier,
       }
     })
@@ -4807,10 +4808,11 @@ export default function StockChart({
                 fontSize: 9.5,
                 color: b.color,
                 fontWeight: b.isGoldTier ? 700 : 500,
-                // Bigger boost than before (was +0.18) — bars now max at 0.65
-                // opacity but the $ label needs to stay legible. +0.30 lifts
-                // top-tier labels to ~0.95 (visible) and small bars to ~0.50.
-                opacity: Math.min(1, b.opacity + 0.30),
+                // Bigger boost than before (was +0.18, then +0.30) — bars
+                // now max at 0.50 opacity but the $ label needs to stay
+                // legible. +0.45 lifts top-tier labels to ~0.95 (visible)
+                // and small bars to ~0.55.
+                opacity: Math.min(1, b.opacity + 0.45),
                 whiteSpace: 'nowrap',
                 fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 pointerEvents: 'none',
