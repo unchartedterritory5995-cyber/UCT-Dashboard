@@ -4,6 +4,7 @@ import styles from './Breadth.module.css'
 import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
 import TickerPopup from '../components/TickerPopup'
+import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
@@ -1056,10 +1057,41 @@ const phaseClass = (phase, styles) => {
   return styles.phaseAmber   // rally attempt, under pressure, late stage
 }
 
+// Shared tab strip (DRY — was duplicated across every render branch). On mobile
+// it scrolls horizontally as a chip strip. "Overview" is the mobile-default
+// readable landing; the dense Monitor/Views are a tap away.
+const BREADTH_TAB_ITEMS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'breadth', label: 'Monitor' },
+  { key: 'heatmap', label: 'Views' },
+  { key: 'cot', label: 'COT Data' },
+  { key: 'charts', label: 'Data Charts' },
+]
+function BreadthTabs({ active, onChange, isAdmin }) {
+  const items = isAdmin ? [...BREADTH_TAB_ITEMS, { key: 'analogues', label: 'Analogues' }] : BREADTH_TAB_ITEMS
+  return (
+    <div className={styles.tabs}>
+      {items.map((t) => (
+        <button
+          key={t.key}
+          className={`${styles.tab} ${active === t.key ? styles.tabActive : ''}`}
+          onClick={() => onChange(t.key)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Breadth() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const [activeTab, setActiveTab] = useState('breadth')
+  // Phones land on the readable Overview; desktop/tablet keep the Monitor.
+  const [activeTab, setActiveTab] = useState(() => {
+    try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
+    catch { return 'breadth' }
+  })
   const [days, setDays] = useState(90)
 
   useEffect(() => {
@@ -1153,20 +1185,26 @@ export default function Breadth() {
     return out
   }, [rows])
 
+  if (activeTab === 'overview') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>Breadth</h1>
+          <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
+        </div>
+        <div className={styles.overviewBody}>
+          <MarketBreadth />
+        </div>
+      </div>
+    )
+  }
+
   if (activeTab === 'cot') {
     return (
       <div className={`${styles.page} ${styles.pageCot}`}>
         <div className={`${styles.header} ${styles.cotTabHeader}`}>
           <h1 className={styles.heading}>Breadth</h1>
-          <div className={styles.tabs}>
-            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
-            <button className={`${styles.tab} ${styles.tabActive}`}>COT Data</button>
-            <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
-            {isAdmin && (
-              <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
-            )}
-          </div>
+          <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <CotData />
       </div>
@@ -1178,15 +1216,7 @@ export default function Breadth() {
       <div className={styles.page}>
         <div className={styles.header}>
           <h1 className={styles.heading}>Breadth</h1>
-          <div className={styles.tabs}>
-            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
-            <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
-            <button className={`${styles.tab} ${styles.tabActive}`}>Data Charts</button>
-            {isAdmin && (
-              <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
-            )}
-          </div>
+          <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <BreadthCharts />
       </div>
@@ -1198,13 +1228,7 @@ export default function Breadth() {
       <div className={styles.page}>
         <div className={styles.header}>
           <h1 className={styles.heading}>Breadth</h1>
-          <div className={styles.tabs}>
-            <button className={styles.tab} onClick={() => setActiveTab('breadth')}>Monitor</button>
-            <button className={styles.tab} onClick={() => setActiveTab('heatmap')}>Views</button>
-            <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
-            <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
-            <button className={`${styles.tab} ${styles.tabActive}`}>Analogues</button>
-          </div>
+          <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <BreadthAnalogues />
       </div>
@@ -1215,15 +1239,7 @@ export default function Breadth() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>Breadth</h1>
-        <div className={styles.tabs}>
-          <button className={`${styles.tab} ${activeTab === 'breadth' ? styles.tabActive : ''}`} onClick={() => setActiveTab('breadth')}>Monitor</button>
-          <button className={`${styles.tab} ${activeTab === 'heatmap' ? styles.tabActive : ''}`} onClick={() => setActiveTab('heatmap')}>Views</button>
-          <button className={styles.tab} onClick={() => setActiveTab('cot')}>COT Data</button>
-          <button className={styles.tab} onClick={() => setActiveTab('charts')}>Data Charts</button>
-          {isAdmin && (
-            <button className={styles.tab} onClick={() => setActiveTab('analogues')}>Analogues</button>
-          )}
-        </div>
+        <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
           {rows.length > 0
             ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`

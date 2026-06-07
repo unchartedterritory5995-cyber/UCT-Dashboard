@@ -1133,17 +1133,25 @@ tbody tr { cursor: pointer; }
     gap: 8px;
   }
   .heading { font-size: 18px; letter-spacing: 2px; }
+  /* 6 tabs don't fit stretched — scroll them as a chip strip. */
   .tabs {
     width: 100%;
-    justify-content: stretch;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab {
-    flex: 1;
-    text-align: center;
-    min-height: 36px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .overviewBody {
+    padding: 4px 0 12px;
   }
   /* Table improvements — tighter cells for mobile */
   .tableWrap {
