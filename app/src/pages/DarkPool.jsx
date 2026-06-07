@@ -766,7 +766,23 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   // When noCollapsedRow is true (search modal use case), start in expanded
   // state — caller is responsible for mount/unmount to toggle visibility.
   const [expanded, setExpanded] = useState(noCollapsedRow);
+  // `timeframe` = how far back to fetch dark pool prints (data window).
+  // Drives the `/ticker-detail?days=N` request below.
   const [timeframe, setTimeframe] = useState("3M");
+  // `chartTf` = candle aggregation (independent of the dark pool window).
+  // Originally these were coupled — picking "3M" gave you Daily candles and
+  // there was no way to view intraday. Now decoupled: the dark pool window
+  // and candle TF can be set independently. Defaults to the old TF_MAP
+  // mapping so behavior is unchanged out of the box; the useEffect below
+  // resets it to that smart default whenever the user picks a new window,
+  // so e.g. clicking "1Y" snaps candles to Weekly automatically. User can
+  // then override with the second button row.
+  const [chartTf, setChartTf] = useState(TF_MAP["3M"].chartTf);
+  useEffect(() => {
+    const next = TF_MAP[timeframe]?.chartTf;
+    if (next) setChartTf(next);
+  }, [timeframe]);
+
   const [prints, setPrints] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1018,17 +1034,50 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
                 </span>
               </>}
             </div>
-            <div style={{display:"flex", gap:3}}>
-              {Object.keys(TF_MAP).map(tf => {
-                const active = tf === timeframe;
-                return (
-                  <button key={tf} onClick={() => setTimeframe(tf)}
-                    style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
-                      border:`1px solid ${active ? C.amber : C.bdr2}`,
-                      background: active ? C.amber+"22" : "transparent",
-                      color: active ? C.amber : C.tx2}}>{tf}</button>
-                );
-              })}
+            <div style={{display:"flex", flexDirection:"column", gap:4, alignItems:"flex-end"}}>
+              {/* Row 1 — dark pool window (how many days of prints to fetch).
+                  Amber styling matches the rest of the dark pool theming. */}
+              <div style={{display:"flex", gap:3, alignItems:"center"}}>
+                <span style={{fontSize:8, color:C.tx3, marginRight:4, letterSpacing:"0.05em",
+                  fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>PRINTS</span>
+                {Object.keys(TF_MAP).map(tf => {
+                  const active = tf === timeframe;
+                  return (
+                    <button key={tf} onClick={() => setTimeframe(tf)}
+                      style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
+                        border:`1px solid ${active ? C.amber : C.bdr2}`,
+                        background: active ? C.amber+"22" : "transparent",
+                        color: active ? C.amber : C.tx2}}>{tf}</button>
+                  );
+                })}
+              </div>
+              {/* Row 2 — candle timeframe (chart aggregation). Independent of
+                  the dark pool window above. Cyan to visually distinguish.
+                  Values map to StockChart's accepted TF strings:
+                    '1','5','15','30','60','D','W','M'. */}
+              <div style={{display:"flex", gap:3, alignItems:"center"}}>
+                <span style={{fontSize:8, color:C.tx3, marginRight:4, letterSpacing:"0.05em",
+                  fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>CANDLES</span>
+                {[
+                  {tf:"1",  label:"1m"},
+                  {tf:"5",  label:"5m"},
+                  {tf:"15", label:"15m"},
+                  {tf:"30", label:"30m"},
+                  {tf:"60", label:"1h"},
+                  {tf:"D",  label:"D"},
+                  {tf:"W",  label:"W"},
+                  {tf:"M",  label:"M"},
+                ].map(({tf, label}) => {
+                  const active = tf === chartTf;
+                  return (
+                    <button key={tf} onClick={() => setChartTf(tf)}
+                      style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
+                        border:`1px solid ${active ? C.cyan : C.bdr2}`,
+                        background: active ? C.cyan+"22" : "transparent",
+                        color: active ? C.cyan : C.tx2}}>{label}</button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1042,7 +1091,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
           <div style={{position:"relative", width:"100%", height:480, borderRadius:6, overflow:"hidden"}}>
             <StockChart
               sym={it.t}
-              tf={TF_MAP[timeframe].chartTf}
+              tf={chartTf}
               height={480}
               liveUpdates={true}
               showDrawingTools={true}
