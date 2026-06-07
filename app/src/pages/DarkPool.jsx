@@ -875,28 +875,48 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
           <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:10}}>
             <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
               <span style={{color:CAT_COLORS[it.cat]||C.tx, fontWeight:700, fontSize:15}}>{it.t}</span>
-              <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
-                background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
-                fontWeight:700}}>{it.cat || "—"}</span>
-              {/* Market cap — always shown so user can compare flow size vs company size */}
+              {/* Market cap (or category fallback when mkt cap data hasn't loaded).
+                  Color-coded by cap tier — same palette as the ticker — so the
+                  size context is preserved without printing the category twice. */}
+              {mktcap > 0 ? (
+                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                  background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
+                  fontWeight:700}}>{fmt(mktcap)} mkt cap</span>
+              ) : (
+                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                  background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
+                  fontWeight:700}}>{it.cat || "—"}</span>
+              )}
+              {/* Total dark pool premium — sum of $ notional of all prints in
+                  the current per-ticker window. Renamed from "Total flow"
+                  because dark pool prints don't reveal direction or intent,
+                  so "flow" is misleading; "premium" matches options-style
+                  terminology people already use for $ notional. */}
               <span style={{color:C.tx3, fontSize:10}}>·</span>
-              <span style={{color:C.tx3, fontSize:10}}>Mkt cap</span>
-              <span style={{color:C.tx2, fontWeight:600, fontSize:10}}>{mktcap > 0 ? fmt(mktcap) : "—"}</span>
-              {/* Total flow + ratio vs market cap */}
-              <span style={{color:C.tx3, fontSize:10}}>·</span>
-              <span style={{color:C.tx3, fontSize:10}}>Total flow</span>
+              <span style={{color:C.tx3, fontSize:10}}>Total dark pool premium</span>
               <span style={{color:C.cyan, fontWeight:600, fontSize:10}}>{it.n ? fmt(it.n) : "—"}</span>
               {it.n > 0 && mktcap > 0 && (
                 <span style={{color:C.amber, fontWeight:600, fontSize:10,
                   padding:"1px 6px", borderRadius:6,
                   background:C.amber + "15", border:`1px solid ${C.amber}33`}}
-                  title="Total dark pool flow as a percentage of the stock's market cap. Higher = bigger relative move.">
+                  title="Total dark pool $ notional as a percentage of the stock's market cap. Higher = bigger relative size vs the company.">
                   {(it.n / mktcap * 100).toFixed(2)}% of mkt cap
                 </span>
               )}
               {prints && <>
                 <span style={{color:C.tx3, fontSize:10}}>·</span>
-                <span style={{color:C.amber, fontWeight:600, fontSize:10}}>{prints.length} prints in {timeframe}</span>
+                {/* Explicit timeframe label so "in 3M" stops looking like a $
+                    amount. TF_MAP keys map to plain-English suffixes. */}
+                <span style={{color:C.amber, fontWeight:600, fontSize:10}}>
+                  {prints.length} dark pool {prints.length === 1 ? "print" : "prints"} · {
+                    timeframe === "1W"  ? "past week" :
+                    timeframe === "1M"  ? "past month" :
+                    timeframe === "3M"  ? "past 3 months" :
+                    timeframe === "6M"  ? "past 6 months" :
+                    timeframe === "1Y"  ? "past year" :
+                    timeframe === "All" ? "all history" : timeframe
+                  }
+                </span>
               </>}
             </div>
             <div style={{display:"flex", gap:3}}>
@@ -1148,13 +1168,20 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
         const totalNotional = allItems.reduce((s,i) => s + (i.bigPrintN || 0), 0);
         const junkNotional = allItems.filter(isJunk).reduce((s,i) => s + (i.bigPrintN || 0), 0);
         const junkPct = totalNotional > 0 ? Math.round(junkNotional / totalNotional * 100) : 0;
-        // Plain-English narrative — no jargon, explains what the percentage means
+        // Plain-English narrative — describes WHERE dark pool prints landed,
+        // not WHY. Dark pool prints don't reveal direction or intent (buy vs
+        // sell, opening vs closing), so we avoid "flow", "buying", "risk-on/off",
+        // or any directional/conviction framing. We describe the split between
+        // individual-stock prints and passive (bond/index/sector ETF) prints,
+        // which is a structural observation, not a sentiment read.
         const narrativeText =
-          junkPct >= 70 ? `Most of the big money today went into bonds, treasuries, and broad index ETFs (${junkPct}% of total volume). That's a risk-off signal — institutions parking cash, not buying individual stocks.` :
-          junkPct >= 50 ? `Flow is split between safe-haven ETFs and individual stocks (${junkPct}% passive). Mixed signal — not a strong directional read either way.` :
-          junkPct <= 25 ? `Most of the big money today went into individual stocks (only ${junkPct}% in bonds/ETFs). That's a healthy risk-on signal — institutions actively positioning.` :
-          `Balanced flow today — money split fairly evenly between individual stocks and broad ETFs (${junkPct}% passive).`;
-        const narrativeColor = junkPct >= 70 ? C.red : junkPct >= 50 ? C.amber : junkPct <= 25 ? C.green : C.tx2;
+          junkPct >= 70 ? `Most dark pool prints today landed in bonds, treasuries, and broad index ETFs (${junkPct}% of total premium). Heavy passive activity — most of the notional is sitting in baskets, not single names.` :
+          junkPct >= 50 ? `Dark pool prints split between passive ETFs and individual stocks (${junkPct}% in bonds/index ETFs). Mixed makeup — neither single names nor baskets dominate.` :
+          junkPct <= 25 ? `Most dark pool prints today landed in individual stocks (only ${junkPct}% in bonds/index ETFs). Heavy single-name activity — institutions are printing in specific tickers, not just baskets.` :
+          `Dark pool prints today are spread fairly evenly between individual stocks and broad/passive ETFs (${junkPct}% in bonds/index ETFs).`;
+        // Color now reflects only the structural skew, not bullish/bearish —
+        // amber stays neutral, dimming gray for the balanced default.
+        const narrativeColor = junkPct >= 70 ? C.amber : junkPct >= 50 ? C.amber : junkPct <= 25 ? C.tx : C.tx2;
 
         // Notable stocks: tradeable equity caps only, with at least one signal, not in junk filter
         const notableStocks = allItems
