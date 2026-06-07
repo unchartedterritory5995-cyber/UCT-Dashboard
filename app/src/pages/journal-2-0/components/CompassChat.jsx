@@ -201,6 +201,7 @@ export default function CompassChat({ accountId }) {
 
       <div ref={scrollerRef} style={{
         maxHeight: 480, overflowY: 'auto', padding: '4px 2px', minHeight: 80,
+        overscrollBehavior: 'contain',  // keep scroll inside the chat (no page-scroll bleed on touch)
       }}>
         {!hasContent && needsOnboarding && (
           <div style={{ textAlign: 'center', padding: '24px 8px', color: 'var(--text-muted)' }}>
