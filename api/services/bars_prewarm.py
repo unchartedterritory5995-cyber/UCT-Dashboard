@@ -184,16 +184,24 @@ def run_prewarmer_forever():
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
-        # Measured expansion (2026-05-25): core intraday (60/30/15 — the TFs
-        # most-used by traders) gets warmed across the FULL cap_universe so
-        # cold-fetch latency drops to zero on first chart open for any ticker.
-        # Deep intraday (5/1) stays scoped to top 1500 — smaller queue, less
-        # Massive load. Worker count held at 4 (proven stable; the prior
-        # bump to 8 saturated Massive/worker CPU and starved the web pod,
-        # see reverted commit 68392f4). Net job count ~14k intraday at
-        # 4 workers ≈ ~80 min per full pass — bounded enough not to saturate.
-        _CORE_INTRADAY_TICKERS = ticker_list
-        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
+        # COST TRIM (2026-06-07): the 2026-05-25 expansion warmed 60/30/15
+        # across the FULL cap_universe + 5/1 across the top 1500 — ~14k
+        # proactive intraday jobs/pass. That was the bulk of worker CPU and
+        # (via the constant bars.db writes it produced) the reason the R2
+        # snapshot fingerprint tripped every cycle, shipping the full 688 MB
+        # tarball intraday.
+        #   - Core intraday (60/30/15) scoped back to the ACTIVE set (tickers
+        #     users actually navigate from: watchlists/UCT20/breadth drill
+        #     lists/themes/priority), NOT the full universe.
+        #   - Blanket deep intraday (5/1) warming dropped entirely.
+        # The cap_universe long tail still loads correctly on first open
+        # (~2-4s on-demand, then cached). Actively-VIEWED tickers still get
+        # ALL TFs incl. 5/1 every cycle via the hot-set augmentation below
+        # (_INTRADAY_TFS still includes 5/1) — so live charts stay fast.
+        # Worker count held at 4 (the prior bump to 8 saturated Massive/worker
+        # CPU and starved the web pod, see reverted commit 68392f4).
+        _CORE_INTRADAY_TICKERS = _active_intraday
+        _DEEP_INTRADAY_TICKERS = []
         _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]

@@ -55,11 +55,16 @@ _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 _LATEST_KEY = "latest.txt"
 _SNAPSHOT_PREFIX = "snapshots/"
 
-# How often the worker uploads and the web pulls. Five minutes balances
-# bandwidth against staleness for the historical bars that dominate the
-# snapshot. Live (today's) bars don't go through the snapshot — the web
-# falls back to direct API fetches when the cache is older than its TTL.
-SNAPSHOT_INTERVAL_SECONDS = 300
+# How often the worker uploads and the web pulls. Env-driven (default 20 min).
+# The snapshot only carries HISTORICAL/backfill bars — live (today's) bars never
+# go through it (the web pod gets those from direct API fetches + the Massive WS
+# stream). So this cadence only bounds how stale the web pod's backfilled history
+# can be, which users don't perceive. A faster cadence just multiplies egress:
+# the full ~688 MB tarball ships on every cycle during market hours because the
+# prewarmer is continuously writing bars.db, so the skip-if-unchanged fingerprint
+# (below) almost always trips intraday — it only saves work overnight/weekends.
+# 300s × ~16h active window ≈ ~130 GB/day egress; 1200s drops that ~4x.
+SNAPSHOT_INTERVAL_SECONDS = int(os.environ.get("SNAPSHOT_INTERVAL_SECONDS", "1200"))
 # Slow cadence outside the active data window (overnight/weekends). Bars are
 # static then, so combined with skip-if-unchanged the worker stops shipping
 # the (large) tarball every 5 min around the clock. Override via env.
