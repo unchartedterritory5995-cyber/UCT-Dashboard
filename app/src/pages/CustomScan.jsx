@@ -10,6 +10,8 @@ import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
 import GroupControls from './breadth/grouping/GroupControls'
 import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import { Fragment } from 'react'
+import { useIsPhone } from '../hooks/useBreakpoint'
+import { FiltersSheet, useTickerHub } from '../components/mobile'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -320,6 +322,11 @@ export default function CustomScan({ allCandidates }) {
   const { toggle: toggleFlag, isFlagged } = useFlagged()
   const { getTag } = useTickerTags()
 
+  // ── Mobile: filters live in a bottom-sheet; ticker tap opens the Ticker Hub ──
+  const isPhone = useIsPhone()
+  const { openTicker } = useTickerHub()
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+
   useEffect(() => {
     if (!flagToast) return
     const t = setTimeout(() => setFlagToast(null), 1500)
@@ -463,94 +470,154 @@ export default function CustomScan({ allCandidates }) {
   const universeDate      = universeData?.date
   const universeCount     = universeData?.universe_count ?? 0
 
+  // Filter tabs + grid — shared between the desktop inline panel and the phone
+  // FiltersSheet so the two stay in lockstep.
+  const filterControls = (
+    <>
+      <div className={styles.filterTabRow}>
+        <button className={styles.resetBtn} onClick={resetFilters}>Reset Filters</button>
+        {TABS.map(t => {
+          const count = Object.entries(activeFilters).filter(([k, v]) =>
+            v && resolvedFilters[k]?.tab === t.key
+          ).length
+          return (
+            <button
+              key={t.key}
+              className={`${styles.filterTab} ${activeTab === t.key ? styles.filterTabActive : ''}`}
+              onClick={() => setActiveTab(t.key)}
+            >
+              {t.label}
+              {count > 0 && <span className={styles.filterTabBadge}>{count}</span>}
+            </button>
+          )
+        })}
+        <span className={styles.resultCount}>{results.length} result{results.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div className={styles.filterGrid}>
+        {visibleKeys.map(key => {
+          const fDef = resolvedFilters[key]
+          const current = activeFilters[key] || 'Any'
+          return (
+            <div key={key} className={styles.filterCell}>
+              <label className={styles.filterLabel}>{fDef.label}</label>
+              <select
+                className={`${styles.filterSelect} ${activeFilters[key] ? styles.filterSelectActive : ''}`}
+                value={current}
+                onChange={e => setFilter(key, e.target.value)}
+              >
+                {fDef.options?.map(o => <option key={o.label}>{o.label}</option>)}
+              </select>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+
   // ── Render ──
   return (
     <div className={styles.wrap}>
 
       {/* ── Control bar ── */}
-      <div className={styles.controlBar}>
-        <div className={styles.controlLeft}>
+      {isPhone ? (
+        <div className={styles.mobileBar}>
           <select className={styles.presetSelect} value={preset} onChange={e => applyPreset(e.target.value)}>
             {PRESETS.map(p => <option key={p.label}>{p.label}</option>)}
           </select>
-          <span className={styles.controlLabel}>Order by</span>
-          <select className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
-            {SORT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-          </select>
-          <select className={styles.selectSmall} value={sortDir} onChange={e => setSortDir(e.target.value)}>
-            <option value="desc">Desc</option>
-            <option value="asc">Asc</option>
-          </select>
-          <span className={styles.controlLabel}>Tickers</span>
-          <input
-            className={styles.tickerInput}
-            placeholder="NVDA, AAPL…"
-            value={tickerSearch}
-            onChange={e => setTickerSearch(e.target.value)}
-          />
-          <GroupControls
-            viewMode={grouping.viewMode}
-            setViewMode={grouping.setViewMode}
-            dimension={grouping.dimension}
-            setDimension={grouping.setDimension}
-          />
-        </div>
-        <div className={styles.controlRight}>
-          {universeDate && (
-            <span className={styles.universeInfo}>
-              {results.length} / {mergedUniverse.length} · universe {universeCount.toLocaleString()} · {universeDate}
-            </span>
-          )}
           <button
-            className={`${styles.filterToggle} ${showFilters ? styles.filterToggleActive : ''}`}
-            onClick={() => setShowFilters(v => !v)}
+            className={`${styles.filterToggle} ${activeFilterCount > 0 ? styles.filterToggleActive : ''}`}
+            onClick={() => setMobileFiltersOpen(true)}
           >
-            Filters {activeFilterCount > 0 ? `▲ ${activeFilterCount}` : showFilters ? '▲' : '▼'}
+            ⚙ Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
           </button>
+          <span className={styles.mobileResultCount}>{results.length}</span>
         </div>
-      </div>
+      ) : (
+        <div className={styles.controlBar}>
+          <div className={styles.controlLeft}>
+            <select className={styles.presetSelect} value={preset} onChange={e => applyPreset(e.target.value)}>
+              {PRESETS.map(p => <option key={p.label}>{p.label}</option>)}
+            </select>
+            <span className={styles.controlLabel}>Order by</span>
+            <select className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
+              {SORT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <select className={styles.selectSmall} value={sortDir} onChange={e => setSortDir(e.target.value)}>
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <span className={styles.controlLabel}>Tickers</span>
+            <input
+              className={styles.tickerInput}
+              placeholder="NVDA, AAPL…"
+              value={tickerSearch}
+              onChange={e => setTickerSearch(e.target.value)}
+            />
+            <GroupControls
+              viewMode={grouping.viewMode}
+              setViewMode={grouping.setViewMode}
+              dimension={grouping.dimension}
+              setDimension={grouping.setDimension}
+            />
+          </div>
+          <div className={styles.controlRight}>
+            {universeDate && (
+              <span className={styles.universeInfo}>
+                {results.length} / {mergedUniverse.length} · universe {universeCount.toLocaleString()} · {universeDate}
+              </span>
+            )}
+            <button
+              className={`${styles.filterToggle} ${showFilters ? styles.filterToggleActive : ''}`}
+              onClick={() => setShowFilters(v => !v)}
+            >
+              Filters {activeFilterCount > 0 ? `▲ ${activeFilterCount}` : showFilters ? '▲' : '▼'}
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* ── Filter panel ── */}
-      {showFilters && (
+      {/* ── Filter panel (desktop inline) ── */}
+      {!isPhone && showFilters && (
         <div className={styles.filterPanel}>
-          <div className={styles.filterTabRow}>
-            <button className={styles.resetBtn} onClick={resetFilters}>Reset Filters</button>
-            {TABS.map(t => {
-              const count = Object.entries(activeFilters).filter(([k, v]) =>
-                v && resolvedFilters[k]?.tab === t.key
-              ).length
-              return (
-                <button
-                  key={t.key}
-                  className={`${styles.filterTab} ${activeTab === t.key ? styles.filterTabActive : ''}`}
-                  onClick={() => setActiveTab(t.key)}
-                >
-                  {t.label}
-                  {count > 0 && <span className={styles.filterTabBadge}>{count}</span>}
-                </button>
-              )
-            })}
-            <span className={styles.resultCount}>{results.length} result{results.length !== 1 ? 's' : ''}</span>
-          </div>
-          <div className={styles.filterGrid}>
-            {visibleKeys.map(key => {
-              const fDef = resolvedFilters[key]
-              const current = activeFilters[key] || 'Any'
-              return (
-                <div key={key} className={styles.filterCell}>
-                  <label className={styles.filterLabel}>{fDef.label}</label>
-                  <select
-                    className={`${styles.filterSelect} ${activeFilters[key] ? styles.filterSelectActive : ''}`}
-                    value={current}
-                    onChange={e => setFilter(key, e.target.value)}
-                  >
-                    {fDef.options?.map(o => <option key={o.label}>{o.label}</option>)}
-                  </select>
-                </div>
-              )
-            })}
-          </div>
+          {filterControls}
         </div>
+      )}
+
+      {/* ── Filter sheet (phone) ── */}
+      {isPhone && (
+        <FiltersSheet
+          open={mobileFiltersOpen}
+          onClose={() => setMobileFiltersOpen(false)}
+          onClear={resetFilters}
+          onApply={() => setMobileFiltersOpen(false)}
+          title="Scan Filters"
+          activeCount={activeFilterCount}
+          applyLabel="Show results"
+        >
+          <div className={styles.mobileSortRow}>
+            <span className={styles.controlLabel}>Order by</span>
+            <select className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
+              {SORT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <select className={styles.selectSmall} value={sortDir} onChange={e => setSortDir(e.target.value)}>
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <input
+              className={styles.tickerInput}
+              placeholder="Tickers: NVDA, AAPL…"
+              value={tickerSearch}
+              onChange={e => setTickerSearch(e.target.value)}
+            />
+            <GroupControls
+              viewMode={grouping.viewMode}
+              setViewMode={grouping.setViewMode}
+              dimension={grouping.dimension}
+              setDimension={grouping.setDimension}
+            />
+          </div>
+          {filterControls}
+        </FiltersSheet>
       )}
 
       {/* ── Body: results table + chart panel ── */}
@@ -596,7 +663,10 @@ export default function CustomScan({ allCandidates }) {
                     <tr
                       key={c.ticker}
                       className={`${styles.row} ${isSelected ? styles.rowSelected : ''}`}
-                      onClick={() => { setSelectedSym(c.ticker); setSelectedName(c.name || c.company || '') }}
+                      onClick={() => {
+                        setSelectedSym(c.ticker); setSelectedName(c.name || c.company || '')
+                        if (isPhone) openTicker(c.ticker)   // phone → universal Ticker Hub
+                      }}
                     >
                       <td>
                         <div className={styles.tickerCell}>
@@ -698,7 +768,8 @@ export default function CustomScan({ allCandidates }) {
           )}
         </div>
 
-        {/* Right — chart panel */}
+        {/* Right — chart panel (desktop/tablet; phone uses the Ticker Hub) */}
+        {!isPhone && (
         <div className={styles.rightPanel}>
           {selectedSym ? (
             <>
@@ -737,6 +808,7 @@ export default function CustomScan({ allCandidates }) {
             </div>
           )}
         </div>
+        )}
 
       </div>
     </div>

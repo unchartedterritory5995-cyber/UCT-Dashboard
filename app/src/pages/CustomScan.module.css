@@ -486,3 +486,53 @@
 }
 .chartEmptyIcon { font-size: 24px; opacity: 0.4; }
 .chartEmptyHint { font-size: 10px; opacity: 0.6; }
+
+/* ── Mobile (phone ≤640) ──────────────────────────────────────────────────
+   Filters move into a bottom-sheet; the results table goes full-width and a
+   ticker tap opens the Ticker Hub (the right chart panel is desktop/tablet). */
+.mobileBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  flex-shrink: 0;
+}
+.mobileBar .presetSelect { flex: 1; min-width: 0; }
+.mobileResultCount {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* Filter-sheet sort/search row */
+.mobileSortRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.mobileSortRow .select { flex: 1; min-width: 0; }
+.mobileSortRow .tickerInput { flex: 1 1 100%; width: 100%; }
+
+@media (max-width: 640px) {
+  .wrap { padding: 0 12px; }
+  /* Results table fills the width; no side-by-side chart panel on phone. */
+  .body { border: none; border-radius: 0; }
+  .leftPanel { flex: 1 1 100%; width: 100%; border-right: none; }
+  /* One filter per row inside the sheet, with finger-sized targets (16px font
+     avoids the iOS focus-zoom). */
+  .filterGrid { grid-template-columns: 1fr; padding: 8px 0 0; }
+  .filterCell { gap: 8px; }
+  .filterLabel { min-width: 92px; font-size: 11px; }
+  .filterSelect { font-size: 16px; padding-top: 9px; padding-bottom: 9px; }
+  .filterTabRow { padding: 0 0 2px; flex-wrap: wrap; }
+  .presetSelect,
+  .select,
+  .selectSmall,
+  .tickerInput { font-size: 16px; padding-top: 8px; padding-bottom: 8px; }
+  .filterToggle { padding: 8px 14px; }
+}
