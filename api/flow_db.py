@@ -377,3 +377,65 @@ class FlowDB:
                 dated.append((parsed, d))
         dated.sort(key=lambda x: x[0])
         return [d[1] for d in dated]
+
+    def get_mktcap_batch(self, symbols: list[str]) -> dict[str, int]:
+        """Return the most recent non-zero MktCap value seen in flow data
+        for each requested symbol. Stored as TEXT in the flow table because
+        BBS exports it that way; we parse to int here and skip blanks/zeros.
+
+        Used by /api/schwab/mktcap-batch as the first lookup layer so the
+        dark pool view can resolve mkt caps without hitting Schwab or Yahoo
+        for every ticker. The flow CSV ships MktCap as a column, so for any
+        ticker that's appeared in options flow this is a free, instant,
+        offline lookup.
+
+        Picks the MAX(id) row per symbol — the most recently ingested print
+        for that ticker — which is also the freshest market-cap snapshot.
+        BBS occasionally stamps wildly wrong values (e.g. MU at $1.2T),
+        but we don't try to validate here; the caller can sanity-check if
+        needed.
+        """
+        if not symbols:
+            return {}
+        # Normalize: upper-case, dedupe, drop empties
+        clean = sorted({s.strip().upper() for s in symbols if s and s.strip()})
+        if not clean:
+            return {}
+        placeholders = ",".join("?" for _ in clean)
+        # Subquery picks the max(id) per symbol where MktCap is usable, then
+        # joins back to get the actual MktCap text. Single query, scales fine
+        # at hundreds of symbols.
+        sql = f"""
+            SELECT f.Symbol, f.MktCap
+            FROM flow f
+            INNER JOIN (
+                SELECT Symbol, MAX(id) AS max_id
+                FROM flow
+                WHERE Symbol IN ({placeholders})
+                  AND MktCap IS NOT NULL
+                  AND MktCap != ''
+                  AND MktCap != '0'
+                GROUP BY Symbol
+            ) latest ON f.id = latest.max_id
+        """
+        out: dict[str, int] = {}
+        try:
+            with self._conn() as conn:
+                cursor = conn.execute(sql, clean)
+                for row in cursor.fetchall():
+                    sym = (row[0] or "").strip().upper()
+                    raw = (row[1] or "").strip()
+                    if not sym or not raw:
+                        continue
+                    try:
+                        # MktCap is stored as TEXT; values look like
+                        # "340897000000" (raw dollars). Cast through float
+                        # to tolerate any stray decimal points.
+                        v = int(float(raw))
+                        if v > 0:
+                            out[sym] = v
+                    except (ValueError, TypeError):
+                        continue
+        except Exception as e:
+            print(f"[flow_db] get_mktcap_batch failed: {e}")
+        return out
