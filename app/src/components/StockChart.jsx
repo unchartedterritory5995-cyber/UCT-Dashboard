@@ -30,6 +30,7 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
+import { reanchorLogicalRange } from '../utils/chartViewAnchor'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
@@ -3366,14 +3367,15 @@ export default function StockChart({
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
     const zoomKey = `${sym}_${resolvedTf}`
+    // Capture the outgoing view BEFORE deciding. setData() preserves the logical
+    // range NUMERICALLY, so this still reflects where the user was — on the
+    // previous ticker (sym switch), or right now (same-ticker data-phase swap).
+    let oldRange = null
+    try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+    const oldBarCount = lastBarCountRef.current
     if (zoomKeyRef.current !== zoomKey) {
       const isFirstLoad = zoomKeyRef.current === null
       const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
-      // Capture the outgoing view BEFORE deciding. setData() preserves the logical range
-      // numerically, so this still reflects where the user was on the previous ticker.
-      let oldRange = null
-      try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
-      const oldBarCount = lastBarCountRef.current
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
@@ -3385,14 +3387,10 @@ export default function StockChart({
 
       let didPreserve = false
       if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
-        const newBarCount = filteredBars.length
-        const barsFromRight = oldBarCount - oldRange.to
-        const width = oldRange.to - oldRange.from
-        const to = newBarCount - barsFromRight
-        const from = to - width
-        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+        const anchored = reanchorLogicalRange(oldBarCount, oldRange, filteredBars.length)
+        if (anchored) {
           try {
-            chart.timeScale().setVisibleLogicalRange({ from, to })
+            chart.timeScale().setVisibleLogicalRange(anchored)
             didPreserve = true
           } catch {}
         }
@@ -3452,6 +3450,22 @@ export default function StockChart({
             })
           }
         }
+      }
+    } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
+               && lastBarCountRef.current !== filteredBars.length) {
+      // SAME ticker/timeframe, but the bar COUNT changed since the last render —
+      // the IDB-cache → network full-fetch swap (Daily/Weekly ALWAYS full-fetch,
+      // so a small cached set is replaced by the larger authoritative one), an
+      // older-history backfill, or a freshly-closed session bar. Lightweight-Charts
+      // preserves the visible logical range NUMERICALLY across setData, so the prior
+      // range now maps to the wrong (older) dates — this is the "chart randomly jumps
+      // back to ~2019" bug. Re-anchor to the same bars-from-right + width so the
+      // user's date-position is held fixed across data phases. (Model Book solves the
+      // same two-phase race below with its year-frame re-assert; this is the
+      // general-chart equivalent. entryDate/exactDateRange charts have their own pins.)
+      const anchored = reanchorLogicalRange(oldBarCount, oldRange, filteredBars.length)
+      if (anchored) {
+        try { chart.timeScale().setVisibleLogicalRange(anchored) } catch {}
       }
     }
 
