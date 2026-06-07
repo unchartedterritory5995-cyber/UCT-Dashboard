@@ -47,7 +47,11 @@
 
   /* Typography scale */
   --font-sans:    'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, Menlo, monospace;
+  /* NOTE: numbers/tickers/prices intentionally render in the UI font (Instrument
+     Sans), NOT a true monospace — this matches the rest of the product. A prior
+     sweep "fixed" this to JetBrains Mono and turned every price/table typewriter;
+     user wants the uniform Instrument Sans look. Do NOT repoint to a mono stack. */
+  --font-mono:    'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-heading: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 

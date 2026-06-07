@@ -260,7 +260,7 @@
 .refusalTime {
   color: var(--text-muted);
   font-size: 10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .refusalReason {
