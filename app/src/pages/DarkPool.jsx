@@ -737,6 +737,36 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Lazy market-cap fallback. The parent's mktcapData store is only
+  // populated when the user hits the "Fetch Mkt Cap" button on the Overview
+  // tab — which means rows expanded from Above/Below/Unusual/Phantom/Options/
+  // Category tabs almost always render with mktcap=0 → "—" or just the cat
+  // pill. Here we lazily hit /api/schwab/mktcap-batch with just this row's
+  // symbol when the row is opened and we don't already have a value. Cheap
+  // (single-symbol query), one-shot per ticker per expansion, and the
+  // result lives only in this row's local state so other rows are unaffected.
+  // If the prop later updates (parent fetches a bulk batch), the prop wins
+  // automatically via the `effectiveMktcap` selector below.
+  const [fetchedMktcap, setFetchedMktcap] = useState(0);
+  const effectiveMktcap = mktcap > 0 ? mktcap : fetchedMktcap;
+
+  useEffect(() => {
+    if (!expanded) return;
+    if (mktcap > 0) return;                // parent already has it
+    if (fetchedMktcap > 0) return;         // already fetched once for this row
+    let cancelled = false;
+    const base = typeof API_BASE !== "undefined" ? API_BASE : "";
+    fetch(`${base}/api/schwab/mktcap-batch?symbols=${encodeURIComponent(it.t)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data) return;
+        const v = data?.mktcap?.[it.t];
+        if (typeof v === "number" && v > 0) setFetchedMktcap(v);
+      })
+      .catch(() => { /* silent — the cat pill fallback is fine */ });
+    return () => { cancelled = true; };
+  }, [expanded, it.t, mktcap]);
+
   // Lazy-fetch prints on expand or timeframe change. StockChart now renders
   // bars natively via its darkPoolBars prop (pixel-perfect alignment via
   // priceToCoordinate), so we no longer need OHLC for our own overlay calc.
@@ -846,7 +876,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
             {CAT_SHORT[it.cat] || ""}
           </span>
           <span style={{fontSize:10, color:C.tx2, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
-            {mktcap > 0 ? fmt(mktcap) : "—"}
+            {effectiveMktcap > 0 ? fmt(effectiveMktcap) : "—"}
           </span>
           <span style={{fontSize:10, color:C.cyan, fontWeight:600, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
             {it.n ? fmt(it.n) : "—"}
@@ -878,10 +908,10 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               {/* Market cap (or category fallback when mkt cap data hasn't loaded).
                   Color-coded by cap tier — same palette as the ticker — so the
                   size context is preserved without printing the category twice. */}
-              {mktcap > 0 ? (
+              {effectiveMktcap > 0 ? (
                 <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
-                  fontWeight:700}}>{fmt(mktcap)} mkt cap</span>
+                  fontWeight:700}}>{fmt(effectiveMktcap)} mkt cap</span>
               ) : (
                 <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
@@ -895,12 +925,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               <span style={{color:C.tx3, fontSize:10}}>·</span>
               <span style={{color:C.tx3, fontSize:10}}>Total dark pool premium</span>
               <span style={{color:C.cyan, fontWeight:600, fontSize:10}}>{it.n ? fmt(it.n) : "—"}</span>
-              {it.n > 0 && mktcap > 0 && (
+              {it.n > 0 && effectiveMktcap > 0 && (
                 <span style={{color:C.amber, fontWeight:600, fontSize:10,
                   padding:"1px 6px", borderRadius:6,
                   background:C.amber + "15", border:`1px solid ${C.amber}33`}}
                   title="Total dark pool $ notional as a percentage of the stock's market cap. Higher = bigger relative size vs the company.">
-                  {(it.n / mktcap * 100).toFixed(2)}% of mkt cap
+                  {(it.n / effectiveMktcap * 100).toFixed(2)}% of mkt cap
                 </span>
               )}
               {prints && <>
