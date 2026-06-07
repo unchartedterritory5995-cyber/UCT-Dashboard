@@ -216,7 +216,19 @@ def _make_tarball() -> bytes:
     db_path = os.path.join(_DATA_DIR, "bars.db")
     cache_path = os.path.join(_DATA_DIR, "bars_cache")
     has_db = os.path.exists(db_path)
-    has_cache = os.path.isdir(cache_path)
+    # The web pod's DEFAULT sync path (sync_if_newer_merge -> merge_snapshot)
+    # only reads bars.db out of the snapshot — bars_cache/ is never touched
+    # there. It's consumed ONLY by the cold-start / legacy replace-pull install
+    # (download_snapshot). So by default we EXCLUDE the (large) JSON cache dir:
+    # shipping it is dead weight on every upload — extra egress, extra tar+gzip
+    # CPU, and a bigger in-memory tarball buffer — for bytes the web side
+    # discards. The web rebuilds its own disk cache on demand from bars.db/API,
+    # so steady-state chart quality is unchanged; only a freshly-deployed web
+    # pod's first few opens are marginally cooler until its cache refills.
+    # Set SNAPSHOT_INCLUDE_CACHE=1 to restore the old behavior (only needed if
+    # you run the legacy replace-pull path and want a warm web disk cache).
+    include_cache = os.environ.get("SNAPSHOT_INCLUDE_CACHE", "0") == "1"
+    has_cache = include_cache and os.path.isdir(cache_path)
     if not (has_db or has_cache):
         raise FileNotFoundError(f"nothing to snapshot at {_DATA_DIR}")
 

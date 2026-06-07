@@ -285,9 +285,20 @@ def _run_forever():
     # all want the SQLite write lock first).
     time.sleep(120)
 
+    # Drift only happens while bars are being written — i.e. during the active
+    # data window. Overnight/weekends bars are static, so a reconciliation cycle
+    # then is pure churn (60 canonical fetches + diffs that always match). Gate
+    # on the same window the prewarmer uses so the healer runs exactly when it
+    # can find something to heal. Zero correctness loss (nothing drifts when the
+    # market's closed); frees web-pod CPU for serving users off-hours / at scale.
+    from api.services.data_sync import in_active_data_window
+
     while True:
         try:
-            _run_cycle()
+            if in_active_data_window():
+                _run_cycle()
+            else:
+                _logger.debug("[reconcile] outside active data window — cycle skipped")
         except Exception:
             _logger.exception("[reconcile] cycle outer crashed (caught — looping)")
         # Sleep with short ticks so a future stop signal could be responsive,
