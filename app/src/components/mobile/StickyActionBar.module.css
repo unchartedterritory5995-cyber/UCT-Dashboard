@@ -1,0 +1,12 @@
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  margin: 0 calc(-1 * var(--space-lg)) calc(-1 * var(--space-lg));
+}
+.bar > * { flex: 1; }
