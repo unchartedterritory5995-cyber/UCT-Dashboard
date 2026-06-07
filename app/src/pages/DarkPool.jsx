@@ -459,6 +459,9 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
   const [sortKey,setSortKey]=useState("signals");
   const [sortDir,setSortDir]=useState("desc");
   const [hov,setHov]=useState(null);
+  // Track which ticker (if any) is expanded to show the per-ticker dark
+  // pool chart inline. Same pattern as FlowTable / PhantomPane / OptionsPane.
+  const [expandedTicker,setExpandedTicker]=useState(null);
 
   const universe=(()=>{
     const map={};
@@ -528,40 +531,55 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
         const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
         const avgV=it.bigPrintPctAvgVol;
         const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
+        const isExpanded = expandedTicker === it.t;
         return (
-          <div key={it.t} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
-            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
-            background:hov===i?C.bg3+"80":"transparent",transition:"background 0.15s",cursor:"default"}}>
-            <div style={{display:"flex",gap:5,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
-                fontSize:12,color:cc}}>{it.t}</span>
-              {hov===i ? <SignalBadges signals={it.signals} compact/>
-                : <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span>}
+          <Fragment key={it.t}>
+            <div onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+              onClick={()=>setExpandedTicker(isExpanded ? null : it.t)}
+              title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}
+              style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
+              background:isExpanded ? C.bg3 : (hov===i?C.bg3+"80":"transparent"),
+              transition:"background 0.15s",cursor:"pointer"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                  width:18,textAlign:"center",fontWeight:600}}>{isExpanded ? "▼" : (i+1)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
+                  fontSize:12,color:cc}}>{it.t}</span>
+                {hov===i ? <SignalBadges signals={it.signals} compact/>
+                  : <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span>}
+              </div>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
+                  color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
+                  fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
+                  fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
+                  minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
+                  color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                  color:bpColor,minWidth:48,textAlign:"right"}}>
+                  {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+                </span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                  color:avgVColor,minWidth:52,textAlign:"right"}}>
+                  {avgV>0?fmtAvgVol(avgV):"—"}
+                </span>
+              </div>
             </div>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
-                color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
-                fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
-                fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
-                minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
-                color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
-                color:bpColor,minWidth:48,textAlign:"right"}}>
-                {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
-              </span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
-                color:avgVColor,minWidth:52,textAlign:"right"}}>
-                {avgV>0?fmtAvgVol(avgV):"—"}
-              </span>
-            </div>
-          </div>
+            {isExpanded && (
+              <div style={{padding:"4px 0 12px", background:C.bg3+"40"}}>
+                <PatternTickerRow
+                  it={it}
+                  sig={null}
+                  mktcap={mktcapData?.[it.t] || 0}
+                  noCollapsedRow={true}/>
+              </div>
+            )}
+          </Fragment>
         );
       })}
     </div>
@@ -573,6 +591,7 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
   const [sortKey,setSortKey]=useState("bigPrintN");
   const [sortDir,setSortDir]=useState("desc");
   const [hov,setHov]=useState(null);
+  const [expandedTicker,setExpandedTicker]=useState(null);
 
   const universe=(()=>{
     const map={};
@@ -642,41 +661,56 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
         const cc=CAT_COLORS[it.cat]||C.tx;
         const avgV=it.bigPrintPctAvgVol;
         const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
+        const isExpanded = expandedTicker === it.t;
         return (
-          <div key={it.t} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
-            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
-            background:hov===i?C.bg3+"80":"transparent",transition:"background 0.15s",cursor:"default"}}>
-            <div style={{display:"flex",gap:5,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
-                fontSize:12,color:cc}}>{it.t}</span>
-              {hov===i && it.signals&&it.signals.length>0 ? <SignalBadges signals={it.signals} compact/>
-                : it.signals&&it.signals.length>0 ? <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span> : null}
+          <Fragment key={it.t}>
+            <div onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+              onClick={()=>setExpandedTicker(isExpanded ? null : it.t)}
+              title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}
+              style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`,
+              background:isExpanded ? C.bg3 : (hov===i?C.bg3+"80":"transparent"),
+              transition:"background 0.15s",cursor:"pointer"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                  width:18,textAlign:"center",fontWeight:600}}>{isExpanded ? "▼" : (i+1)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
+                  fontSize:12,color:cc}}>{it.t}</span>
+                {hov===i && it.signals&&it.signals.length>0 ? <SignalBadges signals={it.signals} compact/>
+                  : it.signals&&it.signals.length>0 ? <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span> : null}
 
+              </div>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
+                  color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
+                  fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
+                  fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
+                  minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
+                  color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                  color:bpColor,minWidth:48,textAlign:"right"}}>
+                  {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+                </span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
+                  color:avgVColor,minWidth:52,textAlign:"right"}}>
+                  {avgV>0?fmtAvgVol(avgV):"—"}
+                </span>
+              </div>
             </div>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
-                color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
-                fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
-                fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
-                minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
-                color:C.tx,fontWeight:600,minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
-                color:bpColor,minWidth:48,textAlign:"right"}}>
-                {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
-              </span>
-              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,fontWeight:700,
-                color:avgVColor,minWidth:52,textAlign:"right"}}>
-                {avgV>0?fmtAvgVol(avgV):"—"}
-              </span>
-            </div>
-          </div>
+            {isExpanded && (
+              <div style={{padding:"4px 0 12px", background:C.bg3+"40"}}>
+                <PatternTickerRow
+                  it={it}
+                  sig={null}
+                  mktcap={mktcapData?.[it.t] || 0}
+                  noCollapsedRow={true}/>
+              </div>
+            )}
+          </Fragment>
         );
       })}
       {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No prints in this category</div>}
