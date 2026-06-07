@@ -1,0 +1,20 @@
+.list { display: flex; flex-direction: column; }
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: var(--space-md);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  text-align: left;
+  cursor: pointer;
+}
+.item:last-child { border-bottom: none; }
+.item:active { background: var(--bg-hover); }
+.icon { width: 24px; text-align: center; font-size: var(--text-xl); }

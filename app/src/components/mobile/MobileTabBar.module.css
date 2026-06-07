@@ -1,0 +1,35 @@
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  display: flex;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab {
+  flex: 1;
+  min-height: var(--tap-min);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
+.tab.active { color: var(--ut-gold); }
+.icon { font-size: 18px; line-height: 1; }
+.label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
+
+/* Desktop keeps the left sidebar — hide the bottom bar. */
+@media (min-width: 1025px) {
+  .bar { display: none; }
+}

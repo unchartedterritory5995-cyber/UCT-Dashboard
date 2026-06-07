@@ -18,8 +18,8 @@
   line-height: 1;
 }
 
-/* ── Hide everything on desktop ───────────────────────────────────────────── */
-@media (min-width: 641px) {
+/* ── Hide everything on desktop (>=1025px); mobile shell spans phone+tablet ── */
+@media (min-width: 1025px) {
   .topBar,
   .backdrop,
   .drawer {

@@ -120,8 +120,9 @@
   flex-shrink: 0;
 }
 
-/* ─── Phone: hide desktop sidebar entirely (MobileNav takes over) ────────── */
-@media (max-width: 640px) {
+/* ─── Touch (phone + tablet): hide desktop sidebar; the mobile shell + bottom
+       tab bar take over up through 1024px. ─────────────────────────────────── */
+@media (max-width: 1024px) {
   .nav {
     display: none;
   }

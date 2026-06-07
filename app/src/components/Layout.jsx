@@ -1,8 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
 import FeedbackWidget from './FeedbackWidget'
+import MobileTabBar from './mobile/MobileTabBar'
+import MoreSheet from './mobile/MoreSheet'
+import { TickerHubProvider } from './mobile/TickerHubContext'
+import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
 import styles from './Layout.module.css'
 
@@ -63,16 +67,24 @@ export default function Layout({ children }) {
     return () => { document.documentElement.style.transition = '' }
   }, [])
 
+  const [moreOpen, setMoreOpen] = useState(false)
+
   return (
-    <div className={styles.shell}>
-      {/* Desktop sidebar — hidden on mobile via CSS */}
-      <NavBar />
-      {/* Mobile header + drawer — hidden on desktop via CSS */}
-      <MobileNav />
-      <main className={styles.main}>
-        {children ?? <Outlet />}
-      </main>
-      <FeedbackWidget />
-    </div>
+    <TickerHubProvider>
+      <div className={styles.shell}>
+        {/* Desktop sidebar — hidden at <=1024px via CSS */}
+        <NavBar />
+        {/* Mobile header + drawer — shown at <=1024px via CSS */}
+        <MobileNav />
+        <main className={styles.main}>
+          {children ?? <Outlet />}
+        </main>
+        <FeedbackWidget />
+        {/* Mobile primary nav + global hosts (self-hide on desktop) */}
+        <MobileTabBar onMore={() => setMoreOpen(true)} />
+        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+        <TickerHubSheet />
+      </div>
+    </TickerHubProvider>
   )
 }

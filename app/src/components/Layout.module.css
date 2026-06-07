@@ -11,14 +11,15 @@
   background: var(--bg);
 }
 
-@media (max-width: 640px) {
+/* Mobile shell spans phone + tablet (<=1024px): fixed top header + bottom tab bar. */
+@media (max-width: 1024px) {
   .shell {
     flex-direction: column;
   }
   .main {
-    /* Space for fixed top header bar */
+    /* Space for the fixed top header bar and the fixed bottom tab bar. */
     padding-top: calc(48px + env(safe-area-inset-top, 0px));
-    padding-bottom: 0;
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
 }
 
