@@ -4,6 +4,7 @@ import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
 import { prefetchBars } from '../utils/prefetchBars'
 import { useAuth } from '../context/AuthContext'
+import { useIsPhone } from '../hooks/useBreakpoint'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import styles from './ModelBook.module.css'
 
@@ -1477,10 +1478,16 @@ export default function ModelBook() {
     ? selectedId
     : (sortedStocks[0]?.id ?? null)
 
+  // Phone: the two-pane layout becomes a gallery ⇄ detail view-switch so each
+  // pane gets the full viewport (tap a card → detail; "‹ Back" → gallery).
+  const isPhone = useIsPhone()
+  const [mobileView, setMobileView] = useState('gallery')
+
   function selectYear(y) {
     setPickedYear(y)
     setSelectedId(null)
     setQuery('')
+    setMobileView('gallery')
   }
 
   // Year-tab hover → recap popover. A short debounce so scrubbing across many
@@ -1775,6 +1782,7 @@ export default function ModelBook() {
 
       <div className={styles.layout}>
         {/* Left — stock gallery */}
+        {(!isPhone || mobileView === 'gallery') && (
         <div className={styles.listPanel} style={{ width: panelWidth, minWidth: panelWidth }}>
           {stocks.length > 0 && (
             <div className={styles.listStickyHead}>
@@ -1815,7 +1823,7 @@ export default function ModelBook() {
                 key={s.id}
                 data-stock-id={s.id}
                 className={`${styles.stockCard} ${activeId === s.id ? styles.stockCardActive : ''}`}
-                onClick={() => setSelectedId(s.id)}
+                onClick={() => { setSelectedId(s.id); if (isPhone) setMobileView('detail') }}
                 onContextMenu={(e) => onStockContext(e, s)}
               >
                 <div className={styles.stockCardTop}>
@@ -1833,8 +1841,10 @@ export default function ModelBook() {
             )
           })}
         </div>
+        )}
 
         {/* Drag to resize the gallery so long company names fit */}
+        {!isPhone && (
         <div
           className={styles.resizer}
           onMouseDown={startResize}
@@ -1842,11 +1852,19 @@ export default function ModelBook() {
           aria-orientation="vertical"
           title="Drag to resize"
         />
+        )}
 
         {/* Right — chart + setups */}
+        {(!isPhone || mobileView === 'detail') && (
         <div className={styles.detailPanel}>
+          {isPhone && (
+            <button className={styles.mobileBack} onClick={() => setMobileView('gallery')}>
+              ‹ {year != null ? `${year} stocks` : 'Back'}
+            </button>
+          )}
           <StockDetail stockId={activeId} isAdmin={isAdmin} catNavRef={catNavRef} />
         </div>
+        )}
       </div>
 
       {/* Admin: right-click-a-card context menu (delete from the book). */}

@@ -353,12 +353,31 @@
 .cancelBtn:hover { color: var(--text-primary); }
 
 /* ── Mobile ── */
+/* ── Phone: gallery ⇄ detail view-switch back button ── */
+.mobileBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap-min, 44px);
+  margin: 0 0 8px;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--ut-gold);
+  cursor: pointer;
+}
+
 @media (max-width: 640px) {
+  /* Only one pane renders at a time on phone — let it fill naturally. */
   .layout { flex-direction: column; height: auto; }
   /* override the inline drag width on mobile (inline styles need !important) */
-  .listPanel { width: 100% !important; min-width: 0 !important; border-bottom: 1px solid var(--border); max-height: 280px; padding-right: 0; }
+  .listPanel { width: 100% !important; min-width: 0 !important; max-height: none; padding-right: 0; }
   .resizer { display: none; }
-  .detailPanel { padding: 12px 0 0; }
+  .detailPanel { padding: 4px 0 0; }
   .dvTop { height: auto; }
   .dvBody { flex-direction: column; }
   .infoSide { width: 100%; border-left: none; padding-left: 0; }
