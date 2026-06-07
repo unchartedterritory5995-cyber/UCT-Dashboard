@@ -1068,6 +1068,206 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   );
 }
 
+// ── Dark Pool by Sector ──────────────────────────────────────────────────────
+// Aggregates dark pool prints by sector, weighted by notional. Click a sector
+// to expand inline showing every ticker in it (via FlowTable, which itself
+// supports click-to-expand-chart on each row).
+function SectorDarkPoolPanel({allItems, mktcapData, onJumpTo}){
+  const [expandedSector, setExpandedSector] = useState(null);
+
+  // Rebuild sector data from filtered allItems (respects global cap filter).
+  // Store the FULL item objects (not just ticker/notional) so the expanded
+  // view can hand them straight to FlowTable.
+  const sectors = useMemo(() => {
+    const secMap = {};
+    for (const item of allItems) {
+      const sec = item.sector || "";
+      if (!sec || sec === "Miscellaneous" || sec === "Other" || sec === "None") continue;
+      if (!secMap[sec]) secMap[sec] = { sector: sec, notional: 0, tickers: [], weightedMove: 0, weightedN: 0, count: 0 };
+      secMap[sec].notional += item.n;
+      secMap[sec].tickers.push(item);     // full item, not just {t, n}
+      secMap[sec].count++;
+      if (item.bigPrint > 0) {
+        const move = (item.last - item.bigPrint) / item.bigPrint * 100;
+        secMap[sec].weightedMove += move * item.bigPrintN;
+        secMap[sec].weightedN += item.bigPrintN;
+      }
+    }
+    return Object.values(secMap)
+      .filter(s => s.count >= 2)
+      .map(s => ({
+        ...s,
+        avgMove: s.weightedN > 0 ? s.weightedMove / s.weightedN : 0,
+        topTickers: [...s.tickers].sort((a, b) => b.n - a.n).slice(0, 3).map(t => t.t),
+        sortedTickers: [...s.tickers].sort((a, b) => b.n - a.n),
+      }))
+      .sort((a, b) => b.notional - a.notional)
+      .slice(0, 8);
+  }, [allItems]);
+
+  const maxN = useMemo(() => Math.max(...sectors.map(s => s.notional), 1), [sectors]);
+
+  return (
+    <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 18px"}}>
+      <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3,
+        textTransform:"uppercase", marginBottom:10}}>Dark Pool by Sector</div>
+      {sectors.length === 0 && <div style={{fontSize:12, color:C.tx3}}>No sector data available</div>}
+      {sectors.map(s => {
+        const pct = Math.max((s.notional / maxN) * 100, 2);
+        const moveColor = s.avgMove > 0.3 ? C.green : s.avgMove < -0.3 ? C.red : C.tx3;
+        const isExpanded = expandedSector === s.sector;
+        return (
+          <div key={s.sector} style={{marginBottom: isExpanded ? 14 : 8}}>
+            <div onClick={() => setExpandedSector(isExpanded ? null : s.sector)}
+              title={isExpanded ? "Click to hide tickers" : "Click to expand tickers in this sector"}
+              style={{cursor:"pointer", padding: isExpanded ? "4px 6px" : "0",
+                margin: isExpanded ? "0 -6px" : "0",
+                background: isExpanded ? C.bg3 : "transparent",
+                borderRadius: 4, transition:"background 0.15s"}}>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2}}>
+                <div style={{display:"flex", alignItems:"center", gap:6, minWidth:0}}>
+                  <span style={{fontSize:10, color:C.tx3, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
+                  <span style={{fontSize:11, fontWeight:600, color:C.tx}}>{s.sector}</span>
+                  <span style={{fontSize:8, color:C.tx3}}>{s.topTickers.join(" · ")}</span>
+                </div>
+                <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
+                  <span style={{fontSize:9, color:C.tx3}}>{s.count}</span>
+                  <span style={{fontSize:10, fontWeight:700, color:moveColor,
+                    fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minWidth:40, textAlign:"right"}}>
+                    {s.avgMove > 0 ? "+" : ""}{s.avgMove.toFixed(1)}%
+                  </span>
+                  <span style={{fontSize:10, fontWeight:700, color:C.cyan,
+                    fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minWidth:52, textAlign:"right"}}>
+                    {fmt(s.notional)}
+                  </span>
+                </div>
+              </div>
+              <div style={{width:"100%", height:4, background:C.bdr, borderRadius:2, overflow:"hidden"}}>
+                <div style={{width:pct+"%", height:"100%", background:moveColor, borderRadius:2, opacity:0.7, transition:"width 0.4s"}}/>
+              </div>
+            </div>
+            {isExpanded && (
+              <div style={{marginTop:8, padding:"8px 10px", background:C.bg3+"40",
+                borderLeft:`2px solid ${C.amber}`, borderRadius:4}}>
+                <div style={{fontSize:9, color:C.tx3, marginBottom:6, letterSpacing:"0.05em"}}>
+                  All {s.tickers.length} tickers in {s.sector} · sorted by notional · click any to see chart
+                </div>
+                <FlowTable items={s.sortedTickers} showCat={true} mktcapData={mktcapData}/>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Notable Prints — Post-Print Moves ────────────────────────────────────────
+// Tracks recent individual big prints (bigPrintN ≥ $20M, excluding the USUAL
+// mega-cap/ETF set), sorted by recency. The "% Move" column is the post-print
+// performance: how far the price has moved since that dark pool print landed.
+// Click any row to expand the chart inline.
+function NotablePrintsPanel({allItems, mktcapData, USUAL}){
+  const [expandedTicker, setExpandedTicker] = useState(null);
+  const [hov, setHov] = useState(null);
+
+  const tracked = useMemo(() => {
+    return allItems
+      .filter(i => i.bigPrint > 0 && i.bigPrintN >= 20_000_000 && i.bigPrintDk && !USUAL.has(i.t))
+      .sort((a, b) => {
+        if (a.bigPrintDk && b.bigPrintDk) return b.bigPrintDk.localeCompare(a.bigPrintDk);
+        return b.bigPrintN - a.bigPrintN;
+      })
+      .slice(0, 12);
+  }, [allItems, USUAL]);
+
+  return (
+    <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 18px"}}>
+      <div style={{fontSize:10, fontWeight:700, letterSpacing:"0.12em", color:C.tx3,
+        textTransform:"uppercase", marginBottom:10}}>Notable Prints — Post-Print Moves</div>
+
+      {/* Column headers — mirrors Notable Activity / Biggest Prints panels */}
+      <div style={{display:"flex", justifyContent:"space-between", padding:"0 0 5px 0",
+        borderBottom:`1px solid ${C.bdr2}`, marginBottom:2}}>
+        <div style={{display:"flex", gap:6, alignItems:"center"}}>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, width:18, textAlign:"center"}}>#</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:50}}>Ticker</span>
+        </div>
+        <div style={{display:"flex", gap:10, alignItems:"center"}}>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Mkt Cap</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:56, textAlign:"right"}}>Print $</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:60, textAlign:"right"}}>Notional</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:38, textAlign:"right"}}>Date</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Last</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:48, textAlign:"right"}}>% Move</span>
+          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>% AvgVol</span>
+        </div>
+      </div>
+
+      {tracked.length === 0 && <div style={{fontSize:12, color:C.tx3, padding:8}}>No notable prints for this period</div>}
+      {tracked.map((it, i) => {
+        const move = ((it.last - it.bigPrint) / it.bigPrint * 100);
+        const moveColor = move > 0.5 ? C.green : move < -0.5 ? C.red : C.tx3;
+        const cc = CAT_COLORS[it.cat] || C.tx;
+        const avgV = it.bigPrintPctAvgVol;
+        const avgVColor = avgV >= 50 ? C.pink : avgV >= 20 ? C.amber : avgV > 0 ? C.tx2 : C.tx3;
+        const isExpanded = expandedTicker === it.t;
+        return (
+          <Fragment key={it.t}>
+            <div onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}
+              onClick={() => setExpandedTicker(isExpanded ? null : it.t)}
+              title={isExpanded ? "Click to hide chart" : "Click to show dark pool chart"}
+              style={{display:"flex", alignItems:"center", justifyContent:"space-between",
+                padding:"5px 0", borderBottom:`1px solid ${C.bdr}22`,
+                background: isExpanded ? C.bg3 : (hov === i ? C.bg3+"80" : "transparent"),
+                transition:"background 0.15s", cursor:"pointer"}}>
+              <div style={{display:"flex", gap:5, alignItems:"center"}}>
+                <span style={{fontSize:10, color:C.tx3,
+                  fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                  width:18, textAlign:"center", fontWeight:600}}>{isExpanded ? "▼" : (i + 1)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                  fontWeight:700, fontSize:12, color:cc}}>{it.t}</span>
+                {it.signals && it.signals.length > 0 && <SignalBadges signals={it.signals.slice(0, 1)} compact/>}
+              </div>
+              <div style={{display:"flex", gap:10, alignItems:"center"}}>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:10,
+                  color:C.tx3, minWidth:52, textAlign:"right"}}>
+                  {(mktcapData[it.t] || 0) > 0 ? fmt(mktcapData[it.t]).replace("$", "") : "—"}
+                </span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:11, color:C.amber,
+                  fontWeight:600, minWidth:56, textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:11, color:C.cyan,
+                  fontWeight:700, minWidth:60, textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:10, color:C.tx3,
+                  minWidth:38, textAlign:"right"}}>{it.bigPrintDate || "—"}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:11,
+                  color:C.tx, fontWeight:600, minWidth:52, textAlign:"right"}}>{fP(it.last)}</span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:11, fontWeight:700,
+                  color:moveColor, minWidth:48, textAlign:"right"}}>
+                  {move > 0 ? "+" : ""}{move.toFixed(1)}%
+                </span>
+                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", fontSize:11, fontWeight:700,
+                  color:avgVColor, minWidth:52, textAlign:"right"}}>
+                  {avgV > 0 ? fmtAvgVol(avgV) : "—"}
+                </span>
+              </div>
+            </div>
+            {isExpanded && (
+              <div style={{padding:"4px 0 12px", background:C.bg3+"40"}}>
+                <PatternTickerRow
+                  it={it}
+                  sig={null}
+                  mktcap={mktcapData?.[it.t] || 0}
+                  noCollapsedRow={true}/>
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Overview tab ─────────────────────────────────────────────────────────────
 function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
   // Track which signal-group accordions are expanded in the Signals By Type panel.
@@ -1456,138 +1656,16 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
         <BiggestPrintsPanel filterByCat={filterByCat} mktcapData={mktcapData} fetchMktCap={fetchMktCap} mktcapLoading={mktcapLoading}/>
       </div>
 
-      {/* ── Sector Flow + Notable Prints ──────────────────────────── */}
+      {/* ── Dark Pool by Sector + Notable Prints ──────────────────── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
 
-        {/* Sector Flow — weighted by notional, no Miscellaneous */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
-            textTransform:"uppercase",marginBottom:10}}>Sector Flow</div>
-          {(()=>{
-            // Rebuild sector data from filtered allItems (respects global filter)
-            const secMap={};
-            for(const item of allItems){
-              const sec=item.sector||"";
-              if(!sec||sec==="Miscellaneous"||sec==="Other"||sec==="None") continue;
-              if(!secMap[sec]) secMap[sec]={sector:sec,notional:0,tickers:[],weightedMove:0,weightedN:0,count:0};
-              secMap[sec].notional+=item.n;
-              secMap[sec].tickers.push({t:item.t,n:item.n});
-              secMap[sec].count++;
-              if(item.bigPrint>0){
-                const move=(item.last-item.bigPrint)/item.bigPrint*100;
-                secMap[sec].weightedMove+=move*item.bigPrintN;
-                secMap[sec].weightedN+=item.bigPrintN;
-              }
-            }
-            const sectors=Object.values(secMap)
-              .filter(s=>s.count>=2)
-              .map(s=>({
-                ...s,
-                avgMove:s.weightedN>0?s.weightedMove/s.weightedN:0,
-                topTickers:s.tickers.sort((a,b)=>b.n-a.n).slice(0,3).map(t=>t.t),
-              }))
-              .sort((a,b)=>b.notional-a.notional)
-              .slice(0,8);
-            const maxN=Math.max(...sectors.map(s=>s.notional),1);
-            if(sectors.length===0) return <div style={{fontSize:12,color:C.tx3}}>No sector data available</div>;
-            return sectors.map(s=>{
-              const pct=Math.max((s.notional/maxN)*100,2);
-              const moveColor=s.avgMove>0.3?C.green:s.avgMove<-0.3?C.red:C.tx3;
-              return (
-                <div key={s.sector} style={{marginBottom:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                      <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{s.sector}</span>
-                      <span style={{fontSize:8,color:C.tx3}}>{s.topTickers.join(" · ")}</span>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                      <span style={{fontSize:9,color:C.tx3}}>{s.count}</span>
-                      <span style={{fontSize:10,fontWeight:700,color:moveColor,
-                        fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:40,textAlign:"right"}}>
-                        {s.avgMove>0?"+":""}{s.avgMove.toFixed(1)}%
-                      </span>
-                      <span style={{fontSize:10,fontWeight:700,color:C.cyan,
-                        fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",minWidth:52,textAlign:"right"}}>
-                        {fmt(s.notional)}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
-                    <div style={{width:pct+"%",height:"100%",background:moveColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
+        {/* Dark Pool by Sector — weighted by notional, no Miscellaneous,
+            click sector to expand showing all tickers in that sector */}
+        <SectorDarkPoolPanel allItems={allItems} mktcapData={mktcapData} onJumpTo={onJumpTo}/>
 
-        {/* Notable Prints — non-obvious names, sorted by recency */}
-        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
-            textTransform:"uppercase",marginBottom:10}}>Notable Prints — Post-Print Moves</div>
-
-          {/* Column headers */}
-          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
-            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-            <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:32,textAlign:"right"}}>Date</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:44,textAlign:"right"}}>Move</span>
-              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
-            </div>
-          </div>
-
-          {(()=>{
-            const tracked = allItems
-              .filter(i=>i.bigPrint>0 && i.bigPrintN>=20_000_000 && i.bigPrintDk && !USUAL.has(i.t))
-              .sort((a,b)=>{
-                // Sort by recency (most recent print first)
-                if(a.bigPrintDk && b.bigPrintDk) return b.bigPrintDk.localeCompare(a.bigPrintDk);
-                return b.bigPrintN-a.bigPrintN;
-              })
-              .slice(0,12);
-            if(tracked.length===0) return <div style={{fontSize:12,color:C.tx3,padding:8}}>No notable prints for this period</div>;
-            return tracked.map(it=>{
-              const move=((it.last-it.bigPrint)/it.bigPrint*100);
-              const moveColor=move>0.5?C.green:move<-0.5?C.red:C.tx3;
-              const cc=CAT_COLORS[it.cat]||C.tx;
-              return (
-                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-                    <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
-                    {(mktcapData[it.t]||0)>0 && <span style={{fontSize:8,color:C.tx3}}>{fmt(mktcapData[it.t]).replace("$","")}</span>}
-                    {it.signals&&it.signals.length>0 && <SignalBadges signals={it.signals.slice(0,1)} compact/>}
-                    {it.sector && it.sector!=="Miscellaneous" && it.sector!=="Other" &&
-                      <span style={{fontSize:8,color:C.tx3}}>{it.sector}</span>}
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <span style={{fontSize:10,color:C.tx3,
-                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:32,textAlign:"right"}}>{it.bigPrintDate}</span>
-                    <span style={{fontSize:10,color:C.amber,
-                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-                    <span style={{fontSize:10,color:C.tx,fontWeight:600,
-                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:52,textAlign:"right"}}>{fP(it.last)}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:moveColor,
-                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:44,textAlign:"right"}}>
-                      {move>0?"+":""}{move.toFixed(1)}%
-                    </span>
-                    <span style={{fontSize:10,fontWeight:600,color:C.cyan,
-                      fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                      minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
+        {/* Notable Prints — recent biggest prints, sorted by recency, with
+            click-to-expand chart per row. */}
+        <NotablePrintsPanel allItems={allItems} mktcapData={mktcapData} USUAL={USUAL}/>
 
       </div>
     </div>
