@@ -96,6 +96,39 @@ def snapshot_interval_seconds() -> int:
     return SNAPSHOT_INTERVAL_SECONDS if in_active_data_window() else SNAPSHOT_INTERVAL_IDLE_SECONDS
 
 
+# ── Incremental (base + delta) snapshot ────────────────────────────────────
+# Gated by SNAPSHOT_DELTA_ENABLED=1 on BOTH services. When on, the worker ships
+# one full "base" snapshot per day (cold-start seed + drift backstop) and a tiny
+# windowed "delta" every other cycle; the web applies base then deltas in ts
+# order via the SAME newer-wins merge. Bars only mutate for the most recent few
+# sessions, so a rolling per-tf window captures every real change; the daily
+# base catches anything older. Decouples worker egress/CPU from total DB size.
+DELTA_ENABLED = os.environ.get("SNAPSHOT_DELTA_ENABLED", "0") == "1"
+_DELTA_PREFIX = "deltas/"
+_DELTA_INDEX_KEY = "deltas/latest.txt"
+_LAST_DELTA_MARKER = ".last_delta_ts"
+DELTA_KEEP = int(os.environ.get("DELTA_KEEP", "50"))
+_DAY_SECONDS = 86400
+# Windows are deliberately wide — egress stays tiny (bounded by recency, not
+# universe size) and the daily base means they're never load-bearing for
+# correctness. Override via env if a tf ever revises further back.
+DELTA_WINDOW_INTRADAY_DAYS = int(os.environ.get("DELTA_WINDOW_INTRADAY_DAYS", "7"))
+DELTA_WINDOW_DAILY_DAYS = int(os.environ.get("DELTA_WINDOW_DAILY_DAYS", "10"))
+DELTA_WINDOW_SLOW_DAYS = int(os.environ.get("DELTA_WINDOW_SLOW_DAYS", "45"))
+
+
+def _delta_cutoffs(now: Optional[int] = None) -> dict:
+    """Per-tf unix-seconds cutoff: rows with ts >= cutoff go in the delta."""
+    now = int(now if now is not None else time.time())
+    intraday = now - DELTA_WINDOW_INTRADAY_DAYS * _DAY_SECONDS
+    return {
+        "1": intraday, "5": intraday, "15": intraday, "30": intraday, "60": intraday,
+        "D": now - DELTA_WINDOW_DAILY_DAYS * _DAY_SECONDS,
+        "W": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
+        "M": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
+    }
+
+
 def _snapshot_fingerprint() -> tuple:
     """Cheap fingerprint of the snapshot source WITHOUT building the tarball.
 
@@ -718,3 +751,209 @@ def sync_if_newer_merge() -> Optional[str]:
     if merge_snapshot(remote_ts):
         return remote_ts
     return None
+
+
+# ── Delta export / upload (worker side) ─────────────────────────────────────
+
+def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
+    """Build a small SQLite at out_path holding only ohlcv + bars_provenance
+    rows newer than the per-tf cutoff. Returns ohlcv rows exported. Reads the
+    live bars.db read-only (WAL allows concurrent reads while the prewarmer
+    writes). Column lists match bars_sqlite.init_db exactly."""
+    cutoffs = _delta_cutoffs(now)
+    src_path = os.path.join(_DATA_DIR, "bars.db")
+    src = sqlite3.connect(f"file:{src_path}?mode=ro", uri=True)
+    try:
+        out = sqlite3.connect(out_path)
+        try:
+            out.execute(
+                "CREATE TABLE IF NOT EXISTS ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
+                "ts INTEGER NOT NULL, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+                "PRIMARY KEY (ticker, tf, ts))"
+            )
+            out.execute(
+                "CREATE TABLE IF NOT EXISTS bars_provenance (ticker TEXT NOT NULL, "
+                "tf TEXT NOT NULL, ts INTEGER NOT NULL, source TEXT NOT NULL, "
+                "fetched_at INTEGER NOT NULL, PRIMARY KEY (ticker, tf, ts))"
+            )
+            total = 0
+            for tf, cut in cutoffs.items():
+                rows = src.execute(
+                    "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv WHERE tf=? AND ts>=?",
+                    (tf, cut),
+                ).fetchall()
+                if rows:
+                    out.executemany(
+                        "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
+                    )
+                    total += len(rows)
+                # Provenance is best-effort (table may be empty for legacy rows).
+                try:
+                    prov = src.execute(
+                        "SELECT ticker,tf,ts,source,fetched_at FROM bars_provenance "
+                        "WHERE tf=? AND ts>=?",
+                        (tf, cut),
+                    ).fetchall()
+                    if prov:
+                        out.executemany(
+                            "INSERT OR REPLACE INTO bars_provenance VALUES (?,?,?,?,?)", prov
+                        )
+                except sqlite3.Error:
+                    pass
+            out.commit()
+            return total
+        finally:
+            out.close()
+    finally:
+        src.close()
+
+
+def _make_delta_tarball(now: Optional[int] = None) -> Optional[bytes]:
+    """Tar a freshly-exported delta.db. Returns None when there's nothing in
+    the window (don't ship empty deltas)."""
+    if not os.path.exists(os.path.join(_DATA_DIR, "bars.db")):
+        return None
+    tmpdir = tempfile.mkdtemp(prefix="data_sync_delta_")
+    try:
+        delta_db = os.path.join(tmpdir, "delta.db")
+        n = _export_delta_db(delta_db, now=now)
+        if n == 0:
+            return None
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            tar.add(delta_db, arcname="delta.db")
+        return buf.getvalue()
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _prune_old_deltas(keep_list) -> int:
+    """Delete delta objects whose ts is not in keep_list. Best-effort."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return 0
+    keepset = {f"{_DELTA_PREFIX}{t}.tar.gz" for t in keep_list}
+    deleted = 0
+    try:
+        resp = client.list_objects_v2(Bucket=bucket, Prefix=_DELTA_PREFIX)
+        for o in resp.get("Contents", []) or []:
+            k = o["Key"]
+            if k.endswith(".tar.gz") and k not in keepset:
+                try:
+                    client.delete_object(Bucket=bucket, Key=k)
+                    deleted += 1
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning(f"[data_sync] delta prune failed (non-fatal): {e}")
+    return deleted
+
+
+def upload_delta(now: Optional[int] = None) -> Optional[str]:
+    """Build + PUT a windowed delta tarball and append its ts to the delta
+    index. Returns the delta ts, or None (no creds / empty window / failure)."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return None
+    data = _make_delta_tarball(now=now)
+    if not data:
+        return None
+    ts = str(int(now if now is not None else time.time()))
+    try:
+        client.put_object(Bucket=bucket, Key=f"{_DELTA_PREFIX}{ts}.tar.gz",
+                          Body=data, ContentType="application/gzip")
+    except Exception as e:
+        logger.exception(f"[data_sync] delta upload failed: {e}")
+        return None
+    # Append ts to the index (newest last), keep last DELTA_KEEP.
+    try:
+        existing = client.get_object(
+            Bucket=bucket, Key=_DELTA_INDEX_KEY
+        )["Body"].read().decode().split()
+    except Exception:
+        existing = []
+    keep = (existing + [ts])[-DELTA_KEEP:]
+    try:
+        client.put_object(Bucket=bucket, Key=_DELTA_INDEX_KEY,
+                          Body="\n".join(keep).encode(), ContentType="text/plain")
+    except Exception as e:
+        logger.warning(f"[data_sync] delta index write failed (non-fatal): {e}")
+    _prune_old_deltas(keep)
+    logger.info(f"[data_sync] uploaded delta {ts} ({len(data)} bytes)")
+    return ts
+
+
+# ── Delta apply / orchestration (web side) ──────────────────────────────────
+
+def _list_remote_deltas() -> list:
+    """Return the delta-ts list from deltas/latest.txt (unordered)."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return []
+    try:
+        raw = client.get_object(
+            Bucket=bucket, Key=_DELTA_INDEX_KEY
+        )["Body"].read().decode()
+        return [t for t in raw.split() if t.strip().isdigit()]
+    except Exception:
+        return []
+
+
+def apply_delta(ts: str) -> bool:
+    """Download deltas/<ts>.tar.gz and merge its delta.db newer-wins into the
+    local bars.db. Reuses the exact merge the full snapshot path uses."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return False
+    tmpdir = tempfile.mkdtemp(prefix="data_sync_delta_apply_")
+    try:
+        data = client.get_object(
+            Bucket=bucket, Key=f"{_DELTA_PREFIX}{ts}.tar.gz"
+        )["Body"].read()
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            tar.extractall(tmpdir)
+        src = os.path.join(tmpdir, "delta.db")
+        if not os.path.exists(src) or not _verify_snapshot_db(src):
+            logger.warning(f"[data_sync] delta {ts} missing/invalid; skipping")
+            return False
+        adopted = _merge_ohlcv_from(src)   # SAME newer-wins merge as full path
+        if adopted < 0:
+            return False                   # no local DB yet — base must land first
+        _write_marker(_LAST_DELTA_MARKER, ts)
+        logger.info(f"[data_sync] applied delta {ts}: {adopted} rows adopted")
+        return True
+    except Exception as e:
+        logger.warning(f"[data_sync] apply_delta {ts} failed (non-fatal): {e}")
+        return False
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def sync_with_deltas() -> Optional[str]:
+    """Base + delta pull. Cold start installs the latest full base; thereafter
+    folds the daily base in (newer-wins, cheap) and applies every delta newer
+    than both the base and the last-applied delta, in ascending ts order.
+    Returns the newest ts applied, or None. Order-independent + idempotent by
+    construction (the merge is newer-wins per (ticker,tf,ts))."""
+    newest = None
+    base_ts = get_latest_snapshot_ts()
+    have_local = os.path.exists(os.path.join(_DATA_DIR, "bars.db"))
+    if base_ts and not have_local:
+        if download_snapshot(base_ts):     # cold-start full install
+            newest = base_ts
+    elif base_ts:
+        local = get_local_sync_state()
+        if local["snapshot_ts"] != base_ts and merge_snapshot(base_ts):
+            newest = base_ts
+
+    last_delta = _read_marker(_LAST_DELTA_MARKER)["snapshot_ts"] or "0"
+    floor = max(int(base_ts) if base_ts and base_ts.isdigit() else 0,
+                int(last_delta) if last_delta.isdigit() else 0)
+    for ts in sorted(_list_remote_deltas(), key=int):
+        if int(ts) > floor and apply_delta(ts):
+            newest = ts
+    return newest

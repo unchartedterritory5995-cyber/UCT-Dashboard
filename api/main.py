@@ -1086,7 +1086,13 @@ async def lifespan(app: FastAPI):
                     import time as _t
                     _t0 = _t.time()
                     try:
-                        ts = data_sync.sync_if_newer()
+                        # Delta mode: install latest base + apply any deltas now
+                        # so a fresh pod is fully current at boot (not one cycle
+                        # behind). Falls back to plain full install otherwise.
+                        if data_sync.DELTA_ENABLED:
+                            ts = data_sync.sync_with_deltas()
+                        else:
+                            ts = data_sync.sync_if_newer()
                         elapsed = _t.time() - _t0
                         if ts:
                             print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
@@ -1109,7 +1115,11 @@ async def lifespan(app: FastAPI):
             while True:
                 _t.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
                 try:
-                    if _legacy_replace:
+                    if data_sync.DELTA_ENABLED:
+                        ts = data_sync.sync_with_deltas()
+                        if ts:
+                            print(f"[data_sync] synced via base+deltas through {ts}")
+                    elif _legacy_replace:
                         ts = data_sync.sync_if_newer()
                         if ts:
                             print(f"[data_sync] (legacy replace) pulled snapshot {ts}")

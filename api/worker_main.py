@@ -61,6 +61,16 @@ def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
 
+    # In delta mode the worker ships ONE full base per ET calendar day (cold-
+    # start seed + drift backstop) and a tiny windowed delta every other cycle.
+    # Tracked across iterations so we only build the big base once/day.
+    _last_base_day = {"d": None}
+
+    def _et_today() -> str:
+        import datetime as _dt
+        from zoneinfo import ZoneInfo
+        return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
     def loop():
         while True:
             # Default to "error" so an exception below leaves the right
@@ -71,6 +81,24 @@ def _start_uploader():
                 # would otherwise return None and look identical in health.
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
+                elif data_sync.DELTA_ENABLED:
+                    # One full base per ET day; deltas the rest of the time.
+                    today = _et_today()
+                    if _last_base_day["d"] != today:
+                        ts = data_sync.upload_snapshot(force=True)  # full base
+                        if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
+                            _last_base_day["d"] = today
+                            outcome = "base"
+                            log.info(f"uploaded base snapshot {ts}")
+                        else:
+                            outcome = "no_data"
+                    else:
+                        ts = data_sync.upload_delta()
+                        if ts:
+                            outcome = "delta"
+                            log.info(f"uploaded delta {ts}")
+                        else:
+                            outcome = "unchanged"  # nothing in the window
                 else:
                     ts = data_sync.upload_snapshot()
                     if ts == data_sync.SNAPSHOT_UNCHANGED:
