@@ -61,9 +61,11 @@ MIN_CONFIDENCE = 0.05
 # saturates near 1.0). 0.10 means today's flow $ >= 10% of OI's $.
 CONFIDENCE_FULL_THRESHOLD = 0.10
 
-# Source restriction — matches oi_snapshots. Only stocks-source flow has
-# corresponding OI snapshots. Indexes (SPX, NDX) don't.
-SOURCE = "stocks"
+# Source restriction — matches oi_snapshots. Includes both stocks and
+# indexes so SPY/QQQ/SPX etc. get the same trade-aware treatment as
+# single-name stocks. The flow source field is uploaded per-CSV; SPY
+# lives under "indexes", AAPL under "stocks".
+SOURCES = ["stocks", "indexes"]
 
 
 # ── Schema ────────────────────────────────────────────────────────────────
@@ -323,8 +325,9 @@ def compute_positioning_for_date(target_date_iso: str) -> Dict:
         # compatible with contract_key. We compute ASK premium (Side
         # in A/AA) and BID premium (Side in B/BB) separately. Premium
         # is TEXT in the table — CAST to REAL to sum.
+        src_placeholders = ",".join(["?"] * len(SOURCES))
         flow_rows = c.execute(
-            """
+            f"""
             SELECT
               Symbol,
               CallPut,
@@ -333,10 +336,10 @@ def compute_positioning_for_date(target_date_iso: str) -> Dict:
               SUM(CASE WHEN Side IN ('A','AA') THEN CAST(Premium AS REAL) ELSE 0 END) AS ask_prem,
               SUM(CASE WHEN Side IN ('B','BB') THEN CAST(Premium AS REAL) ELSE 0 END) AS bid_prem
             FROM flow
-            WHERE source = ? AND CreatedDate = ?
+            WHERE source IN ({src_placeholders}) AND CreatedDate = ?
             GROUP BY Symbol, CallPut, Strike, ExpirationDate
             """,
-            (SOURCE, target_mdy),
+            (*SOURCES, target_mdy),
         ).fetchall()
 
         # Build keyed flow map. Match the contract_key format from
