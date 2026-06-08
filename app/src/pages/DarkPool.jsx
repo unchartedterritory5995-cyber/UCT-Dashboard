@@ -2053,10 +2053,17 @@ function SearchModal({onClose, mktcapData = {}}){
       {/* Modal — padding stripped from the wrapper and pushed down into the
           inner sections so the header below can stick to the modal's true
           top edge (sticky inside a padded container would stick INSIDE the
-          padding, leaving an awkward gap above the header). */}
-      <div style={{position:"relative",width:"90%",maxWidth:900,background:C.bg2,
+          padding, leaving an awkward gap above the header).
+          maxWidth bumped from 900 → 1400 because the per-ticker chart now
+          has TWO timeframe button rows (PRINTS + CANDLES) plus a left-side
+          ticker info bar — at 900px wide the right-side price axis was
+          getting clipped off the visible area, forcing users to horizontal-
+          scroll inside the modal to see the prices on the chart. 1400 fits
+          everything comfortably on standard laptop screens (1440+) and
+          still leaves a backdrop margin on smaller screens via 95% width. */}
+      <div style={{position:"relative",width:"95%",maxWidth:1400,background:C.bg2,
         border:`1px solid ${C.bdr2}`,borderRadius:10,boxShadow:"0 8px 40px #000000aa",
-        maxHeight:"80vh",overflowY:"auto"}}>
+        maxHeight:"85vh",overflowY:"auto",overflowX:"hidden"}}>
         {/* Sticky header — `position: sticky; top: 0` keeps the title row and
             (more importantly) the close button visible while the user scrolls
             through results. Background matches the modal so scrolled content
