@@ -673,27 +673,29 @@ export default function StockChart({
   // after pan/zoom. By running in rAF, bars stay glued to candles regardless
   // of how the user interacts with the chart.
   //
-  // Second pass: stagger labels vertically when multiple prints land at close
-  // prices. Without this, two prints at $735 and $737 have labels at nearly
-  // the same Y and overlap into an unreadable mush. Sort by Y, walk forward,
-  // push each colliding label down by ≥ LABEL_H pixels from the previous.
-  // The bar itself stays glued to its real price Y — only the label moves —
-  // so the visual cue of "this price level has activity" is preserved while
-  // the dollar amounts become independently readable.
+  // Label placement policy (second pass, after bars are positioned):
+  //   - Top-5 (gold tier): always show. If two top-5 labels would collide,
+  //     stagger the lower one down. With only 5 of them, any stagger column
+  //     stays short and labels remain visually attached to their bars.
+  //   - Smaller bars: show the label only if it lands at its natural
+  //     position WITHOUT colliding with an already-placed label. If it
+  //     would have to stagger, hide the label entirely — the bar still
+  //     renders, and the hover tooltip exposes the $ amount on demand.
+  // This stops the failure mode where ~60 prints clustered near current
+  // price produced a 200+px vertical column of staggered labels that
+  // floated far from their actual bars and looked like noise.
   useEffect(() => {
     if (!chartReady) return
     if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
     const container = dpBarsContainerRef.current
     if (!container) return
-    const LABEL_H = 13     // approx rendered label height incl. spacing
+    const LABEL_H = 13
     const LABEL_DEFAULT_TOP = -7
     let raf = 0
     const update = () => {
       const series = candleSeriesRef.current
       if (series) {
         const els = container.querySelectorAll('[data-dp-bar]')
-        // Pass 1: position each bar wrapper at its price's Y coordinate.
-        // Collect (element, Y) for the staggering pass below.
         const positioned = []
         for (const el of els) {
           const price = parseFloat(el.dataset.price || '')
@@ -705,23 +707,32 @@ export default function StockChart({
           } else {
             el.style.display = 'block'
             el.style.top = `${y}px`
-            positioned.push({ el, y })
+            const isGold = el.dataset.tier === 'gold'
+            positioned.push({ el, y, isGold })
           }
         }
-        // Pass 2: stagger labels. Sort by Y ascending, then walk forward.
-        // Each label's natural absolute Y = barY + LABEL_DEFAULT_TOP. If
-        // that would land within LABEL_H of the previous placed label's
-        // bottom, push this one down so the labels chain without overlap.
         positioned.sort((a, b) => a.y - b.y)
         let lastLabelBottomY = -Infinity
-        for (const { el, y } of positioned) {
+        for (const { el, y, isGold } of positioned) {
           const label = el.querySelector('[data-dp-label]')
           if (!label) continue
           const naturalTopY = y + LABEL_DEFAULT_TOP
-          const placedTopY = Math.max(naturalTopY, lastLabelBottomY + 1)
-          const offsetInsideBar = placedTopY - y
-          label.style.top = `${offsetInsideBar}px`
-          lastLabelBottomY = placedTopY + LABEL_H
+          if (isGold) {
+            // Top-5: always shown. Stagger down on collision.
+            const placedTopY = Math.max(naturalTopY, lastLabelBottomY + 1)
+            label.style.display = ''
+            label.style.top = `${placedTopY - y}px`
+            lastLabelBottomY = placedTopY + LABEL_H
+          } else {
+            // Smaller bar: only render label if it fits cleanly. No stagger.
+            if (naturalTopY >= lastLabelBottomY + 1) {
+              label.style.display = ''
+              label.style.top = `${LABEL_DEFAULT_TOP}px`
+              lastLabelBottomY = naturalTopY + LABEL_H
+            } else {
+              label.style.display = 'none'
+            }
+          }
         }
       }
       raf = requestAnimationFrame(update)
@@ -1330,38 +1341,6 @@ export default function StockChart({
     onIndexAnnotationsChange?.((indexAnnotations || []).filter(d => d.id !== id))
   }, [indexAnnotations, onIndexAnnotationsChange])
   const idxAnnClear = useCallback(() => { onIndexAnnotationsChange?.([]) }, [onIndexAnnotationsChange])
-  // The index-pane (Nasdaq) annotations are a single GLOBAL set spanning many
-  // years; the pane is framed to ONE calendar year ([entryDate, exitDate]). For
-  // read-only display, show only the marks anchored in the displayed year so
-  // prior-year marks don't stack at the left edge. NOT filtered while editing —
-  // the editor must keep the full set or a save would drop other years.
-  const visibleIndexAnnotations = useMemo(() => {
-    if (!indexAnnotations || indexAnnotationsEditable || !entryDate) return indexAnnotations
-    // Extract the calendar YEAR from a Lightweight-Charts time value WHATEVER its
-    // shape: ISO string 'YYYY-…', a UNIX timestamp (s or ms), or a business-day
-    // object {year,month,day}. The pane is always a full Jan–Dec calendar year,
-    // so a year match is exactly right.
-    const yearOf = v => {
-      if (v == null) return null
-      if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v).getUTCFullYear()
-      if (typeof v === 'object') return v.year ?? null
-      const m = String(v).match(/(\d{4})/)
-      return m ? Number(m[1]) : null
-    }
-    const shownYear = yearOf(entryDate)
-    if (shownYear == null) return indexAnnotations
-    return indexAnnotations.filter(d => {
-      const pts = d.points || []
-      const last = pts[pts.length - 1]
-      const y = last ? yearOf(last.time) : null
-      // No parseable anchor year → the mark can't sit in THIS year's bars, so it
-      // would only render as garbage pinned to the chart's left edge. HIDE it.
-      // (Hiding, not keeping, is what prevents prior-year/unplaceable marks from
-      // leaking through and stacking at the left — the bug this filter exists for.)
-      if (y == null) return false
-      return y === shownYear
-    })
-  }, [indexAnnotations, indexAnnotationsEditable, entryDate])
   // Current line style for NEW annotation lines; also re-styles the selected line.
   const [drawLineStyle, setDrawLineStyle] = useState('solid')
   const setAnnLineStyle = useCallback((style) => {
@@ -4849,6 +4828,7 @@ export default function StockChart({
               key={`dp-${b.idx}-${b.price}`}
               data-dp-bar=""
               data-price={b.price}
+              data-tier={b.isGoldTier ? 'gold' : 'gray'}
               style={{
                 position: 'absolute',
                 right: 60,        // leave room for LWC's right price axis
@@ -5276,7 +5256,7 @@ export default function StockChart({
           unmount/remount on each switch = a blink. Bounds stay measured across the
           switch, so the canvas survives and just redraws as the chart reframes. */}
       {indexAnnotations != null && indexPaneSymbol && indexOverlayBounds
-        && (indexAnnotationsEditable || (visibleIndexAnnotations?.length || 0) > 0) && (
+        && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -5291,7 +5271,7 @@ export default function StockChart({
             lineStyle={drawLineStyle}
             fontSize={drawFontSize}
             magnet={magnet}
-            drawings={visibleIndexAnnotations}
+            drawings={indexAnnotations}
             addDrawing={idxAnnAdd}
             updateDrawing={idxAnnUpdate}
             removeDrawing={idxAnnRemove}
