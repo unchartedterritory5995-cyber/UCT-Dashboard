@@ -647,6 +647,7 @@ export default function StockChart({
     return sorted.map((b, idx) => {
       const ratio = (b.notional || 0) / maxN
       const isGoldTier = idx < 5
+      const showLabel = idx < 3   // only label the top 3 by notional
       return {
         ...b,
         idx,
@@ -659,44 +660,43 @@ export default function StockChart({
         // 5 against dark candles — too dominant, drowned out the price action.
         // Iterated down: first cut to 0.65 was still bright, dropped again to
         // 0.50 max for the top tier (≈50% less bright than original at max),
-        // 0.40 max for smaller bars. The label below gets a separate opacity
-        // bump so the $ amount stays readable even when the bar fades.
+        // 0.40 max for smaller bars.
         opacity: isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26,
         isGoldTier,
+        showLabel,
       }
     })
   }, [darkPoolBars, darkPoolMaxBarWidth])
 
   // Position bars vertically by calling series.priceToCoordinate() on each
-  // animation frame. This is what the SVG overlay approach couldn't do — only
-  // the chart instance knows the exact pixel Y for a given price, especially
-  // after pan/zoom. By running in rAF, bars stay glued to candles regardless
-  // of how the user interacts with the chart.
+  // animation frame. Only the chart instance knows the exact pixel Y for a
+  // given price (especially after pan/zoom). By running in rAF, bars stay
+  // glued to candles regardless of how the user interacts with the chart.
   //
-  // Label placement policy (second pass, after bars are positioned):
-  //   - Top-5 (gold tier): always show. If two top-5 labels would collide,
-  //     stagger the lower one down. With only 5 of them, any stagger column
-  //     stays short and labels remain visually attached to their bars.
-  //   - Smaller bars: show the label only if it lands at its natural
-  //     position WITHOUT colliding with an already-placed label. If it
-  //     would have to stagger, hide the label entirely — the bar still
-  //     renders, and the hover tooltip exposes the $ amount on demand.
-  // This stops the failure mode where ~60 prints clustered near current
-  // price produced a 200+px vertical column of staggered labels that
-  // floated far from their actual bars and looked like noise.
+  // Label policy (after several iterations):
+  //   - Only the top-3 prints get labels. These are the most important $
+  //     amounts on the chart. With only 3 of them, collisions are rare in
+  //     practice (you'd need 3 of the biggest prints all at near-identical
+  //     prices, which is uncommon).
+  //   - Top 4-5 still render as gold bars (visually distinct) but with no
+  //     label clutter. Hover for $ amount via the existing tooltip.
+  //   - Smaller bars stay as visual reference markers showing WHERE
+  //     activity is concentrated. Hover to read the $ amount.
+  //   - No staggering — earlier iterations pushed labels far from their
+  //     bars and created the "floating disconnected label" failure mode.
+  //   - On the rare collision between top-3 labels, they overlap at their
+  //     natural Y; the user can zoom in or hover to disambiguate. Still
+  //     better than 200px of staggered orphans.
   useEffect(() => {
     if (!chartReady) return
     if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
     const container = dpBarsContainerRef.current
     if (!container) return
-    const LABEL_H = 13
-    const LABEL_DEFAULT_TOP = -7
     let raf = 0
     const update = () => {
       const series = candleSeriesRef.current
       if (series) {
         const els = container.querySelectorAll('[data-dp-bar]')
-        const positioned = []
         for (const el of els) {
           const price = parseFloat(el.dataset.price || '')
           if (!Number.isFinite(price)) continue
@@ -707,31 +707,6 @@ export default function StockChart({
           } else {
             el.style.display = 'block'
             el.style.top = `${y}px`
-            const isGold = el.dataset.tier === 'gold'
-            positioned.push({ el, y, isGold })
-          }
-        }
-        positioned.sort((a, b) => a.y - b.y)
-        let lastLabelBottomY = -Infinity
-        for (const { el, y, isGold } of positioned) {
-          const label = el.querySelector('[data-dp-label]')
-          if (!label) continue
-          const naturalTopY = y + LABEL_DEFAULT_TOP
-          if (isGold) {
-            // Top-5: always shown. Stagger down on collision.
-            const placedTopY = Math.max(naturalTopY, lastLabelBottomY + 1)
-            label.style.display = ''
-            label.style.top = `${placedTopY - y}px`
-            lastLabelBottomY = placedTopY + LABEL_H
-          } else {
-            // Smaller bar: only render label if it fits cleanly. No stagger.
-            if (naturalTopY >= lastLabelBottomY + 1) {
-              label.style.display = ''
-              label.style.top = `${LABEL_DEFAULT_TOP}px`
-              lastLabelBottomY = naturalTopY + LABEL_H
-            } else {
-              label.style.display = 'none'
-            }
           }
         }
       }
@@ -4828,7 +4803,6 @@ export default function StockChart({
               key={`dp-${b.idx}-${b.price}`}
               data-dp-bar=""
               data-price={b.price}
-              data-tier={b.isGoldTier ? 'gold' : 'gray'}
               style={{
                 position: 'absolute',
                 right: 60,        // leave room for LWC's right price axis
@@ -4851,26 +4825,25 @@ export default function StockChart({
                 opacity: b.opacity,
                 borderRadius: 1,
               }}/>
-              <span
-                data-dp-label=""
-                style={{
-                position: 'absolute',
-                right: b.width + 3,
-                top: -7,
-                fontSize: 9.5,
-                color: b.color,
-                fontWeight: b.isGoldTier ? 700 : 500,
-                // Bigger boost than before (was +0.18, then +0.30) — bars
-                // now max at 0.50 opacity but the $ label needs to stay
-                // legible. +0.45 lifts top-tier labels to ~0.95 (visible)
-                // and small bars to ~0.55.
-                opacity: Math.min(1, b.opacity + 0.45),
-                whiteSpace: 'nowrap',
-                fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-                pointerEvents: 'none',
-              }}>
-                {formatDpNotional(b.notional)}
-              </span>
+              {b.showLabel && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: b.width + 3,
+                    top: -7,
+                    fontSize: 9.5,
+                    color: b.color,
+                    fontWeight: 700,
+                    // Top 3 always need to be legible — bar opacity caps at
+                    // 0.50, so push label opacity to ~0.95 for high contrast.
+                    opacity: Math.min(1, b.opacity + 0.45),
+                    whiteSpace: 'nowrap',
+                    fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                    pointerEvents: 'none',
+                  }}>
+                  {formatDpNotional(b.notional)}
+                </span>
+              )}
             </div>
           ))}
         </div>
