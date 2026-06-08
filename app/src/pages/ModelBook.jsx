@@ -36,6 +36,47 @@ const MB_VIEW_LABELS = Object.fromEntries(MB_HUB_OPTIONS.map(o => [o.view, o.lab
 function ModelBookHub({ onPick }) {
   return (
     <div className={styles.hub}>
+      {/* Cartographer's backdrop: coordinate grid, compass rose, a dotted
+          journey path, and a faint price line — kept low-opacity + vignetted
+          so it never competes with the title or cards. */}
+      <svg className={styles.hubBg} viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
+        <defs>
+          <pattern id="mbGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path d="M50 0H0V50" stroke="#c9a84c" strokeWidth="0.5" fill="none" />
+          </pattern>
+          <radialGradient id="mbVig" cx="50%" cy="40%" r="72%">
+            <stop offset="52%" stopColor="#000" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.78" />
+          </radialGradient>
+          <linearGradient id="mbPrice" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3cb868" stopOpacity="0.12" />
+            <stop offset="1" stopColor="#3cb868" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* faint map grid */}
+        <rect width="1200" height="700" fill="url(#mbGrid)" opacity="0.05" />
+        {/* compass rose behind the title */}
+        <g transform="translate(600 268)" opacity="0.12">
+          <g stroke="#c9a84c" strokeWidth="0.8">
+            <circle r="250" /><circle r="188" /><circle r="120" />
+            <line x1="0" y1="-260" x2="0" y2="260" />
+            <line x1="-260" y1="0" x2="260" y2="0" />
+            <line x1="-184" y1="-184" x2="184" y2="184" />
+            <line x1="184" y1="-184" x2="-184" y2="184" />
+          </g>
+          <path d="M0 -210 L36 -36 L210 0 L36 36 L0 210 L-36 36 L-210 0 L-36 -36 Z" fill="#c9a84c" fillOpacity="0.05" stroke="#c9a84c" strokeWidth="0.8" />
+          <path d="M0 -150 L26 -26 L150 0 L26 26 L0 150 L-26 26 L-150 0 L-26 -26 Z" stroke="#c9a84c" strokeWidth="0.7" />
+        </g>
+        {/* dotted journey path corner to corner */}
+        <path d="M90 612 C 360 540 470 380 720 320 S 1040 210 1130 118" stroke="#c9a84c" strokeWidth="1.4" strokeDasharray="1 10" strokeLinecap="round" opacity="0.22" />
+        <circle cx="90" cy="612" r="3.5" fill="#c9a84c" opacity="0.3" />
+        <circle cx="1130" cy="118" r="3.5" fill="#c9a84c" opacity="0.3" />
+        {/* trading price line + area along the bottom */}
+        <path d="M0 560 L60 540 L120 572 L180 520 L240 548 L300 500 L360 532 L420 482 L480 508 L540 458 L600 492 L660 440 L720 472 L780 422 L840 456 L900 404 L960 442 L1020 396 L1080 428 L1140 380 L1200 412 L1200 700 L0 700 Z" fill="url(#mbPrice)" />
+        <polyline points="0,560 60,540 120,572 180,520 240,548 300,500 360,532 420,482 480,508 540,458 600,492 660,440 720,472 780,422 840,456 900,404 960,442 1020,396 1080,428 1140,380 1200,412" stroke="#3cb868" strokeWidth="1.4" opacity="0.16" />
+        {/* vignette so the motif fades at the edges */}
+        <rect width="1200" height="700" fill="url(#mbVig)" />
+      </svg>
       <div className={styles.hubGlow} aria-hidden="true" />
       <div className={styles.hubInner}>
         <div className={styles.hubBrand}>
