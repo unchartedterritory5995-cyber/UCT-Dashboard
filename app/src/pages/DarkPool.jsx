@@ -1106,10 +1106,10 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
           </div>
 
           <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
-            <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (biggest = brightest gold)</span>
-            <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (faded by relative size)</span>
+            <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 5 prints by $ size (always labeled, biggest = brightest gold)</span>
+            <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (hover to see $ amount)</span>
             <span>·</span>
-            <span>Bars follow chart zoom/pan · Hover any bar for details</span>
+            <span>Bars follow chart zoom/pan</span>
           </div>
         </div>
       )}
