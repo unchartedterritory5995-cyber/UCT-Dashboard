@@ -31,10 +31,6 @@ const MB_HUB_OPTIONS = [
 ]
 const MB_VIEW_LABELS = Object.fromEntries(MB_HUB_OPTIONS.map(o => [o.view, o.label]))
 
-// Smooth, gently-varied uptrend curve for the hub backdrop's price line.
-// Shared by the stroke and the area fill so they stay in sync.
-const MB_PRICE_CURVE = 'M0 562 C 130 546 240 582 340 552 S 560 498 760 520 S 980 446 1200 392'
-
 // The intro/menu screen. Cards cascade in (staggered via --i); the live one is
 // gold-accented, the rest are dimmed "Coming soon". onPick switches the view.
 function ModelBookHub({ onPick }) {
@@ -52,10 +48,6 @@ function ModelBookHub({ onPick }) {
             <stop offset="52%" stopColor="#000" stopOpacity="0" />
             <stop offset="100%" stopColor="#000" stopOpacity="0.78" />
           </radialGradient>
-          <linearGradient id="mbPrice" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3cb868" stopOpacity="0.12" />
-            <stop offset="1" stopColor="#3cb868" stopOpacity="0" />
-          </linearGradient>
         </defs>
         {/* faint map grid */}
         <rect width="1200" height="700" fill="url(#mbGrid)" opacity="0.05" />
@@ -75,9 +67,6 @@ function ModelBookHub({ onPick }) {
         <path d="M90 612 C 360 540 470 380 720 320 S 1040 210 1130 118" stroke="#c9a84c" strokeWidth="1.4" strokeDasharray="1 10" strokeLinecap="round" opacity="0.22" />
         <circle cx="90" cy="612" r="3.5" fill="#c9a84c" opacity="0.3" />
         <circle cx="1130" cy="118" r="3.5" fill="#c9a84c" opacity="0.3" />
-        {/* trading price line + area along the bottom (smooth uptrend) */}
-        <path d={`${MB_PRICE_CURVE} L1200 700 L0 700 Z`} fill="url(#mbPrice)" />
-        <path d={MB_PRICE_CURVE} stroke="#3cb868" strokeWidth="1.6" opacity="0.18" />
         {/* vignette so the motif fades at the edges */}
         <rect width="1200" height="700" fill="url(#mbVig)" />
       </svg>
