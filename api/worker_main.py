@@ -258,13 +258,6 @@ def main():
         sys.exit(1)
 
     _start_prewarmer()
-    # Keep Model Book daily/weekly bars permanently warm; the worker's cache is
-    # shipped to web via the R2 snapshot, so first-view chart loads are instant.
-    try:
-        from api.services.modelbook_bars_prewarm import start_async as _mb_bars_start
-        _mb_bars_start()
-    except Exception as e:
-        log.warning(f"Model Book bar warmer start failed (non-fatal): {e}")
     _start_uploader()
     _start_keepwarm()
 

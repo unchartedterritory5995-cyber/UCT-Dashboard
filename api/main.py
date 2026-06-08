@@ -1042,14 +1042,6 @@ async def lifespan(app: FastAPI):
     if os.environ.get("USE_REMOTE_BARS") != "1":
         from api.services.bars_prewarm import run_prewarmer_forever
         threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
-        # Keep every Model Book stock's daily/weekly bars permanently warm so its
-        # charts load instantly on first view for every user (see module docstring).
-        # In remote-bars mode the worker handles this and ships it to web via R2.
-        try:
-            from api.services.modelbook_bars_prewarm import start_async as _mb_bars_start
-            _mb_bars_start()
-        except Exception as e:
-            print(f"[startup] Model Book bar warmer start error (non-fatal): {e}")
 
     # Slow background backfill: warm the ticker_meta disk cache for every
     # cap_universe ticker so /api/ticker-search autocomplete shows company
