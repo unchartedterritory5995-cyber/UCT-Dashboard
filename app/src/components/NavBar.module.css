@@ -87,11 +87,13 @@
   opacity: 1;
 }
 .subItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   text-align: left;
-  /* Indent under the Model Book icon (24px icon + 18px left pad + 12px gap). */
-  padding: 7px 18px 7px 42px;
+  /* Indent so the dot sits roughly under the Model Book icon. */
+  padding: 7px 18px 7px 34px;
   background: none;
   border: none;
   color: var(--text-muted);
@@ -102,9 +104,26 @@
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
+/* Slick little diamond marker that brightens to gold on hover. */
+.subItem::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: var(--text-muted);
+  opacity: 0.45;
+  transition: background 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
 .subItem:hover {
   color: var(--text-bright);
   background: var(--bg-hover);
+}
+.subItem:hover::before {
+  background: var(--ut-gold, #c9a84c);
+  opacity: 1;
+  box-shadow: 0 0 5px rgba(201, 168, 76, 0.7);
 }
 /* Hide submenu labels until the nav is expanded (mirrors .label behavior). */
 .submenu .subItem {
