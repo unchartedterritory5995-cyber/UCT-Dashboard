@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
-import { prefetchBars } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB } from '../utils/prefetchBars'
 import { useAuth } from '../context/AuthContext'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
@@ -1529,7 +1529,9 @@ export default function ModelBook() {
   // bounded queue, so it never starves the chart you're actively viewing.
   useEffect(() => {
     if (!stocks.length || year == null) return
-    prefetchBars(stocks.map(s => s.symbol).filter(Boolean), 'D', { priority: true })
+    const yearSyms = stocks.map(s => s.symbol).filter(Boolean)
+    prefetchBars(yearSyms, 'D', { priority: true })
+    prefetchBarsToIDB(yearSyms, 'D')   // durable: survives hard refresh (instant next load)
     let i = 0, cancelled = false
     const trickle = () => {
       if (cancelled || i >= stocks.length) return
@@ -1568,7 +1570,9 @@ export default function ModelBook() {
       } catch { return }
       if (cancelled || !all.length) return
       all.sort((a, b) => (b.year - a.year) || 0)  // newest years first
-      prefetchBars(all.map(s => s.symbol).filter(Boolean), 'D')  // background priority
+      const allSyms = all.map(s => s.symbol).filter(Boolean)
+      prefetchBars(allSyms, 'D')          // background SWR-memory warm
+      prefetchBarsToIDB(allSyms, 'D')     // durable IDB warm — every ticker, every year, refresh-proof
       let i = 0
       const trickle = () => {
         if (cancelled || i >= all.length) return

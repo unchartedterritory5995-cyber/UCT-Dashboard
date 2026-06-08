@@ -11,6 +11,7 @@
 // chart's own SWR fetch wins first.
 import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
+import { idbGet, idbPut } from './barsIDB'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -91,4 +92,64 @@ export function prefetchAllTimeframes(sym) {
   if (!sym) return
   prefetchTickerMeta(sym)
   for (const tf of ALL_TFS) _enqueue(_url(sym, tf))
+}
+
+// ── Durable (IndexedDB) prefetch ─────────────────────────────────────────────
+// prefetchBars (above) warms only SWR's IN-MEMORY cache, which is wiped on every
+// page reload — so after a HARD REFRESH every chart re-fetches and the user waits
+// again. This variant writes the bars into IndexedDB (the SAME store StockChart
+// paints from), so once a ticker is warmed it loads INSTANTLY on every subsequent
+// visit/refresh, permanently (until the IDB cache-logic version bumps).
+//
+// Efficient by construction: IDB is keyed by (sym, tf), NOT by year — daily bars
+// are identical regardless of which calendar year frames them, so a ticker that
+// appears in many Model Book years is warmed ONCE. Already-warm tickers are
+// skipped (no fetch). The fetch goes through SWR `preload`, so it DEDUPES with
+// prefetchBars' fetch of the same URL (one network request feeds both caches).
+// Bounded + idle-deferred so it never starves the chart the user is viewing.
+const _idbQueue = []
+let _idbActive = 0
+const _IDB_MAX = 3
+const _idbSeen = new Set()
+let _idbKick = null
+
+function _idbPump() {
+  while (_idbActive < _IDB_MAX && _idbQueue.length) {
+    const job = _idbQueue.shift()
+    _idbActive++
+    _idbWarmOne(job).finally(() => { _idbActive--; _idbPump() })
+  }
+}
+
+async function _idbWarmOne({ sym, tf }) {
+  try {
+    const have = await idbGet(sym, tf)
+    if (have?.bars?.length) return                 // already durable — no fetch
+    const json = await preload(_url(sym, tf), fetcher)  // dedupes with prefetchBars
+    // Prefetch URLs carry no `since`, so the response is always a full (non-delta)
+    // set — exactly what StockChart's own D/W/M full-fetch path writes to IDB.
+    if (json?.bars?.length && !json.delta) await idbPut(sym, tf, json.bars)
+  } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
+}
+
+function _idbKickSoon() {
+  if (_idbKick) return
+  const go = () => { _idbKick = null; _idbPump() }
+  if (typeof requestIdleCallback === 'function') _idbKick = requestIdleCallback(go, { timeout: 2000 })
+  else _idbKick = setTimeout(go, 1000)
+}
+
+// Warm a list of tickers' bars into IndexedDB for instant, refresh-proof loads.
+export function prefetchBarsToIDB(tickers, tf = 'D') {
+  if (!tickers?.length) return
+  for (const sym of tickers) {
+    if (!sym) continue
+    const key = `${sym}_${tf}`
+    if (_idbSeen.has(key)) continue           // in-flight/recent — don't pile up
+    _idbSeen.add(key)
+    setTimeout(() => _idbSeen.delete(key), 60000)
+    _idbQueue.push({ sym, tf })
+    prefetchTickerMeta(sym)
+  }
+  _idbKickSoon()
 }
