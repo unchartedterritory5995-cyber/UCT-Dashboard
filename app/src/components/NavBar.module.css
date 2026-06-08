@@ -79,16 +79,12 @@
   width: 100%;
   overflow: hidden;
   max-height: 0;
-  opacity: 0;
-  /* No delay on collapse — closes promptly when the mouse leaves. */
-  transition: max-height 0.22s ease, opacity 0.18s ease;
-  transition-delay: 0s;
+  /* Reserve the row space; the per-item cascade below does the visible reveal.
+     No delay either way so collapse is prompt and the cascade starts at once. */
+  transition: max-height 0.28s ease;
 }
 .mbWrap:hover .submenu {
   max-height: 340px;
-  opacity: 1;
-  /* Wait a beat before opening so a passing hover doesn't jerk the menu. */
-  transition-delay: 0.4s;
 }
 .subItem {
   display: flex;
@@ -106,8 +102,28 @@
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  /* Each item starts hidden + nudged up; it fades and slides into place.
+     Delay lives only on opacity/transform so per-item hover (color/bg) is
+     instant. Base delay 0 → items fade straight back out when the menu closes. */
+  opacity: 0;
+  transform: translateY(-6px);
+  transition-property: opacity, transform, color, background;
+  transition-duration: 0.3s, 0.3s, 0.15s, 0.15s;
+  transition-timing-function: ease, ease, ease, ease;
+  transition-delay: 0s, 0s, 0s, 0s;
 }
+.mbWrap:hover .subItem {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Staggered entrance: each item fades in ~70ms after the one above it. */
+.mbWrap:hover .subItem:nth-child(1) { transition-delay: 0.05s, 0.05s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(2) { transition-delay: 0.12s, 0.12s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(3) { transition-delay: 0.19s, 0.19s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(4) { transition-delay: 0.26s, 0.26s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(5) { transition-delay: 0.33s, 0.33s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(6) { transition-delay: 0.40s, 0.40s, 0s, 0s; }
+.mbWrap:hover .subItem:nth-child(7) { transition-delay: 0.47s, 0.47s, 0s, 0s; }
 /* Slick little diamond marker that brightens to gold on hover. */
 .subItem::before {
   content: '';
@@ -129,13 +145,10 @@
   opacity: 1;
   box-shadow: 0 0 5px rgba(201, 168, 76, 0.7);
 }
-/* Hide submenu labels until the nav is expanded (mirrors .label behavior). */
-.submenu .subItem {
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.nav:hover .submenu .subItem {
-  opacity: 1;
+/* Respect reduced-motion: show the items immediately, no cascade or slide. */
+@media (prefers-reduced-motion: reduce) {
+  .subItem { transform: none; transition-delay: 0s; }
+  .mbWrap:hover .subItem:nth-child(n) { transition-delay: 0s; }
 }
 .bottomItems {
   display: flex;
