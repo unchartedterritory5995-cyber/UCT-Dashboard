@@ -30,7 +30,6 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
-import { reanchorLogicalRange } from '../utils/chartViewAnchor'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
@@ -530,7 +529,16 @@ export default function StockChart({
   // Uses series.priceToCoordinate() so bars align pixel-perfect with candles
   // and follow zoom/pan automatically.
   darkPoolBars = null,            // array of {price, notional, isLatest, date, dateLong, pctAvgVol}
-  darkPoolMaxBarWidth = 250,      // max bar width in pixels
+  darkPoolMaxBarWidth = 350,      // max bar width in pixels — wider gives
+                                  // the $ labels more horizontal room to
+                                  // breathe and reduces label collision at
+                                  // clustered price levels. Was 250; bumped
+                                  // because real charts with 10+ prints near
+                                  // the current price had labels stacking on
+                                  // top of each other in the small right
+                                  // strip. Bars are transparent enough now
+                                  // (top tier max 0.50 opacity) that the
+                                  // extra width doesn't visually dominate.
   // ── Override candle series priceFormat (e.g. integer-only axis labels) ──
   // Pass { type: 'price', precision: 0, minMove: 1 } to show "200" instead of "200.00"
   priceFormat = null,
@@ -664,16 +672,29 @@ export default function StockChart({
   // the chart instance knows the exact pixel Y for a given price, especially
   // after pan/zoom. By running in rAF, bars stay glued to candles regardless
   // of how the user interacts with the chart.
+  //
+  // Second pass: stagger labels vertically when multiple prints land at close
+  // prices. Without this, two prints at $735 and $737 have labels at nearly
+  // the same Y and overlap into an unreadable mush. Sort by Y, walk forward,
+  // push each colliding label down by ≥ LABEL_H pixels from the previous.
+  // The bar itself stays glued to its real price Y — only the label moves —
+  // so the visual cue of "this price level has activity" is preserved while
+  // the dollar amounts become independently readable.
   useEffect(() => {
     if (!chartReady) return
     if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
     const container = dpBarsContainerRef.current
     if (!container) return
+    const LABEL_H = 13     // approx rendered label height incl. spacing
+    const LABEL_DEFAULT_TOP = -7
     let raf = 0
     const update = () => {
       const series = candleSeriesRef.current
       if (series) {
         const els = container.querySelectorAll('[data-dp-bar]')
+        // Pass 1: position each bar wrapper at its price's Y coordinate.
+        // Collect (element, Y) for the staggering pass below.
+        const positioned = []
         for (const el of els) {
           const price = parseFloat(el.dataset.price || '')
           if (!Number.isFinite(price)) continue
@@ -684,7 +705,23 @@ export default function StockChart({
           } else {
             el.style.display = 'block'
             el.style.top = `${y}px`
+            positioned.push({ el, y })
           }
+        }
+        // Pass 2: stagger labels. Sort by Y ascending, then walk forward.
+        // Each label's natural absolute Y = barY + LABEL_DEFAULT_TOP. If
+        // that would land within LABEL_H of the previous placed label's
+        // bottom, push this one down so the labels chain without overlap.
+        positioned.sort((a, b) => a.y - b.y)
+        let lastLabelBottomY = -Infinity
+        for (const { el, y } of positioned) {
+          const label = el.querySelector('[data-dp-label]')
+          if (!label) continue
+          const naturalTopY = y + LABEL_DEFAULT_TOP
+          const placedTopY = Math.max(naturalTopY, lastLabelBottomY + 1)
+          const offsetInsideBar = placedTopY - y
+          label.style.top = `${offsetInsideBar}px`
+          lastLabelBottomY = placedTopY + LABEL_H
         }
       }
       raf = requestAnimationFrame(update)
@@ -3367,15 +3404,14 @@ export default function StockChart({
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
     const zoomKey = `${sym}_${resolvedTf}`
-    // Capture the outgoing view BEFORE deciding. setData() preserves the logical
-    // range NUMERICALLY, so this still reflects where the user was — on the
-    // previous ticker (sym switch), or right now (same-ticker data-phase swap).
-    let oldRange = null
-    try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
-    const oldBarCount = lastBarCountRef.current
     if (zoomKeyRef.current !== zoomKey) {
       const isFirstLoad = zoomKeyRef.current === null
       const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
+      // Capture the outgoing view BEFORE deciding. setData() preserves the logical range
+      // numerically, so this still reflects where the user was on the previous ticker.
+      let oldRange = null
+      try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+      const oldBarCount = lastBarCountRef.current
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
@@ -3387,10 +3423,14 @@ export default function StockChart({
 
       let didPreserve = false
       if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
-        const anchored = reanchorLogicalRange(oldBarCount, oldRange, filteredBars.length)
-        if (anchored) {
+        const newBarCount = filteredBars.length
+        const barsFromRight = oldBarCount - oldRange.to
+        const width = oldRange.to - oldRange.from
+        const to = newBarCount - barsFromRight
+        const from = to - width
+        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
-            chart.timeScale().setVisibleLogicalRange(anchored)
+            chart.timeScale().setVisibleLogicalRange({ from, to })
             didPreserve = true
           } catch {}
         }
@@ -3450,22 +3490,6 @@ export default function StockChart({
             })
           }
         }
-      }
-    } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
-               && lastBarCountRef.current !== filteredBars.length) {
-      // SAME ticker/timeframe, but the bar COUNT changed since the last render —
-      // the IDB-cache → network full-fetch swap (Daily/Weekly ALWAYS full-fetch,
-      // so a small cached set is replaced by the larger authoritative one), an
-      // older-history backfill, or a freshly-closed session bar. Lightweight-Charts
-      // preserves the visible logical range NUMERICALLY across setData, so the prior
-      // range now maps to the wrong (older) dates — this is the "chart randomly jumps
-      // back to ~2019" bug. Re-anchor to the same bars-from-right + width so the
-      // user's date-position is held fixed across data phases. (Model Book solves the
-      // same two-phase race below with its year-frame re-assert; this is the
-      // general-chart equivalent. entryDate/exactDateRange charts have their own pins.)
-      const anchored = reanchorLogicalRange(oldBarCount, oldRange, filteredBars.length)
-      if (anchored) {
-        try { chart.timeScale().setVisibleLogicalRange(anchored) } catch {}
       }
     }
 
@@ -4815,7 +4839,9 @@ export default function StockChart({
                 opacity: b.opacity,
                 borderRadius: 1,
               }}/>
-              <span style={{
+              <span
+                data-dp-label=""
+                style={{
                 position: 'absolute',
                 right: b.width + 3,
                 top: -7,
