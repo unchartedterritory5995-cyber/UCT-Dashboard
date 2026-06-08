@@ -2048,17 +2048,41 @@ function SearchModal({onClose, mktcapData = {}}){
       justifyContent:"center",paddingTop:80}}
       onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
       {/* Backdrop */}
-      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}/>
-      {/* Modal */}
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}
+        onClick={onClose}/>
+      {/* Modal — padding stripped from the wrapper and pushed down into the
+          inner sections so the header below can stick to the modal's true
+          top edge (sticky inside a padded container would stick INSIDE the
+          padding, leaving an awkward gap above the header). */}
       <div style={{position:"relative",width:"90%",maxWidth:900,background:C.bg2,
         border:`1px solid ${C.bdr2}`,borderRadius:10,boxShadow:"0 8px 40px #000000aa",
-        padding:"24px 28px",maxHeight:"80vh",overflowY:"auto"}}>
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
-          <span style={{fontSize:16,fontWeight:700,color:C.tx}}>Ticker Search</span>
-          <button onClick={onClose} style={{background:"none",border:"none",color:C.tx2,
-            fontSize:20,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>&times;</button>
+        maxHeight:"80vh",overflowY:"auto"}}>
+        {/* Sticky header — `position: sticky; top: 0` keeps the title row and
+            (more importantly) the close button visible while the user scrolls
+            through results. Background matches the modal so scrolled content
+            doesn't show through. Border-bottom gives a subtle separation cue
+            once the user starts scrolling. */}
+        <div style={{position:"sticky",top:0,zIndex:10,background:C.bg2,
+          padding:"20px 28px 14px",borderBottom:`1px solid ${C.bdr}`,
+          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            <span style={{fontSize:16,fontWeight:700,color:C.tx}}>Ticker Search</span>
+            <span style={{fontSize:10,color:C.tx3}}>Esc, click outside, or × to close</span>
+          </div>
+          <button onClick={onClose}
+            title="Close (or press Esc, or click outside the modal)"
+            style={{background:C.bg3,border:`1px solid ${C.bdr2}`,color:C.tx,
+              fontSize:18,cursor:"pointer",lineHeight:1,
+              width:32,height:32,borderRadius:"50%",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              transition:"background 0.15s, border-color 0.15s"}}
+            onMouseEnter={e=>{ e.currentTarget.style.background=C.amber+"22"; e.currentTarget.style.borderColor=C.amber; }}
+            onMouseLeave={e=>{ e.currentTarget.style.background=C.bg3; e.currentTarget.style.borderColor=C.bdr2; }}>
+            &times;
+          </button>
         </div>
+        {/* Body — padding restored here so content has breathing room. */}
+        <div style={{padding:"18px 28px 24px"}}>
         {/* Input */}
         <input
           autoFocus
@@ -2086,6 +2110,7 @@ function SearchModal({onClose, mktcapData = {}}){
             <FlowTable items={top5} showZone={true} mktcapData={mktcapData}/>
           </div>
         )}
+        </div>{/* /body padding wrapper */}
       </div>
     </div>
   );
