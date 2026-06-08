@@ -551,6 +551,21 @@ def daily_snapshot_job() -> Dict:
 
         pruned = prune_old()
 
+        # ── Dealer positioning attribution ──────────────────────────────
+        # Run this AFTER the OI snapshots for today are persisted, so the
+        # compute_positioning_for_date call below has the fresh snapshot
+        # to attribute against. Wrapped in try/except so a failure here
+        # doesn't poison the OI snapshot run — dealer_positioning is
+        # downstream/optional, OI snapshots are the primary signal.
+        dp_summary = None
+        try:
+            from api.dealer_positioning import compute_positioning_for_date
+            dp_summary = compute_positioning_for_date(today_iso)
+            logger.info(f"[oi-snapshot] dealer_positioning updated: {dp_summary}")
+        except Exception as e:
+            logger.exception("[oi-snapshot] dealer_positioning compute failed (non-fatal)")
+            dp_summary = {"error": str(e)}
+
         summary = {
             "date": today_iso,
             "contracts_queried": total,
@@ -558,6 +573,7 @@ def daily_snapshot_job() -> Dict:
             "failures": total_failures,
             "inserted": total_inserted,
             "pruned": pruned,
+            "dealer_positioning": dp_summary,
         }
         logger.info(f"[oi-snapshot] Done: {summary}")
         finish_run(run_id, "completed", summary)
