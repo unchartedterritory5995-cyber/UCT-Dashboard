@@ -79,10 +79,11 @@ beforeEach(() => {
   try { localStorage.clear() } catch { /* ignore */ }
 })
 
-test('renders model book heading', () => {
+test('renders the library view with a Model Book back control', () => {
   render(<ModelBook />)
-  // Target the heading specifically — the "‹ Model Book" back button also matches the text.
-  expect(screen.getByRole('heading', { name: /model book/i })).toBeInTheDocument()
+  // The big heading was dropped from the library view; the "‹ Model Book"
+  // back button is the remaining Model Book affordance here.
+  expect(screen.getByRole('button', { name: /model book/i })).toBeInTheDocument()
 })
 
 test('lands on the hub with section options; Throughout the Years opens the library', () => {

@@ -1948,7 +1948,6 @@ export default function ModelBook() {
     <div className={styles.page}>
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => setView('hub')}>‹ Model Book</button>
-        <h1 className={styles.heading}>MODEL BOOK</h1>
         <div className={styles.yearNav}>
           <button className={styles.yearArrow} onClick={() => scrollYears(-1)} aria-label="Scroll years left" title="Older / newer years">‹</button>
           <div className={styles.yearTabs} ref={yearStripRef}>
