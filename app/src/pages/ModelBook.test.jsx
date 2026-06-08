@@ -90,7 +90,7 @@ test('lands on the hub with section options; Throughout the Years opens the libr
   render(<ModelBook />)
   // All the section options are present, and the unbuilt ones say "Coming soon".
   expect(screen.getByRole('button', { name: /throughout the years/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /bear markets/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /corrections/i })).toBeInTheDocument()
   expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThan(0)
   // The yearly library is NOT shown until a choice is made.
   expect(screen.queryByRole('button', { name: '2025' })).toBeNull()

@@ -26,7 +26,6 @@ const MB_HUB_OPTIONS = [
   { view: 'setups',       label: 'Setups',               icon: '🎯', blurb: 'Textbook examples of every playbook pattern, pulled from history.',               available: false },
   { view: 'cycles',       label: 'Cycles',               icon: '🔄', blurb: 'How leadership rotates as the market moves through its cycles.',                  available: false },
   { view: 'corrections',  label: 'Corrections',          icon: '✂️', blurb: 'How the leaders behaved through past market corrections.',                       available: false },
-  { view: 'bear-markets', label: 'Bear Markets',         icon: '🐻', blurb: 'Lessons from history’s most brutal bear markets.',                               available: false },
   { view: 'bottoms',      label: 'Bottoms',              icon: '⚓', blurb: 'What major market bottoms actually looked like in real time.',                   available: false },
   { view: 'events',       label: 'Events',               icon: '⚡', blurb: 'Crashes, shocks, and the trades that played out around them.',                   available: false },
 ]
@@ -96,7 +95,6 @@ function ModelBookHub({ onPick }) {
               style={{ '--i': i }}
               onClick={() => onPick(o.view)}
             >
-              <span className={styles.hubNum}>{String(i + 1).padStart(2, '0')}</span>
               <span className={styles.hubCardIcon} aria-hidden="true">{o.icon}</span>
               <span className={styles.hubCardLabel}>{o.label}</span>
               <span className={styles.hubCardBlurb}>{o.blurb}</span>
