@@ -1330,6 +1330,38 @@ export default function StockChart({
     onIndexAnnotationsChange?.((indexAnnotations || []).filter(d => d.id !== id))
   }, [indexAnnotations, onIndexAnnotationsChange])
   const idxAnnClear = useCallback(() => { onIndexAnnotationsChange?.([]) }, [onIndexAnnotationsChange])
+  // The index-pane (Nasdaq) annotations are a single GLOBAL set spanning many
+  // years; the pane is framed to ONE calendar year ([entryDate, exitDate]). For
+  // read-only display, show only the marks anchored in the displayed year so
+  // prior-year marks don't stack at the left edge. NOT filtered while editing —
+  // the editor must keep the full set or a save would drop other years.
+  const visibleIndexAnnotations = useMemo(() => {
+    if (!indexAnnotations || indexAnnotationsEditable || !entryDate) return indexAnnotations
+    // Extract the calendar YEAR from a Lightweight-Charts time value WHATEVER its
+    // shape: ISO string 'YYYY-…', a UNIX timestamp (s or ms), or a business-day
+    // object {year,month,day}. The pane is always a full Jan–Dec calendar year,
+    // so a year match is exactly right.
+    const yearOf = v => {
+      if (v == null) return null
+      if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v).getUTCFullYear()
+      if (typeof v === 'object') return v.year ?? null
+      const m = String(v).match(/(\d{4})/)
+      return m ? Number(m[1]) : null
+    }
+    const shownYear = yearOf(entryDate)
+    if (shownYear == null) return indexAnnotations
+    return indexAnnotations.filter(d => {
+      const pts = d.points || []
+      const last = pts[pts.length - 1]
+      const y = last ? yearOf(last.time) : null
+      // No parseable anchor year → the mark can't sit in THIS year's bars, so it
+      // would only render as garbage pinned to the chart's left edge. HIDE it.
+      // (Hiding, not keeping, is what prevents prior-year/unplaceable marks from
+      // leaking through and stacking at the left — the bug this filter exists for.)
+      if (y == null) return false
+      return y === shownYear
+    })
+  }, [indexAnnotations, indexAnnotationsEditable, entryDate])
   // Current line style for NEW annotation lines; also re-styles the selected line.
   const [drawLineStyle, setDrawLineStyle] = useState('solid')
   const setAnnLineStyle = useCallback((style) => {
@@ -5244,7 +5276,7 @@ export default function StockChart({
           unmount/remount on each switch = a blink. Bounds stay measured across the
           switch, so the canvas survives and just redraws as the chart reframes. */}
       {indexAnnotations != null && indexPaneSymbol && indexOverlayBounds
-        && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
+        && (indexAnnotationsEditable || (visibleIndexAnnotations?.length || 0) > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
             chartRef={chartRef}
@@ -5259,7 +5291,7 @@ export default function StockChart({
             lineStyle={drawLineStyle}
             fontSize={drawFontSize}
             magnet={magnet}
-            drawings={indexAnnotations}
+            drawings={visibleIndexAnnotations}
             addDrawing={idxAnnAdd}
             updateDrawing={idxAnnUpdate}
             removeDrawing={idxAnnRemove}
