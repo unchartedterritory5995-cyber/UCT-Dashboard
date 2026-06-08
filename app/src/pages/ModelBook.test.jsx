@@ -6,10 +6,12 @@ vi.mock('../components/StockChart', () => ({
   default: ({ sym }) => <div data-testid="stock-chart">chart:{sym}</div>,
 }))
 
-// ModelBook reads the in-page view from router location.state; the page is
-// rendered without a Router here, so stub useLocation (default 'years' view).
+// ModelBook reads the in-page view from router location.state and the section
+// dropdown navigates; the page is rendered without a Router here, so stub both
+// hooks (default 'years' view, no-op navigate).
 vi.mock('react-router-dom', () => ({
   useLocation: () => ({ key: 'test', state: null }),
+  useNavigate: () => () => {},
 }))
 
 // Controllable auth role per test.

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
@@ -17,16 +17,38 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 // the API merge in on top of these.
 const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
 
-// Labels for the in-page views driven by the NavBar's Model Book submenu.
-// 'years' is the full existing Model Book; the rest are placeholders for now.
-const MB_VIEW_LABELS = {
-  years: 'Through the Years',
-  cycles: 'Cycles',
-  setups: 'Setups',
-  corrections: 'Corrections',
-  'bear-markets': 'Bear Markets',
-  bottoms: 'Bottoms',
-  events: 'Events',
+// In-page views. 'years' is the default full Model Book (the stock library you
+// land on when you click Model Book in the sidebar); the rest are sections
+// reachable from the in-page dropdown and are placeholder screens for now.
+const MB_SECTIONS = [
+  { key: 'cycles',       label: 'Cycles' },
+  { key: 'setups',       label: 'Setups' },
+  { key: 'corrections',  label: 'Corrections' },
+  { key: 'bear-markets', label: 'Bear Markets' },
+  { key: 'bottoms',      label: 'Bottoms' },
+  { key: 'events',       label: 'Events' },
+]
+const MB_VIEW_LABELS = Object.fromEntries(MB_SECTIONS.map(s => [s.key, s.label]))
+
+// Dropdown under the MODEL BOOK heading: jump to a section. The default 'years'
+// library has no entry here (return to it via the Model Book sidebar link); a
+// disabled placeholder shows when on that default view.
+function SectionMenu({ view }) {
+  const navigate = useNavigate()
+  return (
+    <select
+      className={styles.sectionMenu}
+      value={view === 'years' ? '' : view}
+      onChange={e => {
+        const v = e.target.value
+        navigate('/model-book', v ? { state: { mbView: v } } : undefined)
+      }}
+      aria-label="Jump to a Model Book section"
+    >
+      <option value="" disabled hidden>Browse sections…</option>
+      {MB_SECTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+    </select>
+  )
 }
 
 const ENTRY_COLOR = '#3cb868'
@@ -1815,7 +1837,10 @@ export default function ModelBook() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>MODEL BOOK</h1>
+          <div className={styles.titleCol}>
+            <h1 className={styles.heading}>MODEL BOOK</h1>
+            <SectionMenu view={view} />
+          </div>
           <span className={styles.count}>{MB_VIEW_LABELS[view] || view}</span>
         </div>
         <div className={styles.comingSoon}>
@@ -1829,7 +1854,10 @@ export default function ModelBook() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>MODEL BOOK</h1>
+        <div className={styles.titleCol}>
+          <h1 className={styles.heading}>MODEL BOOK</h1>
+          <SectionMenu view={view} />
+        </div>
         <div className={styles.yearNav}>
           <button className={styles.yearArrow} onClick={() => scrollYears(-1)} aria-label="Scroll years left" title="Older / newer years">‹</button>
           <div className={styles.yearTabs} ref={yearStripRef}>
