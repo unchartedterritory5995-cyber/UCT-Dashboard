@@ -1,6 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -4848,28 +4849,29 @@ export default function StockChart({
           ))}
         </div>
       )}
-      {/* Dark Pool hover tooltip — fixed positioned near cursor, rendered last
-          so it sits above the chart and other overlays. Position is computed
-          to keep the tooltip inside the viewport:
-            1. Flip to the LEFT of the cursor when there's not enough room
-               on the right (the common case — bars are on the chart's right
-               edge so the cursor sits naturally near the viewport edge).
-            2. Final clamp on both axes so the tooltip never goes off-screen
-               even on narrow viewports or extreme cursor positions.
-          Width/height estimates are conservative — `minWidth: 200` + padding
-          + the longest plausible "Premium" value (e.g. $1,203,362,000)
-          rounds out to ~240px wide, and the 4-row content runs ~120-140px
-          tall depending on whether the Vs avg vol row is shown. */}
-      {dpHover && (() => {
-        const TOOLTIP_W = 240
+      {/* Dark Pool hover tooltip — rendered into document.body via Portal
+          so it always escapes any parent that has `transform`, `filter`, or
+          `will-change` set (common CSS perf hacks that silently re-anchor
+          `position: fixed` to the transformed ancestor instead of the
+          viewport — which was making the tooltip clip off-screen no matter
+          how we clamped the math).
+          Position policy: always to the LEFT of the cursor, because dark
+          pool bars are anchored to the chart's right edge so the cursor is
+          guaranteed to be on the right side. Always-left is simpler and
+          more predictable than a flip-based approach. Final left/top are
+          clamped to the viewport so the tooltip can never overflow. */}
+      {dpHover && typeof document !== 'undefined' && createPortal((() => {
+        const TOOLTIP_W = 260
         const TOOLTIP_H = 150
-        const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
-        const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
-        const flipLeft = dpHover.x + 14 + TOOLTIP_W > vw - 8
-        const rawLeft = flipLeft ? dpHover.x - 14 - TOOLTIP_W : dpHover.x + 14
+        const vw = window.innerWidth || document.documentElement.clientWidth || 1920
+        const vh = window.innerHeight || document.documentElement.clientHeight || 1080
+        // Always position to the LEFT of cursor — bars sit on the chart's
+        // right edge so cursor is always near the right side of the screen,
+        // and opening leftward is the natural direction. Clamp to ≥8 so
+        // even an edge-case left-side cursor doesn't push us off-screen.
+        const rawLeft = dpHover.x - 14 - TOOLTIP_W
         const left = Math.max(8, Math.min(rawLeft, vw - TOOLTIP_W - 8))
-        const rawTop = dpHover.y - 90
-        const top = Math.max(8, Math.min(rawTop, vh - TOOLTIP_H - 8))
+        const top = Math.max(8, Math.min(dpHover.y - 90, vh - TOOLTIP_H - 8))
         return (
           <div style={{
             position: 'fixed',
@@ -4882,9 +4884,10 @@ export default function StockChart({
             fontSize: 11,
             color: '#e0dac8',
             pointerEvents: 'none',
-            zIndex: 1000,
+            zIndex: 9999,
             boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
             minWidth: 200,
+            maxWidth: TOOLTIP_W,
             lineHeight: 1.5,
             fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
           }}>
@@ -4915,7 +4918,7 @@ export default function StockChart({
             </div>
           </div>
         )
-      })()}
+      })(), document.body)}
       {!showFatalError && (
         <img
           src={brandMark}
