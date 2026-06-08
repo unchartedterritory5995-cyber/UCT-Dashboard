@@ -40,7 +40,48 @@ function ModelBookHub({ onPick }) {
       <div className={styles.hubGlow} aria-hidden="true" />
       <div className={styles.hubInner}>
         <div className={styles.hubBrand}>
-          <span className={styles.hubMark} aria-hidden="true">📖</span>
+          <span className={styles.hubMark} aria-hidden="true">
+            <svg className={styles.hubBook} viewBox="0 0 96 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="mbPageL" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#f3e7c4" />
+                  <stop offset="1" stopColor="#c7ad75" />
+                </linearGradient>
+                <linearGradient id="mbPageR" x1="1" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#f3e7c4" />
+                  <stop offset="1" stopColor="#c7ad75" />
+                </linearGradient>
+                <linearGradient id="mbCover" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#8a6a2c" />
+                  <stop offset="1" stopColor="#3c2a0f" />
+                </linearGradient>
+              </defs>
+              {/* aged leather cover, gilt-edged */}
+              <path d="M48 24 C 31 14 13 16 3 23 L 3 67 C 13 60 31 62 48 71 C 65 62 83 60 93 67 L 93 23 C 83 16 65 14 48 24 Z"
+                    fill="url(#mbCover)" stroke="#caa84c" strokeWidth="2.2" strokeLinejoin="round" />
+              {/* spine shadow */}
+              <path d="M48 24 L 48 71" stroke="#241803" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
+              {/* parchment pages */}
+              <path d="M47 28 C 33 19 18 20 9 26 L 9 62 C 18 56 33 55 47 63 Z"
+                    fill="url(#mbPageL)" stroke="#b9912f" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M49 28 C 63 19 78 20 87 26 L 87 62 C 78 56 63 55 49 63 Z"
+                    fill="url(#mbPageR)" stroke="#b9912f" strokeWidth="1.5" strokeLinejoin="round" />
+              {/* inked text lines */}
+              <g stroke="#7c5f28" strokeWidth="1.25" strokeLinecap="round" opacity="0.55">
+                <path d="M15 33 C 24 29 33 29 41 32" />
+                <path d="M15 39 C 24 35 33 35 41 38" />
+                <path d="M15 45 C 24 41 33 41 41 44" />
+                <path d="M15 51 C 24 47 33 47 41 50" />
+                <path d="M55 32 C 63 29 72 29 81 33" />
+                <path d="M55 38 C 63 35 72 35 81 39" />
+                <path d="M55 44 C 63 41 72 41 81 45" />
+                <path d="M55 50 C 63 47 72 47 81 51" />
+              </g>
+              {/* compass-star emblem above the spine */}
+              <path d="M48 2 C 49.4 8.2 50.8 9.6 57 11 C 50.8 12.4 49.4 13.8 48 20 C 46.6 13.8 45.2 12.4 39 11 C 45.2 9.6 46.6 8.2 48 2 Z"
+                    fill="#e6c965" />
+            </svg>
+          </span>
           <h1 className={styles.hubTitle}>MODEL BOOK</h1>
           <p className={styles.hubTagline}>
             The greatest stocks in market history — studied, annotated, and ready to learn from.

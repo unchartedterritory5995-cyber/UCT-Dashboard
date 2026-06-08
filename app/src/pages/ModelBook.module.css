@@ -63,10 +63,15 @@
 .hubBrand { text-align: center; margin-bottom: 30px; }
 .hubMark {
   display: inline-block;
-  font-size: 40px;
-  line-height: 1;
-  margin-bottom: 10px;
+  line-height: 0;
+  margin-bottom: 12px;
   animation: hubFloat 4.5s ease-in-out infinite;
+}
+.hubBook {
+  display: block;
+  width: 72px;
+  height: auto;
+  filter: drop-shadow(0 5px 16px rgba(201, 168, 76, 0.38));
 }
 @keyframes hubFloat {
   0%, 100% { transform: translateY(0); }
