@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
@@ -17,37 +17,54 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 // the API merge in on top of these.
 const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
 
-// In-page views. 'years' is the default full Model Book (the stock library you
-// land on when you click Model Book in the sidebar); the rest are sections
-// reachable from the in-page dropdown and are placeholder screens for now.
-const MB_SECTIONS = [
-  { key: 'cycles',       label: 'Cycles' },
-  { key: 'setups',       label: 'Setups' },
-  { key: 'corrections',  label: 'Corrections' },
-  { key: 'bear-markets', label: 'Bear Markets' },
-  { key: 'bottoms',      label: 'Bottoms' },
-  { key: 'events',       label: 'Events' },
+// Model Book "hub" — the animated intro screen you land on when you click
+// Model Book in the sidebar. Each option picks an in-page view: 'years' is the
+// existing yearly stock library; the rest are placeholder ("Coming soon")
+// screens for now. Order is the one the user specified.
+const MB_HUB_OPTIONS = [
+  { view: 'years',        label: 'Throughout the Years', icon: '📈', blurb: 'The best stocks of every year, with the firm’s setups labeled right on each chart.', available: true },
+  { view: 'setups',       label: 'Setups',               icon: '🎯', blurb: 'Textbook examples of every playbook pattern, pulled from history.',               available: false },
+  { view: 'cycles',       label: 'Cycles',               icon: '🔄', blurb: 'How leadership rotates as the market moves through its cycles.',                  available: false },
+  { view: 'corrections',  label: 'Corrections',          icon: '✂️', blurb: 'How the leaders behaved through past market corrections.',                       available: false },
+  { view: 'bear-markets', label: 'Bear Markets',         icon: '🐻', blurb: 'Lessons from history’s most brutal bear markets.',                               available: false },
+  { view: 'bottoms',      label: 'Bottoms',              icon: '⚓', blurb: 'What major market bottoms actually looked like in real time.',                   available: false },
+  { view: 'events',       label: 'Events',               icon: '⚡', blurb: 'Crashes, shocks, and the trades that played out around them.',                   available: false },
 ]
-const MB_VIEW_LABELS = Object.fromEntries(MB_SECTIONS.map(s => [s.key, s.label]))
+const MB_VIEW_LABELS = Object.fromEntries(MB_HUB_OPTIONS.map(o => [o.view, o.label]))
 
-// Dropdown under the MODEL BOOK heading: jump to a section. The default 'years'
-// library has no entry here (return to it via the Model Book sidebar link); a
-// disabled placeholder shows when on that default view.
-function SectionMenu({ view }) {
-  const navigate = useNavigate()
+// The intro/menu screen. Cards cascade in (staggered via --i); the live one is
+// gold-accented, the rest are dimmed "Coming soon". onPick switches the view.
+function ModelBookHub({ onPick }) {
   return (
-    <select
-      className={styles.sectionMenu}
-      value={view === 'years' ? '' : view}
-      onChange={e => {
-        const v = e.target.value
-        navigate('/model-book', v ? { state: { mbView: v } } : undefined)
-      }}
-      aria-label="Jump to a Model Book section"
-    >
-      <option value="" disabled hidden>Browse sections…</option>
-      {MB_SECTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-    </select>
+    <div className={styles.hub}>
+      <div className={styles.hubGlow} aria-hidden="true" />
+      <div className={styles.hubInner}>
+        <div className={styles.hubBrand}>
+          <span className={styles.hubMark} aria-hidden="true">📖</span>
+          <h1 className={styles.hubTitle}>MODEL BOOK</h1>
+          <p className={styles.hubTagline}>
+            The greatest stocks in market history — studied, annotated, and ready to learn from.
+          </p>
+        </div>
+        <div className={styles.hubGrid}>
+          {MB_HUB_OPTIONS.map((o, i) => (
+            <button
+              key={o.view}
+              type="button"
+              className={`${styles.hubCard} ${o.available ? styles.hubCardLive : styles.hubCardSoon}`}
+              style={{ '--i': i }}
+              onClick={() => onPick(o.view)}
+            >
+              <span className={styles.hubNum}>{String(i + 1).padStart(2, '0')}</span>
+              <span className={styles.hubCardIcon} aria-hidden="true">{o.icon}</span>
+              <span className={styles.hubCardLabel}>{o.label}</span>
+              <span className={styles.hubCardBlurb}>{o.blurb}</span>
+              <span className={styles.hubCardCta}>{o.available ? 'Explore →' : 'Coming soon'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1460,13 +1477,14 @@ export default function ModelBook() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
-  // In-page view, driven by the NavBar's Model Book hover submenu via
-  // location.state ({ mbView }). Clicking the bare nav link clears state →
-  // back to the default 'years' view. Resets on every navigation (location.key).
+  // In-page view. Clicking Model Book in the sidebar lands on the 'hub' intro
+  // screen; its option cards switch the view in-page (setView). A deep link can
+  // still preselect a view via location.state ({ mbView }). Navigating to the
+  // bare nav link clears state → back to the hub. Resets on every navigation.
   const location = useLocation()
-  const [view, setView] = useState(() => location.state?.mbView || 'years')
+  const [view, setView] = useState(() => location.state?.mbView || 'hub')
   useEffect(() => {
-    setView(location.state?.mbView || 'years')
+    setView(location.state?.mbView || 'hub')
   }, [location.key])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: yearsData, mutate: mutateYears } = useSWR('/api/modelbook/years', fetcher, { revalidateOnFocus: false })
@@ -1833,15 +1851,18 @@ export default function ModelBook() {
   // Placeholder views (everything except "Through the Years"). All hooks above
   // run unconditionally; this early return is after them, so the rules of hooks
   // hold.
+  // The animated intro/menu screen.
+  if (view === 'hub') {
+    return <ModelBookHub onPick={setView} />
+  }
+
+  // Placeholder sections (everything except the 'years' library).
   if (view !== 'years') {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <div className={styles.titleCol}>
-            <h1 className={styles.heading}>MODEL BOOK</h1>
-            <SectionMenu view={view} />
-          </div>
-          <span className={styles.count}>{MB_VIEW_LABELS[view] || view}</span>
+          <button className={styles.backBtn} onClick={() => setView('hub')}>‹ Model Book</button>
+          <h1 className={styles.heading}>{MB_VIEW_LABELS[view] || view}</h1>
         </div>
         <div className={styles.comingSoon}>
           <div className={styles.comingSoonTitle}>{MB_VIEW_LABELS[view] || view}</div>
@@ -1854,10 +1875,8 @@ export default function ModelBook() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.titleCol}>
-          <h1 className={styles.heading}>MODEL BOOK</h1>
-          <SectionMenu view={view} />
-        </div>
+        <button className={styles.backBtn} onClick={() => setView('hub')}>‹ Model Book</button>
+        <h1 className={styles.heading}>MODEL BOOK</h1>
         <div className={styles.yearNav}>
           <button className={styles.yearArrow} onClick={() => scrollYears(-1)} aria-label="Scroll years left" title="Older / newer years">‹</button>
           <div className={styles.yearTabs} ref={yearStripRef}>

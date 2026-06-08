@@ -6,12 +6,13 @@ vi.mock('../components/StockChart', () => ({
   default: ({ sym }) => <div data-testid="stock-chart">chart:{sym}</div>,
 }))
 
-// ModelBook reads the in-page view from router location.state and the section
-// dropdown navigates; the page is rendered without a Router here, so stub both
-// hooks (default 'years' view, no-op navigate).
+// ModelBook lands on the 'hub' intro screen unless location.state preselects a
+// view. The page is rendered without a Router here, so stub useLocation; the
+// per-test mockMbView controls which view it opens on (defaults to the library
+// so the existing library/detail tests render straight to it).
+let mockMbView = null
 vi.mock('react-router-dom', () => ({
-  useLocation: () => ({ key: 'test', state: null }),
-  useNavigate: () => () => {},
+  useLocation: () => ({ key: 'test', state: mockMbView ? { mbView: mockMbView } : null }),
 }))
 
 // Controllable auth role per test.
@@ -69,12 +70,33 @@ vi.mock('swr', () => ({
 
 import ModelBook from './ModelBook'
 
-// Reset role + persisted panel/toggle prefs so tests don't bleed into each other.
-beforeEach(() => { mockRole = null; try { localStorage.clear() } catch { /* ignore */ } })
+// Reset role + persisted panel/toggle prefs so tests don't bleed into each
+// other. Default to the 'years' library view so the library/detail tests below
+// render straight to it (the hub test opts out by setting mockMbView = null).
+beforeEach(() => {
+  mockRole = null
+  mockMbView = 'years'
+  try { localStorage.clear() } catch { /* ignore */ }
+})
 
 test('renders model book heading', () => {
   render(<ModelBook />)
-  expect(screen.getByText(/model book/i)).toBeInTheDocument()
+  // Target the heading specifically — the "‹ Model Book" back button also matches the text.
+  expect(screen.getByRole('heading', { name: /model book/i })).toBeInTheDocument()
+})
+
+test('lands on the hub with section options; Throughout the Years opens the library', () => {
+  mockMbView = null  // open on the intro/hub screen instead of the library
+  render(<ModelBook />)
+  // All the section options are present, and the unbuilt ones say "Coming soon".
+  expect(screen.getByRole('button', { name: /throughout the years/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /bear markets/i })).toBeInTheDocument()
+  expect(screen.getAllByText(/coming soon/i).length).toBeGreaterThan(0)
+  // The yearly library is NOT shown until a choice is made.
+  expect(screen.queryByRole('button', { name: '2025' })).toBeNull()
+  // Click Throughout the Years → the yearly library renders.
+  fireEvent.click(screen.getByRole('button', { name: /throughout the years/i }))
+  expect(screen.getByRole('button', { name: '2025' })).toBeInTheDocument()
 })
 
 test('renders the year tab and a stock card', () => {

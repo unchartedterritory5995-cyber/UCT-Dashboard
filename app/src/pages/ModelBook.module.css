@@ -6,40 +6,173 @@
 .heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; flex: none; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); flex: none; }
 
-/* Heading + section dropdown stacked in the top-left corner. */
-.titleCol { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; flex: none; align-self: flex-start; }
-
-/* Section picker (Cycles, Setups, Corrections, Bear Markets, Bottoms, Events).
-   Native select styled to match the dark UI, with a custom chevron. */
-.sectionMenu {
-  appearance: none;
-  -webkit-appearance: none;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.04);
+/* "‹ Model Book" back button — returns from a section/library to the hub. */
+.backBtn {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 5px 28px 5px 11px;
+  padding: 5px 11px;
   cursor: pointer;
-  /* Custom chevron (gold) on the right. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23c9a84c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.sectionMenu:hover {
-  border-color: rgba(201, 168, 76, 0.5);
-  background-color: rgba(201, 168, 76, 0.08);
+.backBtn:hover { color: var(--ut-gold); border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+
+/* ── Model Book hub — animated intro/menu screen ─────────────────────────────
+   Lands here on click; option cards cascade in and switch the in-page view. */
+.hub {
+  position: relative;
+  min-height: calc(100vh - 28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 32px 24px;
 }
-.sectionMenu:focus-visible {
-  outline: none;
+/* Soft, slowly-breathing gold/green glows behind the content. */
+.hubGlow {
+  position: absolute;
+  inset: -20% -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 28% 30%, rgba(201, 168, 76, 0.16), transparent 70%),
+    radial-gradient(42% 52% at 76% 72%, rgba(60, 184, 104, 0.12), transparent 70%);
+  filter: blur(6px);
+  animation: hubGlowPulse 9s ease-in-out infinite alternate;
+}
+@keyframes hubGlowPulse {
+  from { opacity: 0.65; transform: scale(1); }
+  to   { opacity: 1;    transform: scale(1.06); }
+}
+.hubInner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1040px;
+  animation: hubRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes hubRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hubBrand { text-align: center; margin-bottom: 30px; }
+.hubMark {
+  display: inline-block;
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 10px;
+  animation: hubFloat 4.5s ease-in-out infinite;
+}
+@keyframes hubFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.hubTitle {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  margin: 0 0 8px;
+  text-shadow: 0 2px 24px rgba(201, 168, 76, 0.25);
+}
+.hubTagline {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 540px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+.hubGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+.hubCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 7px;
+  padding: 18px 18px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  overflow: hidden;
+  /* Staggered cascade-in, keyed off the inline --i index. */
+  opacity: 0;
+  transform: translateY(14px);
+  animation: hubCardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.18s + var(--i) * 0.07s);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+@keyframes hubCardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hubCard:hover { transform: translateY(-4px); }
+.hubNum {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+.hubCardIcon { font-size: 26px; line-height: 1; }
+.hubCardLabel {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+.hubCardBlurb {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  flex: 1;
+}
+.hubCardCta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+/* Live card (Throughout the Years): gold accent. */
+.hubCardLive { border-color: rgba(201, 168, 76, 0.35); }
+.hubCardLive .hubCardCta { color: var(--ut-gold); }
+.hubCardLive:hover {
   border-color: var(--ut-gold);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.25);
+  background: rgba(201, 168, 76, 0.07);
+  box-shadow: 0 10px 30px rgba(201, 168, 76, 0.14);
 }
-.sectionMenu option { color: var(--text-primary); background: #1a1a1e; }
+/* Coming-soon cards: slightly muted content, cooler neutral hover. */
+.hubCardSoon .hubCardLabel,
+.hubCardSoon .hubCardIcon { opacity: 0.85; }
+.hubCardSoon .hubCardCta { color: var(--text-muted); text-transform: uppercase; }
+.hubCardSoon:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hubInner, .hubCard { animation-duration: 0.001s; animation-delay: 0s; }
+  .hubGlow, .hubMark { animation: none; }
+}
 
 /* Placeholder body for the not-yet-built Model Book views (Cycles, Setups,
    Corrections, Bear Markets, Bottoms, Events). */
