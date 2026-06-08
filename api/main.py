@@ -87,6 +87,7 @@ from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 from api.gex_router import router as gex_router
+from api.dealer_positioning_router import router as dealer_positioning_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
 
@@ -1642,6 +1643,16 @@ async def lifespan(app: FastAPI):
         try:
             from api.oi_snapshots import daily_snapshot_job, init_db as _init_oi_snapshots
             _init_oi_snapshots()  # ensure table exists
+            # Trade-aware dealer positioning — derived from oi_snapshots +
+            # flow data. init_db only creates the table; population happens
+            # via the backfill endpoint (one-time) and the daily_snapshot_job
+            # hook (every day after OI lands).
+            try:
+                from api.dealer_positioning import init_db as _init_dealer_positioning
+                _init_dealer_positioning()
+                print("[startup] dealer_positioning table initialized")
+            except Exception as _e:
+                print(f"[startup] dealer_positioning init failed (non-fatal): {_e}")
             _scheduler.add_job(
                 daily_snapshot_job,
                 trigger=CronTrigger(day_of_week="mon-fri", hour=5, minute=30),
@@ -1879,6 +1890,7 @@ app.include_router(backtest_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
 app.include_router(gex_router)
+app.include_router(dealer_positioning_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
 app.include_router(oi_snapshot_router)
