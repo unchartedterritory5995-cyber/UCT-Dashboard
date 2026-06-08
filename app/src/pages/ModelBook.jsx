@@ -716,12 +716,37 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   // the price-pane layers keep their normal read-only display.
   const annotatingIndex = annotateMode && annotateTarget === 'index'
   const annotatingPrice = annotateMode && !annotatingIndex
-  // Index-pane annotations: the editable draft while annotating the index, else
-  // the saved global set — but only when "Show all" is on (the same toggle that
-  // governs the setup annotations now controls the Nasdaq marks too).
+  // The ^IXIC (Nasdaq) annotations are ONE GLOBAL set spanning every year, but the
+  // pane is framed to the SELECTED year. Scope the read-only set to marks anchored
+  // in the displayed year so prior-year "+X%/-X%" marks don't pile up at the chart's
+  // left edge (their dates aren't in this year's bars → only their price maps to a
+  // pixel → garbage on the left). Done HERE in ModelBook (not StockChart) on purpose:
+  // a StockChart-side filter has been reverted out three times by wholesale edits —
+  // keeping the scoping in ModelBook makes it revert-proof.
+  const indexDrawingsForYear = useMemo(() => {
+    if (!Array.isArray(indexDrawings) || stock?.year == null) return indexDrawings || []
+    const yearOf = v => {
+      if (v == null) return null
+      if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v).getUTCFullYear()
+      if (typeof v === 'object') return v.year ?? null
+      const m = String(v).match(/(\d{4})/)
+      return m ? Number(m[1]) : null
+    }
+    const shown = Number(stock.year)
+    return indexDrawings.filter(d => {
+      const pts = d?.points || []
+      const last = pts[pts.length - 1]
+      const y = last ? yearOf(last.time) : null
+      // Hide anything we can't anchor to the shown year — an unplaceable mark can
+      // only render as edge-garbage, so dropping it is strictly an improvement.
+      return y === shown
+    })
+  }, [indexDrawings, stock?.year])
+  // Index-pane annotations: the editable draft while annotating (FULL set — a save
+  // must keep every year), else the year-scoped saved set, gated by "Show all".
   const indexAnnotations = annotatingIndex
     ? annotationDraft
-    : (showAllAnnotations ? indexDrawings : [])
+    : (showAllAnnotations ? indexDrawingsForYear : [])
 
   // Precedence: admin authoring > show-all overlay > single-setup focus.
   let annotations, annotationsVisible
@@ -1570,21 +1595,25 @@ export default function ModelBook() {
       } catch { return }
       if (cancelled || !all.length) return
       all.sort((a, b) => (b.year - a.year) || 0)  // newest years first
-      const allSyms = all.map(s => s.symbol).filter(Boolean)
-      prefetchBars(allSyms, 'D')          // background SWR-memory warm
-      prefetchBarsToIDB(allSyms, 'D')     // durable IDB warm — every ticker, every year, refresh-proof
+      // NOTE: deliberately NOT prefetching every year's BARS here. That pulled
+      // hundreds of ~300KB payloads on first open, saturating bandwidth + the JS
+      // main thread and STARVING the chart the user is actively loading (the 10s
+      // first-load symptom). Each year's bars are warmed on demand when you open
+      // that year (the current-year effect above), and the backend keeps the whole
+      // Model Book set hot (modelbook_bars_prewarm) so on-demand loads are ~sub-second.
+      // Only the tiny per-stock detail/earnings JSON trickles in the background here.
       let i = 0
       const trickle = () => {
         if (cancelled || i >= all.length) return
         const s = all[i]; i += 1
         if (s?.id != null) {
-          preload(`/api/modelbook/stock/${s.id}`, fetcher)
-          preload(`/api/modelbook/stock/${s.id}/bars`, fetcher)
+          preload(`/api/modelbook/stock/${s.id}`, fetcher)        // setups + catalysts (small)
         }
         if (s?.symbol) preload(`/api/modelbook/year-earnings?symbol=${encodeURIComponent(s.symbol)}&year=${s.year}`, fetcher)
-        setTimeout(trickle, 90)
+        setTimeout(trickle, 150)
       }
-      trickle()
+      // Defer the catalog trickle so the active chart + current year load first.
+      setTimeout(trickle, 4000)
     })()
     return () => { cancelled = true }
   }, [years])
