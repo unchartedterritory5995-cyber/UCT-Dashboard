@@ -178,3 +178,39 @@ def manual_compute(snap_date: str):
     init_db()
     summary = compute_positioning_for_date(snap_date)
     return summary
+
+
+@router.get("/sample")
+def sample_rows(
+    symbol: str = Query(..., description="Ticker, e.g. SPY"),
+    limit: int = Query(10, ge=1, le=100),
+):
+    """Return up to `limit` sample contract rows for a symbol.
+
+    Useful for debugging the contract_key format — we can compare what's
+    actually stored against what gex_service is looking up. Returns the
+    most recent snap_date's rows ordered by oi DESC (largest contracts
+    first, where mismatches matter most).
+    """
+    symbol = symbol.upper().strip()
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10.0) as c:
+            c.row_factory = sqlite3.Row
+            rows = c.execute(
+                """
+                SELECT contract_key, snap_date, cp, strike, expiration, oi,
+                       est_customer_net, flow_confidence
+                FROM dealer_positioning
+                WHERE symbol = ?
+                ORDER BY snap_date DESC, oi DESC
+                LIMIT ?
+                """,
+                (symbol, limit),
+            ).fetchall()
+            return {
+                "symbol": symbol,
+                "count": len(rows),
+                "rows": [dict(r) for r in rows],
+            }
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
