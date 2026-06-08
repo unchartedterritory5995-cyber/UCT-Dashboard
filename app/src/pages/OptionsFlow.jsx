@@ -5754,7 +5754,16 @@ export default function OptionsFlowDashboard() {
               </div>
               {search && search.length >= 1 && !selectedTicker && !searchGroup && (()=>{
                 const q = search.toLowerCase();
-                const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(search)).slice(0,8);
+                // Uppercased query for ticker matching — D.ALL_SYMS stores
+                // tickers in canonical upper case ("BE", "AAPL"). Before
+                // this fix the filter used raw `search`, so typing "be"
+                // (the natural way most people type) failed to match "BE"
+                // via startsWith and short tickers were silently absent
+                // from suggestions. Theme/sector matchers below correctly
+                // used `q` (lower) against lower-cased haystacks; ticker
+                // path was the odd one out.
+                const qUpper = search.toUpperCase();
+                const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
                 const allSectors = [...new Set(D.TICKER_DB.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
