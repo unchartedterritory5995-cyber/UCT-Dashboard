@@ -4849,52 +4849,73 @@ export default function StockChart({
         </div>
       )}
       {/* Dark Pool hover tooltip — fixed positioned near cursor, rendered last
-          so it sits above the chart and other overlays. */}
-      {dpHover && (
-        <div style={{
-          position: 'fixed',
-          left: dpHover.x + 14,
-          top: Math.max(8, dpHover.y - 90),
-          background: '#0e0f0d',
-          border: '1px solid #c9a84c66',
-          borderRadius: 6,
-          padding: '8px 12px',
-          fontSize: 11,
-          color: '#e0dac8',
-          pointerEvents: 'none',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
-          minWidth: 200,
-          lineHeight: 1.5,
-          fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
-        }}>
-          <div style={{ fontWeight: 700, color: '#c9a84c', fontSize: 12, marginBottom: 5 }}>
-            🟡 Dark Pool Print{dpHover.bar.isLatest ? ' · LATEST' : ''}
+          so it sits above the chart and other overlays. Position is computed
+          to keep the tooltip inside the viewport:
+            1. Flip to the LEFT of the cursor when there's not enough room
+               on the right (the common case — bars are on the chart's right
+               edge so the cursor sits naturally near the viewport edge).
+            2. Final clamp on both axes so the tooltip never goes off-screen
+               even on narrow viewports or extreme cursor positions.
+          Width/height estimates are conservative — `minWidth: 200` + padding
+          + the longest plausible "Premium" value (e.g. $1,203,362,000)
+          rounds out to ~240px wide, and the 4-row content runs ~120-140px
+          tall depending on whether the Vs avg vol row is shown. */}
+      {dpHover && (() => {
+        const TOOLTIP_W = 240
+        const TOOLTIP_H = 150
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
+        const flipLeft = dpHover.x + 14 + TOOLTIP_W > vw - 8
+        const rawLeft = flipLeft ? dpHover.x - 14 - TOOLTIP_W : dpHover.x + 14
+        const left = Math.max(8, Math.min(rawLeft, vw - TOOLTIP_W - 8))
+        const rawTop = dpHover.y - 90
+        const top = Math.max(8, Math.min(rawTop, vh - TOOLTIP_H - 8))
+        return (
+          <div style={{
+            position: 'fixed',
+            left,
+            top,
+            background: '#0e0f0d',
+            border: '1px solid #c9a84c66',
+            borderRadius: 6,
+            padding: '8px 12px',
+            fontSize: 11,
+            color: '#e0dac8',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+            minWidth: 200,
+            lineHeight: 1.5,
+            fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+          }}>
+            <div style={{ fontWeight: 700, color: '#c9a84c', fontSize: 12, marginBottom: 5 }}>
+              🟡 Dark Pool Print{dpHover.bar.isLatest ? ' · LATEST' : ''}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
+              <span style={{ color: '#706b5e' }}>Date</span>
+              <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                {dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—'}
+              </span>
+              <span style={{ color: '#706b5e' }}>Price</span>
+              <span style={{ color: '#c9a84c', fontWeight: 700 }}>
+                ${Number(dpHover.bar.price).toFixed(2)}
+              </span>
+              <span style={{ color: '#706b5e' }}>Premium</span>
+              <span style={{ color: '#6ba3be', fontWeight: 600 }}>
+                ${Math.round(dpHover.bar.notional).toLocaleString()}
+              </span>
+              {dpHover.bar.pctAvgVol > 0 && (
+                <>
+                  <span style={{ color: '#706b5e' }}>Vs avg vol</span>
+                  <span style={{ color: '#a78bfa', fontWeight: 600 }}>
+                    {Math.round(dpHover.bar.pctAvgVol)}%
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
-            <span style={{ color: '#706b5e' }}>Date</span>
-            <span style={{ color: '#e0dac8', fontWeight: 600 }}>
-              {dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—'}
-            </span>
-            <span style={{ color: '#706b5e' }}>Price</span>
-            <span style={{ color: '#c9a84c', fontWeight: 700 }}>
-              ${Number(dpHover.bar.price).toFixed(2)}
-            </span>
-            <span style={{ color: '#706b5e' }}>Premium</span>
-            <span style={{ color: '#6ba3be', fontWeight: 600 }}>
-              ${Math.round(dpHover.bar.notional).toLocaleString()}
-            </span>
-            {dpHover.bar.pctAvgVol > 0 && (
-              <>
-                <span style={{ color: '#706b5e' }}>Vs avg vol</span>
-                <span style={{ color: '#a78bfa', fontWeight: 600 }}>
-                  {Math.round(dpHover.bar.pctAvgVol)}%
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+        )
+      })()}
       {!showFatalError && (
         <img
           src={brandMark}
