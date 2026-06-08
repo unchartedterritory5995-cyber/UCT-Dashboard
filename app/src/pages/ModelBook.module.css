@@ -6,6 +6,27 @@
 .heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; flex: none; }
 .count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); flex: none; }
 
+/* Placeholder body for the not-yet-built Model Book views (Cycles, Setups,
+   Corrections, Bear Markets, Bottoms, Events). */
+.comingSoon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50vh;
+  text-align: center;
+}
+.comingSoonTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.comingSoonText { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); margin: 0; }
+
 /* ── Year tabs: ONE horizontal strip that scrolls (arrows each side) instead of
    wrapping to a second line and pushing the chart down. ── */
 .yearNav { display: flex; align-items: center; gap: 4px; flex: 1 1 280px; min-width: 0; }

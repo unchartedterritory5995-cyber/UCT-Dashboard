@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
@@ -15,6 +16,18 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 // Baseline year tabs, newest→oldest (2025 down to 1990). Data-driven years from
 // the API merge in on top of these.
 const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
+
+// Labels for the in-page views driven by the NavBar's Model Book submenu.
+// 'years' is the full existing Model Book; the rest are placeholders for now.
+const MB_VIEW_LABELS = {
+  years: 'Through the Years',
+  cycles: 'Cycles',
+  setups: 'Setups',
+  corrections: 'Corrections',
+  'bear-markets': 'Bear Markets',
+  bottoms: 'Bottoms',
+  events: 'Events',
+}
 
 const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
@@ -1425,6 +1438,15 @@ export default function ModelBook() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
+  // In-page view, driven by the NavBar's Model Book hover submenu via
+  // location.state ({ mbView }). Clicking the bare nav link clears state →
+  // back to the default 'years' view. Resets on every navigation (location.key).
+  const location = useLocation()
+  const [view, setView] = useState(() => location.state?.mbView || 'years')
+  useEffect(() => {
+    setView(location.state?.mbView || 'years')
+  }, [location.key])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: yearsData, mutate: mutateYears } = useSWR('/api/modelbook/years', fetcher, { revalidateOnFocus: false })
   // Show the fixed baseline year tabs plus any data-driven years, newest first.
   const years = useMemo(() => {
@@ -1784,6 +1806,24 @@ export default function ModelBook() {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+  }
+
+  // Placeholder views (everything except "Through the Years"). All hooks above
+  // run unconditionally; this early return is after them, so the rules of hooks
+  // hold.
+  if (view !== 'years') {
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>MODEL BOOK</h1>
+          <span className={styles.count}>{MB_VIEW_LABELS[view] || view}</span>
+        </div>
+        <div className={styles.comingSoon}>
+          <div className={styles.comingSoonTitle}>{MB_VIEW_LABELS[view] || view}</div>
+          <p className={styles.comingSoonText}>Coming soon.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
