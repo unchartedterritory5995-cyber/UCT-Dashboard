@@ -67,7 +67,7 @@ CONFIRMATION_THRESHOLD = 0.50
 # Source restriction — only snapshot 'stocks' flow. Indexes are SPX/SPY/QQQ etc.,
 # OI behaves differently there (settlement, ETF mechanics) and Ravi's flow
 # framework targets single-name stocks.
-SOURCE = "stocks"
+SOURCES = ["stocks", "indexes"]  # which flow sources to draw contracts from
 
 
 # ── Schema ───────────────────────────────────────────────────────────────
@@ -325,10 +325,11 @@ def get_distinct_contracts(
       - Drops malformed strike/expiration values.
     """
     cutoff = date.today() - timedelta(days=days_back)
+    src_placeholders = ",".join(["?"] * len(SOURCES))
     with _conn() as c:
         cur = c.execute(
-            "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
-            (SOURCE,),
+            f"SELECT DISTINCT CreatedDate FROM flow WHERE source IN ({src_placeholders})",
+            tuple(SOURCES),
         )
         all_date_strs = [r[0] for r in cur.fetchall()]
 
@@ -345,7 +346,7 @@ def get_distinct_contracts(
         cur = c.execute(
             f"""SELECT Symbol, CallPut, Strike, ExpirationDate, COUNT(*) AS n_trades
                 FROM flow
-                WHERE source = ? AND CreatedDate IN ({placeholders})
+                WHERE source IN ({src_placeholders}) AND CreatedDate IN ({placeholders})
                   AND Symbol IS NOT NULL AND Symbol != ''
                   AND CallPut IS NOT NULL AND CallPut != ''
                   AND Strike IS NOT NULL AND Strike != ''
@@ -353,7 +354,7 @@ def get_distinct_contracts(
                 GROUP BY Symbol, CallPut, Strike, ExpirationDate
                 HAVING COUNT(*) >= ?
                 ORDER BY Symbol""",
-            [SOURCE] + in_range + [min_trade_count],
+            list(SOURCES) + in_range + [min_trade_count],
         )
 
         contracts = []
