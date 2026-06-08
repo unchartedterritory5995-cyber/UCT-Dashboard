@@ -214,3 +214,58 @@ def sample_rows(
             }
     except sqlite3.Error as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/flow-sources")
+def flow_sources(symbol: Optional[str] = Query(None, description="Optional symbol filter, e.g. SPY")):
+    """Diagnostic: list distinct `source` values in the flow table with
+    row counts, sample symbols, and date range per source.
+
+    If `symbol` is provided, also reports which sources contain that
+    specific symbol. Lets us figure out where SPY/QQQ live in the flow
+    table when they don't appear under the default "stocks" source.
+
+    Returns:
+      sources: [{source, rows, symbols, latest_date, earliest_date, has_symbol?}]
+    """
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10.0) as c:
+            c.row_factory = sqlite3.Row
+            # Per-source row counts and date range
+            rows = c.execute(
+                """
+                SELECT
+                  source,
+                  COUNT(*)             AS rows,
+                  COUNT(DISTINCT Symbol) AS distinct_symbols,
+                  MIN(CreatedDate)     AS earliest_date,
+                  MAX(CreatedDate)     AS latest_date
+                FROM flow
+                GROUP BY source
+                ORDER BY rows DESC
+                """
+            ).fetchall()
+            sources = [dict(r) for r in rows]
+            # For each source, pull a few sample symbols and (if asked)
+            # check whether the specific symbol is present
+            for s in sources:
+                # Top 10 symbols by row count for this source
+                top = c.execute(
+                    """
+                    SELECT Symbol, COUNT(*) AS n
+                    FROM flow WHERE source = ?
+                    GROUP BY Symbol ORDER BY n DESC LIMIT 10
+                    """,
+                    (s["source"],),
+                ).fetchall()
+                s["top_symbols"] = [dict(r) for r in top]
+                if symbol:
+                    sym = symbol.upper().strip()
+                    hit = c.execute(
+                        "SELECT COUNT(*) AS n FROM flow WHERE source = ? AND Symbol = ?",
+                        (s["source"], sym),
+                    ).fetchone()
+                    s["has_" + sym] = int(hit["n"]) if hit else 0
+            return {"sources": sources, "symbol_checked": symbol}
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
