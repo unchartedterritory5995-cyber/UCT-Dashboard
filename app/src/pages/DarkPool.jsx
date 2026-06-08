@@ -2045,7 +2045,7 @@ function SearchModal({onClose, mktcapData = {}}){
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"flex-start",
-      justifyContent:"center",paddingTop:80}}
+      justifyContent:"center",paddingTop:40}}
       onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
       {/* Backdrop */}
       <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}
@@ -2060,10 +2060,17 @@ function SearchModal({onClose, mktcapData = {}}){
           getting clipped off the visible area, forcing users to horizontal-
           scroll inside the modal to see the prices on the chart. 1400 fits
           everything comfortably on standard laptop screens (1440+) and
-          still leaves a backdrop margin on smaller screens via 95% width. */}
+          still leaves a backdrop margin on smaller screens via 95% width.
+          maxHeight: 92vh (was 85) + the outer paddingTop: 40 (was 80) gives
+          the chart + legend room to fully render without the user needing
+          to scroll inside the modal. Important because the chart intercepts
+          wheel events for zoom — if cursor lands on the chart, wheel-scroll
+          doesn't bubble up to the modal's scroll container, so users get
+          stuck unable to see the legend below. The simplest fix is making
+          sure scroll isn't needed in the common case. */}
       <div style={{position:"relative",width:"95%",maxWidth:1400,background:C.bg2,
         border:`1px solid ${C.bdr2}`,borderRadius:10,boxShadow:"0 8px 40px #000000aa",
-        maxHeight:"85vh",overflowY:"auto",overflowX:"hidden"}}>
+        maxHeight:"92vh",overflowY:"auto",overflowX:"hidden"}}>
         {/* Sticky header — `position: sticky; top: 0` keeps the title row and
             (more importantly) the close button visible while the user scrolls
             through results. Background matches the modal so scrolled content
