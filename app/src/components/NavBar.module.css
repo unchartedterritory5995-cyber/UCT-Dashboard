@@ -80,11 +80,15 @@
   overflow: hidden;
   max-height: 0;
   opacity: 0;
-  transition: max-height 0.18s ease, opacity 0.15s ease;
+  /* No delay on collapse — closes promptly when the mouse leaves. */
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+  transition-delay: 0s;
 }
 .mbWrap:hover .submenu {
   max-height: 340px;
   opacity: 1;
+  /* Wait a beat before opening so a passing hover doesn't jerk the menu. */
+  transition-delay: 0.4s;
 }
 .subItem {
   display: flex;
