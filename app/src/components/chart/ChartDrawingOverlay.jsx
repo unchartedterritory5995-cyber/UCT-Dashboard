@@ -220,6 +220,12 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
+  // If the anchor candle is itself scrolled OUTSIDE the plot area (e.g. a setup
+  // months to the right while zoomed in on a different setup), don't render —
+  // otherwise the on-canvas clamp below would pin the label to the screen edge
+  // instead of letting it scroll away with its candle. Only labels whose anchor
+  // is on-screen (but whose centered text overflows the edge) get nudged inward.
+  if (canvasW != null && (p.x < -1 || p.x > canvasW + 1)) return
   // Advance → label ABOVE the candle's HIGH; decline → BELOW its LOW, so a drop
   // reads "-24%" tucked under the trough. Anchoring a decline to the LOW (not the
   // high) gives it the SAME clearance from the candle as an advance gets above the
