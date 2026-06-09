@@ -2211,7 +2211,19 @@ export default function OptionsFlowDashboard() {
         lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
       }
     }
-    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
+    // Danger Line proximity gating. When zg is 20%+ from spot it adds visual
+    // noise without actionable signal (TSLA $498 vs spot $396 case). Tier:
+    //   ≤ 3% from spot → bright Danger Line label (current behavior)
+    //   3-5% from spot → dim "γ Flip" reference, axis label hidden
+    //   > 5% from spot → hidden entirely
+    if (zg && sp > 0) {
+      const zgDist = Math.abs(sp - zg) / sp * 100;
+      if (zgDist <= 3) {
+        lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
+      } else if (zgDist <= 5) {
+        lines.push({ price:zg, color:"#ffab0066", lineWidth:1, lineStyle:2, title:"γ Flip", axisLabelVisible:false });
+      }
+    }
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
     // Secondary above/below levels: keep the LINES (visible, color-coded so
     // user still sees support/resistance positions), but suppress the right-
@@ -3005,6 +3017,63 @@ export default function OptionsFlowDashboard() {
             gexData.strikes.filter(s => spot > 0 ? Math.abs(s.strike - spot) / spot <= 0.12 : true)
               .map(s => ({ ...s, label: "$"+s.strike })) : [];
           const hasError = gexData?.error;
+          // ── Canonical GEX state ──────────────────────────────────────────
+          // Derives labels and flags ONCE from gexData. Prefers backend
+          // classification (gexData.levels/regime/warnings — added by
+          // gex_service.classify_gex_state) and falls back to local logic
+          // if the backend hasn't shipped those fields yet. Use gexState.*
+          // throughout — that's what stops cards, chart, and summary from
+          // disagreeing about whether $X is a Floor, Magnet, or Resistance.
+          const gexState = (()=>{
+            if (!gexData || hasError) return null;
+            const cw = gexData.callWall;
+            const pw = gexData.putWall;
+            const zg = gexData.zeroGamma;
+            const sp = gexData.spot || 0;
+            const backend = gexData.levels;
+            const cwAbove = cw ? cw.strike > sp : false;
+            const pwBelow = pw ? pw.strike < sp : false;
+            // Labels: cards/summary use these; chart has its own (Resistance
+            // reads better than Magnet in a chart context).
+            const callWallLabel = backend?.call_wall?.label || (cwAbove ? "Ceiling" : "Pull Up");
+            const putWallLabel  = backend?.put_wall?.label  || (pwBelow ? "Floor" : "Magnet");
+            // Danger line proximity — 3% near threshold. The "Below danger
+            // line" warning previously fired whenever spot < zg regardless
+            // of distance; now it requires both spot_below AND near.
+            const zgDistPct = zg && sp > 0 ? Math.abs(sp - zg) / sp * 100 : null;
+            const zgNear = zgDistPct !== null && zgDistPct <= 3;
+            const zgSpotBelow = !!(zg && sp < zg);
+            const dangerLineLabel = backend?.zero_gamma?.label || ((zgSpotBelow && zgNear) ? "Danger Line" : "Gamma Flip");
+            const belowDangerActive = backend
+              ? !!gexData.warnings?.below_danger_active
+              : (zgSpotBelow && zgNear);
+            // Regime — 15% asymmetry threshold (replaces old 1.5x dominance).
+            // TSLA case: pw=$107.9M vs cw=$75.4M = 1.43x ratio, asymmetry
+            // -30.1%. Old code called this "choppy" (below 1.5x); new code
+            // correctly classifies as bullish (above 15% asymmetry).
+            let regime = backend ? gexData.regime : "unbound";
+            let asymmetryPct = backend ? gexData.asymmetryPct : null;
+            if (!backend && cw && pw) {
+              const cs = Math.abs(cw.gex), ps = Math.abs(pw.gex);
+              const mx = Math.max(cs, ps);
+              if (mx > 0) {
+                asymmetryPct = ((cs - ps) / mx) * 100;
+                if (Math.abs(asymmetryPct) <= 15) regime = "choppy";
+                else if (asymmetryPct > 0) regime = "bearish";
+                else regime = "bullish";
+              }
+            }
+            return {
+              callWallLabel, putWallLabel, dangerLineLabel,
+              cwAbove, pwBelow,
+              zgDistPct, zgNear, zgSpotBelow,
+              belowDangerActive,
+              regime, asymmetryPct,
+              // Dominance: bullish regime ⇒ pw dominant, bearish ⇒ cw dominant.
+              cwDominantRegime: regime === "bearish",
+              pwDominantRegime: regime === "bullish",
+            };
+          })();
           return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
@@ -3116,26 +3185,26 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Danger Line</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.dangerLineLabel || "Danger Line"}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
                       {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
                     </div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Ceiling</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.callWallLabel || "Ceiling"}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} ceiling</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} {(gexState?.callWallLabel || "Ceiling").toLowerCase()}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Floor</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.putWallLabel || "Floor"}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} {(gexState?.putWallLabel || "Floor").toLowerCase()}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexState?.belowDangerActive ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -3262,13 +3331,19 @@ export default function OptionsFlowDashboard() {
                   const squeezeSetup = !pinSetup && spotBetweenWalls && wallSpread <= sp * 0.01;
 
                   const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
-                  const cwDominant = cwGex > pwGex * 1.5;
-                  const pwDominant = pwGex > cwGex * 1.5;
+                  // Dominance: use regime classification (15% asymmetry threshold)
+                  // instead of the old 1.5x ratio. Old threshold left TSLA's
+                  // 1.43x case in "choppy" bucket while position-based Quick Read
+                  // called it bullish — disagreement. New: regime=bullish ⇒
+                  // pwDominant, regime=bearish ⇒ cwDominant. Local fallback uses
+                  // 1.15x ratio (≈15% asymmetry) if gexState unavailable.
+                  const cwDominant = gexState?.cwDominantRegime ?? (cwGex > pwGex * 1.15);
+                  const pwDominant = gexState?.pwDominantRegime ?? (pwGex > cwGex * 1.15);
                   const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
                   const pwPct = 100 - cwPct;
 
                   const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
-                  const belowDangerLine = zg && sp < zg;
+                  const belowDangerLine = gexState?.belowDangerActive ?? (zg && sp < zg);
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
