@@ -485,6 +485,7 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -3484,12 +3485,12 @@ export default function StockChart({
           const visibleBars = defaultVisible[resolvedTf] || 65
           if (filteredBars.length > visibleBars) {
             chart.timeScale().setVisibleLogicalRange({
-              from: filteredBars.length - visibleBars,
+              from: filteredBars.length - visibleBars - leftBarPad,
               to: filteredBars.length + 3,
             })
           } else {
             chart.timeScale().setVisibleLogicalRange({
-              from: 0,
+              from: -leftBarPad,
               to: filteredBars.length + 3,
             })
           }
@@ -3523,7 +3524,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
