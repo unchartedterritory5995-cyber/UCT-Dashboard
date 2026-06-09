@@ -91,11 +91,26 @@ function VoiceMounts() {
   )
 }
 
-/** Show Landing only if NOT logged in; otherwise redirect to dashboard */
+/** Global voice/audio UI — paid-only. Returning null before VoiceMounts
+ *  renders means its cost-incurring hooks (wake word mic, proactive-voice
+ *  polling, realtime session) never run for free users. */
+function GlobalVoiceLayer() {
+  const { isPaid } = useAuth()
+  if (!isPaid) return null
+  return (
+    <>
+      <VoiceMounts />
+      <AudioPlayerBar />
+    </>
+  )
+}
+
+/** Show Landing only if NOT logged in; otherwise redirect to the user's home
+ *  (dashboard for paid/admin, first free page for free users). */
 function PublicOnly({ children }) {
-  const { user, loading } = useAuth()
+  const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) return <Navigate to={isPaid ? '/dashboard' : '/breadth'} replace />
   return children
 }
 
@@ -181,8 +196,7 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
-        <VoiceMounts />
-        <AudioPlayerBar />
+        <GlobalVoiceLayer />
         </VoiceProvider>
       </AuthProvider>
     </BrowserRouter>

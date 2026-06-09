@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useIsPaid } from '../../context/AuthContext'
 import styles from './MobileTabBar.module.css'
 
 // 4 routed tabs + a "More" button. `match` = path prefixes that light the tab.
+// `paidOnly` tabs are hidden for free users (Home → /dashboard is paid-only).
 const TABS = [
-  { key: 'home', label: 'Home', icon: '⌂', to: '/dashboard', match: ['/dashboard'] },
+  { key: 'home', label: 'Home', icon: '⌂', to: '/dashboard', match: ['/dashboard'], paidOnly: true },
   { key: 'markets', label: 'Markets', icon: '◳', to: '/breadth',
     match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/patterns', '/calendar', '/catalysts'] },
   { key: 'charts', label: 'Charts', icon: '📈', to: '/charts',
@@ -13,11 +15,13 @@ const TABS = [
 
 export default function MobileTabBar({ onMore }) {
   const { pathname } = useLocation()
-  const matchesMore = !TABS.some((t) => t.match.some((p) => pathname.startsWith(p)))
+  const isPaid = useIsPaid()
+  const tabs = TABS.filter((t) => isPaid || !t.paidOnly)
+  const matchesMore = !tabs.some((t) => t.match.some((p) => pathname.startsWith(p)))
 
   return (
     <nav className={styles.bar} role="navigation" aria-label="Primary">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const active = t.match.some((p) => pathname.startsWith(p))
         return (
           <Link

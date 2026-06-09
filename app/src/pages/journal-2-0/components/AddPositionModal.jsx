@@ -31,6 +31,7 @@ import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
 import PreTradeVerdictCard from './PreTradeVerdictCard'
 import useInterventions from '../hooks/useInterventions'
 import InterventionBanner from './InterventionBanner'
+import { useIsPaid } from '../../../context/AuthContext'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -93,6 +94,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [saving, setSaving] = useState(false)
   const [overrideArmed, setOverrideArmed] = useState(false)
 
+  const isPaid = useIsPaid()
   const { accountId } = useJ2SelectedAccount()
   const { run: runVerdict, verdict, isLoading: verdictLoading, error: verdictError, reset: resetVerdict } = usePreTradeVerdict(accountId)
   const { state: disciplineState } = useJ2DisciplineState(accountId)
@@ -314,10 +316,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         )}
 
         <div className={styles.body}>
-          <InterventionBanner
-            interventions={interventions}
-            onDismiss={dismissIntervention}
-          />
+          {isPaid && (
+            <InterventionBanner
+              interventions={interventions}
+              onDismiss={dismissIntervention}
+            />
+          )}
           <div className={styles.grid2}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Symbol *</span>
@@ -496,28 +500,32 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
-          <button
-            type="button"
-            onClick={() => runVerdict({
-              symbol: (symbol || '').toUpperCase(),
-              side: side || 'Long',
-              shares: Number(shares) || 0,
-              entry_price: Number(entryPrice) || 0,
-              stop_price: Number(stopPrice) || 0,
-              setup: setup || undefined,
-            })}
-            disabled={verdictLoading || !symbol || !shares || !entryPrice || !stopPrice}
-            style={{
-              width: '100%', padding: '8px 14px', fontSize: 12, fontWeight: 600,
-              background: 'rgba(201,168,76,0.10)', color: 'var(--ut-gold, #c9a84c)',
-              border: '1px solid rgba(201,168,76,0.5)', borderRadius: 6,
-              cursor: verdictLoading ? 'wait' : 'pointer',
-              margin: '0 0 6px',
-            }}
-          >
-            {verdictLoading ? '🧭 Compass is thinking…' : '🧭 Check with Compass'}
-          </button>
+          {isPaid && (
+            <>
+              <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
+              <button
+                type="button"
+                onClick={() => runVerdict({
+                  symbol: (symbol || '').toUpperCase(),
+                  side: side || 'Long',
+                  shares: Number(shares) || 0,
+                  entry_price: Number(entryPrice) || 0,
+                  stop_price: Number(stopPrice) || 0,
+                  setup: setup || undefined,
+                })}
+                disabled={verdictLoading || !symbol || !shares || !entryPrice || !stopPrice}
+                style={{
+                  width: '100%', padding: '8px 14px', fontSize: 12, fontWeight: 600,
+                  background: 'rgba(201,168,76,0.10)', color: 'var(--ut-gold, #c9a84c)',
+                  border: '1px solid rgba(201,168,76,0.5)', borderRadius: 6,
+                  cursor: verdictLoading ? 'wait' : 'pointer',
+                  margin: '0 0 6px',
+                }}
+              >
+                {verdictLoading ? '🧭 Compass is thinking…' : '🧭 Check with Compass'}
+              </button>
+            </>
+          )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" className={styles.ghostBtn} onClick={handleClose} disabled={saving}>Cancel</button>
             <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={

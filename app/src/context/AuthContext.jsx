@@ -94,8 +94,13 @@ export function AuthProvider({ children }) {
     window.location.href = data.portal_url
   }
 
+  // Single source of truth for "is this a paying user" — gates every
+  // API-cost feature (Compass, voice, read-aloud). Mirrors the backend
+  // PAID_PLANS set in api/middleware/auth_middleware.py. Admins always pass.
+  const isPaid = user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(plan)
+
   return (
-    <AuthContext.Provider value={{ user, plan, subscription, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
@@ -105,4 +110,16 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
+}
+
+/**
+ * Safe paid-status read for gating API-cost UI (Compass, voice, read-aloud).
+ * Returns isPaid from context, but defaults to `true` when no AuthProvider is
+ * mounted — that only happens in isolated component tests, never in the real
+ * app (AuthProvider wraps the root). The authoritative cost protection is the
+ * backend 402 gate; this hook only decides whether to render the affordance.
+ */
+export function useIsPaid() {
+  const ctx = useContext(AuthContext)
+  return ctx ? ctx.isPaid : true
 }

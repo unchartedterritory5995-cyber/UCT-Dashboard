@@ -1,4 +1,5 @@
 import useReadAloud from '../../hooks/useReadAloud'
+import { useIsPaid } from '../../context/AuthContext'
 import styles from './ReadAloudButton.module.css'
 
 /**
@@ -10,7 +11,10 @@ import styles from './ReadAloudButton.module.css'
  * - size: 'sm' (default) | 'md'
  */
 export default function ReadAloudButton({ trackId, label, textProvider, size = 'sm', children }) {
+  const isPaid = useIsPaid()
   const { play, isPlayingTrack, isPausedTrack } = useReadAloud()
+  // TTS read-aloud is a paid, API-cost feature — hidden for free users.
+  if (!isPaid) return null
   const playingNow = isPlayingTrack(trackId)
   const pausedHere = isPausedTrack(trackId)
 

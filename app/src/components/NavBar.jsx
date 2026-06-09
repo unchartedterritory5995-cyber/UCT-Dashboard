@@ -27,7 +27,7 @@ const NAV_ITEMS = [
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
-const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
+const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
 
 export default function NavBar() {
   const { user, plan } = useAuth()

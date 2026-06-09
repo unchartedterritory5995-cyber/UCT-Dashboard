@@ -48,16 +48,25 @@ def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
-# ── Voice access ────────────────────────────────────────────────────────────
+# ── Paid access ─────────────────────────────────────────────────────────────
 
-# Adjust if the actual Stripe plan keys differ. Admins always pass.
-PAID_VOICE_PLANS = {"pro", "premium", "lifetime"}
+# Plans that count as "paid". Admins always pass regardless of plan.
+# Single source of truth — mirrored by isPaid in app/src/context/AuthContext.jsx.
+PAID_PLANS = {"pro", "premium", "lifetime"}
+
+# Back-compat alias (was the voice-only name).
+PAID_VOICE_PLANS = PAID_PLANS
+
+
+def is_paid_user(user: dict) -> bool:
+    """True if the user is an admin or on a paid plan."""
+    return user.get("role") == "admin" or user.get("plan") in PAID_PLANS
 
 
 def requires_voice_access(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Dependency: gates voice endpoints to paid plans + admins."""
     if user.get("role") == "admin":
         return user
-    if user.get("plan") not in PAID_VOICE_PLANS:
+    if user.get("plan") not in PAID_PLANS:
         raise HTTPException(status_code=402, detail="Voice features require a paid plan")
     return user

@@ -15,6 +15,7 @@
  *                                        applies to the Whisper path.
  */
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useIsPaid } from '../../../context/AuthContext'
 
 function getSpeechRecognitionCtor() {
   if (typeof window === 'undefined' && typeof global === 'undefined') return null
@@ -41,6 +42,7 @@ function markHintSeen() {
 }
 
 export default function VoiceInputButton({ onTranscript, disabled = false, cleanup = true }) {
+  const isPaid = useIsPaid()
   const SR = getSpeechRecognitionCtor()
   const whisperAvailable = hasMediaRecorder()
   const webSpeechAvailable = !!SR
@@ -183,6 +185,10 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
     if (recording) stopRecording()
     else startRecording()
   }, [recording, stopRecording, startRecording])
+
+  // Voice dictation hits the paid Whisper transcription endpoint — hidden
+  // entirely for free users (placed after all hooks to respect rules-of-hooks).
+  if (!isPaid) return null
 
   if (!supported) {
     return (

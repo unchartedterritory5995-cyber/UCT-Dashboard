@@ -19,9 +19,13 @@
 import { useContext, useCallback } from 'react'
 import { VoiceContext, setVoicePageHint } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
+import { useIsPaid } from '../../context/AuthContext'
 
 export default function CompassAssistButton({ pageHint, disabled = false, label = '🧭 Assist' }) {
+  const isPaid = useIsPaid()
   const voice = useContext(VoiceContext)
+  // Voice/Compass is a paid, API-cost feature — hidden entirely for free users.
+  if (!isPaid) return null
   if (!voice) return null
   return (
     <CompassAssistInner pageHint={pageHint} disabled={disabled} label={label} />

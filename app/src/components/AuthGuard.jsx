@@ -86,9 +86,16 @@ export default function AuthGuard() {
     return <Navigate to="/verify-pending" replace />
   }
 
+  // Free tier: ONLY these four pages are accessible without a paid plan.
+  // Keep in sync with FREE_PAGES in NavBar.jsx + MobileNav.jsx.
+  const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
+  // Where to bounce a non-paid user who hits a locked page. MUST be a free
+  // page — bouncing to /dashboard (now paid-only) would infinite-loop.
+  const FREE_HOME = '/breadth'
+
   // Admin-only pages
   if (location.pathname.startsWith('/admin') && user.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={FREE_HOME} replace />
   }
 
   // Allow settings page always (so they can manage billing / subscribe)
@@ -96,12 +103,10 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
-  // Free tier: allow access to specific pages without a paid plan
-  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
 
   if (plan !== 'pro' && user.role !== 'admin' && !isFreePage) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={FREE_HOME} replace />
   }
 
   return <Outlet />

@@ -15,9 +15,11 @@ import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
+import { useIsPaid } from '../../../context/AuthContext'
 
 export default function TradeDrawer({ trade, accountId, onClose }) {
   const isPhone = useIsPhone()
+  const isPaid = useIsPaid()
   const {
     review, isLoading: reviewLoading,
     generate: generateReview,
@@ -154,8 +156,9 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
           </div>
         </div>
 
-        {/* Compass review section */}
+        {/* Compass review section — paid-only (AI-cost feature) */}
         <div style={{ padding: '12px 18px', flex: 1 }}>
+          {isPaid && (<>
           <TradeReviewCard
             review={review}
             isLoading={reviewLoading}
@@ -197,6 +200,7 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               label="🎙️ Talk about this trade"
             />
           </div>
+          </>)}
         </div>
       </aside>
     </>

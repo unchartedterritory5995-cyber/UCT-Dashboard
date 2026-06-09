@@ -106,6 +106,38 @@ class MaintenanceMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Under maintenance", "maintenance": True},
             )
         return await call_next(request)
+
+
+class CompassPaywallMiddleware(BaseHTTPMiddleware):
+    """Gate every Compass / AI-coach endpoint to paid users + admins.
+
+    All Compass endpoints live under /api/j2 and contain a '/coach' path
+    segment (plus the two /api/j2/unified-coach routes). Gating by path here
+    is authoritative and automatically covers any future /coach endpoint —
+    no per-route dependency to forget. Voice + TTS are already gated at the
+    router level (requires_voice_access → 402), so this only adds Compass.
+    """
+
+    def _is_compass_path(self, path: str) -> bool:
+        if not path.startswith("/api/j2"):
+            return False
+        return "/coach" in path or path.endswith("/unified-coach")
+
+    async def dispatch(self, request, call_next):
+        if self._is_compass_path(request.url.path):
+            from api.services.auth_service import validate_session, get_user_plan
+            user = validate_session(request.cookies.get("uct_session"))
+            if not user:
+                return StarletteJSONResponse(
+                    status_code=401, content={"detail": "Not authenticated"}
+                )
+            is_admin = user.get("role") == "admin"
+            if not is_admin and get_user_plan(user["id"]) not in {"pro", "premium", "lifetime"}:
+                return StarletteJSONResponse(
+                    status_code=402,
+                    content={"detail": "Compass requires a paid plan"},
+                )
+        return await call_next(request)
 if _SENTRY_DSN:
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
@@ -1797,6 +1829,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
+app.add_middleware(CompassPaywallMiddleware)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase

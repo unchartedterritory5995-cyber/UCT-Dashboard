@@ -16,8 +16,10 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
-      navigate('/dashboard', { replace: true })
+      const data = await login(email, password)
+      // Dashboard is paid-only; free users land on their first free page.
+      const paid = data?.user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(data?.plan)
+      navigate(paid ? '/dashboard' : '/breadth', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {

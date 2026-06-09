@@ -9,6 +9,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
 import useJ2UnviewedEOD from './hooks/useJ2UnviewedEOD'
@@ -37,11 +38,13 @@ const NESTED_TABS = [
   { key: 'accounts', label: '💼 Accounts' },
   { key: 'analytics', label: '📈 Analytics' },
   { key: 'notebook', label: '📓 Notebook' },
-  { key: 'compass', label: '🧭 Compass' },
+  // Compass is an AI-cost feature — gated to paid plans (see paidOnly flag).
+  { key: 'compass', label: '🧭 Compass', paidOnly: true },
   { key: 'community', label: '🌐 Community' },
 ]
 
 export default function JournalTwoRoot() {
+  const isPaid = useIsPaid()
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const { accountId } = useJ2SelectedAccount()
   const { unviewed } = useJ2UnviewedEOD(accountId)
@@ -73,6 +76,12 @@ export default function JournalTwoRoot() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nestedTab])
 
+  // Free users can't open Compass — if a deep-link or stale URL selects it,
+  // fall back to the default tab so the content area is never blank.
+  useEffect(() => {
+    if (!isPaid && nestedTab === 'compass') setNestedTab('positions')
+  }, [isPaid, nestedTab])
+
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
@@ -84,7 +93,7 @@ export default function JournalTwoRoot() {
   useHotkeys('g>t', () => setNestedTab('accounts'))
   useHotkeys('g>y', () => setNestedTab('analytics'))
   useHotkeys('g>n', () => setNestedTab('notebook'))
-  useHotkeys('g>k', () => setNestedTab('compass'))
+  useHotkeys('g>k', () => { if (isPaid) setNestedTab('compass') })
   useHotkeys('g>c', () => setNestedTab('community'))
 
   const [showNewAccount, setShowNewAccount] = useState(false)
@@ -133,7 +142,7 @@ export default function JournalTwoRoot() {
         </div>
       )}
 
-      {unviewed && (
+      {unviewed && isPaid && (
         <EODRecapBanner
           day={unviewed.day || unviewed.metadata?.day}
           onClick={async () => {
@@ -147,7 +156,7 @@ export default function JournalTwoRoot() {
       )}
 
       <div className={styles.nestedTabBar} role="tablist" aria-label="Journal 2.0 views">
-        {NESTED_TABS.map((tab) => (
+        {NESTED_TABS.filter((tab) => isPaid || !tab.paidOnly).map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -177,7 +186,7 @@ export default function JournalTwoRoot() {
         )}
         {nestedTab === 'analytics' && <AnalyticsTab />}
         {nestedTab === 'notebook' && <NotebookTab />}
-        {nestedTab === 'compass' && <CompassTab />}
+        {nestedTab === 'compass' && isPaid && <CompassTab />}
         {nestedTab === 'community' && <CommunityTab />}
       </div>
 
