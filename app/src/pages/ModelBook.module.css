@@ -214,6 +214,9 @@
   border: 1px solid var(--border); background: transparent; color: var(--text-muted); transition: all 0.15s;
 }
 .yearArrow:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+/* Faded out at a scroll edge (no more years that way) — keeps its layout slot so
+   the year strip doesn't jump when an arrow appears/disappears. */
+.yearArrowHidden { opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
 .yearTabs {
   display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
   flex: 1; min-width: 0; overflow-x: auto; scroll-behavior: smooth; padding: 2px 0;
