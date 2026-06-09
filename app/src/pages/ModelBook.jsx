@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import useSWR, { preload } from 'swr'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
+import IntradayDayPopover from '../components/IntradayDayPopover'
 import { prefetchBars, prefetchBarsToIDB } from '../utils/prefetchBars'
 import { useAuth } from '../context/AuthContext'
 import { useIsPhone } from '../hooks/useBreakpoint'
@@ -678,6 +679,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   })
   const [editingCatalystId, setEditingCatalystId] = useState(null)  // admin: catalyst row being edited inline
   const [expandedCatalystId, setExpandedCatalystId] = useState(null)  // catalyst row whose details are dropped down
+  const [intraday, setIntraday] = useState(null)  // { date, clientX, clientY } — intraday 5-min popup for a clicked setup/catalyst candle
   const [annotateMode, setAnnotateMode] = useState(false)     // admin: drawing annotations on the focused setup
   const [annotationDraft, setAnnotationDraft] = useState([])  // working annotation set while in annotate mode
   const [annotateTarget, setAnnotateTarget] = useState('setup') // 'setup' (focused setup) | 'stock' (full-year chart)
@@ -1251,6 +1253,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             onAnnotationsChange={setAnnotationDraft}
             highlightBarTime={chartHighlight}
             highlightColor="#ffffff"
+            onHighlightClick={({ date, clientX, clientY }) => setIntraday({ date, clientX, clientY })}
             onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
             className={styles.chart}
           />
@@ -1479,6 +1482,15 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         )}
       </div>
       </div>
+      {intraday && (
+        <IntradayDayPopover
+          symbol={stock.symbol}
+          date={intraday.date}
+          clientX={intraday.clientX}
+          clientY={intraday.clientY}
+          onClose={() => setIntraday(null)}
+        />
+      )}
     </div>
   )
 }

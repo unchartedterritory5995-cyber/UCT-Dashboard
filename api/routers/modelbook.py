@@ -404,6 +404,70 @@ def year_earnings(symbol: str = Query(...), year: int = Query(...),
     return {"symbol": symbol.upper(), "year": year, "rows": rows}
 
 
+@router.get("/intraday-day")
+def intraday_day(symbol: str = Query(...), date: str = Query(...),
+                 _user: dict = Depends(get_current_user)):
+    """5-minute intraday bars for a single REGULAR-HOURS session (09:30–16:00 ET)
+    on `date` (YYYY-MM-DD). Powers the setup/catalyst-candle intraday popup.
+
+    Cached (a closed session is static). Returns
+    ``{symbol, date, bars:[{t,o,h,l,c,v}]}`` — bars are unix-second timestamps to
+    match the chart's intraday format. `bars` is EMPTY when the provider has no
+    intraday history for that date (e.g. old-year setups), which the frontend
+    renders as 'intraday data unavailable'."""
+    import re
+    from datetime import datetime, timedelta, timezone
+    from api.services.cache import cache
+
+    sym = (symbol or "").upper().strip()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date or ""):
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+
+    ckey = f"modelbook_intraday_{sym}_{date}"
+    cached = cache.get(ckey)
+    if cached is not None:
+        return cached
+
+    bars: list[dict] = []
+    try:
+        from api.services.massive import get_agg_bars_minute
+        # Fetch [date, date+1] then filter to the ET regular session — a UTC-day
+        # window would clip the after-midnight-UTC tail of a US session.
+        nxt = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        raw = get_agg_bars_minute(sym, 5, date, nxt)
+        try:
+            from zoneinfo import ZoneInfo
+            et = ZoneInfo("America/New_York")
+        except Exception:
+            et = None
+        for b in raw:
+            try:
+                ts = int(b["t"]) / 1000.0  # ms → s (UTC)
+            except (KeyError, TypeError, ValueError):
+                continue
+            if et is not None:
+                d_et = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(et)
+                if d_et.strftime("%Y-%m-%d") != date:
+                    continue
+                mins = d_et.hour * 60 + d_et.minute
+                if mins < 9 * 60 + 30 or mins >= 16 * 60:  # RTH 09:30–16:00 ET
+                    continue
+            bars.append({
+                "t": int(ts),
+                "o": round(b["o"], 2), "h": round(b["h"], 2),
+                "l": round(b["l"], 2), "c": round(b["c"], 2),
+                "v": int(b.get("v", 0)),
+            })
+        bars.sort(key=lambda x: x["t"])
+    except Exception:
+        bars = []
+
+    out = {"symbol": sym, "date": date, "bars": bars}
+    # Closed sessions never change → cache 30d; an empty/failed pull retries in 30m.
+    cache.set(ckey, out, ttl=86400 * 30 if bars else 1800)
+    return out
+
+
 @router.get("/index-drawings")
 def get_index_drawings(symbol: str = Query("^IXIC"), _user: dict = Depends(get_current_user)):
     """GLOBAL annotations for the index reference pane (^IXIC) — one shared set

@@ -512,6 +512,8 @@ export default function StockChart({
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
+  vwapOverride = null,          // force the session-VWAP indicator on regardless of user settings: { color } (Model Book intraday popup uses white)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
   // ── Index comparison pane (Model Book) — additive, default-off ──
   indexPaneSymbol = null,       // e.g. '^IXIC' — draws that symbol's close as a line in a pane ON TOP of the price pane (relative-strength reference vs the index)
@@ -1874,6 +1876,16 @@ export default function StockChart({
     for (const t of arr) { if (t != null) s.add(adjustTime(t)) }
     return s.size ? s : null
   }, [highlightBarTime, adjustTime])
+  // Reverse map: the chart-space (adjusted) time of each highlighted candle back
+  // to the ORIGINAL date string passed in — so a click on a setup candle can be
+  // resolved to the YYYY-MM-DD used to fetch that day's intraday bars.
+  const highlightTimeMap = useMemo(() => {
+    if (highlightBarTime == null) return null
+    const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
+    const m = new Map()
+    for (const t of arr) { if (t != null) m.set(adjustTime(t), t) }
+    return m.size ? m : null
+  }, [highlightBarTime, adjustTime])
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
@@ -1945,7 +1957,7 @@ export default function StockChart({
     const bbRaw = ind.bb?.enabled
       ? computeBB(filteredBars, ind.bb.period, ind.bb.stdDev)
       : { upper: [], middle: [], lower: [] }
-    const vwapRaw = (ind.vwap?.enabled && VWAP_TFS.has(resolvedTf))
+    const vwapRaw = ((vwapOverride || ind.vwap?.enabled) && VWAP_TFS.has(resolvedTf))
       ? computeVWAP(filteredBars)
       : []
     const stochRaw = ind.stoch?.enabled
@@ -2024,7 +2036,7 @@ export default function StockChart({
         lower:  donchianRaw.lower.map(p  => ({ time: adjustTime(p.time), value: p.value })),
       },
     }
-  }, [filteredBars, cs.indicators, resolvedTf, adjustTime])
+  }, [filteredBars, cs.indicators, resolvedTf, adjustTime, vwapOverride])
 
   // ── Comparison symbol % return data ──
   const comparisonData = useMemo(() => {
@@ -2932,7 +2944,7 @@ export default function StockChart({
 
     // ── Session VWAP (intraday only) ──
     if (indicatorData.vwap.length) {
-      const vwapColor = cs.indicators?.vwap?.color || '#26C6DA'
+      const vwapColor = vwapOverride?.color || cs.indicators?.vwap?.color || '#26C6DA'
       if (!vwapSeriesRef.current) {
         vwapSeriesRef.current = chart.addSeries(LineSeries, {
           color: vwapColor, lineWidth: 1,
@@ -3506,7 +3518,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -4567,6 +4579,36 @@ export default function StockChart({
       try { chart.unsubscribeClick(handler) } catch {}
     }
   }, [newsMarkers, resolvedTf])
+
+  // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
+  // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
+  // match the clicked time against the highlight set, resolve it back to the
+  // original YYYY-MM-DD via highlightTimeMap, and hand the parent screen coords
+  // (from the click point + container rect) to anchor the popover.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !onHighlightClick || !highlightTimeMap || highlightTimeMap.size === 0) return
+    const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
+    const handler = (param) => {
+      if (!param || param.time == null) return
+      const t = param.time
+      let origDate = highlightTimeMap.get(t) ?? null
+      if (origDate == null) {  // tolerance match (intraday number times / business-day objects)
+        for (const [adj, orig] of highlightTimeMap) {
+          if (typeof adj === 'number' && typeof t === 'number') {
+            if (Math.abs(adj - t) < tfSec * 0.5) { origDate = orig; break }
+          } else if (String(adj) === String(t)) { origDate = orig; break }
+        }
+      }
+      if (origDate == null) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      const clientX = rect && param.point ? rect.left + param.point.x : null
+      const clientY = rect && param.point ? rect.top + param.point.y : null
+      onHighlightClick({ date: String(origDate), clientX, clientY })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [onHighlightClick, highlightTimeMap, resolvedTf])
 
   // ── Volume Profile canvas overlay ──
   useEffect(() => {

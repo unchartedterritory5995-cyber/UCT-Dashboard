@@ -420,6 +420,41 @@ def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
         return []
 
 
+def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:
+    """Return intraday minute-aggregated OHLCV bars for a ticker over a date
+    range from the Massive agg endpoint (timespan=minute). Follows ``next_url``
+    pagination so a multi-day window isn't silently truncated.
+
+    Args:
+        ticker:     Equity ticker symbol (e.g. "SNDK")
+        multiplier: bar size in minutes (e.g. 5 for 5-minute bars)
+        from_date:  Start date "YYYY-MM-DD" (inclusive)
+        to_date:    End date "YYYY-MM-DD" (inclusive)
+
+    Returns:
+        List of raw bar dicts (keys: t=unix ms, o, h, l, c, v). Empty on error.
+    """
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{int(multiplier)}/minute"
+            f"/{from_date}/{to_date}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        results: list[dict] = []
+        for _page in range(10):  # 10 × 50000 safety cap — one day of 5-min is ~78 bars
+            data = client._get(url)
+            results.extend(data.get("results") or [])
+            nxt = data.get("next_url")
+            if not nxt:
+                break
+            sep = "&" if "?" in nxt else "?"
+            url = f"{nxt}{sep}apiKey={client._api_key}"
+        return results
+    except Exception:
+        return []
+
+
 def get_snapshot() -> dict:
     """Return formatted market snapshot for the FuturesStrip tile (QQQ/SPY/IWM/DIA/BTC/VIX).
 
