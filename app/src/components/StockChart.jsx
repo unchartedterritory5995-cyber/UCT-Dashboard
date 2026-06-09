@@ -3489,14 +3489,15 @@ export default function StockChart({
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
     const zoomKey = `${sym}_${resolvedTf}`
+    // Capture the outgoing view BEFORE deciding. setData() preserves the logical
+    // range NUMERICALLY, so this reflects where the user was — on the previous
+    // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
+    let oldRange = null
+    try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+    const oldBarCount = lastBarCountRef.current
     if (zoomKeyRef.current !== zoomKey) {
       const isFirstLoad = zoomKeyRef.current === null
       const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
-      // Capture the outgoing view BEFORE deciding. setData() preserves the logical range
-      // numerically, so this still reflects where the user was on the previous ticker.
-      let oldRange = null
-      try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
-      const oldBarCount = lastBarCountRef.current
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
@@ -3575,6 +3576,24 @@ export default function StockChart({
             })
           }
         }
+      }
+    } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
+               && oldBarCount !== filteredBars.length) {
+      // SAME ticker/tf, but the bar COUNT changed since the last render — the
+      // IDB-cache → network full-fetch swap OR a viewport-first older-history
+      // backfill (FIRST_PAINT→full). LWC preserves the visible logical range
+      // NUMERICALLY across setData, so the prior range now maps to older dates
+      // ("chart jumps back to ~2019"). Re-anchor to the same bars-from-right +
+      // width so the user's date-position holds fixed across data phases.
+      // (Restores commit 911dfe91, lost in a later StockChart overwrite; Model
+      // Book / entryDate charts have their own pins below.)
+      const newBarCount = filteredBars.length
+      const barsFromRight = oldBarCount - oldRange.to
+      const width = oldRange.to - oldRange.from
+      const to = newBarCount - barsFromRight
+      const from = to - width
+      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
       }
     }
 
