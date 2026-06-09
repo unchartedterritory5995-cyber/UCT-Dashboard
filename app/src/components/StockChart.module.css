@@ -247,6 +247,29 @@
   50% { opacity: 0.4; }
 }
 
+.liveIndicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  background: rgba(22, 163, 74, 0.9);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  animation: liveIndicatorPulse 2s ease-in-out infinite;
+}
+@keyframes liveIndicatorPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liveIndicator { animation: none; }
+}
+
 /* Bar-correction flash (P4-7): briefly pulses when minute-close reconciliation
    overrides the WS-built bar. Positioned to the LEFT of the stale indicator
    (right: 8px) so the two never overlap. */

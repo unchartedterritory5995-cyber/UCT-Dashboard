@@ -29,6 +29,7 @@ import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
+import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
@@ -1698,8 +1699,9 @@ export default function StockChart({
   const showFatalError = !!error && !bars?.length
 
   // Real-time price streaming for live candle updates
-  const { prices: livePrices, staleSymbols } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
+  const feed = streamStatus({ isStreaming, isStale })
 
   // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
   // Prefers live stream values; falls back to last bar close / intra-bar change.
@@ -4960,9 +4962,16 @@ export default function StockChart({
           ⏮ REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
         </div>
       )}
-      {isStale && (
-        <div className={styles.staleIndicator} title="Live feed has paused — last tick is older than expected">
-          ⏸ STALE
+      {liveUpdates && realtimeTfEligible && (
+        <div
+          className={feed.state === 'live' ? styles.liveIndicator : styles.staleIndicator}
+          title={
+            feed.state === 'reconnecting' ? 'Reconnecting to the live feed…'
+            : feed.state === 'stale' ? 'Live feed has paused — last tick is older than expected'
+            : 'Live feed connected'
+          }
+        >
+          {feed.state === 'live' ? '● LIVE' : feed.state === 'reconnecting' ? '⟳ RECONNECTING' : '⏸ STALE'}
         </div>
       )}
       {correctionFlash && (
