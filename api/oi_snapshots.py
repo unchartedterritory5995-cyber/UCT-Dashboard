@@ -409,10 +409,18 @@ async def _fetch_oi_all_async(
     # Lazy import — avoid circular deps if main.py imports us at startup
     from api.schwab_router import options_quotes_batch
 
+    # Pure cash-settled index symbols Schwab requires with a "$" prefix
+    # (matches gex_service.py). ETFs like SPY/QQQ/IWM use the regular
+    # ticker. Without this prefix, the chain call 400s on the index name.
+    INDEX_TICKERS_NEED_PREFIX = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
+    def _schwab_symbol(sym: str) -> str:
+        s = (sym or "").upper().strip()
+        return "$" + s if s in INDEX_TICKERS_NEED_PREFIX else s
+
     # Build the payload in the shape schwab expects
     payload = [
         {
-            "symbol": sym,
+            "symbol": _schwab_symbol(sym),
             "cp": "C" if cp.upper() in ("C", "CALL") else "P",
             "strike": float(strike),
             "expDate": _exp_to_iso_for_schwab(exp),
