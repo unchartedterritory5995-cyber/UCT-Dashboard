@@ -1701,10 +1701,20 @@ export default function StockChart({
   // Restore filteredBars as the replay-sliced version.
   // All downstream code continues to use `filteredBars` unchanged.
   const filteredBars = useMemo(
-    () => (replayMode && replayIndex != null)
-      ? sessionBars?.slice(0, replayIndex + 1)
-      : sessionBars,
-    [sessionBars, replayMode, replayIndex]
+    () => {
+      let src = sessionBars
+      // Model Book (exactDateRange): never render bars AFTER the framed year-end.
+      // A stock still trading has next-year bars in the loaded series, and the
+      // first one peeks a sliver past the right edge of the year / setup-focus
+      // view (the right edge sits on a bar index). Drop them — the chart never
+      // shows past the year anyway. LEADING bars are kept for MA warm-up.
+      if (exactDateRange && exitDate && src?.length) {
+        const cut = src.findIndex(b => String(b.t) > exitDate)  // first bar after year-end
+        if (cut > 0) src = src.slice(0, cut)
+      }
+      return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+    },
+    [sessionBars, replayMode, replayIndex, exactDateRange, exitDate]
   )
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
