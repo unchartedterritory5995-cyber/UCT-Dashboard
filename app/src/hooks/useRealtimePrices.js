@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import useLivePrices from './useLivePrices'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 /**
  * Real-time price streaming via Server-Sent Events.
@@ -16,7 +17,9 @@ export default function useRealtimePrices(tickers = []) {
   const [staleSymbols, setStaleSymbols] = useState(() => new Set())
   const esRef = useRef(null)
   const reconnectRef = useRef(null)
-  const retryDelayRef = useRef(5000)  // exponential backoff: 5→10→20→40→80→120s
+  const retryDelayRef = useRef(5000)  // exponential backoff: 5→10→20s (capped)
+  const lastMsgRef = useRef(Date.now())   // epoch ms of the last inbound event (any type, incl. heartbeat)
+  const watchdogRef = useRef(null)         // setInterval id for the silent-death watchdog
 
   // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
@@ -28,9 +31,11 @@ export default function useRealtimePrices(tickers = []) {
 
     const es = new EventSource(`/api/stream/prices?tickers=${sorted}`)
     esRef.current = es
+    lastMsgRef.current = Date.now()
 
     es.onopen = () => {
       setConnected(true)
+      lastMsgRef.current = Date.now()
       retryDelayRef.current = 5000  // reset backoff on successful connection
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current)
@@ -39,16 +44,19 @@ export default function useRealtimePrices(tickers = []) {
     }
 
     es.onmessage = (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         setStreamPrices(prev => ({ ...prev, ...data }))
       } catch {}
     }
 
-    // Liveness signals from backend (P2-6): per-ticker stale/fresh events.
-    // Backend emits these as named SSE events ("event: stale" / "event: fresh"),
-    // so they bypass es.onmessage and require explicit listeners.
+    // Heartbeat (named event, 15s): keeps the connection alive AND lets the
+    // watchdog distinguish a quiet-but-healthy stream from a dead one.
+    es.addEventListener('heartbeat', () => { lastMsgRef.current = Date.now() })
+
     es.addEventListener('stale', (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         if (!data?.sym) return
@@ -63,6 +71,7 @@ export default function useRealtimePrices(tickers = []) {
     })
 
     es.addEventListener('fresh', (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         if (!data?.sym) return
@@ -76,9 +85,8 @@ export default function useRealtimePrices(tickers = []) {
       } catch {}
     })
 
-    // P4-6: relay backend candle events into the global realtimeCandle registry.
-    // Existing consumers of `prices` continue to work unchanged — this is purely additive.
     es.addEventListener('tick', (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         if (data?.sym) realtimeCandle.applyTick(data.sym, data.price, data.vol, data.ts)
@@ -86,6 +94,7 @@ export default function useRealtimePrices(tickers = []) {
     })
 
     es.addEventListener('bar_close', (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         if (data?.sym && data?.bar) realtimeCandle.applyBarClose(data.sym, data.tf || "1", data.bar)
@@ -93,6 +102,7 @@ export default function useRealtimePrices(tickers = []) {
     })
 
     es.addEventListener('bar_correction', (event) => {
+      lastMsgRef.current = Date.now()
       try {
         const data = JSON.parse(event.data)
         if (data?.sym && data?.bar) realtimeCandle.applyCorrection(data.sym, data.tf || "1", data.bar)
@@ -105,10 +115,27 @@ export default function useRealtimePrices(tickers = []) {
       // the UI on a transient network hiccup or brief server restart.
       es.close()
       esRef.current = null
+      if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null }
       const delay = retryDelayRef.current
-      retryDelayRef.current = Math.min(delay * 2, 120000)  // cap at 120s
+      retryDelayRef.current = Math.min(delay * 2, STREAM_RECONNECT_CAP_MS)  // cap at 20s
       reconnectRef.current = setTimeout(() => connect(), delay)
     }
+
+    // Silent-death watchdog: EventSource.onerror is unreliable at detecting a
+    // connection dropped behind a proxy. If nothing (not even the 15s heartbeat)
+    // arrives for STREAM_WATCHDOG_MS, force a reconnect instead of waiting.
+    if (watchdogRef.current) clearInterval(watchdogRef.current)
+    watchdogRef.current = setInterval(() => {
+      if (esRef.current === es && Date.now() - lastMsgRef.current > STREAM_WATCHDOG_MS) {
+        clearInterval(watchdogRef.current)
+        watchdogRef.current = null
+        setConnected(false)
+        try { es.close() } catch {}
+        if (esRef.current === es) esRef.current = null
+        retryDelayRef.current = 5000  // prompt recovery after a silent stall
+        connect()
+      }
+    }, STREAM_WATCHDOG_TICK_MS)
   }, [sorted])
 
   useEffect(() => {
@@ -120,6 +147,10 @@ export default function useRealtimePrices(tickers = []) {
       }
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current)
+      }
+      if (watchdogRef.current) {
+        clearInterval(watchdogRef.current)
+        watchdogRef.current = null
       }
       setConnected(false)
     }

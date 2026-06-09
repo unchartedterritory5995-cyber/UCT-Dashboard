@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 /**
  * Real-time bar streaming via Server-Sent Events.
@@ -60,7 +61,7 @@ export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
       es.close()
       esRef.current = null
       const delay = retryDelayRef.current
-      retryDelayRef.current = Math.min(delay * 2, 120000)
+      retryDelayRef.current = Math.min(delay * 2, STREAM_RECONNECT_CAP_MS)  // cap at 20s (was 120s)
       reconnectRef.current = setTimeout(() => connect(), delay)
     }
   }, [enabled, symbol, tf])
