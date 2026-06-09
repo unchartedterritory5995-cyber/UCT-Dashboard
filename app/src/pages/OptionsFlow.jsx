@@ -3076,6 +3076,7 @@ export default function OptionsFlowDashboard() {
             return {
               callWallLabel, putWallLabel, dangerLineLabel,
               cwAbove, pwBelow,
+              cwAtWall, pwAtWall, cwDistPct, pwDistPct,
               zgDistPct, zgNear, zgSpotBelow,
               belowDangerActive,
               regime, asymmetryPct,
@@ -3332,8 +3333,19 @@ export default function OptionsFlowDashboard() {
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
-                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
-                  const pwLabel = pwBelowSpot ? "floor" : "resistance above";
+                  // At-wall tier (matches gexState.cwAtWall/pwAtWall — within
+                  // 0.3% of spot). Falls back to local check if gexState
+                  // unavailable. Otherwise keeps existing "decision point" /
+                  // "major support below" nuance for cw. pw above spot now
+                  // labeled "magnet" (was "resistance above") to match card.
+                  const cwAtWall = gexState?.cwAtWall ?? (cw && sp > 0 && Math.abs(cwStrike - sp) / sp < 0.003);
+                  const pwAtWall = gexState?.pwAtWall ?? (pw && sp > 0 && Math.abs(pwStrike - sp) / sp < 0.003);
+                  const cwLabel = cwAtWall ? "at wall"
+                                : cwAboveSpot ? "ceiling"
+                                : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
+                  const pwLabel = pwAtWall ? "at wall"
+                                : pwBelowSpot ? "floor"
+                                : "magnet";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
                   const wallSpread = Math.abs(cwStrike - pwStrike);
@@ -3698,7 +3710,12 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                      {belowDangerLine
+                        ? (gexState?.zgDistPct != null && gexState.zgDistPct < 0.5
+                            ? "⚠️ At danger line — caution"
+                            : "⚠️ Below danger line — drops accelerate")
+                        : isPositive ? "Safety net ON — dips tend to bounce" : "Safety net OFF — moves get wild"
+                      }{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
