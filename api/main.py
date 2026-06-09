@@ -1854,6 +1854,23 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 def get_maintenance():
     return {"maintenance": _MAINTENANCE_MODE}
 
+def _process_rss_mb():
+    """Current resident-set memory in MB, or None if unavailable (non-Linux).
+
+    Read straight from /proc so it adds no dependency. Paired with
+    thread_count below to diagnose the 2026-06-09 "can't start new thread"
+    outage: a climbing thread_count points to a thread leak; flat threads
+    with climbing rss_mb points to memory pressure (stack alloc failing)."""
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return round(int(line.split()[1]) / 1024, 1)  # kB -> MB
+    except Exception:
+        pass
+    return None
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -1863,6 +1880,9 @@ def health():
         "status": "ok",
         "wire_date": wire_date,
         "uptime_seconds": int(time.time() - _APP_BOOT_TS),
+        # Pod resource observability (2026-06-09 thread-exhaustion incident).
+        "thread_count": threading.active_count(),
+        "rss_mb": _process_rss_mb(),
     }
 
 
