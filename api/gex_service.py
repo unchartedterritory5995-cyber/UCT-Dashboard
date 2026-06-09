@@ -15,16 +15,14 @@ Two modes:
 
 Fetches Schwab /chains for greeks + OI, then aggregates per strike.
 
-The trade-aware path requires dealer_positioning data to exist for the
-ticker. Contracts without coverage fall back to naive (customer_factor =
-1.0). The response includes a `confidence` field (0-1) reporting the
-OI-weighted average flow_confidence across contracts that DO have data,
-plus an `attribution_days` count so the UI can decide whether enough
-history exists to trust the adjustment.
-
-Also exposes get_gex_compare() — runs both naive and adjusted in
-sequence and returns side-by-side levels with per-strike deltas. Used
-for validation and the eventual chart overlay.
+Level classification (new): classify_gex_state() produces semantic labels
+based on spot-relative position. The call_wall above spot is a Ceiling,
+below spot is a Pull Up. The put_wall below spot is a Floor, above spot
+is a Magnet (pulling price up). zero_gamma is only a "Danger Line" when
+spot is actually near or below it — otherwise it's just a Gamma Flip
+level. This stops the FLOOR/Resistance/Magnet naming disagreement
+between the card view, chart overlay, and AI summary, and stops the
+"below danger" warning from firing when spot is 20% away.
 """
 
 import logging
@@ -52,6 +50,142 @@ def _parse_schwab_exp_key(exp_key: str) -> Optional[str]:
         return f"{int(m)}/{int(d)}/{int(y)}"
     except (ValueError, AttributeError, IndexError):
         return None
+
+
+def classify_gex_state(
+    spot: float,
+    call_wall: Optional[dict],
+    put_wall: Optional[dict],
+    zero_gamma: Optional[float],
+    near_threshold_pct: float = 3.0,
+    asymmetry_threshold_pct: float = 15.0,
+) -> dict:
+    """
+    Produce semantic labels and gated warnings for the current GEX state.
+
+    Replaces the hardcoded convention "call_wall is always Ceiling, put_wall
+    is always Floor". Classifies each level by position relative to spot:
+
+      - call_wall above spot   → Ceiling (true resistance)
+      - call_wall below spot   → Pull Up (magnet pulling price up — rare,
+                                 happens when retail is heavily long calls
+                                 OTM and there's an inverted gamma profile)
+      - put_wall below spot    → Floor (true support)
+      - put_wall above spot    → Magnet (price gets pulled up toward the
+                                 dealer-short put cluster — TSLA $400 case)
+      - zero_gamma             → "Danger Line" only when spot is below AND
+                                 within near_threshold_pct. Otherwise it's
+                                 just a Gamma Flip level (informational).
+
+    Regime classification from wall asymmetry:
+      - 'bullish'  : floor dominant by > asymmetry_threshold_pct
+      - 'bearish'  : ceiling dominant by > asymmetry_threshold_pct
+      - 'choppy'   : walls within asymmetry_threshold_pct of each other
+      - 'unbound'  : one or both walls missing
+
+    asymmetry_pct is signed: positive = ceiling stronger, negative = floor
+    stronger. Useful for the AI summary to phrase narratives correctly
+    instead of saying "about the same strength" when one wall is 43%
+    larger.
+
+    Args:
+        spot: current underlying price
+        call_wall: {"strike", "gex"} or None
+        put_wall: {"strike", "gex"} or None
+        zero_gamma: scalar strike or None
+        near_threshold_pct: how close to zero_gamma counts as "near" (default 3%)
+        asymmetry_threshold_pct: walls within this % count as choppy (default 15%)
+
+    Returns:
+        {
+          "levels": {
+             "call_wall": {strike, gex, above_spot, label, role},
+             "put_wall":  {strike, gex, above_spot, label, role},
+             "zero_gamma":{strike, above_spot, distance_pct, near,
+                          spot_below, label, role},
+          },
+          "regime": "bullish"|"bearish"|"choppy"|"unbound",
+          "asymmetry_pct": signed float or None,
+          "warnings": {
+              "below_danger_active": bool,   # only true when actually near
+              "spot_near_danger":    bool,
+          },
+        }
+    """
+    levels: Dict[str, dict] = {}
+
+    if call_wall is not None:
+        above = call_wall["strike"] > spot
+        levels["call_wall"] = {
+            "strike": call_wall["strike"],
+            "gex": call_wall["gex"],
+            "above_spot": above,
+            "label": "Ceiling" if above else "Pull Up",
+            "role": "resistance" if above else "magnet_down",
+        }
+
+    if put_wall is not None:
+        below = put_wall["strike"] < spot
+        levels["put_wall"] = {
+            "strike": put_wall["strike"],
+            "gex": put_wall["gex"],
+            "above_spot": not below,
+            "label": "Floor" if below else "Magnet",
+            "role": "support" if below else "magnet_up",
+        }
+
+    if zero_gamma is not None and spot > 0:
+        distance_pct = abs(spot - zero_gamma) / spot * 100
+        spot_below = spot < zero_gamma
+        near = distance_pct <= near_threshold_pct
+        levels["zero_gamma"] = {
+            "strike": zero_gamma,
+            "above_spot": zero_gamma > spot,
+            "distance_pct": round(distance_pct, 2),
+            "near": near,
+            "spot_below": spot_below,
+            # Only call it Danger Line when actually relevant — spot is
+            # below it AND close. Otherwise it's just informational.
+            "label": "Danger Line" if (spot_below and near) else "Gamma Flip",
+            "role": "danger" if (spot_below and near) else "gamma_flip",
+        }
+
+    # Regime: signed asymmetry between wall strengths.
+    # Sign convention: positive = ceiling stronger (bearish bias),
+    # negative = floor stronger (bullish bias).
+    regime = "unbound"
+    asymmetry_pct: Optional[float] = None
+    if call_wall is not None and put_wall is not None:
+        call_strength = abs(call_wall["gex"])
+        put_strength = abs(put_wall["gex"])
+        max_strength = max(call_strength, put_strength)
+        if max_strength > 0:
+            asymmetry_pct = round(
+                (call_strength - put_strength) / max_strength * 100, 1
+            )
+            if abs(asymmetry_pct) <= asymmetry_threshold_pct:
+                regime = "choppy"
+            elif asymmetry_pct > 0:
+                regime = "bearish"
+            else:
+                regime = "bullish"
+
+    # Warning gating. The old "Below danger line — drops accelerate"
+    # warning fired whenever spot < zero_gamma — which is true any time
+    # zero_gamma is above spot, regardless of distance. Now requires both
+    # spot_below AND near.
+    zg = levels.get("zero_gamma", {})
+    below_danger_active = bool(zg.get("spot_below") and zg.get("near"))
+
+    return {
+        "levels": levels,
+        "regime": regime,
+        "asymmetry_pct": asymmetry_pct,
+        "warnings": {
+            "below_danger_active": below_danger_active,
+            "spot_near_danger": bool(zg.get("near")),
+        },
+    }
 
 
 async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = False) -> dict:
@@ -295,6 +429,18 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         contracts_with_dp / total_chain_contracts if total_chain_contracts > 0 else 0
     )
 
+    # Build the {strike, gex} dicts used by the classifier. These match
+    # the shape returned in callWall/putWall fields so frontends can
+    # cross-reference if needed.
+    cw_dict = {"strike": call_wall["strike"], "gex": call_wall["callGex"]} if call_wall else None
+    pw_dict = {"strike": put_wall["strike"],  "gex": put_wall["putGex"]}  if put_wall  else None
+    classification = classify_gex_state(
+        spot=spot,
+        call_wall=cw_dict,
+        put_wall=pw_dict,
+        zero_gamma=zero_gamma,
+    )
+
     return {
         "ticker": ticker,
         "spot": spot,
@@ -303,19 +449,25 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "putGex": total_put_gex,
         "zeroGamma": zero_gamma,
         "netDelta": round(net_delta),
-        "callWall": {"strike": call_wall["strike"], "gex": call_wall["callGex"]} if call_wall else None,
-        "putWall": {"strike": put_wall["strike"], "gex": put_wall["putGex"]} if put_wall else None,
+        "callWall": cw_dict,
+        "putWall": pw_dict,
         "strikes": strikes_list,
         "dteFilter": dte_filter,
-        # Trade-aware metadata. When adjusted=False these are zero/null —
-        # the frontend uses them to decide whether to show the confidence
-        # badge and "Using N days of flow attribution" indicator.
+        # ── Trade-aware metadata ──────────────────────────────────────
         "adjusted": adjusted,
         "attributionDays": attribution_days,
         "avgConfidence": round(avg_confidence, 3),
         "coveragePct": round(coverage_pct, 3),
         "contractsWithDp": contracts_with_dp,
         "contractsWithoutDp": contracts_without_dp,
+        # ── Classification (new) ──────────────────────────────────────
+        # Frontends should prefer levels[].label over hardcoded
+        # "Floor"/"Ceiling" — and gate the "below danger" warning on
+        # warnings.below_danger_active rather than spot<zeroGamma.
+        "levels": classification["levels"],
+        "regime": classification["regime"],
+        "asymmetryPct": classification["asymmetry_pct"],
+        "warnings": classification["warnings"],
     }
 
 
@@ -331,12 +483,14 @@ async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:
 
     Response shape:
       { ticker, spot, spotAdjusted, dteFilter,
-        naive:    {...flat summary...},
-        adjusted: {...flat summary + attributionDays/coverage/confidence...},
+        naive:    {...flat summary + levels/regime/warnings...},
+        adjusted: {...flat summary + attributionDays/coverage/confidence
+                   + levels/regime/warnings...},
         delta: {
           totalGexPctChange, call/putGexPctChange,
           zeroGammaShift, callWallShift, putWallShift,
-          signFlippedStrikes, strikes: [{...per-strike delta...}]
+          regimeChange, signFlippedStrikes,
+          strikes: [{...per-strike delta...}]
         }
       }
     """
@@ -398,6 +552,12 @@ async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:
             "callWall": naive["callWall"],
             "putWall": naive["putWall"],
             "netDelta": naive["netDelta"],
+            # Classification surfaced so the validation UI can compare
+            # not just numbers but regime labels
+            "levels": naive["levels"],
+            "regime": naive["regime"],
+            "asymmetryPct": naive["asymmetryPct"],
+            "warnings": naive["warnings"],
         },
         "adjusted": {
             "totalGex": adjusted["totalGex"],
@@ -412,6 +572,10 @@ async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:
             "coveragePct": adjusted["coveragePct"],
             "contractsWithDp": adjusted["contractsWithDp"],
             "contractsWithoutDp": adjusted["contractsWithoutDp"],
+            "levels": adjusted["levels"],
+            "regime": adjusted["regime"],
+            "asymmetryPct": adjusted["asymmetryPct"],
+            "warnings": adjusted["warnings"],
         },
         "delta": {
             "totalGexPctChange": _pct(adjusted["totalGex"], naive["totalGex"]),
@@ -420,6 +584,10 @@ async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:
             "zeroGammaShift": (round(zg_a - zg_n, 2) if (zg_n is not None and zg_a is not None) else None),
             "callWallShift": _wall_shift(adjusted["callWall"], naive["callWall"]),
             "putWallShift":  _wall_shift(adjusted["putWall"],  naive["putWall"]),
+            "regimeChange": (
+                None if naive["regime"] == adjusted["regime"]
+                else f"{naive['regime']} → {adjusted['regime']}"
+            ),
             "signFlippedStrikes": sum(1 for s in delta_strikes if s["signFlipped"]),
             "strikes": delta_strikes,
         },
