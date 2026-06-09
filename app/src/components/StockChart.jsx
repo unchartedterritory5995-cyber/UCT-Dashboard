@@ -2739,7 +2739,10 @@ export default function StockChart({
       // boldCandles paints solid bright green/red; hideLastValue drops the
       // right-axis price tag. Both only apply to instances that opt in.
       try {
-        const _bold = boldCandles ? {
+        // The intraday popup (modelBookLook) shares the Model Book main chart's
+        // solid bold green/red so the two charts match exactly — without it the
+        // popup falls back to the lighter default cs.candles palette.
+        const _bold = (boldCandles || modelBookLook) ? {
           upColor: BOLD_UP, downColor: BOLD_DOWN,
           borderVisible: false,                       // pure solid bodies (TC2000 look)
           wickUpColor: BOLD_UP, wickDownColor: BOLD_DOWN,
@@ -3813,13 +3816,15 @@ export default function StockChart({
       onFocusEscape()
     }
     // Wheel-zoom escapes immediately. For drag-pan, only escape once the pointer
-    // actually moves past a small threshold — a plain click shouldn't drop focus.
+    // actually moves past a threshold — a plain click (incl. clicking a setup
+    // candle to open the intraday popup) shouldn't drop focus. 8px tolerates the
+    // few px of jitter a real click carries; a deliberate pan moves far more.
     const onWheel = () => escape()
     let down = null
     const onDown = (e) => { down = { x: e.clientX, y: e.clientY } }
     const onMove = (e) => {
       if (!down) return
-      if (Math.abs(e.clientX - down.x) > 4 || Math.abs(e.clientY - down.y) > 4) { down = null; escape() }
+      if (Math.abs(e.clientX - down.x) > 8 || Math.abs(e.clientY - down.y) > 8) { down = null; escape() }
     }
     const onUp = () => { down = null }
     el.addEventListener('wheel', onWheel, { passive: true })
@@ -4667,6 +4672,24 @@ export default function StockChart({
       const rect = containerRef.current?.getBoundingClientRect()
       const clientX = rect && param.point ? rect.left + param.point.x : null
       const clientY = rect && param.point ? rect.top + param.point.y : null
+      // Pin the main chart's view across the click. Clicking a setup/catalyst
+      // candle only opens the intraday popup — it must NEVER move the underlying
+      // chart. A bare click can still trip the focus-escape pan-detector (a few
+      // px of pointer jitter), which drops the setup focus and lets the next
+      // updateChart snap the view back to the full year ("glitches to the left").
+      // Capturing the current logical range and re-asserting it across the settle
+      // window makes the open visually inert regardless of what fired underneath.
+      let pinned = null
+      try { pinned = chart.timeScale().getVisibleLogicalRange() } catch { /* ignore */ }
+      if (pinned) {
+        const reassert = () => {
+          try { chart.timeScale().setVisibleLogicalRange({ from: pinned.from, to: pinned.to }) } catch { /* out of range mid-load */ }
+        }
+        requestAnimationFrame(reassert)
+        requestAnimationFrame(() => requestAnimationFrame(reassert))
+        setTimeout(reassert, 60)
+        setTimeout(reassert, 180)
+      }
       onHighlightClick({ date: String(origDate), clientX, clientY })
     }
     chart.subscribeClick(handler)
