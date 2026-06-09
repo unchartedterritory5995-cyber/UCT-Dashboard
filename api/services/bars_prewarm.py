@@ -184,24 +184,25 @@ def run_prewarmer_forever():
     _DEEP_INTRADAY_TFS = ('5', '1')
     _INTRADAY_TFS = _CORE_INTRADAY_TFS + _DEEP_INTRADAY_TFS  # refresh-loop hot-set union
     if _IS_WORKER:
-        # COST TRIM (2026-06-07): the 2026-05-25 expansion warmed 60/30/15
-        # across the FULL cap_universe + 5/1 across the top 1500 — ~14k
-        # proactive intraday jobs/pass. That was the bulk of worker CPU and
-        # (via the constant bars.db writes it produced) the reason the R2
-        # snapshot fingerprint tripped every cycle, shipping the full 688 MB
-        # tarball intraday.
-        #   - Core intraday (60/30/15) scoped back to the ACTIVE set (tickers
-        #     users actually navigate from: watchlists/UCT20/breadth drill
-        #     lists/themes/priority), NOT the full universe.
-        #   - Blanket deep intraday (5/1) warming dropped entirely.
-        # The cap_universe long tail still loads correctly on first open
-        # (~2-4s on-demand, then cached). Actively-VIEWED tickers still get
-        # ALL TFs incl. 5/1 every cycle via the hot-set augmentation below
-        # (_INTRADAY_TFS still includes 5/1) — so live charts stay fast.
+        # CORRECTNESS RESTORE (2026-06-08): core intraday (60/30/15) is warmed
+        # across the FULL cap_universe again. The 2026-06-07 cost trim had
+        # scoped it to the active set only — but 60m bars can ONLY self-heal by
+        # being re-resampled from clean 30m (see bars_reconciliation `_TFS`
+        # comment: "60m heals indirectly"), and that indirect heal SILENTLY
+        # depended on this full-universe pass re-resampling every ticker's 60m
+        # each cycle. Scoping it to the active set froze wrong/stale long-tail
+        # 30m/60m bars (the append-only R2 merge can't fix interior bars, and
+        # the reconciliation healer excludes 60m). The cost justification for
+        # the cut — that the constant bars.db writes tripped the snapshot
+        # fingerprint, shipping the full 688 MB tarball every cycle — no longer
+        # holds: the delta snapshot (SNAPSHOT_DELTA_ENABLED) bounds egress to a
+        # recency window regardless of write volume, so restoring this pass
+        # costs only worker CPU, not egress. Deep intraday (5/1) stays scoped to
+        # the active top-1500 (heaviest queue, least long-tail-critical).
         # Worker count held at 4 (the prior bump to 8 saturated Massive/worker
         # CPU and starved the web pod, see reverted commit 68392f4).
-        _CORE_INTRADAY_TICKERS = _active_intraday
-        _DEEP_INTRADAY_TICKERS = []
+        _CORE_INTRADAY_TICKERS = ticker_list
+        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
         _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]

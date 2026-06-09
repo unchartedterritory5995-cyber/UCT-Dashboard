@@ -43,19 +43,19 @@ def _loop():
             if now - last_5min > 300:
                 _run_5min_check()
                 last_5min = now
-            # The 1hr + 24hr sweeps make real Massive canonical fetches (the
-            # 24hr one sweeps the whole ~3,685 universe). Bars are static
-            # overnight/weekends, so those fetches are wasted then. Gate them on
-            # the active data window — they still run daily, just when there's
-            # actually something to verify. Zero correctness loss, frees CPU.
-            from api.services.data_sync import in_active_data_window
-            if in_active_data_window():
-                if now - last_1hr > 3600:
-                    _run_priority_sweep()
-                    last_1hr = now
-                if now - last_24hr > 86400:
-                    _run_universe_sweep()
-                    last_24hr = now
+            # 1hr priority + 24hr universe sweeps run 24/7 (CORRECTNESS RESTORE
+            # 2026-06-08). A 2026-06-07 cost trim gated these on the active data
+            # window, but the 24hr universe sweep is the ONLY auditor that
+            # reaches the long tail, and drift that lands late in a session must
+            # be detectable afterward. Massive canonical fetches are flat-rate
+            # (CPU, not egress $), so always-on detection is worth it for
+            # chart-data trust.
+            if now - last_1hr > 3600:
+                _run_priority_sweep()
+                last_1hr = now
+            if now - last_24hr > 86400:
+                _run_universe_sweep()
+                last_24hr = now
         except Exception:
             _logger.exception("[continuous_audit] iteration failed")
         # Sleep in 1s chunks so stop() is responsive

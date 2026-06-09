@@ -210,6 +210,32 @@ def _heal_drift(ticker: str, tf: str, bad_timestamps: list[int]) -> int:
     return deleted
 
 
+def _heal_companion_60m(ticker: str, bad_30m_ts: list[int]) -> int:
+    """Active companion heal for the 60m timeframe.
+
+    60m is deliberately excluded from `_TFS` because the app stores
+    session-anchored ET hourly bars while audit.py fetches Polygon clock-hour
+    native — they don't align, so auditing 60m directly would DELETE correct
+    bars. The standing assumption (see `_TFS` comment) is that "60m heals
+    indirectly: once its 30m source is clean, the 60m resample is clean." But
+    that only fires if SOMETHING re-resamples the 60m row after the 30m is
+    healed. Rather than rely on a prewarm pass eventually touching it, we drop
+    the stored 60m rows whose session buckets contain the just-healed 30m
+    timestamps, so the next 60m fetch re-resamples them from the now-clean 30m.
+
+    Returns 60m rows deleted.
+    """
+    if not bad_30m_ts:
+        return 0
+    try:
+        from api.services.bars_fetch import bucket_60_et_unix_seconds
+    except Exception:
+        _logger.exception("[reconcile] could not import bucket_60_et_unix_seconds")
+        return 0
+    buckets = sorted({bucket_60_et_unix_seconds(int(t)) for t in bad_30m_ts})
+    return _heal_drift(ticker, "60", buckets)
+
+
 def _run_cycle():
     """One reconciliation pass: sample pairs, audit each, heal drift."""
     from api.services import audit
@@ -233,11 +259,20 @@ def _run_cycle():
             if result.fail_count > 0:
                 bad_ts = sorted({d.timestamp for d in result.diffs if d.severity == "fail"})
                 healed = _heal_drift(ticker, tf, bad_ts)
+                # 30m drift implies the resampled 60m built from it is also
+                # wrong. Actively drop the overlapping session-hour 60m rows so
+                # they re-resample clean on next fetch (60m isn't audited
+                # directly — see _heal_companion_60m).
+                companion_60m = 0
+                if tf == "30":
+                    companion_60m = _heal_companion_60m(ticker, bad_ts)
+                    healed += companion_60m
                 drift_count += 1
                 rows_healed += healed
                 _logger.warning(
-                    "[reconcile] DRIFT %s/%s: %d fail / %d warn — healed %d row(s)",
+                    "[reconcile] DRIFT %s/%s: %d fail / %d warn — healed %d row(s)%s",
                     ticker, tf, result.fail_count, result.warn_count, healed,
+                    f" (+{companion_60m} companion 60m)" if companion_60m else "",
                 )
                 _record_drift(ticker, tf, result.fail_count, result.warn_count, healed)
         except Exception:
@@ -285,20 +320,18 @@ def _run_forever():
     # all want the SQLite write lock first).
     time.sleep(120)
 
-    # Drift only happens while bars are being written — i.e. during the active
-    # data window. Overnight/weekends bars are static, so a reconciliation cycle
-    # then is pure churn (60 canonical fetches + diffs that always match). Gate
-    # on the same window the prewarmer uses so the healer runs exactly when it
-    # can find something to heal. Zero correctness loss (nothing drifts when the
-    # market's closed); frees web-pod CPU for serving users off-hours / at scale.
-    from api.services.data_sync import in_active_data_window
-
+    # Runs 24/7 (CORRECTNESS RESTORE 2026-06-08). A 2026-06-07 cost trim gated
+    # this on in_active_data_window() on the theory that "nothing drifts when the
+    # market's closed." But drift created late in a session (e.g. a wrong
+    # in-progress bar frozen near 3:45pm ET) needs many sampled cycles to be
+    # caught — this healer only audits ~60 (ticker,tf) pairs/cycle across a
+    # ~2,800-ticker universe, so off-hours passes are how the long tail actually
+    # gets reached. Canonical fetches are Massive flat-rate (CPU, not egress $),
+    # so 24/7 healing is cheap relative to chart-data trust. Set
+    # RECONCILE_ENABLED=0 to disable entirely.
     while True:
         try:
-            if in_active_data_window():
-                _run_cycle()
-            else:
-                _logger.debug("[reconcile] outside active data window — cycle skipped")
+            _run_cycle()
         except Exception:
             _logger.exception("[reconcile] cycle outer crashed (caught — looping)")
         # Sleep with short ticks so a future stop signal could be responsive,
