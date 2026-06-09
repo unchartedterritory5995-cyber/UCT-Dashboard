@@ -3033,10 +3033,20 @@ export default function OptionsFlowDashboard() {
             const backend = gexData.levels;
             const cwAbove = cw ? cw.strike > sp : false;
             const pwBelow = pw ? pw.strike < sp : false;
+            // At-wall tier: when a wall is within 0.3% of spot, "above/below"
+            // distinction loses meaning. SPY case: cw=737, pw=735, spot=737.05
+            // → both effectively at spot, pin-like setup. Threshold matches
+            // backend's at_wall_threshold_pct.
+            const cwDistPct = cw && sp > 0 ? Math.abs(cw.strike - sp) / sp * 100 : null;
+            const pwDistPct = pw && sp > 0 ? Math.abs(pw.strike - sp) / sp * 100 : null;
+            const cwAtWall = cwDistPct !== null && cwDistPct < 0.3;
+            const pwAtWall = pwDistPct !== null && pwDistPct < 0.3;
             // Labels: cards/summary use these; chart has its own (Resistance
             // reads better than Magnet in a chart context).
-            const callWallLabel = backend?.call_wall?.label || (cwAbove ? "Ceiling" : "Pull Up");
-            const putWallLabel  = backend?.put_wall?.label  || (pwBelow ? "Floor" : "Magnet");
+            const callWallLabel = backend?.call_wall?.label
+              || (cwAtWall ? "At Wall" : (cwAbove ? "Ceiling" : "Pull Up"));
+            const putWallLabel  = backend?.put_wall?.label
+              || (pwAtWall ? "At Wall" : (pwBelow ? "Floor" : "Magnet"));
             // Danger line proximity — 3% near threshold. The "Below danger
             // line" warning previously fired whenever spot < zg regardless
             // of distance; now it requires both spot_below AND near.
