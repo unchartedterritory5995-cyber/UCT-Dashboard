@@ -173,9 +173,11 @@ async def stream_prices(
                         yield f"event: fresh\ndata: {json.dumps({'type': 'fresh', 'sym': sym})}\n\n"
                         already_stale.discard(sym)
 
-                # Heartbeat to keep connection alive through proxies
+                # Heartbeat to keep connection alive through proxies. Sent as a
+                # NAMED event (not an SSE comment) so the client's watchdog can
+                # reset on it and tell a quiet-but-healthy stream from a dead one.
                 if time.time() - last_heartbeat > heartbeat_interval:
-                    yield f": heartbeat\n\n"
+                    yield "event: heartbeat\ndata: {}\n\n"
                     last_heartbeat = time.time()
 
                 await asyncio.sleep(0.1)
