@@ -3,7 +3,7 @@ FastAPI router for Gamma Exposure (GEX) endpoints.
 """
 
 from fastapi import APIRouter, Query
-from api.gex_service import get_gex_data
+from api.gex_service import get_gex_data, get_gex_compare
 
 router = APIRouter(prefix="/api/gex", tags=["gex"])
 
@@ -28,3 +28,22 @@ async def gex_data(
     """
     result = await get_gex_data(ticker, dte, adjusted=adjusted)
     return result
+
+
+@router.get("/compare")
+async def gex_compare(
+    ticker: str = Query(..., description="Ticker symbol (e.g. SPY, AAPL)"),
+    dte: str = Query("all", description="DTE filter: 0dte, week, month, all"),
+):
+    """Side-by-side naive vs adjusted GEX with per-strike deltas.
+
+    For validation — eyeball whether the trade-aware adjustment moves
+    levels in a sensible direction. Production consumers should use
+    /data with adjusted=true|false.
+
+    Response includes summary blocks for both modes plus a `delta`
+    section with: totalGex/callGex/putGex pct changes, zeroGammaShift,
+    callWallShift, putWallShift, signFlippedStrikes count, and a full
+    per-strike comparison array.
+    """
+    return await get_gex_compare(ticker, dte)
