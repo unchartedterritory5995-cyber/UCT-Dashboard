@@ -59,6 +59,7 @@ def classify_gex_state(
     zero_gamma: Optional[float],
     near_threshold_pct: float = 3.0,
     asymmetry_threshold_pct: float = 15.0,
+    at_wall_threshold_pct: float = 0.3,
 ) -> dict:
     """
     Produce semantic labels and gated warnings for the current GEX state.
@@ -66,10 +67,13 @@ def classify_gex_state(
     Replaces the hardcoded convention "call_wall is always Ceiling, put_wall
     is always Floor". Classifies each level by position relative to spot:
 
+      - call_wall within at_wall_threshold_pct → "At Wall" (above/below
+                                 distinction loses meaning at this proximity)
       - call_wall above spot   → Ceiling (true resistance)
       - call_wall below spot   → Pull Up (magnet pulling price up — rare,
                                  happens when retail is heavily long calls
                                  OTM and there's an inverted gamma profile)
+      - put_wall within at_wall_threshold_pct → "At Wall"
       - put_wall below spot    → Floor (true support)
       - put_wall above spot    → Magnet (price gets pulled up toward the
                                  dealer-short put cluster — TSLA $400 case)
@@ -115,23 +119,43 @@ def classify_gex_state(
     levels: Dict[str, dict] = {}
 
     if call_wall is not None:
+        dist_pct = abs(call_wall["strike"] - spot) / spot * 100 if spot > 0 else 999
+        at_wall = dist_pct < at_wall_threshold_pct
         above = call_wall["strike"] > spot
+        if at_wall:
+            label, role = "At Wall", "wall"
+        elif above:
+            label, role = "Ceiling", "resistance"
+        else:
+            label, role = "Pull Up", "magnet_down"
         levels["call_wall"] = {
             "strike": call_wall["strike"],
             "gex": call_wall["gex"],
             "above_spot": above,
-            "label": "Ceiling" if above else "Pull Up",
-            "role": "resistance" if above else "magnet_down",
+            "at_wall": at_wall,
+            "distance_pct": round(dist_pct, 3),
+            "label": label,
+            "role": role,
         }
 
     if put_wall is not None:
+        dist_pct = abs(put_wall["strike"] - spot) / spot * 100 if spot > 0 else 999
+        at_wall = dist_pct < at_wall_threshold_pct
         below = put_wall["strike"] < spot
+        if at_wall:
+            label, role = "At Wall", "wall"
+        elif below:
+            label, role = "Floor", "support"
+        else:
+            label, role = "Magnet", "magnet_up"
         levels["put_wall"] = {
             "strike": put_wall["strike"],
             "gex": put_wall["gex"],
             "above_spot": not below,
-            "label": "Floor" if below else "Magnet",
-            "role": "support" if below else "magnet_up",
+            "at_wall": at_wall,
+            "distance_pct": round(dist_pct, 3),
+            "label": label,
+            "role": role,
         }
 
     if zero_gamma is not None and spot > 0:
