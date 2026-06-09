@@ -657,6 +657,28 @@ export default function ChartDrawingOverlay({
     return map
   }, [bars])
 
+  // Nearest bar index for a time that may not be an EXACT bar on the current
+  // timeframe. A drawing placed on the daily chart anchors to a daily date
+  // (e.g. '2025-08-15'); on the weekly chart that exact date isn't a bar, so an
+  // exact lookup misses and the annotation/line would vanish or streak full
+  // width. Snap to the bar whose period CONTAINS the date — the greatest bar
+  // time <= the target (binary search; ISO 'YYYY-MM-DD' sorts chronologically).
+  // Only snaps when the time type matches the bars' (both strings for D/W) so
+  // intraday epoch-number bars are never mis-compared; same-timeframe lookups
+  // hit the exact map and never reach the search.
+  const nearestIndex = useCallback((time) => {
+    if (time == null || !bars?.length) return null
+    const exact = timeToIndex.get(time)
+    if (exact != null) return exact
+    if (typeof time !== typeof bars[0].t) return null
+    let lo = 0, hi = bars.length - 1, res = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (bars[mid].t <= time) { res = mid; lo = mid + 1 } else { hi = mid - 1 }
+    }
+    return res < 0 ? 0 : res   // before the first bar → first bar
+  }, [bars, timeToIndex])
+
   // ── Coordinate conversion: chart → pixel ──
   // Uses refs at call-time so always gets latest chart/series
   const toPixel = useCallback((time, price) => {
@@ -666,9 +688,11 @@ export default function ChartDrawingOverlay({
     let x = null
     if (time != null) {
       try { x = chart.timeScale().timeToCoordinate(time) } catch {}
-      // Fallback: extrapolate from logical index
+      // Fallback: extrapolate from logical index. Uses the CONTAINING bar so a
+      // daily-anchored drawing maps onto the right weekly/monthly bar (and vice
+      // versa) instead of disappearing when the exact date isn't a bar.
       if (x == null && bars?.length) {
-        const idx = timeToIndex.get(time)
+        const idx = nearestIndex(time)
         if (idx != null) {
           try { x = chart.timeScale().logicalToCoordinate(idx) } catch {}
         }
@@ -679,7 +703,7 @@ export default function ChartDrawingOverlay({
       try { y = series.priceToCoordinate(price) } catch {}
     }
     return { x, y }
-  }, [chartRef, seriesRef, bars, timeToIndex])
+  }, [chartRef, seriesRef, bars, nearestIndex])
 
   // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled
   const resolvePixels = useCallback((points) => {
@@ -918,8 +942,8 @@ export default function ChartDrawingOverlay({
       // Suspended while the view is moving (guardActive) so lines transition in.
       if (guardActive) {
         const idxs = []
-        for (const p of (d.points || [])) { const i = timeToIndex.get(p.time); if (i != null) idxs.push(i) }
-        if (d.rightBoundTime != null) { const ri = timeToIndex.get(d.rightBoundTime); if (ri != null) idxs.push(ri) }
+        for (const p of (d.points || [])) { const i = nearestIndex(p.time); if (i != null) idxs.push(i) }
+        if (d.rightBoundTime != null) { const ri = nearestIndex(d.rightBoundTime); if (ri != null) idxs.push(ri) }
         if (idxs.length) {
           const anchorIdx = Math.max(...idxs)
           if (anchorIdx > visTo + 0.5 || anchorIdx < visFrom - 0.5) continue
@@ -1047,7 +1071,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
