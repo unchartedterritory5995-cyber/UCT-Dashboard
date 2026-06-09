@@ -988,6 +988,7 @@ export default function StockChart({
   const lastFocusNonceRef = useRef(0)     // last processed focusNonce — only act when it actually changes
   const yearFramedRef = useRef(null)      // sym+tf the exact-range year frame has been rAF-reapplied for (first-load layout race)
   const yearRangeRef = useRef(null)       // latest {from,to} logical range for the framed year — re-asserts read this so staged data loads can't lock in stale indices
+  const focusRangeRef = useRef(null)      // settled {from,to} logical range of the active setup-focus zoom — updateChart re-asserts this so a bars refetch can't snap the horizontal view back while the vertical stays pinned
   const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
@@ -3563,17 +3564,29 @@ export default function StockChart({
     // scrolling fast. Applying it here, in the SAME effect as setData above, makes
     // the new bars + correct year frame paint atomically — no transient. Skipped
     // while a setup/catalyst focus zoom owns the view (focusActiveRef).
-    if (exactDateRange && entryDate && filteredBars.length > 0 && !focusActiveRef.current) {
-      let _s = filteredBars.findIndex(b => b.t >= entryDate)
-      let _e = filteredBars.length - 1
-      if (exitDate) {
-        for (let i = filteredBars.length - 1; i >= 0; i--) {
-          if (filteredBars[i].t <= exitDate) { _e = i; break }
+    if (exactDateRange && entryDate && filteredBars.length > 0) {
+      if (focusActiveRef.current) {
+        // A setup-focus zoom owns the view. A background bars refetch (SWR network
+        // swap after the IDB cache) re-runs updateChart, and the setData() above
+        // perturbs the horizontal logical range. Without re-asserting the focus
+        // window here the chart snaps back to the default/year view (candles shift
+        // left, empty space on the right) WHILE the vertical stays pinned to the
+        // focus band via focusPriceRangeRef — the "glitches to the left" bug.
+        // Re-pin to the settled focus range; the year re-pin below is skipped.
+        const r = focusRangeRef.current
+        if (r) { try { chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
+      } else {
+        let _s = filteredBars.findIndex(b => b.t >= entryDate)
+        let _e = filteredBars.length - 1
+        if (exitDate) {
+          for (let i = filteredBars.length - 1; i >= 0; i--) {
+            if (filteredBars[i].t <= exitDate) { _e = i; break }
+          }
         }
+        const _has = _s >= 0 && _e >= _s && (!exitDate || filteredBars[_s].t <= exitDate)
+        if (!_has) { _e = filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
+        try { chart.timeScale().setVisibleLogicalRange({ from: _s, to: _e }) } catch { /* out of range mid-load */ }
       }
-      const _has = _s >= 0 && _e >= _s && (!exitDate || filteredBars[_s].t <= exitDate)
-      if (!_has) { _e = filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
-      try { chart.timeScale().setVisibleLogicalRange({ from: _s, to: _e }) } catch { /* out of range mid-load */ }
     }
 
     // Track current bar count + bars so the next ticker switch can right-anchor the
@@ -3627,6 +3640,7 @@ export default function StockChart({
     if (focusKeyRef.current !== fk) {
       focusActiveRef.current = false
       focusPriceRangeRef.current = null  // drop any in-flight focus vertical so the new chart autoscales cleanly
+      focusRangeRef.current = null       // and its horizontal window so the year pin takes over
       focusKeyRef.current = fk
     }
     if (focusActiveRef.current) return
@@ -3773,6 +3787,7 @@ export default function StockChart({
         }
       }
       focusActiveRef.current = true
+      focusRangeRef.current = { from, to }   // settled window — updateChart re-asserts it on a bars refetch so the view can't snap back
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars, { from, to }, 850, null, overlayData, textFadeRef, true)
     } else {
       // Zoom back out to the framed year — same dual-axis glide as the zoom-in.
@@ -3790,6 +3805,7 @@ export default function StockChart({
       }
       if (endIdx < startIdx) endIdx = filteredBars.length - 1
       focusActiveRef.current = true
+      focusRangeRef.current = null   // zooming back out to the year — let updateChart's year re-pin resume
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
         { from: startIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData, textFadeRef, false)
     }
@@ -3812,6 +3828,7 @@ export default function StockChart({
       if (!focusActiveRef.current || annEditableRef.current) return
       focusActiveRef.current = false
       focusPriceRangeRef.current = null
+      focusRangeRef.current = null
       try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
       onFocusEscape()
     }
