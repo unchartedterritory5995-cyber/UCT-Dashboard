@@ -21,6 +21,10 @@ ticker. Contracts without coverage fall back to naive (customer_factor =
 OI-weighted average flow_confidence across contracts that DO have data,
 plus an `attribution_days` count so the UI can decide whether enough
 history exists to trust the adjustment.
+
+Also exposes get_gex_compare() — runs both naive and adjusted in
+sequence and returns side-by-side levels with per-strike deltas. Used
+for validation and the eventual chart overlay.
 """
 
 import logging
@@ -312,4 +316,111 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "coveragePct": round(coverage_pct, 3),
         "contractsWithDp": contracts_with_dp,
         "contractsWithoutDp": contracts_without_dp,
+    }
+
+
+async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:
+    """Returns naive + adjusted GEX side-by-side with per-strike deltas.
+
+    Two sequential calls to get_gex_data — naive then adjusted — packaged
+    with strike-level comparison and summary shifts. Spot drift between
+    the two snapshots is typically <1bp; for GEX (which scales with spot²)
+    that's negligible vs the signal we're measuring. If we ever need
+    pixel-perfect comparison, refactor get_gex_data to share the chain
+    fetch between modes.
+
+    Response shape:
+      { ticker, spot, spotAdjusted, dteFilter,
+        naive:    {...flat summary...},
+        adjusted: {...flat summary + attributionDays/coverage/confidence...},
+        delta: {
+          totalGexPctChange, call/putGexPctChange,
+          zeroGammaShift, callWallShift, putWallShift,
+          signFlippedStrikes, strikes: [{...per-strike delta...}]
+        }
+      }
+    """
+    naive = await get_gex_data(ticker, dte_filter, adjusted=False)
+    if "error" in naive:
+        return {"error": f"naive: {naive['error']}"}
+
+    adjusted = await get_gex_data(ticker, dte_filter, adjusted=True)
+    if "error" in adjusted:
+        return {"error": f"adjusted: {adjusted['error']}"}
+
+    # Per-strike deltas. Outer-join on strike so we don't drop anything
+    # that only appears in one set (shouldn't happen since both pull from
+    # the same chain, but cheap insurance).
+    naive_by_strike = {s["strike"]: s for s in naive["strikes"]}
+    adj_by_strike = {s["strike"]: s for s in adjusted["strikes"]}
+    all_strikes = sorted(set(naive_by_strike) | set(adj_by_strike))
+
+    delta_strikes = []
+    for strike in all_strikes:
+        n = naive_by_strike.get(strike, {})
+        a = adj_by_strike.get(strike, {})
+        n_gex = n.get("gex", 0)
+        a_gex = a.get("gex", 0)
+        delta_strikes.append({
+            "strike": strike,
+            "naiveGex": n_gex,
+            "adjustedGex": a_gex,
+            "deltaGex": a_gex - n_gex,
+            "deltaPct": round((a_gex - n_gex) / abs(n_gex) * 100, 2) if n_gex != 0 else None,
+            "callOI": n.get("callOI", a.get("callOI", 0)),
+            "putOI": n.get("putOI", a.get("putOI", 0)),
+            # Sign flip = ceiling became floor (or vice versa). These are
+            # the strikes where customer-sold flow most changes the regime,
+            # and the most interesting ones to validate against SpotGamma.
+            "signFlipped": (n_gex * a_gex < 0) if (n_gex != 0 and a_gex != 0) else False,
+        })
+
+    def _pct(new_v, old_v):
+        return round((new_v - old_v) / abs(old_v) * 100, 2) if old_v != 0 else None
+
+    def _wall_shift(a_wall, n_wall):
+        if not a_wall or not n_wall:
+            return None
+        return round(a_wall["strike"] - n_wall["strike"], 2)
+
+    zg_n = naive["zeroGamma"]
+    zg_a = adjusted["zeroGamma"]
+    return {
+        "ticker": ticker.upper().strip(),
+        "spot": naive["spot"],
+        "spotAdjusted": adjusted["spot"],  # surface both so drift is visible
+        "dteFilter": dte_filter,
+        "naive": {
+            "totalGex": naive["totalGex"],
+            "callGex": naive["callGex"],
+            "putGex": naive["putGex"],
+            "zeroGamma": zg_n,
+            "callWall": naive["callWall"],
+            "putWall": naive["putWall"],
+            "netDelta": naive["netDelta"],
+        },
+        "adjusted": {
+            "totalGex": adjusted["totalGex"],
+            "callGex": adjusted["callGex"],
+            "putGex": adjusted["putGex"],
+            "zeroGamma": zg_a,
+            "callWall": adjusted["callWall"],
+            "putWall": adjusted["putWall"],
+            "netDelta": adjusted["netDelta"],
+            "attributionDays": adjusted["attributionDays"],
+            "avgConfidence": adjusted["avgConfidence"],
+            "coveragePct": adjusted["coveragePct"],
+            "contractsWithDp": adjusted["contractsWithDp"],
+            "contractsWithoutDp": adjusted["contractsWithoutDp"],
+        },
+        "delta": {
+            "totalGexPctChange": _pct(adjusted["totalGex"], naive["totalGex"]),
+            "callGexPctChange": _pct(adjusted["callGex"], naive["callGex"]),
+            "putGexPctChange":  _pct(adjusted["putGex"],  naive["putGex"]),
+            "zeroGammaShift": (round(zg_a - zg_n, 2) if (zg_n is not None and zg_a is not None) else None),
+            "callWallShift": _wall_shift(adjusted["callWall"], naive["callWall"]),
+            "putWallShift":  _wall_shift(adjusted["putWall"],  naive["putWall"]),
+            "signFlippedStrikes": sum(1 for s in delta_strikes if s["signFlipped"]),
+            "strikes": delta_strikes,
+        },
     }
