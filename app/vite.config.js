@@ -33,6 +33,14 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test-setup.js',
+    // The full suite (~1000 tests under jsdom + echarts/recharts) peaks near
+    // the default ~4GB worker heap and OOMs a fork mid-run ("Ineffective
+    // mark-compacts near heap limit"), producing false-positive failures.
+    // Give the test workers more headroom so `vitest run` completes cleanly.
+    pool: 'forks',
+    poolOptions: {
+      forks: { execArgv: ['--max-old-space-size=8192'] },
+    },
     server: {
       deps: {
         // Alias the broken @picovoice/porcupine-web package to our test stub

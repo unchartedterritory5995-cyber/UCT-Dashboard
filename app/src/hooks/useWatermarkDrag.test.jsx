@@ -21,8 +21,21 @@ describe('useWatermarkDrag', () => {
     ctrl = { getRect: () => ({ x: 400, y: 170, w: 200, h: 120 }), setArmed: vi.fn(), setOptions: vi.fn() }
     commit = vi.fn()
     tool = 'cursor'
+    // The hover-arm path is rAF-coalesced (commit 48319226: don't run
+    // getBoundingClientRect+setArmed at the mouse's full polling rate). Run
+    // rAF synchronously in tests so the deferred setArmed is observable right
+    // after the pointermove. Drag-path tests don't use rAF, so this is inert
+    // for them. The stub returns undefined (NOT an id): the hook stores the
+    // return in `hoverRaf` AFTER flushHover has reset it to null, so returning
+    // a truthy id would leave the guard `if (hoverRaf == null)` permanently
+    // blocked and a second hover would never re-schedule. undefined == null.
+    vi.stubGlobal('requestAnimationFrame', (cb) => { cb() })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
   })
-  afterEach(() => { if (el && el.parentNode) el.parentNode.removeChild(el) })
+  afterEach(() => {
+    if (el && el.parentNode) el.parentNode.removeChild(el)
+    vi.unstubAllGlobals()
+  })
   const setup = () => renderHook(() => useWatermarkDrag({
     containerRef: { current: el }, controllerRef: { current: ctrl },
     getActiveTool: () => tool, onCommit: commit, mediaSize: { width: 1000, height: 400 },
