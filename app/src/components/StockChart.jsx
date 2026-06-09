@@ -2706,14 +2706,12 @@ export default function StockChart({
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data. Use the highlighted (gold/white setup-candle) variant when
-    // a highlight is active so EVERY updateChart pass keeps the setup candles
-    // painted — otherwise a re-run triggered by an unrelated dep (markers,
-    // indicators, watermark…) would repaint plain candles and the highlight
-    // would intermittently vanish until the separate recolor effect re-fired.
-    candleSeriesRef.current.setData(
-      isOhlcType(cs.chartType) ? (highlightTimeSet ? goldOhlc : ohlcData) : closeData
-    )
+    // Set price data. The separate gold-recolor effect below re-applies the
+    // setup-candle highlight right after every updateChart (it lists updateChart
+    // as a dep), so we keep plain data here — pulling highlightTimeSet into THIS
+    // effect's deps would re-run the whole updateChart (incl. the visible-range /
+    // zoom logic) on every focus change and fight the setup focus zoom.
+    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -3533,17 +3531,21 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, highlightTimeSet, goldOhlc, modelBookLook])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
   }, [updateChart])
 
-  // Gold setup-day candle (Model Book). Runs AFTER updateChart so it overrides
-  // the plain candle data. A candle-only setData (range preserved) → just a
-  // recolor, no flash. Scoped: does nothing unless a highlight is/was set, so
-  // every other chart is untouched.
+  // Gold/white setup-day candle (Model Book). Runs AFTER updateChart so it
+  // overrides the plain candle data. A candle-only setData (range preserved) →
+  // just a recolor, no flash, no zoom reset. `updateChart` is a dep so this
+  // re-fires every time updateChart repaints plain candles (e.g. a markers /
+  // indicators / watermark dep changed) — that's what keeps the highlight from
+  // intermittently vanishing — WITHOUT pulling the highlight into updateChart's
+  // own deps (which would re-run its visible-range logic and fight the focus
+  // zoom). Scoped: does nothing unless a highlight is/was set.
   useEffect(() => {
     const series = candleSeriesRef.current
     if (!series || !isOhlcType(cs.chartType)) return
@@ -3554,7 +3556,7 @@ export default function StockChart({
       hadHighlightRef.current = false
       try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
     }
-  }, [goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType])
+  }, [goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
 
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].

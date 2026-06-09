@@ -495,8 +495,9 @@
 }
 .setupRowC:hover { background: rgba(255,255,255,0.03); }
 .setupRowCActive { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.06); }
-.setupNameC { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.setupMonthC { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+.setupNameC { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+/* Fixed-width left-aligned date column (matches .catDate) so every setup date lines up vertically. */
+.setupMonthC { flex: none; width: 104px; text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .setupDelC {
   flex: none; font-family: var(--font-mono); font-size: 14px; line-height: 1; padding: 0 2px;
   border: none; background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0;
