@@ -27,7 +27,7 @@ function fmtDate(d) {
   } catch { return d }
 }
 
-export default function IntradayDayPopover({ symbol, date, clientX, clientY, onClose }) {
+export default function IntradayDayPopover({ symbol, date, anchorRef, clientX, clientY, onClose }) {
   const { data } = useSWR(
     symbol && date ? `/api/modelbook/intraday-day?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(date)}` : null,
     fetcher,
@@ -40,17 +40,34 @@ export default function IntradayDayPopover({ symbol, date, clientX, clientY, onC
   const bars = data?.bars || null
   const unavailable = !loading && (bars == null || bars.length === 0)
 
-  // Position the panel near the clicked candle, clamped inside the viewport.
-  const [pos, setPos] = useState({ left: 0, top: 0 })
+  // Position: when an anchor element is given (the info panel), cover it exactly
+  // so the popup sits right over the earnings table + company description.
+  // Otherwise fall back to a fixed-size panel near the clicked candle.
+  const [pos, setPos] = useState(null)
   useLayoutEffect(() => {
-    const vw = window.innerWidth, vh = window.innerHeight
-    let left = (clientX ?? vw / 2) + 16
-    let top = (clientY ?? vh / 2) - POPOVER_H / 2
-    if (left + POPOVER_W + 8 > vw) left = (clientX ?? vw / 2) - POPOVER_W - 16  // flip to the left of the cursor
-    left = Math.max(8, Math.min(left, vw - POPOVER_W - 8))
-    top = Math.max(8, Math.min(top, vh - POPOVER_H - 8))
-    setPos({ left, top })
-  }, [clientX, clientY])
+    const measure = () => {
+      const el = anchorRef?.current
+      if (el) {
+        const r = el.getBoundingClientRect()
+        if (r.width > 0 && r.height > 0) { setPos({ left: r.left, top: r.top, width: r.width, height: r.height }); return }
+      }
+      // Fallback: fixed-size panel anchored near the cursor, clamped on-screen.
+      const vw = window.innerWidth, vh = window.innerHeight
+      let left = (clientX ?? vw / 2) + 16
+      let top = (clientY ?? vh / 2) - POPOVER_H / 2
+      if (left + POPOVER_W + 8 > vw) left = (clientX ?? vw / 2) - POPOVER_W - 16
+      left = Math.max(8, Math.min(left, vw - POPOVER_W - 8))
+      top = Math.max(8, Math.min(top, vh - POPOVER_H - 8))
+      setPos({ left, top, width: POPOVER_W, height: POPOVER_H })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [anchorRef, clientX, clientY])
 
   // Escape closes.
   useEffect(() => {
@@ -60,6 +77,8 @@ export default function IntradayDayPopover({ symbol, date, clientX, clientY, onC
   }, [onClose])
 
   const panelRef = useRef(null)
+
+  if (!pos) return null
 
   return (
     // Transparent full-screen catcher → click-outside closes.
@@ -71,7 +90,7 @@ export default function IntradayDayPopover({ symbol, date, clientX, clientY, onC
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'fixed', left: pos.left, top: pos.top, width: POPOVER_W, height: POPOVER_H,
+          position: 'fixed', left: pos.left, top: pos.top, width: pos.width, height: pos.height,
           background: 'var(--bg-elevated, #14161a)', border: '1px solid var(--border, #2a2e25)',
           borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.6)', overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
@@ -120,6 +139,7 @@ export default function IntradayDayPopover({ symbol, date, clientX, clientY, onC
               hidePriceLine
               hideWatermark
               subtleSeparator
+              hideLegend
               priceScaleTopMargin={0.06}
               priceScaleBottomMargin={0.04}
               hideLastValue

@@ -484,6 +484,7 @@ export default function StockChart({
   hidePriceLine = false,      // hide the dashed last-price line on price AND the volume value line/label (intraday popup)
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
+  hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -5002,7 +5003,7 @@ export default function StockChart({
           >%</button>
         </div>
       )}
-      {crosshairData && (
+      {crosshairData && !hideLegend && (
         <div
           className={styles.legend}
           /* Drop below the index pane so the OHLCV legend never covers it. */

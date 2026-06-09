@@ -664,6 +664,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     [customBarsData],
   )
   const barsFileRef = useRef(null)
+  const infoSideRef = useRef(null)  // info panel element — the intraday popup covers exactly this area
   const [barsMsg, setBarsMsg] = useState(null)  // upload status line (admin)
   // Chronological so the list reads as a time-ordered guide to the buy spots
   // (e.g. Flat Base Breakout · Aug → High Tight Flag · Oct → · Nov).
@@ -1260,7 +1261,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         </div>
 
         {infoOpen && (
-          <aside className={styles.infoSide}>
+          <aside className={styles.infoSide} ref={infoSideRef}>
             <div className={styles.statsRow}>
               <div className={styles.infoStatsV}>
                 <div className={styles.infoStat}>
@@ -1486,6 +1487,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         <IntradayDayPopover
           symbol={stock.symbol}
           date={intraday.date}
+          anchorRef={infoOpen ? infoSideRef : null}
           clientX={intraday.clientX}
           clientY={intraday.clientY}
           onClose={() => setIntraday(null)}
