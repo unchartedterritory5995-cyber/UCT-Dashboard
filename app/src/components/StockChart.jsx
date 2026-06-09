@@ -39,6 +39,7 @@ import ScreenshotPopover from './chart/ScreenshotPopover'
 import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
+import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBackfill'
 
 const NOOP = () => {}
 
@@ -1422,10 +1423,25 @@ export default function StockChart({
   // ticker pages, etc.). Moved below `filteredBars` declaration so all the
   // referenced consts exist before the deps arrays are evaluated.
 
-  // 8000 daily bars ≈ 32 years — covers dot-com era for tickers that go
-  // back that far (CIEN since 1997, etc.). Other timeframes don't need
-  // more than 5000 (5000 weeks ≈ 96 years; 5000 months ≈ 416 years).
-  const barCount = (resolvedTf === 'D' || resolvedTf === 'W') ? 8000 : 5000
+  // Viewport-first payload (Phase 2): fetch a shallow window first (fetchDepth =
+  // FIRST_PAINT_BARS), bump to the full target only when the user pans into deep
+  // history (see the backfill effect below). Reset to shallow on sym/tf change
+  // via a render-time key guard (React "adjust state on prop change" pattern).
+  // Overlay modes (compare / index pane / multi-symbol comparisons) keep the
+  // full fetch so their overlays align across the whole range.
+  const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
+  const _depthKeyRef = useRef(null)
+  const _fullTarget = fullBarsFor(resolvedTf)
+  const _overlayActive = !!(
+    compareSymbol || indexPaneSymbol ||
+    (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
+  )
+  const _depthKey = `${sym}_${resolvedTf}`
+  if (_depthKeyRef.current !== _depthKey) {
+    _depthKeyRef.current = _depthKey
+    if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+  }
+  const barCount = _overlayActive ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -1502,6 +1518,13 @@ export default function StockChart({
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
+  // Viewport-first backfill: once we've bumped to the full depth, drop `since`
+  // so the server returns the full (older) range. `since` only returns the
+  // newer tail, which would never load the deep history the user panned to see.
+  // The bar count grows FIRST_PAINT_BARS→full and the existing same-ticker
+  // re-anchor (the `else if … lastBarCountRef.current !== filteredBars.length`
+  // branch in the zoom effect) holds the view steady across the swap.
+  if (fetchDepth >= _fullTarget) _sinceParam = null
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
@@ -4737,6 +4760,43 @@ export default function StockChart({
       ctx?.clearRect(0, 0, canvas.width, canvas.height)
     }
   }, [cs.indicators?.volumeProfile, filteredBars])
+
+  // Viewport-first backfill (Phase 2): while at the shallow first-paint depth,
+  // bump to the full target when the user pans toward the oldest loaded bar.
+  // setFetchDepth changes the SWR key → a no-`since` full fetch lands the deeper
+  // superset, and the same-ticker re-anchor holds the view. Disabled for overlay
+  // modes (they already fetch full) and pinned charts (entryDate / exactDateRange
+  // / barsOverride). Mirrors the existing visible-range subscription pattern.
+  useEffect(() => {
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (fetchDepth >= _fullTarget) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    let raf = null
+    const onRange = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        let range = null
+        try { range = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+        if (!range) return
+        if (shouldBackfill({
+          fromIndex: range.from,
+          toIndex: range.to,
+          loadedCount: lastBarCountRef.current,
+          fullTarget: _fullTarget,
+        })) {
+          setFetchDepth(_fullTarget)
+        }
+      })
+    }
+    let unsub = null
+    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    return () => {
+      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      if (raf != null) cancelAnimationFrame(raf)
+    }
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
