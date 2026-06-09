@@ -276,7 +276,7 @@
 .correctionFlash {
   position: absolute;
   top: 8px;
-  right: 110px;
+  right: 150px;
   z-index: 100;
   background: rgba(217, 119, 6, 0.85);
   color: #fff;

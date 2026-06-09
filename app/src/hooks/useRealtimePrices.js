@@ -114,7 +114,7 @@ export default function useRealtimePrices(tickers = []) {
       // Don't clear streamPrices — show last known prices rather than blanking
       // the UI on a transient network hiccup or brief server restart.
       es.close()
-      esRef.current = null
+      if (esRef.current === es) esRef.current = null  // identity guard: don't clobber a newer es a watchdog reconnect may have opened
       if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null }
       const delay = retryDelayRef.current
       retryDelayRef.current = Math.min(delay * 2, STREAM_RECONNECT_CAP_MS)  // cap at 20s

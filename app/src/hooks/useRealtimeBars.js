@@ -6,7 +6,7 @@ import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
  *
  * Opens an EventSource for `/api/stream/bars?bars=<sym>:<tf>` and invokes
  * `onBar({sym, tf, bar})` for every incoming event. On connection drop, retries
- * with exponential backoff (5s → 10s → ... → 120s cap). On (re)connect, calls
+ * with exponential backoff (5s → 10s → 20s cap). On (re)connect, calls
  * `onReconnect(lastBarT)` so the consumer can fire a REST gap-backfill.
  *
  * Disabled entirely when VITE_REALTIME_BARS !== '1' — returns {connected:false}
