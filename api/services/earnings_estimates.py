@@ -308,6 +308,84 @@ def _year_earnings_from_av(ticker: str, year: int) -> list:
     return rows
 
 
+def _year_earnings_from_yf(ticker: str, year: int) -> list:
+    """Quarterly EPS + revenue (ACTUALS only — Yahoo gives no estimates for these,
+    so surprise % stays blank) from yfinance's quarterly income statement. Yahoo
+    covers international markets (Korea/Japan/etc.) that FMP/Finnhub/AV miss, so
+    this is the fallback for foreign Model Book stocks (e.g. 005930.KS, 285A.T).
+    Figures are in the listing's LOCAL currency. Period-end date → fiscal quarter
+    with the same labeling as the report-date paths (a quarter ENDING Mar 2025 =
+    Q1 2025). Best-effort; returns [] on any failure."""
+    try:
+        import math
+        import yfinance as yf
+    except Exception:
+        return []
+    try:
+        t = yf.Ticker(ticker)
+        qf = None
+        for attr in ("quarterly_income_stmt", "quarterly_financials"):
+            try:
+                df = getattr(t, attr)
+            except Exception:
+                df = None
+            if df is not None and getattr(df, "empty", True) is False:
+                qf = df
+                break
+        if qf is None:
+            return []
+
+        def _row(names):
+            for n in names:
+                if n in qf.index:
+                    return qf.loc[n]
+            return None
+
+        rev = _row(["Total Revenue", "TotalRevenue", "Operating Revenue", "OperatingRevenue"])
+        eps = _row(["Diluted EPS", "DilutedEPS", "Basic EPS", "BasicEPS"])
+
+        def _num(series, col):
+            if series is None:
+                return None
+            try:
+                v = series.get(col)
+                if v is None:
+                    return None
+                fv = float(v)
+                return None if math.isnan(fv) else fv
+            except Exception:
+                return None
+
+        rows = []
+        for col in qf.columns:
+            try:
+                end = col.to_pydatetime() if hasattr(col, "to_pydatetime") else col
+                ey, em = int(end.year), int(end.month)
+            except Exception:
+                continue
+            if ey != int(year):
+                continue
+            q = (em - 1) // 3 + 1
+            eps_a = _num(eps, col)
+            rev_a = _num(rev, col)
+            if eps_a is None and rev_a is None:
+                continue
+            rows.append({
+                "date": end.strftime("%Y-%m-%d"),
+                "quarter": q,
+                "year": ey,
+                "eps_actual": eps_a,
+                "eps_estimate": None,
+                "eps_surprise_pct": None,
+                "revenue_actual": rev_a,
+                "revenue_estimate": None,
+                "revenue_surprise_pct": None,
+            })
+        return rows
+    except Exception:
+        return []
+
+
 def get_year_earnings(ticker: str, year: int, data_symbol: str = None) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
@@ -355,6 +433,11 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None) -> list:
             _fill(_year_earnings_from_stock(prov, year))
         if closed and len(by_q) < 4:
             _fill(_year_earnings_from_av(prov, year))
+        # yfinance (Yahoo) covers international markets the US providers miss.
+        # Only for foreign-looking symbols (suffixed/numeric) to avoid adding a
+        # slow yfinance call to every US stock that merely has an FMP gap.
+        if len(by_q) < 4 and ("." in prov or any(ch.isdigit() for ch in prov)):
+            _fill(_year_earnings_from_yf(prov, year))
 
     # 1. The admin's explicit provider symbol (e.g. 005930.KS) wins; else the
     #    bare display ticker (the US-stock common case).
