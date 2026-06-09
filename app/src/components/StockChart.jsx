@@ -1613,7 +1613,6 @@ export default function StockChart({
   useEffect(() => {
     if (!sym) return
     const ORDER = ['D', 'W', 'M', '60', '30', '15', '5', '1']
-    const BC    = { D: 8000, W: 8000 }
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
 
@@ -1639,7 +1638,7 @@ export default function StockChart({
           const maxAge = (['D', 'W'].includes(tf) ? 86400 : 14400) * 1000
           if (!entryStaleIntraday && entry?.bars?.length
               && Date.now() - (entry.savedAt || 0) < maxAge) continue
-          const bc    = BC[tf] ?? 5000
+          const bc    = FIRST_PAINT_BARS  // viewport-first: warm the shallow window; backfill loads deep history on pan
           const since = entryStaleIntraday ? null : entry?.lastT
           const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
           const r = await fetch(url)
