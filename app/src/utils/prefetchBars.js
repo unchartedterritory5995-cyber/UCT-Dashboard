@@ -13,11 +13,19 @@ import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
+import { FIRST_PAINT_BARS } from './barsBackfill'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// Must match StockChart's barCount so SWR cache keys align (else prefetch is wasted).
-const BAR_COUNTS = { 1: 5000, 5: 5000, 15: 5000, 30: 5000, 60: 5000, D: 8000, W: 8000, M: 5000 }
+// Viewport-first: prefetch only the shallow first-paint window. Deep history is
+// fetched lazily by StockChart's backfill when the user actually pans into it,
+// so warming need not pull 5000-8000 bars per ticker/TF. Keeps the SWR cache key
+// (bars=FIRST_PAINT_BARS) aligned with the chart's cold fetch.
+const BAR_COUNTS = {
+  1: FIRST_PAINT_BARS, 5: FIRST_PAINT_BARS, 15: FIRST_PAINT_BARS,
+  30: FIRST_PAINT_BARS, 60: FIRST_PAINT_BARS,
+  D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS,
+}
 const ALL_TFS = ['D', 'W', 'M', '60', '30', '15', '5', '1']
 
 // ── Shared bounded/deferred prefetch queue ───────────────────────────────────
