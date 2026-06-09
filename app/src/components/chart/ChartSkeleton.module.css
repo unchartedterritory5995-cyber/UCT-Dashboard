@@ -1,0 +1,36 @@
+.skeleton {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-bg-elevated, #0e1117);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 200% 100%;
+  animation: chartSkeletonShimmer 1.4s ease-in-out infinite;
+}
+@keyframes chartSkeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+}
+.srOnly {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
