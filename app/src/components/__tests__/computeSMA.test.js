@@ -99,4 +99,34 @@ describe('computeSMA', () => {
     expect(computeSMA([], 50)).toEqual([])
     expect(computeSMA([], 1)).toEqual([])
   })
+
+  describe('fromStart mode (intraday popup — line begins at first bar)', () => {
+    test('emits a value for every bar, starting at bar 0', () => {
+      const bars = makeBars(30)
+      const result = computeSMA(bars, 9, true)
+      expect(result).toHaveLength(30)
+      expect(result[0].time).toBe(bars[0].t)
+      // First bar = average of just bar 0 (expanding window of size 1).
+      expect(result[0].value).toBe(+bars[0].c.toFixed(2))
+    })
+
+    test('leading bars use an expanding window; tail matches the full-window SMA', () => {
+      const bars = makeBars(40)
+      const period = 9
+      const fromStart = computeSMA(bars, period, true)
+      const normal = computeSMA(bars, period, false)
+      // Once warmed up (i >= period-1), the values must equal the standard SMA.
+      const warmed = fromStart.slice(period - 1)
+      expect(warmed).toEqual(normal)
+    })
+
+    test('returns data even when bars.length < period', () => {
+      const bars = makeBars(5)
+      const result = computeSMA(bars, 20, true)
+      expect(result).toHaveLength(5)
+      // bar 2 = average of bars[0..2]
+      const expected = +((bars[0].c + bars[1].c + bars[2].c) / 3).toFixed(2)
+      expect(result[2].value).toBe(expected)
+    })
+  })
 })

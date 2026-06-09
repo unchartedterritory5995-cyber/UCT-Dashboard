@@ -226,6 +226,7 @@ export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anc
               volumeSeparatePane
               volumePaneHeightPct={22}
               overlays={POPUP_OVERLAYS}
+              overlaysFromStart
               vwapOverride={VWAP_WHITE}
               disableHvc
               hidePriceLine

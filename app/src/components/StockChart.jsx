@@ -118,23 +118,42 @@ function formatDpNotional(v) {
 // jank from this becomes measurable, the fix is integer-cents arithmetic
 // (Math.round(price*100) → integer sum → divide at output) which is exact,
 // or moving the compute to a Web Worker.
-export function computeSMA(bars, period) {
-  if (bars.length < period) return []
+// `fromStart`: emit a value for EVERY bar from index 0 instead of waiting for
+// the first full `period` window. The leading bars use an expanding-window
+// average (SMA of bars[0..i]) so the line begins at the chart's first bar —
+// used by the intraday popup, where a single session is too short to "waste"
+// the first `period` bars on warmup.
+export function computeSMA(bars, period, fromStart = false) {
+  if (bars.length < period && !fromStart) return []
   const result = []
-  for (let i = period - 1; i < bars.length; i++) {
+  const start = fromStart ? 0 : period - 1
+  for (let i = start; i < bars.length; i++) {
     // Re-sum the full window at every bar to guarantee exact FP parity
     // with the naive reference — rolling subtract accumulates rounding
     // error that can flip .toFixed(2) results at cent boundaries.
+    const from = Math.max(0, i - period + 1)
     let sum = 0
-    for (let j = i - period + 1; j <= i; j++) sum += bars[j].c
-    result.push({ time: bars[i].t, value: +(sum / period).toFixed(2) })
+    for (let j = from; j <= i; j++) sum += bars[j].c
+    result.push({ time: bars[i].t, value: +(sum / (i - from + 1)).toFixed(2) })
   }
   return result
 }
 
-function computeEMA(bars, period) {
-  if (bars.length < period) return []
+// `fromStart`: seed the EMA from the first bar's close (rather than an SMA over
+// the first `period` bars) so the line begins at the chart's first bar.
+function computeEMA(bars, period, fromStart = false) {
+  if (bars.length < period && !fromStart) return []
+  if (!bars.length) return []
   const k = 2 / (period + 1)
+  if (fromStart) {
+    let ema = bars[0].c
+    const result = [{ time: bars[0].t, value: +ema.toFixed(2) }]
+    for (let i = 1; i < bars.length; i++) {
+      ema = bars[i].c * k + ema * (1 - k)
+      result.push({ time: bars[i].t, value: +ema.toFixed(2) })
+    }
+    return result
+  }
   let sum = 0
   for (let i = 0; i < period; i++) sum += bars[i].c
   let ema = sum / period
@@ -488,6 +507,7 @@ export default function StockChart({
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
+  overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
@@ -1975,10 +1995,12 @@ export default function StockChart({
   const overlayData = useMemo(() => {
     if (!filteredBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
-      const raw = ov.type === 'EMA' ? computeEMA(filteredBars, ov.period) : computeSMA(filteredBars, ov.period)
+      const raw = ov.type === 'EMA'
+        ? computeEMA(filteredBars, ov.period, overlaysFromStart)
+        : computeSMA(filteredBars, ov.period, overlaysFromStart)
       return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
     })
-  }, [filteredBars, resolvedOverlays, adjustTime])
+  }, [filteredBars, resolvedOverlays, adjustTime, overlaysFromStart])
 
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
