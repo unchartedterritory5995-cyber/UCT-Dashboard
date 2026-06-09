@@ -480,6 +480,10 @@ export default function StockChart({
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
+  disableHvc = false,         // force the 52W-volume-high gold bars OFF (intraday popup)
+  hidePriceLine = false,      // hide the dashed last-price line on price AND the volume value line/label (intraday popup)
+  hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
+  subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -1897,8 +1901,8 @@ export default function StockChart({
     [displayBars, adjustTime]
   )
   const hvcSet = useMemo(
-    () => cs.volume.hvcEnabled && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
-    [filteredBars, cs.volume.hvcEnabled]
+    () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
+    [filteredBars, cs.volume.hvcEnabled, disableHvc]
   )
   // Highest-Volume-Ever bar (across all loaded bars). Coloured gold, no label —
   // only highlighted when it falls within the visible year.
@@ -2549,7 +2553,7 @@ export default function StockChart({
         fontSize: 10,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
-        ...(boldCandles ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: true } } : {}),
+        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: true } } : {}),
       },
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -2597,7 +2601,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const wmLines = cs.watermark.visible
+      const wmLines = (cs.watermark.visible && !hideWatermark)
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       wmCtrlRef.current.setOptions({
@@ -2694,7 +2698,7 @@ export default function StockChart({
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
         const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
       prevChartTypeRef.current = cs.chartType
     }
@@ -2819,8 +2823,8 @@ export default function StockChart({
           priceFormat: { type: 'volume' },
           priceScaleId: volScaleId,
           // Model Book: no dashed last-volume price line / axis tag.
-          priceLineVisible: !boldCandles,
-          lastValueVisible: !boldCandles,
+          priceLineVisible: !boldCandles && !hidePriceLine,
+          lastValueVisible: !boldCandles && !hidePriceLine,
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volScaleId
@@ -3518,7 +3522,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -4789,7 +4793,7 @@ export default function StockChart({
           ↻ Bar corrected
         </div>
       )}
-      {cs.countdown && countdownTfSec && currentBarStart && (
+      {cs.countdown && !hideCountdown && countdownTfSec && currentBarStart && (
         <div className={styles.countdownPosition}>
           <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />
         </div>

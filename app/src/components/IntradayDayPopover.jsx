@@ -116,6 +116,12 @@ export default function IntradayDayPopover({ symbol, date, clientX, clientY, onC
               volumePaneHeightPct={22}
               overlays={POPUP_OVERLAYS}
               vwapOverride={VWAP_WHITE}
+              disableHvc
+              hidePriceLine
+              hideWatermark
+              subtleSeparator
+              priceScaleTopMargin={0.06}
+              priceScaleBottomMargin={0.04}
               hideLastValue
               hideReplay
               hidePatterns
