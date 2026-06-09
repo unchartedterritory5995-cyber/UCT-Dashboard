@@ -165,8 +165,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
   // Row-hover prefetch: by the time the click commits (~200ms of mouse-down
   // latency on average), the bars are already in flight or cached.
   const handleHoverSym = useCallback(sym => {
-    prefetchBarOnIntent(sym, 'D')
-  }, [])
+    prefetchBarOnIntent(sym, chartPeriod)
+  }, [chartPeriod])
 
   const chartRef = useRef(null)
 

@@ -1604,6 +1604,7 @@ export default function StockChart({
           if (cancelled || !d.bars?.length) continue
           const next = (d.delta && entry?.bars?.length) ? mergeDelta(entry.bars, d.bars) : d.bars
           idbPut(sym, tf, next)
+          memPut(sym, tf, next)   // warm the sync mem cache too → instant TF switch
         } catch {
           // Single-TF failures shouldn't kill the whole prefetch chain.
         }
