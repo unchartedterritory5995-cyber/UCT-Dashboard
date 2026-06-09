@@ -9,7 +9,7 @@ import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import StockChart from '../components/StockChart'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
-import { prefetchBars } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import CustomizePanel from './breadth/CustomizePanel'
@@ -565,6 +565,8 @@ function DrillModal({ drill, onClose }) {
                           ref={el => rowRefs.current[flatIdx] = el}
                           className={`${flatIdx % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat} ${isSelected ? styles.drillRowSelected : ''}`}
                           onClick={() => setSelectedIdx(flatIdx)}
+                          onPointerEnter={() => prefetchBarOnIntent(item.t, 'D')}
+                          onFocus={() => prefetchBarOnIntent(item.t, 'D')}
                         >
                           <td className={styles.drillTdNum}>{flatIdx + 1}</td>
                           <td className={styles.drillTdTicker}>

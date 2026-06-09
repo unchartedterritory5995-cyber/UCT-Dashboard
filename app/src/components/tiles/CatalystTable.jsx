@@ -7,6 +7,7 @@ import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import { useAuth } from '../../context/AuthContext'
 import styles from './CatalystTable.module.css'
+import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -446,7 +447,12 @@ export default function CatalystTable() {
                 const displayPrice = (live && live.price != null) ? live.price : r.price
                 const displayChange = (live && live.change_pct != null) ? live.change_pct : r.gap_pct
                 return (
-                  <tr key={r.ticker} className={onMyList ? styles.rowMine : ''}>
+                  <tr
+                    key={r.ticker}
+                    className={onMyList ? styles.rowMine : ''}
+                    onPointerEnter={() => prefetchBarOnIntent(r.ticker, 'D')}
+                    onFocus={() => prefetchBarOnIntent(r.ticker, 'D')}
+                  >
                     <td className={styles.colSym}>
                       <TickerPopup sym={r.ticker}>
                         <span className={styles.ticker}>

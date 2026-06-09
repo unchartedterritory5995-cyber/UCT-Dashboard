@@ -9,6 +9,7 @@ import TickerPopup from './TickerPopup'
 import ErrorState from './ErrorState'
 import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
+import { prefetchBarOnIntent } from '../utils/prefetchBars'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
 
@@ -66,7 +67,11 @@ function MoverSection({ label, items, positive, tweetCounts }) {
           const isExpanded = expandedSym === item.sym
           return (
             <div key={item.sym} className={styles.rowGroup}>
-              <div className={styles.row}>
+              <div
+                className={styles.row}
+                onPointerEnter={() => prefetchBarOnIntent(item.sym, 'D')}
+                onFocus={() => prefetchBarOnIntent(item.sym, 'D')}
+              >
                 <TickerPopup sym={item.sym}>
                   <span className={styles.sym}>{item.sym}</span>
                 </TickerPopup>

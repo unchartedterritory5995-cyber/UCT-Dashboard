@@ -4,7 +4,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
 import { SkeletonTable } from '../components/Skeleton'
-import { prefetchBars } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -298,7 +298,11 @@ function CandidateRow({ row, prices, isGapper }) {
   ].filter(Boolean).join(' ')
 
   return (
-    <li className={rowCls}>
+    <li
+      className={rowCls}
+      onPointerEnter={() => prefetchBarOnIntent(row.ticker, 'D')}
+      onFocus={() => prefetchBarOnIntent(row.ticker, 'D')}
+    >
       {/* ── Row 1: badge · ticker · score · also · price ── */}
       <div className={styles.candidateTop}>
         <span className={`${styles.alertBadge} ${styles[alert.cls]}`}>{alert.label}</span>

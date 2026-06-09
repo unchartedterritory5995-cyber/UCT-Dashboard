@@ -8,7 +8,7 @@ import SymbolSearch from '../components/chart/SymbolSearch'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import { useChartsSym } from './charts/ChartsSymContext'
 
@@ -87,6 +87,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
             onClick={() => onSelectSym(h.sym, h.name)}
             onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
+            onFocus={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             {...(tickerActions ? tickerActions.longPressProps(h.sym) : {})}
           >
             {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
@@ -164,8 +165,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
   // Row-hover prefetch: by the time the click commits (~200ms of mouse-down
   // latency on average), the bars are already in flight or cached.
   const handleHoverSym = useCallback(sym => {
-    prefetchBar(sym, chartPeriod)
-  }, [chartPeriod])
+    prefetchBarOnIntent(sym, 'D')
+  }, [])
 
   const chartRef = useRef(null)
 
