@@ -410,22 +410,36 @@ def year_earnings(symbol: str = Query(...), year: int = Query(...),
 
 @router.get("/intraday-day")
 def intraday_day(symbol: str = Query(...), date: str = Query(...),
+                 stock_id: int = Query(None),
                  _user: dict = Depends(get_current_user)):
     """5-minute intraday bars for a single REGULAR-HOURS session (09:30–16:00 ET)
     on `date` (YYYY-MM-DD). Powers the setup/catalyst-candle intraday popup.
 
-    Cached (a closed session is static). Returns
-    ``{symbol, date, bars:[{t,o,h,l,c,v}]}`` — bars are unix-second timestamps to
-    match the chart's intraday format. `bars` is EMPTY when the provider has no
-    intraday history for that date (e.g. old-year setups), which the frontend
-    renders as 'intraday data unavailable'."""
-    import re
+    Admin-uploaded bars for (stock_id, date) WIN — that's how a foreign market or
+    a >2yr-old session (no provider intraday) gets data. Otherwise fetched from
+    the provider + cached (a closed session is static). Returns
+    ``{symbol, date, bars:[{t,o,h,l,c,v}], source}`` — bars are unix-second
+    timestamps to match the chart's intraday format. `bars` is EMPTY when nothing
+    is available, which the frontend renders as 'intraday data unavailable'."""
+    import re, json
     from datetime import datetime, timedelta, timezone
     from api.services.cache import cache
 
     sym = (symbol or "").upper().strip()
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date or ""):
         raise HTTPException(400, "date must be YYYY-MM-DD")
+
+    # 1. Admin-uploaded intraday bars for this (stock, date) win — provider can't
+    #    cover foreign markets / sessions older than the ~2yr intraday window.
+    if stock_id is not None:
+        try:
+            raw_up = svc.get_intraday_bars(stock_id, date)
+            if raw_up:
+                ub = json.loads(raw_up)
+                if ub:
+                    return {"symbol": sym, "date": date, "bars": ub, "source": "uploaded"}
+        except Exception:
+            pass
 
     ckey = f"modelbook_intraday_{sym}_{date}"
     cached = cache.get(ckey)
@@ -1335,6 +1349,63 @@ def remove_stock_bars(stock_id: int, _admin: dict = Depends(require_admin)):
     svc.delete_stock_bars(stock_id)
     _invalidate_year_derived(stock_id)  # fall back to provider data for stats/catalysts
     return {"stock_id": stock_id, "cleared": True}
+
+
+class IntradayBarsIn(BaseModel):
+    date: str            # session date 'YYYY-MM-DD' these 5-min bars belong to
+    bars: list[dict]     # [{t: unix_seconds, o, h, l, c, v}, ...]
+
+
+def _clean_intraday(raw: list[dict]) -> list[dict]:
+    """Validate + normalize uploaded 5-min bars → sorted, deduped by unix-second
+    timestamp. Raises HTTPException(400) on bad input."""
+    if not isinstance(raw, list) or not raw:
+        raise HTTPException(400, "bars must be a non-empty array")
+    if len(raw) > 5000:
+        raise HTTPException(400, "too many bars (max 5000)")
+    by_t: dict[int, dict] = {}
+    for b in raw:
+        try:
+            t = int(float(b["t"]))
+            o, h, l, cl = float(b["o"]), float(b["h"]), float(b["l"]), float(b["c"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(400, "each bar needs t (unix seconds) and numeric o/h/l/c")
+        if t > 10_000_000_000:   # caller sent milliseconds → seconds
+            t //= 1000
+        if t <= 0 or not all(x > 0 for x in (o, h, l, cl)):
+            continue
+        try:
+            v = int(float(b.get("v", 0) or 0))
+        except (TypeError, ValueError):
+            v = 0
+        by_t[t] = {"t": t, "o": round(o, 4), "h": round(h, 4),
+                   "l": round(l, 4), "c": round(cl, 4), "v": max(0, v)}
+    out = [by_t[k] for k in sorted(by_t)]
+    if not out:
+        raise HTTPException(400, "no valid bars after cleaning")
+    return out
+
+
+@router.put("/stock/{stock_id}/intraday-day")
+def upload_intraday_day(stock_id: int, payload: IntradayBarsIn,
+                        _admin: dict = Depends(require_admin)):
+    """Admin: upload 5-min OHLCV for one session (parsed from a TradingView CSV
+    client-side) so the setup-candle intraday popup has data the providers can't
+    supply (foreign markets / sessions older than the ~2yr intraday window)."""
+    import json
+    if not _ISO_DATE.match(payload.date or ""):
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+    clean = _clean_intraday(payload.bars)
+    if not svc.set_intraday_bars(stock_id, payload.date, json.dumps(clean)):
+        raise HTTPException(404, "Stock not found")
+    return {"stock_id": stock_id, "date": payload.date, "count": len(clean)}
+
+
+@router.delete("/stock/{stock_id}/intraday-day")
+def remove_intraday_day(stock_id: int, date: str = Query(...),
+                        _admin: dict = Depends(require_admin)):
+    svc.delete_intraday_bars(stock_id, date)
+    return {"stock_id": stock_id, "date": date, "cleared": True}
 
 
 @router.delete("/stock/{stock_id}")

@@ -1491,6 +1491,8 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         <IntradayDayPopover
           symbol={stock.symbol}
           date={intraday.date}
+          stockId={stock.id}
+          isAdmin={isAdmin}
           anchorRef={infoOpen ? infoSideRef : null}
           bottomBoundaryRef={infoOpen ? setupsSectionRef : null}
           clientX={intraday.clientX}

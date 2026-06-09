@@ -92,6 +92,15 @@ CREATE TABLE IF NOT EXISTS modelbook_stock_bars (
   updated_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS modelbook_intraday_bars (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  stock_id   INTEGER NOT NULL REFERENCES modelbook_stocks(id) ON DELETE CASCADE,
+  date       TEXT NOT NULL,            -- the session date 'YYYY-MM-DD' these 5-min bars belong to
+  bars_json  TEXT,                     -- uploaded 5-min OHLCV (JSON array [{t:unix_sec,o,h,l,c,v}]) — for the setup-candle intraday popup when no provider carries that date (e.g. foreign markets / >2yr-old sessions)
+  updated_at INTEGER,
+  UNIQUE(stock_id, date)
+);
+
 CREATE TABLE IF NOT EXISTS modelbook_year_recaps (
   year         INTEGER PRIMARY KEY, -- calendar year (1990..) — one AI market recap shown on year-tab hover
   headline     TEXT,                -- short characterization of the year (3-7 words)
@@ -691,6 +700,46 @@ def delete_stock_bars(stock_id: int) -> bool:
     """Remove uploaded bars for a stock. Returns True if a row was deleted."""
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute("DELETE FROM modelbook_stock_bars WHERE stock_id = ?", (int(stock_id),))
+        c.commit()
+        return cur.rowcount > 0
+
+
+# ── Uploaded 5-min intraday bars (per stock + session date) ──────────────────
+
+def get_intraday_bars(stock_id: int, date: str) -> Optional[str]:
+    """Uploaded 5-min OHLCV (JSON array string) for (stock, session date), or None."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT bars_json FROM modelbook_intraday_bars WHERE stock_id = ? AND date = ?",
+            (int(stock_id), str(date)),
+        ).fetchone()
+    return row["bars_json"] if row and row["bars_json"] else None
+
+
+def set_intraday_bars(stock_id: int, date: str, bars_json: str) -> bool:
+    """Upsert uploaded 5-min bars for (stock, session date). False if stock missing."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if not _stock_exists(c, stock_id):
+            return False
+        c.execute(
+            """INSERT INTO modelbook_intraday_bars (stock_id, date, bars_json, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(stock_id, date) DO UPDATE SET
+                 bars_json  = excluded.bars_json,
+                 updated_at = excluded.updated_at""",
+            (int(stock_id), str(date), bars_json, int(time.time())),
+        )
+        c.commit()
+    return True
+
+
+def delete_intraday_bars(stock_id: int, date: str) -> bool:
+    """Remove uploaded 5-min bars for (stock, session date)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "DELETE FROM modelbook_intraday_bars WHERE stock_id = ? AND date = ?",
+            (int(stock_id), str(date)),
+        )
         c.commit()
         return cur.rowcount > 0
 

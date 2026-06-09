@@ -27,12 +27,75 @@ function fmtDate(d) {
   } catch { return d }
 }
 
-export default function IntradayDayPopover({ symbol, date, anchorRef, bottomBoundaryRef, clientX, clientY, onClose }) {
-  const { data } = useSWR(
-    symbol && date ? `/api/modelbook/intraday-day?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(date)}` : null,
+// One CSV cell → unix seconds. Accepts a unix timestamp (sec or ms) or any
+// ISO/parseable datetime (TradingView "Export chart data" gives one of these).
+function toUnixSec(s) {
+  if (s == null || s === '') return null
+  const str = String(s).trim()
+  if (/^\d+$/.test(str)) {
+    let n = parseInt(str, 10)
+    if (n > 1e12) n = Math.floor(n / 1000)   // ms → s
+    return n > 0 ? n : null
+  }
+  const ms = Date.parse(str)
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null
+}
+
+// Parse a TradingView 5-min CSV → [{t:unix_sec,o,h,l,c,v}] (keeps intraday time).
+function parseIntradayCsv(text) {
+  const lines = String(text || '').split(/\r?\n/).filter(l => l.trim())
+  if (!lines.length) return []
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''))
+  const find = (...names) => header.findIndex(h => names.includes(h))
+  const oi = find('open'), hi = find('high'), li = find('low'), ci = find('close', 'close/last', 'price')
+  const vi = find('volume', 'vol')
+  let ti = find('time', 'date', 'datetime', 'timestamp'); if (ti < 0) ti = 0
+  const hasHeader = oi >= 0 && ci >= 0
+  const out = []
+  for (let r = hasHeader ? 1 : 0; r < lines.length; r++) {
+    const cols = lines[r].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    const t = toUnixSec(cols[ti]); if (t == null) continue
+    const num = i => { const v = parseFloat(cols[i]); return Number.isFinite(v) ? v : null }
+    const o = num(oi), h = num(hi), l = num(li), c = num(ci)
+    if (o == null || h == null || l == null || c == null) continue
+    const v = vi >= 0 ? (parseFloat(cols[vi]) || 0) : 0
+    out.push({ t, o, h, l, c, v })
+  }
+  return out
+}
+
+export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anchorRef, bottomBoundaryRef, clientX, clientY, onClose }) {
+  const { data, mutate } = useSWR(
+    symbol && date
+      ? `/api/modelbook/intraday-day?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(date)}${stockId ? `&stock_id=${stockId}` : ''}`
+      : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   )
+  const [uploadMsg, setUploadMsg] = useState(null)
+  const fileRef = useRef(null)
+
+  async function onIntradayFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !stockId) return
+    setUploadMsg('Parsing…')
+    try {
+      const bars = parseIntradayCsv(await file.text())
+      if (!bars.length) { setUploadMsg('No valid rows — expected time,open,high,low,close,Volume.'); return }
+      setUploadMsg(`Uploading ${bars.length} bars…`)
+      const r = await fetch(`/api/modelbook/stock/${stockId}/intraday-day`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, bars }),
+      })
+      if (!r.ok) { setUploadMsg(`Upload failed: ${(await r.text()).slice(0, 120)}`); return }
+      setUploadMsg(null)
+      await mutate()   // re-fetch → uploaded bars now win → chart renders
+    } catch (err) {
+      setUploadMsg('Error: ' + (err?.message || 'failed to read file'))
+    }
+  }
   // SWR: data is `undefined` until the first response; the fetcher resolves to
   // `null` on an HTTP error. Distinguish the two so an error doesn't hang on the
   // spinner forever.
@@ -130,7 +193,25 @@ export default function IntradayDayPopover({ symbol, date, anchorRef, bottomBoun
             <div style={centerNote}>Loading intraday…</div>
           )}
           {unavailable && (
-            <div style={centerNote}>No intraday data available for this date.</div>
+            <div style={centerNote}>
+              <div>No intraday data available for this date.</div>
+              {isAdmin && stockId && (
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    style={{
+                      cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6,
+                      border: '1px solid var(--ut-gold, #c9a84c)', background: 'rgba(201,168,76,0.12)',
+                      color: 'var(--ut-gold, #c9a84c)',
+                    }}
+                  >📈 Upload 5-min CSV</button>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted, #8b8778)' }}>
+                    {uploadMsg || 'TradingView export: time, open, high, low, close, Volume'}
+                  </span>
+                  <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onIntradayFile} />
+                </div>
+              )}
+            </div>
           )}
           {bars && bars.length > 0 && (
             <StockChart
@@ -169,6 +250,7 @@ export default function IntradayDayPopover({ symbol, date, anchorRef, bottomBoun
 }
 
 const centerNote = {
-  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center',
   color: 'var(--text-muted, #8b8778)', fontSize: 13, textAlign: 'center', padding: 16,
 }
