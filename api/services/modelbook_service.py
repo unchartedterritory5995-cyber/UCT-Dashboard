@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS modelbook_year_recaps (
 
 # Fields a client may set on a stock / setup (id, created_at, updated_at managed here).
 _STOCK_FIELDS = ("year", "symbol", "company", "sector", "industry", "sort_order",
-                 "thesis", "gain_pct", "company_desc", "run_story", "drawings_json")
+                 "thesis", "gain_pct", "company_desc", "run_story", "drawings_json",
+                 "data_symbol")
 _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "entry_price", "stop_price", "target_price", "grade", "notes",
                  "marker_side", "marker_shape", "drawings_json")
@@ -142,6 +143,7 @@ def _init_db() -> None:
             ("modelbook_stocks", "drawings_json", "TEXT"),      # stock-level chart annotations (full-year view, not tied to a setup)
             ("modelbook_stocks", "sector", "TEXT"),             # curated watermark sector (renamed/delisted tickers)
             ("modelbook_stocks", "industry", "TEXT"),           # curated watermark industry
+            ("modelbook_stocks", "data_symbol", "TEXT"),        # exchange-suffixed provider symbol for non-US tickers (e.g. 005930.KS) — drives logo + earnings lookups
             ("modelbook_setups", "frame_start_date", "TEXT"),
             ("modelbook_setups", "drawings_json", "TEXT"),
         ):
@@ -377,22 +379,24 @@ def create_stock(payload: dict) -> dict:
     # Normalize blanks to NULL so the ON CONFLICT COALESCE keeps any AI-filled value.
     data["sector"] = (data.get("sector") or "").strip() or None
     data["industry"] = (data.get("industry") or "").strip() or None
+    data["data_symbol"] = (data.get("data_symbol") or "").strip() or None
     data["sort_order"] = data.get("sort_order") or 0
     data["created_at"] = now
     data["updated_at"] = now
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             """INSERT INTO modelbook_stocks
-               (year, symbol, company, sector, industry, sort_order, thesis, gain_pct,
+               (year, symbol, company, sector, industry, data_symbol, sort_order, thesis, gain_pct,
                 created_at, updated_at)
-               VALUES (:year, :symbol, :company, :sector, :industry, :sort_order,
+               VALUES (:year, :symbol, :company, :sector, :industry, :data_symbol, :sort_order,
                        :thesis, :gain_pct, :created_at, :updated_at)
                ON CONFLICT(year, symbol) DO UPDATE SET
                  company    = excluded.company,
-                 -- only overwrite curated sector/industry when the re-add supplies
-                 -- one (an Add with the field left blank keeps the AI-filled value)
-                 sector     = COALESCE(excluded.sector, modelbook_stocks.sector),
-                 industry   = COALESCE(excluded.industry, modelbook_stocks.industry),
+                 -- only overwrite curated sector/industry/data_symbol when the re-add
+                 -- supplies one (an Add with the field left blank keeps the prior value)
+                 sector      = COALESCE(excluded.sector, modelbook_stocks.sector),
+                 industry    = COALESCE(excluded.industry, modelbook_stocks.industry),
+                 data_symbol = COALESCE(excluded.data_symbol, modelbook_stocks.data_symbol),
                  sort_order = excluded.sort_order,
                  thesis     = excluded.thesis,
                  gain_pct   = excluded.gain_pct,

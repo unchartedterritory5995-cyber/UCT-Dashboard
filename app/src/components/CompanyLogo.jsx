@@ -9,7 +9,7 @@ function bgFor(sym) {
   return `hsl(${h} 32% 26%)`
 }
 
-export default function CompanyLogo({ sym, size = 38, round = false }) {
+export default function CompanyLogo({ sym, size = 38, round = false, name = null, alt = null }) {
   const [failed, setFailed] = useState(false)
   const s = (sym || '').toUpperCase()
   const px = `${size}px`
@@ -28,9 +28,15 @@ export default function CompanyLogo({ sym, size = 38, round = false }) {
   const handleLoad = (e) => {
     if (e.currentTarget.naturalWidth <= 2) setFailed(true)
   }
+  // Optional resolution hints for non-US tickers (company name + exchange-suffixed
+  // symbol) so the backend can fall back to name→domain / alt-symbol logo sources.
+  const q = []
+  if (name) q.push(`name=${encodeURIComponent(name)}`)
+  if (alt) q.push(`alt=${encodeURIComponent(alt)}`)
+  const src = `/api/ticker-logo/${s}${q.length ? `?${q.join('&')}` : ''}`
   return (
     <span className={`${styles.wrap}${rc}`} style={{ width: px, height: px }}>
-      <img className={styles.img} src={`/api/ticker-logo/${s}`} alt={`${s} logo`}
+      <img className={styles.img} src={src} alt={`${s} logo`}
            loading="lazy" onError={() => setFailed(true)} onLoad={handleLoad} />
     </span>
   )

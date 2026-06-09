@@ -19,11 +19,14 @@ _HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
 
 
 @router.get("/api/ticker-logo/{sym}")
-def ticker_logo(sym: str):
+def ticker_logo(sym: str, name: str = None, alt: str = None):
+    """`name` (company name) + `alt` (exchange-suffixed provider symbol, e.g.
+    005930.KS) are optional resolution hints for non-US tickers that have no logo
+    under their bare symbol — passed by the Model Book for foreign stocks."""
     path = tl.get_logo_path(sym)
     if path:
         return FileResponse(path, media_type="image/png", headers=_HEADERS)
-    tl.schedule_resolve(sym)
+    tl.schedule_resolve(sym, name=name, alt=alt)
     # Short cache (60s) so a just-warmed logo is picked up on the next render/visit.
     return Response(content=tl.TRANSPARENT_PNG, media_type="image/png",
                     headers={"Cache-Control": "public, max-age=60"})

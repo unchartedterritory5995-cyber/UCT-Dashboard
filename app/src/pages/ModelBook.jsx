@@ -326,7 +326,7 @@ function EarningsTable({ rows, loading }) {
 function AddStockForm({ year, onAdded }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const empty = { year, symbol: '', company: '', sector: '', industry: '', sort_order: '', gain_pct: '', thesis: '' }
+  const empty = { year, symbol: '', company: '', sector: '', industry: '', data_symbol: '', sort_order: '', gain_pct: '', thesis: '' }
   const [form, setForm] = useState(empty)
 
   useEffect(() => { setForm(f => ({ ...f, year })) }, [year])
@@ -341,6 +341,7 @@ function AddStockForm({ year, onAdded }) {
         company: form.company || null,
         sector: form.sector || null,
         industry: form.industry || null,
+        data_symbol: form.data_symbol?.trim() || null,
         sort_order: form.sort_order === '' ? 0 : parseInt(form.sort_order, 10),
         gain_pct: form.gain_pct === '' ? null : parseFloat(form.gain_pct),
         thesis: form.thesis || null,
@@ -383,6 +384,8 @@ function AddStockForm({ year, onAdded }) {
           onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} />
         <input className={styles.input} placeholder="Industry (optional — AI-filled)" value={form.industry}
           onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} />
+        <input className={styles.input} placeholder="Data symbol (non-US, e.g. 005930.KS)" value={form.data_symbol}
+          onChange={e => setForm(f => ({ ...f, data_symbol: e.target.value }))} />
       </div>
       <textarea className={styles.textarea} placeholder="Why it's a model stock (thesis)" value={form.thesis}
         onChange={e => setForm(f => ({ ...f, thesis: e.target.value }))} />
@@ -941,7 +944,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   // permanent overlay on the chart, not a tab). Finnhub-backed + cached server-side.
   const { data: earningsData } = useSWR(
     stock?.symbol
-      ? `/api/modelbook/year-earnings?symbol=${encodeURIComponent(stock.symbol)}&year=${stock.year}`
+      ? `/api/modelbook/year-earnings?symbol=${encodeURIComponent(stock.symbol)}&year=${stock.year}${stock.data_symbol ? `&data_symbol=${encodeURIComponent(stock.data_symbol)}` : ''}`
       : null,
     fetcher, { revalidateOnFocus: false },
   )
@@ -1149,7 +1152,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       <div className={styles.dvTop}>
       <div className={styles.detailHeader}>
         <div className={styles.detailTitleRow}>
-          <CompanyLogo sym={stock.symbol} size={30} round />
+          <CompanyLogo sym={stock.symbol} size={30} round name={stock.company} alt={stock.data_symbol} />
           <h2 className={styles.detailName}>
             {stock.symbol}
             {stock.company && <span className={styles.detailNameCo}>({stock.company})</span>}
@@ -2034,7 +2037,7 @@ export default function ModelBook() {
                 onContextMenu={(e) => onStockContext(e, s)}
               >
                 <div className={styles.stockCardTop}>
-                  <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} round /></span>
+                  <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} round name={s.company} alt={s.data_symbol} /></span>
                   <span className={styles.stockSym}>{s.symbol}</span>
                   <div className={styles.cardStats}>
                     {st?.open_close_pct != null

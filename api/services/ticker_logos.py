@@ -159,6 +159,50 @@ def _clearbit_logo_bytes(sym: str):
         return None
 
 
+def _logodev_domain_bytes(domain: str):
+    """logo.dev logo by DOMAIN (e.g. samsung.com) — for foreign names that have
+    no US-ticker logo. Same publishable token; fallback=404 → None on a miss."""
+    if not _LOGODEV_TOKEN or not domain:
+        return None
+    url = (
+        f"https://img.logo.dev/{domain}"
+        f"?token={_LOGODEV_TOKEN}&format=png&size=128&retina=true&fallback=404"
+    )
+    return _url_bytes(url)
+
+
+def _name_to_domain(name: str):
+    """Resolve a company NAME → primary domain via Clearbit's free autocomplete
+    (e.g. "Samsung Electronics" → "samsung.com"). Best-effort; returns None on
+    any failure. Used so non-US tickers (005930, 000660) still get a real logo."""
+    n = (name or "").strip()
+    if len(n) < 2:
+        return None
+    try:
+        r = requests.get(
+            "https://autocomplete.clearbit.com/v1/companies/suggest",
+            params={"query": n}, headers=_HEADERS, timeout=_TIMEOUT,
+        )
+        if not r.ok:
+            return None
+        arr = r.json() or []
+        for item in arr:
+            dom = (item.get("domain") or "").strip()
+            if dom and "." in dom:
+                return dom
+    except Exception:
+        return None
+    return None
+
+
+def _name_logo_bytes(name: str):
+    """Name → domain → logo (logo.dev domain, then Clearbit domain)."""
+    domain = _name_to_domain(name)
+    if not domain:
+        return None
+    return _logodev_domain_bytes(domain) or _url_bytes(f"https://logo.clearbit.com/{domain}")
+
+
 def _fetch_sources(sym: str):
     """Try each source in priority order; return raw image bytes or None.
 
@@ -209,18 +253,28 @@ def _normalize_png(raw: bytes):
         return None
 
 
-def resolve_and_cache(sym: str):
-    """Resolve+cache the logo. Returns the PNG path on success, else None."""
+def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool = False):
+    """Resolve+cache the logo. Returns the PNG path on success, else None.
+
+    `alt` is an alternate/exchange-suffixed provider symbol (e.g. 005930.KS) and
+    `name` the company name — both used as extra fallbacks so non-US tickers,
+    which have no logo under their bare numeric symbol, still resolve (alt-symbol
+    sources → company-name→domain). `force` ignores a prior miss marker so a
+    later request carrying name/alt re-attempts. Always cached under bare `sym`."""
     s = _safe(sym)
     if not s:
         return None
     existing = get_logo_path(s)
     if existing:
         return existing
-    if _recent_miss(s):
+    if _recent_miss(s) and not force:
         return None
 
     raw = _fetch_sources(s)
+    if not raw and alt and _safe(alt) != s:
+        raw = _fetch_sources(_safe(alt))   # try the exchange-suffixed symbol
+    if not raw and name:
+        raw = _name_logo_bytes(name)       # company name → domain → logo
     png = _normalize_png(raw) if raw else None
 
     os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -258,10 +312,11 @@ TRANSPARENT_PNG = bytes.fromhex(
 )
 
 
-def schedule_resolve(sym: str) -> None:
+def schedule_resolve(sym: str, name: str = None, alt: str = None) -> None:
     s = _safe(sym)
     if not s:
         return
+    force = bool(name or alt)   # a name/alt-carrying request re-attempts past a bare miss
     with _INFLIGHT_LOCK:
         if s in _INFLIGHT or len(_INFLIGHT) >= 8:
             return
@@ -269,7 +324,7 @@ def schedule_resolve(sym: str) -> None:
 
     def _job():
         try:
-            resolve_and_cache(s)
+            resolve_and_cache(s, name=name, alt=alt, force=force)
         finally:
             with _INFLIGHT_LOCK:
                 _INFLIGHT.discard(s)

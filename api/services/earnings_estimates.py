@@ -308,7 +308,7 @@ def _year_earnings_from_av(ticker: str, year: int) -> list:
     return rows
 
 
-def get_year_earnings(ticker: str, year: int) -> list:
+def get_year_earnings(ticker: str, year: int, data_symbol: str = None) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
 
@@ -343,14 +343,30 @@ def get_year_earnings(ticker: str, year: int) -> list:
                 r["quarter"] = q
                 by_q[q] = r
 
-    _fill(_year_earnings_from_fmp(ticker, year))
-    if len(by_q) < 4:
-        _fill(_year_earnings_from_stock(ticker, year))
-    # AV deep-history fill is gated to CLOSED years: for the in-progress year,
-    # missing quarters are simply not reported yet, so spending AV's scarce 25/day
-    # quota (shared with the news feed) on it would be wasteful and pointless.
-    if closed and len(by_q) < 4:
-        _fill(_year_earnings_from_av(ticker, year))
+    # Gather all sources for one provider symbol. AV deep-history fill is gated to
+    # CLOSED years: for the in-progress year, missing quarters simply aren't
+    # reported yet, so spending AV's scarce 25/day quota on it is wasteful.
+    def _gather(prov):
+        prov = (prov or "").upper().strip()
+        if not prov:
+            return
+        _fill(_year_earnings_from_fmp(prov, year))
+        if len(by_q) < 4:
+            _fill(_year_earnings_from_stock(prov, year))
+        if closed and len(by_q) < 4:
+            _fill(_year_earnings_from_av(prov, year))
+
+    # 1. The admin's explicit provider symbol (e.g. 005930.KS) wins; else the
+    #    bare display ticker (the US-stock common case).
+    _gather(data_symbol or ticker)
+    # 2. Auto-suffix fallback for a non-US ticker with no explicit data_symbol:
+    #    a numeric/digit-bearing symbol (005930, 000660, 285A) has no data under
+    #    its bare form, so try the common exchange suffixes until one resolves.
+    if not by_q and not data_symbol and any(ch.isdigit() for ch in ticker):
+        for suf in (".KS", ".KQ", ".T", ".TW", ".HK", ".L", ".SS", ".SZ"):
+            _gather(ticker + suf)
+            if by_q:
+                break
 
     if not by_q:
         return []  # no earnings at all for this stock/year — no table; don't cache

@@ -46,6 +46,7 @@ class StockIn(BaseModel):
     company: Optional[str] = None
     sector: Optional[str] = None      # curated watermark sector (renamed/delisted tickers); AI-filled if blank
     industry: Optional[str] = None    # curated watermark industry
+    data_symbol: Optional[str] = None # exchange-suffixed provider symbol for non-US tickers (e.g. 005930.KS) → logo + earnings
     sort_order: Optional[int] = 0
     thesis: Optional[str] = None
     gain_pct: Optional[float] = None
@@ -57,6 +58,7 @@ class StockPatch(BaseModel):
     company: Optional[str] = None
     sector: Optional[str] = None
     industry: Optional[str] = None
+    data_symbol: Optional[str] = None
     sort_order: Optional[int] = None
     thesis: Optional[str] = None
     gain_pct: Optional[float] = None
@@ -395,12 +397,14 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
 
 @router.get("/year-earnings")
 def year_earnings(symbol: str = Query(...), year: int = Query(...),
+                  data_symbol: str = Query(None),
                   _user: dict = Depends(get_current_user)):
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the
     reports that landed during `year`. Lazy — fetched only when the Earnings tab
-    is opened. Finnhub-backed + cached (closed years are static)."""
+    is opened. Finnhub-backed + cached (closed years are static). `data_symbol`
+    is the exchange-suffixed provider symbol for non-US tickers (e.g. 005930.KS)."""
     from api.services import earnings_estimates
-    rows = earnings_estimates.get_year_earnings(symbol, year)
+    rows = earnings_estimates.get_year_earnings(symbol, year, data_symbol=data_symbol)
     return {"symbol": symbol.upper(), "year": year, "rows": rows}
 
 
