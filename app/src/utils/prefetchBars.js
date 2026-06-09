@@ -12,6 +12,7 @@
 import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut } from './barsIDB'
+import { memHas, memPut } from './barsMemCache'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -128,7 +129,10 @@ async function _idbWarmOne({ sym, tf }) {
     const json = await preload(_url(sym, tf), fetcher)  // dedupes with prefetchBars
     // Prefetch URLs carry no `since`, so the response is always a full (non-delta)
     // set — exactly what StockChart's own D/W/M full-fetch path writes to IDB.
-    if (json?.bars?.length && !json.delta) await idbPut(sym, tf, json.bars)
+    if (json?.bars?.length && !json.delta) {
+      await idbPut(sym, tf, json.bars)
+      memPut(sym, tf, json.bars)   // also warm the synchronous mem cache
+    }
   } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
 }
 
@@ -152,4 +156,35 @@ export function prefetchBarsToIDB(tickers, tf = 'D') {
     prefetchTickerMeta(sym)
   }
   _idbKickSoon()
+}
+
+// ── Intent prefetch (hover / keyboard focus) ─────────────────────────────────
+// Warms mem + IDB + SWR for ONE timeframe on hover/focus so the eventual click
+// paints instantly. Debounced (so brushing across a list doesn't fire), and a
+// no-op when the (sym, tf) is already in the synchronous mem cache. Current-TF
+// only — selection still calls prefetchAllTimeframes for the rest.
+const _intentTimers = new Map()
+
+async function _warmIntentNow(sym, tf) {
+  if (memHas(sym, tf)) return
+  try {
+    const json = await preload(_url(sym, tf), fetcher) // dedupes + warms SWR cache
+    if (json?.bars?.length && !json.delta) {
+      memPut(sym, tf, json.bars)
+      await idbPut(sym, tf, json.bars)                 // durable too
+    }
+  } catch { /* best-effort; the chart's own fetch remains source of truth */ }
+}
+
+export function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
+  if (!sym || !tf) return
+  if (memHas(sym, tf)) return
+  const key = `${String(sym).toUpperCase()}_${tf}`
+  if (_intentTimers.has(key)) return // debounce: a fire is already pending
+  const t = setTimeout(() => {
+    _intentTimers.delete(key)
+    _warmIntentNow(sym, tf)
+  }, delay)
+  _intentTimers.set(key, t)
+  prefetchTickerMeta(sym)
 }
