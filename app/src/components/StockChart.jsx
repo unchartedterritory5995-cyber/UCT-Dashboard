@@ -31,6 +31,8 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
+import { memPeek, memPut } from '../utils/barsMemCache'
+import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
@@ -1545,10 +1547,12 @@ export default function StockChart({
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
       idbPut(sym, resolvedTf, merged)
+      memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
       setIdbBars(data.bars)
       idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
       idbPut(sym, resolvedTf, data.bars)
+      memPut(sym, resolvedTf, data.bars)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1624,13 +1628,22 @@ export default function StockChart({
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
+  // last fallback (when net+IDB haven't resolved for the current key yet) so a
+  // warm switch paints on the first frame instead of flashing the loading
+  // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
+  const _memBars = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
   const bars = _overrideArr
     ? barsOverride
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
         : ((_netMatches && !data.delta)
             ? data.bars
-            : (_idbFresh ? idbBars : (_netMatches ? data.bars : null))))
+            : (_idbFresh
+                ? idbBars
+                : (_netMatches
+                    ? data.bars
+                    : (_memBars?.length ? _memBars : null)))))
   const loading = !bars && !error
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted
@@ -4836,11 +4849,7 @@ export default function StockChart({
           })}
         </div>
       )}
-      {loading && (
-        <div className={styles.skeletonOverlay}>
-          <div className={styles.skeletonText}>Loading {sym}…</div>
-        </div>
-      )}
+      {loading && <ChartSkeleton label={`Loading ${sym}…`} />}
       {showFatalError && (
         <div className={styles.error}>
           <span>Failed to load chart for {sym}</span>
