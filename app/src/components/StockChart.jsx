@@ -486,6 +486,7 @@ export default function StockChart({
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
+  modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -1920,8 +1921,8 @@ export default function StockChart({
     if (!filteredBars?.length) return []
     // Dim the bold volume to the same hue at lower opacity — dense solid bars
     // otherwise read brighter than the thin candles and look out of place.
-    const upC = boldCandles ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
-    const downC = boldCandles ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
+    const upC = (boldCandles || modelBookLook) ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
+    const downC = (boldCandles || modelBookLook) ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
@@ -1932,7 +1933,7 @@ export default function StockChart({
           ? 'rgba(201,168,76,0.9)'
           : b.c >= b.o ? upC : downC,
     }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, volExtremes])
+  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
@@ -2705,8 +2706,14 @@ export default function StockChart({
       prevChartTypeRef.current = cs.chartType
     }
 
-    // Set price data
-    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
+    // Set price data. Use the highlighted (gold/white setup-candle) variant when
+    // a highlight is active so EVERY updateChart pass keeps the setup candles
+    // painted — otherwise a re-run triggered by an unrelated dep (markers,
+    // indicators, watermark…) would repaint plain candles and the highlight
+    // would intermittently vanish until the separate recolor effect re-fired.
+    candleSeriesRef.current.setData(
+      isOhlcType(cs.chartType) ? (highlightTimeSet ? goldOhlc : ohlcData) : closeData
+    )
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -2899,10 +2906,11 @@ export default function StockChart({
       const { data: ovData, color } = overlayData[i]
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
-      const _ovLineType = boldCandles ? LineType.Curved : LineType.Simple
+      const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
       // 0.5 floors to a true 1px hairline on retina (lineWidth*dpr), thinner than
-      // the standard 1; non-retina stays ~1px. Only Model Book (boldCandles) uses it.
-      const _ovLineWidth = boldCandles ? 0.5 : 1
+      // the standard 1; non-retina stays ~1px. Model Book (boldCandles) + the
+      // intraday popup (modelBookLook) use it.
+      const _ovLineWidth = (boldCandles || modelBookLook) ? 0.5 : 1
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth })
@@ -2951,14 +2959,15 @@ export default function StockChart({
     // ── Session VWAP (intraday only) ──
     if (indicatorData.vwap.length) {
       const vwapColor = vwapOverride?.color || cs.indicators?.vwap?.color || '#26C6DA'
+      const _vwapWidth = (boldCandles || modelBookLook) ? 0.5 : 1
       if (!vwapSeriesRef.current) {
         vwapSeriesRef.current = chart.addSeries(LineSeries, {
-          color: vwapColor, lineWidth: 1,
+          color: vwapColor, lineWidth: _vwapWidth,
           priceLineVisible: false, lastValueVisible: false,
           crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
         })
       } else {
-        vwapSeriesRef.current.applyOptions({ color: vwapColor })
+        vwapSeriesRef.current.applyOptions({ color: vwapColor, lineWidth: _vwapWidth })
       }
       vwapSeriesRef.current.setData(indicatorData.vwap)
     } else if (vwapSeriesRef.current) {
@@ -3524,7 +3533,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, highlightTimeSet, goldOhlc, modelBookLook])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

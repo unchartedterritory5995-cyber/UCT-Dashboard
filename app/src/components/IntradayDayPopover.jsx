@@ -150,6 +150,7 @@ export default function IntradayDayPopover({ symbol, date, anchorRef, bottomBoun
               hidePriceLine
               hideWatermark
               subtleSeparator
+              modelBookLook
               hideLegend
               leftBarPad={3}
               priceScaleTopMargin={0.06}
