@@ -1326,6 +1326,14 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
+  // Trade-Aware GEX toggle. When false, /api/gex/data returns the naive
+  // (dealer-short-all-OI) calculation, identical to legacy behavior. When
+  // true, contracts are scaled by est_customer_net from dealer_positioning
+  // — a CALL with predominantly customer-sold flow (covered-call ETFs,
+  // sold-put income strategies) flips sign and shows as a floor instead
+  // of a ceiling. Backend automatically falls back to naive per-contract
+  // if dealer_positioning has no data for that contract.
+  const [gexAdjusted, setGexAdjusted] = useState(false);
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartTf, setGexChartTf] = useState('D');
@@ -2158,7 +2166,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
+  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte, gexAdjusted); }, [dataMode, gexTicker, gexDte, gexAdjusted]);
 
   // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
   // prop to the StockChart that renders the "AMD Chart with GEX Levels" panel.
@@ -2743,11 +2751,13 @@ export default function OptionsFlowDashboard() {
     }
   }
 
-  async function fetchGex(ticker, dte) {
+  async function fetchGex(ticker, dte, adjusted = false) {
     if (!ticker) return;
     setGexLoading(true);
     try {
-      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
+      const url = `/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`
+        + (adjusted ? "&adjusted=true" : "");
+      const resp = await fetch(url);
       if (resp.ok) {
         const data = await resp.json();
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
@@ -3037,6 +3047,52 @@ export default function OptionsFlowDashboard() {
                   }}>{label}</button>
                 ))}
               </div>
+              {/* Naive / Trade-Aware toggle. Naive = legacy SpotGamma-style
+                  math (dealers short all OI). Flow-Adjusted = use
+                  dealer_positioning estimates per contract. The badge
+                  to the right shows attribution_days + confidence + coverage
+                  so user can judge how much to trust the adjustment. */}
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2, alignItems:"center" }}>
+                <button onClick={()=>setGexAdjusted(false)}
+                  title="Standard SpotGamma-style GEX — assumes dealers short all OI"
+                  style={{
+                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:!gexAdjusted?P.cd:"transparent",
+                    color:!gexAdjusted?P.wh:P.mt
+                  }}>Naive</button>
+                <button onClick={()=>setGexAdjusted(true)}
+                  title="Trade-Aware GEX — scales each contract by est_customer_net from flow attribution. Falls back to naive for contracts without dealer_positioning data."
+                  style={{
+                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:gexAdjusted?"#c9a84c":"transparent",
+                    color:gexAdjusted?P.bg:P.mt
+                  }}>Flow-Adjusted ⚡</button>
+              </div>
+              {/* Quality badge — only shown in adjusted mode. Tells user
+                  how many days of attribution exist, average flow_confidence,
+                  and what % of chain contracts have any DP data. Low days /
+                  low confidence / low coverage = adjusted results should be
+                  treated as preliminary. */}
+              {gexAdjusted && gexData && !gexData.error && (
+                <div style={{
+                  display:"flex", gap:8, alignItems:"center",
+                  padding:"6px 12px", borderRadius:6, background:"#c9a84c11",
+                  border:"1px solid #c9a84c44", fontSize:10, color:P.mt
+                }}>
+                  <span style={{ color:"#c9a84c", fontWeight:700 }}>⚡ TRADE-AWARE</span>
+                  <span title="Days of attribution history">
+                    {gexData.attributionDays || 0}d
+                  </span>
+                  <span title="OI-weighted average flow confidence (0-1). Higher = more flow has corroborated the dealer position estimate.">
+                    conf {gexData.avgConfidence != null ? Math.round(gexData.avgConfidence * 100) : 0}%
+                  </span>
+                  <span title="% of chain contracts that have dealer_positioning data. Others fall back to naive.">
+                    cov {gexData.coveragePct != null ? Math.round(gexData.coveragePct * 100) : 0}%
+                  </span>
+                </div>
+              )}
             </div>
 
             {gexLoading && <Card><div style={{ textAlign:"center", padding:"40px 0", color:P.dm, fontSize:12 }}>Loading gamma data for {gexTicker}…</div></Card>}
