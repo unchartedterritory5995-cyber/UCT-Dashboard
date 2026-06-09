@@ -263,6 +263,20 @@ def _load_year_bars(symbol: str, year: int, stock_id=None) -> list:
         data = json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
         yb = [b for b in data.get("bars", []) if str(b.get("t", "")).startswith(ystr)]
         yb.sort(key=lambda b: b.get("t", ""))  # 'YYYY-MM-DD' sorts chronologically
+        if yb:
+            return yb
+    except Exception:
+        pass
+    # 3. Deep history for old years the standard 5000-bar provider window can't
+    #    reach (it only spans back to ~2006, so 2004/2005 stocks come up empty
+    #    above). Pull yfinance period='max' merged with Massive via the deep path.
+    #    Only reached when the cheap paths fail, and _compute_year_stats runs in
+    #    the background warmer thread — so the yfinance latency never hits a user.
+    try:
+        from api.services import bars_fetch
+        deep = bars_fetch._fetch_daily(symbol.upper(), 12000, deep=True)
+        yb = [b for b in deep if str(b.get("t", "")).startswith(ystr)]
+        yb.sort(key=lambda b: b.get("t", ""))
         return yb
     except Exception:
         return []
