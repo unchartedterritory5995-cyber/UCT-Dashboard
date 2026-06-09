@@ -1755,53 +1755,18 @@ export default function ModelBook() {
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when
   // it changes (e.g. via ←/→ keyboard nav) — scrolls the strip only, never the page.
   const yearStripRef = useRef(null)
-  // Only show a scroll arrow when there's actually room to scroll that way —
-  // hidden at the left edge (most-recent year) and the right edge (oldest year).
-  const [yearScroll, setYearScroll] = useState({ left: false, right: false })
-  function updateYearScroll() {
-    const el = yearStripRef.current
-    if (!el) return
-    const max = el.scrollWidth - el.clientWidth
-    setYearScroll({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 })
-  }
   function scrollYears(dir) {
     const el = yearStripRef.current
     if (el) el.scrollBy({ left: dir * Math.max(220, el.clientWidth * 0.8), behavior: 'smooth' })
   }
-  // Recompute arrow visibility on scroll, on resize, on content/size changes
-  // (ResizeObserver catches the year list rendering + web-font reflow widening
-  // the tabs after the first measure), and whenever the year list changes.
-  useEffect(() => {
-    const el = yearStripRef.current
-    if (!el) return
-    updateYearScroll()
-    // Re-measure after layout settles (initial paint + async font metrics).
-    const raf = requestAnimationFrame(updateYearScroll)
-    el.addEventListener('scroll', updateYearScroll, { passive: true })
-    window.addEventListener('resize', updateYearScroll)
-    let ro
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(updateYearScroll)
-      ro.observe(el)
-    }
-    return () => {
-      cancelAnimationFrame(raf)
-      el.removeEventListener('scroll', updateYearScroll)
-      window.removeEventListener('resize', updateYearScroll)
-      if (ro) ro.disconnect()
-    }
-  }, [years])
   useEffect(() => {
     const el = yearStripRef.current
     if (!el || year == null) return
     const btn = el.querySelector(`[data-year="${year}"]`)
-    if (!btn) { updateYearScroll(); return }
+    if (!btn) return
     const bl = btn.offsetLeft, br = bl + btn.offsetWidth
     if (bl < el.scrollLeft) el.scrollTo({ left: Math.max(0, bl - 8), behavior: 'smooth' })
     else if (br > el.scrollLeft + el.clientWidth) el.scrollTo({ left: br - el.clientWidth + 8, behavior: 'smooth' })
-    // The smooth scroll above fires its own scroll events, but recompute now too
-    // in case the active year was already in view (no scroll → no scroll event).
-    updateYearScroll()
   }, [year])
 
   function onStockAdded() {
@@ -1984,7 +1949,7 @@ export default function ModelBook() {
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => setView('hub')}>‹ Model Book</button>
         <div className={styles.yearNav}>
-          <button className={`${styles.yearArrow} ${yearScroll.left ? '' : styles.yearArrowHidden}`} onClick={() => scrollYears(-1)} aria-hidden={!yearScroll.left} tabIndex={yearScroll.left ? 0 : -1} aria-label="Scroll years left" title="Newer years">‹</button>
+          <button className={styles.yearArrow} onClick={() => scrollYears(-1)} aria-label="Scroll years left" title="Newer years">‹</button>
           <div className={styles.yearTabs} ref={yearStripRef}>
             {years.map(y => (
               <button key={y} data-year={y} className={`${styles.yearTab} ${year === y ? styles.yearTabActive : ''}`}
@@ -1998,7 +1963,7 @@ export default function ModelBook() {
               </span>
             )}
           </div>
-          <button className={`${styles.yearArrow} ${yearScroll.right ? '' : styles.yearArrowHidden}`} onClick={() => scrollYears(1)} aria-hidden={!yearScroll.right} tabIndex={yearScroll.right ? 0 : -1} aria-label="Scroll years right" title="Older years">›</button>
+          <button className={styles.yearArrow} onClick={() => scrollYears(1)} aria-label="Scroll years right" title="Older years">›</button>
         </div>
         <span className={styles.count}>Top stocks in history</span>
         {isAdmin && <AddStockForm year={year ?? new Date().getFullYear()} onAdded={onStockAdded} />}
