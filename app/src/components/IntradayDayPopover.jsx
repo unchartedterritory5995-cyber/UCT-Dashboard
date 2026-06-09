@@ -27,7 +27,7 @@ function fmtDate(d) {
   } catch { return d }
 }
 
-export default function IntradayDayPopover({ symbol, date, anchorRef, clientX, clientY, onClose }) {
+export default function IntradayDayPopover({ symbol, date, anchorRef, bottomBoundaryRef, clientX, clientY, onClose }) {
   const { data } = useSWR(
     symbol && date ? `/api/modelbook/intraday-day?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(date)}` : null,
     fetcher,
@@ -49,7 +49,18 @@ export default function IntradayDayPopover({ symbol, date, anchorRef, clientX, c
       const el = anchorRef?.current
       if (el) {
         const r = el.getBoundingClientRect()
-        if (r.width > 0 && r.height > 0) { setPos({ left: r.left, top: r.top, width: r.width, height: r.height }); return }
+        if (r.width > 0 && r.height > 0) {
+          // Stop the bottom just above the setups/catalysts section so the popup
+          // never covers it; otherwise fill the whole anchor element.
+          let height = r.height
+          const stop = bottomBoundaryRef?.current
+          if (stop) {
+            const sr = stop.getBoundingClientRect()
+            if (sr.top > r.top) height = Math.max(120, sr.top - r.top - 10)
+          }
+          setPos({ left: r.left, top: r.top, width: r.width, height })
+          return
+        }
       }
       // Fallback: fixed-size panel anchored near the cursor, clamped on-screen.
       const vw = window.innerWidth, vh = window.innerHeight
@@ -67,7 +78,7 @@ export default function IntradayDayPopover({ symbol, date, anchorRef, clientX, c
       window.removeEventListener('resize', measure)
       window.removeEventListener('scroll', measure, true)
     }
-  }, [anchorRef, clientX, clientY])
+  }, [anchorRef, bottomBoundaryRef, clientX, clientY])
 
   // Escape closes.
   useEffect(() => {

@@ -665,6 +665,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
   )
   const barsFileRef = useRef(null)
   const infoSideRef = useRef(null)  // info panel element — the intraday popup covers exactly this area
+  const setupsSectionRef = useRef(null)  // setups/catalysts section — intraday popup stops just above it
   const [barsMsg, setBarsMsg] = useState(null)  // upload status line (admin)
   // Chronological so the list reads as a time-ordered guide to the buy spots
   // (e.g. Flat Base Breakout · Aug → High Tight Flag · Oct → · Nov).
@@ -1330,7 +1331,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
 
             {/* Setups (buy spots) + Catalysts (move-driving events) — two tabbed
                 guides to the chart. Click a row to focus/zoom that point. */}
-            <div className={styles.panelSetups} data-panel-section>
+            <div className={styles.panelSetups} data-panel-section ref={setupsSectionRef}>
               <div className={styles.setupSectionHead}>
                 <div className={styles.panelTabs}>
                   <button className={`${styles.panelTab} ${onSetupsTab ? styles.panelTabActive : ''}`}
@@ -1488,6 +1489,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
           symbol={stock.symbol}
           date={intraday.date}
           anchorRef={infoOpen ? infoSideRef : null}
+          bottomBoundaryRef={infoOpen ? setupsSectionRef : null}
           clientX={intraday.clientX}
           clientY={intraday.clientY}
           onClose={() => setIntraday(null)}
