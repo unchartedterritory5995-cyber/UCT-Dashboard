@@ -543,20 +543,31 @@ function AddSetupForm({ stockId, year, onAdded }) {
   )
 }
 
-// Clean each bullet at DISPLAY time (independent of what's stored / which backend
-// generated it — the permanent fix): strip any leftover category label the model
-// put at the start ("• Catalyst: …", "• Theme: …", "• Technical: …") AND capitalize
-// the first letter of the bullet (stripping the label can expose a lowercase word).
+// Clean + normalize each note at DISPLAY time (independent of what's stored / which
+// backend generated it — the permanent fix): strip any leftover category label the
+// model put at the start ("• Catalyst: …", "• Theme: …", "• Technical: …"),
+// capitalize the first letter of the bullet (stripping the label can expose a
+// lowercase word), AND join bullets with a blank line so EVERY description gets the
+// same airy spacing regardless of whether the generation stored blank lines.
 const SETUP_BULLET_PREFIX_RE = /^(\s*[•\-*]\s*)(.*)$/
 const SETUP_BULLET_LABEL_RE = /^(?:catalyst|technical|thematic|fundamental|fundamentals|theme)\s*[:\-—]\s*/i
 function formatSetupNote(text) {
   if (!text) return ''
-  return text.split('\n').map(ln => {
+  const bullets = []
+  for (const ln of text.split('\n')) {
     const m = ln.match(SETUP_BULLET_PREFIX_RE)
-    if (!m) return ln  // blank line or non-bullet — leave as-is
-    const body = m[2].replace(SETUP_BULLET_LABEL_RE, '').replace(/^([a-z])/, c => c.toUpperCase())
-    return m[1] + body
-  }).join('\n')
+    if (m) {
+      const body = m[2].replace(SETUP_BULLET_LABEL_RE, '').replace(/^([a-z])/, c => c.toUpperCase())
+      bullets.push('• ' + body)
+    } else if (ln.trim() && bullets.length) {
+      // wrapped continuation of the previous bullet — fold it back in
+      bullets[bullets.length - 1] += ' ' + ln.trim()
+    } else if (ln.trim()) {
+      // hand-typed note with no bullet markers — keep the line as its own paragraph
+      bullets.push(ln.trim())
+    }
+  }
+  return bullets.join('\n\n')
 }
 
 // ── Setup details dropdown ────────────────────────────────────────────────────
