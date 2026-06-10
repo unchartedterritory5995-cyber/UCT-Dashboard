@@ -1496,11 +1496,19 @@ def _format_bar_window(bars: list, center_date: str, before: int = 12, after: in
     return "\n".join(lines) or "(no daily bars available)"
 
 
+_BULLET_LABEL_RE = re.compile(
+    r"^(\s*[•\-*]\s*)(?:catalyst|technical|thematic|fundamental|fundamentals|theme)\s*[:\-—]\s*",
+    re.IGNORECASE,
+)
+
+
 def _clean_setup_note(text: str) -> str:
-    """Keep ONLY the bulleted note. The model sometimes prepends process narration
-    ('I'll research what was happening… Let me retry the searches.') before the
-    bullets — slice everything before the first bullet marker so it never reaches
-    the panel."""
+    """Keep ONLY the bulleted note, clean. Two passes:
+      1. slice off any process narration the model prepends before the bullets
+         ('I'll research what was happening… Let me retry the searches.'),
+      2. strip the category labels it sometimes puts at the start of a bullet
+         ('• Catalyst: …', '• Technical: …', '• Thematic: …') so each bullet
+         starts straight with the substance."""
     if not text:
         return ""
     i = text.find("•")
@@ -1509,7 +1517,8 @@ def _clean_setup_note(text: str) -> str:
         i = m.start() if m else -1
     if i > 0:
         text = text[i:]
-    return text.strip()
+    lines = [_BULLET_LABEL_RE.sub(r"\1", ln) for ln in text.splitlines()]
+    return "\n".join(lines).strip()
 
 
 _SETUP_DESC_SYSTEM = (
@@ -1569,14 +1578,16 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "- Begin IMMEDIATELY with the first '• ' bullet. Output NOTHING before it — no narration, "
         "no 'I'll research…', no 'Let me search…', no process talk, no preamble of any kind.\n"
         "- Output ONLY bullets — 3 to 5 of them, each a single concise line starting with '• '.\n"
-        "- No intro line, no headers, no labels, no closing line, no citations.\n"
+        "- Start each bullet DIRECTLY with the substance. Do NOT prefix bullets with a category "
+        "label like 'Catalyst:', 'Technical:', 'Thematic:', or 'Fundamental:'.\n"
+        "- No intro line, no headers, no closing line, no citations.\n"
         "- Keep the WHOLE note under ~80 words total. Every word earns its place.\n\n"
-        "Across the bullets, weave in the FUNDAMENTAL reason (the catalyst — earnings/sales "
-        "acceleration, product, deal, story), the TECHNICAL reason (base/consolidation, the "
-        "volume signature, the pivot, moving-average support, character of the move), and the "
-        "THEMATIC reason (the market backdrop and the sector/theme driving it, plus any sympathy "
-        "names). Stay factual to that year; if unsure of exact details, lean on the price action "
-        "and the year's dominant theme. Do NOT name any trader or methodology."
+        "Across the bullets, weave in (WITHOUT labeling them) the fundamental reason (the catalyst "
+        "— earnings/sales acceleration, product, deal, story), the technical reason "
+        "(base/consolidation, the volume signature, the pivot, moving-average support, character "
+        "of the move), and the thematic reason (the market backdrop and the sector/theme driving "
+        "it, plus any sympathy names). Stay factual to that year; if unsure of exact details, lean "
+        "on the price action and the year's dominant theme. Do NOT name any trader or methodology."
     )
 
     messages = [{"role": "user", "content": prompt}]
