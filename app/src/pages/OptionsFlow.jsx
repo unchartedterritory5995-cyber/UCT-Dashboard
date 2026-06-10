@@ -2237,11 +2237,22 @@ export default function OptionsFlowDashboard() {
       const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
       return { strike:s.strike, gex:best.val, type:best.type };
     }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    aboveCandidates.forEach(s => {
+    aboveCandidates.forEach((s, idx) => {
       usedStrikes.add(s.strike);
       const {lw,ls,op} = getLineWeight(s.gex);
-      const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
+      // Label each secondary > 10% of wallMax. Below that they read as
+      // noise and crowd the right axis without adding actionable signal.
+      // Compact "R $X" format vs primary "Ceiling $X" preserves visual
+      // hierarchy — eye reads primaries first, scans secondaries by
+      // magnitude. Color & line opacity (from getLineWeight) still encode
+      // the call-vs-put-origin (red shade) and magnitude — label is just
+      // the role + weight. Unlabeled lines keep the descriptive title for
+      // code clarity (won't display unless axisLabelVisible flips true).
+      const isMeaningful = wallMax > 0 && Math.abs(s.gex) / wallMax > 0.10;
+      const title = isMeaningful
+        ? "R "+fmtG(s.gex)
+        : (s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex));
+      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:isMeaningful });
     });
     const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
       const callVal = s.callGex > 0 ? s.callGex : 0;
@@ -2249,11 +2260,18 @@ export default function OptionsFlowDashboard() {
       const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
       return { strike:s.strike, gex:best.val, type:best.type };
     }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    belowCandidates.forEach(s => {
+    belowCandidates.forEach((s, idx) => {
       const {lw,ls,op} = getLineWeight(s.gex);
       const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
-      const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
+      // Same logic as aboveCandidates — label all top 3 per side that
+      // exceed 10% of wallMax with compact "S $X" format. Color still
+      // encodes call (cyan) vs put (green) origin; primary Bounce/Support
+      // labels above already convey those words explicitly.
+      const isMeaningful = wallMax > 0 && Math.abs(s.gex) / wallMax > 0.10;
+      const title = isMeaningful
+        ? "S "+fmtG(s.gex)
+        : (s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex));
+      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:isMeaningful });
     });
     return lines;
   }, [gexData]);
