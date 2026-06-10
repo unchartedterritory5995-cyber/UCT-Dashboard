@@ -39,6 +39,17 @@ from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
 _inflight: dict[str, _threading.Event] = {}
 _inflight_lock = _threading.Lock()
 
+# Bounded concurrency for the SWR background delta-fetch threads ("bars-bg").
+# Root cause of the 2026-06-10 thread burst: each stale chart request spawned
+# an UNBOUNDED daemon thread. The per-key _inflight guard only stops duplicates
+# for the SAME (ticker,tf); under market-hours load there are hundreds of
+# distinct keys, so threads piled up to 900+ → "can't start new thread" → the
+# pod (and the catalyst morning runs) thrashed. This semaphore caps how many
+# bars-bg threads run at once; when full, the request just serves the stale
+# payload it already returns and the browser's SWR retries on its next poll.
+_BG_DELTA_MAX = max(4, int(_os.environ.get("BARS_BG_DELTA_MAX", "24")))
+_bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
+
 # ── Usage-driven intraday hot-set ─────────────────────────────────────────────
 # The prewarmer only refreshes intraday for a static ticker_list[:200].
 # Anything outside that 200 was frozen until a user happened to view it
@@ -1537,7 +1548,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         cache.set(cache_key, stale_payload, ttl=12)  # short TTL so next poll gets fresh
 
         with _inflight_lock:
-            if cache_key not in _inflight:
+            # Only spawn a bg refresh if this key isn't already in flight AND we
+            # have a free bars-bg slot. When the semaphore is full we skip the
+            # spawn entirely — the stale payload is still served below and SWR
+            # retries shortly, so freshness lags at most one poll instead of
+            # the pod melting down under an unbounded thread pile-up.
+            if cache_key not in _inflight and _bg_delta_sem.acquire(blocking=False):
                 _bg_ev = _threading.Event()
                 _inflight[cache_key] = _bg_ev
 
@@ -1604,11 +1620,19 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         with _inflight_lock:
                             _inflight.pop(_key, None)
                         _ev.set()
+                        _bg_delta_sem.release()  # free the bars-bg slot
 
-                _threading.Thread(
-                    target=_bg_delta, daemon=True,
-                    name=f"bars-bg-{ticker_up}-{tf}{'-partial' if is_partial else ''}",
-                ).start()
+                try:
+                    _threading.Thread(
+                        target=_bg_delta, daemon=True,
+                        name=f"bars-bg-{ticker_up}-{tf}{'-partial' if is_partial else ''}",
+                    ).start()
+                except Exception:
+                    # Thread couldn't start (e.g. process at its thread ceiling).
+                    # Undo the slot + inflight reservation so we don't leak them;
+                    # the stale payload is still served below.
+                    _bg_delta_sem.release()
+                    _inflight.pop(cache_key, None)
 
         return JSONResponse(
             content=stale_payload,
