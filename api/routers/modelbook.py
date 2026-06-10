@@ -1447,8 +1447,9 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
 # `notes` (generate once → kept forever → zero Anthropic spend on later views).
 # Uses Opus 4.8 + the web_search server tool to research the actual trading day —
 # catalysts, social chatter, sympathy moves in peers, where the indices were —
-# then explains why the setup worked through a blend of Livermore / O'Neil /
-# Qullamaggie lenses. Wired to a button, never auto-run.
+# then distills WHY the setup worked into a few short bullets (fundamental /
+# technical / thematic), without naming any trader or methodology. Wired to a
+# button, never auto-run.
 
 _SETUP_DESC_ENABLED = _os.environ.get("MODELBOOK_SETUP_DESC_ENABLED", "1") == "1"
 # The smartest model on purpose — this is the "test how well it does" feature, and
@@ -1490,15 +1491,12 @@ def _format_bar_window(bars: list, center_date: str, before: int = 12, after: in
 
 
 _SETUP_DESC_SYSTEM = (
-    "You are a master swing-trading analyst writing a teaching note for a curated "
-    "'model book' of the best stock setups in history. You synthesize the perspectives of: "
-    "Jesse Livermore (tape reading, pivotal points, the line of least resistance, sitting "
-    "tight once right); William O'Neil / CAN SLIM (earnings & sales acceleration, "
-    "institutional accumulation, sound base structure, the volume signature of a breakout, "
-    "and overall market direction); and Qullamaggie / Kristjan Kullamagi (episodic pivots, "
-    "high-tight-flag and breakout continuation, the prior big momentum move, ADR, tight "
-    "consolidations along the 10/20-day moving averages). Be concrete and factual about the "
-    "specific stock and day. Never give present-tense buy/sell advice or price targets."
+    "You are a master swing-trading analyst writing an ULTRA-CONCISE teaching note for a "
+    "curated 'model book' of the best stock setups in history. You blend a deep fundamental, "
+    "technical, and thematic read of the setup into a few sharp bullet points — the distilled "
+    "collective wisdom of the great growth and momentum traders, but WITHOUT ever naming any "
+    "trader, author, book, or methodology. Be concrete and factual about the specific stock "
+    "and day. No present-tense buy/sell advice, no price targets."
 )
 
 
@@ -1535,25 +1533,19 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         f"(grade {grade or 'n/a'}; {bracket_txt}).\n\n"
         f"Daily price action around the setup day (date: open/high/low/close, volume):\n"
         f"{window_txt}\n\n"
-        "Use web search to research what was actually happening around this date, then write a "
-        "tight, information-dense teaching note (plain prose, ~4 short paragraphs, no headers) "
-        "that covers:\n"
-        "1. The catalyst(s) on/around that day — earnings, guidance, products, partnerships, "
-        "customer wins, approvals, analyst moves, M&A, index inclusion.\n"
-        "2. The broader tape that day/week — where the major indices (S&P 500 / Nasdaq) and the "
-        "stock's sector were, and how that backdrop supported (or fought) the move (market "
-        "direction is a CAN SLIM pillar).\n"
-        "3. Sympathy / related moves — peers, suppliers, or theme stocks that moved with it, "
-        "confirming the theme.\n"
-        "4. Social-media / trader chatter and sentiment around the name at the time, if findable.\n"
-        "5. WHY this setup worked, read through the Livermore / O'Neil / Qullamaggie lenses — the "
-        "structural reasons (pivot, base depth/length, volume dry-up then expansion, prior "
-        "momentum, moving-average support, line of least resistance) PLUS the small nuances a "
-        "trader should notice (tight closes, the character of the gap, how it held its stop, where "
-        "volume came in).\n\n"
-        "Write the FINISHED note only — no preamble like 'Here is', no bullet labels, no citation "
-        "markup. If web search turns up little for an old or obscure name, lean on the price action "
-        "and the year's dominant theme, and make clear what is inferred vs confirmed."
+        "Use web search to research what was actually happening around this date — the catalyst, "
+        "the broader market/indices, the sector, sympathy moves in related names, and trader "
+        "sentiment.\n\n"
+        "Then write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
+        "- Output ONLY bullets — 3 to 5 of them, each a single concise line starting with '• '.\n"
+        "- No intro line, no headers, no labels, no closing line, no citations.\n"
+        "- Keep the WHOLE note under ~80 words total. Every word earns its place.\n\n"
+        "Across the bullets, weave in the FUNDAMENTAL reason (the catalyst — earnings/sales "
+        "acceleration, product, deal, story), the TECHNICAL reason (base/consolidation, the "
+        "volume signature, the pivot, moving-average support, character of the move), and the "
+        "THEMATIC reason (the market backdrop and the sector/theme driving it, plus any sympathy "
+        "names). Stay factual to that year; if web search is thin, lean on the price action and "
+        "the year's dominant theme. Do NOT name any trader or methodology."
     )
 
     messages = [{"role": "user", "content": prompt}]
