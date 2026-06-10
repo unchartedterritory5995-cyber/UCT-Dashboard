@@ -1182,7 +1182,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       try { detail = (await r.json())?.detail || detail } catch { /* non-JSON body */ }
       throw new Error(detail)
     }
-    const deadline = Date.now() + 8 * 60 * 1000  // give the web-search run plenty of room
+    const deadline = Date.now() + 5 * 60 * 1000  // safety net; a normal run is well under a minute
     for (;;) {
       await new Promise(res => setTimeout(res, 3000))
       let j
@@ -1604,7 +1604,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                             </>
                           )}
                         </div>
-                        {selectedSetupId === s.id && (
+                        {focusActive && focus.id === s.id && focus.date != null && (
                           <SetupDetails setup={s} isAdmin={isAdmin} onSave={saveSetupNotes} onGenerate={generateSetupDesc} />
                         )}
                       </div>

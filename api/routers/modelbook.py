@@ -1535,7 +1535,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         f"{window_txt}\n\n"
         "Use web search to research what was actually happening around this date — the catalyst, "
         "the broader market/indices, the sector, sympathy moves in related names, and trader "
-        "sentiment.\n\n"
+        "sentiment. A few quick, targeted searches are enough — do NOT over-research.\n\n"
         "Then write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
         "- Output ONLY bullets — 3 to 5 of them, each a single concise line starting with '• '.\n"
         "- No intro line, no headers, no labels, no closing line, no citations.\n"
@@ -1550,21 +1550,41 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
 
     messages = [{"role": "user", "content": prompt}]
 
+    # Keep it FAST and un-stuck:
+    #  • hard per-request timeout so a slow/wedged web-search turn can't spin for
+    #    minutes (raises → the job records an error instead of hanging),
+    #  • low effort — the output is 5 short bullets; the intelligence comes from
+    #    search, not deep reasoning, so this slashes thinking time,
+    #  • small max_tokens + a tight pause_turn budget.
+    bounded = client.with_options(timeout=120.0, max_retries=1)
+    use_effort = True  # toggled off if the installed SDK predates output_config
+
     def _call(msgs):
-        return client.messages.create(
+        nonlocal use_effort
+        kwargs = dict(
             model=_SETUP_DESC_MODEL,
-            max_tokens=12000,                       # headroom for adaptive thinking + search + the note
+            max_tokens=4000,
             thinking={"type": "adaptive"},          # Opus 4.8: adaptive only (no budget_tokens / temperature)
             system=_SETUP_DESC_SYSTEM,
             tools=[_SETUP_DESC_WEB_TOOL],
             messages=msgs,
         )
+        if use_effort:
+            kwargs["output_config"] = {"effort": "low"}
+        try:
+            return bounded.messages.create(**kwargs)
+        except TypeError:
+            if not use_effort:
+                raise
+            use_effort = False                      # old SDK → retry without effort
+            kwargs.pop("output_config", None)
+            return bounded.messages.create(**kwargs)
 
     resp = _call(messages)
     # The web_search server tool runs a server-side loop; if it hits its iteration
-    # cap it returns stop_reason="pause_turn" — re-send to resume (a few times).
+    # cap it returns stop_reason="pause_turn" — re-send to resume (bounded tight).
     conts = 0
-    while getattr(resp, "stop_reason", None) == "pause_turn" and conts < 6:
+    while getattr(resp, "stop_reason", None) == "pause_turn" and conts < 3:
         resp = _call([{"role": "user", "content": prompt},
                       {"role": "assistant", "content": resp.content}])
         conts += 1
