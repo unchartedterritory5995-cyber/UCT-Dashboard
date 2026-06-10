@@ -543,6 +543,16 @@ function AddSetupForm({ stockId, year, onAdded }) {
   )
 }
 
+// Strip any leftover category label the model put at the START of a bullet
+// ("• Catalyst: …", "• Theme: …", "• Technical: …") so the note always reads
+// clean — done at DISPLAY time so it's independent of what's stored or which
+// backend generated it (the permanent fix; the backend strips on write too).
+const SETUP_BULLET_LABEL_RE = /^(\s*[•\-*]\s*)(?:catalyst|technical|thematic|fundamental|fundamentals|theme)\s*[:\-—]\s*/i
+function stripBulletLabels(text) {
+  if (!text) return ''
+  return text.split('\n').map(ln => ln.replace(SETUP_BULLET_LABEL_RE, '$1')).join('\n')
+}
+
 // ── Setup details dropdown ────────────────────────────────────────────────────
 // Drops down beneath the selected setup (title + date), mirroring the catalyst
 // accordion: it surfaces the firm's teaching notes for that buy point. Admins get
@@ -594,7 +604,7 @@ function SetupDetails({ setup, isAdmin, onSave, onGenerate }) {
   if (!notes && !isAdmin && !generating) return null
   return (
     <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
-      {notes && <p className={styles.setupDescText}>{notes}</p>}
+      {notes && <p className={styles.setupDescText}>{stripBulletLabels(notes)}</p>}
       {generating && (
         <p className={styles.setupDescGen}>Researching the setup — web search + analysis (~30s)…</p>
       )}
