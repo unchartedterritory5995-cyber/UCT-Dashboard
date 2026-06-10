@@ -4789,15 +4789,12 @@ export default function OptionsFlowDashboard() {
                       // Freshness + last OI
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
                       const lastOI = tc?tc.lastOI:0;
-                      // Underwater flag — option pnl ≤ -15% means thesis is going wrong
-                      const underwater = pnl !== null && pnl <= -15;
                       return (
                         <div key={p.sym}>
                         <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
                           <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
                           <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
                           {(top5Filter==="Both" || top5Filter==="Unusual") && <Tag c={dirC}>{p.dir}</Tag>}
-                          {underwater && <span title={`Option down ${pnl.toFixed(1)}% — thesis going wrong`} style={{ fontSize:8, fontWeight:800, padding:"2px 6px", borderRadius:3, background:"#e74c3c22", color:"#e74c3c", border:"1px solid #e74c3c55", letterSpacing:0.3 }}>⚠ DRAWDOWN</span>}
                           <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
                             <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
