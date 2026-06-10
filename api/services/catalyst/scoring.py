@@ -46,6 +46,11 @@ def score(c: dict) -> float:
     if isinstance(mc, (int, float)) and mc > 0:
         s += max(0.0, math.log10(mc) - 8.5) * _w("MARKET_CAP", 6.0)
 
+    # 52-week-high breakout bonus — a price at/near new highs on volume is a
+    # core swing setup that pure news/gap signals miss.
+    if c.get("near_52w_high"):
+        s += _w("FIFTYTWO_WK_HIGH", 8.0)
+
     # Penny stock penalties
     price = c.get("price", 100.0) or 100.0
     floor = float(os.environ.get("CATALYST_PRICE_FLOOR", "2.0"))

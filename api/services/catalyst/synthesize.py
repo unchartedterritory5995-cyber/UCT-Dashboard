@@ -126,6 +126,7 @@ SIGNALS:
 - Price: ${c.get('price', '?')}, gap {c.get('gap_pct', 0):+.2f}%, vol {c.get('vol_x', 0):.1f}x ADV
 - Market cap: ${_format_market_cap(c.get('market_cap', 0))}
 - Sector: {c.get('sector', '?')}
+- 52-week high: ${c.get('fifty_two_week_high') or '?'}{' — AT/NEAR NEW HIGHS (breakout)' if c.get('near_52w_high') else ''}
 
 Tweets (last 24h, {len(c.get('tweets', []))} total):
 {_format_tweet_block(c.get('tweets', []))}

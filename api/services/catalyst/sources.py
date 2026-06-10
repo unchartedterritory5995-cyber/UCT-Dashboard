@@ -142,6 +142,12 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
         if day_open > 0 and prev_close > 0:
             open_gap_pct = round(((day_open - prev_close) / prev_close) * 100.0, 2)
 
+        # 52-week-high breakout signal: price at/near the 52w high = a core
+        # swing setup the news feeds don't flag. Near = within (1 - pct) of high.
+        fwh = m.get("fifty_two_week_high")
+        near_pct = _envf("CATALYST_52W_NEAR_PCT", 0.98)
+        near_52w_high = bool(fwh and price > 0 and price >= float(fwh) * near_pct)
+
         out[ticker_u] = {
             "price": price,
             "vol_x": vol_x,
@@ -154,6 +160,8 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             # fallback when ADV hasn't cached yet.
             "avg_volume_30d": adv or None,
             "today_volume": today_vol or None,
+            "fifty_two_week_high": float(fwh) if fwh else None,
+            "near_52w_high": near_52w_high,
         }
     return out
 
@@ -606,6 +614,9 @@ def collect_all() -> list[dict]:
             # tagging treat it as a Gapper on gap alone (it's already liquidity-
             # + dollar-volume-qualified) without the big-cap-hostile vol_x>=3.
             "from_gap_scan": bool(gapscan_data),
+            # 52-week-high breakout signal (price at/near new highs).
+            "near_52w_high": snap.get("near_52w_high", False),
+            "fifty_two_week_high": snap.get("fifty_two_week_high"),
         })
 
     for c in candidates:

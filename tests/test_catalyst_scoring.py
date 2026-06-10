@@ -107,3 +107,11 @@ def test_market_cap_missing_is_neutral():
     """Unknown cap = no bonus, no penalty (fail-neutral) — must not crash."""
     s = score(_c(market_cap=None))
     assert isinstance(s, float)
+
+
+def test_52w_high_breakout_bonus():
+    """A name at/near its 52-week high gets a breakout bonus over an identical
+    name that isn't — surfaces the swing setup the news feeds miss."""
+    base = score(_c(near_52w_high=False))
+    breakout = score(_c(near_52w_high=True))
+    assert breakout - base >= 8
