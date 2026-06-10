@@ -8,6 +8,7 @@ import TickerPopup from '../TickerPopup'
 import { useAuth } from '../../context/AuthContext'
 import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
+import ReadAloudButton from '../voice/ReadAloudButton'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -394,6 +395,23 @@ export default function CatalystTable() {
           >
             {updatedText}{isStale ? ' ⚠ stale' : ''}
           </span>
+          {allRows.length > 0 && (
+            <ReadAloudButton
+              trackId="stock-catalysts-brief"
+              label="Stock Catalysts brief"
+              textProvider={() => {
+                if (!filteredRows.length) return 'No catalysts to read yet.'
+                const parts = filteredRows.slice(0, 12).map(r => {
+                  const t = r.catalyst_type && r.catalyst_type !== 'None' ? `${r.catalyst_type}. ` : ''
+                  const thesis = (r.thesis_text || '').replace(/\*\*/g, '')
+                  return `${r.ticker}. ${t}${thesis}`
+                })
+                return `Today's stock catalysts. ${parts.join(' ')}`
+              }}
+            >
+              🔊 Listen
+            </ReadAloudButton>
+          )}
           <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
             history →
           </a>

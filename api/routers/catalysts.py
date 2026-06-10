@@ -95,6 +95,15 @@ def catalysts_refresh(user=Depends(require_admin)):
     return {"ok": True, "message": "Refresh started in background."}
 
 
+@router.post("/catalysts/send-digest")
+def catalysts_send_digest(user=Depends(require_admin)):
+    """Manually send the morning digest now (for testing). Respects
+    CATALYST_DIGEST_ENABLED; returns the per-channel send summary so you can
+    confirm Discord/email/AlertBell delivery without waiting for 8 AM ET."""
+    from api.services.catalyst.digest import send_digest
+    return send_digest()
+
+
 @router.get("/catalysts/explain/{sym}")
 def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     """Why isn't $SYM on today's list? Or what would put it there?
