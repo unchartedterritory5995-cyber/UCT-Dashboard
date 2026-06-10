@@ -1442,6 +1442,171 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
     return {"deleted": setup_id}
 
 
+# ── AI-generated setup descriptions (web-grounded "why this setup worked") ─────
+# Manual, admin-only, on-demand. The result is stored PERMANENTLY in the setup's
+# `notes` (generate once → kept forever → zero Anthropic spend on later views).
+# Uses Opus 4.8 + the web_search server tool to research the actual trading day —
+# catalysts, social chatter, sympathy moves in peers, where the indices were —
+# then explains why the setup worked through a blend of Livermore / O'Neil /
+# Qullamaggie lenses. Wired to a button, never auto-run.
+
+_SETUP_DESC_ENABLED = _os.environ.get("MODELBOOK_SETUP_DESC_ENABLED", "1") == "1"
+# The smartest model on purpose — this is the "test how well it does" feature, and
+# it's a manual admin click whose output is cached forever, so cost is bounded.
+_SETUP_DESC_MODEL = _os.environ.get("MODELBOOK_SETUP_DESC_MODEL", "claude-opus-4-8")
+_SETUP_DESC_WEB_TOOL = {"type": "web_search_20260209", "name": "web_search"}
+
+
+def _format_bar_window(bars: list, center_date: str, before: int = 12, after: int = 15) -> str:
+    """A compact O/H/L/C + volume slice of the daily bars around the setup day, so
+    the model can SEE the price action (base, volume signature, how far it ran,
+    whether it held its stop) instead of guessing it."""
+    if not bars:
+        return "(no daily bars available)"
+    idx = None
+    for i, b in enumerate(bars):
+        t = str(b.get("t", ""))[:10]
+        if t == center_date:
+            idx = i
+            break
+        if t > center_date:  # walked past it → nearest session
+            idx = i
+            break
+    if idx is None:
+        idx = len(bars) - 1
+    lo, hi = max(0, idx - before), min(len(bars), idx + after + 1)
+    lines = []
+    for b in bars[lo:hi]:
+        t = str(b.get("t", ""))[:10]
+        mark = "   <-- setup day" if t == center_date else ""
+        try:
+            lines.append(
+                f"{t}: {b['o']:.2f}/{b['h']:.2f}/{b['l']:.2f}/{b['c']:.2f}"
+                f"  vol {int(b.get('v', 0)):,}{mark}"
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return "\n".join(lines) or "(no daily bars available)"
+
+
+_SETUP_DESC_SYSTEM = (
+    "You are a master swing-trading analyst writing a teaching note for a curated "
+    "'model book' of the best stock setups in history. You synthesize the perspectives of: "
+    "Jesse Livermore (tape reading, pivotal points, the line of least resistance, sitting "
+    "tight once right); William O'Neil / CAN SLIM (earnings & sales acceleration, "
+    "institutional accumulation, sound base structure, the volume signature of a breakout, "
+    "and overall market direction); and Qullamaggie / Kristjan Kullamagi (episodic pivots, "
+    "high-tight-flag and breakout continuation, the prior big momentum move, ADR, tight "
+    "consolidations along the 10/20-day moving averages). Be concrete and factual about the "
+    "specific stock and day. Never give present-tense buy/sell advice or price targets."
+)
+
+
+def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
+    """Claude (Opus 4.8) + web search → a web-grounded teaching note for one setup.
+    Raises on hard failure (so the endpoint can surface it); returns None only when
+    the model genuinely produced no text."""
+    if not _SETUP_DESC_ENABLED:
+        raise RuntimeError("Setup description generation is disabled")
+    from api.services.engine import _get_anthropic_client
+    client = _get_anthropic_client()
+    if client is None:
+        raise RuntimeError("Anthropic client unavailable (check ANTHROPIC_API_KEY)")
+
+    symbol = stock["symbol"]
+    company = stock.get("company") or symbol
+    year = stock["year"]
+    label_date = setup.get("label_date")
+    setup_type = setup.get("setup_type") or "setup"
+    grade = setup.get("grade")
+    bracket = []
+    if setup.get("entry_price") is not None:
+        bracket.append(f"entry ${setup['entry_price']}")
+    if setup.get("stop_price") is not None:
+        bracket.append(f"stop ${setup['stop_price']}")
+    if setup.get("target_price") is not None:
+        bracket.append(f"target ${setup['target_price']}")
+    bracket_txt = ", ".join(bracket) or "no entry/stop/target recorded"
+
+    window_txt = _format_bar_window(_load_year_bars(symbol, year, stock.get("id")), label_date)
+
+    prompt = (
+        f"Setup: **{setup_type}** in {symbol} ({company}) on {label_date} "
+        f"(grade {grade or 'n/a'}; {bracket_txt}).\n\n"
+        f"Daily price action around the setup day (date: open/high/low/close, volume):\n"
+        f"{window_txt}\n\n"
+        "Use web search to research what was actually happening around this date, then write a "
+        "tight, information-dense teaching note (plain prose, ~4 short paragraphs, no headers) "
+        "that covers:\n"
+        "1. The catalyst(s) on/around that day — earnings, guidance, products, partnerships, "
+        "customer wins, approvals, analyst moves, M&A, index inclusion.\n"
+        "2. The broader tape that day/week — where the major indices (S&P 500 / Nasdaq) and the "
+        "stock's sector were, and how that backdrop supported (or fought) the move (market "
+        "direction is a CAN SLIM pillar).\n"
+        "3. Sympathy / related moves — peers, suppliers, or theme stocks that moved with it, "
+        "confirming the theme.\n"
+        "4. Social-media / trader chatter and sentiment around the name at the time, if findable.\n"
+        "5. WHY this setup worked, read through the Livermore / O'Neil / Qullamaggie lenses — the "
+        "structural reasons (pivot, base depth/length, volume dry-up then expansion, prior "
+        "momentum, moving-average support, line of least resistance) PLUS the small nuances a "
+        "trader should notice (tight closes, the character of the gap, how it held its stop, where "
+        "volume came in).\n\n"
+        "Write the FINISHED note only — no preamble like 'Here is', no bullet labels, no citation "
+        "markup. If web search turns up little for an old or obscure name, lean on the price action "
+        "and the year's dominant theme, and make clear what is inferred vs confirmed."
+    )
+
+    messages = [{"role": "user", "content": prompt}]
+
+    def _call(msgs):
+        return client.messages.create(
+            model=_SETUP_DESC_MODEL,
+            max_tokens=12000,                       # headroom for adaptive thinking + search + the note
+            thinking={"type": "adaptive"},          # Opus 4.8: adaptive only (no budget_tokens / temperature)
+            system=_SETUP_DESC_SYSTEM,
+            tools=[_SETUP_DESC_WEB_TOOL],
+            messages=msgs,
+        )
+
+    resp = _call(messages)
+    # The web_search server tool runs a server-side loop; if it hits its iteration
+    # cap it returns stop_reason="pause_turn" — re-send to resume (a few times).
+    conts = 0
+    while getattr(resp, "stop_reason", None) == "pause_turn" and conts < 6:
+        resp = _call([{"role": "user", "content": prompt},
+                      {"role": "assistant", "content": resp.content}])
+        conts += 1
+
+    text = "".join(
+        getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text"
+    ).strip()
+    return text or None
+
+
+@router.post("/setup/{setup_id}/describe")
+def describe_setup(setup_id: int, _admin: dict = Depends(require_admin)):
+    """AI-generate a web-grounded teaching description for one setup and SAVE it to
+    the setup's notes. Admin-only and manual — each call spends Anthropic tokens, so
+    it's wired to a button, never auto-run. The result persists in `notes` forever
+    (later views are a free DB read). Returns the updated setup."""
+    if not _SETUP_DESC_ENABLED:
+        raise HTTPException(503, "Setup description generation is disabled")
+    setup = svc.get_setup(setup_id)
+    if not setup:
+        raise HTTPException(404, "Setup not found")
+    stock = svc.get_stock_detail(setup["stock_id"])
+    if not stock:
+        raise HTTPException(404, "Stock not found")
+    try:
+        text = _generate_setup_description(setup, stock)
+    except Exception as e:  # surface the real reason so the admin can act on it
+        raise HTTPException(502, f"Generation failed: {str(e)[:240]}")
+    if not text:
+        raise HTTPException(502, "The model returned no description — try again.")
+    updated = svc.update_setup(setup_id, {"notes": text})
+    return updated or setup
+
+
 # ── Catalyst writes (admin only) ──────────────────────────────────────────────
 
 @router.post("/stock/{stock_id}/catalysts/generate")

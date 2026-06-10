@@ -549,17 +549,28 @@ function AddSetupForm({ stockId, year, onAdded }) {
 // an inline editor to type the details in directly. This panel is its own click
 // zone (stops propagation) so reading/editing never toggles the chart zoom that
 // lives on the row above it.
-function SetupDetails({ setup, isAdmin, onSave }) {
+function SetupDetails({ setup, isAdmin, onSave, onGenerate }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(setup.notes || '')
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [genErr, setGenErr] = useState(null)
   const notes = setup.notes || ''
 
-  function startEdit() { setDraft(setup.notes || ''); setEditing(true) }
+  function startEdit() { setDraft(setup.notes || ''); setGenErr(null); setEditing(true) }
   async function save() {
     setSaving(true)
     try { await onSave(setup.id, draft.trim()); setEditing(false) }
     finally { setSaving(false) }
+  }
+  // AI-generate (web-grounded) the teaching note. One backend call; ~30s with web
+  // search. Result lands in notes via the parent's optimistic cache update.
+  async function generate() {
+    if (generating) return
+    setGenerating(true); setGenErr(null)
+    try { await onGenerate(setup.id) }
+    catch (e) { setGenErr(e?.message || 'Generation failed') }
+    finally { setGenerating(false) }
   }
 
   if (editing) {
@@ -579,18 +590,25 @@ function SetupDetails({ setup, isAdmin, onSave }) {
       </div>
     )
   }
-  if (!notes) {
-    if (!isAdmin) return null
-    return (
-      <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
-        <button className={styles.setupDescAdd} onClick={startEdit}>+ Add details</button>
-      </div>
-    )
-  }
+  // Nothing to show for a plain viewer on an undescribed setup.
+  if (!notes && !isAdmin && !generating) return null
   return (
     <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
-      <p className={styles.setupDescText}>{notes}</p>
-      {isAdmin && <button className={styles.setupDescEditBtn} onClick={startEdit}>✎ Edit</button>}
+      {notes && <p className={styles.setupDescText}>{notes}</p>}
+      {generating && (
+        <p className={styles.setupDescGen}>Researching the setup — web search + analysis (~30s)…</p>
+      )}
+      {genErr && <p className={styles.setupDescErr}>{genErr}</p>}
+      {isAdmin && (
+        <div className={styles.setupDescBtns}>
+          {notes
+            ? <button className={styles.setupDescEditBtn} onClick={startEdit} disabled={generating}>✎ Edit</button>
+            : <button className={styles.setupDescAdd} onClick={startEdit} disabled={generating}>+ Add details</button>}
+          <button className={styles.setupDescGenBtn} onClick={generate} disabled={generating}>
+            {generating ? 'Generating…' : (notes ? '✨ Regenerate' : '✨ Generate')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1152,6 +1170,24 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     }
   }
 
+  // Admin: AI-generate a web-grounded teaching description for a setup (Opus 4.8 +
+  // web search on the backend). Stored permanently in notes, so it's a one-time
+  // spend per setup. Throws with the server's reason so SetupDetails can show it.
+  async function generateSetupDesc(id) {
+    const r = await fetch(`/api/modelbook/setup/${id}/describe`, { method: 'POST', credentials: 'include' })
+    if (!r.ok) {
+      let detail = `Failed (${r.status})`
+      try { detail = (await r.json())?.detail || detail } catch { /* non-JSON body */ }
+      throw new Error(detail)
+    }
+    const updated = await r.json()
+    mutate((cur) => {
+      if (!cur) return cur
+      return { ...cur, setups: (cur.setups || []).map(s => (s.id === id ? { ...s, notes: updated.notes } : s)) }
+    }, { revalidate: false })
+    return updated.notes
+  }
+
   // Upload a TradingView (or broker) OHLCV CSV → parsed client-side → stored as
   // this stock's chart data (for delisted tickers the providers no longer carry).
   async function onBarsFile(e) {
@@ -1550,7 +1586,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                           )}
                         </div>
                         {selectedSetupId === s.id && (
-                          <SetupDetails setup={s} isAdmin={isAdmin} onSave={saveSetupNotes} />
+                          <SetupDetails setup={s} isAdmin={isAdmin} onSave={saveSetupNotes} onGenerate={generateSetupDesc} />
                         )}
                       </div>
                     )

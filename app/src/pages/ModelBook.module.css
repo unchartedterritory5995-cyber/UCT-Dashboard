@@ -527,7 +527,16 @@
   border: 1px solid var(--border); border-radius: 4px; outline: none;
 }
 .setupDescEdit:focus { border-color: var(--ut-gold); }
-.setupDescBtns { display: flex; gap: 6px; }
+.setupDescBtns { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.setupDescGenBtn {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 11px; border-radius: 4px; cursor: pointer;
+  background: rgba(201,168,76,0.10); color: var(--ut-gold); border: 1px solid rgba(201,168,76,0.35);
+}
+.setupDescGenBtn:hover:not(:disabled) { background: rgba(201,168,76,0.20); }
+.setupDescGenBtn:disabled { opacity: 0.6; cursor: default; }
+.setupDescGen { font-size: 11px; line-height: 1.5; color: var(--ut-gold); opacity: 0.85; font-style: italic; margin: 0; }
+.setupDescErr { font-size: 11px; line-height: 1.45; color: #f87171; margin: 0; }
 .setupDescSave, .setupDescCancel {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   padding: 4px 11px; border-radius: 4px; cursor: pointer; border: 1px solid transparent;
