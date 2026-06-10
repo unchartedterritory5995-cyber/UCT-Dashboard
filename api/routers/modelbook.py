@@ -1589,7 +1589,19 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "(base/consolidation, the volume signature, the pivot, moving-average support, character "
         "of the move), and the thematic reason (the market backdrop and the sector/theme driving "
         "it, plus any sympathy names). Stay factual to that year; if unsure of exact details, lean "
-        "on the price action and the year's dominant theme. Do NOT name any trader or methodology."
+        "on the price action and the year's dominant theme. Do NOT name any trader or methodology.\n\n"
+        "POINT-IN-TIME RULES (critical):\n"
+        "- Write ONLY what a trader could observe ON the setup day — no hindsight. Never "
+        "retro-label the theme with a name that only became consensus later (e.g. don't call it a "
+        "'super-cycle' if that narrative wasn't established yet on the setup date). If the theme "
+        "was early-stage, SAY it was early: observable sympathy strength in the peer group is the "
+        "tell, not the later consensus story.\n"
+        "- When the setup candle shows it, explicitly call it a CHARACTER CHANGE — range expansion "
+        "plus volume expansion driving to new highs — and name the follow-through condition: the "
+        "setup day's low should not be breached if the move is to continue.\n"
+        "- Read the setup candle's intraday quality from the OHLC: if it opened near the low of "
+        "day and closed near the high of day, say so — that full-range close signals strong "
+        "institutional buying conviction."
     )
 
     messages = [{"role": "user", "content": prompt}]
