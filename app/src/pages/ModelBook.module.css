@@ -399,7 +399,10 @@
 .chartWrap { flex: 1 1 auto; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); overflow: hidden; }
 /* Wider than the old 340px so the earnings table fits to the right of the stats
    without the trailing % CHG column getting clipped. */
-.infoSide { width: 450px; flex: none; overflow-y: auto; padding-left: 14px; padding-right: 14px; padding-top: 12px; border-left: 1px solid var(--border); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+/* scrollbar-gutter: stable reserves the scrollbar lane even while content fits, so
+   opening a setup description (which makes the panel scroll) never shrinks the inner
+   width — keeps the Setups/Catalysts header row from reflowing to two-line labels. */
+.infoSide { width: 450px; flex: none; overflow-y: auto; scrollbar-gutter: stable; padding-left: 14px; padding-right: 14px; padding-top: 12px; border-left: 1px solid var(--border); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
 /* Stats column + earnings table, side by side at the top of the info panel */
 .statsRow {
   display: flex; gap: 20px; align-items: flex-start;
@@ -424,7 +427,7 @@
 .setupSectionHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .setupHeadTools { display: flex; align-items: center; gap: 8px; }
 .showAllToggle {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none;
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   text-transform: uppercase; padding: 4px 9px 4px 6px; border-radius: 4px; cursor: pointer;
   border: 1px solid var(--border); background: transparent; color: var(--text-muted);
@@ -449,6 +452,7 @@
   text-transform: uppercase; padding: 4px 9px; border-radius: 4px; cursor: pointer;
   border: 1px solid transparent; background: transparent; color: var(--text-muted);
   transition: color 0.12s, background 0.12s, border-color 0.12s;
+  white-space: nowrap; flex: none;
 }
 .panelTab:hover { color: var(--text-primary); }
 .panelTabActive { color: var(--ut-gold); background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.3); }
@@ -558,6 +562,7 @@
   font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
   padding: 5px 12px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(201,168,76,0.3);
   background: rgba(201,168,76,0.08); color: var(--ut-gold);
+  white-space: nowrap; flex: none;
 }
 .addBtn:hover { background: rgba(201,168,76,0.15); }
 .adminForm { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; background: rgba(255,255,255,0.02); }
