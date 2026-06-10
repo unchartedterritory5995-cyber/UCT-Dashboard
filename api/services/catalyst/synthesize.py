@@ -13,14 +13,16 @@ from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-# Primary model PINNED to Haiku 4.5 (emergency cost pass 2026-05-27 evening).
-# Reason: Anthropic console showed Opus 4.7 was silently failing for this API key
-# and falling through to Haiku — meaning the engine was running on Haiku the whole
-# time. Switching primary to Sonnet earlier today made it ~4× more expensive
-# (Sonnet succeeds where Opus failed). Pinning explicitly to Haiku ensures the
-# engine runs at the original (verified-working) cost profile.
-# Revert: set CATALYST_OPUS_MODEL=claude-sonnet-4-6 or claude-opus-4-7 in env.
-OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-haiku-4-5")
+# Primary synthesis model = Sonnet 4.6 (2026-06-10). History: the 2026-05-27
+# cost pass pinned Haiku because Opus 4.7 was silently failing for this key and
+# falling through to Haiku anyway. Re-tested 2026-06-10 against the live key:
+# claude-sonnet-4-6 works cleanly and produces materially sharper theses +
+# grades than Haiku (the grader decides what gets hidden, so grade quality
+# directly drives signal quality). Cost stays within the $8/day soft cap.
+# claude-opus-4-8 rejects the `temperature` param (deprecated) — _call_anthropic
+# now retries without it, so Opus is selectable via env for max quality.
+# Revert to the cheap profile: set CATALYST_OPUS_MODEL=claude-haiku-4-5.
+OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
 
 SYSTEM_PROMPT = """You are a SKEPTICAL sell-side analyst writing catalyst summaries for a professional trader's morning dashboard. Your default stance is doubt: most "catalysts" surfaced by news feeds are noise. Your job is to tell the trader, honestly, how real the catalyst is.
@@ -140,16 +142,22 @@ Output the JSON now."""
 
 def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
     """Make one Anthropic API call. Returns (response_message, input_tokens, output_tokens).
-    Raises on transport/API errors so caller can handle fallback."""
+    Raises on transport/API errors so caller can handle fallback.
+
+    Newer models (e.g. Opus 4.8) reject the `temperature` param as deprecated;
+    on that specific 400 we retry once without it so any model id stays usable."""
     from api.services.engine import _get_anthropic_client
     client = _get_anthropic_client()
-    msg = client.messages.create(
-        model=model,
-        max_tokens=500,
-        temperature=0.3,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    kwargs = dict(model=model, max_tokens=500, temperature=0.3,
+                  system=system, messages=[{"role": "user", "content": prompt}])
+    try:
+        msg = client.messages.create(**kwargs)
+    except Exception as e:
+        if "temperature" in str(e).lower():
+            kwargs.pop("temperature", None)
+            msg = client.messages.create(**kwargs)
+        else:
+            raise
     return msg, msg.usage.input_tokens, msg.usage.output_tokens
 
 

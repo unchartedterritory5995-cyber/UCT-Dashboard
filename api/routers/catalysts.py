@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import os
 import re
 import threading
+import time
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path
@@ -23,10 +25,50 @@ def _today() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
 
+# Read-triggered self-heal — mirrors the COT + tweet-poller pattern. The
+# scheduled premarket refresh can fail (a thread-burst blip, a deploy window,
+# a transient source outage); without this the tile stays empty until the next
+# cron. Now the first visit on a quiet morning kicks a background refresh so
+# the data heals itself within ~a minute (frontend polls every 30s).
+_LAST_AUTO_REFRESH_AT = 0.0
+_AUTO_REFRESH_COOLDOWN_SECONDS = 1800  # 30 min — don't stampede the engine
+
+
+def _self_heal_due(has_ranked: bool, now_et, last_refresh_at: float, now: float) -> bool:
+    """Pure decision for the self-heal (kept separate so it's unit-testable
+    without mocking threads/clocks). Heal when: no ranked rows yet, it's a
+    weekday, the premarket window has opened (>=6 AM ET), and we're past the
+    cooldown since the last auto-refresh."""
+    if has_ranked:
+        return False
+    if now_et.weekday() >= 5 or now_et.hour < 6:
+        return False
+    if now - last_refresh_at < _AUTO_REFRESH_COOLDOWN_SECONDS:
+        return False
+    return True
+
+
+def _maybe_auto_refresh_if_stale(ranked_rows: list) -> None:
+    global _LAST_AUTO_REFRESH_AT
+    if os.environ.get("CATALYST_SELF_HEAL_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+    if not _self_heal_due(bool(ranked_rows), dt.datetime.now(_ET),
+                          _LAST_AUTO_REFRESH_AT, time.time()):
+        return
+    _LAST_AUTO_REFRESH_AT = time.time()
+    try:
+        threading.Thread(target=engine.run_refresh, daemon=True,
+                         name="catalyst-self-heal").start()
+        logger.info("[catalysts] self-heal: today has no ranked rows — kicked background refresh")
+    except Exception:
+        logger.exception("[catalysts] self-heal refresh failed to start")
+
+
 @router.get("/catalysts/today")
 def catalysts_today(user=Depends(get_current_user)):
     md = _today()
     rows = store.get_for_date(md, ranked_only=True)
+    _maybe_auto_refresh_if_stale(rows)
     sector_contexts = engine.get_sector_contexts(md)
     return {
         "market_date": md,

@@ -86,3 +86,24 @@ def test_zero_safe():
                  rss_headline_count=0))
     assert isinstance(s, float)
     assert s == s  # not NaN
+
+
+def test_market_cap_bonus_lifts_big_caps():
+    """A megacap should score higher than a micro-cap with identical signals."""
+    micro = score(_c(market_cap=3e8))    # ~$300M (universe floor) -> ~0 bonus
+    mega = score(_c(market_cap=3e12))    # ~$3T -> meaningful bonus
+    assert mega > micro
+
+
+def test_market_cap_bonus_can_outrank_bigger_gap():
+    """A +5% liquid megacap (news mover) should be able to beat a +12% micro-cap
+    — the whole point of the cap bonus for a big-cap-news-mover tool."""
+    megacap_small_move = score(_c(gap_pct=5.0, vol_x=1.5, price=140.0, market_cap=3e12))
+    microcap_big_move = score(_c(gap_pct=12.0, vol_x=1.5, price=8.0, market_cap=2e8))
+    assert megacap_small_move > microcap_big_move
+
+
+def test_market_cap_missing_is_neutral():
+    """Unknown cap = no bonus, no penalty (fail-neutral) — must not crash."""
+    s = score(_c(market_cap=None))
+    assert isinstance(s, float)
