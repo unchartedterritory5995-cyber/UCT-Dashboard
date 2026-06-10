@@ -54,3 +54,22 @@ def test_none_when_no_signals():
 def test_negative_gap_counts_for_gapper():
     c = _c(gap_pct=-8.0, vol_x=5.0)
     assert assign_tag(c) == "Gapper"
+
+
+def test_gap_scan_mover_tags_gapper_without_volume_surge():
+    """A gap-scan mover (already liquidity-qualified) tags Gapper on gap alone —
+    even a modest +4% big-cap with low vol_x that the strict rule would drop."""
+    c = _c(gap_pct=4.0, vol_x=1.2, from_gap_scan=True)
+    assert assign_tag(c) == "Gapper"
+
+
+def test_non_gap_scan_mover_still_needs_volume_surge():
+    """Same numbers WITHOUT the gap-scan flag stay untagged — the strict rule
+    is preserved for general candidates."""
+    c = _c(gap_pct=4.0, vol_x=1.2, from_gap_scan=False)
+    assert assign_tag(c) is None
+
+
+def test_gap_scan_below_floor_not_gapper():
+    c = _c(gap_pct=1.5, vol_x=1.2, from_gap_scan=True)
+    assert assign_tag(c) is None

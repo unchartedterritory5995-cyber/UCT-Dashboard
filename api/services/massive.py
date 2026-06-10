@@ -213,6 +213,47 @@ class _MassiveRestClient:
             }
         return result
 
+    def get_full_market_snapshot(self) -> dict[str, dict]:
+        """Snapshot the ENTIRE US equities market in one call (~10k names).
+
+        Hits the all-tickers snapshot endpoint with NO ticker filter, so it
+        returns every name — unlike get_top_movers (capped at 20 by percent)
+        and get_batch_rich_snapshots (a specific ticker list). Used by the
+        catalyst broad gap-scan to surface modest-% big-cap NEWS movers that
+        a percentage-ranked top-20 list structurally misses.
+
+        Per ticker returns just what the gap-scan needs:
+          last_price  — lastTrade.p (pre-market aware) → day.c → prevDay.c
+          prev_close  — prevDay.c (yesterday's regular-session close)
+          today_vol   — day.v (today's volume so far)
+          prev_vol    — prevDay.v (yesterday's full-day volume; stable liquidity)
+        Returns {} on error.
+        """
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"?apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return {}
+        out: dict[str, dict] = {}
+        for t in data.get("tickers", []):
+            ticker = t.get("ticker", "")
+            if not ticker:
+                continue
+            day      = t.get("day", {})
+            prev_day = t.get("prevDay", {})
+            last     = t.get("lastTrade", {})
+            last_price = float(last.get("p") or day.get("c") or prev_day.get("c") or 0.0)
+            out[ticker] = {
+                "last_price": round(last_price, 4),
+                "prev_close": round(float(prev_day.get("c") or 0.0), 4),
+                "today_vol":  int(day.get("v") or 0),
+                "prev_vol":   int(prev_day.get("v") or 0),
+            }
+        return out
+
 
 def _get_client() -> _MassiveRestClient:
     """Return a shared _MassiveRestClient instance, initializing on first call."""
