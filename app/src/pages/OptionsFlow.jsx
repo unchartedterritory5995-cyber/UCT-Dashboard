@@ -122,7 +122,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE","Entry",priceFn?"Now":null,priceFn?"P&L":null].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -155,14 +155,14 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
             </tr>
             {isExpanded && onRowClick && (
               <tr><td colSpan={colCount} style={{ padding:0, background:"#060e1e" }}>
@@ -1749,7 +1749,8 @@ export default function OptionsFlowDashboard() {
     // Hits (repetition): 0.5–2.5
     const h = c.hits||0;
     const v = c.volOI||0;
-    const isMega = wlCapCheck(c)==="Mega";
+    const cap = wlCapCheck(c);
+    const isMega = cap === "Mega";
     if (h <= 1) {
       // Single trade — score by conviction signals (premium + V/OI) instead of repetition
       if (v >= 15) s += 2.5;
@@ -1780,6 +1781,26 @@ export default function OptionsFlowDashboard() {
     if (c.uoa) s += 1;
     // LEAPS bonus: +0.5 for DTE > 180 (long-dated conviction)
     if ((c.DTE||0) > 180) s += 0.5;
+    // Cap-relative premium multiplier — premium dominance principle.
+    // Sub-notable premium gets penalized regardless of how impressive V/OI,
+    // side urgency, or single-trade conviction looks. A $137K trade with
+    // V/OI 76x on a Large cap shouldn't outscore a $1M trade with V/OI 5x.
+    // Notability floors (per Ravi's read):
+    //   Mega:      $1M+ notable | $500K-$1M borderline (0.7x) | <$500K heavy (0.4x)
+    //   Large:     $750K+ notable | $400K-$750K borderline | <$400K heavy
+    //   Mid-Small: $500K+ notable | $250K-$500K borderline | <$250K heavy
+    let premMult = 1;
+    if (isMega) {
+      if (p < 500e3) premMult = 0.4;
+      else if (p < 1e6) premMult = 0.7;
+    } else if (cap === "Large") {
+      if (p < 400e3) premMult = 0.4;
+      else if (p < 750e3) premMult = 0.7;
+    } else if (cap === "Mid-Small") {
+      if (p < 250e3) premMult = 0.4;
+      else if (p < 500e3) premMult = 0.7;
+    }
+    s = s * premMult;
     // Normalize to 10 max (raw max ~12.5)
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
@@ -1876,7 +1897,15 @@ export default function OptionsFlowDashboard() {
         //  get unfairly penalized and drop out of the top-20 watchlist.)
         const _hasAccum = c.vol > 0 && (c.maxOI||0) > 0 && (c.vol / c.maxOI) >= 0.3;
         const _isExit = _isExitRaw && !_hasAccum;
-        return { ...c, _isExit, _rankScore: _isExit ? (c.score||0) * 0.4 : (c.score||0) };
+        // Use autoScore for ranking so the premium multiplier (and any other
+        // autoScore refinements) actually decides which 20 make the cut.
+        // Previously this used c.score (CONV cluster score) which is blind
+        // to autoScore tuning — that's why sub-notable premium picks like
+        // STM $69 / KO $90 / WULF $25.5 with $134-218K were making the top
+        // 20 despite scoring 20-28% on autoScore, while $1M+ legit flow sat
+        // in Scanner Suggestions waiting to be promoted.
+        const _autoS = autoScore(c);
+        return { ...c, _isExit, _rankScore: _isExit ? _autoS * 0.4 : _autoS };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
@@ -4593,7 +4622,11 @@ export default function OptionsFlowDashboard() {
                 const hasBoth=tk.swp>0&&tk.blk>0;
                 const swpRatio=tk.swp/(tk.swp+tk.blk);
                 if(purity<70) return;
-                if(tk.confirmed<3) return;
+                // Trade-count hard gate removed — premium > count.
+                // Cap-band premium gates below ($250K Mid-Small / $1M Large / $10M Mega)
+                // already filter out noise. A single $1M ASK sweep shouldn't fail just
+                // because it's not a 3-hit cluster. The +20% confirmed≥3 modifier below
+                // still rewards multi-hit consistency without making it a hard cutoff.
                 if(tk.swp<1) return;
                 if(tk.hasER&&tk.minDTE<=14) return;
                 let score=0;
