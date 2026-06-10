@@ -1496,6 +1496,59 @@ def _format_bar_window(bars: list, center_date: str, before: int = 12, after: in
     return "\n".join(lines) or "(no daily bars available)"
 
 
+def _setup_candle_facts(bars: list, center_date: str) -> str:
+    """Pre-computed setup-day candle metrics, injected into the prompt so the model
+    never eyeballs arithmetic off the raw OHLC rows. (It claimed 'open near the low'
+    on a candle that opened 31% up the range — LLMs are unreliable at mental math, so
+    we hand it the numbers.) Returns '' when the setup day isn't in the bars."""
+    idx = None
+    for i, b in enumerate(bars or []):
+        if str(b.get("t", ""))[:10] == center_date:
+            idx = i
+            break
+    if idx is None:
+        return ""
+    b = bars[idx]
+    try:
+        o, h, low, c = float(b["o"]), float(b["h"]), float(b["l"]), float(b["c"])
+        v = float(b.get("v") or 0)
+    except (KeyError, TypeError, ValueError):
+        return ""
+    rng = h - low
+    lines = [
+        f"SETUP-DAY CANDLE FACTS for {center_date} (pre-computed — base ALL claims about the "
+        f"setup candle on these numbers; do not re-derive them from the rows):",
+        f"- O {o:.2f} / H {h:.2f} / L {low:.2f} / C {c:.2f}, volume {int(v):,}",
+    ]
+    if rng > 0:
+        op = (o - low) / rng * 100
+        cp = (c - low) / rng * 100
+        lines.append(f"- Open sits {op:.0f}% up the day's range (0% = at the low, 100% = at the high)")
+        lines.append(f"- Close sits {cp:.0f}% up the day's range")
+    prior = bars[max(0, idx - 20):idx]
+    try:
+        pr = [float(p["h"]) - float(p["l"]) for p in prior]
+        avg_r = (sum(pr) / len(pr)) if pr else 0
+        if avg_r > 0 and rng > 0:
+            lines.append(f"- Day's range is {rng / avg_r:.1f}x the prior-{len(pr)}-session average range")
+    except (KeyError, TypeError, ValueError):
+        pass
+    pv = [float(p.get("v") or 0) for p in prior]
+    pv = [x for x in pv if x > 0]
+    if pv and v > 0:
+        lines.append(f"- Volume is {v / (sum(pv) / len(pv)):.1f}x the prior-{len(pv)}-session average")
+    if prior:
+        try:
+            prior_hi = max(float(p["h"]) for p in prior)
+            lines.append(f"- New high vs the prior {len(prior)} sessions: {'YES' if h > prior_hi else 'no'}")
+            prev_c = float(prior[-1]["c"])
+            if prev_c > 0:
+                lines.append(f"- Open vs prior close: {(o - prev_c) / prev_c * 100:+.1f}% gap")
+        except (KeyError, TypeError, ValueError):
+            pass
+    return "\n".join(lines) + "\n\n"
+
+
 _BULLET_LABEL_RE = re.compile(
     r"^(\s*[•\-*]\s*)(?:catalyst|technical|thematic|fundamental|fundamentals|theme)\s*[:\-—]\s*",
     re.IGNORECASE,
@@ -1566,7 +1619,9 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         bracket.append(f"target ${setup['target_price']}")
     bracket_txt = ", ".join(bracket) or "no entry/stop/target recorded"
 
-    window_txt = _format_bar_window(_load_year_bars(symbol, year, stock.get("id")), label_date)
+    year_bars = _load_year_bars(symbol, year, stock.get("id"))
+    window_txt = _format_bar_window(year_bars, label_date)
+    facts_txt = _setup_candle_facts(year_bars, label_date)
 
     # Where does this setup sit in the stock's sequence of labeled setups? Later
     # entries should be framed against the earlier ones (theme more established,
@@ -1598,6 +1653,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         f"(grade {grade or 'n/a'}; {bracket_txt}).\n\n"
         f"Daily price action around the setup day (date: open/high/low/close, volume):\n"
         f"{window_txt}\n\n"
+        f"{facts_txt}"
         f"{sequence_txt}"
         f"{research}"
         "Write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
@@ -1626,14 +1682,16 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "transplant traits of the stock's other labeled setups onto this one; the sequence list "
         "is purely for staging the narrative (entry #1 vs entry #2), never a source of candle or "
         "price-action claims.\n\n"
-        "CONDITIONAL OBSERVATIONS — NOT a checklist. Before stating ANY of these, verify it "
-        "against the marked '<-- setup day' OHLC row; if the numbers don't show it, OMIT it:\n"
-        "- Character change: only if the setup-day row shows clear range expansion plus volume "
-        "expansion driving to new highs vs the preceding rows — then also name the follow-through "
-        "condition (the setup day's low should not be breached if the move is to continue).\n"
-        "- Candle quality: only if the setup-day row's open is genuinely near its LOW and close "
-        "near its HIGH — then note the full-range close as strong institutional buying conviction. "
-        "Otherwise describe what the candle actually did, or skip it.\n"
+        "CONDITIONAL OBSERVATIONS — NOT a checklist. Each may ONLY be stated if the SETUP-DAY "
+        "CANDLE FACTS above support it; those numbers are authoritative — never contradict them, "
+        "and OMIT any observation they don't support:\n"
+        "- Character change: only if the FACTS show meaningful range expansion (≥ ~1.5x) plus "
+        "volume expansion (≥ ~1.5x) AND a new high — then also name the follow-through condition "
+        "(the setup day's low should not be breached if the move is to continue).\n"
+        "- Candle quality: use the open/close range positions from the FACTS. Only call the open "
+        "'near the low' if its position is ≤ ~15%, and the close 'near the high' if ≥ ~85%. "
+        "Otherwise describe what the candle actually did (e.g. 'opened mid-range, reversed off "
+        "the lows, closed at the highs').\n"
         "- Extended-leader psychology: only if this setup formed after an already-extended move "
         "(short flag / brief consolidation following a big run) — most traders are afraid to buy "
         "it, but the strongest stocks stay extended; the best leaders may offer only 1-2 chances "
