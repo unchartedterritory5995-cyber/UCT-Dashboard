@@ -51,6 +51,38 @@ _uploader_state = {
 _uploader_state_lock = threading.Lock()
 
 
+def _process_rss_mb():
+    """Current resident-set memory in MB, or None if unavailable (non-Linux).
+
+    Same /proc read as api.main._process_rss_mb (duplicated — worker_main
+    must not import api.main, which builds the whole web app at import).
+    Added for the 2026-06-10 worker SIGSEGV incident: Railway metrics showed
+    3-23 GB RSS sawtooth during prewarm with the crash at the pass tail, and
+    MALLOC_ARENA_MAX=2 did NOT shrink it — so the [mem] log line below exists
+    to correlate RSS against prewarm progress and name the allocation phase."""
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return round(int(line.split()[1]) / 1024, 1)  # kB -> MB
+    except Exception:
+        pass
+    return None
+
+
+def _start_memwatch():
+    """Log RSS + thread count every 60s so log timestamps line up with
+    [prewarm] progress lines and the uploader's snapshot/delta lines."""
+    def loop():
+        while True:
+            rss = _process_rss_mb()
+            if rss is not None:
+                log.info(f"[mem] rss_mb={rss} threads={threading.active_count()}")
+            time.sleep(60)
+
+    threading.Thread(target=loop, daemon=True, name="memwatch").start()
+
+
 def _start_prewarmer():
     from api.services.bars_prewarm import run_prewarmer_forever
     log.info("starting prewarmer thread")
@@ -219,6 +251,9 @@ def _build_app() -> FastAPI:
         return {
             "alive": True,
             "service": "worker",
+            # Pod resource observability (2026-06-10 SIGSEGV incident).
+            "thread_count": threading.active_count(),
+            "rss_mb": _process_rss_mb(),
             # Most-recent successful upload (timestamp embedded in tarball
             # key + latest.txt). None until the first success.
             "last_upload_ts": upload["snapshot_ts"],
@@ -260,6 +295,7 @@ def main():
     _start_prewarmer()
     _start_uploader()
     _start_keepwarm()
+    _start_memwatch()
 
     port = int(os.environ.get("PORT", "8080"))
     log.info(f"worker HTTP listening on :{port} (healthcheck only)")
