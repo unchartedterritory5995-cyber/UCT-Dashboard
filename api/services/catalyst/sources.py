@@ -602,6 +602,10 @@ def collect_all() -> list[dict]:
             "tweet_mention_count": len(tweets),
             "rss_headline_count": len(rss),
             "scanner_setup": setup,
+            # Flags this candidate as surfaced by the broad gap-scan, which lets
+            # tagging treat it as a Gapper on gap alone (it's already liquidity-
+            # + dollar-volume-qualified) without the big-cap-hostile vol_x>=3.
+            "from_gap_scan": bool(gapscan_data),
         })
 
     for c in candidates:
