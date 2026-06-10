@@ -543,6 +543,58 @@ function AddSetupForm({ stockId, year, onAdded }) {
   )
 }
 
+// ── Setup details dropdown ────────────────────────────────────────────────────
+// Drops down beneath the selected setup (title + date), mirroring the catalyst
+// accordion: it surfaces the firm's teaching notes for that buy point. Admins get
+// an inline editor to type the details in directly. This panel is its own click
+// zone (stops propagation) so reading/editing never toggles the chart zoom that
+// lives on the row above it.
+function SetupDetails({ setup, isAdmin, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(setup.notes || '')
+  const [saving, setSaving] = useState(false)
+  const notes = setup.notes || ''
+
+  function startEdit() { setDraft(setup.notes || ''); setEditing(true) }
+  async function save() {
+    setSaving(true)
+    try { await onSave(setup.id, draft.trim()); setEditing(false) }
+    finally { setSaving(false) }
+  }
+
+  if (editing) {
+    return (
+      <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
+        <textarea
+          className={styles.setupDescEdit}
+          value={draft}
+          autoFocus
+          placeholder="Describe this setup — what made it a buy here, the trigger, what to watch…"
+          onChange={e => setDraft(e.target.value)}
+        />
+        <div className={styles.setupDescBtns}>
+          <button className={styles.setupDescSave} disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
+          <button className={styles.setupDescCancel} disabled={saving} onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
+  if (!notes) {
+    if (!isAdmin) return null
+    return (
+      <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
+        <button className={styles.setupDescAdd} onClick={startEdit}>+ Add details</button>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
+      <p className={styles.setupDescText}>{notes}</p>
+      {isAdmin && <button className={styles.setupDescEditBtn} onClick={startEdit}>✎ Edit</button>}
+    </div>
+  )
+}
+
 // ── Admin: add/edit a single catalyst ─────────────────────────────────────────
 // `initial` with an id → edit mode (PUT); otherwise create mode (POST).
 function CatalystForm({ stockId, year, initial, onSaved, onCancel }) {
@@ -1080,6 +1132,26 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     mutate()
   }
 
+  // Save the teaching notes typed into a setup's details dropdown. Partial PUT —
+  // the server's update_setup only writes keys present in the payload, so entry/
+  // stop/target/drawings are untouched. Optimistically patch the SWR cache so the
+  // new text shows instantly, then revalidate.
+  async function saveSetupNotes(id, notes) {
+    mutate((cur) => {
+      if (!cur) return cur
+      return { ...cur, setups: (cur.setups || []).map(s => (s.id === id ? { ...s, notes } : s)) }
+    }, { revalidate: false })
+    try {
+      await fetch(`/api/modelbook/setup/${id}`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      })
+    } finally {
+      mutate()
+    }
+  }
+
   // Upload a TradingView (or broker) OHLCV CSV → parsed client-side → stored as
   // this stock's chart data (for delisted tickers the providers no longer carry).
   async function onBarsFile(e) {
@@ -1458,24 +1530,27 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                         key={s.id}
                         data-setup-id={s.id}
                         className={`${styles.setupRowC} ${selectedSetupId === s.id ? styles.setupRowCActive : ''}`}
-                        onClick={() => onSetupClick(s)}
-                        title={s.notes || undefined}
                       >
-                        <span className={styles.setupNameC}>{s.setup_type}</span>
-                        <span className={styles.setupMonthC}>{fmtSetupDate(s.label_date)}</span>
-                        {isAdmin && (
-                          <>
-                            <button
-                              className={styles.setupEditC}
-                              title="Edit setup"
-                              onClick={e => { e.stopPropagation(); setEditingSetupId(s.id) }}
-                            >✎</button>
-                            <button
-                              className={styles.setupDelC}
-                              title="Delete setup"
-                              onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}
-                            >×</button>
-                          </>
+                        <div className={styles.setupRowCTop} onClick={() => onSetupClick(s)}>
+                          <span className={styles.setupNameC}>{s.setup_type}</span>
+                          <span className={styles.setupMonthC}>{fmtSetupDate(s.label_date)}</span>
+                          {isAdmin && (
+                            <>
+                              <button
+                                className={styles.setupEditC}
+                                title="Edit setup"
+                                onClick={e => { e.stopPropagation(); setEditingSetupId(s.id) }}
+                              >✎</button>
+                              <button
+                                className={styles.setupDelC}
+                                title="Delete setup"
+                                onClick={e => { e.stopPropagation(); deleteSetup(s.id) }}
+                              >×</button>
+                            </>
+                          )}
+                        </div>
+                        {selectedSetupId === s.id && (
+                          <SetupDetails setup={s} isAdmin={isAdmin} onSave={saveSetupNotes} />
                         )}
                       </div>
                     )
