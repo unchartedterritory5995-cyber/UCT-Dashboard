@@ -38,6 +38,17 @@ def _now_et() -> dt.datetime:
     return dt.datetime.now(_ET)
 
 
+def _envf(name: str, default: float) -> float:
+    """Read a float threshold from env, or return default."""
+    raw = os.environ.get(name)
+    if raw in (None, ""):
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
 def _safe(fn, default=None, name="?"):
     """Run a source pull; on any exception return default + log."""
     try:
@@ -432,12 +443,75 @@ def _pull_scanner_setups() -> dict[str, dict]:
     return out
 
 
+# ── Source 7: Broad market gap-scan ─────────────────────────────────────
+def _pull_gap_scan() -> dict[str, dict]:
+    """Find ANY liquid stock making a meaningful move — not just Massive's
+    top-20 gainers/losers (which are ranked BY PERCENT, so modest-% big-cap
+    NEWS movers — M&A, analyst PT changes, index inclusion — never make the
+    cut). This is the source that surfaces names like NUVL/MU/SIRI/NBIS.
+
+    Computes a PRE-MARKET-AWARE gap from last-trade vs prev-close. Massive's
+    todaysChangePerc is ~0 pre-market (no regular-session trades yet) — which
+    is exactly the window catalysts matter most — so we derive the move from
+    lastTrade.p instead.
+
+    Returns {ticker: {gap_pct}} (same shape as _pull_movers). Names are then
+    enriched + run through the same quality gates / scoring / selection as
+    every other source. Gated on CATALYST_GAPSCAN_ENABLED (default on).
+    """
+    if os.environ.get("CATALYST_GAPSCAN_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return {}
+    try:
+        from api.services.massive import _get_client
+        snap = _get_client().get_full_market_snapshot() or {}
+    except Exception as e:
+        logger.warning("[catalyst-sources] gap_scan snapshot failed: %s", e)
+        return {}
+
+    min_pct = _envf("CATALYST_GAPSCAN_MIN_PCT", 3.0)
+    min_price = _envf("CATALYST_GAPSCAN_MIN_PRICE", 3.0)
+    min_dollar_vol = _envf("CATALYST_GAPSCAN_MIN_DOLLAR_VOL", 10_000_000.0)
+    # Hard cap on how many gappers we hand downstream. On a volatile day a
+    # bare gap≥3% filter returns 1000+ names — which both blows up the
+    # snapshot/metadata enrichment AND is mostly penny-gapper noise. We rank
+    # the survivors by DOLLAR-VOLUME (the best size/liquidity proxy we have
+    # from a bare snapshot) and keep the most-traded N — i.e. the big, liquid
+    # NEWS movers the user actually wants, not thin small-caps.
+    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 50))
+
+    survivors: list[tuple[float, str, float]] = []  # (dollar_vol, sym, gap)
+    for ticker, d in snap.items():
+        sym = (ticker or "").upper()
+        # v1: plain alpha symbols only (drops dotted class shares / units /
+        # warrants / rights, which are noise for this use case).
+        if not sym or len(sym) > 5 or not sym.isalpha():
+            continue
+        last = d.get("last_price") or 0.0
+        prev = d.get("prev_close") or 0.0
+        if last <= 0 or prev <= 0:
+            continue
+        gap = (last - prev) / prev * 100.0
+        if abs(gap) < min_pct or last < min_price:
+            continue
+        # Liquidity floor: prev full-day volume preferred (stable, not inflated
+        # by today's catalyst spike); today's volume as fallback.
+        vol = d.get("prev_vol") or d.get("today_vol") or 0
+        dollar_vol = last * vol
+        if vol > 0 and dollar_vol < min_dollar_vol:
+            continue
+        survivors.append((dollar_vol, sym, round(gap, 2)))
+
+    survivors.sort(key=lambda x: x[0], reverse=True)
+    return {sym: {"gap_pct": gap} for _dv, sym, gap in survivors[:max_names]}
+
+
 # ── Orchestrator ────────────────────────────────────────────────────────
 def collect_all() -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
     keyed by ticker. Returns list of candidates (one per ticker)."""
     tasks = {
         "movers":     _pull_movers,
+        "gap_scan":   _pull_gap_scan,
         "earnings":   _pull_earnings,
         "tweets":     _pull_tweet_signals,
         "rss":        _pull_rss_signals,
@@ -445,7 +519,7 @@ def collect_all() -> list[dict]:
         "perplexity": _pull_perplexity_discovery,
     }
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="cat-src") as ex:
+    with ThreadPoolExecutor(max_workers=7, thread_name_prefix="cat-src") as ex:
         futures = {ex.submit(_safe, fn, {}, name): name
                    for name, fn in tasks.items()}
         for fut in as_completed(futures, timeout=30):
@@ -459,6 +533,7 @@ def collect_all() -> list[dict]:
     # Universe = union of tickers from all sources
     universe: set[str] = set()
     universe.update(results.get("movers", {}).keys())
+    universe.update(results.get("gap_scan", {}).keys())
     universe.update(results.get("earnings", {}).keys())
     universe.update(results.get("tweets", {}).keys())
     universe.update(results.get("rss", {}).keys())
@@ -495,12 +570,17 @@ def collect_all() -> list[dict]:
         # overlay tick-by-tick live % change from useLivePrices when the
         # row renders; stored value is only the fallback during initial
         # load or for tickers outside the live-prices universe.
-        #   1. snapshot change_pct (Massive todaysChangePerc — works for any ticker)
-        #   2. movers feed gap_pct (fallback for tickers missing snapshot)
-        #   3. 0.0
+        #   1. snapshot change_pct (Massive todaysChangePerc — works in RTH)
+        #   2. gap-scan last-vs-prevclose (PRE-MARKET-aware; snapshot is ~0
+        #      pre-open so this is what makes the gate pass pre-market)
+        #   3. movers feed gap_pct (fallback for tickers missing snapshot)
+        #   4. 0.0
+        gapscan_data = results.get("gap_scan", {}).get(ticker, {})
         snap_chg = snap.get("change_pct")
-        if snap_chg is not None:
+        if snap_chg is not None and abs(snap_chg) >= 0.01:
             gap_pct = float(snap_chg)
+        elif gapscan_data.get("gap_pct") is not None:
+            gap_pct = float(gapscan_data["gap_pct"])
         else:
             gap_pct = movers_data.get("gap_pct") or 0.0
 
