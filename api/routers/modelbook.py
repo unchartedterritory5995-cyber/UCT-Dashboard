@@ -1583,28 +1583,74 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
     return text or None
 
 
+# Generation runs in a background thread (web search + Opus 4.8 can take a few
+# minutes — far longer than a proxy will hold an HTTP request open). The POST
+# kicks it off and returns immediately; the frontend polls describe-status until
+# the note is written to the setup's notes (or an error is recorded).
+_gen_desc_lock = _threading.Lock()
+_generating_descs = set()   # setup ids with a description generation in flight
+_desc_errors = {}           # setup_id -> last error string (cleared on new run / success)
+
+
+def _run_setup_desc(setup_id: int) -> None:
+    try:
+        setup = svc.get_setup(setup_id)
+        if not setup:
+            _desc_errors[setup_id] = "Setup not found"
+            return
+        stock = svc.get_stock_detail(setup["stock_id"])
+        if not stock:
+            _desc_errors[setup_id] = "Stock not found"
+            return
+        text = _generate_setup_description(setup, stock)
+        if text:
+            svc.update_setup(setup_id, {"notes": text})
+            _desc_errors.pop(setup_id, None)
+        else:
+            _desc_errors[setup_id] = "The model returned no description — try again."
+    except Exception as e:
+        _desc_errors[setup_id] = f"Generation failed: {str(e)[:240]}"
+    finally:
+        with _gen_desc_lock:
+            _generating_descs.discard(setup_id)
+
+
 @router.post("/setup/{setup_id}/describe")
 def describe_setup(setup_id: int, _admin: dict = Depends(require_admin)):
-    """AI-generate a web-grounded teaching description for one setup and SAVE it to
-    the setup's notes. Admin-only and manual — each call spends Anthropic tokens, so
-    it's wired to a button, never auto-run. The result persists in `notes` forever
-    (later views are a free DB read). Returns the updated setup."""
+    """Kick off (background) AI generation of a web-grounded teaching description for
+    one setup. Admin-only and manual — each run spends Anthropic tokens, so it's
+    wired to a button, never auto-run. The result persists in the setup's `notes`
+    forever (later views are a free DB read). Returns immediately with
+    {status:'generating'}; poll GET describe-status for completion."""
     if not _SETUP_DESC_ENABLED:
         raise HTTPException(503, "Setup description generation is disabled")
     setup = svc.get_setup(setup_id)
     if not setup:
         raise HTTPException(404, "Setup not found")
-    stock = svc.get_stock_detail(setup["stock_id"])
-    if not stock:
-        raise HTTPException(404, "Stock not found")
-    try:
-        text = _generate_setup_description(setup, stock)
-    except Exception as e:  # surface the real reason so the admin can act on it
-        raise HTTPException(502, f"Generation failed: {str(e)[:240]}")
-    if not text:
-        raise HTTPException(502, "The model returned no description — try again.")
-    updated = svc.update_setup(setup_id, {"notes": text})
-    return updated or setup
+    with _gen_desc_lock:
+        if setup_id in _generating_descs:
+            return {"status": "generating"}  # already running — don't double-spend
+        _generating_descs.add(setup_id)
+    _desc_errors.pop(setup_id, None)
+    _threading.Thread(target=_run_setup_desc, args=(setup_id,), daemon=True,
+                      name=f"mb-setupdesc-{setup_id}").start()
+    return {"status": "generating"}
+
+
+@router.get("/setup/{setup_id}/describe-status")
+def describe_setup_status(setup_id: int, _admin: dict = Depends(require_admin)):
+    """Poll target for the background description job: 'generating' while in flight,
+    'error' (with message) on failure, else 'done' with the current notes."""
+    with _gen_desc_lock:
+        if setup_id in _generating_descs:
+            return {"status": "generating"}
+    err = _desc_errors.get(setup_id)
+    if err:
+        return {"status": "error", "error": err}
+    setup = svc.get_setup(setup_id)
+    if not setup:
+        raise HTTPException(404, "Setup not found")
+    return {"status": "done", "notes": setup.get("notes")}
 
 
 # ── Catalyst writes (admin only) ──────────────────────────────────────────────

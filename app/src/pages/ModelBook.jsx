@@ -1172,7 +1172,9 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
 
   // Admin: AI-generate a web-grounded teaching description for a setup (Opus 4.8 +
   // web search on the backend). Stored permanently in notes, so it's a one-time
-  // spend per setup. Throws with the server's reason so SetupDetails can show it.
+  // spend per setup. The backend runs it in a thread (web search can take minutes,
+  // longer than a proxy holds a request open), so we kick it off then POLL until
+  // the note lands. Throws with the server's reason so SetupDetails can show it.
   async function generateSetupDesc(id) {
     const r = await fetch(`/api/modelbook/setup/${id}/describe`, { method: 'POST', credentials: 'include' })
     if (!r.ok) {
@@ -1180,12 +1182,29 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       try { detail = (await r.json())?.detail || detail } catch { /* non-JSON body */ }
       throw new Error(detail)
     }
-    const updated = await r.json()
-    mutate((cur) => {
-      if (!cur) return cur
-      return { ...cur, setups: (cur.setups || []).map(s => (s.id === id ? { ...s, notes: updated.notes } : s)) }
-    }, { revalidate: false })
-    return updated.notes
+    const deadline = Date.now() + 8 * 60 * 1000  // give the web-search run plenty of room
+    for (;;) {
+      await new Promise(res => setTimeout(res, 3000))
+      let j
+      try {
+        const s = await fetch(`/api/modelbook/setup/${id}/describe-status`, { credentials: 'include' })
+        if (!s.ok) continue   // transient — keep polling
+        j = await s.json()
+      } catch { continue }
+      if (j.status === 'generating') {
+        if (Date.now() > deadline) {
+          throw new Error('Still running after 8 min — it may finish on its own; refresh shortly.')
+        }
+        continue
+      }
+      if (j.status === 'error') throw new Error(j.error || 'Generation failed')
+      // done — write the new notes into the SWR cache so it renders immediately
+      mutate((cur) => {
+        if (!cur) return cur
+        return { ...cur, setups: (cur.setups || []).map(s => (s.id === id ? { ...s, notes: j.notes } : s)) }
+      }, { revalidate: false })
+      return j.notes
+    }
   }
 
   // Upload a TradingView (or broker) OHLCV CSV → parsed client-side → stored as
