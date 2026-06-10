@@ -1326,14 +1326,6 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
-  // Trade-Aware GEX toggle. When false, /api/gex/data returns the naive
-  // (dealer-short-all-OI) calculation, identical to legacy behavior. When
-  // true, contracts are scaled by est_customer_net from dealer_positioning
-  // — a CALL with predominantly customer-sold flow (covered-call ETFs,
-  // sold-put income strategies) flips sign and shows as a floor instead
-  // of a ceiling. Backend automatically falls back to naive per-contract
-  // if dealer_positioning has no data for that contract.
-  const [gexAdjusted, setGexAdjusted] = useState(false);
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartTf, setGexChartTf] = useState('D');
@@ -2166,7 +2158,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte, gexAdjusted); }, [dataMode, gexTicker, gexDte, gexAdjusted]);
+  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
 
   // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
   // prop to the StockChart that renders the "AMD Chart with GEX Levels" panel.
@@ -2211,19 +2203,7 @@ export default function OptionsFlowDashboard() {
         lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
       }
     }
-    // Danger Line proximity gating. When zg is 20%+ from spot it adds visual
-    // noise without actionable signal (TSLA $498 vs spot $396 case). Tier:
-    //   ≤ 3% from spot → bright Danger Line label (current behavior)
-    //   3-5% from spot → dim "γ Flip" reference, axis label hidden
-    //   > 5% from spot → hidden entirely
-    if (zg && sp > 0) {
-      const zgDist = Math.abs(sp - zg) / sp * 100;
-      if (zgDist <= 3) {
-        lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
-      } else if (zgDist <= 5) {
-        lines.push({ price:zg, color:"#ffab0066", lineWidth:1, lineStyle:2, title:"γ Flip", axisLabelVisible:false });
-      }
-    }
+    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
     // Secondary above/below levels: keep the LINES (visible, color-coded so
     // user still sees support/resistance positions), but suppress the right-
@@ -2237,22 +2217,11 @@ export default function OptionsFlowDashboard() {
       const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
       return { strike:s.strike, gex:best.val, type:best.type };
     }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    aboveCandidates.forEach((s, idx) => {
+    aboveCandidates.forEach(s => {
       usedStrikes.add(s.strike);
       const {lw,ls,op} = getLineWeight(s.gex);
-      // Label each secondary > 10% of wallMax. Below that they read as
-      // noise and crowd the right axis without adding actionable signal.
-      // Compact "R $X" format vs primary "Ceiling $X" preserves visual
-      // hierarchy — eye reads primaries first, scans secondaries by
-      // magnitude. Color & line opacity (from getLineWeight) still encode
-      // the call-vs-put-origin (red shade) and magnitude — label is just
-      // the role + weight. Unlabeled lines keep the descriptive title for
-      // code clarity (won't display unless axisLabelVisible flips true).
-      const isMeaningful = wallMax > 0 && Math.abs(s.gex) / wallMax > 0.10;
-      const title = isMeaningful
-        ? "R "+fmtG(s.gex)
-        : (s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex));
-      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:isMeaningful });
+      const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
+      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
     });
     const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
       const callVal = s.callGex > 0 ? s.callGex : 0;
@@ -2260,18 +2229,11 @@ export default function OptionsFlowDashboard() {
       const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
       return { strike:s.strike, gex:best.val, type:best.type };
     }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    belowCandidates.forEach((s, idx) => {
+    belowCandidates.forEach(s => {
       const {lw,ls,op} = getLineWeight(s.gex);
       const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
-      // Same logic as aboveCandidates — label all top 3 per side that
-      // exceed 10% of wallMax with compact "S $X" format. Color still
-      // encodes call (cyan) vs put (green) origin; primary Bounce/Support
-      // labels above already convey those words explicitly.
-      const isMeaningful = wallMax > 0 && Math.abs(s.gex) / wallMax > 0.10;
-      const title = isMeaningful
-        ? "S "+fmtG(s.gex)
-        : (s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex));
-      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:isMeaningful });
+      const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
+      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
     });
     return lines;
   }, [gexData]);
@@ -2781,13 +2743,11 @@ export default function OptionsFlowDashboard() {
     }
   }
 
-  async function fetchGex(ticker, dte, adjusted = false) {
+  async function fetchGex(ticker, dte) {
     if (!ticker) return;
     setGexLoading(true);
     try {
-      const url = `/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`
-        + (adjusted ? "&adjusted=true" : "");
-      const resp = await fetch(url);
+      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
       if (resp.ok) {
         const data = await resp.json();
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
@@ -3035,74 +2995,6 @@ export default function OptionsFlowDashboard() {
             gexData.strikes.filter(s => spot > 0 ? Math.abs(s.strike - spot) / spot <= 0.12 : true)
               .map(s => ({ ...s, label: "$"+s.strike })) : [];
           const hasError = gexData?.error;
-          // ── Canonical GEX state ──────────────────────────────────────────
-          // Derives labels and flags ONCE from gexData. Prefers backend
-          // classification (gexData.levels/regime/warnings — added by
-          // gex_service.classify_gex_state) and falls back to local logic
-          // if the backend hasn't shipped those fields yet. Use gexState.*
-          // throughout — that's what stops cards, chart, and summary from
-          // disagreeing about whether $X is a Floor, Magnet, or Resistance.
-          const gexState = (()=>{
-            if (!gexData || hasError) return null;
-            const cw = gexData.callWall;
-            const pw = gexData.putWall;
-            const zg = gexData.zeroGamma;
-            const sp = gexData.spot || 0;
-            const backend = gexData.levels;
-            const cwAbove = cw ? cw.strike > sp : false;
-            const pwBelow = pw ? pw.strike < sp : false;
-            // At-wall tier: when a wall is within 0.3% of spot, "above/below"
-            // distinction loses meaning. SPY case: cw=737, pw=735, spot=737.05
-            // → both effectively at spot, pin-like setup. Threshold matches
-            // backend's at_wall_threshold_pct.
-            const cwDistPct = cw && sp > 0 ? Math.abs(cw.strike - sp) / sp * 100 : null;
-            const pwDistPct = pw && sp > 0 ? Math.abs(pw.strike - sp) / sp * 100 : null;
-            const cwAtWall = cwDistPct !== null && cwDistPct < 0.3;
-            const pwAtWall = pwDistPct !== null && pwDistPct < 0.3;
-            // Labels: cards/summary use these; chart has its own (Resistance
-            // reads better than Magnet in a chart context).
-            const callWallLabel = backend?.call_wall?.label
-              || (cwAtWall ? "At Wall" : (cwAbove ? "Ceiling" : "Pull Up"));
-            const putWallLabel  = backend?.put_wall?.label
-              || (pwAtWall ? "At Wall" : (pwBelow ? "Floor" : "Magnet"));
-            // Danger line proximity — 3% near threshold. The "Below danger
-            // line" warning previously fired whenever spot < zg regardless
-            // of distance; now it requires both spot_below AND near.
-            const zgDistPct = zg && sp > 0 ? Math.abs(sp - zg) / sp * 100 : null;
-            const zgNear = zgDistPct !== null && zgDistPct <= 3;
-            const zgSpotBelow = !!(zg && sp < zg);
-            const dangerLineLabel = backend?.zero_gamma?.label || ((zgSpotBelow && zgNear) ? "Danger Line" : "Gamma Flip");
-            const belowDangerActive = backend
-              ? !!gexData.warnings?.below_danger_active
-              : (zgSpotBelow && zgNear);
-            // Regime — 15% asymmetry threshold (replaces old 1.5x dominance).
-            // TSLA case: pw=$107.9M vs cw=$75.4M = 1.43x ratio, asymmetry
-            // -30.1%. Old code called this "choppy" (below 1.5x); new code
-            // correctly classifies as bullish (above 15% asymmetry).
-            let regime = backend ? gexData.regime : "unbound";
-            let asymmetryPct = backend ? gexData.asymmetryPct : null;
-            if (!backend && cw && pw) {
-              const cs = Math.abs(cw.gex), ps = Math.abs(pw.gex);
-              const mx = Math.max(cs, ps);
-              if (mx > 0) {
-                asymmetryPct = ((cs - ps) / mx) * 100;
-                if (Math.abs(asymmetryPct) <= 15) regime = "choppy";
-                else if (asymmetryPct > 0) regime = "bearish";
-                else regime = "bullish";
-              }
-            }
-            return {
-              callWallLabel, putWallLabel, dangerLineLabel,
-              cwAbove, pwBelow,
-              cwAtWall, pwAtWall, cwDistPct, pwDistPct,
-              zgDistPct, zgNear, zgSpotBelow,
-              belowDangerActive,
-              regime, asymmetryPct,
-              // Dominance: bullish regime ⇒ pw dominant, bearish ⇒ cw dominant.
-              cwDominantRegime: regime === "bearish",
-              pwDominantRegime: regime === "bullish",
-            };
-          })();
           return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
@@ -3145,52 +3037,6 @@ export default function OptionsFlowDashboard() {
                   }}>{label}</button>
                 ))}
               </div>
-              {/* Naive / Trade-Aware toggle. Naive = legacy SpotGamma-style
-                  math (dealers short all OI). Flow-Adjusted = use
-                  dealer_positioning estimates per contract. The badge
-                  to the right shows attribution_days + confidence + coverage
-                  so user can judge how much to trust the adjustment. */}
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2, alignItems:"center" }}>
-                <button onClick={()=>setGexAdjusted(false)}
-                  title="Standard SpotGamma-style GEX — assumes dealers short all OI"
-                  style={{
-                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
-                    fontSize:10, fontWeight:600, fontFamily:"inherit",
-                    background:!gexAdjusted?P.cd:"transparent",
-                    color:!gexAdjusted?P.wh:P.mt
-                  }}>Naive</button>
-                <button onClick={()=>setGexAdjusted(true)}
-                  title="Trade-Aware GEX — scales each contract by est_customer_net from flow attribution. Falls back to naive for contracts without dealer_positioning data."
-                  style={{
-                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
-                    fontSize:10, fontWeight:600, fontFamily:"inherit",
-                    background:gexAdjusted?"#c9a84c":"transparent",
-                    color:gexAdjusted?P.bg:P.mt
-                  }}>Flow-Adjusted ⚡</button>
-              </div>
-              {/* Quality badge — only shown in adjusted mode. Tells user
-                  how many days of attribution exist, average flow_confidence,
-                  and what % of chain contracts have any DP data. Low days /
-                  low confidence / low coverage = adjusted results should be
-                  treated as preliminary. */}
-              {gexAdjusted && gexData && !gexData.error && (
-                <div style={{
-                  display:"flex", gap:8, alignItems:"center",
-                  padding:"6px 12px", borderRadius:6, background:"#c9a84c11",
-                  border:"1px solid #c9a84c44", fontSize:10, color:P.mt
-                }}>
-                  <span style={{ color:"#c9a84c", fontWeight:700 }}>⚡ TRADE-AWARE</span>
-                  <span title="Days of attribution history">
-                    {gexData.attributionDays || 0}d
-                  </span>
-                  <span title="OI-weighted average flow confidence (0-1). Higher = more flow has corroborated the dealer position estimate.">
-                    conf {gexData.avgConfidence != null ? Math.round(gexData.avgConfidence * 100) : 0}%
-                  </span>
-                  <span title="% of chain contracts that have dealer_positioning data. Others fall back to naive.">
-                    cov {gexData.coveragePct != null ? Math.round(gexData.coveragePct * 100) : 0}%
-                  </span>
-                </div>
-              )}
             </div>
 
             {gexLoading && <Card><div style={{ textAlign:"center", padding:"40px 0", color:P.dm, fontSize:12 }}>Loading gamma data for {gexTicker}…</div></Card>}
@@ -3214,26 +3060,26 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.dangerLineLabel || "Danger Line"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Danger Line</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
                       {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
                     </div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.callWallLabel || "Ceiling"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Ceiling</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} {(gexState?.callWallLabel || "Ceiling").toLowerCase()}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} ceiling</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexState?.putWallLabel || "Floor"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Floor</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} {(gexState?.putWallLabel || "Floor").toLowerCase()}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexState?.belowDangerActive ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -3251,7 +3097,7 @@ export default function OptionsFlowDashboard() {
                           formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
                         <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
                         {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
-                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"left", fill:P.wh, fontSize:10, fontWeight:700 }} />}
+                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"right", fill:P.wh, fontSize:10, fontWeight:700 }} />}
                         <Bar dataKey="callGex" fill={P.bu} opacity={0.85} />
                         <Bar dataKey="putGex" fill={P.be} opacity={0.85} />
                       </BarChart>
@@ -3351,19 +3197,8 @@ export default function OptionsFlowDashboard() {
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
-                  // At-wall tier (matches gexState.cwAtWall/pwAtWall — within
-                  // 0.3% of spot). Falls back to local check if gexState
-                  // unavailable. Otherwise keeps existing "decision point" /
-                  // "major support below" nuance for cw. pw above spot now
-                  // labeled "magnet" (was "resistance above") to match card.
-                  const cwAtWall = gexState?.cwAtWall ?? (cw && sp > 0 && Math.abs(cwStrike - sp) / sp < 0.003);
-                  const pwAtWall = gexState?.pwAtWall ?? (pw && sp > 0 && Math.abs(pwStrike - sp) / sp < 0.003);
-                  const cwLabel = cwAtWall ? "at wall"
-                                : cwAboveSpot ? "ceiling"
-                                : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
-                  const pwLabel = pwAtWall ? "at wall"
-                                : pwBelowSpot ? "floor"
-                                : "magnet";
+                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
+                  const pwLabel = pwBelowSpot ? "floor" : "resistance above";
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
                   const wallSpread = Math.abs(cwStrike - pwStrike);
@@ -3371,26 +3206,13 @@ export default function OptionsFlowDashboard() {
                   const squeezeSetup = !pinSetup && spotBetweenWalls && wallSpread <= sp * 0.01;
 
                   const cwRatio = pwGex > 0 ? (cwGex / pwGex).toFixed(1) : "∞";
-                  // Dominance: use regime classification (15% asymmetry threshold)
-                  // instead of the old 1.5x ratio. Old threshold left TSLA's
-                  // 1.43x case in "choppy" bucket while position-based Quick Read
-                  // called it bullish — disagreement. New: regime=bullish ⇒
-                  // pwDominant, regime=bearish ⇒ cwDominant. Local fallback uses
-                  // 1.15x ratio (≈15% asymmetry) if gexState unavailable.
-                  const cwDominant = gexState?.cwDominantRegime ?? (cwGex > pwGex * 1.15);
-                  const pwDominant = gexState?.pwDominantRegime ?? (pwGex > cwGex * 1.15);
+                  const cwDominant = cwGex > pwGex * 1.5;
+                  const pwDominant = pwGex > cwGex * 1.5;
                   const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
                   const pwPct = 100 - cwPct;
 
                   const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
-                  const belowDangerLine = gexState?.belowDangerActive ?? (zg && sp < zg);
-                  // Symmetric proximity gating for the danger-line warning. Old
-                  // logic only softened to "At danger line — caution" when spot
-                  // was BELOW the line by < 0.5%; crossing back up by 0.1% lost
-                  // the warning entirely, even though one bad candle could flip
-                  // back through. Now: within 0.5% on EITHER side gets the soft
-                  // caution treatment.
-                  const atDangerLine = gexState?.zgDistPct != null && gexState.zgDistPct < 0.5;
+                  const belowDangerLine = zg && sp < zg;
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
@@ -3734,13 +3556,8 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
-                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:(atDangerLine||belowDangerLine)?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:(atDangerLine||belowDangerLine)?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {atDangerLine
-                        ? "⚠️ At danger line — caution"
-                        : belowDangerLine
-                          ? "⚠️ Below danger line — drops accelerate"
-                          : isPositive ? "Safety net ON — dips tend to bounce" : "Safety net OFF — moves get wild"
-                      }{zgDist && !belowDangerLine && !atDangerLine ? " · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line" : ""}
+                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
+                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
@@ -4759,12 +4576,12 @@ export default function OptionsFlowDashboard() {
                 const tDate=_parseDt(t.Dt);
                 if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
                 const ck=t.CP+"|"+t.K+"|"+t.E;
-                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null};
+                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null,spot:0};
                 const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
                 if(t.OI>c.oi) c.oi=t.OI;
                 if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
                 if(t.price>0) c.prices.push(t.price);
-                if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; }
+                if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; if(t.Spot>0) c.spot=t.Spot; }
               });
               const candidates = [];
               Object.values(tkMap).forEach(tk => {
@@ -4869,8 +4686,8 @@ export default function OptionsFlowDashboard() {
                       <span style={{ width:16, flexShrink:0 }} />
                       <span style={{ width:50, flexShrink:0 }} />
                       {/* Spacer matching dir Tag width so columns align */}
-                      <span style={{ display:"inline-block", padding:"2px 7px", fontSize:9, visibility:"hidden", whiteSpace:"nowrap" }}>BULL</span>
-                      <div style={{ width:70, textAlign:"right", flexShrink:0 }}>NET</div>
+                      {(top5Filter==="Both" || top5Filter==="Unusual") && <span style={{ display:"inline-block", padding:"2px 7px", fontSize:9, visibility:"hidden", whiteSpace:"nowrap" }}>BULL</span>}
+                      <div title="Net premium = |bull premium − bear premium|. % below = conviction (purity of one-sided flow)." style={{ width:70, textAlign:"right", flexShrink:0, cursor:"help" }}>NET</div>
                       <div style={{ width:1, flexShrink:0 }} />
                       <div style={{ width:150, textAlign:"center", flexShrink:0 }}>TOP CONTRACT</div>
                       <div style={{ width:1, flexShrink:0 }} />
@@ -4894,10 +4711,27 @@ export default function OptionsFlowDashboard() {
                       const now = px ? (px.mark||px.last||px.mid||0) : 0;
                       const entry = p.entry||0;
                       const pnl = (now>0&&entry>0) ? (now-entry)/entry*100 : null;
+                      // Compute live OI delta ONCE — shared between posNote and OI column
+                      // so the two columns can't contradict each other (e.g. OI column says
+                      // PARTIAL EXIT while posNote says "minimal exits").
+                      const liveOIPx = tc ? getPrice(p.sym, tc.cp, tc.K, tc.exp) : null;
+                      const liveOI = liveOIPx ? (liveOIPx.oi || 0) : 0;
+                      const tradeOI = tc ? (tc.lastOI || 0) : 0;
+                      const haveOIData = liveOI > 0 && tradeOI > 0;
+                      const oiPct = haveOIData ? (liveOI - tradeOI) / tradeOI : null;
+                      const oiDelta = haveOIData ? liveOI - tradeOI : 0;
                       // Auto-generate notes
                       const notes = [];
+                      // NEW: whale single-trade lead — large premium concentrated in ≤2 prints
+                      if(p.topCDisplayHits<=2 && p.topCDisplayPrem>=2e6) {
+                        notes.push({t:`Whale: ${fmt(p.topCDisplayPrem)} in ${p.topCDisplayHits===1?"single sweep":"two prints"}`,w:12});
+                      }
+                      // NEW: fresh strike — no prior OI means the flow is brand-new positioning
+                      if(tc && tc.oi < 100 && p.topCDisplayPrem >= 500e3) {
+                        notes.push({t:"Fresh strike — no prior interest",w:11});
+                      }
                       // Use broader hit count for notes (matches what user sees in Search/BBS)
-                      if(p.topCDisplayHits>=5) notes.push({t:`${p.topCDisplayHits} hits on same strike — repeat buyer`,w:10});
+                      if(p.topCDisplayHits>=5) notes.push({t:`${p.topCDisplayHits} hits — sustained accumulation`,w:10});
                       else if(p.topCDisplayHits>=3) notes.push({t:`${p.topCDisplayHits}x same strike — concentrated`,w:6});
                       // Top contract dominates ticker flow
                       if(p.net>0 && p.topCDisplayPrem>=p.net*0.7) notes.push({t:`${fmt(p.topCDisplayPrem)} of ${fmt(p.net)} on one strike`,w:9});
@@ -4910,7 +4744,7 @@ export default function OptionsFlowDashboard() {
                         notes.push({t:`All sweeps (${askSwpPct}% ask-side) — urgency signal`,w:7});
                       }
                       const askPct=tc&&tc.prem>0?(tc.askPrem/tc.prem*100):50;
-                      if(askPct>=90) notes.push({t:"All ask-side — aggressive buying",w:7});
+                      if(askPct>=90) notes.push({t:"All ask-side — aggressive buyers",w:7});
                       if(p.volOI>=10) notes.push({t:`Vol ${Math.round(p.volOI)}x OI — brand new positions`,w:9});
                       else if(p.volOI>=3) notes.push({t:`Vol ${p.volOI.toFixed(1)}x OI — fresh positions`,w:7});
                       if(p.minDTE>180) notes.push({t:"LEAPS — long-term conviction play",w:8});
@@ -4923,43 +4757,77 @@ export default function OptionsFlowDashboard() {
                       else if(p.confirmed>=3) notes.push({t:`${p.confirmed} confirmed — repeat interest`,w:5});
                       notes.sort((a,b)=>b.w-a.w);
                       const topNotes = notes.slice(0,2).map(n=>n.t);
-                      // Position activity note
+                      // Position activity note — prefer LIVE OI delta over bid-side ratio
+                      // when we have it (authoritative). bid-side ratio is fallback only.
+                      // This keeps posNote and the OI column in agreement.
                       let posNote = "";
                       const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
-                      const oiGrowth = tc&&tc.oi>0&&tc.lastOI>0 ? (tc.lastOI/tc.oi-1)*100 : 0;
-                      if(bidPct>=50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing flow`;
-                      else if(bidPct>=30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid-side closing`;
-                      else if(bidPct>=15 && oiGrowth>0) posNote = "↔️ Mixed — some exits but OI still net growing";
-                      else if(bidPct>=15) posNote = `⚠️ Some exits — ${Math.round(bidPct)}% bid-side flow`;
-                      else if(p.daysSince<=2 && tc&&tc.hits<=3) posNote = "🆕 New entry — just appeared";
-                      else if(oiGrowth>20 && bidPct<15) posNote = `📈 Adding — OI up ${Math.round(oiGrowth)}%`;
-                      else if(oiGrowth>5) posNote = "📈 Accumulating — OI growing";
-                      else if(bidPct<10 && p.daysSince<=3 && tc&&tc.hits>=5) posNote = "🔥 Active — check OI to confirm";
-                      else if(p.daysSince>=7 && bidPct<10) posNote = "💤 Holding — no new flow or exits";
-                      else if(bidPct<15 && tc&&tc.hits>=5) posNote = "✅ In position — minimal exits";
-                      else posNote = "✅ In position";
+                      if (haveOIData) {
+                        // Live OI is the source of truth
+                        if (oiPct >= 0.20) posNote = `📈 Adding — OI +${oiDelta.toLocaleString()}`;
+                        else if (oiPct >= 0.05) posNote = "📈 Accumulating";
+                        else if (oiPct > -0.10) {
+                          // Flat OI — distinguish by bid-side activity within the flat band
+                          if (bidPct >= 30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
+                          else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = "🆕 New entry";
+                          else if (p.daysSince<=3 && tc && tc.hits>=5 && bidPct<15) posNote = "🔥 Active — OI pending";
+                          else posNote = "✅ Holding";
+                        }
+                        else if (oiPct > -0.30) posNote = `⚠️ Fading — ${oiDelta.toLocaleString()}`;
+                        else if (oiPct > -0.70) posNote = `🔻 Partial exits — ${oiDelta.toLocaleString()}`;
+                        else posNote = `🔻 Mostly exited — ${oiDelta.toLocaleString()}`;
+                      } else {
+                        // No live OI data — fall back to bid-side ratio
+                        if (bidPct >= 50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing`;
+                        else if (bidPct >= 30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
+                        else if (bidPct >= 15) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
+                        else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = "🆕 New entry";
+                        else if (p.daysSince<=3 && tc && tc.hits>=5) posNote = "🔥 Active — OI pending";
+                        else if (p.daysSince>=7) posNote = "💤 Holding";
+                        else posNote = "✅ Holding";
+                      }
                       // Freshness + last OI
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
                       const lastOI = tc?tc.lastOI:0;
+                      // Underwater flag — option pnl ≤ -15% means thesis is going wrong
+                      const underwater = pnl !== null && pnl <= -15;
                       return (
                         <div key={p.sym}>
                         <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
                           <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
                           <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
-                          <Tag c={dirC}>{p.dir}</Tag>
+                          {(top5Filter==="Both" || top5Filter==="Unusual") && <Tag c={dirC}>{p.dir}</Tag>}
+                          {underwater && <span title={`Option down ${pnl.toFixed(1)}% — thesis going wrong`} style={{ fontSize:8, fontWeight:800, padding:"2px 6px", borderRadius:3, background:"#e74c3c22", color:"#e74c3c", border:"1px solid #e74c3c55", letterSpacing:0.3 }}>⚠ DRAWDOWN</span>}
                           <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
                             <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
-                            {tc && (<div>
-                              <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
-                              <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
-                              <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
-                              <span style={{ color:p.topCDisplayHits>=10?P.ac:p.topCDisplayHits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{p.topCDisplayHits}x</span>
-                              <div style={{ fontSize:8, color:P.ye }}>{fmt(p.topCDisplayPrem)}</div>
-                            </div>)}
+                            {tc && (()=>{
+                              // Moneyness: prefer live spot from price fetch, fall back to last-trade spot
+                              const spotForMoney = (liveOIPx && liveOIPx.spot) || tc.spot || 0;
+                              let mny = null;
+                              if (spotForMoney > 0 && tc.K > 0) {
+                                const pctOff = (tc.K - spotForMoney) / spotForMoney * 100;
+                                const isATM = Math.abs(pctOff) <= 1;
+                                const isITM = tc.cp==="C" ? tc.K < spotForMoney : tc.K > spotForMoney;
+                                const label = isATM ? "ATM" : isITM ? "ITM" : "OTM";
+                                const mC = isATM ? P.ye : isITM ? P.bu : P.dm;
+                                const absPct = Math.abs(pctOff).toFixed(0);
+                                mny = { label, color:mC, pct: isATM ? "" : (isITM ? "" : "+"+absPct+"%") };
+                              }
+                              return (<div>
+                                <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
+                                <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
+                                <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
+                                <span style={{ color:p.topCDisplayHits>=10?P.ac:p.topCDisplayHits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{p.topCDisplayHits}x</span>
+                                <div style={{ fontSize:8, color:P.ye, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                                  <span>{fmt(p.topCDisplayPrem)}</span>
+                                  {mny && <span style={{ fontSize:7, fontWeight:700, color:mny.color, padding:"0 4px", borderRadius:2, background:mny.color+"18", letterSpacing:0.3 }}>{mny.label}{mny.pct?" "+mny.pct:""}</span>}
+                                </div>
+                              </div>);
+                            })()}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
                           <div style={{ width:50, display:"flex", justifyContent:"center", flexShrink:0 }}>
