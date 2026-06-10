@@ -3251,7 +3251,7 @@ export default function OptionsFlowDashboard() {
                           formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
                         <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
                         {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
-                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"right", fill:P.wh, fontSize:10, fontWeight:700 }} />}
+                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"left", fill:P.wh, fontSize:10, fontWeight:700 }} />}
                         <Bar dataKey="callGex" fill={P.bu} opacity={0.85} />
                         <Bar dataKey="putGex" fill={P.be} opacity={0.85} />
                       </BarChart>
@@ -3384,6 +3384,13 @@ export default function OptionsFlowDashboard() {
 
                   const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
                   const belowDangerLine = gexState?.belowDangerActive ?? (zg && sp < zg);
+                  // Symmetric proximity gating for the danger-line warning. Old
+                  // logic only softened to "At danger line — caution" when spot
+                  // was BELOW the line by < 0.5%; crossing back up by 0.1% lost
+                  // the warning entirely, even though one bad candle could flip
+                  // back through. Now: within 0.5% on EITHER side gets the soft
+                  // caution treatment.
+                  const atDangerLine = gexState?.zgDistPct != null && gexState.zgDistPct < 0.5;
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
@@ -3727,13 +3734,13 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
-                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {belowDangerLine
-                        ? (gexState?.zgDistPct != null && gexState.zgDistPct < 0.5
-                            ? "⚠️ At danger line — caution"
-                            : "⚠️ Below danger line — drops accelerate")
-                        : isPositive ? "Safety net ON — dips tend to bounce" : "Safety net OFF — moves get wild"
-                      }{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                    <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:(atDangerLine||belowDangerLine)?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:(atDangerLine||belowDangerLine)?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
+                      {atDangerLine
+                        ? "⚠️ At danger line — caution"
+                        : belowDangerLine
+                          ? "⚠️ Below danger line — drops accelerate"
+                          : isPositive ? "Safety net ON — dips tend to bounce" : "Safety net OFF — moves get wild"
+                      }{zgDist && !belowDangerLine && !atDangerLine ? " · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line" : ""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
