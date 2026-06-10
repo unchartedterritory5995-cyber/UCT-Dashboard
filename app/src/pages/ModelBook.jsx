@@ -555,15 +555,13 @@ function formatSetupNote(text) {
   if (!text) return ''
   const bullets = []
   for (const ln of text.split('\n')) {
+    if (!ln.trim()) continue
     const m = ln.match(SETUP_BULLET_PREFIX_RE)
     if (m) {
       const body = m[2].replace(SETUP_BULLET_LABEL_RE, '').replace(/^([a-z])/, c => c.toUpperCase())
       bullets.push('• ' + body)
-    } else if (ln.trim() && bullets.length) {
-      // wrapped continuation of the previous bullet — fold it back in
-      bullets[bullets.length - 1] += ' ' + ln.trim()
-    } else if (ln.trim()) {
-      // hand-typed note with no bullet markers — keep the line as its own paragraph
+    } else {
+      // non-bullet line (hand-typed note) — its own paragraph, same airy spacing
       bullets.push(ln.trim())
     }
   }
