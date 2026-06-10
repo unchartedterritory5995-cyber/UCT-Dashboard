@@ -262,6 +262,93 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
     return fired
 
 
+def _collect_admin_user_ids() -> list[str]:
+    """User ids with role='admin' — the operator(s). Must-know alerts go here
+    (not to all subscribers) so nobody gets a surprise push."""
+    try:
+        from api.services.auth_db import get_connection
+    except Exception:
+        return []
+    try:
+        with get_connection() as conn:
+            rows = conn.cursor().execute(
+                "SELECT id FROM users WHERE role = 'admin'").fetchall()
+            out = []
+            for r in rows:
+                uid = r[0] if not isinstance(r, dict) else r["id"]
+                if uid:
+                    out.append(str(uid))
+            return out
+    except Exception:
+        logger.exception("[catalyst-engine] failed to collect admin users")
+        return []
+
+
+def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
+    """Fire 'must-know' alerts to admins/operators for high-grade catalysts
+    REGARDLESS of watchlist — the genuinely material stuff (M&A, FDA, big
+    guidance/analyst moves) you need to know even if you don't own it.
+
+    Operator-scoped (admins only) so subscribers don't get surprise pushes.
+    Deduped via the SAME (user, ticker, market_date) table as watchlist alerts,
+    so a name never double-pings. Reuses deliver_alert_payload → AlertBell +
+    email + Discord. Gated OFF by default; opt in with
+    CATALYST_MUSTKNOW_ALERTS_ENABLED=1. Grades via CATALYST_MUSTKNOW_GRADES
+    (default 'A,B'). Returns count fired.
+    """
+    if os.environ.get("CATALYST_MUSTKNOW_ALERTS_ENABLED", "0").lower() not in ("1", "true", "yes"):
+        return 0
+    if not displayed:
+        return 0
+
+    grades = {g.strip().upper() for g in
+              os.environ.get("CATALYST_MUSTKNOW_GRADES", "A,B").split(",") if g.strip()}
+    rows = [c for c in displayed if (c.get("grade") or "").upper() in grades]
+    if not rows:
+        return 0
+
+    admins = _collect_admin_user_ids()
+    if not admins:
+        return 0
+
+    try:
+        from api.services.watchlist_alert_service import deliver_alert_payload
+    except Exception:
+        logger.exception("[catalyst-engine] alert service unavailable (must-know)")
+        return 0
+
+    fired = 0
+    for user_id in admins:
+        for c in rows:
+            ticker = (c.get("ticker") or "").upper()
+            if not ticker:
+                continue
+            if not store.try_record_alert(user_id, ticker, market_date):
+                continue
+            grade = (c.get("grade") or "").upper()
+            ctype = c.get("catalyst_type") or c.get("tag") or "Catalyst"
+            gap = c.get("gap_pct") or 0.0
+            thesis = (c.get("thesis_text") or "")[:300]
+            title = f"🚨 Must-know {grade}: ${ticker} ({ctype})"
+            message = f"{ticker} — grade {grade} {ctype} catalyst ({gap:+.2f}%). {thesis}"
+            try:
+                deliver_alert_payload(
+                    user_id=user_id, sym=ticker, title=title, message=message,
+                    source="catalyst_mustknow",
+                    extra_data={"ticker": ticker, "grade": grade,
+                                "catalyst_type": ctype, "gap_pct": gap,
+                                "market_date": market_date},
+                )
+                fired += 1
+            except Exception:
+                logger.exception("[catalyst-engine] must-know delivery for %s/%s failed",
+                                 user_id, ticker)
+
+    if fired:
+        logger.info("[catalyst-engine] fired %d must-know alerts", fired)
+    return fired
+
+
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
 
@@ -601,6 +688,11 @@ def run_refresh() -> dict:
     displayed: list[dict] = []   # ranked, non-grade-C rows actually shown
     for c, thesis in synthesized:
         grade = thesis.get("grade")
+        # Enrich the candidate so alert paths (watchlist + must-know) can read
+        # grade / thesis / type without re-querying the store.
+        c["grade"] = grade
+        c["thesis_text"] = thesis.get("thesis_text")
+        c["catalyst_type"] = thesis.get("catalyst_type")
         if hide_c and grade == "C":
             row_rank = None
             hidden_c += 1
@@ -669,6 +761,15 @@ def run_refresh() -> dict:
             summary["alerts_fired"] = alerts_fired
     except Exception:
         logger.exception("[catalyst-engine] alert firing failed")
+
+    # Must-know alerts: high-grade (A/B) catalysts pushed to operators even when
+    # not on a watchlist. Gated OFF by default (CATALYST_MUSTKNOW_ALERTS_ENABLED).
+    try:
+        mustknow_fired = _fire_mustknow_alerts(displayed, md)
+        if mustknow_fired:
+            summary["mustknow_fired"] = mustknow_fired
+    except Exception:
+        logger.exception("[catalyst-engine] must-know alert firing failed")
 
     selected_tickers = {c["ticker"] for c in top_12}
     for c in scored:
