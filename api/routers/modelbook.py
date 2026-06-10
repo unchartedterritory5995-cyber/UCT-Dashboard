@@ -1559,6 +1559,22 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
 
     window_txt = _format_bar_window(_load_year_bars(symbol, year, stock.get("id")), label_date)
 
+    # Where does this setup sit in the stock's sequence of labeled setups? Later
+    # entries should be framed against the earlier ones (theme more established,
+    # second chance to get involved, etc.) — see SEQUENCE rules in the prompt.
+    others = [s for s in (stock.get("setups") or [])
+              if s.get("id") != setup.get("id") and s.get("label_date")]
+    others.sort(key=lambda s: s["label_date"])
+    if others:
+        seq_lines = "\n".join(
+            f"- {s.get('setup_type') or 'setup'} on {s['label_date']}" for s in others)
+        sequence_txt = (
+            f"Other labeled setups on {symbol} this year (for sequence context — this note is "
+            f"ONLY about the {label_date} setup):\n{seq_lines}\n\n"
+        )
+    else:
+        sequence_txt = ""
+
     research = (
         "Use web search to research what was actually happening around this date — the catalyst, "
         "the broader market/indices, the sector, sympathy moves in related names, and trader "
@@ -1573,6 +1589,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         f"(grade {grade or 'n/a'}; {bracket_txt}).\n\n"
         f"Daily price action around the setup day (date: open/high/low/close, volume):\n"
         f"{window_txt}\n\n"
+        f"{sequence_txt}"
         f"{research}"
         "Write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
         "- Begin IMMEDIATELY with the first '• ' bullet. Output NOTHING before it — no narration, "
@@ -1601,7 +1618,16 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "setup day's low should not be breached if the move is to continue.\n"
         "- Read the setup candle's intraday quality from the OHLC: if it opened near the low of "
         "day and closed near the high of day, say so — that full-range close signals strong "
-        "institutional buying conviction."
+        "institutional buying conviction.\n"
+        "- If the setup forms after an ALREADY-EXTENDED move (e.g. a short flag or brief "
+        "consolidation following a big run), address the psychology: most traders are afraid to "
+        "buy it, but the strongest stocks stay extended — the best leaders may only offer 1-2 "
+        "chances to get involved with tight risk.\n"
+        "- SEQUENCE: if this is a LATER setup on the stock (see the other labeled setups above), "
+        "gauge how the theme has matured since the earlier one — e.g. a theme that was early-stage "
+        "at the first breakout may now be visibly confirming as related names make explosive, "
+        "high-volume moves. Stage the narrative to THIS setup's date: clearer than before, but "
+        "still only as established as it actually was that day."
     )
 
     messages = [{"role": "user", "content": prompt}]
