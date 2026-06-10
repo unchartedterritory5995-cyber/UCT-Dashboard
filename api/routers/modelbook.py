@@ -1442,19 +1442,25 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
     return {"deleted": setup_id}
 
 
-# ── AI-generated setup descriptions (web-grounded "why this setup worked") ─────
+# ── AI-generated setup descriptions ("why this setup worked") ─────────────────
 # Manual, admin-only, on-demand. The result is stored PERMANENTLY in the setup's
 # `notes` (generate once → kept forever → zero Anthropic spend on later views).
-# Uses Opus 4.8 + the web_search server tool to research the actual trading day —
-# catalysts, social chatter, sympathy moves in peers, where the indices were —
-# then distills WHY the setup worked into a few short bullets (fundamental /
-# technical / thematic), without naming any trader or methodology. Wired to a
-# button, never auto-run.
+# Opus 4.8 distills WHY the setup worked into a few short bullets (fundamental /
+# technical / thematic), grounded on the real daily price action around the setup
+# day, without naming any trader or methodology. Web search is opt-in (off by
+# default — it was the source of multi-minute "stuck" runs). Wired to a button,
+# never auto-run.
 
 _SETUP_DESC_ENABLED = _os.environ.get("MODELBOOK_SETUP_DESC_ENABLED", "1") == "1"
 # The smartest model on purpose — this is the "test how well it does" feature, and
 # it's a manual admin click whose output is cached forever, so cost is bounded.
 _SETUP_DESC_MODEL = _os.environ.get("MODELBOOK_SETUP_DESC_MODEL", "claude-opus-4-8")
+# Web search is OFF by default. The server-tool loop (multiple searches + retries)
+# is what made generation slow and prone to getting "stuck" for minutes — and the
+# model already knows these iconic historical setups. We ground it on the real
+# price action instead. Flip MODELBOOK_SETUP_DESC_WEB=1 to add live web grounding
+# back (catalysts/chatter) once we want to invest in making that path reliable.
+_SETUP_DESC_WEB = _os.environ.get("MODELBOOK_SETUP_DESC_WEB", "0") == "1"
 _SETUP_DESC_WEB_TOOL = {"type": "web_search_20260209", "name": "web_search"}
 
 
@@ -1544,15 +1550,22 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
 
     window_txt = _format_bar_window(_load_year_bars(symbol, year, stock.get("id")), label_date)
 
+    research = (
+        "Use web search to research what was actually happening around this date — the catalyst, "
+        "the broader market/indices, the sector, sympathy moves in related names, and trader "
+        "sentiment. A few quick, targeted searches are enough — do NOT over-research.\n\n"
+        if _SETUP_DESC_WEB else
+        "Using your own knowledge of this stock and period plus the price action above, identify "
+        "what was driving it — the catalyst, the broader market backdrop, the sector/theme, and "
+        "any sympathy names.\n\n"
+    )
     prompt = (
         f"Setup: **{setup_type}** in {symbol} ({company}) on {label_date} "
         f"(grade {grade or 'n/a'}; {bracket_txt}).\n\n"
         f"Daily price action around the setup day (date: open/high/low/close, volume):\n"
         f"{window_txt}\n\n"
-        "Use web search to research what was actually happening around this date — the catalyst, "
-        "the broader market/indices, the sector, sympathy moves in related names, and trader "
-        "sentiment. A few quick, targeted searches are enough — do NOT over-research.\n\n"
-        "Then write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
+        f"{research}"
+        "Write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
         "- Begin IMMEDIATELY with the first '• ' bullet. Output NOTHING before it — no narration, "
         "no 'I'll research…', no 'Let me search…', no process talk, no preamble of any kind.\n"
         "- Output ONLY bullets — 3 to 5 of them, each a single concise line starting with '• '.\n"
@@ -1562,31 +1575,31 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "acceleration, product, deal, story), the TECHNICAL reason (base/consolidation, the "
         "volume signature, the pivot, moving-average support, character of the move), and the "
         "THEMATIC reason (the market backdrop and the sector/theme driving it, plus any sympathy "
-        "names). Stay factual to that year; if web search is thin, lean on the price action and "
-        "the year's dominant theme. Do NOT name any trader or methodology."
+        "names). Stay factual to that year; if unsure of exact details, lean on the price action "
+        "and the year's dominant theme. Do NOT name any trader or methodology."
     )
 
     messages = [{"role": "user", "content": prompt}]
 
-    # Keep it FAST and un-stuck:
-    #  • hard per-request timeout so a slow/wedged web-search turn can't spin for
-    #    minutes (raises → the job records an error instead of hanging),
-    #  • low effort — the output is 5 short bullets; the intelligence comes from
-    #    search, not deep reasoning, so this slashes thinking time,
-    #  • small max_tokens + a tight pause_turn budget.
-    bounded = client.with_options(timeout=120.0, max_retries=1)
+    # Bounded so it can never get "stuck": a hard per-request timeout, low effort
+    # (the output is 5 short bullets — the value is the synthesis, not deep
+    # reasoning), and small max_tokens. With web search OFF (the default) this is a
+    # single fast call (~15-25s, no server-tool loop). With web search ON, allow a
+    # couple of pause_turn resumes for the server-side search loop.
+    bounded = client.with_options(timeout=90.0, max_retries=1)
     use_effort = True  # toggled off if the installed SDK predates output_config
 
     def _call(msgs):
         nonlocal use_effort
         kwargs = dict(
             model=_SETUP_DESC_MODEL,
-            max_tokens=4000,
+            max_tokens=2000,
             thinking={"type": "adaptive"},          # Opus 4.8: adaptive only (no budget_tokens / temperature)
             system=_SETUP_DESC_SYSTEM,
-            tools=[_SETUP_DESC_WEB_TOOL],
             messages=msgs,
         )
+        if _SETUP_DESC_WEB:
+            kwargs["tools"] = [_SETUP_DESC_WEB_TOOL]
         if use_effort:
             kwargs["output_config"] = {"effort": "low"}
         try:
@@ -1599,10 +1612,10 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
             return bounded.messages.create(**kwargs)
 
     resp = _call(messages)
-    # The web_search server tool runs a server-side loop; if it hits its iteration
-    # cap it returns stop_reason="pause_turn" — re-send to resume (bounded tight).
+    # Only the web-search server tool can pause_turn; resume it a bounded number of
+    # times. (With web search off there's no tool loop, so this never runs.)
     conts = 0
-    while getattr(resp, "stop_reason", None) == "pause_turn" and conts < 3:
+    while _SETUP_DESC_WEB and getattr(resp, "stop_reason", None) == "pause_turn" and conts < 2:
         resp = _call([{"role": "user", "content": prompt},
                       {"role": "assistant", "content": resp.content}])
         conts += 1
@@ -1613,10 +1626,9 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
     return _clean_setup_note(text) or None
 
 
-# Generation runs in a background thread (web search + Opus 4.8 can take a few
-# minutes — far longer than a proxy will hold an HTTP request open). The POST
-# kicks it off and returns immediately; the frontend polls describe-status until
-# the note is written to the setup's notes (or an error is recorded).
+# Generation runs in a background thread (kept off the request path so a slow run
+# never trips a proxy timeout). The POST kicks it off and returns immediately; the
+# frontend polls describe-status until the note is written (or an error recorded).
 _gen_desc_lock = _threading.Lock()
 _generating_descs = set()   # setup ids with a description generation in flight
 _desc_errors = {}           # setup_id -> last error string (cleared on new run / success)
