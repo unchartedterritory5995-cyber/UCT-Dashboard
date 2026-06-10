@@ -53,9 +53,20 @@ function GradeBadge({ grade }) {
   )
 }
 
+const TYPE_ICONS = {
+  'M&A': '🤝', 'FDA': '💊', 'Analyst': '📈', 'Contract': '📝', 'Guidance': '🎯',
+  'Product': '🚀', 'Legal': '⚖️', 'Insider': '👤', 'Index': '🧩', 'Offering': '💵',
+  'Earnings': '📊', 'Momentum': '🌊', 'Sector-wide': '🏭',
+}
+
 function TypeChip({ type }) {
   if (!type || type === 'None') return null
-  return <span className={styles.typeChip} title="Catalyst type">{type}</span>
+  const icon = TYPE_ICONS[type]
+  return (
+    <span className={styles.typeChip} title="Catalyst type">
+      {icon ? `${icon} ` : ''}{type}
+    </span>
+  )
 }
 
 function FeedbackButtons({ ticker, marketDate, verdict, onVote }) {
@@ -242,6 +253,7 @@ export default function CatalystTable() {
   const myTickers = useUserTickerSet()
   const [refreshing, setRefreshing] = useState(false)
   const [activeTags, setActiveTags] = useState(new Set(ALL_TAGS))
+  const [aOnly, setAOnly] = useState(false)
   // Local optimistic record of this session's 👍/👎 votes, keyed by ticker.
   const [votes, setVotes] = useState({})
 
@@ -251,6 +263,24 @@ export default function CatalystTable() {
   const generatedAt = data?.generated_at
   const marketDate = data?.market_date
   const sectorContexts = data?.sector_contexts || []
+
+  // One-glance morning digest: total + A-grade count + the top catalyst types.
+  const summary = (() => {
+    const g = { A: 0, B: 0, C: 0 }
+    const types = {}
+    for (const r of allRows) {
+      if (g[r.grade] != null) g[r.grade]++
+      const t = r.catalyst_type
+      if (t && t !== 'None') types[t] = (types[t] || 0) + 1
+    }
+    const topTypes = Object.entries(types).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    return { total: allRows.length, aCount: g.A, topTypes }
+  })()
+
+  // Stale warning: on a trading day a refresh older than ~2h means the
+  // scheduled run likely isn't firing — pairs with the backend self-heal.
+  const ageMin = generatedAt ? (Date.now() / 1000 - generatedAt) / 60 : null
+  const isStale = ageMin != null && ageMin > 120
 
   async function vote(ticker, md, verdict) {
     // Toggle off if clicking the same verdict again.
@@ -310,7 +340,7 @@ export default function CatalystTable() {
   }, [allRows])
 
   const filteredRows = useMemo(() => {
-    const filtered = allRows.filter(r => activeTags.has(r.tag))
+    const filtered = allRows.filter(r => activeTags.has(r.tag) && (!aOnly || r.grade === 'A'))
     if (!sortBy) return filtered
     const sorted = [...filtered].sort((a, b) => {
       const av = getSortValue(a, sortBy.col)
@@ -322,7 +352,7 @@ export default function CatalystTable() {
     })
     return sorted
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, activeTags, sortBy, livePrices])
+  }, [allRows, activeTags, aOnly, sortBy, livePrices])
 
   function toggleTag(tag) {
     setActiveTags(prev => {
@@ -358,7 +388,12 @@ export default function CatalystTable() {
       <div className={styles.header}>
         <span className={styles.title}>🎯 STOCK CATALYSTS</span>
         <span className={styles.meta}>
-          <span className={styles.updated}>{updatedText}</span>
+          <span
+            className={`${styles.updated} ${isStale ? styles.stale : ''}`}
+            title={isStale ? 'Data looks stale for a trading day — a refresh should be running' : undefined}
+          >
+            {updatedText}{isStale ? ' ⚠ stale' : ''}
+          </span>
           <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
             history →
           </a>
@@ -374,6 +409,14 @@ export default function CatalystTable() {
           )}
         </span>
       </div>
+
+      {allRows.length > 0 && (
+        <div className={styles.summaryLine}>
+          {summary.total} catalyst{summary.total === 1 ? '' : 's'} today
+          {summary.aCount > 0 ? ` · ${summary.aCount} A-grade` : ''}
+          {summary.topTypes.map(([t, n]) => ` · ${n} ${t}`).join('')}
+        </div>
+      )}
 
       <ExplainTickerWidget />
 
@@ -402,6 +445,14 @@ export default function CatalystTable() {
               count={tagCounts[t]}
             />
           ))}
+          <button
+            type="button"
+            className={`${styles.chipBtn} ${aOnly ? styles.aOnlyActive : styles.chipDim}`}
+            onClick={() => setAOnly(v => !v)}
+            title="Show only A-grade (highest-conviction) catalysts"
+          >
+            ★ A only
+          </button>
           {!showingAll && (
             <button
               type="button"
