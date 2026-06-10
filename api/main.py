@@ -1886,6 +1886,25 @@ def health():
     }
 
 
+@app.get("/api/health/threads")
+def health_threads():
+    """Live thread-name histogram — names WHAT is spawning the periodic burst
+    (2026-06-10: 58→931 threads in 6 min). Names are normalized by prefix
+    (digits + ticker-ish tokens stripped) so e.g. 'bars-bg-NVDA-5-partial' and
+    'cat-src_3' collapse to 'bars-bg' / 'cat-src'. Hit this DURING a burst to
+    see which group dominates the count."""
+    import re as _re
+    from collections import Counter
+    groups = Counter()
+    for t in threading.enumerate():
+        name = t.name or "unnamed"
+        toks = [tok for tok in _re.split(r"[-_ ]+", name)
+                if tok and not tok.isdigit() and not _re.fullmatch(r"[A-Z.]{1,6}", tok)]
+        key = "-".join(toks[:2]) or name
+        groups[key] += 1
+    return {"total": threading.active_count(), "groups": dict(groups.most_common(25))}
+
+
 @app.get("/api/health/cache")
 def health_cache():
     from api.services.data_sync import get_local_sync_state
