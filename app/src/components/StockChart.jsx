@@ -44,6 +44,19 @@ import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBack
 
 const NOOP = () => {}
 
+// Schwab requires '$' prefix for cash-settled index tickers on its
+// pricehistory and chains endpoints — raw 'SPX' silently returns empty
+// instead of erroring. Backend gex_service already normalizes for /chains
+// calls; the bars endpoint here doesn't, so we normalize at the URL
+// construction boundary. Display sym (`sym` prop, chart titles, etc.)
+// stays clean — only the wire path uses the prefixed form. Keep the
+// list in sync with gex_service.py index_tickers.
+const INDEX_TICKERS = new Set(['SPX', 'NDX', 'VIX', 'RUT', 'DJX', 'XSP', 'XND'])
+const apiSym = (s) => {
+  const t = String(s || '').toUpperCase().trim()
+  return INDEX_TICKERS.has(t) ? '$' + t : t
+}
+
 // Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
@@ -1532,7 +1545,7 @@ export default function StockChart({
   const swrUrl = _hasOverride
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-        ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
+        ? `/api/bars/${encodeURIComponent(apiSym(sym))}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -1557,7 +1570,7 @@ export default function StockChart({
 
   // ── Comparison symbol SWR fetch ──
   const compareSwrUrl = compareSymbol
-    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}`
+    ? `/api/bars/${encodeURIComponent(apiSym(compareSymbol.toUpperCase()))}?tf=${resolvedTf}&bars=${barCount}`
     : null
   const { data: compareData } = useSWR(compareSwrUrl, fetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
@@ -1641,7 +1654,7 @@ export default function StockChart({
               && Date.now() - (entry.savedAt || 0) < maxAge) continue
           const bc    = FIRST_PAINT_BARS  // viewport-first: warm the shallow window; backfill loads deep history on pan
           const since = entryStaleIntraday ? null : entry?.lastT
-          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
+          const url   = `/api/bars/${encodeURIComponent(apiSym(sym))}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
           const r = await fetch(url)
           if (cancelled || !r.ok) continue
           const d = await r.json()
@@ -2164,7 +2177,7 @@ export default function StockChart({
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
       const results = await Promise.allSettled(
         syms.map(s =>
-          fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+          fetch(`/api/bars/${encodeURIComponent(apiSym(s))}?tf=${resolvedTf}&bars=${barCount}`)
             .then(r => (r.ok ? r.json() : { bars: [] }))
             .catch(() => ({ bars: [] }))
         )
@@ -2200,7 +2213,7 @@ export default function StockChart({
     indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount] : null,
     async () => {
       const s = String(indexPaneSymbol).toUpperCase()
-      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+      const res = await fetch(`/api/bars/${encodeURIComponent(apiSym(s))}?tf=${resolvedTf}&bars=${barCount}`)
         .then(r => (r.ok ? r.json() : { bars: [] }))
         .catch(() => ({ bars: [] }))
       return res?.bars || []
@@ -2517,7 +2530,7 @@ export default function StockChart({
     // during the disconnect window and we need its authoritative server value.
     if (lastBarT == null || !sym) return
     const sinceMs = Math.max(0, lastBarT - 1)
-    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${sinceMs}`)
+    fetch(`/api/bars/${encodeURIComponent(apiSym(sym))}?tf=${encodeURIComponent(resolvedTf)}&since=${sinceMs}`)
       .then(r => r.ok ? r.json() : null)
       .then(payload => {
         if (!payload?.bars?.length) return
