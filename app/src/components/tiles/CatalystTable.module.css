@@ -403,6 +403,24 @@
   font-style: italic;
 }
 
+/* Batch-1 morning-tool UX: one-glance summary, stale warning, A-only filter */
+.summaryLine {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 8px;
+  opacity: 0.85;
+}
+.stale {
+  color: var(--color-warning, #e0a82e);
+  opacity: 1;
+  font-weight: 600;
+}
+.aOnlyActive {
+  opacity: 1;
+  border-color: var(--color-warning, #e0a82e);
+  color: var(--color-warning, #e0a82e);
+}
+
 /* Phone: each row becomes a card (thesis-forward) — keep every field, none hidden. */
 @media (max-width: 640px) {
   .tile { padding: 14px 14px; }

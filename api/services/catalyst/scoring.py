@@ -38,6 +38,14 @@ def score(c: dict) -> float:
     # Sector momentum: each peer in candidate pool adds a small bonus
     s += c.get("sector_momentum_count", 0) * _w("SECTOR_MOMENTUM", 5.0)
 
+    # Market-cap / liquidity bonus — a notable big-cap NEWS mover should rank
+    # above a microcap with a bigger raw % gap. Scaled vs the ~$300M universe
+    # floor (log10 3e8 ≈ 8.5), so $300M→0 and ~$3T→~24 at the default weight.
+    # Fail-neutral when cap is unknown (no bonus, no penalty).
+    mc = c.get("market_cap")
+    if isinstance(mc, (int, float)) and mc > 0:
+        s += max(0.0, math.log10(mc) - 8.5) * _w("MARKET_CAP", 6.0)
+
     # Penny stock penalties
     price = c.get("price", 100.0) or 100.0
     floor = float(os.environ.get("CATALYST_PRICE_FLOOR", "2.0"))
