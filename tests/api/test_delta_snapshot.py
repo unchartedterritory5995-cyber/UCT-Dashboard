@@ -34,6 +34,12 @@ class _FakeS3:
     def put_object(self, Bucket, Key, Body, **kw):
         self.objs[Key] = Body if isinstance(Body, bytes) else str(Body).encode()
 
+    def upload_file(self, Filename, Bucket, Key, **kw):
+        # Mirrors the real client's streaming upload (data_sync.upload_snapshot
+        # ships the base tarball from disk, not RAM, since 2026-06-10).
+        with open(Filename, "rb") as f:
+            self.objs[Key] = f.read()
+
     def get_object(self, Bucket, Key):
         if Key not in self.objs:
             raise KeyError(Key)

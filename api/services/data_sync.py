@@ -236,10 +236,18 @@ def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
         src.close()
 
 
-def _make_tarball() -> bytes:
+def _make_tarball() -> str:
     """Tar a consistent snapshot of /data/bars.db + /data/bars_cache/.
 
-    Returns the tarball bytes. Raises FileNotFoundError if neither path exists
+    Returns the path to a .tar.gz inside a fresh temp dir — the CALLER must
+    rmtree the parent dir when done. Built on disk, NOT in RAM: the base
+    snapshot is ~2.35 GB compressed (2026-06-10), and the previous
+    BytesIO + getvalue() approach held two full copies in memory per build.
+    The worker crash-looped on exactly that — repeated base builds drove
+    RSS past the pod ceiling and a native alloc failure segfaulted the
+    process at the tail of the boot prewarm (see worker SIGSEGV incident).
+
+    Raises FileNotFoundError if neither source path exists
     (don't ship empty snapshots — they'd overwrite a good one with nothing).
 
     bars.db is copied via SQLite's online backup API into a temp file before
@@ -272,15 +280,21 @@ def _make_tarball() -> bytes:
             snap_db_path = os.path.join(tmpdir, "bars.db")
             _backup_sqlite_db(db_path, snap_db_path)
 
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        tar_path = os.path.join(tmpdir, "snapshot.tar.gz")
+        with tarfile.open(tar_path, mode="w:gz") as tar:
             if snap_db_path is not None:
                 tar.add(snap_db_path, arcname="bars.db")
             if has_cache:
                 tar.add(cache_path, arcname="bars_cache")
-        return buf.getvalue()
-    finally:
+        # The tarball now contains the db copy — drop it so the disk
+        # high-water mark during upload is just the compressed artifact,
+        # not compressed + uncompressed side by side.
+        if snap_db_path is not None:
+            os.remove(snap_db_path)
+        return tar_path
+    except BaseException:
         shutil.rmtree(tmpdir, ignore_errors=True)
+        raise
 
 
 # Module-level guard so we don't spam logs every 5 min when the worker
@@ -355,7 +369,7 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
         return SNAPSHOT_UNCHANGED
 
     try:
-        data = _make_tarball()
+        tar_path = _make_tarball()
     except FileNotFoundError as e:
         if not _empty_snapshot_logged:
             logger.warning(f"[data_sync] skip upload (will retry silently): {e}")
@@ -364,11 +378,15 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
     ts = str(int(time.time()))
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
     try:
-        client.put_object(Bucket=bucket, Key=key, Body=data,
-                          ContentType="application/gzip")
+        tar_bytes = os.path.getsize(tar_path)
+        # upload_file streams multipart chunks from disk — constant memory
+        # regardless of snapshot size (vs put_object(Body=bytes), which held
+        # the full multi-GB tarball in RAM for the whole upload).
+        client.upload_file(tar_path, bucket, key,
+                           ExtraArgs={"ContentType": "application/gzip"})
         client.put_object(Bucket=bucket, Key=_LATEST_KEY, Body=ts.encode(),
                           ContentType="text/plain")
-        logger.info(f"[data_sync] uploaded snapshot {ts} ({len(data)} bytes)")
+        logger.info(f"[data_sync] uploaded snapshot {ts} ({tar_bytes} bytes)")
         # Track most recent successful upload so the worker's health
         # endpoint can report it (the worker never downloads, so
         # .last_sync_ts is always empty there).
@@ -386,6 +404,8 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
     except Exception as e:
         logger.exception(f"[data_sync] upload failed: {e}")
         return None
+    finally:
+        shutil.rmtree(os.path.dirname(tar_path), ignore_errors=True)
 
 
 def get_latest_snapshot_ts() -> Optional[str]:
