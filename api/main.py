@@ -1484,6 +1484,17 @@ async def lifespan(app: FastAPI):
 
             print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m)")
 
+        # ── Morning Catalyst Digest (the brief reaches you) ───────────────
+        # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
+        # via Discord + email + AlertBell. Gated on CATALYST_DIGEST_ENABLED.
+        if os.environ.get("CATALYST_DIGEST_ENABLED", "0").lower() in ("1", "true", "yes"):
+            from api.services.catalyst.digest import send_digest as _cat_digest
+            _scheduler.add_job(
+                lambda: _cat_digest(),
+                trigger=CronTrigger(day_of_week="mon-fri", hour=8, minute=0),
+                id="catalyst_morning_digest", max_instances=1, replace_existing=True)
+            print("[scheduler] catalyst morning digest registered (8 AM ET weekdays)")
+
         # ── Pre-report Earnings Alerts (Phase E1) ─────────────────────────
         # Gated on CALENDAR_ALERTS_ENABLED=1. Fires two windows:
         #   • Evening ~6 PM ET — alert for tomorrow's BMO reporters
