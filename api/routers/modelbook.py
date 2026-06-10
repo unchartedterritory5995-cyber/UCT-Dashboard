@@ -1490,6 +1490,22 @@ def _format_bar_window(bars: list, center_date: str, before: int = 12, after: in
     return "\n".join(lines) or "(no daily bars available)"
 
 
+def _clean_setup_note(text: str) -> str:
+    """Keep ONLY the bulleted note. The model sometimes prepends process narration
+    ('I'll research what was happening… Let me retry the searches.') before the
+    bullets — slice everything before the first bullet marker so it never reaches
+    the panel."""
+    if not text:
+        return ""
+    i = text.find("•")
+    if i == -1:  # model used -, *, or a numbered list instead of •
+        m = re.search(r"(?m)^\s*([-*]|\d+[.)])\s+", text)
+        i = m.start() if m else -1
+    if i > 0:
+        text = text[i:]
+    return text.strip()
+
+
 _SETUP_DESC_SYSTEM = (
     "You are a master swing-trading analyst writing an ULTRA-CONCISE teaching note for a "
     "curated 'model book' of the best stock setups in history. You blend a deep fundamental, "
@@ -1537,6 +1553,8 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         "the broader market/indices, the sector, sympathy moves in related names, and trader "
         "sentiment. A few quick, targeted searches are enough — do NOT over-research.\n\n"
         "Then write a SHORT bulleted note on why this was a great setup. STRICT FORMAT:\n"
+        "- Begin IMMEDIATELY with the first '• ' bullet. Output NOTHING before it — no narration, "
+        "no 'I'll research…', no 'Let me search…', no process talk, no preamble of any kind.\n"
         "- Output ONLY bullets — 3 to 5 of them, each a single concise line starting with '• '.\n"
         "- No intro line, no headers, no labels, no closing line, no citations.\n"
         "- Keep the WHOLE note under ~80 words total. Every word earns its place.\n\n"
@@ -1592,7 +1610,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
     text = "".join(
         getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text"
     ).strip()
-    return text or None
+    return _clean_setup_note(text) or None
 
 
 # Generation runs in a background thread (web search + Opus 4.8 can take a few
