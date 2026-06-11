@@ -80,13 +80,6 @@ export const SETUP_CATALOG = [
 
   // ── Momentum & Trend ───────────────────────────────────────────────────────
   {
-    name: 'Parabolic Long',
-    family: 'Momentum & Trend',
-    direction: 'long',
-    essence: 'Riding the steepening curve of a runaway move — managed bar by bar as the angle goes vertical.',
-    candles: [1, 1.5, 2, 3, 4, 5.5, 7.5, 10, 13],
-  },
-  {
     name: '20 EMA Pullback',
     family: 'Momentum & Trend',
     direction: 'long',
@@ -109,14 +102,6 @@ export const SETUP_CATALOG = [
     essence: 'The first powerful thrust off a controlled pullback — the trend announcing it’s back in gear.',
     candles: [5, 4, -2, -1.5, -1, [6, 1, 0.3], 4],
     ema: 4,
-  },
-  {
-    name: 'HVC (High Volume Close)',
-    family: 'Momentum & Trend',
-    direction: 'long',
-    essence: 'A massive-volume accumulation candle — its close becomes the level the stock must defend.',
-    candles: [1, -0.8, 0.6, [9, 0.8, 0.5], -1, 0.8, -0.6, 5],
-    pivot: { idx: 3, side: 'h' },
   },
   {
     name: 'Wedge Pop',
@@ -180,6 +165,14 @@ export const SETUP_CATALOG = [
     essence: 'A violent open against the prior trend — sentiment flips in a single bar.',
     candles: [-2.5, -3, -2, -2.8, [9, 1.5, 0.3], 4],
   },
+  {
+    name: 'HVC (High Volume Close)',
+    family: 'Gaps & Catalysts',
+    direction: 'long',
+    essence: 'A massive-volume accumulation candle — its close becomes the level the stock must defend.',
+    candles: [1, -0.8, 0.6, [9, 0.8, 0.5], -1, 0.8, -0.6, 5],
+    pivot: { idx: 3, side: 'h' },
+  },
 
   // ── Reversals & Reclaims ───────────────────────────────────────────────────
   {
@@ -220,6 +213,13 @@ export const SETUP_CATALOG = [
     direction: 'long',
     essence: 'Everyone sees the topping pattern — when the breakdown never comes, the squeeze fuels the next leg up.',
     candles: [3, -2.5, 4.5, -4, 2.5, -2, 1.5, 7],
+  },
+  {
+    name: 'Parabolic Long',
+    family: 'Reversals & Reclaims',
+    direction: 'long',
+    essence: 'Riding the steepening curve of a runaway move — managed bar by bar as the angle goes vertical.',
+    candles: [1, 1.5, 2, 3, 4, 5.5, 7.5, 10, 13],
   },
   {
     name: 'Parabolic Short',
