@@ -101,6 +101,52 @@ class IndexDrawingsPatch(BaseModel):
     drawings_json: str   # JSON array of chart annotations for the index pane (measure marks)
 
 
+class ExampleIn(BaseModel):
+    # Charted example for the Setup Library (keyed by catalog setup name).
+    setup_name: str
+    symbol: str
+    company: Optional[str] = None
+    data_symbol: Optional[str] = None
+    year: int
+    label_date: Optional[str] = None
+    frame_start_date: Optional[str] = None
+    entry_price: Optional[float] = None
+    stop_price: Optional[float] = None
+    target_price: Optional[float] = None
+    grade: Optional[str] = None
+    notes: Optional[str] = None
+    sort_order: Optional[int] = 0
+
+
+class ExamplePatch(BaseModel):
+    setup_name: Optional[str] = None
+    symbol: Optional[str] = None
+    company: Optional[str] = None
+    data_symbol: Optional[str] = None
+    year: Optional[int] = None
+    label_date: Optional[str] = None
+    frame_start_date: Optional[str] = None
+    entry_price: Optional[float] = None
+    stop_price: Optional[float] = None
+    target_price: Optional[float] = None
+    grade: Optional[str] = None
+    notes: Optional[str] = None
+    drawings_json: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+def _validate_example(d: dict) -> None:
+    for key in ("label_date", "frame_start_date"):
+        if d.get(key) not in (None, "") and not _ISO_DATE.match(d[key]):
+            raise HTTPException(400, f"{key} must be YYYY-MM-DD")
+    if d.get("grade") not in (None, "") and d["grade"] not in _GRADES:
+        raise HTTPException(400, f"grade must be one of {sorted(_GRADES)}")
+    if d.get("year") is not None and not (1900 <= int(d["year"]) <= 2100):
+        raise HTTPException(400, "year out of range")
+    if d.get("symbol") is not None and not str(d["symbol"]).strip():
+        raise HTTPException(400, "symbol required")
+
+
 class BarsIn(BaseModel):
     bars: list[dict]     # uploaded daily OHLCV: [{t:'YYYY-MM-DD', o,h,l,c, v}, ...]
 
@@ -1318,6 +1364,38 @@ def edit_index_drawings(payload: IndexDrawingsPatch, symbol: str = Query("^IXIC"
         raise HTTPException(400, "drawings_json must be a JSON array")
     stored = svc.set_index_drawings(symbol, payload.drawings_json)
     return {"symbol": symbol.upper(), "drawings_json": stored}
+
+
+# ── Setup Library examples ────────────────────────────────────────────────────
+
+@router.get("/setup-examples")
+def get_setup_examples(setup: str = Query(...), _user: dict = Depends(get_current_user)):
+    return {"setup": setup, "examples": svc.list_setup_examples(setup)}
+
+
+@router.post("/setup-examples")
+def add_setup_example(payload: ExampleIn, _admin: dict = Depends(require_admin)):
+    data = payload.model_dump()
+    _validate_example(data)
+    return svc.create_setup_example(data)
+
+
+@router.put("/setup-example/{example_id}")
+def edit_setup_example(example_id: int, payload: ExamplePatch,
+                       _admin: dict = Depends(require_admin)):
+    data = payload.model_dump(exclude_unset=True)
+    _validate_example(data)
+    example = svc.update_setup_example(example_id, data)
+    if not example:
+        raise HTTPException(404, "Example not found")
+    return example
+
+
+@router.delete("/setup-example/{example_id}")
+def remove_setup_example(example_id: int, _admin: dict = Depends(require_admin)):
+    if not svc.delete_setup_example(example_id):
+        raise HTTPException(404, "Example not found")
+    return {"deleted": example_id}
 
 
 def _invalidate_year_derived(stock_id: int) -> None:

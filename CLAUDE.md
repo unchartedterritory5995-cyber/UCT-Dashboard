@@ -1103,11 +1103,19 @@ The hub's **Setups** card is live: a field-guide of the firm's curated setup lis
   dashed trigger line + optional `ema` period drawing a smoothed MA curve).
 - **Library screen:** hero + family pills (All + 4 families) + search + grouped
   card grid (staggered cascade-in mirroring the hub cards).
-- **Detail scaffold:** glyph panel + name/chips/essence, then two placeholder
-  sections — "The Playbook" (detailed write-ups, provided by the user, to be added
-  per setup) and "Charted Examples" (manually-entered example charts reusing the SAME
-  chart layout as Throughout the Years). Backend tables + admin entry forms are the
-  next phase, when content starts landing.
+- **Detail page (split view, 2026-06-11):** LEFT half = glyph hero (intro = the
+  playbook's full lede when authored, else the card essence) + "The Playbook"
+  dossier (`setupPlaybooks.js` — per-setup {intro, sections[{label, body, accent}],
+  mistakes[]}; HTF authored first; missing setups show a placeholder). RIGHT half =
+  scrollable **Charted Examples**: real `StockChart`s (year-framed, same prop recipe
+  as Throughout the Years minus the index pane), gold setup candle, entry/stop/target
+  lines, focus-zoom toggle, per-example admin annotate (drawings_json) / edit /
+  delete + "+ Add Example" form with predictive ticker search (/api/ticker-search).
+- **Examples backend:** table `modelbook_setup_examples` (in `_SCHEMA`, no
+  migration; keyed by `setup_name` = frontend catalog name) + service CRUD
+  (`list/get/create/update/delete_setup_example`) + endpoints `GET
+  /api/modelbook/setup-examples?setup=`, `POST /setup-examples`, `PUT|DELETE
+  /setup-example/{id}` (reads any user, writes admin).
 
 ### Trade-log retirement (2026-06-02)
 The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —

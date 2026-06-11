@@ -1,7 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
+import StockChart from '../../components/StockChart'
+import CompanyLogo from '../../components/CompanyLogo'
+import { useAuth } from '../../context/AuthContext'
+import { GRADES } from '../../constants/setupGroups'
 import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
 import { SETUP_PLAYBOOKS } from './setupPlaybooks'
 import styles from './SetupsView.module.css'
+
+const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
+
+// Entry/stop/target price-line colors (same palette as Throughout the Years).
+const ENTRY_COLOR = '#3cb868'
+const STOP_COLOR = '#e74c3c'
+const TARGET_COLOR = '#c9a84c'
+const NO_PRICE_LINES = []
+
+// Parse a stored drawings_json (chart annotations) → array; [] on missing/bad.
+function parseDrawings(json) {
+  if (!json) return []
+  try { const d = JSON.parse(json); return Array.isArray(d) ? d : [] }
+  catch { return [] }
+}
+
+// Cap horizontal rays at the setup's candle so they stop there instead of
+// streaking to the right edge (mirrors Throughout the Years).
+function boundHrays(drawings, labelDate) {
+  if (!labelDate) return drawings
+  return drawings.map(d => (d.type === 'hray' ? { ...d, rightBoundTime: labelDate } : d))
+}
 
 // ── Mini pattern glyph ─────────────────────────────────────────────────────────
 // Hand-drawn idealized candlestick sketch of the setup (data in setupCatalog.js).
@@ -159,10 +186,10 @@ function SetupCard({ setup, index, onOpen }) {
 // The firm's full dossier for a setup: drop-cap lede, labeled section rows with
 // accent diamonds (entry green / stop red / exit gold), and a common-mistakes
 // warning card. Data in setupPlaybooks.js.
-function Playbook({ pb }) {
+function Playbook({ pb, hideIntro }) {
   return (
     <div className={styles.playbook}>
-      <p className={styles.pbLede}>{pb.intro}</p>
+      {!hideIntro && <p className={styles.pbLede}>{pb.intro}</p>}
       <div className={styles.pbGrid}>
         {pb.sections.map(s => (
           <div key={s.label} className={styles.pbRow}>
@@ -191,6 +218,325 @@ function Playbook({ pb }) {
   )
 }
 
+// ── Charted examples (right pane) ──────────────────────────────────────────────
+// Predictive ticker input backed by /api/ticker-search (same source as the
+// Charts hub autocomplete). Picking a result also auto-fills the company name.
+function TickerSearchInput({ value, onChange, onPick }) {
+  const [open, setOpen] = useState(false)
+  const [results, setResults] = useState([])
+  const timer = useRef(null)
+  function handleChange(e) {
+    const v = e.target.value.toUpperCase()
+    onChange(v)
+    clearTimeout(timer.current)
+    if (!v.trim()) { setResults([]); setOpen(false); return }
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(v.trim())}&limit=8`, { credentials: 'include' })
+        const j = await r.json()
+        setResults(j?.results || [])
+        setOpen(true)
+      } catch { setResults([]) }
+    }, 150)
+  }
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return (
+    <div className={styles.tickerSearch}>
+      <input
+        className={styles.exInput} value={value} placeholder="Ticker" required
+        onChange={handleChange}
+        onFocus={() => results.length > 0 && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && results.length > 0 && (
+        <div className={styles.tickerDrop}>
+          {results.map(r => (
+            <button
+              key={r.ticker} type="button" className={styles.tickerRow}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => { onPick(r); setOpen(false) }}
+            >
+              <span className={styles.tickerSym}>{r.ticker}</span>
+              {r.name && <span className={styles.tickerName}>{r.name}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Admin: add / edit a charted example. `initial` with an id → edit (PUT).
+function ExampleForm({ setupName, initial, onSaved, onCancel }) {
+  const isEdit = !!initial?.id
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(() => ({
+    symbol: initial?.symbol || '',
+    company: initial?.company || '',
+    year: initial?.year || new Date().getFullYear(),
+    label_date: initial?.label_date || '',
+    frame_start_date: initial?.frame_start_date || '',
+    entry_price: initial?.entry_price ?? '',
+    stop_price: initial?.stop_price ?? '',
+    target_price: initial?.target_price ?? '',
+    grade: initial?.grade || '',
+    notes: initial?.notes || '',
+  }))
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  // Picking the setup day auto-fills the chart year from it.
+  function setLabelDate(v) {
+    setForm(f => ({ ...f, label_date: v, year: v ? parseInt(v.slice(0, 4), 10) : f.year }))
+  }
+  async function submit(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const num = v => (v === '' || v == null ? null : parseFloat(v))
+      const body = {
+        setup_name: setupName,
+        symbol: form.symbol.trim().toUpperCase(),
+        company: form.company || null,
+        year: parseInt(form.year, 10),
+        label_date: form.label_date || null,
+        frame_start_date: form.frame_start_date || null,
+        entry_price: num(form.entry_price),
+        stop_price: num(form.stop_price),
+        target_price: num(form.target_price),
+        grade: form.grade || null,
+        notes: form.notes || null,
+      }
+      const r = await fetch(
+        isEdit ? `/api/modelbook/setup-example/${initial.id}` : '/api/modelbook/setup-examples',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      )
+      if (r.ok) onSaved?.()
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <form className={styles.exForm} onSubmit={submit}>
+      <div className={styles.exFormRow}>
+        <TickerSearchInput
+          value={form.symbol}
+          onChange={v => set('symbol', v)}
+          onPick={r => setForm(f => ({ ...f, symbol: r.ticker, company: f.company || r.name || '' }))}
+        />
+        <input className={styles.exInput} placeholder="Company (optional)" value={form.company}
+          onChange={e => set('company', e.target.value)} />
+        <input className={styles.exInput} type="number" placeholder="Year" value={form.year} required
+          onChange={e => set('year', e.target.value)} />
+        <select className={styles.exInput} value={form.grade} onChange={e => set('grade', e.target.value)}>
+          <option value="">Grade…</option>
+          {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <div className={styles.exFormRow}>
+        <label className={styles.exDateField}>
+          <span className={styles.exDateLabel}>Setup day (last candle)</span>
+          <input className={styles.exInput} type="date" value={form.label_date}
+            onChange={e => setLabelDate(e.target.value)} />
+        </label>
+        <label className={styles.exDateField}>
+          <span className={styles.exDateLabel}>Zoom start (optional)</span>
+          <input className={styles.exInput} type="date" value={form.frame_start_date}
+            max={form.label_date || undefined}
+            onChange={e => set('frame_start_date', e.target.value)} />
+        </label>
+      </div>
+      <div className={styles.exFormRow}>
+        <input className={styles.exInput} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
+          onChange={e => set('entry_price', e.target.value)} />
+        <input className={styles.exInput} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
+          onChange={e => set('stop_price', e.target.value)} />
+        <input className={styles.exInput} type="number" step="0.01" placeholder="Target" value={form.target_price}
+          onChange={e => set('target_price', e.target.value)} />
+      </div>
+      <textarea className={styles.exTextarea} placeholder="Notes — why this is a textbook example"
+        value={form.notes} onChange={e => set('notes', e.target.value)} />
+      <div className={styles.exFormActions}>
+        <button className={styles.exSaveBtn} type="submit" disabled={saving}>
+          {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Save example')}
+        </button>
+        <button className={styles.exCancelBtn} type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  )
+}
+
+// One charted example: header strip + the same year-framed chart layout as
+// Throughout the Years (gold setup candle, entry/stop/target lines, focus-zoom,
+// admin drawing annotations saved per example).
+function ExampleBlock({ ex, isAdmin, onChanged }) {
+  const [focus, setFocus] = useState({ date: null, startDate: null, nonce: 0 })
+  const [annotating, setAnnotating] = useState(false)
+  const [draft, setDraft] = useState([])
+  const [editing, setEditing] = useState(false)
+  const drawings = useMemo(
+    () => boundHrays(parseDrawings(ex.drawings_json), ex.label_date),
+    [ex.drawings_json, ex.label_date],
+  )
+  const priceLines = useMemo(() => {
+    const lines = []
+    if (ex.entry_price != null) lines.push({ price: ex.entry_price, color: ENTRY_COLOR, lineStyle: 2, title: `Entry $${Number(ex.entry_price).toFixed(2)}` })
+    if (ex.stop_price != null) lines.push({ price: ex.stop_price, color: STOP_COLOR, lineStyle: 2, title: `Stop $${Number(ex.stop_price).toFixed(2)}` })
+    if (ex.target_price != null) lines.push({ price: ex.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target $${Number(ex.target_price).toFixed(2)}` })
+    return lines.length ? lines : NO_PRICE_LINES
+  }, [ex.entry_price, ex.stop_price, ex.target_price])
+  const zoomed = !!focus.date
+
+  function toggleZoom() {
+    if (!ex.label_date) return
+    setFocus(f => (f.date
+      ? { date: null, startDate: null, nonce: f.nonce + 1 }
+      : { date: ex.label_date, startDate: ex.frame_start_date || null, nonce: f.nonce + 1 }))
+  }
+  function startAnnotate() {
+    setDraft(parseDrawings(ex.drawings_json))
+    setAnnotating(true)
+  }
+  async function saveAnnotations() {
+    setAnnotating(false)
+    await fetch(`/api/modelbook/setup-example/${ex.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ drawings_json: JSON.stringify(draft) }),
+    })
+    onChanged?.()
+  }
+  async function del() {
+    if (!window.confirm(`Remove the ${ex.symbol} ${ex.year} example?`)) return
+    await fetch(`/api/modelbook/setup-example/${ex.id}`, { method: 'DELETE', credentials: 'include' })
+    onChanged?.()
+  }
+
+  return (
+    <div className={styles.exBlock}>
+      <div className={styles.exBlockHead}>
+        <CompanyLogo sym={ex.symbol} size={22} round name={ex.company} alt={ex.data_symbol} />
+        <span className={styles.exSym}>{ex.symbol}</span>
+        {ex.company && <span className={styles.exCo}>{ex.company}</span>}
+        <span className={styles.exYear}>{ex.year}</span>
+        {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
+        <span className={styles.exTools}>
+          {ex.label_date && (
+            <button className={styles.exTool} onClick={toggleZoom}>{zoomed ? 'Full year' : '⤢ Zoom setup'}</button>
+          )}
+          {isAdmin && !annotating && (
+            <button className={styles.exTool} onClick={startAnnotate} title="Draw annotations on this example">✏️ Annotate</button>
+          )}
+          {isAdmin && annotating && (
+            <>
+              <button className={styles.exToolSave} onClick={saveAnnotations}>Save</button>
+              <button className={styles.exTool} onClick={() => setAnnotating(false)}>Cancel</button>
+            </>
+          )}
+          {isAdmin && !annotating && (
+            <button className={styles.exTool} onClick={() => setEditing(v => !v)}>✎ Edit</button>
+          )}
+          {isAdmin && !annotating && (
+            <button className={styles.exToolDanger} onClick={del} title="Delete this example">🗑</button>
+          )}
+        </span>
+      </div>
+      {editing && (
+        <ExampleForm
+          setupName={ex.setup_name}
+          initial={ex}
+          onSaved={() => { setEditing(false); onChanged?.() }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+      <div className={styles.exChart}>
+        <StockChart
+          sym={ex.symbol}
+          tf="D"
+          height="100%"
+          liveUpdates={false}
+          showDrawingTools={false}
+          entryDate={`${ex.year}-01-01`}
+          exitDate={`${ex.year}-12-31`}
+          exactDateRange
+          forceLogScale
+          boldCandles
+          colorByNetChange
+          hideLastValue
+          showVolume
+          volumeSeparatePane
+          markVolumeExtremes
+          volumePaneHeightPct={12}
+          volumeMa={50}
+          priceScaleTopMargin={0.12}
+          priceScaleBottomMargin={0.07}
+          watermarkOpacity={0.3}
+          watermarkX={0.2}
+          watermarkY={0.2}
+          watermarkName={ex.company || null}
+          priceLines={priceLines}
+          focusDate={focus.date}
+          focusStartDate={focus.startDate}
+          focusNonce={focus.nonce}
+          annotations={annotating ? draft : (drawings.length ? drawings : null)}
+          annotationsVisible={annotating || drawings.length > 0}
+          annotationsEditable={annotating}
+          onAnnotationsChange={setDraft}
+          highlightBarTime={ex.label_date || null}
+          highlightColor="#ffffff"
+          onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
+        />
+      </div>
+      {ex.notes && <p className={styles.exNotes}>{ex.notes}</p>}
+    </div>
+  )
+}
+
+// The scrollable right pane: header + admin add form + the example charts.
+function ExamplesPane({ setup }) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const { data, mutate } = useSWR(
+    `/api/modelbook/setup-examples?setup=${encodeURIComponent(setup.name)}`,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const examples = useMemo(() => data?.examples || [], [data])
+  const [adding, setAdding] = useState(false)
+  return (
+    <div className={styles.exPane}>
+      <div className={styles.exHead}>
+        <span className={styles.exHeadLabel}>
+          Charted Examples{examples.length > 0 && <span className={styles.exCount}> · {examples.length}</span>}
+        </span>
+        {isAdmin && !adding && (
+          <button className={styles.exAddBtn} onClick={() => setAdding(true)}>+ Add Example</button>
+        )}
+      </div>
+      {adding && (
+        <ExampleForm
+          setupName={setup.name}
+          onSaved={() => { setAdding(false); mutate() }}
+          onCancel={() => setAdding(false)}
+        />
+      )}
+      {examples.length === 0 && !adding && (
+        <div className={styles.exEmpty}>
+          <p className={styles.placeholderText}>
+            Real historical examples of this setup will be charted here
+            {isAdmin ? ' — use “+ Add Example” to chart the first one.' : '.'}
+          </p>
+        </div>
+      )}
+      {examples.map(ex => (
+        <ExampleBlock key={ex.id} ex={ex} isAdmin={isAdmin} onChanged={mutate} />
+      ))}
+    </div>
+  )
+}
+
 // ── Setup detail scaffold ──────────────────────────────────────────────────────
 // The full per-setup page: glyph + identity up top, then the playbook write-up
 // and charted examples. Both sections are scaffolded ready for content — the
@@ -200,62 +546,52 @@ function SetupDetail({ setup, onBack }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
-    <div className={styles.detail}>
-      <div className={styles.detailTop}>
-        <button className={styles.backBtn} onClick={onBack}>‹ Setup Library</button>
-      </div>
-
-      <div className={styles.detailHero}>
-        <div className={styles.detailGlyphPanel}>
-          <SetupGlyph setup={setup} className={styles.detailGlyph} />
-          <div className={styles.detailGlyphCaption}>Idealized pattern</div>
+    <div className={styles.detailSplit}>
+      {/* Left half — identity + the playbook write-up */}
+      <div className={styles.detailLeft}>
+        <div className={styles.detailTop}>
+          <button className={styles.backBtn} onClick={onBack}>‹ Setup Library</button>
         </div>
-        <div className={styles.detailId}>
-          <h1 className={styles.detailName}>{setup.name}</h1>
-          <div className={styles.detailChips}>
-            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+
+        <div className={styles.detailHero}>
+          <div className={styles.detailGlyphPanel}>
+            <SetupGlyph setup={setup} className={styles.detailGlyph} />
+            <div className={styles.detailGlyphCaption}>Idealized pattern</div>
           </div>
-          <p className={styles.detailEssence}>{setup.essence}</p>
+          <div className={styles.detailId}>
+            <h1 className={styles.detailName}>{setup.name}</h1>
+            <div className={styles.detailChips}>
+              <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+              <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+            </div>
+            {/* The study screen shows the full playbook intro; the landing-page
+                cards keep the short essence. */}
+            <p className={styles.detailEssence}>{playbook?.intro || setup.essence}</p>
+          </div>
         </div>
+
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionRule} />
+          <span className={styles.sectionLabel}>The Playbook</span>
+          <span className={styles.sectionRule} />
+        </div>
+        {playbook ? (
+          <Playbook pb={playbook} hideIntro />
+        ) : (
+          <div className={styles.placeholderPanel}>
+            <p className={styles.placeholderText}>
+              The full write-up for this setup — definition, qualifying criteria, entry trigger,
+              risk placement, and trade management — is being authored and will live here.
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionRule} />
-        <span className={styles.sectionLabel}>The Playbook</span>
-        <span className={styles.sectionRule} />
-      </div>
-      {playbook ? (
-        <Playbook pb={playbook} />
-      ) : (
-        <div className={styles.placeholderPanel}>
-          <p className={styles.placeholderText}>
-            The full write-up for this setup — definition, qualifying criteria, entry trigger,
-            risk placement, and trade management — is being authored and will live here.
-          </p>
-        </div>
-      )}
+      <div className={styles.splitDivider} aria-hidden="true" />
 
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionRule} />
-        <span className={styles.sectionLabel}>Charted Examples</span>
-        <span className={styles.sectionRule} />
-      </div>
-      <div className={`${styles.placeholderPanel} ${styles.placeholderDashed}`}>
-        <svg className={styles.placeholderIcon} viewBox="0 0 48 32" fill="none" aria-hidden="true">
-          <g stroke="#c9a84c" strokeWidth="1.4" opacity="0.7">
-            <line x1="8" y1="6" x2="8" y2="26" />
-            <rect x="5" y="12" width="6" height="9" rx="1" fill="rgba(201,168,76,0.18)" />
-            <line x1="24" y1="3" x2="24" y2="23" />
-            <rect x="21" y="7" width="6" height="11" rx="1" fill="rgba(201,168,76,0.18)" />
-            <line x1="40" y1="9" x2="40" y2="29" />
-            <rect x="37" y="13" width="6" height="10" rx="1" fill="rgba(201,168,76,0.18)" />
-          </g>
-        </svg>
-        <p className={styles.placeholderText}>
-          Real historical examples of this setup will be charted here — each one opens the
-          full annotated chart, exactly like Throughout the Years.
-        </p>
+      {/* Right half — scrollable charted examples */}
+      <div className={styles.detailRight}>
+        <ExamplesPane setup={setup} />
       </div>
     </div>
   )

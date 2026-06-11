@@ -101,6 +101,27 @@ CREATE TABLE IF NOT EXISTS modelbook_intraday_bars (
   UNIQUE(stock_id, date)
 );
 
+CREATE TABLE IF NOT EXISTS modelbook_setup_examples (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  setup_name   TEXT    NOT NULL,  -- Setup Library catalog name (frontend setupCatalog.js)
+  symbol       TEXT    NOT NULL,
+  company      TEXT,
+  data_symbol  TEXT,              -- exchange-suffixed provider symbol for non-US tickers
+  year         INTEGER NOT NULL,  -- calendar year the chart is framed to
+  label_date   TEXT,              -- 'YYYY-MM-DD' the setup day (highlighted candle)
+  frame_start_date TEXT,          -- optional left edge for the focus-zoom frame
+  entry_price  REAL,
+  stop_price   REAL,
+  target_price REAL,
+  grade        TEXT,
+  notes        TEXT,
+  drawings_json TEXT,             -- JSON array of chart annotations for this example
+  sort_order   INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mb_setup_examples_name
+  ON modelbook_setup_examples(setup_name, sort_order, year);
+
 CREATE TABLE IF NOT EXISTS modelbook_year_recaps (
   year         INTEGER PRIMARY KEY, -- calendar year (1990..) — one AI market recap shown on year-tab hover
   headline     TEXT,                -- short characterization of the year (3-7 words)
@@ -122,6 +143,9 @@ _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "marker_side", "marker_shape", "drawings_json")
 _CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
                     "sort_order", "source")
+_EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
+                   "label_date", "frame_start_date", "entry_price", "stop_price",
+                   "target_price", "grade", "notes", "drawings_json", "sort_order")
 
 
 def _connect() -> sqlite3.Connection:
@@ -513,6 +537,78 @@ def update_setup(setup_id: int, payload: dict) -> Optional[dict]:
 def delete_setup(setup_id: int) -> bool:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute("DELETE FROM modelbook_setups WHERE id = ?", (int(setup_id),))
+        c.commit()
+        return cur.rowcount > 0
+
+
+# ── Setup Library examples ────────────────────────────────────────────────────
+# Charted examples for the Setups section, keyed by the catalog setup name —
+# independent of the per-year modelbook_stocks library.
+
+def list_setup_examples(setup_name: str) -> list[dict]:
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT * FROM modelbook_setup_examples WHERE setup_name = ?
+               ORDER BY sort_order, year DESC, id""",
+            (str(setup_name),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_setup_example(example_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM modelbook_setup_examples WHERE id = ?", (int(example_id),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def create_setup_example(payload: dict) -> dict:
+    data = {f: payload.get(f) for f in _EXAMPLE_FIELDS}
+    data["symbol"] = str(data["symbol"]).upper().strip()
+    data["year"] = int(data["year"])
+    data["sort_order"] = int(data.get("sort_order") or 0)
+    data["created_at"] = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            """INSERT INTO modelbook_setup_examples
+               (setup_name, symbol, company, data_symbol, year, label_date,
+                frame_start_date, entry_price, stop_price, target_price, grade,
+                notes, drawings_json, sort_order, created_at)
+               VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
+                       :label_date, :frame_start_date, :entry_price, :stop_price,
+                       :target_price, :grade, :notes, :drawings_json, :sort_order,
+                       :created_at)""",
+            data,
+        )
+        c.commit()
+        new_id = cur.lastrowid
+    return get_setup_example(new_id)
+
+
+def update_setup_example(example_id: int, payload: dict) -> Optional[dict]:
+    fields = {f: payload[f] for f in _EXAMPLE_FIELDS if f in payload}
+    if not fields:
+        return get_setup_example(example_id)
+    if "symbol" in fields and fields["symbol"]:
+        fields["symbol"] = str(fields["symbol"]).upper().strip()
+    set_clause = ", ".join(f"{k} = :{k}" for k in fields)
+    fields["id"] = int(example_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            f"UPDATE modelbook_setup_examples SET {set_clause} WHERE id = :id", fields
+        )
+        c.commit()
+        if cur.rowcount == 0:
+            return None
+    return get_setup_example(example_id)
+
+
+def delete_setup_example(example_id: int) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "DELETE FROM modelbook_setup_examples WHERE id = ?", (int(example_id),)
+        )
         c.commit()
         return cur.rowcount > 0
 
