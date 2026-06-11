@@ -1462,6 +1462,11 @@ export default function OptionsFlowDashboard() {
     setLeaderYtdLoading(false);
   };
   const [tfDteFilter, setTfDteFilter] = useState("All");
+  // Top Flow column sort. Default "score" = current behavior (conviction-ranked).
+  // # column always shows score-rank regardless of active sort so the "Top 20"
+  // curation stays intuitive — sorting by another column re-orders the rows
+  // but each one keeps its #N badge from the score ranking.
+  const [tfSort, setTfSort] = useState({ col: "score", dir: "desc" });
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
   const [gexData, setGexData] = useState(null);
@@ -1725,6 +1730,7 @@ export default function OptionsFlowDashboard() {
   // ─── Top Flow Tracker ───────────────────────────────────────────────
   const [topFlowPicks, setTopFlowPicks] = useState({ active:[], archived:[] });
   const [trackerDateFilter, setTrackerDateFilter] = useState("All");
+  const [trackerCpFilter, setTrackerCpFilter] = useState("All"); // "All" | "Calls" | "Puts"
   const [trackerSort, setTrackerSort] = useState("recent");
   const [trkSort, setTrkSort] = useState({col:"added", dir:"desc", col2:"premium", dir2:"desc"});
 
@@ -5903,7 +5909,56 @@ export default function OptionsFlowDashboard() {
             else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
           }
           if (cpFilter !== "All") filtered = filtered.filter(c => c.dir===(cpFilter==="Calls"?"BULL":"BEAR"));
-          const ranked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
+          // Score-rank cutoff: top 20 by conviction, then user can re-sort within.
+          // Pre-compute display values (now, pnl, peak) once up front so sort and
+          // render both use the same numbers (avoids inconsistency between sort
+          // key and visible value).
+          const scoreRanked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
+          const enriched = scoreRanked.map((r, scoreIdx) => {
+            const px = getPrice(r.sym, r.cp, r.K, r.exp);
+            const now = px ? (px.mark || px.last || px.mid || 0) : 0;
+            const pnl = now > 0 && r.entry > 0 ? (now - r.entry) / r.entry * 100 : 0;
+            const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.K)&&p.exp===r.exp);
+            const hist = pick ? (pick.history||[]) : [];
+            const allPx = [...hist.map(h=>h.price), now].filter(v=>v>0);
+            const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
+            const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
+            const peakRetrace = peakPnl>0 && pnl<peakPnl;
+            const _oiH = hist.filter(h=>(h.oi||0)>0);
+            const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
+            const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
+            const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
+            return { ...r, _now: now, _pnl: pnl, _peakPnl: peakPnl, _peakRetrace: peakRetrace, _isExit, _rank: scoreIdx + 1 };
+          });
+          // Sort key extractor — works on the enriched objects so every column
+          // can sort even when values are derived (P&L, Peak, etc.)
+          const getSortVal = (r, col) => {
+            switch (col) {
+              case "Ticker":  return r.sym;
+              case "Exp":     return r.DTE;            // DTE gives chronological order matching the exp display
+              case "Strike":  return Number(r.K);
+              case "C/P":     return r.cp;
+              case "Side":    return ({AA:0, ASK:1, BB:2, BID:3})[r.side] ?? 9;
+              case "Dir":     return r.dir;
+              case "Grade":   return ({"A+":0,"A":1,"B+":2,"B":3,"C":4,"D":5})[r.grade] ?? 9;
+              case "Hits":    return r.displayHits || r.hits;
+              case "Premium": return r.displayPrem || r.prem;
+              case "Entry":   return r.entry || 0;
+              case "Now":     return r._now;
+              case "P&L":     return r._pnl;
+              case "Peak":    return r._peakPnl;
+              case "Cap":     return ({"Mega":0,"Large":1,"Mid-Small":2})[r.cap] ?? 9;
+              case "DTE":     return r.DTE;
+              default:        return r.score;
+            }
+          };
+          const ranked = tfSort.col === "score"
+            ? enriched
+            : [...enriched].sort((a, b) => {
+                const va = getSortVal(a, tfSort.col), vb = getSortVal(b, tfSort.col);
+                const cmp = typeof va === "string" ? va.localeCompare(vb) : (va - vb);
+                return tfSort.dir === "asc" ? cmp : -cmp;
+              });
 
           return (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -5951,35 +6006,45 @@ export default function OptionsFlowDashboard() {
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
-                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"].map(h=>(
-                      <th key={h} style={{ padding:"5px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="Peak"?"help":"default" }} title={h==="Peak"?"Highest % gain from entry at any point — the best exit you could have had.":undefined}>{h}</th>
-                    ))}
+                    {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"].map(h => {
+                      const isSortable = h !== "#";
+                      const isActive = tfSort.col === h;
+                      const onClick = isSortable ? () => setTfSort(prev =>
+                        prev.col === h
+                          ? { col: h, dir: prev.dir === "asc" ? "desc" : "asc" }
+                          : { col: h, dir: "desc" }  // first click defaults to descending
+                      ) : undefined;
+                      return (
+                        <th key={h} onClick={onClick}
+                          style={{ padding:"5px 5px", textAlign:"left",
+                            color: isActive ? P.ac : P.mt,
+                            fontSize:9, fontWeight:600,
+                            cursor: isSortable ? "pointer" : (h==="Peak" ? "help" : "default"),
+                            userSelect:"none" }}
+                          title={h==="Peak" ? "Highest % gain from entry at any point — the best exit you could have had." : (isSortable ? `Sort by ${h}` : undefined)}>
+                          {h}{isActive ? (tfSort.dir === "asc" ? " ↑" : " ↓") : ""}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {ranked.map((r,i) => {
-                    const px = getPrice(r.sym, r.cp, r.K, r.exp);
-                    const now = px ? (px.mark || px.last || px.mid || 0) : 0;
-                    const pnl = now > 0 && r.entry > 0 ? (now - r.entry) / r.entry * 100 : 0;
+                  {ranked.map((r, i) => {
+                    const now = r._now;
+                    const pnl = r._pnl;
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
                     const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#c9a84c";
-                    const pick = topFlowPicks.active.find(p=>p.sym===r.sym&&p.cp===r.cp&&parseFloat(p.strike)===parseFloat(r.K)&&p.exp===r.exp);
-                    const hist = pick ? (pick.history||[]) : [];
-                    const allPx = [...hist.map(h=>h.price), now].filter(v=>v>0);
-                    const peakPrice = allPx.length>0 ? Math.max(...allPx) : 0;
-                    const peakPnl = peakPrice>0 && r.entry>0 ? (peakPrice-r.entry)/r.entry*100 : 0;
-                    const peakRetrace = peakPnl>0 && pnl<peakPnl;
-                    const _oiH = hist.filter(h=>(h.oi||0)>0);
-                    const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
-                    const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
-                    const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
+                    const peakPnl = r._peakPnl;
+                    const peakRetrace = r._peakRetrace;
+                    const _isExit = r._isExit;
+                    const peakPrice = peakPnl !== 0 ? 1 : 0; // sentinel — peakPnl is the source of truth now
                     return (
                       <tr key={i} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.K,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.K)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.K,exp:r.exp}); }}
-                        style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:i<3?(P.ac+"06"):"transparent" }}
+                        style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:r._rank<=3?(P.ac+"06"):"transparent" }}
                         onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
-                        onMouseLeave={e=>e.currentTarget.style.background=i<3?(P.ac+"06"):"transparent"}>
-                        <td style={{ padding:"5px 5px", fontWeight:800, color:i<3?P.ac:P.dm, fontSize:12 }}>{i+1}</td>
+                        onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
+                        <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -5992,7 +6057,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.ac }}>{r.entry>0?"$"+r.entry.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
-                        <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
+                        <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPnl>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
                         <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
                       </tr>
@@ -7025,8 +7090,9 @@ export default function OptionsFlowDashboard() {
           const trackerDates = [...new Set((topFlowPicks.active||[]).map(p=>p.dateSaved).filter(Boolean))].sort().reverse();
           const afterDateFilter = (list) => trackerDateFilter === "All" ? list : list.filter(p => p.dateSaved === trackerDateFilter);
           const afterCap = (list) => capFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === capFilter);
-          const filteredActive = afterCap(afterDateFilter(topFlowPicks.active));
-          const filteredArchived = afterCap(afterDateFilter(topFlowPicks.archived));
+          const afterCp  = (list) => trackerCpFilter === "All" ? list : list.filter(p => p.cp === (trackerCpFilter === "Calls" ? "C" : "P"));
+          const filteredActive = afterCp(afterCap(afterDateFilter(topFlowPicks.active)));
+          const filteredArchived = afterCp(afterCap(afterDateFilter(topFlowPicks.archived)));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
           const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
           const calcNow = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); return px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); };
@@ -7104,6 +7170,24 @@ export default function OptionsFlowDashboard() {
                   </select>
                 )}
                 <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active contracts</span>
+                {/* C/P filter — All / Calls / Puts. Mirrors the Top Flow tab's
+                    matching filter so muscle memory carries across tabs. */}
+                <div style={{ display:"flex", gap:4, marginLeft:"auto" }}>
+                  {["All","Calls","Puts"].map(v => {
+                    const active = trackerCpFilter === v;
+                    const accentC = v === "Calls" ? P.bu : v === "Puts" ? P.be : P.ac;
+                    return (
+                      <button key={v} onClick={() => setTrackerCpFilter(v)}
+                        style={{ padding:"4px 12px", borderRadius:5,
+                          border:"1px solid "+(active ? accentC : P.bd),
+                          background: active ? accentC+"18" : "transparent",
+                          color: active ? accentC : P.dm,
+                          fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </Card>
             {cappedActive.length > 0 ? (
