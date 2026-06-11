@@ -44,7 +44,7 @@ export const SETUP_CATALOG = [
     family: 'Bases & Breakouts',
     direction: 'long',
     essence: 'An extraordinary momentum move that refuses to give any back — a dead-tight flag near the highs, then breakout.',
-    candles: [3.5, 9, 12, 8, -1.5, 1, -1.2, 0.8, -0.6, 10],
+    candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, 11],
     pivot: { idx: 3, side: 'h' },
     emas: [9, 20],
   },

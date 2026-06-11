@@ -67,7 +67,7 @@ export function SetupGlyph({ setup, className }) {
     })
     const color = emas ? (EMA_COLORS[p] || '#62a8d8') : '#62a8d8'
     return (
-      <path key={p} d={smoothPath(pts)} stroke={color} strokeWidth="0.7" strokeLinecap="round"
+      <path key={p} d={smoothPath(pts)} stroke={color} strokeWidth="0.45" strokeLinecap="round"
         strokeLinejoin="round" fill="none" opacity="0.75" />
     )
   })
@@ -96,13 +96,15 @@ export function SetupGlyph({ setup, className }) {
         const color = d.up ? '#3cb868' : '#e05252'
         const top = y(Math.max(d.o, d.c))
         const bot = y(Math.min(d.o, d.c))
+        // Fully-opaque bodies + precision rendering: a translucent body let the
+        // wick line ghost through as a faint stripe down the candle's middle.
         return (
-          <g key={i}>
-            <line x1={x(i)} y1={y(d.h)} x2={x(i)} y2={y(d.l)} stroke={color} strokeWidth="1" opacity="0.9" />
+          <g key={i} shapeRendering="geometricPrecision">
+            <line x1={x(i)} y1={y(d.h)} x2={x(i)} y2={y(d.l)} stroke={color} strokeWidth="1" />
             <rect
               x={x(i) - bodyW / 2} y={top}
               width={bodyW} height={Math.max(bot - top, 1.6)}
-              fill={color} rx="0.8" opacity="0.95"
+              fill={color} rx="0.6"
             />
           </g>
         )
