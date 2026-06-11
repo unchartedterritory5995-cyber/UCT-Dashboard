@@ -52,7 +52,7 @@ export const SETUP_CATALOG = [
     direction: 'long',
     essence: 'An extraordinary momentum move that refuses to give any back — a dead-tight flag near the highs, then breakout.',
     candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, [8, 0, 0.4, 1.5]],
-    trend: { from: 3, to: 8, side: 'h' },
+    trend: { from: 3, to: 8, side: 'h', ext: 0 },
     emas: [9, 20],
   },
   {
@@ -78,8 +78,8 @@ export const SETUP_CATALOG = [
     family: 'Bases & Breakouts',
     direction: 'long',
     essence: 'A new issue’s first consolidation — short, often shallow, and explosive when it resolves higher.',
-    candles: [12, -3, -2, 1.5, -1.5, 1, -0.8, 0.6, -0.5, [8, 0, 0, 1]],
-    pivot: { idx: 0, side: 'h' },
+    candles: [[12, 1, 1], -4, -3, -2, [1, 0.4, 0.6], -0.8, [0.9, 0.4, 0.5], -0.7, 0.5, [5.5, 0, 0.3]],
+    pivot: { idx: 4, side: 'h' },
     emas: [9, 20],
   },
   {
