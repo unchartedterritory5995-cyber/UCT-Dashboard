@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SETUP_CATALOG, SETUP_CATEGORIES, DIRECTION_META } from './setupCatalog'
+import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
 import styles from './SetupsView.module.css'
 
 // ── Mini pattern glyph ─────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ function buildCandles(moves) {
 }
 
 export function SetupGlyph({ setup, className }) {
-  const { candles, pivot } = setup
+  const { candles, pivot, ema } = setup
   const W = 132, H = 72, PX = 6, PY = 8
   const data = useMemo(() => buildCandles(candles), [candles])
   const hi = Math.max(...data.map(d => d.h))
@@ -29,6 +29,22 @@ export function SetupGlyph({ setup, className }) {
   const step = (W - PX * 2) / data.length
   const bodyW = Math.min(step * 0.58, 9)
   const x = i => PX + step * i + step / 2
+
+  // Optional moving-average curve, for the setups DEFINED by their relationship
+  // to it (20 EMA Pullback, EMA Crossback, Launchpad, Remount, Go Signal…).
+  let emaPath = null
+  if (ema) {
+    const k = 2 / (ema + 1)
+    let v = data[0].o
+    const pts = data.map((d, i) => {
+      v = d.c * k + v * (1 - k)
+      return `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`
+    })
+    emaPath = (
+      <path d={pts.join(' ')} stroke="#62a8d8" strokeWidth="1.3" strokeLinecap="round"
+        strokeLinejoin="round" fill="none" opacity="0.8" />
+    )
+  }
 
   let pivotEl = null
   if (pivot && data[pivot.idx]) {
@@ -47,6 +63,7 @@ export function SetupGlyph({ setup, className }) {
       {[0.25, 0.5, 0.75].map(f => (
         <line key={f} x1="2" y1={H * f} x2={W - 2} y2={H * f} stroke="#c9a84c" strokeWidth="0.6" opacity="0.09" />
       ))}
+      {emaPath}
       {pivotEl}
       {data.map((d, i) => {
         const color = d.up ? '#3cb868' : '#e05252'
@@ -79,7 +96,7 @@ function SetupCard({ setup, index, onOpen }) {
       <span className={styles.cardEssence}>{setup.essence}</span>
       <span className={styles.cardFoot}>
         <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-        <span className={styles.catChip}>{setup.category.toUpperCase()}</span>
+        <span className={styles.catChip}>{FAMILY_CHIP[setup.family] || setup.family.toUpperCase()}</span>
         <span className={styles.cardCta}>Study →</span>
       </span>
     </button>
@@ -108,7 +125,7 @@ function SetupDetail({ setup, onBack }) {
           <h1 className={styles.detailName}>{setup.name}</h1>
           <div className={styles.detailChips}>
             <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-            <span className={styles.catChip}>{setup.category.toUpperCase()}</span>
+            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
           </div>
           <p className={styles.detailEssence}>{setup.essence}</p>
         </div>
@@ -159,24 +176,23 @@ export default function SetupsView({ onExit }) {
 
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
-    for (const s of SETUP_CATALOG) c[s.category] = (c[s.category] || 0) + 1
+    for (const s of SETUP_CATALOG) c[s.family] = (c[s.family] || 0) + 1
     return c
   }, [])
 
-  // Filter by category pill + free-text query (name or essence).
+  // Filter by family pill + free-text query (name or essence).
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return SETUP_CATALOG.filter(s =>
-      (filter === 'All' || s.category === filter) &&
+      (filter === 'All' || s.family === filter) &&
       (!q || s.name.toLowerCase().includes(q) || s.essence.toLowerCase().includes(q)))
   }, [filter, query])
 
-  // Group the visible setups by category so the grid reads like a field-guide
+  // Group the visible setups by family so the grid reads like a field-guide
   // index (a labeled divider per group when "All" is showing).
   const groups = useMemo(() => {
-    const order = ['Swing', 'Intraday']
-    return order
-      .map(cat => ({ cat, setups: visible.filter(s => s.category === cat) }))
+    return SETUP_FAMILIES
+      .map(cat => ({ cat, setups: visible.filter(s => s.family === cat) }))
       .filter(g => g.setups.length)
   }, [visible])
 

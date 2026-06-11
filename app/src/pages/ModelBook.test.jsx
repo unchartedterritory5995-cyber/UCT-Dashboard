@@ -104,12 +104,12 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   mockMbView = 'setups'
   render(<ModelBook />)
   expect(screen.getByRole('heading', { name: /setup library/i })).toBeInTheDocument()
-  // Category dividers + a few well-known pattern cards render.
-  expect(screen.getByText(/swing — \d+ patterns/i)).toBeInTheDocument()
-  expect(screen.getByText(/intraday — \d+ patterns/i)).toBeInTheDocument()
+  // Family dividers + a few well-known pattern cards render.
+  expect(screen.getByText(/bases & breakouts — \d+ patterns/i)).toBeInTheDocument()
+  expect(screen.getByText(/gaps & catalysts — \d+ patterns/i)).toBeInTheDocument()
   const htfCard = screen.getByRole('button', { name: /high tight flag/i })
   expect(htfCard).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /opening range breakout/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
   // Click a card → the detail scaffold (playbook + examples sections) opens.
   fireEvent.click(htfCard)
   expect(screen.getByRole('heading', { name: /high tight flag/i })).toBeInTheDocument()
@@ -117,7 +117,7 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   expect(screen.getByText(/charted examples/i)).toBeInTheDocument()
   // Back returns to the library grid.
   fireEvent.click(screen.getByRole('button', { name: /setup library/i }))
-  expect(screen.getByRole('button', { name: /opening range breakout/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
 })
 
 test('renders the year tab and a stock card', () => {

@@ -1088,15 +1088,20 @@ Hovering a **year tab** pops up an AI recap of that market year — broad-market
 - Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate, permanent earnings overlay table).
 
 ### Setup Library — hub "Setups" section (starting screen shipped 2026-06-10)
-The hub's **Setups** card is live: a field-guide of all 32 playbook patterns (the
-"ultimate setup library"). Frontend-only so far — no backend/DB yet.
+The hub's **Setups** card is live: a field-guide of the firm's curated setup list
+(the "ultimate setup library"). Frontend-only so far — no backend/DB yet.
 - **Files:** `app/src/pages/modelbook/SetupsView.jsx` + `.module.css` (library grid +
   per-setup detail scaffold), `app/src/pages/modelbook/setupCatalog.js` (catalog data).
-- **Catalog:** one entry per setup in `constants/setupGroups.js` (names MUST keep
-  matching — that file stays the taxonomy source of truth) + direction, a one-line
-  `essence`, and a hand-authored `candles` array rendered by `<SetupGlyph/>` as an
-  idealized mini candlestick sketch (pure SVG; optional `pivot` dashed trigger line).
-- **Library screen:** hero + category pills (All/Swing/Intraday) + search + grouped
+- **Catalog (v1, user-provided 2026-06-10):** 24 swing setups grouped into 4 families
+  (Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims).
+  Most names match `constants/setupGroups.js` (the Throughout-the-Years labeling
+  taxonomy); a few use fuller display names (e.g. 'U&R (Undercut & Rally)' vs
+  'Classic U&R') — normalize when wiring examples to the DB. New-to-taxonomy setups:
+  20 EMA Pullback, EMA Crossback, Delayed Episodic Pivot, Gap Support. Each entry:
+  family, direction, one-line `essence`, hand-authored `candles` array rendered by
+  `<SetupGlyph/>` as an idealized mini candlestick sketch (pure SVG; optional `pivot`
+  dashed trigger line + optional `ema` period drawing a smoothed MA curve).
+- **Library screen:** hero + family pills (All + 4 families) + search + grouped
   card grid (staggered cascade-in mirroring the hub cards).
 - **Detail scaffold:** glyph panel + name/chips/essence, then two placeholder
   sections — "The Playbook" (detailed write-ups, provided by the user, to be added
