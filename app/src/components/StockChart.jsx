@@ -5133,7 +5133,7 @@ export default function StockChart({
               </span>
               <span style={{ color: '#706b5e' }}>Premium</span>
               <span style={{ color: '#6ba3be', fontWeight: 600 }}>
-                ${Math.round(dpHover.bar.notional).toLocaleString()}
+                {formatDpNotional(dpHover.bar.notional)}
               </span>
               {dpHover.bar.pctAvgVol > 0 && (
                 <>
