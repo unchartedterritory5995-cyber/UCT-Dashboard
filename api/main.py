@@ -533,6 +533,58 @@ def _start_industry_map_background(delay_seconds: int = 75) -> None:
     threading.Thread(target=_delayed, daemon=True, name="industry-map-warmer").start()
 
 
+def _thread_groups() -> dict:
+    """Normalized thread-name histogram. Shared by /api/health/threads and
+    the burst watchdog below — see the endpoint docstring for the rules."""
+    import re as _re
+    from collections import Counter
+    groups = Counter()
+    for t in threading.enumerate():
+        name = t.name or "unnamed"
+        toks = [tok for tok in _re.split(r"[-_ ]+", name)
+                if tok and not tok.isdigit() and not _re.fullmatch(r"[A-Z.]{1,6}", tok)]
+        key = "-".join(toks[:2]) or name
+        groups[key] += 1
+    return {"total": threading.active_count(), "groups": dict(groups.most_common(25))}
+
+
+def _start_thread_burst_watch() -> None:
+    """Self-capture for the recurring thread burst (2026-06-09/10 incident:
+    ~58→931 threads in minutes for ~25 min, then self-heals; during the
+    window sync endpoints + catalyst refresh threads can't start). Nobody is
+    awake to curl /api/health/threads mid-burst, so the pod samples itself:
+    every 30s, when active_count crosses THREAD_BURST_LOG_THRESHOLD (default
+    200), log the histogram — at most once a minute while it lasts, plus a
+    final line when it subsides so the burst duration is in the logs too."""
+    try:
+        threshold = int(os.environ.get("THREAD_BURST_LOG_THRESHOLD", "200"))
+    except ValueError:
+        threshold = 200
+    if threshold <= 0:
+        print("[startup] thread-burst watch disabled (threshold<=0)")
+        return
+    log = logging.getLogger("thread_burst")
+
+    def _loop():
+        import json as _json
+        in_burst = False
+        last_logged = 0.0
+        while True:
+            n = threading.active_count()
+            now = time.time()
+            if n > threshold:
+                if not in_burst or (now - last_logged) >= 60:
+                    in_burst = True
+                    last_logged = now
+                    log.warning(f"[thread-burst] {_json.dumps(_thread_groups())}")
+            elif in_burst:
+                in_burst = False
+                log.warning(f"[thread-burst] subsided: {n} threads")
+            time.sleep(30)
+
+    threading.Thread(target=_loop, daemon=True, name="thread-burst-watch").start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -543,6 +595,12 @@ async def lifespan(app: FastAPI):
         print(f"[startup] anyio thread limiter set to {limiter.total_tokens}")
     except Exception as e:
         print(f"[startup] anyio thread-pool tuning failed (non-fatal): {e}")
+
+    # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
+    try:
+        _start_thread_burst_watch()
+    except Exception as e:
+        print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
     try:
         _init_auth_db()
@@ -1903,17 +1961,11 @@ def health_threads():
     (2026-06-10: 58→931 threads in 6 min). Names are normalized by prefix
     (digits + ticker-ish tokens stripped) so e.g. 'bars-bg-NVDA-5-partial' and
     'cat-src_3' collapse to 'bars-bg' / 'cat-src'. Hit this DURING a burst to
-    see which group dominates the count."""
-    import re as _re
-    from collections import Counter
-    groups = Counter()
-    for t in threading.enumerate():
-        name = t.name or "unnamed"
-        toks = [tok for tok in _re.split(r"[-_ ]+", name)
-                if tok and not tok.isdigit() and not _re.fullmatch(r"[A-Z.]{1,6}", tok)]
-        key = "-".join(toks[:2]) or name
-        groups[key] += 1
-    return {"total": threading.active_count(), "groups": dict(groups.most_common(25))}
+    see which group dominates the count. The burst watchdog
+    (_start_thread_burst_watch) logs this same histogram automatically when
+    the count crosses THREAD_BURST_LOG_THRESHOLD, so unattended bursts
+    self-document in the Railway logs."""
+    return _thread_groups()
 
 
 @app.get("/api/health/cache")
