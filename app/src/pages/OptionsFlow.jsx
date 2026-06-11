@@ -1475,6 +1475,11 @@ export default function OptionsFlowDashboard() {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
+  // Dark pool bars for the contract detail panel (renderDetailPanel below) —
+  // opens when you click a ticker/contract in Top Flow, Search, or any other
+  // tab. Separate fetch from chartModal since they can be open simultaneously
+  // for different tickers.
+  const selectedDetailDarkPoolBars = useDarkPoolBars(selectedItem?.sym, showDarkPool && !!selectedItem);
   const [contractChartTf, setContractChartTf] = useState('D');
   useEffect(() => { setContractChartTf('D'); }, [selectedItem?.sym, selectedItem?.cp, selectedItem?.K, selectedItem?.exp]);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
@@ -2747,7 +2752,7 @@ export default function OptionsFlowDashboard() {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
           <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:320 }}>
-            <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0 }}>
+            <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
               {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label])=>(
                 <button key={val} onClick={()=>setContractChartTf(val)}
                   style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(contractChartTf===val?P.ac:P.bd+"80"),
@@ -2756,6 +2761,20 @@ export default function OptionsFlowDashboard() {
                   {label}
                 </button>
               ))}
+              {/* Dark Pool toggle — same global setting as the chart modal */}
+              <button onClick={() => setShowDarkPool(v => !v)}
+                title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
+                style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
+                  border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
+                  background:showDarkPool?"#c9a84c22":"transparent",
+                  color:showDarkPool?"#c9a84c":P.dm,
+                  fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                  display:"flex", alignItems:"center", gap:4 }}>
+                <span style={{ width:6, height:6, borderRadius:"50%",
+                  background:showDarkPool?"#c9a84c":"transparent",
+                  border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
+                DP
+              </button>
             </div>
             <div style={{ flex:1, minHeight:0 }}>
               <StockChart
@@ -2765,6 +2784,7 @@ export default function OptionsFlowDashboard() {
                 liveUpdates={true}
                 showDrawingTools={true}
                 onTfChange={setContractChartTf}
+                darkPoolBars={selectedDetailDarkPoolBars}
                 hideReplay
                 hidePatterns
                 hideCompare
