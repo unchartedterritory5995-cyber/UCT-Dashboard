@@ -67,8 +67,8 @@ export function SetupGlyph({ setup, className }) {
     })
     const color = emas ? (EMA_COLORS[p] || '#62a8d8') : '#62a8d8'
     return (
-      <path key={p} d={smoothPath(pts)} stroke={color} strokeWidth="1" strokeLinecap="round"
-        strokeLinejoin="round" fill="none" opacity="0.85" />
+      <path key={p} d={smoothPath(pts)} stroke={color} strokeWidth="0.7" strokeLinecap="round"
+        strokeLinejoin="round" fill="none" opacity="0.75" />
     )
   })
 
