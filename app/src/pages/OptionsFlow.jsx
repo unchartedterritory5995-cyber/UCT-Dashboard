@@ -1781,6 +1781,13 @@ export default function OptionsFlowDashboard() {
     if (c.uoa) s += 1;
     // LEAPS bonus: +0.5 for DTE > 180 (long-dated conviction)
     if ((c.DTE||0) > 180) s += 0.5;
+    // Sustained-accumulation bonus — high hit count on real premium signals
+    // committed buying that the multi-hit tier (capped at h>=10 → 2.5) doesn't
+    // fully capture. 56 ASK prints totaling $1.1M is qualitatively different
+    // from a 10-hit cluster at the same premium.
+    if (h >= 50 && p >= 1e6) s += 1.5;
+    else if (h >= 30 && p >= 750e3) s += 1.0;
+    else if (h >= 20 && p >= 500e3) s += 0.5;
     // Cap-relative premium multiplier — premium dominance principle.
     // Sub-notable premium gets penalized regardless of how impressive V/OI,
     // side urgency, or single-trade conviction looks. A $137K trade with
