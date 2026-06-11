@@ -43,7 +43,7 @@ function smoothPath(pts) {
 }
 
 export function SetupGlyph({ setup, className }) {
-  const { candles, pivot, ema, emas } = setup
+  const { candles, pivot, trend, ema, emas } = setup
   const W = 132, H = 72, PX = 6, PY = 8
   const data = useMemo(() => buildCandles(candles), [candles])
   const hi = Math.max(...data.map(d => d.h))
@@ -73,6 +73,24 @@ export function SetupGlyph({ setup, className }) {
     )
   })
 
+  // Diagonal dashed trendline: anchored on two candles' highs (or lows),
+  // extended a candle past the second anchor so the trigger breaks through it.
+  let trendEl = null
+  if (trend && data[trend.from] && data[trend.to]) {
+    const side = trend.side === 'l' ? 'l' : 'h'
+    const x1 = x(trend.from), y1 = y(data[trend.from][side])
+    const x2 = x(trend.to), y2 = y(data[trend.to][side])
+    const slope = (y2 - y1) / (x2 - x1 || 1)
+    const xs = x1 - bodyW / 2
+    const xe = x(Math.min(data.length - 1, trend.to + (trend.ext ?? 1))) + bodyW / 2
+    trendEl = (
+      <line
+        x1={xs} y1={y1 + slope * (xs - x1)} x2={xe} y2={y1 + slope * (xe - x1)}
+        stroke="#e6c965" strokeWidth="1" strokeDasharray="3 3" opacity="0.8"
+      />
+    )
+  }
+
   let pivotEl = null
   if (pivot && data[pivot.idx]) {
     const d = data[pivot.idx]
@@ -92,6 +110,7 @@ export function SetupGlyph({ setup, className }) {
         <line key={f} x1="2" y1={H * f} x2={W - 2} y2={H * f} stroke="#c9a84c" strokeWidth="0.6" opacity="0.09" />
       ))}
       {maLines}
+      {trendEl}
       {pivotEl}
       {data.map((d, i) => {
         const color = d.up ? '#3cb868' : '#e05252'

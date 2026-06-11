@@ -19,8 +19,11 @@
 //               longs at the high (upperWick 0), shorts at the low (lowerWick 0).
 //               CONVENTION: every glyph has EXACTLY 10 candles so candle width
 //               and rhythm match across all cards.
-//   pivot     — optional { idx, side: 'h'|'l' }: dashed trigger line drawn at
-//               that candle's high/low, extended to the right edge.
+//   pivot     — optional { idx, side: 'h'|'l'|'c' }: horizontal dashed trigger
+//               line at that candle's high/low/close, extended to the right edge.
+//   trend     — optional { from, to, side: 'h'|'l', ext? }: DIAGONAL dashed
+//               trendline through two candles' highs/lows, extended `ext`
+//               candles (default 1) past `to` so the trigger breaks through it.
 //   ema       — optional EMA period: draws a smoothed moving-average curve under
 //               the candles (for the setups defined by their relationship to it).
 
@@ -49,7 +52,7 @@ export const SETUP_CATALOG = [
     direction: 'long',
     essence: 'An extraordinary momentum move that refuses to give any back — a dead-tight flag near the highs, then breakout.',
     candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, [8, 0, 0.4, 1.5]],
-    pivot: { idx: 3, side: 'h' },
+    trend: { from: 3, to: 8, side: 'h' },
     emas: [9, 20],
   },
   {
