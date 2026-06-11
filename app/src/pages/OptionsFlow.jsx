@@ -2779,7 +2779,7 @@ export default function OptionsFlowDashboard() {
                 <span style={{ width:6, height:6, borderRadius:"50%",
                   background:showDarkPool?"#c9a84c":"transparent",
                   border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
-                DP
+                Dark Pools
               </button>
             </div>
             <div style={{ flex:1, minHeight:0 }}>
@@ -5408,7 +5408,7 @@ export default function OptionsFlowDashboard() {
                         <span style={{ width:6, height:6, borderRadius:"50%",
                           background:showDarkPool?"#c9a84c":"transparent",
                           border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
-                        DP
+                        Dark Pools
                       </button>
                     </div>
                     <div style={{ flex:1, minHeight:0 }}>
