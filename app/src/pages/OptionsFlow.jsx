@@ -1942,6 +1942,201 @@ export default function OptionsFlowDashboard() {
     });
     setWlBull(bulls);
     setWlBear(bears);
+
+    // ── Fallback fill — cross-direction + heavy ASK-dominant ─────────────
+    // After the primary bull/bear lists are built from FD.CONV, two more
+    // passes find picks that didn't make CONV but are real signals:
+    //   1. Cross-direction — for tickers already on the OPPOSITE list,
+    //      surface their strongest CLEAN ASK position in the other direction
+    //      (BTO call at ASK for bull list; BTO put at ASK for bear list).
+    //      Catches cases like BE where bullish CALL flow exists but got
+    //      filtered out of CONV by DTE<=7 or cluster-cleanliness rules.
+    //   2. Dirty-dominant — for tickers on NEITHER list, surface heavily
+    //      ASK-dominant clusters that CONV flagged dirty due to bid-side
+    //      noise but where 80%+ of premium is ASK side. Catches the SERV
+    //      pattern: 60+ ASK sweeps with ~13% bid-side noise on DTE > 14.
+    setTimeout(() => {
+      if (!FD.all_directional) {
+        console.warn("[wlPopulate] No FD.all_directional — fallback pass skipped entirely");
+        return;
+      }
+      console.log("[wlPopulate] Fallback pass start. FD.all_directional length:", FD.all_directional.length,
+        "| existing bulls:", bulls.length, "| existing bears:", bears.length);
+      const MIN_CONTRACT_PREMIUM = 100_000;
+      const MIN_TOTAL_DIRECTIONAL = 100_000;
+
+      // Build flowBy: per-ticker, per-direction, per-contract aggregate.
+      // CRITICAL: trade objects use UPPERCASE field names (t.CP, t.E) per
+      // processFlowData — earlier iterations used t.cp/t.exp (lowercase)
+      // which made flowBy always empty and silently broke every fallback.
+      // The single-letter "C"/"P" filter downstream matches t.CP's format.
+      const flowBy = {};
+      for (const t of FD.all_directional) {
+        if (!t.S || !t.D || !t.P || !t.CP) continue;
+        if (!flowBy[t.S]) flowBy[t.S] = { BULL: null, BEAR: null, mktcap: t.mktcap || 0 };
+        if (t.mktcap && t.mktcap > flowBy[t.S].mktcap) flowBy[t.S].mktcap = t.mktcap;
+        if (!flowBy[t.S][t.D]) flowBy[t.S][t.D] = { totalPrem: 0, contracts: {} };
+        flowBy[t.S][t.D].totalPrem += t.P;
+        const cKey = t.CP + "|" + t.K + "|" + t.E;
+        if (!flowBy[t.S][t.D].contracts[cKey]) {
+          flowBy[t.S][t.D].contracts[cKey] = {
+            cp: t.CP, K: t.K, exp: t.E, hits: 0,
+            askPrem: 0, bidPrem: 0,
+          };
+        }
+        const cc = flowBy[t.S][t.D].contracts[cKey];
+        cc.hits++;
+        if (t.Si === "A" || t.Si === "AA") cc.askPrem += t.P;
+        if (t.Si === "B" || t.Si === "BB") cc.bidPrem += t.P;
+      }
+      console.log("[wlPopulate] flowBy built:", Object.keys(flowBy).length, "tickers");
+
+      // Cross-direction fallback: opposite-direction clean ASK signal
+      const buildFallback = (sym, dir) => {
+        const sideData = flowBy[sym]?.[dir];
+        if (!sideData) return null;
+        if (sideData.totalPrem < MIN_TOTAL_DIRECTIONAL) return null;
+        const cleanCp = dir === "BULL" ? "C" : "P";
+        const allContracts = Object.values(sideData.contracts);
+        const cpMatching = allContracts.filter(c => c.cp === cleanCp);
+        const askDominant = cpMatching.filter(c => c.askPrem > c.bidPrem);
+        const qualifying = askDominant.filter(c => c.askPrem >= MIN_CONTRACT_PREMIUM);
+        if (qualifying.length === 0) return null;
+        const top = qualifying.sort((a, b) => b.askPrem - a.askPrem)[0];
+        const mc = flowBy[sym].mktcap || 0;
+        let grade = "C";
+        if (top.askPrem >= 1e6) grade = "B";
+        if (top.askPrem >= 3e6) grade = "B+";
+        const pseudoCluster = {
+          sym, cp: top.cp, K: top.K, exp: top.exp,
+          hits: top.hits, prem: top.askPrem,
+          side: "ASK", askPrem: top.askPrem, bidPrem: top.bidPrem,
+          dir, grade, vol: top.hits, maxOI: 0, volOI: 0,
+          mktcap: mc, er: false, dominantOverride: false,
+        };
+        const score = autoScore(pseudoCluster);
+        return {
+          sym, score, autoScore: score, tier: "WATCH",
+          strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
+          grade, dir, hits: top.hits, prem: top.askPrem,
+          side: "ASK", er: false,
+          notes: "Cross-direction fill — " + sym + " has both bull & bear flow; this is the strongest CLEAN " +
+                 dir.toLowerCase() + " signal (BTO " + (dir==="BULL"?"call":"put") + " at ASK)",
+          cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
+          oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
+          firstDate: "", entrySpot: 0, latestSpot: 0,
+          convScore: 0, rankScore: 0, isExit: false,
+          _isFallback: true,
+        };
+      };
+
+      // Dirty-dominant fallback: heavy ASK-dominant for tickers on NEITHER list
+      const buildDirtyDominantFallback = (sym, dir) => {
+        const sideData = flowBy[sym]?.[dir];
+        if (!sideData) return null;
+        const mc = flowBy[sym].mktcap || 0;
+        const capName = capBand(mc);
+        const minTotalFlow = capName === "Mega" ? 1e6 : capName === "Large" ? 750e3 : 500e3;
+        if (sideData.totalPrem < minTotalFlow) return null;
+        const cleanCp = dir === "BULL" ? "C" : "P";
+        const allContracts = Object.values(sideData.contracts);
+        const cpMatching = allContracts.filter(c => c.cp === cleanCp);
+        const dominant = cpMatching.filter(c => {
+          const tot = c.askPrem + c.bidPrem;
+          if (tot <= 0) return false;
+          return c.askPrem / tot >= 0.80 && c.askPrem >= 250e3;
+        });
+        if (dominant.length === 0) return null;
+        const top = dominant.sort((a, b) => b.askPrem - a.askPrem)[0];
+        let grade = "C";
+        if (top.askPrem >= 250e3) grade = "B";
+        if (top.askPrem >= 1e6) grade = "B+";
+        if (top.askPrem >= 3e6) grade = "A";
+        if (top.askPrem >= 5e6) grade = "A+";
+        if (top.hits >= 10 && top.askPrem >= 500e3) grade = "B+";
+        if (top.hits >= 20 && top.askPrem >= 750e3) grade = "A";
+        if (top.hits >= 50 && top.askPrem >= 1e6) grade = "A+";
+        const pseudoCluster = {
+          sym, cp: top.cp, K: top.K, exp: top.exp,
+          hits: top.hits, prem: top.askPrem,
+          side: "ASK", askPrem: top.askPrem, bidPrem: top.bidPrem,
+          dir, grade, vol: top.hits, maxOI: 0, volOI: 0,
+          mktcap: mc, er: false, dominantOverride: true,
+        };
+        const score = autoScore(pseudoCluster);
+        const purity = Math.round(top.askPrem / (top.askPrem + top.bidPrem) * 100);
+        return {
+          sym, score, autoScore: score, tier: "WATCH",
+          strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
+          grade, dir, hits: top.hits, prem: top.askPrem,
+          side: "ASK", er: false,
+          notes: `Heavy ASK-dominant — ${purity}% ASK on ${top.hits} trades (not in CONV: mixed sides)`,
+          cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
+          oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
+          firstDate: "", entrySpot: 0, latestSpot: 0,
+          convScore: 0, rankScore: 0, isExit: false,
+          _isFallback: true, _isDirtyDominant: true,
+        };
+      };
+
+      const bullSyms = new Set(bulls.map(b => b.sym));
+      const bearSyms = new Set(bears.map(b => b.sym));
+      const fallbackBulls = [];
+      const fallbackBears = [];
+
+      // Pass 1+2: cross-direction
+      bears.forEach(b => {
+        if (bullSyms.has(b.sym)) return;
+        const fb = buildFallback(b.sym, "BULL");
+        if (fb) fallbackBulls.push(fb);
+      });
+      bulls.forEach(b => {
+        if (bearSyms.has(b.sym)) return;
+        const fb = buildFallback(b.sym, "BEAR");
+        if (fb) fallbackBears.push(fb);
+      });
+
+      // Pass 3: dirty-dominant — tickers on NEITHER list with heavy ASK conviction
+      const crossFallbackBullSyms = new Set(fallbackBulls.map(f => f.sym));
+      const crossFallbackBearSyms = new Set(fallbackBears.map(f => f.sym));
+      Object.keys(flowBy).forEach(sym => {
+        if (bullSyms.has(sym) || bearSyms.has(sym)) return;
+        if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
+        const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
+        const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
+        if (bullTotal >= bearTotal && bullTotal > 0) {
+          const fb = buildDirtyDominantFallback(sym, "BULL");
+          if (fb) fallbackBulls.push(fb);
+        } else if (bearTotal > 0) {
+          const fb = buildDirtyDominantFallback(sym, "BEAR");
+          if (fb) fallbackBears.push(fb);
+        }
+      });
+
+      console.log("[wlPopulate] Fallback pass complete. Cross-direction:",
+        fallbackBulls.filter(f=>!f._isDirtyDominant).length, "bull /",
+        fallbackBears.filter(f=>!f._isDirtyDominant).length, "bear. Dirty-dominant:",
+        fallbackBulls.filter(f=>f._isDirtyDominant).length, "bull /",
+        fallbackBears.filter(f=>f._isDirtyDominant).length, "bear.");
+
+      // Merge with existing, dedup by sym, sort by score, truncate to 20
+      if (fallbackBulls.length > 0) {
+        setWlBull(prev => {
+          const merged = [...prev, ...fallbackBulls];
+          const seen = new Set();
+          const unique = merged.filter(x => { if (seen.has(x.sym)) return false; seen.add(x.sym); return true; });
+          return unique.sort((a,b)=>(b.score||0)-(a.score||0)).slice(0, 20);
+        });
+      }
+      if (fallbackBears.length > 0) {
+        setWlBear(prev => {
+          const merged = [...prev, ...fallbackBears];
+          const seen = new Set();
+          const unique = merged.filter(x => { if (seen.has(x.sym)) return false; seen.add(x.sym); return true; });
+          return unique.sort((a,b)=>(b.score||0)-(a.score||0)).slice(0, 20);
+        });
+      }
+    }, 0);
   };
 
   const wlPopulateUnusual = () => {
