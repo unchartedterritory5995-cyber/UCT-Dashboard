@@ -25,6 +25,7 @@ export const SETUP_FAMILIES = [
   'Momentum & Trend',
   'Gaps & Catalysts',
   'Reversals & Reclaims',
+  'Intraday',
 ]
 
 // Short chip shown on cards (the full family name lives in the section divider).
@@ -33,6 +34,7 @@ export const FAMILY_CHIP = {
   'Momentum & Trend': 'TREND',
   'Gaps & Catalysts': 'GAP',
   'Reversals & Reclaims': 'REVERSAL',
+  'Intraday': 'INTRADAY',
 }
 
 export const SETUP_CATALOG = [
@@ -94,15 +96,6 @@ export const SETUP_CATALOG = [
     essence: 'Kell’s re-entry: after an extension, price crosses back into the 9/20 EMAs and reclaims them — or rejects, for the short.',
     candles: [3, 2.5, -2.2, -2.8, -1, 0.8, [4.5, 0.6, 0.5], 3],
     ema: 4,
-  },
-  {
-    name: 'Go Signal',
-    family: 'Momentum & Trend',
-    direction: 'long',
-    essence: 'A catalyst gap digests into the 9 EMA — then one wide candle engulfs the pullback and closes above the catalyst high.',
-    candles: [0.5, [8, 1, 0.4], -1.5, -1.2, -1, [7.5, 0.6, 0.3], 3],
-    ema: 4,
-    pivot: { idx: 1, side: 'h' },
   },
   {
     name: 'Wedge Pop',
@@ -175,6 +168,14 @@ export const SETUP_CATALOG = [
     candles: [1, -0.8, 0.6, [9, 0.8, 0.5], -1, 0.8, -0.6, 5],
     pivot: { idx: 3, side: 'c' },
   },
+  {
+    name: 'Delayed Earnings Reaction',
+    family: 'Gaps & Catalysts',
+    direction: 'long',
+    essence: 'Strong earnings, but a muted first reaction — the real move arrives days later as institutions finish digesting the report.',
+    candles: [0.5, -0.4, 0.4, [2.5, 1.5, 1], -0.6, 0.5, -0.4, 8, 3.5],
+    pivot: { idx: 3, side: 'h' },
+  },
 
   // ── Reversals & Reclaims ───────────────────────────────────────────────────
   {
@@ -200,6 +201,14 @@ export const SETUP_CATALOG = [
     essence: 'A strong uptrend pulls back, stabilizes, then recaptures the 4-EMA of the highs — buy momentum resuming, not the low.',
     candles: [4, 3.5, 3, -2.5, -2, -1.2, 0.5, [5, 0.6, 0.4], 3],
     ema: 3,
+  },
+  {
+    name: 'Oops Reversal',
+    family: 'Reversals & Reclaims',
+    direction: 'long',
+    essence: 'A gap below the prior day’s low that reverses and closes the gap — the classic Larry Williams trap for panicked sellers.',
+    candles: [1.5, 1, -0.8, [-4, 3.2, 0.6], 4.5, 3],
+    pivot: { idx: 2, side: 'l' },
   },
   {
     name: 'Remount',
@@ -231,6 +240,33 @@ export const SETUP_CATALOG = [
     candles: [2, 3, 4.5, 7, 10, 13, [-3, 4, 1], -11, -7],
     pivot: { idx: 6, side: 'l' },
     ema: 5,
+  },
+
+  // ── Intraday ───────────────────────────────────────────────────────────────
+  {
+    name: 'ORB (Opening Range Break)',
+    family: 'Intraday',
+    direction: 'both',
+    essence: 'The first candles define the opening range — breaking it with momentum puts the day’s trend behind the trade.',
+    candles: [2.5, -1.8, 1.2, -0.8, 1, 6, 4],
+    pivot: { idx: 0, side: 'h' },
+  },
+  {
+    name: '30-Minute Pivot',
+    family: 'Intraday',
+    direction: 'long',
+    essence: 'The first half-hour’s high becomes the trigger — consolidate under it, then break with volume.',
+    candles: [3, -1, 0.5, -0.6, 0.4, -0.3, 5.5, 3],
+    pivot: { idx: 0, side: 'h' },
+  },
+  {
+    name: 'Go Signal',
+    family: 'Intraday',
+    direction: 'long',
+    essence: 'A catalyst gap digests into the 9 EMA — then one wide candle engulfs the pullback and closes above the catalyst high.',
+    candles: [0.5, [8, 1, 0.4], -1.5, -1.2, -1, [7.5, 0.6, 0.3], 3],
+    ema: 4,
+    pivot: { idx: 1, side: 'h' },
   },
 ]
 
