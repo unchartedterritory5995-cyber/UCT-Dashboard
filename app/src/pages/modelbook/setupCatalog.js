@@ -46,6 +46,7 @@ export const SETUP_CATALOG = [
     essence: 'An extraordinary momentum move that refuses to give any back — a dead-tight flag near the highs, then breakout.',
     candles: [3.5, 9, 12, 8, -1.5, 1, -1.2, 0.8, -0.6, 10],
     pivot: { idx: 3, side: 'h' },
+    emas: [9, 20],
   },
   {
     name: 'Flat Top Breakout',
@@ -54,6 +55,7 @@ export const SETUP_CATALOG = [
     essence: '“1 tap, 2 tap, 3 tap, breakout” — repeated tests of a flat ceiling on rising lows until sellers there are exhausted.',
     candles: [[6, 0.3, 0.4], -4, [4.3, 0.3, 0.3], -2.6, [2.6, 0.4, 0.3], -1.3, [7, 0.5, 0.3]],
     pivot: { idx: 0, side: 'h' },
+    emas: [9, 20],
   },
   {
     name: 'VCP (Volatility Contraction Pattern)',
@@ -62,6 +64,7 @@ export const SETUP_CATALOG = [
     essence: 'Each pullback shallower than the last, coiling under resistance until supply dries up.',
     candles: [9, -6, 7.5, -4, 5, -2.5, 3, -1.2, 0.6, 6.5],
     pivot: { idx: 2, side: 'h' },
+    emas: [9, 20],
   },
   {
     name: 'IPO Base',
@@ -70,14 +73,15 @@ export const SETUP_CATALOG = [
     essence: 'A new issue’s first consolidation — short, often shallow, and explosive when it resolves higher.',
     candles: [12, -3, -2, 1.5, -1.5, 1, -0.8, 0.6, 8],
     pivot: { idx: 0, side: 'h' },
+    emas: [9, 20],
   },
   {
     name: 'Launchpad',
     family: 'Bases & Breakouts',
     direction: 'both',
-    essence: 'Multiple moving averages converge into one tight bundle with price coiled across them — loaded to break hard either way.',
-    candles: [1.5, -1.2, 1, -0.9, 0.7, -0.6, 0.4, -0.3, 7],
-    ema: 5,
+    essence: 'A momentum burst, then a pullback that consolidates on top of a stacked cluster of moving averages — and launches.',
+    candles: [-1, 0.8, 8, 6, -3.5, -3, -2, 0.5, -0.4, 9],
+    emas: [9, 20, 50, 200],
   },
 
   // ── Momentum & Trend ───────────────────────────────────────────────────────

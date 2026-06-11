@@ -19,8 +19,30 @@ function buildCandles(moves) {
   })
 }
 
+// Standard playbook MA colors: 9 EMA green, 20 EMA purple, 50 SMA blue,
+// 200 SMA orange (legacy single `ema` blue).
+const EMA_COLORS = { 9: '#5fd98a', 20: '#b07ce8', 50: '#62a8d8', 200: '#e09a5a' }
+// Glyph smoothing per nominal period — tuned so each line SITS where it would
+// in the real pattern across a ~10-candle sketch (9 hugs price, 200 lags deepest).
+const EMA_EFF = { 9: 3, 20: 7, 50: 10, 200: 14 }
+
+// Smooth a polyline through quadratic midpoint curves so the MA reads as a
+// flowing line rather than segments.
+function smoothPath(pts) {
+  const f = n => Number(n).toFixed(1)
+  if (pts.length < 3) return 'M' + pts.map(p => `${f(p[0])} ${f(p[1])}`).join(' L')
+  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i][0] + pts[i + 1][0]) / 2
+    const my = (pts[i][1] + pts[i + 1][1]) / 2
+    d += ` Q${f(pts[i][0])} ${f(pts[i][1])} ${f(mx)} ${f(my)}`
+  }
+  const last = pts[pts.length - 1]
+  return `${d} L${f(last[0])} ${f(last[1])}`
+}
+
 export function SetupGlyph({ setup, className }) {
-  const { candles, pivot, ema } = setup
+  const { candles, pivot, ema, emas } = setup
   const W = 132, H = 72, PX = 6, PY = 8
   const data = useMemo(() => buildCandles(candles), [candles])
   const hi = Math.max(...data.map(d => d.h))
@@ -30,21 +52,25 @@ export function SetupGlyph({ setup, className }) {
   const bodyW = Math.min(step * 0.58, 9)
   const x = i => PX + step * i + step / 2
 
-  // Optional moving-average curve, for the setups DEFINED by their relationship
-  // to it (20 EMA Pullback, EMA Crossback, Launchpad, Remount, Go Signal…).
-  let emaPath = null
-  if (ema) {
-    const k = 2 / (ema + 1)
+  // Moving-average curves. `emas: [9, 20]` draws the playbook pair (9 green /
+  // 20 purple); legacy `ema: N` draws a single blue line. The glyphs only have
+  // ~7-10 candles, so a nominal period maps to a faster smoothing factor that
+  // reproduces where the line would SIT in the real pattern (9 hugs price, 20
+  // lags beneath it) rather than the literal math.
+  const maLines = (emas || (ema ? [ema] : [])).map(p => {
+    const eff = emas ? (EMA_EFF[p] || Math.max(2, Math.round(p / 3))) : p
+    const k = 2 / (eff + 1)
     let v = data[0].o
     const pts = data.map((d, i) => {
       v = d.c * k + v * (1 - k)
-      return `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`
+      return [x(i), y(v)]
     })
-    emaPath = (
-      <path d={pts.join(' ')} stroke="#62a8d8" strokeWidth="1.3" strokeLinecap="round"
-        strokeLinejoin="round" fill="none" opacity="0.8" />
+    const color = emas ? (EMA_COLORS[p] || '#62a8d8') : '#62a8d8'
+    return (
+      <path key={p} d={smoothPath(pts)} stroke={color} strokeWidth="1" strokeLinecap="round"
+        strokeLinejoin="round" fill="none" opacity="0.85" />
     )
-  }
+  })
 
   let pivotEl = null
   if (pivot && data[pivot.idx]) {
@@ -64,7 +90,7 @@ export function SetupGlyph({ setup, className }) {
       {[0.25, 0.5, 0.75].map(f => (
         <line key={f} x1="2" y1={H * f} x2={W - 2} y2={H * f} stroke="#c9a84c" strokeWidth="0.6" opacity="0.09" />
       ))}
-      {emaPath}
+      {maLines}
       {pivotEl}
       {data.map((d, i) => {
         const color = d.up ? '#3cb868' : '#e05252'
