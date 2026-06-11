@@ -2020,8 +2020,7 @@ export default function OptionsFlowDashboard() {
           strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
           grade, dir, hits: top.hits, prem: top.askPrem,
           side: "ASK", er: false,
-          notes: "Cross-direction fill — " + sym + " has both bull & bear flow; this is the strongest CLEAN " +
-                 dir.toLowerCase() + " signal (BTO " + (dir==="BULL"?"call":"put") + " at ASK)",
+          notes: "",
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
           oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
           firstDate: "", entrySpot: 0, latestSpot: 0,
@@ -2070,7 +2069,7 @@ export default function OptionsFlowDashboard() {
           strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
           grade, dir, hits: top.hits, prem: top.askPrem,
           side: "ASK", er: false,
-          notes: `Heavy ASK-dominant — ${purity}% ASK on ${top.hits} trades (not in CONV: mixed sides)`,
+          notes: "",
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
           oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
           firstDate: "", entrySpot: 0, latestSpot: 0,
