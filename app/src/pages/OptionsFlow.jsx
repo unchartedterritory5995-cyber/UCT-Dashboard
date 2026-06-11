@@ -7170,40 +7170,41 @@ export default function OptionsFlowDashboard() {
                   </select>
                 )}
                 <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active contracts</span>
-                {/* C/P filter — All / Calls / Puts. Mirrors the Top Flow tab's
-                    matching filter so muscle memory carries across tabs. */}
-                <div style={{ display:"flex", gap:4, marginLeft:"auto" }}>
-                  {["All","Calls","Puts"].map(v => {
-                    const active = trackerCpFilter === v;
-                    const accentC = v === "Calls" ? P.bu : v === "Puts" ? P.be : P.ac;
-                    return (
-                      <button key={v} onClick={() => setTrackerCpFilter(v)}
-                        style={{ padding:"4px 12px", borderRadius:5,
-                          border:"1px solid "+(active ? accentC : P.bd),
-                          background: active ? accentC+"18" : "transparent",
-                          color: active ? accentC : P.dm,
-                          fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
-                        {v}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
             </Card>
             {cappedActive.length > 0 ? (
               <Card title="Active Picks" sub={cappedActive.length+(cappedActive.length<filteredActive.length?" of "+filteredActive.length:"")+" contracts"}>
-                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-                  <button onClick={()=>{
-                    const contracts = cappedActive.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
-                    fetchPrices(contracts).then(()=>{
-                      fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
-                    });
-                  }} disabled={fetchLoading}
-                    style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                      fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                    {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
-                  </button>
-                  {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  {/* C/P filter — All / Calls / Puts. Direction-colored for fast visual scan. */}
+                  <div style={{ display:"flex", gap:4 }}>
+                    {["All","Calls","Puts"].map(v => {
+                      const active = trackerCpFilter === v;
+                      const accentC = v === "Calls" ? P.bu : v === "Puts" ? P.be : P.ac;
+                      return (
+                        <button key={v} onClick={() => setTrackerCpFilter(v)}
+                          style={{ padding:"4px 12px", borderRadius:5,
+                            border:"1px solid "+(active ? accentC : P.bd),
+                            background: active ? accentC+"18" : "transparent",
+                            color: active ? accentC : P.dm,
+                            fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center" }}>
+                    <button onClick={()=>{
+                      const contracts = cappedActive.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
+                      fetchPrices(contracts).then(()=>{
+                        fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
+                      });
+                    }} disabled={fetchLoading}
+                      style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                        fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                      {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                    </button>
+                    {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+                  </div>
                 </div>
                 <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                   <colgroup>
