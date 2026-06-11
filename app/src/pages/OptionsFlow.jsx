@@ -6931,7 +6931,12 @@ export default function OptionsFlowDashboard() {
                     <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
                     {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
                   </div>
-                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }} panelFn={renderDetailPanel}/></Card>
+                  {/* Top Trades table — panelFn intentionally omitted. The
+                      outer modal-version of renderDetailPanel (just below)
+                      handles the expanded view. Passing panelFn made TT also
+                      render an inline copy, creating a double-layer panel
+                      that required two clicks to close. */}
+                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
