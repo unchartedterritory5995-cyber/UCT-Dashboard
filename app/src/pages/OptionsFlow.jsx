@@ -1341,6 +1341,9 @@ export default function OptionsFlowDashboard() {
   // TradingView widget. Daily / Weekly / Monthly only (per design call).
   const [chartModal, setChartModal] = useState(null);     // { sym: "NVDA" } | null
   const [chartInterval, setChartInterval] = useState("D"); // "D" | "W" | "M"
+  // Local search input inside the chart modal — lets the user pivot to a
+  // different ticker without closing the modal. Submit on Enter.
+  const [chartModalSearch, setChartModalSearch] = useState("");
   // Dark pool overlay toggle — global setting persisted to localStorage so it
   // survives reloads. Applies to the main chart modal (which all ticker-click
   // entry points across tabs feed into). Default ON since dark pool zones are
@@ -5383,8 +5386,27 @@ export default function OptionsFlowDashboard() {
                           </>
                         )}
                       </div>
-                      <button onClick={() => setChartModal(null)}
-                        style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        {/* Switch-ticker input — type a symbol and press Enter to load
+                            that chart in place. No close-and-reopen needed. */}
+                        <input type="text" value={chartModalSearch}
+                          onChange={e => setChartModalSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && chartModalSearch.trim()) {
+                              setChartModal({ sym: chartModalSearch.trim() });
+                              setChartModalSearch("");
+                            } else if (e.key === "Escape") {
+                              setChartModalSearch("");
+                            }
+                          }}
+                          placeholder="Switch ticker…"
+                          autoComplete="off" spellCheck={false}
+                          style={{ background:P.bg, border:"1px solid "+P.bd, color:P.wh,
+                            padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700,
+                            fontFamily:"inherit", width:120, letterSpacing:1, outline:"none" }} />
+                        <button onClick={() => setChartModal(null)}
+                          style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
+                      </div>
                     </div>
                     {/* Timeframe row — matches renderDetailPanel pattern */}
                     <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
