@@ -1982,10 +1982,14 @@ export default function OptionsFlowDashboard() {
           flowBy[t.S][t.D].contracts[cKey] = {
             cp: t.CP, K: t.K, exp: t.E, hits: 0,
             askPrem: 0, bidPrem: 0,
+            vol: 0, maxOI: 0, hasSweep: false,
           };
         }
         const cc = flowBy[t.S][t.D].contracts[cKey];
         cc.hits++;
+        cc.vol += (t.V || 0);
+        if ((t.OI || 0) > cc.maxOI) cc.maxOI = t.OI;
+        if (t.Ty === "SWP") cc.hasSweep = true;
         if (t.Si === "A" || t.Si === "AA") cc.askPrem += t.P;
         if (t.Si === "B" || t.Si === "BB") cc.bidPrem += t.P;
       }
@@ -1998,7 +2002,9 @@ export default function OptionsFlowDashboard() {
         if (sideData.totalPrem < MIN_TOTAL_DIRECTIONAL) return null;
         const cleanCp = dir === "BULL" ? "C" : "P";
         const allContracts = Object.values(sideData.contracts);
-        const cpMatching = allContracts.filter(c => c.cp === cleanCp);
+        // Block-only clusters = institutional repositioning, not directional. Skip.
+        const withSweep = allContracts.filter(c => c.hasSweep);
+        const cpMatching = withSweep.filter(c => c.cp === cleanCp);
         const askDominant = cpMatching.filter(c => c.askPrem > c.bidPrem);
         const qualifying = askDominant.filter(c => c.askPrem >= MIN_CONTRACT_PREMIUM);
         if (qualifying.length === 0) return null;
@@ -2007,11 +2013,12 @@ export default function OptionsFlowDashboard() {
         let grade = "C";
         if (top.askPrem >= 1e6) grade = "B";
         if (top.askPrem >= 3e6) grade = "B+";
+        const volOIRatio = top.maxOI > 0 ? top.vol / top.maxOI : 0;
         const pseudoCluster = {
           sym, cp: top.cp, K: top.K, exp: top.exp,
           hits: top.hits, prem: top.askPrem,
           side: "ASK", askPrem: top.askPrem, bidPrem: top.bidPrem,
-          dir, grade, vol: top.hits, maxOI: 0, volOI: 0,
+          dir, grade, vol: top.vol, maxOI: top.maxOI, volOI: volOIRatio,
           mktcap: mc, er: false, dominantOverride: false,
         };
         const score = autoScore(pseudoCluster);
@@ -2022,7 +2029,8 @@ export default function OptionsFlowDashboard() {
           side: "ASK", er: false,
           notes: "",
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
-          oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
+          oi: top.maxOI || 0, volume: top.vol || 0, volOI: volOIRatio,
+          liveOI: 0, liveOIDelta: 0, actionLog: [],
           firstDate: "", entrySpot: 0, latestSpot: 0,
           convScore: 0, rankScore: 0, isExit: false,
           _isFallback: true,
@@ -2039,7 +2047,9 @@ export default function OptionsFlowDashboard() {
         if (sideData.totalPrem < minTotalFlow) return null;
         const cleanCp = dir === "BULL" ? "C" : "P";
         const allContracts = Object.values(sideData.contracts);
-        const cpMatching = allContracts.filter(c => c.cp === cleanCp);
+        // Block-only clusters = institutional repositioning, not directional. Skip.
+        const withSweep = allContracts.filter(c => c.hasSweep);
+        const cpMatching = withSweep.filter(c => c.cp === cleanCp);
         const dominant = cpMatching.filter(c => {
           const tot = c.askPrem + c.bidPrem;
           if (tot <= 0) return false;
@@ -2055,11 +2065,12 @@ export default function OptionsFlowDashboard() {
         if (top.hits >= 10 && top.askPrem >= 500e3) grade = "B+";
         if (top.hits >= 20 && top.askPrem >= 750e3) grade = "A";
         if (top.hits >= 50 && top.askPrem >= 1e6) grade = "A+";
+        const volOIRatio = top.maxOI > 0 ? top.vol / top.maxOI : 0;
         const pseudoCluster = {
           sym, cp: top.cp, K: top.K, exp: top.exp,
           hits: top.hits, prem: top.askPrem,
           side: "ASK", askPrem: top.askPrem, bidPrem: top.bidPrem,
-          dir, grade, vol: top.hits, maxOI: 0, volOI: 0,
+          dir, grade, vol: top.vol, maxOI: top.maxOI, volOI: volOIRatio,
           mktcap: mc, er: false, dominantOverride: true,
         };
         const score = autoScore(pseudoCluster);
@@ -2071,7 +2082,8 @@ export default function OptionsFlowDashboard() {
           side: "ASK", er: false,
           notes: "",
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
-          oi: 0, volume: 0, volOI: 0, liveOI: 0, liveOIDelta: 0, actionLog: [],
+          oi: top.maxOI || 0, volume: top.vol || 0, volOI: volOIRatio,
+          liveOI: 0, liveOIDelta: 0, actionLog: [],
           firstDate: "", entrySpot: 0, latestSpot: 0,
           convScore: 0, rankScore: 0, isExit: false,
           _isFallback: true, _isDirtyDominant: true,
