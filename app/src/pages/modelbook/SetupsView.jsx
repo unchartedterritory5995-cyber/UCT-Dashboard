@@ -8,9 +8,10 @@ import styles from './SetupsView.module.css'
 function buildCandles(moves) {
   let price = 100
   return moves.map(m => {
-    const [b, uw, dw] = Array.isArray(m) ? m : [m]
+    // [body%, upperWick%, lowerWick%, gap%] — gap offsets the open vs prior close.
+    const [b, uw, dw, g] = Array.isArray(m) ? m : [m]
     const auto = Math.abs(b) * 0.15 + 0.35
-    const o = price
+    const o = g ? price * (1 + g / 100) : price
     const c = o * (1 + b / 100)
     const h = Math.max(o, c) * (1 + (uw ?? auto) / 100)
     const l = Math.min(o, c) * (1 - (dw ?? auto) / 100)
