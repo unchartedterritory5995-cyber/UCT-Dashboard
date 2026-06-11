@@ -48,7 +48,8 @@ export function SetupGlyph({ setup, className }) {
 
   let pivotEl = null
   if (pivot && data[pivot.idx]) {
-    const lvl = pivot.side === 'l' ? data[pivot.idx].l : data[pivot.idx].h
+    const d = data[pivot.idx]
+    const lvl = pivot.side === 'l' ? d.l : pivot.side === 'c' ? d.c : d.h
     pivotEl = (
       <line
         x1={x(pivot.idx) - bodyW / 2} y1={y(lvl)} x2={W - 2} y2={y(lvl)}
