@@ -4,6 +4,113 @@ import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
+// ─── Dark Pool overlay helpers ───────────────────────────────────────────────
+// Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
+// + cluster dark pool prints without depending on DarkPool's internal state.
+// Keeping these inline rather than exporting from DarkPool.jsx avoids cross-
+// component coupling — the chart modal needs its own copy regardless.
+
+// Filter "Cancelled" prints AND the original print they reference, so the
+// chart only shows trades that actually settled (matches DarkPool's logic).
+function stripCancelledPrints(prints) {
+  if (!prints || prints.length === 0) return [];
+  const readNum = (...vals) => { for (const v of vals) if (v != null && v !== "") return Number(v); return 0; };
+  const readStr = (...vals) => { for (const v of vals) if (v != null) return String(v); return ""; };
+  const readPrice  = p => readNum(p?.price, p?.p);
+  const readVolume = p => readNum(p?.volume, p?.v);
+  const readMsg    = p => readStr(p?.message, p?.msg, p?.Message);
+  const readDate   = p => readStr(p?.date, p?.Date).trim();
+  const readTime   = p => readStr(p?.time, p?.timestamp, p?.Timestamp, p?.t).trim();
+  const isCancelled = p => readMsg(p).startsWith("Cancelled");
+  const parseClock = s => {
+    const m = String(s).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    if (!m) return 0;
+    let h = parseInt(m[1]);
+    const mins = parseInt(m[2]);
+    const secs = parseInt(m[3] || "0");
+    const ampm = (m[4] || "").toUpperCase();
+    if (ampm === "PM" && h < 12) h += 12;
+    if (ampm === "AM" && h === 12) h = 0;
+    return h * 3600 + mins * 60 + secs;
+  };
+  const normalizeDate = d => {
+    if (!d) return "";
+    if (d.includes("-") && /^\d{4}-/.test(d)) return d;
+    const parts = d.split("/");
+    if (parts.length === 3) {
+      const [m, day, y] = parts;
+      return `${y}-${String(m).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    }
+    return d;
+  };
+  const sortKey = e => e.date + ":" + String(e.clock).padStart(6, "0");
+  const enriched = prints.map((p, i) => ({
+    p, idx: i,
+    cancel: isCancelled(p),
+    price: readPrice(p), volume: readVolume(p),
+    date: normalizeDate(readDate(p)),
+    clock: parseClock(readTime(p)),
+  }));
+  const excluded = new Set();
+  for (const cur of enriched) {
+    if (!cur.cancel) continue;
+    excluded.add(cur.idx);
+    const curKey = sortKey(cur);
+    let best = null, bestKey = "";
+    for (const cand of enriched) {
+      if (cand.idx === cur.idx || cand.cancel || excluded.has(cand.idx)) continue;
+      if (cand.price !== cur.price || cand.volume !== cur.volume) continue;
+      const candKey = sortKey(cand);
+      if (candKey >= curKey) continue;
+      if (!best || candKey > bestKey) { best = cand; bestKey = candKey; }
+    }
+    if (best) excluded.add(best.idx);
+  }
+  return prints.filter((_, i) => !excluded.has(i));
+}
+
+// Cluster prints within 2% of each other into single zones. See DarkPool.jsx
+// for the rationale and full algorithm doc.
+function clusterDarkPoolPrintsForOverlay(prints, { zonePct = 0.02 } = {}) {
+  if (!prints || prints.length === 0) return [];
+  const readPrice    = p => (p?.price ?? p?.p ?? 0);
+  const readNotional = p => (p?.notional ?? p?.n ?? p?.premium ?? 0);
+  const readVolume   = p => (p?.volume ?? p?.v ?? 0);
+  const sorted = [...prints].sort((a, b) => readPrice(a) - readPrice(b));
+  const zones = [];
+  let current = null;
+  for (const p of sorted) {
+    const price = readPrice(p);
+    const notional = readNotional(p);
+    const volume = readVolume(p);
+    if (price <= 0) continue;
+    const ref = current?.price ?? price;
+    const tol = ref * zonePct;
+    if (current && Math.abs(price - ref) <= tol) {
+      current._members.push(p);
+      current.notional += notional;
+      current.volume += volume;
+      const wSum = current._members.reduce((s, x) => s + readPrice(x) * (readVolume(x) || 1), 0);
+      const wDen = current._members.reduce((s, x) => s + (readVolume(x) || 1), 0);
+      current.price = wDen > 0 ? wSum / wDen : price;
+      current.priceLow = Math.min(current.priceLow, price);
+      current.priceHigh = Math.max(current.priceHigh, price);
+      if (p.time && (!current.time || String(p.time) > String(current.time))) current.time = p.time;
+    } else {
+      current = { ...p, price, notional, volume, priceLow: price, priceHigh: price, _members: [p] };
+      zones.push(current);
+    }
+  }
+  return zones.map(z => {
+    if (z._members.length === 1) {
+      const { _members, priceLow, priceHigh, ...single } = z;
+      return single;
+    }
+    const { _members, ...out } = z;
+    return { ...out, _isCluster: true, _clusterCount: _members.length };
+  });
+}
+
 // ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
 
 
@@ -1234,6 +1341,40 @@ export default function OptionsFlowDashboard() {
   // TradingView widget. Daily / Weekly / Monthly only (per design call).
   const [chartModal, setChartModal] = useState(null);     // { sym: "NVDA" } | null
   const [chartInterval, setChartInterval] = useState("D"); // "D" | "W" | "M"
+  // Dark pool overlay toggle — global setting persisted to localStorage so it
+  // survives reloads. Applies to the main chart modal (which all ticker-click
+  // entry points across tabs feed into). Default ON since dark pool zones are
+  // useful context for most trade decisions.
+  const [showDarkPool, setShowDarkPool] = useState(() => {
+    try {
+      const saved = localStorage.getItem("uct_show_darkpool");
+      return saved === null ? true : saved === "true";
+    } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("uct_show_darkpool", String(showDarkPool)); } catch {}
+  }, [showDarkPool]);
+  // Fetches + filters + clusters dark pool prints for the active sym. Returns
+  // a stable bars array suitable for the StockChart's darkPoolBars prop, or
+  // an empty array when disabled or no data.
+  const useDarkPoolBars = (sym, enabled) => {
+    const [raw, setRaw] = useState(null);
+    useEffect(() => {
+      if (!enabled || !sym) { setRaw(null); return; }
+      let cancelled = false;
+      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=100`)
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (!cancelled) setRaw(j?.prints || j || []); })
+        .catch(() => { if (!cancelled) setRaw([]); });
+      return () => { cancelled = true; };
+    }, [sym, enabled]);
+    return useMemo(() => {
+      if (!enabled || !raw) return [];
+      const active = stripCancelledPrints(raw);
+      return clusterDarkPoolPrintsForOverlay(active);
+    }, [raw, enabled]);
+  };
+  const chartModalDarkPoolBars = useDarkPoolBars(chartModal?.sym, showDarkPool && !!chartModal);
   const [capFilter, setCapFilter] = useState("All"); // All | Mega | Large | Mid | Small
   // Flow Intelligence — exclude top-N concentration outliers from bull% calc.
   // 0 = include everything (default), 1 = drop top bull + top bear ticker,
@@ -5220,7 +5361,7 @@ export default function OptionsFlowDashboard() {
                         style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
                     </div>
                     {/* Timeframe row — matches renderDetailPanel pattern */}
-                    <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0 }}>
+                    <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
                       {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label]) => (
                         <button key={val} onClick={() => setChartInterval(val)}
                           style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(chartInterval===val?P.ac:P.bd+"80"),
@@ -5229,6 +5370,20 @@ export default function OptionsFlowDashboard() {
                           {label}
                         </button>
                       ))}
+                      {/* Dark Pool toggle — applies globally (persists in localStorage). */}
+                      <button onClick={() => setShowDarkPool(v => !v)}
+                        title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
+                        style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
+                          border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
+                          background:showDarkPool?"#c9a84c22":"transparent",
+                          color:showDarkPool?"#c9a84c":P.dm,
+                          fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                          display:"flex", alignItems:"center", gap:4 }}>
+                        <span style={{ width:6, height:6, borderRadius:"50%",
+                          background:showDarkPool?"#c9a84c":"transparent",
+                          border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
+                        DP
+                      </button>
                     </div>
                     <div style={{ flex:1, minHeight:0 }}>
                       <StockChart
@@ -5239,6 +5394,7 @@ export default function OptionsFlowDashboard() {
                         showDrawingTools={true}
                         showVolume={true}
                         onTfChange={setChartInterval}
+                        darkPoolBars={chartModalDarkPoolBars}
                         hideReplay
                         hidePatterns
                         hideCompare
