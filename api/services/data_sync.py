@@ -156,6 +156,13 @@ _LAST_UPLOAD_MARKER = ".last_upload_ts"
 # Track when the last successful download landed locally. Written by
 # download_snapshot, read by the web's /api/health/cache endpoint.
 _LAST_SYNC_MARKER = ".last_sync_ts"
+# Track which ET calendar day the last FULL base snapshot shipped (delta
+# mode). Persisted on the worker volume so a restart/redeploy doesn't
+# re-build + re-upload the multi-GB base — on busy deploy nights that was
+# one 2.4 GB upload per push (worker_main resets its in-process copy each
+# boot). The once-per-ET-day cadence (cold-start seed + drift backstop)
+# is unchanged; only the per-restart repeats go away.
+_LAST_BASE_DAY_MARKER = ".last_base_day"
 
 
 def _client():
@@ -532,6 +539,19 @@ def _read_marker(filename: str) -> dict:
     except (OSError, ValueError):
         pass
     return out
+
+
+def get_last_base_day() -> Optional[str]:
+    """ET date ('YYYY-MM-DD') of the last shipped base snapshot, or None.
+
+    Read by the worker's uploader at boot so a restart doesn't re-ship
+    the multi-GB base within the same ET day."""
+    return _read_marker(_LAST_BASE_DAY_MARKER)["snapshot_ts"]
+
+
+def set_last_base_day(day: str) -> None:
+    """Persist the ET date of a successful base-snapshot upload."""
+    _write_marker(_LAST_BASE_DAY_MARKER, day)
 
 
 def get_local_sync_state() -> dict:

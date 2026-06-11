@@ -95,8 +95,12 @@ def _start_uploader():
 
     # In delta mode the worker ships ONE full base per ET calendar day (cold-
     # start seed + drift backstop) and a tiny windowed delta every other cycle.
-    # Tracked across iterations so we only build the big base once/day.
-    _last_base_day = {"d": None}
+    # Seeded from a volume marker so restarts/redeploys within the same ET
+    # day don't re-build + re-ship the multi-GB base — on busy deploy nights
+    # the in-process-only tracker re-uploaded a ~2.4 GB base per push.
+    _last_base_day = {"d": data_sync.get_last_base_day()}
+    if _last_base_day["d"]:
+        log.info(f"base snapshot already shipped for {_last_base_day['d']} (marker)")
 
     def _et_today() -> str:
         import datetime as _dt
@@ -120,6 +124,7 @@ def _start_uploader():
                         ts = data_sync.upload_snapshot(force=True)  # full base
                         if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
                             _last_base_day["d"] = today
+                            data_sync.set_last_base_day(today)
                             outcome = "base"
                             log.info(f"uploaded base snapshot {ts}")
                         else:

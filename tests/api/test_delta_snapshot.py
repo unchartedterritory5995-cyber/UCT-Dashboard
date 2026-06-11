@@ -53,6 +53,15 @@ class _FakeS3:
         self.objs.pop(Key, None)
 
 
+def test_last_base_day_marker_round_trip(tmp_path, monkeypatch):
+    """Restart survival: the worker seeds its per-day base tracker from this
+    marker so a redeploy doesn't re-ship the multi-GB base within one ET day."""
+    monkeypatch.setattr(data_sync, "_DATA_DIR", str(tmp_path))
+    assert data_sync.get_last_base_day() is None
+    data_sync.set_last_base_day("2026-06-10")
+    assert data_sync.get_last_base_day() == "2026-06-10"
+
+
 def test_delta_cutoffs_are_per_tf_and_ordered():
     cuts = data_sync._delta_cutoffs(now=1_700_000_000)
     for tf in ("1", "5", "15", "30", "60", "D", "W", "M"):
