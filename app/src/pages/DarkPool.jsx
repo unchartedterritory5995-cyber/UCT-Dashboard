@@ -72,6 +72,91 @@ function fmtAvgVol(pct) {
   return pct.toFixed(0) + "%";
 }
 
+// ── Dark Pool Print Clustering ───────────────────────────────────────────────
+// Combines prints at the same/close price into a single zone. Today's SERV
+// has three prints all at exactly $6.98 ($4.2M AVGPRC + $4.3M BLOCK + $4.8M
+// BLOCK = $13.4M total) — the chart was rendering three separate horizontal
+// bars when traders mentally read them as one $13.4M zone.
+//
+// Clustering algorithm: sort by price ascending, walk through the list, and
+// merge a print into the current zone if its price is within `zonePct` of the
+// zone's volume-weighted average price. The VW average lets the zone "follow"
+// where the size actually went (so a 1M-share print at $6.98 + a 100-share
+// print at $7.05 keeps the zone near $6.98, not the midpoint).
+//
+// `zonePct` of 0.02 = 2% — wide enough to cover normal intraday wiggle on the
+// same level, tight enough that genuinely distinct levels stay separate. On
+// a $7 stock that's $0.14, on a $400 stock that's $8.
+function clusterDarkPoolPrints(prints, { zonePct = 0.02 } = {}) {
+  if (!prints || prints.length === 0) return [];
+  // Defensively read fields — backend may use either short or long names
+  const readPrice    = p => (p?.price ?? p?.p ?? 0);
+  const readNotional = p => (p?.notional ?? p?.n ?? p?.premium ?? 0);
+  const readVolume   = p => (p?.volume ?? p?.v ?? 0);
+
+  const sorted = [...prints].sort((a, b) => readPrice(a) - readPrice(b));
+  const zones = [];
+  let current = null;
+
+  for (const p of sorted) {
+    const price = readPrice(p);
+    const notional = readNotional(p);
+    const volume = readVolume(p);
+    if (price <= 0) continue;
+
+    const ref = current?.price ?? price;
+    const tol = ref * zonePct;
+    if (current && Math.abs(price - ref) <= tol) {
+      // Merge into current zone
+      current._members.push(p);
+      current.notional = (current.notional || 0) + notional;
+      current.volume = (current.volume || 0) + volume;
+      // Volume-weighted avg price (fall back to count weighting if no volume)
+      const wSum = current._members.reduce((s, x) => s + readPrice(x) * (readVolume(x) || 1), 0);
+      const wDen = current._members.reduce((s, x) => s + (readVolume(x) || 1), 0);
+      current.price = wDen > 0 ? wSum / wDen : price;
+      current.priceLow = Math.min(current.priceLow, price);
+      current.priceHigh = Math.max(current.priceHigh, price);
+      // Keep the latest timestamp visible if present
+      if (p.time && (!current.time || String(p.time) > String(current.time))) current.time = p.time;
+      if (p.timestamp && (!current.timestamp || String(p.timestamp) > String(current.timestamp))) current.timestamp = p.timestamp;
+    } else {
+      // Start a new zone. Spread the source print first so unknown fields
+      // (color, sector, message, etc.) pass through to the chart unchanged
+      // for single-member zones — only multi-print zones get the aggregated
+      // shape. Identifier fields then get overwritten with cluster values.
+      current = {
+        ...p,
+        price, notional, volume,
+        priceLow: price, priceHigh: price,
+        _members: [p],
+      };
+      zones.push(current);
+    }
+  }
+
+  // For multi-print zones, synthesize a message that reflects the aggregate.
+  // Single-member zones keep their original message untouched.
+  return zones.map(z => {
+    if (z._members.length === 1) {
+      const { _members, priceLow, priceHigh, ...single } = z;
+      return single;
+    }
+    const count = z._members.length;
+    const dollarsLabel = z.notional >= 1e9 ? "$" + (z.notional/1e9).toFixed(2) + "B"
+                       : z.notional >= 1e6 ? "$" + (z.notional/1e6).toFixed(1) + "M"
+                       : z.notional >= 1e3 ? "$" + (z.notional/1e3).toFixed(0) + "K"
+                       : "$" + Math.round(z.notional);
+    const { _members, ...out } = z;
+    return {
+      ...out,
+      message: `DARK ZONE  ${dollarsLabel} · ${count} prints clustered`,
+      _isCluster: true,
+      _clusterCount: count,
+    };
+  });
+}
+
 // ── Sparkline ────────────────────────────────────────────────────────────────
 function Sparkline({it, w=140, h=36}){
   const P=4;
@@ -786,6 +871,12 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
   const [prints, setPrints] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Clustered prints — merges multiple prints at the same/close price into
+  // single zones so the chart shows aggregated $ rather than 3 lines on top
+  // of each other. The raw `prints` array is still used for the "N dark pool
+  // prints" count (so the user sees the underlying print count, not the
+  // post-cluster zone count).
+  const clusteredPrints = useMemo(() => clusterDarkPoolPrints(prints || []), [prints]);
 
   // Lazy market-cap fallback. The parent's mktcapData store is only
   // populated when the user hits the "Fetch Mkt Cap" button on the Overview
@@ -1023,7 +1114,10 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
                 {/* Explicit timeframe label so "in 3M" stops looking like a $
                     amount. TF_MAP keys map to plain-English suffixes. */}
                 <span style={{color:C.amber, fontWeight:600, fontSize:10}}>
-                  {prints.length} dark pool {prints.length === 1 ? "print" : "prints"} · {
+                  {prints.length} dark pool {prints.length === 1 ? "print" : "prints"}
+                  {clusteredPrints.length < prints.length && (
+                    <span style={{color:C.tx3, fontWeight:400}}> ({clusteredPrints.length} {clusteredPrints.length === 1 ? "zone" : "zones"})</span>
+                  )} · {
                     timeframe === "1W"  ? "past week" :
                     timeframe === "1M"  ? "past month" :
                     timeframe === "3M"  ? "past 3 months" :
@@ -1096,7 +1190,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               liveUpdates={true}
               showDrawingTools={true}
               showVolume={true}
-              darkPoolBars={prints || []}
+              darkPoolBars={clusteredPrints}
               priceFormat={{ type: 'price', precision: 0, minMove: 1 }}
               hideReplay
               hidePatterns
