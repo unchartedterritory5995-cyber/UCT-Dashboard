@@ -6610,7 +6610,17 @@ export default function OptionsFlowDashboard() {
               const tk = (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s) || selectedTicker;
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
-              const ccAll = (D.clean_confirmed||[]).filter(t => t.S===tk.s);
+              // Source changed from D.clean_confirmed → D.all_directional so the
+              // Search header reflects the same directional flow the watchlist
+              // surfaces via the dirty-dominant fallback. clean_confirmed is
+              // empty for all-WHITE-color tickers like SERV (60+ ASK sweeps,
+              // no YELLOW/MAGENTA confirmation) which made the header read $0
+              // even when the table below clearly showed $1.3M of directional
+              // flow. all_directional includes any trade with t.D assigned —
+              // catches the dirty-dominant pattern without losing precision
+              // (B-side ambiguous trades still don't get direction so they're
+              // excluded automatically).
+              const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s);
               const ccTrades = ccAll.filter(dteF);
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
@@ -6649,7 +6659,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
-                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} confirmed trades</div>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
