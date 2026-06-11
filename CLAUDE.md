@@ -1087,6 +1087,23 @@ Hovering a **year tab** pops up an AI recap of that market year — broad-market
 - Backend: `tests/test_modelbook_service.py` (create/list/detail, upsert, setup CRUD, FK cascade, catalyst CRUD + `replace_catalysts` ordering/stamp + cascade).
 - Frontend: `app/src/pages/ModelBook.test.jsx` (heading, year tab + card, admin-gated add button, click→chart+setup, Catalysts tab switch + row, admin-gated Generate, permanent earnings overlay table).
 
+### Setup Library — hub "Setups" section (starting screen shipped 2026-06-10)
+The hub's **Setups** card is live: a field-guide of all 32 playbook patterns (the
+"ultimate setup library"). Frontend-only so far — no backend/DB yet.
+- **Files:** `app/src/pages/modelbook/SetupsView.jsx` + `.module.css` (library grid +
+  per-setup detail scaffold), `app/src/pages/modelbook/setupCatalog.js` (catalog data).
+- **Catalog:** one entry per setup in `constants/setupGroups.js` (names MUST keep
+  matching — that file stays the taxonomy source of truth) + direction, a one-line
+  `essence`, and a hand-authored `candles` array rendered by `<SetupGlyph/>` as an
+  idealized mini candlestick sketch (pure SVG; optional `pivot` dashed trigger line).
+- **Library screen:** hero + category pills (All/Swing/Intraday) + search + grouped
+  card grid (staggered cascade-in mirroring the hub cards).
+- **Detail scaffold:** glyph panel + name/chips/essence, then two placeholder
+  sections — "The Playbook" (detailed write-ups, provided by the user, to be added
+  per setup) and "Charted Examples" (manually-entered example charts reusing the SAME
+  chart layout as Throughout the Years). Backend tables + admin entry forms are the
+  next phase, when content starts landing.
+
 ### Trade-log retirement (2026-06-02)
 The old personal trade log (`/api/trades` + `data/trades.json`) is **retired** —
 Model Book is no longer a trade log. Following the j2_playbook deprecation idiom:

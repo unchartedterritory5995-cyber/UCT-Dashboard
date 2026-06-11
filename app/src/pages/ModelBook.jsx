@@ -8,6 +8,7 @@ import { prefetchBars, prefetchBarsToIDB } from '../utils/prefetchBars'
 import { useAuth } from '../context/AuthContext'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
+import SetupsView from './modelbook/SetupsView'
 import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -24,7 +25,7 @@ const BASE_YEARS = Array.from({ length: 2025 - 1990 + 1 }, (_, i) => 2025 - i)
 // screens for now. Order is the one the user specified.
 const MB_HUB_OPTIONS = [
   { view: 'years',        label: 'Throughout the Years', blurb: 'The best stocks of every year, with the firm’s setups labeled right on each chart.', available: true },
-  { view: 'setups',       label: 'Setups',               blurb: 'Textbook examples of every playbook pattern, pulled from history.',               available: false },
+  { view: 'setups',       label: 'Setups',               blurb: 'Textbook examples of every playbook pattern, pulled from history.',               available: true },
   { view: 'cycles',       label: 'Cycles',               blurb: 'How leadership rotates as the market moves through its cycles.',                  available: false },
   { view: 'corrections',  label: 'Corrections',          blurb: 'How the leaders behaved through past market corrections.',                       available: false },
   { view: 'bottoms',      label: 'Bottoms',              blurb: 'What major market bottoms actually looked like in real time.',                   available: false },
@@ -2102,6 +2103,11 @@ export default function ModelBook() {
   // The animated intro/menu screen.
   if (view === 'hub') {
     return <ModelBookHub onPick={setView} />
+  }
+
+  // The Setup Library — the playbook's pattern field guide.
+  if (view === 'setups') {
+    return <SetupsView onExit={() => setView('hub')} />
   }
 
   // Placeholder sections (everything except the 'years' library).
