@@ -73,8 +73,11 @@ export function SetupGlyph({ setup, className }) {
     )
   })
 
-  // Diagonal dashed trendline: anchored on two candles' highs (or lows),
-  // extended a candle past the second anchor so the trigger breaks through it.
+  // Both dashed trigger lines run up to — but never through — the final
+  // (trigger) candle: they stop right at its leading edge.
+  const lineEnd = x(data.length - 1) - bodyW / 2 - 1.5
+
+  // Diagonal dashed trendline: anchored on two candles' highs (or lows).
   let trendEl = null
   if (trend && data[trend.from] && data[trend.to]) {
     const side = trend.side === 'l' ? 'l' : 'h'
@@ -82,10 +85,9 @@ export function SetupGlyph({ setup, className }) {
     const x2 = x(trend.to), y2 = y(data[trend.to][side])
     const slope = (y2 - y1) / (x2 - x1 || 1)
     const xs = x1 - bodyW / 2
-    const xe = x(Math.min(data.length - 1, trend.to + (trend.ext ?? 1))) + bodyW / 2
     trendEl = (
       <line
-        x1={xs} y1={y1 + slope * (xs - x1)} x2={xe} y2={y1 + slope * (xe - x1)}
+        x1={xs} y1={y1 + slope * (xs - x1)} x2={lineEnd} y2={y1 + slope * (lineEnd - x1)}
         stroke="#e6c965" strokeWidth="1" strokeDasharray="3 3" opacity="0.8"
       />
     )
@@ -97,7 +99,7 @@ export function SetupGlyph({ setup, className }) {
     const lvl = pivot.side === 'l' ? d.l : pivot.side === 'c' ? d.c : d.h
     pivotEl = (
       <line
-        x1={x(pivot.idx) - bodyW / 2} y1={y(lvl)} x2={W - 2} y2={y(lvl)}
+        x1={x(pivot.idx) - bodyW / 2} y1={y(lvl)} x2={lineEnd} y2={y(lvl)}
         stroke="#e6c965" strokeWidth="1" strokeDasharray="3 3" opacity="0.8"
       />
     )
