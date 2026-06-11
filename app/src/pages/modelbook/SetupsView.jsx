@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
+import { SETUP_PLAYBOOKS } from './setupPlaybooks'
 import styles from './SetupsView.module.css'
 
 // ── Mini pattern glyph ─────────────────────────────────────────────────────────
@@ -154,6 +155,42 @@ function SetupCard({ setup, index, onOpen }) {
   )
 }
 
+// ── Playbook write-up ──────────────────────────────────────────────────────────
+// The firm's full dossier for a setup: drop-cap lede, labeled section rows with
+// accent diamonds (entry green / stop red / exit gold), and a common-mistakes
+// warning card. Data in setupPlaybooks.js.
+function Playbook({ pb }) {
+  return (
+    <div className={styles.playbook}>
+      <p className={styles.pbLede}>{pb.intro}</p>
+      <div className={styles.pbGrid}>
+        {pb.sections.map(s => (
+          <div key={s.label} className={styles.pbRow}>
+            <div className={`${styles.pbLabel} ${s.accent ? styles['pbAccent_' + s.accent] : ''}`}>
+              <span className={styles.pbDiamond} aria-hidden="true" />
+              {s.label}
+            </div>
+            <p className={styles.pbBody}>{s.body}</p>
+          </div>
+        ))}
+      </div>
+      {pb.mistakes?.length > 0 && (
+        <div className={styles.pbMistakes}>
+          <div className={styles.pbMistakesLabel}>Common Mistakes</div>
+          <ul className={styles.pbMistakesList}>
+            {pb.mistakes.map(m => (
+              <li key={m} className={styles.pbMistake}>
+                <span className={styles.pbX} aria-hidden="true">✕</span>
+                {m}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Setup detail scaffold ──────────────────────────────────────────────────────
 // The full per-setup page: glyph + identity up top, then the playbook write-up
 // and charted examples. Both sections are scaffolded ready for content — the
@@ -161,6 +198,7 @@ function SetupCard({ setup, index, onOpen }) {
 // annotated chart layout as Throughout the Years.
 function SetupDetail({ setup, onBack }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
+  const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
     <div className={styles.detail}>
       <div className={styles.detailTop}>
@@ -187,12 +225,16 @@ function SetupDetail({ setup, onBack }) {
         <span className={styles.sectionLabel}>The Playbook</span>
         <span className={styles.sectionRule} />
       </div>
-      <div className={styles.placeholderPanel}>
-        <p className={styles.placeholderText}>
-          The full write-up for this setup — definition, qualifying criteria, entry trigger,
-          risk placement, and trade management — is being authored and will live here.
-        </p>
-      </div>
+      {playbook ? (
+        <Playbook pb={playbook} />
+      ) : (
+        <div className={styles.placeholderPanel}>
+          <p className={styles.placeholderText}>
+            The full write-up for this setup — definition, qualifying criteria, entry trigger,
+            risk placement, and trade management — is being authored and will live here.
+          </p>
+        </div>
+      )}
 
       <div className={styles.sectionHead}>
         <span className={styles.sectionRule} />

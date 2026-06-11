@@ -340,6 +340,123 @@
   max-width: 560px;
 }
 
+/* ── Playbook write-up: the firm's dossier for a setup ── */
+.playbook { margin-bottom: 30px; }
+
+/* Lede: the "what this setup IS" paragraph, with a gold drop cap. */
+.pbLede {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.7;
+  color: rgba(236, 234, 228, 0.88);
+  max-width: 860px;
+  margin: 0 auto 26px;
+}
+.pbLede::first-letter {
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 0.85;
+  color: #f0d479;
+  float: left;
+  padding: 5px 10px 0 0;
+  text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 18px rgba(240, 212, 121, 0.22);
+}
+
+/* Section rows: mono gold label + diamond on the left, body on the right. */
+.pbGrid {
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
+    rgba(14, 15, 19, 0.6);
+  padding: 4px 26px;
+}
+.pbRow {
+  display: grid;
+  grid-template-columns: 185px 1fr;
+  gap: 18px;
+  align-items: baseline;
+  padding: 16px 0;
+}
+.pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
+.pbLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.85);
+}
+.pbDiamond {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: rgba(201, 168, 76, 0.75);
+  border-radius: 1px;
+}
+.pbAccent_entry { color: #4ecb7d; }
+.pbAccent_entry .pbDiamond { background: #3cb868; box-shadow: 0 0 8px rgba(60, 184, 104, 0.5); }
+.pbAccent_stop { color: #f08484; }
+.pbAccent_stop .pbDiamond { background: #e05252; box-shadow: 0 0 8px rgba(224, 82, 82, 0.5); }
+.pbAccent_exit { color: #f0d479; }
+.pbAccent_exit .pbDiamond { background: #e6c965; box-shadow: 0 0 8px rgba(230, 201, 101, 0.5); }
+.pbBody {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.7;
+  color: rgba(222, 221, 215, 0.82);
+  margin: 0;
+}
+
+/* Common mistakes: red-tinted warning card. */
+.pbMistakes {
+  margin-top: 14px;
+  border: 1px dashed rgba(224, 82, 82, 0.35);
+  border-radius: 14px;
+  background: rgba(224, 82, 82, 0.05);
+  padding: 16px 26px 18px;
+}
+.pbMistakesLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: #f08484;
+  margin-bottom: 10px;
+}
+.pbMistakesList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pbMistake {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: rgba(228, 218, 216, 0.85);
+}
+.pbX {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(224, 82, 82, 0.85);
+}
+
+@media (max-width: 640px) {
+  .pbGrid { padding: 2px 16px; }
+  .pbRow { grid-template-columns: 1fr; gap: 6px; padding: 13px 0; }
+  .pbMistakes { padding: 14px 16px 16px; }
+}
+
 /* placeholder panels for the not-yet-authored content */
 .placeholderPanel {
   display: flex;
