@@ -36,9 +36,19 @@ def test_gapper_when_big_gap_no_news():
     assert assign_tag(c) == "Gapper"
 
 
-def test_gapper_requires_both_gap_and_volume():
+def test_gapper_on_big_gap_alone_no_volume_surge():
+    """vol_x>=3 is no longer required: pre-market volume rarely triples its
+    30d average even on real moves (OXM -19% on earnings fell to tag=None
+    2026-06-11). Gates upstream already vetted price/liquidity/activity."""
     c = _c(gap_pct=8.0, vol_x=1.5)
-    assert assign_tag(c) != "Gapper"
+    assert assign_tag(c) == "Gapper"
+    c = _c(gap_pct=-19.3, vol_x=0.5)  # the OXM case (big down-gap)
+    assert assign_tag(c) == "Gapper"
+
+
+def test_no_gapper_below_threshold_without_gap_scan():
+    c = _c(gap_pct=4.0, vol_x=1.5)
+    assert assign_tag(c) is None
 
 
 def test_news_when_1_tweet_and_small_gap():

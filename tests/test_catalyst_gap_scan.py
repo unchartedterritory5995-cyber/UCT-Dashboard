@@ -51,6 +51,7 @@ def test_gap_scan_caps_and_ranks_by_dollar_volume(monkeypatch):
     """On a volatile day 1000+ names gap >=3%; we keep only the top-N by
     dollar-volume (the liquid big-cap movers), not thin small-caps."""
     monkeypatch.setenv("CATALYST_GAPSCAN_MAX", "2")
+    monkeypatch.setenv("CATALYST_GAPSCAN_TOP_GAP", "0")  # isolate the $vol cut
     _patch(monkeypatch, {
         "AAA": {"last_price": 10.0, "prev_close": 9.0, "prev_vol": 100_000_000},  # $1.0B/day
         "BBB": {"last_price": 10.0, "prev_close": 9.0, "prev_vol": 50_000_000},   # $500M/day
@@ -58,6 +59,24 @@ def test_gap_scan_caps_and_ranks_by_dollar_volume(monkeypatch):
     })
     out = sources._pull_gap_scan()
     assert set(out) == {"AAA", "BBB"}
+
+
+def test_gap_scan_unions_biggest_gaps_past_dollar_volume_cap(monkeypatch):
+    """A name making the day's REAL move must survive the by-$vol cut even
+    when megacap modest-gappers fill the cap (OXM -19% on earnings missed the
+    top-50 on 2026-06-11). Floors still apply — it's liquid, just not
+    megacap-liquid."""
+    monkeypatch.setenv("CATALYST_GAPSCAN_MAX", "2")
+    monkeypatch.setenv("CATALYST_GAPSCAN_TOP_GAP", "1")
+    _patch(monkeypatch, {
+        "AAA": {"last_price": 10.0, "prev_close": 9.0, "prev_vol": 100_000_000},  # $1.0B, +11%
+        "BBB": {"last_price": 10.0, "prev_close": 9.0, "prev_vol": 50_000_000},   # $500M, +11%
+        "CCC": {"last_price": 8.0, "prev_close": 10.0, "prev_vol": 2_000_000},    # $16M, -20% — kept via gap union
+        "DDD": {"last_price": 10.0, "prev_close": 9.0, "prev_vol": 2_000_000},    # $20M, +11% — still dropped
+    })
+    out = sources._pull_gap_scan()
+    assert set(out) == {"AAA", "BBB", "CCC"}
+    assert out["CCC"]["gap_pct"] == -20.0
 
 
 def test_gap_scan_disabled_returns_empty(monkeypatch):
