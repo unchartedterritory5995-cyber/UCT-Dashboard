@@ -498,6 +498,7 @@ export default function StockChart({
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   forceLogScale = false,    // default the price scale to logarithmic
+  forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
@@ -613,10 +614,12 @@ export default function StockChart({
   // the user's global chart-settings pref. A per-instance override lets the
   // A/L/% toggle still switch locally. 'arith' | 'log' | 'pct' | null. ──
   const [scaleOverride, setScaleOverride] = useState(null)
+  const _forcedScale = forceScaleMode || (forceLogScale ? 'log' : null)
   const effectiveScale = scaleOverride
-    || (forceLogScale ? 'log' : (cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith')))
+    || _forcedScale
+    || (cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith'))
   const setScale = (kind) => {
-    if (forceLogScale) {
+    if (_forcedScale) {
       setScaleOverride(kind)  // local only — don't rewrite the global pref
     } else {
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })

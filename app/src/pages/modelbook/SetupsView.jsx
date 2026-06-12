@@ -30,6 +30,14 @@ function boundHrays(drawings, labelDate) {
   return drawings.map(d => (d.type === 'hray' ? { ...d, rightBoundTime: labelDate } : d))
 }
 
+// Default lead-up when no explicit zoom start is saved: ~80 trading bars
+// (the old focus-zoom default) ≈ 120 calendar days before the setup day.
+function isoDaysBefore(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+
 // ── Mini pattern glyph ─────────────────────────────────────────────────────────
 // Hand-drawn idealized candlestick sketch of the setup (data in setupCatalog.js).
 // Pure SVG, no chart lib — these are illustrations, not data.
@@ -369,16 +377,11 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
   )
 }
 
-// One charted example: header strip + the same year-framed chart layout as
-// Throughout the Years (gold setup candle, entry/stop/target lines, focus-zoom,
-// admin drawing annotations saved per example).
+// One charted example: header strip + a chart framed ON the setup window
+// (zoom start → setup day as the last candle, arithmetic scale), with the
+// white setup candle, entry/stop/target lines, and admin drawing annotations
+// saved per example.
 function ExampleBlock({ ex, isAdmin, onChanged }) {
-  // Open ON the setup view: when a setup day is saved, the chart mounts already
-  // focus-zoomed to it (nonce 1 triggers the zoom as soon as bars load).
-  // "Full year" toggles out to the year frame.
-  const [focus, setFocus] = useState(() => (ex.label_date
-    ? { date: ex.label_date, startDate: ex.frame_start_date || null, nonce: 1 }
-    : { date: null, startDate: null, nonce: 0 }))
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)
@@ -393,14 +396,16 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     if (ex.target_price != null) lines.push({ price: ex.target_price, color: TARGET_COLOR, lineStyle: 2, title: `Target $${Number(ex.target_price).toFixed(2)}` })
     return lines.length ? lines : NO_PRICE_LINES
   }, [ex.entry_price, ex.stop_price, ex.target_price])
-  const zoomed = !!focus.date
 
-  function toggleZoom() {
-    if (!ex.label_date) return
-    setFocus(f => (f.date
-      ? { date: null, startDate: null, nonce: f.nonce + 1 }
-      : { date: ex.label_date, startDate: ex.frame_start_date || null, nonce: f.nonce + 1 }))
-  }
+  // THE chart frame: the setup window itself — zoom start (or ~80 bars of
+  // lead-up) through the setup day, which renders as the LAST candle (bars
+  // after it are cut by exactDateRange). No zoom toggle; this is the view.
+  // Examples without a setup day fall back to the calendar-year frame.
+  const frame = useMemo(() => (ex.label_date
+    ? { start: ex.frame_start_date || isoDaysBefore(ex.label_date, 120), end: ex.label_date }
+    : { start: `${ex.year}-01-01`, end: `${ex.year}-12-31` }),
+  [ex.label_date, ex.frame_start_date, ex.year])
+
   function startAnnotate() {
     setDraft(parseDrawings(ex.drawings_json))
     setAnnotating(true)
@@ -429,9 +434,6 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
         <span className={styles.exYear}>{ex.year}</span>
         {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
         <span className={styles.exTools}>
-          {ex.label_date && (
-            <button className={styles.exTool} onClick={toggleZoom}>{zoomed ? 'Full year' : '⤢ Zoom setup'}</button>
-          )}
           {isAdmin && !annotating && (
             <button className={styles.exTool} onClick={startAnnotate} title="Draw annotations on this example">✏️ Annotate</button>
           )}
@@ -464,10 +466,10 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           height="100%"
           liveUpdates={false}
           showDrawingTools={false}
-          entryDate={`${ex.year}-01-01`}
-          exitDate={`${ex.year}-12-31`}
+          entryDate={frame.start}
+          exitDate={frame.end}
           exactDateRange
-          forceLogScale
+          forceScaleMode="arith"
           boldCandles
           colorByNetChange
           hideLastValue
@@ -483,16 +485,12 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           watermarkY={0.2}
           watermarkName={ex.company || null}
           priceLines={priceLines}
-          focusDate={focus.date}
-          focusStartDate={focus.startDate}
-          focusNonce={focus.nonce}
           annotations={annotating ? draft : (drawings.length ? drawings : null)}
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
           onAnnotationsChange={setDraft}
           highlightBarTime={ex.label_date || null}
           highlightColor="#ffffff"
-          onFocusEscape={() => setFocus(f => ({ ...f, date: null, startDate: null }))}
         />
       </div>
       {ex.notes && <p className={styles.exNotes}>{ex.notes}</p>}
