@@ -373,7 +373,12 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
 // Throughout the Years (gold setup candle, entry/stop/target lines, focus-zoom,
 // admin drawing annotations saved per example).
 function ExampleBlock({ ex, isAdmin, onChanged }) {
-  const [focus, setFocus] = useState({ date: null, startDate: null, nonce: 0 })
+  // Open ON the setup view: when a setup day is saved, the chart mounts already
+  // focus-zoomed to it (nonce 1 triggers the zoom as soon as bars load).
+  // "Full year" toggles out to the year frame.
+  const [focus, setFocus] = useState(() => (ex.label_date
+    ? { date: ex.label_date, startDate: ex.frame_start_date || null, nonce: 1 }
+    : { date: null, startDate: null, nonce: 0 }))
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)

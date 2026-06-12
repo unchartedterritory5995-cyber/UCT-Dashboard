@@ -1442,7 +1442,12 @@ export default function StockChart({
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
   }
-  const barCount = _overlayActive ? _fullTarget : fetchDepth
+  // Pinned book charts (entryDate / exactDateRange) frame a specific historical
+  // year that the shallow first-paint window can miss entirely (a 2020 example
+  // would silently frame "now"), and they skip the pan-to-backfill path — so
+  // they must fetch the full depth up front.
+  const _pinnedFull = !!(entryDate || exactDateRange)
+  const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -1525,7 +1530,7 @@ export default function StockChart({
   // The bar count grows FIRST_PAINT_BARS→full and the existing same-ticker
   // re-anchor (the `else if … lastBarCountRef.current !== filteredBars.length`
   // branch in the zoom effect) holds the view steady across the swap.
-  if (fetchDepth >= _fullTarget) _sinceParam = null
+  if (fetchDepth >= _fullTarget || _pinnedFull) _sinceParam = null
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
@@ -3778,9 +3783,13 @@ export default function StockChart({
   // data refreshes never re-trigger it.
   useEffect(() => {
     if (focusNonce === lastFocusNonceRef.current) return
-    lastFocusNonceRef.current = focusNonce
     const chart = chartRef.current
+    // Leave the nonce unconsumed until we can actually act on it: an initial
+    // mount-time focus (Setup Library examples open ON the setup view) fires
+    // before the chart/bars exist, and this effect re-runs via the filteredBars
+    // dep once they arrive.
     if (!chart || !filteredBars || filteredBars.length === 0) return
+    lastFocusNonceRef.current = focusNonce
     const toMs = v => {
       if (v == null) return NaN
       if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
