@@ -672,7 +672,7 @@
 }
 .exToolSave { color: #0d0d10; background: linear-gradient(180deg, #6fdc94, #3cb868); border-color: #3cb868; font-weight: 700; }
 .exToolDanger:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.5); }
-.exChart { height: 460px; }
+.exChart { height: 575px; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
