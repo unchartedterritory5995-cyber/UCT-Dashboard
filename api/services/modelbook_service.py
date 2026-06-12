@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS modelbook_setup_examples (
   year         INTEGER NOT NULL,  -- calendar year the chart is framed to
   label_date   TEXT,              -- 'YYYY-MM-DD' the setup day (highlighted candle)
   frame_start_date TEXT,          -- optional left edge for the focus-zoom frame
+  result_start_date TEXT,         -- optional left edge of the "result" (after) view; defaults to the setup frame's left edge
+  result_end_date TEXT,           -- right edge of the "result" view (the move 1-2 months later); enables the Setup/Result flip
   entry_price  REAL,
   stop_price   REAL,
   target_price REAL,
@@ -144,7 +146,8 @@ _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
 _CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
                     "sort_order", "source")
 _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
-                   "label_date", "frame_start_date", "entry_price", "stop_price",
+                   "label_date", "frame_start_date", "result_start_date",
+                   "result_end_date", "entry_price", "stop_price",
                    "target_price", "grade", "notes", "drawings_json", "sort_order")
 
 
@@ -179,6 +182,8 @@ def _init_db() -> None:
             ("modelbook_stocks", "data_symbol", "TEXT"),        # exchange-suffixed provider symbol for non-US tickers (e.g. 005930.KS) — drives logo + earnings lookups
             ("modelbook_setups", "frame_start_date", "TEXT"),
             ("modelbook_setups", "drawings_json", "TEXT"),
+            ("modelbook_setup_examples", "result_start_date", "TEXT"),
+            ("modelbook_setup_examples", "result_end_date", "TEXT"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -573,10 +578,12 @@ def create_setup_example(payload: dict) -> dict:
         cur = c.execute(
             """INSERT INTO modelbook_setup_examples
                (setup_name, symbol, company, data_symbol, year, label_date,
-                frame_start_date, entry_price, stop_price, target_price, grade,
+                frame_start_date, result_start_date, result_end_date,
+                entry_price, stop_price, target_price, grade,
                 notes, drawings_json, sort_order, created_at)
                VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
-                       :label_date, :frame_start_date, :entry_price, :stop_price,
+                       :label_date, :frame_start_date, :result_start_date,
+                       :result_end_date, :entry_price, :stop_price,
                        :target_price, :grade, :notes, :drawings_json, :sort_order,
                        :created_at)""",
             data,

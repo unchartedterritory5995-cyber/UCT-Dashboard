@@ -499,6 +499,7 @@ export default function StockChart({
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
+  frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
@@ -2635,8 +2636,13 @@ export default function StockChart({
         fontSize: 10,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
-        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: true } } : {}),
+        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
       },
+      // Frozen (Setup Library examples): the chart is a static exhibit pinned to
+      // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
+      // it scrolls the PAGE instead of the chart.
+      handleScroll: !frozen,
+      handleScale: !frozen,
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -3644,7 +3650,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

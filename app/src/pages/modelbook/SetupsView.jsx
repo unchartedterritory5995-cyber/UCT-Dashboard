@@ -284,6 +284,8 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
     year: initial?.year || new Date().getFullYear(),
     label_date: initial?.label_date || '',
     frame_start_date: initial?.frame_start_date || '',
+    result_start_date: initial?.result_start_date || '',
+    result_end_date: initial?.result_end_date || '',
     entry_price: initial?.entry_price ?? '',
     stop_price: initial?.stop_price ?? '',
     target_price: initial?.target_price ?? '',
@@ -307,6 +309,8 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
         year: parseInt(form.year, 10),
         label_date: form.label_date || null,
         frame_start_date: form.frame_start_date || null,
+        result_start_date: form.result_start_date || null,
+        result_end_date: form.result_end_date || null,
         entry_price: num(form.entry_price),
         stop_price: num(form.stop_price),
         target_price: num(form.target_price),
@@ -358,6 +362,20 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
         </label>
       </div>
       <div className={styles.exFormRow}>
+        <label className={styles.exDateField}>
+          <span className={styles.exDateLabel}>Result end — the “after” view (optional)</span>
+          <input className={styles.exInput} type="date" value={form.result_end_date}
+            min={form.label_date || undefined}
+            onChange={e => set('result_end_date', e.target.value)} />
+        </label>
+        <label className={styles.exDateField}>
+          <span className={styles.exDateLabel}>Result start (optional — defaults to zoom start)</span>
+          <input className={styles.exInput} type="date" value={form.result_start_date}
+            max={form.result_end_date || undefined}
+            onChange={e => set('result_start_date', e.target.value)} />
+        </label>
+      </div>
+      <div className={styles.exFormRow}>
         <input className={styles.exInput} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
           onChange={e => set('entry_price', e.target.value)} />
         <input className={styles.exInput} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
@@ -397,14 +415,22 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     return lines.length ? lines : NO_PRICE_LINES
   }, [ex.entry_price, ex.stop_price, ex.target_price])
 
-  // THE chart frame: the setup window itself — zoom start (or ~80 bars of
+  // The chart frames the setup window itself — zoom start (or ~80 bars of
   // lead-up) through the setup day, which renders as the LAST candle (bars
-  // after it are cut by exactDateRange). No zoom toggle; this is the view.
-  // Examples without a setup day fall back to the calendar-year frame.
-  const frame = useMemo(() => (ex.label_date
-    ? { start: ex.frame_start_date || isoDaysBefore(ex.label_date, 120), end: ex.label_date }
-    : { start: `${ex.year}-01-01`, end: `${ex.year}-12-31` }),
-  [ex.label_date, ex.frame_start_date, ex.year])
+  // after it are cut by exactDateRange). Examples without a setup day fall
+  // back to the calendar-year frame. When a result end date is saved, a
+  // Setup/Result flip swaps to the "after" view: result start (default = the
+  // setup frame's left edge, so the pattern stays in view) → result end.
+  const [view, setView] = useState('setup')
+  const hasResult = !!(ex.result_end_date && ex.label_date)
+  const frame = useMemo(() => {
+    if (!ex.label_date) return { start: `${ex.year}-01-01`, end: `${ex.year}-12-31` }
+    const setupStart = ex.frame_start_date || isoDaysBefore(ex.label_date, 120)
+    if (view === 'result' && ex.result_end_date) {
+      return { start: ex.result_start_date || setupStart, end: ex.result_end_date }
+    }
+    return { start: setupStart, end: ex.label_date }
+  }, [view, ex.label_date, ex.frame_start_date, ex.result_start_date, ex.result_end_date, ex.year])
 
   function startAnnotate() {
     setDraft(parseDrawings(ex.drawings_json))
@@ -434,6 +460,18 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
         <span className={styles.exYear}>{ex.year}</span>
         {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
         <span className={styles.exTools}>
+          {hasResult && (
+            <span className={styles.exViewSwitch}>
+              <button
+                className={`${styles.exViewBtn} ${view === 'setup' ? styles.exViewBtnActive : ''}`}
+                onClick={() => setView('setup')}
+              >Setup</button>
+              <button
+                className={`${styles.exViewBtn} ${view === 'result' ? styles.exViewBtnActive : ''}`}
+                onClick={() => setView('result')}
+              >Result →</button>
+            </span>
+          )}
           {isAdmin && !annotating && (
             <button className={styles.exTool} onClick={startAnnotate} title="Draw annotations on this example">✏️ Annotate</button>
           )}
@@ -469,6 +507,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           entryDate={frame.start}
           exitDate={frame.end}
           exactDateRange
+          frozen={!annotating}
           forceScaleMode="arith"
           boldCandles
           colorByNetChange

@@ -110,6 +110,8 @@ class ExampleIn(BaseModel):
     year: int
     label_date: Optional[str] = None
     frame_start_date: Optional[str] = None
+    result_start_date: Optional[str] = None
+    result_end_date: Optional[str] = None
     entry_price: Optional[float] = None
     stop_price: Optional[float] = None
     target_price: Optional[float] = None
@@ -126,6 +128,8 @@ class ExamplePatch(BaseModel):
     year: Optional[int] = None
     label_date: Optional[str] = None
     frame_start_date: Optional[str] = None
+    result_start_date: Optional[str] = None
+    result_end_date: Optional[str] = None
     entry_price: Optional[float] = None
     stop_price: Optional[float] = None
     target_price: Optional[float] = None
@@ -136,7 +140,7 @@ class ExamplePatch(BaseModel):
 
 
 def _validate_example(d: dict) -> None:
-    for key in ("label_date", "frame_start_date"):
+    for key in ("label_date", "frame_start_date", "result_start_date", "result_end_date"):
         if d.get(key) not in (None, "") and not _ISO_DATE.match(d[key]):
             raise HTTPException(400, f"{key} must be YYYY-MM-DD")
     if d.get("grade") not in (None, "") and d["grade"] not in _GRADES:
