@@ -89,7 +89,7 @@ export function metricColor(metric, row, tierMap = VIEW_TIER_COLOR) {
 
 // Metrics where a HIGH reading is bearish (everything else is bullish).
 const BEARISH_KEYS = new Set([
-  'down_4pct_today', 'down_25pct_quarter', 'down_50pct_month', 'magna_down',
+  'down_4pct_today', 'down_20pct_5d', 'down_25pct_quarter', 'down_50pct_month', 'magna_down',
   'stage4_count', 'new_52w_lows', 'new_20d_lows', 'vix', 'cnn_fear_greed',
 ])
 export function polarityOf(key) {
@@ -99,6 +99,7 @@ export function polarityOf(key) {
 // Up/down metric pairs for the tug-of-war. side 'up' = bull side.
 export const PAIRS = [
   ['up_4pct_today', 'down_4pct_today'],
+  ['up_20pct_5d', 'down_20pct_5d'],
   ['up_25pct_quarter', 'down_25pct_quarter'],
   ['up_50pct_month', 'down_50pct_month'],
   ['magna_up', 'magna_down'],

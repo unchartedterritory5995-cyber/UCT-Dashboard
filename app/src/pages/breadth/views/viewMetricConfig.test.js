@@ -7,7 +7,7 @@ import { PAIRS } from './breadthViewShared'
 
 // Minimal stand-in metric universe covering keys the configs reference.
 const ALL = [
-  'breadth_score','uct_exposure','up_4pct_today','down_4pct_today','up_25pct_quarter',
+  'breadth_score','uct_exposure','up_4pct_today','down_4pct_today','up_20pct_5d','down_20pct_5d','up_25pct_quarter',
   'down_25pct_quarter','up_50pct_month','down_50pct_month','magna_up','magna_down',
   'stage2_count','stage4_count','new_52w_highs','new_52w_lows','new_20d_highs','new_20d_lows',
   'pct_above_5sma','pct_above_10sma','pct_above_20ema','pct_above_40sma','pct_above_50sma',

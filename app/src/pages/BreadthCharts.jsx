@@ -21,6 +21,8 @@ const CHART_GROUPS = [
       { key: 'down_4pct_today',     label: 'Dn 4%+' },
       { key: 'ratio_5day',          label: '5D Ratio' },
       { key: 'ratio_10day',         label: '10D Ratio' },
+      { key: 'up_20pct_5d',         label: 'Up 20%/5d' },
+      { key: 'down_20pct_5d',       label: 'Dn 20%/5d' },
       { key: 'up_25pct_quarter',    label: 'Up 25%/Qtr' },
       { key: 'down_25pct_quarter',  label: 'Dn 25%/Qtr' },
       { key: 'up_25pct_month',      label: 'Up 25%/Mo' },
