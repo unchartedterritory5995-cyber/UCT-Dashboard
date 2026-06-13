@@ -2693,6 +2693,12 @@ export default function StockChart({
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : 3,
         rightBarStaysOnScroll: exactDateRange ? false : true,
+        // Setup → Result appends the result-era bars while the view sits ON the
+        // last bar; LWC's default then shifts the window to the new last bar
+        // BEFORE the pin effect's glide starts — the "snaps right, then zooms"
+        // bug. Exact-range charts are frozen historical windows: never
+        // auto-shift them.
+        shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
       },
     }
 
@@ -3741,9 +3747,10 @@ export default function StockChart({
     // snapping. Only when this chart was already framed once — a date change
     // arriving before the first framing (bars still loading) snaps as usual.
     const pinSig = `${fk}|${entryDate}|${exitDate}`
-    const frameChanged = exactPinSigRef.current
-      && exactPinSigRef.current !== pinSig
-      && exactPinSigRef.current.startsWith(`${fk}|`)
+    const prevPinSig = exactPinSigRef.current
+    const frameChanged = prevPinSig
+      && prevPinSig !== pinSig
+      && prevPinSig.startsWith(`${fk}|`)
       && String(yearFramedRef.current || '').startsWith(`${fk}:`)
     if (focusActiveRef.current && !frameChanged) return
     const toMs = v => {
@@ -3811,6 +3818,25 @@ export default function StockChart({
         } catch { /* provider optional */ }
       }
       try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      // Start the glide FROM the outgoing frame, re-asserted explicitly. The
+      // setData for the new frame (Setup → Result appends bars) can leave the
+      // view perturbed in this same commit; effects run before paint, so this
+      // restore never flashes. Skipped when a glide is already in flight
+      // (rapid flipping) — then we glide from wherever the view currently is.
+      if (!focusActiveRef.current) {
+        const [oldEntryRaw, oldExitRaw] = prevPinSig.slice(fk.length + 1).split('|')
+        const oLo = toMs(oldEntryRaw === 'null' ? null : oldEntryRaw)
+        const oHi = toMs(oldExitRaw === 'null' ? null : oldExitRaw)
+        let oS = Number.isNaN(oLo) ? 0 : filteredBars.findIndex(b => toMs(b.t) >= oLo)
+        if (oS < 0) oS = 0
+        let oE = filteredBars.length - 1
+        if (!Number.isNaN(oHi)) {
+          for (let i = filteredBars.length - 1; i >= 0; i--) {
+            if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
+          }
+        }
+        if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE }) } catch { /* mid-load */ } }
+      }
       focusActiveRef.current = true
       focusRangeRef.current = null
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
