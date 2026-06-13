@@ -650,3 +650,71 @@ class TestDeltaDailyYfFallback:
         dates = [b["t"] for b in out]
         assert "2026-06-12" in dates
         assert called["yf"] is False, "yfinance fallback fired despite fresh Massive data"
+
+
+class TestWeeklyMonthlyAndFullFetchYfFallback:
+    """Extends the daily fallback to ALL D/W/M live paths. Weekly/monthly
+    delta resample Massive daily and had the SAME Massive-only gap; the
+    cold full-fetch paths (_fetch_daily/_fetch_weekly/_fetch_monthly) did
+    too. Goal: every stock, every timeframe stays accurate even when
+    Massive's daily aggregates lag for thin tickers."""
+
+    def _stale_massive_only_jun8(self, monkeypatch):
+        monkeypatch.setattr(
+            _massive, "get_agg_bars",
+            lambda *a, **k: [_massive_ms("2026-06-08")],
+        )
+        # yfinance has the missing sessions through Jun 12 (Jun 12 close 6.18).
+        yf_bars = [
+            {"t": "2026-06-08", "o": 8.71, "h": 8.99, "l": 7.93, "c": 8.14, "v": 2645554},
+            {"t": "2026-06-09", "o": 8.17, "h": 8.45, "l": 7.09, "c": 7.35, "v": 2349200},
+            {"t": "2026-06-10", "o": 7.11, "h": 8.10, "l": 6.92, "c": 8.10, "v": 1527300},
+            {"t": "2026-06-11", "o": 7.80, "h": 8.08, "l": 6.71, "c": 6.75, "v": 2437200},
+            {"t": "2026-06-12", "o": 7.17, "h": 7.40, "l": 5.90, "c": 6.18, "v": 2583061},
+        ]
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t: yf_bars)
+        monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
+
+    def test_delta_weekly_fills_missing_days_from_yfinance(self, monkeypatch):
+        self._stale_massive_only_jun8(monkeypatch)
+        out = _bf._delta_weekly("FJET", 20260608)
+        assert out, "weekly delta returned nothing"
+        # The current week's bar must reflect Jun 9-12, not freeze at Jun 8 close.
+        assert out[-1]["c"] == 6.18, f"weekly close stale: {out[-1]}"
+
+    def test_delta_monthly_fills_missing_days_from_yfinance(self, monkeypatch):
+        self._stale_massive_only_jun8(monkeypatch)
+        out = _bf._delta_monthly("FJET", 20260601)
+        assert out, "monthly delta returned nothing"
+        assert out[-1]["c"] == 6.18, f"monthly close stale: {out[-1]}"
+
+    def test_fetch_daily_fills_tail_from_yfinance(self, monkeypatch):
+        self._stale_massive_only_jun8(monkeypatch)
+        out = _bf._fetch_daily("FJET", 200, deep=False)
+        assert out[-1]["t"] == "2026-06-12", f"daily tail stale: {out[-1]}"
+        assert out[-1]["c"] == 6.18
+
+    def test_fetch_weekly_fills_tail_from_yfinance(self, monkeypatch):
+        self._stale_massive_only_jun8(monkeypatch)
+        out = _bf._fetch_weekly("FJET", 200, deep=False)
+        assert out[-1]["c"] == 6.18, f"weekly tail stale: {out[-1]}"
+
+    def test_fetch_monthly_fills_tail_from_yfinance(self, monkeypatch):
+        self._stale_massive_only_jun8(monkeypatch)
+        out = _bf._fetch_monthly("FJET", 200, deep=False)
+        assert out[-1]["c"] == 6.18, f"monthly tail stale: {out[-1]}"
+
+    def test_fetch_daily_no_yfinance_when_massive_fresh(self, monkeypatch):
+        monkeypatch.setattr(
+            _massive, "get_agg_bars",
+            lambda *a, **k: [_massive_ms("2026-06-08"), _massive_ms("2026-06-12")],
+        )
+        called = {"yf": False}
+
+        def _boom(_t):
+            called["yf"] = True
+            return []
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", _boom)
+        monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
+        _bf._fetch_daily("AAPL", 200, deep=False)
+        assert called["yf"] is False, "yfinance fired despite fresh Massive daily"

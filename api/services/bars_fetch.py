@@ -639,101 +639,96 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 # ── Delta-fetch helpers (tiny payloads — only new bars since last stored ts) ──
 
-def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars from the last 10 days. Uses ``>=`` so today's
-    still-evolving bar (whose close + high/low keep updating intraday)
-    gets re-fetched and INSERT OR REPLACE-d into the cache on every
-    call.
-
-    Earlier I tried `>` to avoid a flicker observed on SANM Daily, but
-    that left today's bar cached at the OPEN print value with no later
-    update — user-visible as wrong close prices on D/W/M. The flicker
-    concern is mitigated by the bg_delta TTL fix (commit 8517729): the
-    SWR layer caches the response for 5 minutes between bg fetches, so
-    intra-session the user sees ONE update every 5min, not constant
-    oscillation. That's correct gradual update, not flicker.
-    """
-    from api.services.massive import get_agg_bars
-    from_date = (datetime.utcnow() - timedelta(days=10)).strftime("%Y-%m-%d")
-    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
-    new = []
-    for bar in get_agg_bars(ticker, from_date, to_date):
+def _massive_raw_to_iso(raw) -> list[dict]:
+    """Convert raw Massive aggs (t = unix ms) to our normalized daily
+    format (t = ISO date string)."""
+    out = []
+    for bar in raw:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
-        ts = int(dt.strftime("%Y%m%d"))
-        if ts >= last_ts:
-            new.append({
-                "t": dt.strftime("%Y-%m-%d"),
-                "o": round(bar["o"], 2), "h": round(bar["h"], 2),
-                "l": round(bar["l"], 2), "c": round(bar["c"], 2),
-                "v": int(bar.get("v", 0)),
-            })
-
-    # ── yfinance fallback for STALE DAILY (added 2026-06-12) ──────────────
-    # Massive's daily aggregates lag several sessions for thin/long-tail
-    # names (recent SPACs, small caps — FJET froze 4 sessions back). The
-    # daily path had no fallback (yfinance was only wired for stale INTRADAY
-    # and deep-history nightly warm), so the chart stuck on the last Massive
-    # bar while the live-price overlay kept painting the current price onto
-    # it — "missing days + correct current price + mangled last candle".
-    # When Massive fails to advance past the cached bar AND we're behind the
-    # expected latest session (stale by >=1 session), pull yfinance and let
-    # it fill the gap. Massive still wins any overlapping date (more accurate
-    # intraday-evolving bar); yfinance only supplies sessions Massive lacks.
-    massive_advanced = any(int(b["t"].replace("-", "")) > last_ts for b in new)
-    if not massive_advanced and last_ts < _expected_latest_session_yyyymmdd():
-        try:
-            yf_daily = _fetch_daily_yf(ticker)
-        except Exception:
-            yf_daily = []
-        if yf_daily:
-            by_date = {
-                b["t"]: b for b in yf_daily
-                if int(b["t"].replace("-", "")) >= last_ts
-            }
-            # Massive wins on overlap (re-fetched evolving bar stays authoritative).
-            for b in new:
-                by_date[b["t"]] = b
-            new = [by_date[k] for k in sorted(by_date)]
-    return new
-
-
-def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars for the last 14 days, resample, return at-or-newer
-    weekly bars (>=). The in-progress weekly bar (week-to-date OHLC)
-    keeps updating as the week progresses; without >= the cached W bar
-    freezes at first-fetch values and shows yesterday's close instead
-    of today's."""
-    from api.services.massive import get_agg_bars
-    from_date = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%d")
-    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
-    daily = []
-    for bar in get_agg_bars(ticker, from_date, to_date):
-        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
-        daily.append({
+        out.append({
             "t": dt.strftime("%Y-%m-%d"),
             "o": round(bar["o"], 2), "h": round(bar["h"], 2),
             "l": round(bar["l"], 2), "c": round(bar["c"], 2),
             "v": int(bar.get("v", 0)),
         })
+    return out
+
+
+def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]:
+    """Fill the lagging recent tail of a Massive daily series from yfinance.
+
+    Massive's daily aggregates lag several sessions for thin / long-tail
+    names (recent SPACs, small caps — FJET froze 4 sessions back). When the
+    newest Massive bar is behind the expected latest trading session, pull
+    yfinance and merge: Massive wins any overlapping date (its re-fetched
+    evolving bar stays authoritative), yfinance only supplies sessions
+    Massive lacks. yfinance is consulted ONLY when stale, so fresh tickers
+    pay ZERO latency — this is the single chokepoint that keeps every D/W/M
+    path (daily/weekly/monthly · delta + cold full-fetch) accurate.
+
+    ``massive_iso`` is normalized daily bars (t = ISO date). Returns the
+    merged, date-sorted list (bounded by the Massive window's oldest bar so
+    it stays a recent-tail fill, not a full-history replacement). Callers
+    slice/filter as needed.
+    """
+    massive_max = max((int(b["t"].replace("-", "")) for b in massive_iso), default=0)
+    if massive_iso and massive_max >= _expected_latest_session_yyyymmdd():
+        return massive_iso  # fresh — no fallback, no yfinance call
+    try:
+        yf_daily = _fetch_daily_yf(ticker)
+    except Exception:
+        yf_daily = []
+    if not yf_daily:
+        return massive_iso
+    lower = min((int(b["t"].replace("-", "")) for b in massive_iso), default=0)
+    by_date = {
+        b["t"]: b for b in yf_daily
+        if int(b["t"].replace("-", "")) >= lower
+    }
+    for b in massive_iso:
+        by_date[b["t"]] = b  # Massive wins overlap
+    return [by_date[k] for k in sorted(by_date)]
+
+
+def _recent_daily_iso(ticker: str, days: int) -> list[dict]:
+    """Recent daily bars (t = ISO) over the last ``days`` calendar days from
+    Massive, with a yfinance tail-fill when Massive lags. Shared by the
+    daily/weekly/monthly delta paths."""
+    from api.services.massive import get_agg_bars
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    massive_iso = _massive_raw_to_iso(get_agg_bars(ticker, from_date, to_date))
+    return _fill_daily_tail_with_yf(ticker, massive_iso)
+
+
+def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
+    """Recent daily bars at-or-newer than ``last_ts`` (YYYYMMDD int).
+
+    Uses ``>=`` so today's still-evolving bar (whose close + high/low keep
+    updating intraday) gets re-fetched and INSERT OR REPLACE-d on every
+    call. (Earlier `>` left today's bar frozen at the OPEN print — wrong
+    closes on D/W/M; the 5-min SWR TTL handles flicker, commit 8517729.)
+    Massive-stale thin tickers are healed via the yfinance tail-fill inside
+    ``_recent_daily_iso`` (FJET fix, 2026-06-12)."""
+    daily = _recent_daily_iso(ticker, 10)
+    return [b for b in daily if int(b["t"].replace("-", "")) >= last_ts]
+
+
+def _delta_weekly(ticker: str, last_ts: int) -> list[dict]:
+    """Recent daily bars resampled to weekly, at-or-newer than ``last_ts``
+    (>=). The in-progress weekly bar (week-to-date OHLC) keeps updating;
+    without >= the cached W bar freezes at first-fetch. Massive-stale thin
+    tickers are healed via the yfinance tail-fill in ``_recent_daily_iso``."""
+    daily = _recent_daily_iso(ticker, 14)
     return [b for b in _resample_weekly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
 def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
-    """Fetch daily bars for the last 60 days, resample, return at-or-newer
-    monthly bars (>=). Current month's bar keeps evolving as the month
-    progresses; without >= the cached M bar freezes at first-fetch."""
-    from api.services.massive import get_agg_bars
-    from_date = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d")
-    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
-    daily = []
-    for bar in get_agg_bars(ticker, from_date, to_date):
-        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
-        daily.append({
-            "t": dt.strftime("%Y-%m-%d"),
-            "o": round(bar["o"], 2), "h": round(bar["h"], 2),
-            "l": round(bar["l"], 2), "c": round(bar["c"], 2),
-            "v": int(bar.get("v", 0)),
-        })
+    """Recent daily bars resampled to monthly, at-or-newer than ``last_ts``
+    (>=). Current month's bar keeps evolving; without >= it freezes at
+    first-fetch. Massive-stale thin tickers are healed via the yfinance
+    tail-fill in ``_recent_daily_iso``."""
+    daily = _recent_daily_iso(ticker, 60)
     return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
@@ -992,17 +987,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     lookback = min(int(max_bars * 1.5) + 30, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     raw = get_agg_bars(ticker.upper(), from_date, to_date)
-    massive_bars = []
-    for bar in raw:
-        dt = datetime.utcfromtimestamp(bar["t"] / 1000)
-        massive_bars.append({
-            "t": dt.strftime("%Y-%m-%d"),  # BusinessDay format for LW Charts
-            "o": round(bar["o"], 2),
-            "h": round(bar["h"], 2),
-            "l": round(bar["l"], 2),
-            "c": round(bar["c"], 2),
-            "v": int(bar.get("v", 0)),
-        })
+    massive_bars = _massive_raw_to_iso(raw)
 
     if deep:
         # Only nightly warmer asks for deep history — pulls yfinance and merges.
@@ -1010,7 +995,9 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
         merged = _merge_daily_bars(yf_bars, massive_bars)
         return merged[-max_bars:]
 
-    return massive_bars[-max_bars:]
+    # Cold full-fetch: heal a lagging Massive tail from yfinance for thin
+    # tickers so the FIRST paint is accurate (not just the delta self-heal).
+    return _fill_daily_tail_with_yf(ticker, massive_bars)[-max_bars:]
 
 
 def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
@@ -1021,14 +1008,13 @@ def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
         daily = _fetch_daily(ticker, max_bars * 7, deep=True)
         weekly = _resample_weekly_iso(daily)
         return weekly[-max_bars:]
-    # Fast path: Massive only, original logic
+    # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 8, 10950)
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
-    raw = get_agg_bars(ticker.upper(), from_date, to_date)
-    weekly = _resample_weekly(raw)
-    return weekly[-max_bars:]
+    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date)))
+    return _resample_weekly_iso(daily)[-max_bars:]
 
 
 def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
@@ -1065,14 +1051,13 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
         monthly = _resample_monthly_iso(daily)
         return monthly[-max_bars:]
-    # Fast path: Massive only
+    # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     lookback = min(max_bars * 35, 10950)  # ~35 calendar days per month
     from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
-    raw = get_agg_bars(ticker.upper(), from_date, to_date)
-    monthly = _resample_monthly(raw)
-    return monthly[-max_bars:]
+    daily = _fill_daily_tail_with_yf(ticker, _massive_raw_to_iso(get_agg_bars(ticker.upper(), from_date, to_date)))
+    return _resample_monthly_iso(daily)[-max_bars:]
 
 
 def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
