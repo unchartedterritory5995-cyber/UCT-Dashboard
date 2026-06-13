@@ -565,6 +565,21 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     return age_days > max_age_days
 
 
+def _payload_last_session_yyyymmdd(payload) -> int:
+    """ET date (YYYYMMDD int) of the last bar in an intraday payload, or 0.
+
+    Used to decide whether a validated payload is fresh enough (reaches the
+    expected latest session) or merely valid-but-lagging — the signal that
+    drives fetch_with_validation's staleness escalation."""
+    if not payload:
+        return 0
+    try:
+        dt = datetime.fromtimestamp(payload[-1]["t"], tz=_ZI("America/New_York"))
+        return int(dt.strftime("%Y%m%d"))
+    except Exception:
+        return 0
+
+
 def _last_known_close(ticker: str, tf: str) -> float | None:
     """Return the most recent close stored in SQLite for (ticker, tf), or None.
 
@@ -596,13 +611,16 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     import logging as _log
     _logger = _log.getLogger(__name__)
     prior_close = _last_known_close(ticker, tf)
+    # Latest session that should have bars — drives staleness escalation so a
+    # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
+    expected_session = _expected_latest_session_yyyymmdd()
 
     if tf == "60":
         # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars.
         src = max_bars * 2
         # fetch_with_validation handles the Massive → FMP → yfinance chain
         # for the 30-min source, applying per-bar validation at each hop.
-        bars_30m = fetch_with_validation(ticker, "30", src, prior_close=prior_close)
+        bars_30m = fetch_with_validation(ticker, "30", src, prior_close=prior_close, expected_session=expected_session)
         if bars_30m and not _is_intraday_stale(bars_30m):
             out = _session_resample_hourly(bars_30m)[-max_bars:]
             _logger.warning(
@@ -621,7 +639,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
     # 1/5/15/30-min: validating fetch chain
-    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close)
+    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session)
     if validated and not _is_intraday_stale(validated):
         return validated
 
@@ -1861,6 +1879,7 @@ def fetch_with_validation(
     tf: str,
     bars: int,
     prior_close: float | None = None,
+    expected_session: int | None = None,
 ):
     """Fetch from primary; if it fails validation, fall back through alternates.
 
@@ -1874,8 +1893,37 @@ def fetch_with_validation(
     corrupt or empty payloads, it gets marked ``degraded`` and skipped here
     so the next source in the chain takes over.  Auto-recovers when the
     rolling window shows 95%+ pass rate again.
+
+    Staleness escalation (2026-06-13): when ``expected_session`` (a YYYYMMDD
+    int, the latest session that should have bars) is supplied, a source that
+    is VALID but LAGGING — its last bar predates the expected session — no
+    longer short-circuits the chain. We keep escalating to the next source
+    looking for one that's both valid AND fresh, falling back to the freshest
+    valid-but-stale payload only if none reach the expected session. This is
+    the intraday twin of the daily Massive-lag fix: Massive's intraday aggs
+    can lag a few sessions for thin tickers (under the 5-day _is_intraday_stale
+    floor), and without this the chart would freeze on stale-but-valid Massive
+    data while FMP/yfinance had the fresh session. Validation still gates every
+    candidate — a stale source never licenses admitting a corrupt one.
     """
     from api.services import source_circuit_breaker as _scb
+
+    best_stale = None  # (last_session_yyyymmdd, payload) — freshest valid fallback
+
+    def _accept(payload):
+        """Return payload if it's fresh enough to short-circuit; else stash it
+        as a stale fallback candidate and return None to keep escalating."""
+        nonlocal best_stale
+        if expected_session is None:
+            return payload  # legacy: first valid wins
+        if not payload:
+            return None
+        sess = _payload_last_session_yyyymmdd(payload)
+        if sess >= expected_session:
+            return payload  # valid AND fresh — best case
+        if best_stale is None or sess > best_stale[0]:
+            best_stale = (sess, payload)
+        return None
 
     # Primary: Massive
     if _scb.is_ok("massive"):
@@ -1884,7 +1932,9 @@ def fetch_with_validation(
             valid = _payload_passes_validation(payload, prior_close)
             _scb.record_attempt("massive", success=valid)
             if valid:
-                return payload
+                chosen = _accept(payload)
+                if chosen is not None:
+                    return chosen
         except Exception:
             _scb.record_attempt("massive", success=False)
 
@@ -1895,7 +1945,9 @@ def fetch_with_validation(
             valid = _payload_passes_validation(payload, prior_close)
             _scb.record_attempt("fmp", success=valid)
             if valid:
-                return payload
+                chosen = _accept(payload)
+                if chosen is not None:
+                    return chosen
         except Exception:
             _scb.record_attempt("fmp", success=False)
 
@@ -1906,11 +1958,16 @@ def fetch_with_validation(
             valid = _payload_passes_validation(payload, prior_close)
             _scb.record_attempt("yfinance", success=valid)
             if valid:
-                return payload
+                chosen = _accept(payload)
+                if chosen is not None:
+                    return chosen
         except Exception:
             _scb.record_attempt("yfinance", success=False)
 
-    return None
+    # No source reached the expected session — return the freshest valid
+    # payload we saw (better a few sessions behind than a blank chart). The
+    # caller's _is_intraday_stale guard still rejects absurdly old (>5d) data.
+    return best_stale[1] if best_stale else None
 
 
 def fetch_minute_snapshot(ticker: str, minute_ts: int) -> dict | None:

@@ -718,3 +718,77 @@ class TestWeeklyMonthlyAndFullFetchYfFallback:
         monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
         _bf._fetch_daily("AAPL", 200, deep=False)
         assert called["yf"] is False, "yfinance fired despite fresh Massive daily"
+
+
+import api.services.source_circuit_breaker as _scb_mod
+
+
+def _intra(date_str, hh, mm, c=10.0):
+    """Intraday bar with unix-seconds `t` anchored at an ET wall-clock time."""
+    y, m, d = (int(x) for x in date_str.split("-"))
+    t = int(datetime(y, m, d, hh, mm, tzinfo=_ET).timestamp())
+    return {"t": t, "o": c, "h": c + 0.1, "l": c - 0.1, "c": c, "v": 1000}
+
+
+class TestIntradayStalenessEscalation:
+    """Intraday equivalent of the daily Massive-lag fix. fetch_with_validation
+    advanced sources only on validation FAILURE, never on STALENESS — so a
+    valid-but-lagging Massive intraday payload (behind <5 days, under the
+    _is_intraday_stale floor) was served without ever consulting FMP/yfinance.
+    With an expected_session, the chain must escalate past a valid-but-stale
+    source to a fresher one, while never admitting an invalid payload."""
+
+    def _wire(self, monkeypatch, massive, fmp, yf):
+        monkeypatch.setattr(_scb_mod, "is_ok", lambda *a, **k: True)
+        monkeypatch.setattr(_scb_mod, "record_attempt", lambda *a, **k: None)
+        monkeypatch.setattr(_bf, "_payload_passes_validation", lambda p, pc=None: bool(p))
+        monkeypatch.setattr(_bf, "_fetch_intraday_massive", lambda *a, **k: massive)
+        monkeypatch.setattr(_bf, "_fetch_intraday_fmp", lambda *a, **k: fmp)
+        monkeypatch.setattr(_bf, "_fetch_intraday_yfinance", lambda *a, **k: yf)
+
+    def test_escalates_past_valid_but_stale_massive_to_fresh_fmp(self, monkeypatch):
+        stale_massive = [_intra("2026-06-10", 15, 30, c=8.0)]   # 2 sessions back
+        fresh_fmp     = [_intra("2026-06-12", 15, 30, c=6.18)]  # current session
+        self._wire(monkeypatch, stale_massive, fresh_fmp, [])
+        out = _bf.fetch_with_validation("FJET", "30", 200, expected_session=20260612)
+        assert out and out[-1]["c"] == 6.18, f"did not escalate to fresh source: {out}"
+
+    def test_returns_massive_immediately_when_fresh(self, monkeypatch):
+        fresh_massive = [_intra("2026-06-12", 15, 30, c=6.18)]
+        called = {"fmp": False, "yf": False}
+        monkeypatch.setattr(_scb_mod, "is_ok", lambda *a, **k: True)
+        monkeypatch.setattr(_scb_mod, "record_attempt", lambda *a, **k: None)
+        monkeypatch.setattr(_bf, "_payload_passes_validation", lambda p, pc=None: bool(p))
+        monkeypatch.setattr(_bf, "_fetch_intraday_massive", lambda *a, **k: fresh_massive)
+
+        def _fmp(*a, **k):
+            called["fmp"] = True
+            return []
+
+        def _yf(*a, **k):
+            called["yf"] = True
+            return []
+        monkeypatch.setattr(_bf, "_fetch_intraday_fmp", _fmp)
+        monkeypatch.setattr(_bf, "_fetch_intraday_yfinance", _yf)
+        out = _bf.fetch_with_validation("AAPL", "30", 200, expected_session=20260612)
+        assert out[-1]["c"] == 6.18
+        assert called["fmp"] is False and called["yf"] is False, "consulted alternates despite fresh Massive"
+
+    def test_returns_freshest_valid_when_all_stale(self, monkeypatch):
+        # No source reaches the expected session — must still return the
+        # freshest valid payload (better than nothing / None).
+        massive = [_intra("2026-06-08", 15, 30, c=8.14)]
+        fmp     = [_intra("2026-06-10", 15, 30, c=8.10)]  # freshest of the stale set
+        yf      = [_intra("2026-06-09", 15, 30, c=7.35)]
+        self._wire(monkeypatch, massive, fmp, yf)
+        out = _bf.fetch_with_validation("FJET", "30", 200, expected_session=20260612)
+        assert out and out[-1]["c"] == 8.10, f"did not pick freshest stale fallback: {out}"
+
+    def test_legacy_no_expected_session_returns_first_valid(self, monkeypatch):
+        # Backward compatibility: without expected_session, first valid wins
+        # (even if stale) — unchanged behavior.
+        stale_massive = [_intra("2026-06-08", 15, 30, c=8.14)]
+        fresh_fmp     = [_intra("2026-06-12", 15, 30, c=6.18)]
+        self._wire(monkeypatch, stale_massive, fresh_fmp, [])
+        out = _bf.fetch_with_validation("FJET", "30", 200)
+        assert out[-1]["c"] == 8.14, "legacy first-valid behavior changed"
