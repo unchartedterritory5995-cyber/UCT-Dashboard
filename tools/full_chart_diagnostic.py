@@ -11,9 +11,37 @@ from datetime import datetime, timezone, timedelta
 
 BASE = "https://uctintelligence.com"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0 Safari/537.36"
-ET = timezone(timedelta(hours=-4))  # EDT in May
-EXPECTED_INTRADAY = "2026-05-15"     # Fri (today is Sat 2026-05-16)
-EXPECTED_DAILY = "2026-05-15"
+ET = timezone(timedelta(hours=-4))  # EDT (valid Mar–Nov; fine for this run)
+
+# NYSE full-day closures (extend yearly). Drives the dynamic "expected latest
+# session" so the sweep flags TRUE staleness instead of comparing to a stale
+# hardcoded date (the trap that made every chart look FRESH after May).
+_NYSE_HOLIDAYS = {
+    "2025-01-01", "2025-01-20", "2025-02-17", "2025-04-18", "2025-05-26",
+    "2025-06-19", "2025-07-04", "2025-09-01", "2025-11-27", "2025-12-25",
+    "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
+    "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+}
+
+def _expected_session_date():
+    """Most recent NYSE trading day as of now (ET) — rolls back weekends,
+    holidays, and weekday pre-open (before 9:35 ET)."""
+    now = datetime.now(timezone.utc).astimezone(ET)
+    d = now.date()
+    if now.hour * 60 + now.minute < 9 * 60 + 35:
+        d -= timedelta(days=1)
+    for _ in range(14):
+        if d.weekday() < 5 and d.isoformat() not in _NYSE_HOLIDAYS:
+            return d
+        d -= timedelta(days=1)
+    return d
+
+_EXP_DATE = _expected_session_date()
+EXPECTED_DAILY = _EXP_DATE.isoformat()
+EXPECTED_INTRADAY = _EXP_DATE.isoformat()
+# Weekly bar is dated by the week's first trading day (Mon); monthly by 1st.
+EXPECTED_WEEKLY = (_EXP_DATE - timedelta(days=_EXP_DATE.weekday())).isoformat()
+EXPECTED_MONTHLY = _EXP_DATE.replace(day=1).isoformat()
 REPORT = os.path.join(os.environ.get("TEMP", "/tmp"), "chart_diag_report.txt")
 
 def fetch(ticker, tf, retry=1):
@@ -70,8 +98,10 @@ def analyze(ticker, tf, resp):
     if tf in ("1", "5", "15", "30", "60", "D"):
         exp = EXPECTED_DAILY if tf == "D" else EXPECTED_INTRADAY
         fresh = ld >= exp
-    else:  # W/M lenient: within ~10 days
-        fresh = ld >= "2026-05-06"
+    elif tf == "W":
+        fresh = ld >= EXPECTED_WEEKLY
+    else:  # M
+        fresh = ld >= EXPECTED_MONTHLY
     status = integrity or ("FRESH" if fresh else "STALE")
     return (status, ld, issues[0] if issues else None)
 
