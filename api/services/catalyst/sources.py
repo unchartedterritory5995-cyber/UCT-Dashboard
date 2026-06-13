@@ -176,6 +176,7 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "today_volume": today_vol or None,
             "fifty_two_week_high": float(fwh) if fwh else None,
             "near_52w_high": near_52w_high,
+            "quote_type": m.get("quote_type"),
         }
     return out
 
@@ -233,8 +234,12 @@ def _pull_earnings() -> dict[str, dict]:
 
 # ── Source 4: Tweets from tweet_store ───────────────────────────────────
 def _pull_tweet_signals() -> dict[str, list[dict]]:
-    """Returns {ticker: [tweet, ...]} for recently cashtagged tickers."""
+    """Returns {ticker: [tweet, ...]} for recently cashtagged tickers, plus
+    company-NAME mentions (news_match) — squawk accounts often write
+    "Rocket Lab wins contract" with no cashtag, which the ingest-time
+    cashtag extractor can't link."""
     from api.services import tweet_store
+    from api.services.catalyst import news_match
     out: dict[str, list[dict]] = defaultdict(list)
     try:
         tape_rows = tweet_store.tape(hours=24, limit=200)
@@ -259,6 +264,26 @@ def _pull_tweet_signals() -> dict[str, list[dict]]:
                 # the catalyst's "actual occurrence time" for UI display.
                 "created_at": t.get("created_at"),
             })
+    # Name-match pass over the raw tweet stream for tickers the cashtag
+    # extractor missed. Dedup per (ticker, tweet id) against the pass above.
+    try:
+        seen = {(tk, t.get("id")) for tk, ts in out.items() for t in ts}
+        for tw in tweet_store.feed(hours=24, limit=200):
+            matched = news_match.match_tickers(tw.get("text") or "")
+            already = {x.upper() for x in (tw.get("tickers") or [])}
+            for ticker in matched - already:
+                if (ticker, tw.get("id")) in seen:
+                    continue
+                seen.add((ticker, tw.get("id")))
+                out[ticker].append({
+                    "author_handle": tw.get("author_handle"),
+                    "text": tw.get("text", ""),
+                    "url": tw.get("url"),
+                    "id": tw.get("id"),
+                    "created_at": tw.get("created_at"),
+                })
+    except Exception:
+        logger.exception("[catalyst-sources] tweet name-match failed (non-fatal)")
     return out
 
 
@@ -282,6 +307,18 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
     today = _today_market_date()
     items = _safe(lambda: fetch_rss_news(today, limit=80) or [],
                   default=[], name="rss_news")
+    # Persist the live pull and read back the 48h window — feeds only hold
+    # ~80 items, so an evening catalyst (the 2026-06-11 Nasdaq-100
+    # reconstitution) is gone from every feed by the premarket refresh.
+    # Store failure degrades to the live items, never worse than before.
+    try:
+        from api.services.catalyst import news_store
+        news_store.upsert_items(items)
+        stored = news_store.recent_items()
+        if stored:
+            items = stored
+    except Exception:
+        logger.exception("[catalyst-sources] news store failed (non-fatal)")
     for item in items:
         title = item.get("title") or item.get("headline") or ""
         summary = item.get("summary") or ""
@@ -357,7 +394,29 @@ def _extract_tickers_from_text(text: str) -> set[str]:
             tickers.add(sym)
     # Drop the forex/crypto false-positives we already exclude elsewhere
     tickers -= {"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "NZD"}
+    # Bare-word guesses (no $) must be real cap-universe symbols — Perplexity
+    # prose is littered with AWS/EV/GMM-style non-tickers. Cashtags bypass
+    # this (explicit + trusted). Fail-open if the universe can't load.
+    try:
+        from api.services.catalyst import news_match
+        uni = news_match.universe_set()
+        if uni:
+            cashtags = {(c or "").upper() for c, _ in _DISCOVERY_TICKER_RE.findall(text) if c}
+            tickers = {t for t in tickers if t in cashtags or t in uni}
+    except Exception:
+        pass
     return tickers
+
+
+# List-mode system prompt for the discovery queries. The module default in
+# perplexity_search instructs "2-4 sentences of plain prose", which silently
+# capped discovery at ~1 ticker per answer (found 2026-06-12).
+_DISCOVERY_SYSTEM = (
+    "You are a market-news scanner for a trading desk. Output ONLY a list, "
+    "one line per stock, format: $TICKER — one-sentence catalyst (what "
+    "happened and when). Include as many distinct US stocks as the sources "
+    "support, up to 15. No preamble, no advice, no disclaimers."
+)
 
 
 def _pull_perplexity_discovery() -> dict[str, list[dict]]:
@@ -389,26 +448,29 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     else:
         session_phrase = "today, including the most recent US trading session"
 
-    # ── A1: always-on broad discovery (finance-locked, recent only) ────
-    # Sharpened 2026-05-27: enumerate every actionable catalyst category
-    # we care about + session-aware so Perplexity stops surfacing stale news.
+    # ── A1: always-on broad discovery ──────────────────────────────────
+    # REBUILT 2026-06-12 — the old config returned ~0-2 tickers/query for
+    # three stacked reasons, measured live via a prompt/params grid:
+    #   1. perplexity_search's DEFAULT system prompt says "reply in 2-4
+    #      sentences" — it capped every discovery answer at ~700 chars no
+    #      matter what the query asked. Discovery now passes its own
+    #      list-mode system prompt.
+    #   2. recency="day" starved the search index to nothing (1 ticker);
+    #      "today" in the prompt anchors freshness instead, and the
+    #      activity gate drops anything that isn't actually moving.
+    #   3. domain_pack="finance" halved coverage vs general (8 vs 16).
+    #   Also: the old 10-category "top 15 + timestamps + citations" mega-
+    #   prompt triggered refusals ("here's how you could build this list
+    #   yourself"). Measured result of this config: 16 tickers/query.
     a1_query = (
-        f"What are the top 15 individual US stocks with breaking, actionable "
-        f"catalysts {session_phrase}? Cover: (1) earnings beats/misses with "
-        f"reactions, (2) M&A, takeover bids, spinoffs, (3) FDA approvals/"
-        f"rejections/PDUFA dates, (4) major analyst upgrades or downgrades "
-        f"by Goldman, Morgan Stanley, JPM, Wells, etc., (5) contract wins or "
-        f"government awards, (6) trading halts and volatility events, "
-        f"(7) buyback announcements, (8) management changes or resignations, "
-        f"(9) legal/regulatory settlements or rulings, (10) any other single-"
-        f"stock news moving price meaningfully. For each: ticker in $TICKER "
-        f"format, one sentence catalyst, and approximate time the news broke. "
-        f"Skip index/macro moves. Skip rumors and speculation. Cite sources."
+        f"Which individual US stocks are moving {session_phrase} on "
+        f"company-specific news — earnings reactions, M&A, FDA decisions, "
+        f"analyst upgrades/downgrades, contract wins, index inclusions?"
     )
     try:
         a1_result = perplexity_search.web_search(
-            a1_query, max_tokens=600,
-            domain_pack="finance", recency="day",
+            a1_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
+            domain_pack="general",
         )
         a1_text = (a1_result or {}).get("answer") or ""
         a1_citations = (a1_result or {}).get("citations") or []
@@ -431,18 +493,15 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     # tomorrow's BMO reporters with notable setups, etc.
     if is_eod_window:
         f1_query = (
-            "What single-stock catalysts are setting up for tomorrow's US "
-            "market open? Include companies reporting before market open, "
-            "stocks moving on after-hours news, M&A or guidance announced "
-            "post-close, FDA decisions expected, analyst actions, and any "
-            "other specific single-stock catalysts traders should know about "
-            "before tomorrow. For each, give ticker ($TICKER format) and a "
-            "one-sentence reason. Cite sources."
+            "Which individual US stocks have catalysts setting up for "
+            "tomorrow's market open — after-hours earnings reactions, "
+            "post-close M&A or guidance, expected FDA decisions, analyst "
+            "actions, or companies reporting before tomorrow's open?"
         )
         try:
             f1_result = perplexity_search.web_search(
-                f1_query, max_tokens=600,
-                domain_pack="finance", recency="day",
+                f1_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
+                domain_pack="general",
             )
             f1_text = (f1_result or {}).get("answer") or ""
             f1_citations = (f1_result or {}).get("citations") or []

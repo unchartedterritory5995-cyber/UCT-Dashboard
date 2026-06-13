@@ -22,6 +22,23 @@ def test_clean_name_passes():
     assert reason is None
 
 
+# ── Quote type — ETFs/funds are vehicles, not catalysts ──────────────────
+def test_etf_excluded():
+    passed, reason = quality_gate(_c(quote_type="ETF"))
+    assert passed is False
+    assert "not a stock" in reason
+
+
+def test_mutual_fund_excluded():
+    passed, reason = quality_gate(_c(quote_type="MUTUALFUND"))
+    assert passed is False
+
+
+def test_equity_and_unknown_quote_type_pass():
+    assert quality_gate(_c(quote_type="EQUITY"))[0] is True
+    assert quality_gate(_c(quote_type=None))[0] is True   # fail-open on missing
+
+
 # ── Price ────────────────────────────────────────────────────────────────
 def test_zero_price_excluded():
     passed, reason = quality_gate(_c(price=0.0))

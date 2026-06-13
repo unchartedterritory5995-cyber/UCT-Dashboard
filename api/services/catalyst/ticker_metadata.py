@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS ticker_metadata (
   market_cap          REAL,
   avg_volume_30d      INTEGER,
   fifty_two_week_high REAL,
+  quote_type          TEXT,
   fetched_at          INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_meta_fetched ON ticker_metadata(fetched_at);
@@ -59,7 +60,8 @@ def _init_db() -> None:
             c.executescript(_SCHEMA)
             # Backwards-compat: add columns to pre-existing DBs (SQLite has no
             # IF NOT EXISTS on columns, so try + swallow duplicate-column).
-            for col, decl in (("fifty_two_week_high", "REAL"),):
+            for col, decl in (("fifty_two_week_high", "REAL"),
+                              ("quote_type", "TEXT")):
                 try:
                     c.execute(f"ALTER TABLE ticker_metadata ADD COLUMN {col} {decl}")
                 except sqlite3.OperationalError as e:
@@ -88,23 +90,25 @@ def _get_cached(ticker: str) -> Optional[dict]:
 
 def _put_cache(ticker: str, sector: Optional[str], industry: Optional[str],
                market_cap: Optional[float], avg_volume_30d: Optional[int],
-               fifty_two_week_high: Optional[float] = None) -> None:
+               fifty_two_week_high: Optional[float] = None,
+               quote_type: Optional[str] = None) -> None:
     _ensure_init()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
             """INSERT INTO ticker_metadata
                (ticker, sector, industry, market_cap, avg_volume_30d,
-                fifty_two_week_high, fetched_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+                fifty_two_week_high, quote_type, fetched_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
                  sector = excluded.sector,
                  industry = excluded.industry,
                  market_cap = excluded.market_cap,
                  avg_volume_30d = excluded.avg_volume_30d,
                  fifty_two_week_high = excluded.fifty_two_week_high,
+                 quote_type = excluded.quote_type,
                  fetched_at = excluded.fetched_at""",
             (ticker.upper(), sector, industry, market_cap, avg_volume_30d,
-             fifty_two_week_high, int(time.time())),
+             fifty_two_week_high, quote_type, int(time.time())),
         )
         c.commit()
 
@@ -127,11 +131,16 @@ def _fetch_via_yfinance(ticker: str) -> dict:
             # on volume = a core swing setup the news feeds don't flag).
             "fifty_two_week_high": (float(info.get("fiftyTwoWeekHigh"))
                                     if info.get("fiftyTwoWeekHigh") else None),
+            # EQUITY / ETF / MUTUALFUND / INDEX / CRYPTOCURRENCY — lets the
+            # quality gate drop non-stock instruments (a leveraged-semis ETF
+            # was SELECTED on 2026-06-11; SOXL/SOXS/KORU recur in gap scans).
+            "quote_type": info.get("quoteType"),
         }
     except Exception as e:
         logger.warning("[ticker_metadata] yfinance failed for %s: %s", ticker, e)
         return {"sector": None, "industry": None, "market_cap": None,
-                "avg_volume_30d": None, "fifty_two_week_high": None}
+                "avg_volume_30d": None, "fifty_two_week_high": None,
+                "quote_type": None}
 
 
 def get_metadata(ticker: str) -> dict:
@@ -140,7 +149,8 @@ def get_metadata(ticker: str) -> dict:
     Never raises — returns empty fields on any error."""
     if not ticker:
         return {"sector": None, "industry": None, "market_cap": None,
-                "avg_volume_30d": None, "fifty_two_week_high": None}
+                "avg_volume_30d": None, "fifty_two_week_high": None,
+                "quote_type": None}
 
     cached = _get_cached(ticker)
     if cached:
@@ -150,12 +160,13 @@ def get_metadata(ticker: str) -> dict:
             "market_cap": cached.get("market_cap"),
             "avg_volume_30d": cached.get("avg_volume_30d"),
             "fifty_two_week_high": cached.get("fifty_two_week_high"),
+            "quote_type": cached.get("quote_type"),
         }
 
     fresh = _fetch_via_yfinance(ticker)
     _put_cache(ticker, fresh["sector"], fresh["industry"],
                fresh["market_cap"], fresh["avg_volume_30d"],
-               fresh.get("fifty_two_week_high"))
+               fresh.get("fifty_two_week_high"), fresh.get("quote_type"))
     return fresh
 
 

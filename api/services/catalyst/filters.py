@@ -44,6 +44,14 @@ def quality_gate(c: dict) -> tuple[bool, Optional[str]]:
     min_dollar_vol = _f("CATALYST_MIN_DOLLAR_VOL", 5_000_000.0)
     min_market_cap = _f("CATALYST_MIN_MARKET_CAP", 300_000_000.0)
 
+    # ── Not a stock — ETFs/funds/indexes are vehicles, not catalysts. A
+    # leveraged-semis ETF (USD) was SELECTED on 2026-06-11; SOXL/SOXS/KORU
+    # recur in gap scans on every sector-rotation day. Fail-open when
+    # quote_type is unknown (pre-migration cache rows, yfinance misses). ──
+    qt = (c.get("quote_type") or "").upper()
+    if qt and qt != "EQUITY":
+        return False, f"not a stock (quote_type={qt})"
+
     price = c.get("price")
     price_f = float(price) if isinstance(price, (int, float)) else 0.0
 

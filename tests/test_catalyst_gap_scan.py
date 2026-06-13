@@ -93,3 +93,15 @@ def test_gap_scan_handles_zero_prev_close(monkeypatch):
     })
     out = sources._pull_gap_scan()
     assert set(out) == {"GOOD"}
+
+
+def test_discovery_extraction_filters_bare_words_to_universe(monkeypatch):
+    """Perplexity prose is full of AWS/EV/GMM-style non-tickers. Bare words
+    must validate against the cap universe; cashtags bypass (trusted).
+    (Perplexity discovery returned 0-2 usable tickers before 2026-06-12.)"""
+    from api.services.catalyst import news_match
+    monkeypatch.setattr(news_match, "_UNIVERSE", {"NVDA", "INTC", "RKLB"})
+    text = ("$NVDA — earnings beat. Intel (INTC) wins contract. Rocket Lab "
+            "RKLB joins index. AWS revenue up; EV demand strong; GMM rallies.")
+    syms = sources._extract_tickers_from_text(text)
+    assert syms == {"NVDA", "INTC", "RKLB"}  # AWS/EV/GMM dropped (not in universe)

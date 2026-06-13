@@ -7,8 +7,16 @@ TER (which gapped enough on its own) reached the board.
 """
 import pytest
 
-from api.services.catalyst import news_match
+from api.services.catalyst import news_match, news_store
 from api.services.catalyst.news_match import build_index, match_tickers
+
+
+@pytest.fixture(autouse=True)
+def _isolated_news_store(tmp_path, monkeypatch):
+    """The RSS pull persists into the 48h news store — isolate it per test
+    so items don't leak across tests (keys are URL-deduped)."""
+    monkeypatch.setattr(news_store, "_DB_PATH", str(tmp_path / "news.db"))
+    monkeypatch.setattr(news_store, "_INIT_DONE", False)
 
 NAMES = {
     "RKLB": "Rocket Lab USA, Inc.",
@@ -103,6 +111,23 @@ def test_rss_pull_validates_bare_word_tickers_against_universe(monkeypatch):
     assert set(out) == {"TER"}
 
 
+def test_tweet_pull_name_matches_uncashtagged_tweets(monkeypatch):
+    """A squawk tweet naming a company with no cashtag attaches via name."""
+    from api.services.catalyst import sources
+    from api.services import tweet_store
+
+    monkeypatch.setattr(tweet_store, "tape", lambda **k: [])
+    monkeypatch.setattr(tweet_store, "feed", lambda **k: [
+        {"id": "1", "text": "BREAKING: Rocket Lab wins $500M defense contract",
+         "author_handle": "FirstSquawk", "url": "u", "created_at": 1765900000,
+         "tickers": []},
+    ])
+    monkeypatch.setattr(news_match, "_get_index", lambda: IDX)
+    out = sources._pull_tweet_signals()
+    assert "RKLB" in out
+    assert out["RKLB"][0]["author_handle"] == "FirstSquawk"
+
+
 def test_rss_pull_skips_legal_boilerplate(monkeypatch):
     """Law-firm investor alerts are never catalysts (GPGI/FSK junk rows
     reached selection 2026-06-12)."""
@@ -110,14 +135,14 @@ def test_rss_pull_skips_legal_boilerplate(monkeypatch):
 
     items = [
         {"title": "SHAREHOLDER ALERT: Ademi LLP investigates claims against $TER",
-         "summary": "", "url": "u", "source": "PRNewswire",
+         "summary": "", "url": "u1", "source": "PRNewswire",
          "time_published": "2026-06-12T08:00:00"},
         {"title": "INVESTOR NOTICE: Robbins Geller Rudman & Dowd LLP announces "
                   "class action against $RKLB",
-         "summary": "", "url": "u", "source": "PRNewswire",
+         "summary": "", "url": "u2", "source": "PRNewswire",
          "time_published": "2026-06-12T08:00:00"},
         {"title": "Teradyne wins major robotics contract", "summary": "",
-         "url": "u", "source": "CNBC",
+         "url": "u3", "source": "CNBC",
          "time_published": "2026-06-12T08:00:00"},
     ]
     monkeypatch.setattr("api.services.news_aggregator.fetch_rss_news",
