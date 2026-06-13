@@ -248,3 +248,24 @@ def catalyst_stats(user=Depends(require_admin)):
         "today_ranked": len([r for r in today_rows if r["rank"] is not None]),
         "last_refresh_at": last_refresh_at,
     }
+
+
+@router.get("/admin/catalyst-coverage")
+def catalyst_coverage(ymd: str | None = None, user=Depends(require_admin)):
+    """Coverage self-audit for a date (default today): the day's biggest
+    movers classified as ranked / scored-hidden / excluded / missed. A
+    cached report is returned if present; pass ?run=1 to recompute live."""
+    from api.services.catalyst import coverage_audit
+    date = ymd or _today()
+    report = coverage_audit.get_audit(date)
+    if report is None:
+        report = coverage_audit.run_audit(date)
+    return report
+
+
+@router.post("/admin/catalyst-coverage/run")
+def catalyst_coverage_run(ymd: str | None = Body(None, embed=True),
+                          user=Depends(require_admin)):
+    """Force a fresh coverage audit for a date (default today)."""
+    from api.services.catalyst import coverage_audit
+    return coverage_audit.run_audit(ymd or _today())

@@ -1540,7 +1540,22 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0-30/5"),
                 id="catalyst_amc_burst", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m)")
+            # Coverage self-audit: 8:15 PM ET weekdays — after the AMC burst +
+            # any post-close moves have settled. Classifies the day's biggest
+            # movers vs what the tile showed (ranked/hidden/excluded/missed);
+            # a 'missed' big mover means a source is blind. Report at
+            # GET /api/admin/catalyst-coverage. Best-effort — never blocks.
+            def _cat_audit():
+                from api.services.catalyst import coverage_audit
+                import datetime as _d
+                from zoneinfo import ZoneInfo as _Z
+                coverage_audit.run_audit(
+                    _d.datetime.now(_Z("America/New_York")).date().isoformat())
+            _scheduler.add_job(_cat_audit,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15"),
+                id="catalyst_coverage_audit", max_instances=1, replace_existing=True)
+
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET)")
 
         # ── Morning Catalyst Digest (the brief reaches you) ───────────────
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
