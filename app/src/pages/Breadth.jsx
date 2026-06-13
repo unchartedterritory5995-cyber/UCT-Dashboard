@@ -404,8 +404,13 @@ function CopyTickersButton({ items }) {
 }
 
 // ── DrillModal ────────────────────────────────────────────────────────────
-function DrillModal({ drill, onClose }) {
+function DrillModal({ drill, latestDate, onClose }) {
   const items = drill.items ?? []
+  // Paint the snapshot's own day white on each stock's chart so you can see the
+  // bar that qualified it — UNLESS this is the most recent snapshot (its day is
+  // already the live/rightmost candle, no need to flag it). Daily TF only; a
+  // daily date won't match intraday/weekly bar times, so it simply no-ops there.
+  const highlightDay = drill.date && drill.date !== latestDate ? drill.date : null
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [chartPeriod, setChartPeriod] = useState('D')
 
@@ -662,7 +667,9 @@ function DrillModal({ drill, onClose }) {
                 <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
               </div>
               <div className={styles.drillChartFrame}>
-                <StockChart sym={selected.t} tf={chartPeriod} />
+                <StockChart sym={selected.t} tf={chartPeriod}
+                  highlightBarTime={chartPeriod === 'D' ? highlightDay : null}
+                  highlightColor="#ffffff" />
               </div>
             </div>
           )}
@@ -1501,7 +1508,7 @@ export default function Breadth() {
           </table>
         </div>
       )}
-      {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
+      {drill && <DrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />}
     </div>
   )
 }
