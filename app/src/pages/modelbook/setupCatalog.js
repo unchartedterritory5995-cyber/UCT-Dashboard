@@ -57,19 +57,12 @@ export const SETUP_CATALOG = [
     emas: [9, 20],
   },
   {
-    name: 'Flat Top Breakout',
+    // Flat Top Breakout merged with VCP — same family of base breakout. Keeps
+    // the Flat Top write-up but adopts the VCP contraction glyph.
+    name: 'Flat Top Breakout (VCP)',
     family: 'Bases & Breakouts',
     direction: 'long',
     essence: '“1 tap, 2 tap, 3 tap, breakout” — repeated tests of a flat ceiling on rising lows until sellers there are exhausted.',
-    candles: [0.8, -0.6, 1, [6, 0.3, 0.4], -4, [4.3, 0.3, 0.3], -2.6, [2.6, 0.4, 0.3], -1.3, [7, 0, 0.3]],
-    pivot: { idx: 3, side: 'h' },
-    emas: [9, 20],
-  },
-  {
-    name: 'VCP (Volatility Contraction Pattern)',
-    family: 'Bases & Breakouts',
-    direction: 'long',
-    essence: 'Each pullback shallower than the last, coiling under resistance until supply dries up.',
     candles: [9, -6, 7.5, -4, 5, -2.5, 3, -1.2, 0.6, [6.5, 0, 0.3]],
     pivot: { idx: 2, side: 'h' },
     emas: [9, 20],

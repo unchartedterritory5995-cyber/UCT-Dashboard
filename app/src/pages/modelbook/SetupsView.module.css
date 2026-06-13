@@ -295,6 +295,11 @@
   min-width: 0;
   overflow-y: auto;
   padding: 8px 26px 18px 12px;
+  /* Fill the full half-height: fixed hero/header up top, the playbook grows to
+     take all remaining vertical space (rows expand evenly) so there's no blank
+     gap below — and no scrolling. */
+  display: flex;
+  flex-direction: column;
 }
 .detailRight {
   flex: 1 1 50%;
@@ -379,7 +384,9 @@
 }
 
 /* ── Playbook write-up: the firm's dossier for a setup ── */
-.playbook { margin-bottom: 0; }
+/* Grows to fill the left pane's remaining height; min-height:0 lets it shrink
+   on short viewports so overflow-y on .detailLeft scrolls instead of clipping. */
+.playbook { margin-bottom: 0; flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 
 /* Lede: the "what this setup IS" paragraph, with a gold drop cap. */
 .pbLede {
@@ -410,16 +417,26 @@
     linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
     rgba(14, 15, 19, 0.6);
   padding: 2px 24px;
+  /* Fill the playbook's height; rows below flex-grow to share it evenly. */
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .pbRow {
-  display: grid;
-  grid-template-columns: 185px 1fr;
+  display: flex;
+  align-items: center;
   gap: 18px;
-  align-items: baseline;
   padding: 10px 0;
+  /* Each section row claims an equal share of the grid's height so the whole
+     dossier fills the pane regardless of how many sections a setup has. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 .pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
 .pbLabel {
+  flex: none;
+  width: 185px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -445,6 +462,8 @@
 .pbAccent_exit { color: #f0d479; }
 .pbAccent_exit .pbDiamond { background: #e6c965; box-shadow: 0 0 8px rgba(230, 201, 101, 0.5); }
 .pbBody {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-sans);
   font-size: 13.5px;
   font-weight: 500;
@@ -491,7 +510,10 @@
 
 @media (max-width: 640px) {
   .pbGrid { padding: 2px 16px; }
-  .pbRow { grid-template-columns: 1fr; gap: 6px; padding: 13px 0; }
+  /* Stack label over body on phones (the desktop fill doesn't apply — the page
+     scrolls normally below the tablet breakpoint). */
+  .pbRow { flex-direction: column; align-items: stretch; gap: 6px; padding: 13px 0; flex: 0 0 auto; }
+  .pbLabel { width: auto; }
   .pbMistakes { padding: 14px 16px 16px; }
 }
 
