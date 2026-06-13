@@ -70,4 +70,52 @@ export const SETUP_PLAYBOOKS = {
       'Chasing past the +5% buy zone.',
     ],
   },
+
+  'Flat Top Breakout': {
+    intro:
+      'One of the most common and effective continuation patterns the community trades. ' +
+      'The shorthand is “1 tap, 2 tap, 3 tap, breakout” — price repeatedly tests a flat ' +
+      'horizontal resistance while carving higher lows, until the sellers stacked at that ' +
+      'level are exhausted.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Strongest with timeframe alignment — a bullish daily/weekly structure underneath ' +
+          'the intraday flat top. Used as a continuation entry in an uptrend.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'A clearly defined horizontal resistance level tested multiple times (the “taps”) ' +
+          'with continuous higher lows into it. Moving averages should tighten to price and to ' +
+          'the breakout level with each test — the third test should be the tightest. ' +
+          'Critically, the breakout level should be the high of the day when it breaks.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Breakout above the flat-top resistance, taken as a high-of-day break.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'Below the breakout candle low and the 9-EMA — on a strong breakout candle these ' +
+          'coincide and give a tight stop.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Scale out into strength against 30-minute and intraday support/resistance levels ' +
+          'and on 2:1+; trail the stop up behind the nearest support.',
+      },
+    ],
+    mistakes: [
+      'Impatience — entering before the moving averages have tightened to the breakout level.',
+      'Taking the breakout when it is not also a high-of-day break.',
+    ],
+  },
 }
