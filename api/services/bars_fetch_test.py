@@ -582,3 +582,71 @@ class TestFMPTimestampIsEasternTime:
         assert len(bars) == 1
         assert bars[0]["t"] == correct_t
         assert datetime.fromtimestamp(bars[0]["t"], tz=_ET).hour == 14
+
+
+from datetime import timezone as _tz
+
+import api.services.bars_fetch as _bf
+import api.services.massive as _massive
+
+
+def _massive_ms(date_str: str):
+    """Build a Massive-style daily agg bar (millisecond `t`) for an ISO date."""
+    y, m, d = (int(x) for x in date_str.split("-"))
+    ms = int(datetime(y, m, d, 12, 0, tzinfo=_tz.utc).timestamp() * 1000)
+    return {"t": ms, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 1000}
+
+
+class TestDeltaDailyYfFallback:
+    """When Massive's daily aggregates lag for a thin/long-tail ticker
+    (e.g. a recent SPAC like FJET), the on-demand daily delta returns
+    nothing newer than the cached bar, so the chart freezes several
+    sessions back while the live-price overlay still paints the current
+    price onto the stale last candle (the 'missing days + correct current
+    price + mangled last candle' bug). `_delta_daily` must fall back to
+    yfinance to fill the missing sessions when Massive fails to advance
+    past the cached bar AND we're behind the expected latest session."""
+
+    def test_falls_back_to_yfinance_when_massive_daily_is_stale(self, monkeypatch):
+        last_ts = 20260608
+        # Massive only re-serves the cached session — no June 9-12 (stale upstream).
+        monkeypatch.setattr(
+            _massive, "get_agg_bars",
+            lambda *a, **k: [_massive_ms("2026-06-08")],
+        )
+        # yfinance HAS the missing sessions.
+        yf_bars = [
+            {"t": "2026-06-08", "o": 8.71, "h": 8.99, "l": 7.93, "c": 8.14, "v": 2645554},
+            {"t": "2026-06-09", "o": 8.17, "h": 8.45, "l": 7.09, "c": 7.35, "v": 2349200},
+            {"t": "2026-06-12", "o": 7.17, "h": 7.40, "l": 5.90, "c": 6.18, "v": 2583061},
+        ]
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t: yf_bars)
+        monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
+
+        out = _bf._delta_daily("FJET", last_ts)
+        dates = [b["t"] for b in out]
+        assert "2026-06-12" in dates, f"newest missing session absent: {dates}"
+        assert "2026-06-09" in dates, f"interior missing session absent: {dates}"
+        # The June 12 close must be the real value, not a stretched stale candle.
+        jun12 = next(b for b in out if b["t"] == "2026-06-12")
+        assert jun12["c"] == 6.18
+
+    def test_does_not_call_yfinance_when_massive_daily_is_fresh(self, monkeypatch):
+        last_ts = 20260608
+        # Massive IS fresh — returns sessions newer than the cached bar.
+        monkeypatch.setattr(
+            _massive, "get_agg_bars",
+            lambda *a, **k: [_massive_ms("2026-06-08"), _massive_ms("2026-06-12")],
+        )
+        called = {"yf": False}
+
+        def _boom(_t):
+            called["yf"] = True
+            return []
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", _boom)
+        monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
+
+        out = _bf._delta_daily("AAPL", last_ts)
+        dates = [b["t"] for b in out]
+        assert "2026-06-12" in dates
+        assert called["yf"] is False, "yfinance fallback fired despite fresh Massive data"

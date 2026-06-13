@@ -667,6 +667,33 @@ def _delta_daily(ticker: str, last_ts: int) -> list[dict]:
                 "l": round(bar["l"], 2), "c": round(bar["c"], 2),
                 "v": int(bar.get("v", 0)),
             })
+
+    # ── yfinance fallback for STALE DAILY (added 2026-06-12) ──────────────
+    # Massive's daily aggregates lag several sessions for thin/long-tail
+    # names (recent SPACs, small caps — FJET froze 4 sessions back). The
+    # daily path had no fallback (yfinance was only wired for stale INTRADAY
+    # and deep-history nightly warm), so the chart stuck on the last Massive
+    # bar while the live-price overlay kept painting the current price onto
+    # it — "missing days + correct current price + mangled last candle".
+    # When Massive fails to advance past the cached bar AND we're behind the
+    # expected latest session (stale by >=1 session), pull yfinance and let
+    # it fill the gap. Massive still wins any overlapping date (more accurate
+    # intraday-evolving bar); yfinance only supplies sessions Massive lacks.
+    massive_advanced = any(int(b["t"].replace("-", "")) > last_ts for b in new)
+    if not massive_advanced and last_ts < _expected_latest_session_yyyymmdd():
+        try:
+            yf_daily = _fetch_daily_yf(ticker)
+        except Exception:
+            yf_daily = []
+        if yf_daily:
+            by_date = {
+                b["t"]: b for b in yf_daily
+                if int(b["t"].replace("-", "")) >= last_ts
+            }
+            # Massive wins on overlap (re-fetched evolving bar stays authoritative).
+            for b in new:
+                by_date[b["t"]] = b
+            new = [by_date[k] for k in sorted(by_date)]
     return new
 
 
