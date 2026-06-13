@@ -820,12 +820,17 @@ export default function ChartDrawingOverlay({
   // (the old 60ms/~16fps poll made them skip behind). A slow poll stays as a
   // belt-and-suspenders fallback for any movement the subscription misses.
   useEffect(() => {
-    const chart = chartRef?.current
-    const series = seriesRef?.current
-    if (!chart) return
-    const ts = chart.timeScale()
+    // Resolve the chart + series from the refs ON EVERY FRAME — never capture
+    // them once. The overlay can mount BEFORE the chart exists (SWR-cached bars
+    // render the wrapper in StockChart's first commit, and child effects run
+    // before the parent effect that creates the chart) or the series can be
+    // recreated later (chart-type switch). A one-time capture left this whole
+    // tracker dead in those cases: on a frozen chart (Setup Library examples)
+    // nothing else triggers a repaint, so the first view change (Setup ⇄ Result
+    // flip) re-framed the candles while the canvas kept its STALE pixels — the
+    // "trendline doesn't stay where I put it" bug.
     const onRange = () => redrawRef.current?.()
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    let subscribedChart = null
     // A rAF loop samples the time range AND the price→pixel mapping each frame,
     // so drawings track VERTICAL price-scale changes too — the autoscale settling
     // after a focus zoom, or axis drags — not just horizontal range moves. (The
@@ -834,22 +839,37 @@ export default function ChartDrawingOverlay({
     let raf = null
     let lastKey = ''
     const tick = () => {
-      try {
-        const range = ts.getVisibleLogicalRange()
-        const y0 = series?.priceToCoordinate(1)
-        const y1 = series?.priceToCoordinate(100)
-        // Include the text-fade value so the fade renders frame-by-frame even at
-        // the very end of the zoom, where the range barely changes.
-        const tf = textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''
-        const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}|${tf}`
-        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
-      } catch { /* chart torn down mid-frame */ }
+      const chart = chartRef?.current
+      const series = seriesRef?.current
+      // (Re)subscribe whenever the chart instance appears or is replaced, so the
+      // synchronous same-frame redraw on setVisibleLogicalRange is never lost.
+      if (chart !== subscribedChart) {
+        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
+        subscribedChart = null
+        if (chart) {
+          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
+        }
+      }
+      if (chart) {
+        try {
+          const range = chart.timeScale().getVisibleLogicalRange()
+          // A disposed series must not kill range-keyed redraws — sample it
+          // separately and fall back to blank mapping values.
+          let y0 = null, y1 = null
+          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
+          // Include the text-fade value so the fade renders frame-by-frame even at
+          // the very end of the zoom, where the range barely changes.
+          const tf = textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''
+          const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}|${tf}`
+          if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
+        } catch { /* chart torn down mid-frame */ }
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => {
       if (raf) cancelAnimationFrame(raf)
-      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
+      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
   }, [chartRef, seriesRef, textFadeRef])
 

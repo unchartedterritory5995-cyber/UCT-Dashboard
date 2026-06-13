@@ -402,44 +402,56 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   // samples both the time range and the price→pixel mapping each frame and
   // redraws only when either actually changes — smooth, and idle = no redraws.
   useEffect(() => {
-    const chart = chartRef?.current
-    const series = seriesRef?.current
-    if (!chart) return
-    const ts = chart.timeScale()
+    // Resolve chart/series from the refs EVERY frame — a one-time capture left
+    // this tracker dead when the overlay mounted before the chart existed
+    // (child effects run before the parent effect that creates the chart) or
+    // when the series was later recreated. See the matching fix in
+    // ChartDrawingOverlay (the "trendline doesn't stay put" bug).
     const onRange = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(() => trackedRef.current?.())
     }
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    let subscribedChart = null
 
     let loopRaf = null
     let lastSig = ''
     let stable = 0
     const tick = () => {
-      try {
-        const r = ts.getVisibleLogicalRange()
-        const y0 = series?.priceToCoordinate(1)
-        const y1 = series?.priceToCoordinate(100)
-        const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-        if (sig !== lastSig) {
-          // Pan/zoom/focus animation: ride the cached offsets so labels glide
-          // smoothly WITH their candles — NO re-search here, so a label keeps the
-          // same pixel offset from its candle at every zoom level.
-          lastSig = sig; stable = 0; trackedRef.current?.()
-        } else if (pendingReplaceRef.current && ++stable > 10) {
-          // Re-search ONCE the view settles AFTER a stock/catalyst change, so the
-          // designated placement is computed at the real (settled) full-year frame
-          // — NOT after every zoom (that would re-lock labels far at the new zoom).
-          pendingReplaceRef.current = false; redrawRef.current?.()
+      const chart = chartRef?.current
+      const series = seriesRef?.current
+      if (chart !== subscribedChart) {
+        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
+        subscribedChart = null
+        if (chart) {
+          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
         }
-      } catch { /* chart torn down mid-frame */ }
+      }
+      if (chart) {
+        try {
+          const r = chart.timeScale().getVisibleLogicalRange()
+          let y0 = null, y1 = null
+          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
+          const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
+          if (sig !== lastSig) {
+            // Pan/zoom/focus animation: ride the cached offsets so labels glide
+            // smoothly WITH their candles — NO re-search here, so a label keeps the
+            // same pixel offset from its candle at every zoom level.
+            lastSig = sig; stable = 0; trackedRef.current?.()
+          } else if (pendingReplaceRef.current && ++stable > 10) {
+            // Re-search ONCE the view settles AFTER a stock/catalyst change, so the
+            // designated placement is computed at the real (settled) full-year frame
+            // — NOT after every zoom (that would re-lock labels far at the new zoom).
+            pendingReplaceRef.current = false; redrawRef.current?.()
+          }
+        } catch { /* chart torn down mid-frame */ }
+      }
       loopRaf = requestAnimationFrame(tick)
     }
     loopRaf = requestAnimationFrame(tick)
 
     return () => {
       if (loopRaf) cancelAnimationFrame(loopRaf)
-      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
+      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
   }, [chartRef, seriesRef])
 

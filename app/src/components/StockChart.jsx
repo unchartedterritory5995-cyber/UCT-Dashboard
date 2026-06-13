@@ -998,6 +998,7 @@ export default function StockChart({
   const focusPriceRangeRef = useRef(null) // {lo,hi} interpolated price range during a focus zoom (smooth vertical via autoscaleInfoProvider); null = default autoscale
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
+  const exactPinSigRef = useRef(null)     // `${sym}_${tf}|${entryDate}|${exitDate}` last pinned exact-range frame — a same-chart date change (Setup ⇄ Result flip) glides instead of snapping
   const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
@@ -1766,6 +1767,31 @@ export default function StockChart({
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
 
+  // Exact-range frame flips (Setup ⇄ Result) animate — see the exact-range pin
+  // effect below. While the framed window SHRINKS (Result → Setup) keep slicing
+  // at the OLD wider end so the outgoing candles stay in the series and visibly
+  // glide off-screen instead of vanishing; the hold is dropped (and the tail
+  // re-cut) once the animation lands.
+  const sliceHoldRef = useRef(null)     // { key, end } — wider slice end held during a shrink glide
+  const prevExactEndRef = useRef(null)  // { key, end } — last exact-range exitDate seen for this chart
+  const [, setSliceGen] = useState(0)   // bump after the glide lands to re-render with the hold released
+  const _exKey = `${sym}_${resolvedTf}`
+  {
+    const prev = prevExactEndRef.current
+    if (exactDateRange && exitDate && prev && prev.key === _exKey && prev.end
+        && String(prev.end) > String(exitDate)
+        && (!sliceHoldRef.current || sliceHoldRef.current.key !== _exKey
+            || String(sliceHoldRef.current.end) < String(prev.end))) {
+      sliceHoldRef.current = { key: _exKey, end: prev.end }
+    }
+    if (!prev || prev.key !== _exKey || prev.end !== exitDate) {
+      prevExactEndRef.current = { key: _exKey, end: exitDate }
+    }
+  }
+  const _sliceHold = sliceHoldRef.current
+  const exactSliceEnd = (exactDateRange && exitDate && _sliceHold && _sliceHold.key === _exKey
+      && String(_sliceHold.end) > String(exitDate)) ? _sliceHold.end : exitDate
+
   // Restore filteredBars as the replay-sliced version.
   // All downstream code continues to use `filteredBars` unchanged.
   const filteredBars = useMemo(
@@ -1776,13 +1802,13 @@ export default function StockChart({
       // first one peeks a sliver past the right edge of the year / setup-focus
       // view (the right edge sits on a bar index). Drop them — the chart never
       // shows past the year anyway. LEADING bars are kept for MA warm-up.
-      if (exactDateRange && exitDate && src?.length) {
-        const cut = src.findIndex(b => String(b.t) > exitDate)  // first bar after year-end
+      if (exactDateRange && exactSliceEnd && src?.length) {
+        const cut = src.findIndex(b => String(b.t) > exactSliceEnd)  // first bar after frame-end
         if (cut > 0) src = src.slice(0, cut)
       }
       return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
     },
-    [sessionBars, replayMode, replayIndex, exactDateRange, exitDate]
+    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd]
   )
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
@@ -3632,6 +3658,14 @@ export default function StockChart({
         // Re-pin to the settled focus range; the year re-pin below is skipped.
         const r = focusRangeRef.current
         if (r) { try { chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
+      } else if (exactPinSigRef.current
+                 && exactPinSigRef.current.startsWith(`${sym}_${resolvedTf}|`)
+                 && exactPinSigRef.current !== `${sym}_${resolvedTf}|${entryDate}|${exitDate}`) {
+        // The exact-range dates just changed on the SAME chart (Setup ⇄ Result
+        // flip). Don't snap to the new frame here — leave the view at the
+        // outgoing frame so the exact-range pin effect (which runs after this in
+        // the same commit) can start its animated glide FROM it. Snapping first
+        // would zero the animation's start range and kill the transition.
       } else {
         let _s = filteredBars.findIndex(b => b.t >= entryDate)
         let _e = filteredBars.length - 1
@@ -3695,12 +3729,23 @@ export default function StockChart({
     // the zoomed-in view back to the full year.
     const fk = `${sym}_${resolvedTf}`
     if (focusKeyRef.current !== fk) {
+      if (focusRafRef.current != null) { cancelAnimationFrame(focusRafRef.current); focusRafRef.current = null }  // a glide from the previous chart must not keep driving the new one
       focusActiveRef.current = false
       focusPriceRangeRef.current = null  // drop any in-flight focus vertical so the new chart autoscales cleanly
       focusRangeRef.current = null       // and its horizontal window so the year pin takes over
       focusKeyRef.current = fk
+      sliceHoldRef.current = null        // a held wider slice belongs to the previous chart
     }
-    if (focusActiveRef.current) return
+    // Same chart, but the framed dates changed (Setup ⇄ Result flip, or a year
+    // switch landing on the same symbol): glide to the new frame instead of
+    // snapping. Only when this chart was already framed once — a date change
+    // arriving before the first framing (bars still loading) snaps as usual.
+    const pinSig = `${fk}|${entryDate}|${exitDate}`
+    const frameChanged = exactPinSigRef.current
+      && exactPinSigRef.current !== pinSig
+      && exactPinSigRef.current.startsWith(`${fk}|`)
+      && String(yearFramedRef.current || '').startsWith(`${fk}:`)
+    if (focusActiveRef.current && !frameChanged) return
     const toMs = v => {
       if (v == null) return NaN
       if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
@@ -3733,6 +3778,7 @@ export default function StockChart({
     // ref (not captured locals) so a partial first data load can't lock stale
     // indices into the pending re-asserts (which showed the earliest bars).
     yearRangeRef.current = { from: startIdx, to: endIdx }
+    exactPinSigRef.current = pinSig
     const applyYear = () => {
       const r = yearRangeRef.current
       if (!r) return
@@ -3740,6 +3786,42 @@ export default function StockChart({
         chart.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to })
         mainPriceScale()?.applyOptions({ autoScale: true })
       } catch { /* range can be out of bounds mid-load; next update re-pins */ }
+    }
+    if (frameChanged) {
+      // Animated Setup ⇄ Result transition: same dual-axis glide as the setup
+      // focus zoom — the window slides/stretches across the screen to the new
+      // frame while the price scale rides along. focusActiveRef holds the view
+      // for the duration so data refreshes / the scheduled re-asserts below
+      // can't snap it mid-glide; updateChart's inline pin already skipped this
+      // commit (it saw the date change), so the glide starts from the outgoing
+      // frame. focusRangeRef stays null so mid-glide setData re-pins are no-ops.
+      const series = candleSeriesRef.current
+      if (series && !focusProviderInstalledRef.current) {
+        try {
+          series.applyOptions({
+            autoscaleInfoProvider: (orig) => {
+              const r = focusPriceRangeRef.current
+              if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
+                return { priceRange: { minValue: r.lo, maxValue: r.hi } }
+              }
+              return orig ? orig() : null
+            },
+          })
+          focusProviderInstalledRef.current = true
+        } catch { /* provider optional */ }
+      }
+      try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
+      focusActiveRef.current = true
+      focusRangeRef.current = null
+      _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
+        { from: startIdx, to: endIdx }, 900, () => {
+          focusActiveRef.current = false
+          // Release a held wider slice (Result → Setup): the outgoing candles
+          // are off-screen now, so the tail re-cut is invisible.
+          if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
+        }, overlayData, null, null)
+      yearFramedRef.current = `${fk}:${filteredBars.length}`  // already framed — no settle-window re-assert burst needed
+      return
     }
     applyYear()
     // First framing of this sym+tf: the chart created with autoSize keeps
@@ -3777,7 +3859,7 @@ export default function StockChart({
     // that snaps the view to the latest bars) re-runs this pin and re-frames the
     // year. The focusActiveRef guard above means a live setup/catalyst zoom is
     // untouched; all effects run before paint, so there's no flash of "now".
-  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet])
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet, overlayData])
 
   // Each stock starts at the year view with setup text hidden; the first focus
   // zoom then eases it in. Without this reset, switching from a focused stock

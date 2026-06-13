@@ -116,29 +116,39 @@ export default function SetupMoveOverlay({
   }, [])
 
   // Track pan / zoom / vertical scale and redraw in lockstep.
+  // Resolve chart/series from the refs EVERY frame — a one-time capture left
+  // the tracker dead when the overlay mounted before the chart existed or the
+  // series was later recreated (see the matching ChartDrawingOverlay fix).
   useEffect(() => {
-    const chart = chartRef?.current
-    const series = seriesRef?.current
-    if (!chart) return
-    const ts = chart.timeScale()
     const onRange = () => redrawRef.current?.()
-    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    let subscribedChart = null
     let raf = null
     let lastKey = ''
     const tick = () => {
-      try {
-        const r = ts.getVisibleLogicalRange()
-        const y0 = series?.priceToCoordinate(1)
-        const y1 = series?.priceToCoordinate(100)
-        const key = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
-      } catch { /* torn down */ }
+      const chart = chartRef?.current
+      const series = seriesRef?.current
+      if (chart !== subscribedChart) {
+        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
+        subscribedChart = null
+        if (chart) {
+          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
+        }
+      }
+      if (chart) {
+        try {
+          const r = chart.timeScale().getVisibleLogicalRange()
+          let y0 = null, y1 = null
+          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
+          const key = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
+          if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
+        } catch { /* torn down */ }
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => {
       if (raf) cancelAnimationFrame(raf)
-      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
+      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
     }
   }, [chartRef, seriesRef])
 
