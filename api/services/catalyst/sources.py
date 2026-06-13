@@ -29,6 +29,20 @@ logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 _CASHTAG_RE = re.compile(r"\$([A-Z]{1,5})\b")
 
+# Securities-litigation / investor-alert boilerplate — never a catalyst.
+_LEGAL_NOISE_RE = re.compile(
+    r"investor notice|shareholder alert|class action|securities fraud"
+    r"|investigat\w* claims|deadline reminder|lead plaintiff"
+    r"|law firm|llp announces|llp continues|llp reminds",
+    re.IGNORECASE)
+
+# Real tickers that are also corporate-suffix words — a bare-word guess for
+# these is almost always part of ANOTHER company's name ("Comfort Systems
+# USA", "OSE Immunotherapeutics SA"). They can still attach via an explicit
+# $cashtag or their own company-name match.
+_BARE_TICKER_DENY = {"USA", "SA", "NV", "AG", "SE", "CO", "PLC", "LTD",
+                     "CORP", "INC", "LLC", "LLP", "GRP", "HLDG"}
+
 
 def _today_market_date() -> str:
     return dt.datetime.now(_ET).date().isoformat()
@@ -260,8 +274,10 @@ def _parse_iso_to_unix(s: str) -> Optional[int]:
 
 
 def _pull_rss_signals() -> dict[str, list[dict]]:
-    """Pull recent RSS items; extract ticker mentions via cashtag regex."""
+    """Pull recent RSS items; extract ticker mentions via cashtag regex
+    + company-name matching (news_match, Approach 2 v1)."""
     from api.services.news_aggregator import fetch_rss_news
+    from api.services.catalyst import news_match
     out: dict[str, list[dict]] = defaultdict(list)
     today = _today_market_date()
     items = _safe(lambda: fetch_rss_news(today, limit=80) or [],
@@ -270,10 +286,29 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
         title = item.get("title") or item.get("headline") or ""
         summary = item.get("summary") or ""
         text = f"{title} {summary}"
+        # Law-firm boilerplate ("Shareholder Alert", "INVESTOR NOTICE",
+        # class-action deadline reminders) is not a catalyst — it minted
+        # junk Catalyst rows (GPGI/FSK reached selection 2026-06-12).
+        if _LEGAL_NOISE_RE.search(text):
+            continue
         tickers = set(_CASHTAG_RE.findall(text.upper()))
+        # Upstream news_aggregator guesses tickers from ANY bare 2-5-letter
+        # uppercase word (FIFA/USMNT/LLP/USA arrived as "tickers") — accept
+        # bare-word guesses only when they're real cap-universe symbols.
+        _uni = news_match.universe_set()
         for t in (item.get("tickers") or []):
-            if t:
-                tickers.add(t.upper())
+            t = (t or "").upper()
+            if t and t not in _BARE_TICKER_DENY and (not _uni or t in _uni):
+                tickers.add(t)
+        # Approach 2 v1: headlines name COMPANIES, not cashtags ("Rocket Lab,
+        # Nebius, Astera Labs, CoreWeave, Teradyne to join Nasdaq-100" attached
+        # to zero tickers on 2026-06-12). Match company names from the
+        # cap-universe meta cache; matched tickers become candidates (an
+        # RSS-only ticker enters the universe like any other source's).
+        try:
+            tickers |= news_match.match_tickers(text)
+        except Exception:
+            logger.exception("[catalyst-sources] news name-match failed (non-fatal)")
         # news_aggregator emits time_published as ISO string — convert to unix.
         published_unix = _parse_iso_to_unix(item.get("time_published") or "")
         for ticker in tickers:
