@@ -10,6 +10,7 @@ import SentimentGauge from '../calendar/SentimentGauge'
 import useFilings from '../../hooks/useFilings'
 import useCallRecap from '../../hooks/useCallRecap'
 import useEarningsAudio from '../../hooks/useEarningsAudio'
+import CompanyLogo from '../CompanyLogo'
 import styles from './EarningsModal.module.css'
 
 const TWEETS_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
@@ -182,6 +183,7 @@ export default function EarningsModal({ row, label, onClose }) {
       <div className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="earnings-modal-title">
 
         <div className={styles.header}>
+          <CompanyLogo sym={row.sym} size={38} />
           <span className={styles.sym} id="earnings-modal-title">{row.sym}</span>
           <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
         </div>
