@@ -4,6 +4,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
+import CompanyLogo from '../CompanyLogo'
 import ErrorState from '../ErrorState'
 import { SkeletonTable } from '../Skeleton'
 import styles from './LeadershipTile.module.css'
@@ -56,6 +57,7 @@ export default function LeadershipTile() {
                 <span className={styles.rank}>#{i + 1}</span>
                 <div className={styles.body}>
                   <div className={styles.top} onClick={() => thesis && toggle(i)} style={thesis ? { cursor: 'pointer' } : undefined}>
+                    <CompanyLogo sym={sym} size={20} />
                     <TickerPopup sym={sym}>
                       <span className={styles.sym}>{sym}</span>
                     </TickerPopup>
