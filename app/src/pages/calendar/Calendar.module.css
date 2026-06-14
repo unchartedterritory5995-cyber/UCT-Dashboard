@@ -193,10 +193,10 @@
   flex-wrap: wrap;
   gap: 6px;
   margin: 0 0 11px;
-  padding: 8px 10px;
-  background: var(--cal-panel);
+  padding: 6px 9px;
+  background: transparent;
   border: 1px solid var(--cal-line);
-  border-left: 2px solid var(--cal-blue);
+  border-left: 2px solid rgba(107, 163, 190, 0.5);
   border-radius: 9px;
 }
 
@@ -204,7 +204,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--cal-dim);
   padding: 1px 4px;
 }
@@ -226,8 +226,8 @@
 .summary {
   display: flex;
   gap: 18px;
-  padding: 11px 18px;
-  background: linear-gradient(90deg, rgba(201, 168, 76, 0.07), transparent);
+  padding: 10px 18px;
+  background: transparent;
   border-bottom: 1px solid var(--cal-line);
   font-size: 12px;
   flex-wrap: wrap;
@@ -237,6 +237,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.scol + .scol {
+  border-left: 1px solid var(--cal-line);
+  padding-left: 18px;
 }
 
 .scolLbl {
@@ -255,7 +260,7 @@
 }
 
 .summary b {
-  font-size: 15px;
+  font-size: 14px;
   display: block;
   font-weight: 800;
 }
