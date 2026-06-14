@@ -293,10 +293,22 @@ def _is_cold_stale_intraday(tf: str, last_ts: int | None, now=None) -> bool:
 
 
 def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
-    """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format."""
+    """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
+
+    Serve-time defense-in-depth (2026-06-13): drop garbage bars — any with a
+    null OHLC field or a non-positive price — so a chart NEVER receives one no
+    matter how it entered SQLite. The universe sweep found ~1 stray null-OHLC
+    placeholder bar per ticker on 30m/60m (overnight UTC buckets, v=0); this is
+    the single chokepoint every cached response flows through. Zero volume is
+    legitimate (illiquid / extended-hours) and is kept. Filtering here does not
+    perturb delta/partial-cache logic — those read raw SQLite rows, not this."""
     date_tf = tf in ("D", "W", "M")
     out = []
     for ts, o, h, l, c, v in rows:
+        if o is None or h is None or l is None or c is None:
+            continue
+        if o <= 0 or h <= 0 or l <= 0 or c <= 0:
+            continue
         if date_tf:
             s = str(ts)
             t_val = f"{s[:4]}-{s[4:6]}-{s[6:]}"

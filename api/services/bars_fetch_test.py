@@ -792,3 +792,52 @@ class TestIntradayStalenessEscalation:
         self._wire(monkeypatch, stale_massive, fresh_fmp, [])
         out = _bf.fetch_with_validation("FJET", "30", 200)
         assert out[-1]["c"] == 8.14, "legacy first-valid behavior changed"
+
+
+from api.services.bars_fetch import _fmt_sqlite_bars
+
+
+class TestFmtSqliteBarsGarbageGuard:
+    """Serve-time defense-in-depth: no chart should ever receive a bar with
+    null OHLC or a non-positive price, regardless of how it got into SQLite.
+    The universe sweep found ~1 stray null-OHLC placeholder bar per ticker on
+    30m/60m (overnight UTC buckets, v=0). _fmt_sqlite_bars is the single
+    chokepoint every cached response flows through, so the guard lives here."""
+
+    def test_drops_null_ohlc_bar(self):
+        rows = [
+            (1757948400, 215.18, 215.97, 214.94, 215.06, 242887),
+            (1776211200, None, None, None, None, 0),          # the garbage bar
+            (1757952000, 215.10, 215.50, 214.80, 215.00, 100000),
+        ]
+        out = _fmt_sqlite_bars(rows, "30")
+        assert len(out) == 2
+        assert all(b["o"] is not None for b in out)
+
+    def test_drops_nonpositive_price_bar(self):
+        rows = [
+            (1757948400, 215.18, 215.97, 214.94, 215.06, 242887),
+            (1757952000, 0.0, 0.0, 0.0, 0.0, 0),              # nonpositive garbage
+            (1757955600, -1.0, 2.0, -1.0, 1.0, 50),           # negative garbage
+            (1757959200, 215.10, 215.50, 214.80, 215.00, 100000),
+        ]
+        out = _fmt_sqlite_bars(rows, "30")
+        assert len(out) == 2
+
+    def test_keeps_valid_bars_including_zero_volume(self):
+        # Zero volume is legitimate (illiquid / extended-hours) — must NOT drop.
+        rows = [
+            (1757948400, 215.18, 215.97, 214.94, 215.06, 0),
+            (1757952000, 215.10, 215.50, 214.80, 215.00, 100000),
+        ]
+        out = _fmt_sqlite_bars(rows, "30")
+        assert len(out) == 2
+
+    def test_daily_date_formatting_and_order_preserved(self):
+        rows = [
+            (20260610, 10.0, 11.0, 9.5, 10.5, 1000),
+            (20260611, None, None, None, None, 0),
+            (20260612, 10.5, 12.0, 10.0, 11.0, 2000),
+        ]
+        out = _fmt_sqlite_bars(rows, "D")
+        assert [b["t"] for b in out] == ["2026-06-10", "2026-06-12"]
