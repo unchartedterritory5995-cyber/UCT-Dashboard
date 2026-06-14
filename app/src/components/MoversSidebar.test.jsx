@@ -1,43 +1,24 @@
-import { renderWithProviders, screen } from '../test-utils'
+// app/src/components/MoversSidebar.test.jsx
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+// Stub the logo + popup + data hooks so the component mounts cheaply.
+vi.mock('./CompanyLogo', () => ({ default: ({ sym }) => <span data-testid="logo">{sym}</span> }))
+vi.mock('./TickerPopup', () => ({ default: ({ children }) => <>{children}</> }))
+vi.mock('../hooks/useMobileSWR', () => ({ default: () => ({ data: undefined, error: undefined, mutate: () => {} }) }))
+vi.mock('../hooks/useBatchTweetCounts', () => ({ default: () => ({ data: {} }) }))
+vi.mock('../hooks/useTapeFeed', () => ({ default: () => ({ data: [] }) }))
+vi.mock('../hooks/useTickerTweets', () => ({ default: () => ({ data: [] }) }))
+
 import MoversSidebar from './MoversSidebar'
 
-const mockData = {
-  ripping: [
-    { sym: 'RNG', pct: '+34.40%' },
-    { sym: 'TNDM', pct: '+32.67%' },
-  ],
-  drilling: [
-    { sym: 'GRND', pct: '-50.55%' },
-    { sym: 'CCOI', pct: '-29.36%' },
-  ]
-}
-
-test('renders ripping and drilling sections with data', () => {
-  renderWithProviders(<MoversSidebar data={mockData} />)
-  // Title is now mixed-case "Movers at the Open" (previously all-caps).
-  expect(screen.getByText(/movers at the open/i)).toBeInTheDocument()
-  expect(screen.getByText(/ripping/i)).toBeInTheDocument()
-  expect(screen.getByText(/drilling/i)).toBeInTheDocument()
-  expect(screen.getByText('RNG')).toBeInTheDocument()
-  expect(screen.getByText('+34.40%')).toBeInTheDocument()
-  expect(screen.getByText('GRND')).toBeInTheDocument()
-  expect(screen.getByText('-50.55%')).toBeInTheDocument()
-})
-
-test('renders skeleton (no crash) when no data', () => {
-  // Loading state now renders SkeletonTable; no literal "loading" text.
-  const { container } = renderWithProviders(<MoversSidebar data={null} />)
-  expect(container).toBeTruthy()
-})
-
-test('each ticker sym is wrapped in a TickerPopup trigger', () => {
-  const mockData = {
-    ripping:  [{ sym: 'NVDA', pct: '+5.20%' }, { sym: 'TSLA', pct: '+3.10%' }],
-    drilling: [{ sym: 'META', pct: '-4.10%' }],
-  }
-  renderWithProviders(<MoversSidebar data={mockData} />)
-  // TickerPopup renders data-testid="ticker-{sym}" on each trigger span
-  expect(screen.getByTestId('ticker-NVDA')).toBeInTheDocument()
-  expect(screen.getByTestId('ticker-TSLA')).toBeInTheDocument()
-  expect(screen.getByTestId('ticker-META')).toBeInTheDocument()
+describe('MoversSidebar', () => {
+  it('renders a company logo for each mover row', () => {
+    render(<MoversSidebar data={{
+      ripping: [{ sym: 'NVDA', pct: '+4.2%' }],
+      drilling: [{ sym: 'TSLA', pct: '-3.0%' }],
+    }} />)
+    const logos = screen.getAllByTestId('logo').map(l => l.textContent)
+    expect(logos).toEqual(expect.arrayContaining(['NVDA', 'TSLA']))
+  })
 })

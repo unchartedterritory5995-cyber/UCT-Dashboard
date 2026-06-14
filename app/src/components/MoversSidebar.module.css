@@ -103,6 +103,12 @@
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+.symWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .pct {
   font-family: var(--font-sans);
   font-weight: 600;

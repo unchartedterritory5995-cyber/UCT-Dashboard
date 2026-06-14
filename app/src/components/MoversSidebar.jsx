@@ -6,6 +6,7 @@ import useTapeFeed from '../hooks/useTapeFeed'
 import useTickerTweets from '../hooks/useTickerTweets'
 import { timeAgo } from '../utils/timeAgo'
 import TickerPopup from './TickerPopup'
+import CompanyLogo from './CompanyLogo'
 import ErrorState from './ErrorState'
 import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
@@ -72,9 +73,12 @@ function MoverSection({ label, items, positive, tweetCounts }) {
                 onPointerEnter={() => prefetchBarOnIntent(item.sym, 'D')}
                 onFocus={() => prefetchBarOnIntent(item.sym, 'D')}
               >
-                <TickerPopup sym={item.sym}>
-                  <span className={styles.sym}>{item.sym}</span>
-                </TickerPopup>
+                <span className={styles.symWrap}>
+                  <CompanyLogo sym={item.sym} size={18} />
+                  <TickerPopup sym={item.sym}>
+                    <span className={styles.sym}>{item.sym}</span>
+                  </TickerPopup>
+                </span>
                 <span className={`${styles.pct} ${positive ? styles.green : styles.red}`}>
                   {item.pct}
                 </span>
@@ -114,9 +118,12 @@ function TapeSection() {
           return (
             <div key={row.ticker} className={styles.rowGroup}>
               <div className={styles.row}>
-                <TickerPopup sym={row.ticker}>
-                  <span className={styles.sym}>{row.ticker}</span>
-                </TickerPopup>
+                <span className={styles.symWrap}>
+                  <CompanyLogo sym={row.ticker} size={18} />
+                  <TickerPopup sym={row.ticker}>
+                    <span className={styles.sym}>{row.ticker}</span>
+                  </TickerPopup>
+                </span>
                 <span className={styles.tapeMeta}>
                   {row.n_tweets}t · {timeAgo(row.latest_at)}
                 </span>
