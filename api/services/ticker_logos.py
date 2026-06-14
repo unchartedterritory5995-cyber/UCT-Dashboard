@@ -123,7 +123,7 @@ def _logodev_logo_bytes(sym: str):
         return None
     url = (
         f"https://img.logo.dev/ticker/{_safe(sym)}"
-        f"?token={_LOGODEV_TOKEN}&format=png&size=128&retina=true&fallback=404"
+        f"?token={_LOGODEV_TOKEN}&format=png&size=256&retina=true&fallback=404"
     )
     return _url_bytes(url)
 
@@ -166,7 +166,7 @@ def _logodev_domain_bytes(domain: str):
         return None
     url = (
         f"https://img.logo.dev/{domain}"
-        f"?token={_LOGODEV_TOKEN}&format=png&size=128&retina=true&fallback=404"
+        f"?token={_LOGODEV_TOKEN}&format=png&size=256&retina=true&fallback=404"
     )
     return _url_bytes(url)
 
@@ -242,7 +242,7 @@ def _normalize_png(raw: bytes):
     try:
         from PIL import Image
         im = Image.open(io.BytesIO(raw)).convert("RGBA")
-        im.thumbnail((96, 96))
+        im.thumbnail((256, 256))
         out = io.BytesIO()
         im.save(out, format="PNG")
         return out.getvalue()

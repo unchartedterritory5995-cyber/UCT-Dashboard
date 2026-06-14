@@ -1,6 +1,31 @@
+import io
 import os
 from unittest import mock
+
+from PIL import Image
+
 from api.services import ticker_logos as tl
+
+
+def _png_bytes(w, h):
+    im = Image.new("RGBA", (w, h), (200, 30, 30, 255))
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_normalize_png_caps_at_256():
+    out = tl._normalize_png(_png_bytes(400, 400))
+    assert out is not None
+    im = Image.open(io.BytesIO(out))
+    assert max(im.size) == 256
+
+
+def test_normalize_png_does_not_upscale_small_logos():
+    out = tl._normalize_png(_png_bytes(64, 64))
+    assert out is not None
+    im = Image.open(io.BytesIO(out))
+    assert max(im.size) == 64
 
 
 def test_get_logo_path_returns_none_when_absent(tmp_path):
