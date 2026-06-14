@@ -5,6 +5,7 @@ import useLivePrices from '../../hooks/useLivePrices'
 import HighlightThesis from '../../utils/highlightThesis'
 import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
+import CompanyLogo from '../CompanyLogo'
 import { useAuth } from '../../context/AuthContext'
 import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
@@ -523,12 +524,15 @@ export default function CatalystTable() {
                     onFocus={() => prefetchBarOnIntent(r.ticker, 'D')}
                   >
                     <td className={styles.colSym}>
-                      <TickerPopup sym={r.ticker}>
-                        <span className={styles.ticker}>
-                          {onMyList && <span className={styles.star} title="On your watchlist or flagged">★</span>}
-                          {r.ticker}
-                        </span>
-                      </TickerPopup>
+                      <span className={styles.symCell}>
+                        <CompanyLogo sym={r.ticker} size={20} />
+                        <TickerPopup sym={r.ticker}>
+                          <span className={styles.ticker}>
+                            {onMyList && <span className={styles.star} title="On your watchlist or flagged">★</span>}
+                            {r.ticker}
+                          </span>
+                        </TickerPopup>
+                      </span>
                     </td>
                     <td className={styles.colPrice}>{fmtPrice(displayPrice)}</td>
                     <td className={`${styles.colGap} ${(displayChange ?? 0) >= 0 ? styles.gain : styles.loss}`}>

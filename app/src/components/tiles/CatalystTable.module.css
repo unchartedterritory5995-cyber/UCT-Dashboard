@@ -100,7 +100,13 @@
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.02)); }
 
-.colSym     { width: 80px; white-space: nowrap; }
+.colSym     { width: 104px; white-space: nowrap; }
+
+.symCell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 .colPrice   { width: 80px; white-space: nowrap; }
 .colGap     { width: 80px; font-weight: 600; white-space: nowrap; }
 .colVol     { width: 70px; white-space: nowrap; }
