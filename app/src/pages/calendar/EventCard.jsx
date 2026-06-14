@@ -47,7 +47,7 @@ function IpoCard({ event }) {
     <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardIpo}`}>
       <div className={styles.evtTypeTag}>IPO</div>
       <div className={styles.cardTop}>
-        <CompanyLogo sym={sym || '?'} size={38} />
+        <CompanyLogo sym={sym || '?'} size={46} />
         <div>
           <div className={styles.sym}>
             {sym || '—'}
@@ -93,7 +93,7 @@ function DividendCard({ event }) {
     <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardDiv}`}>
       <div className={styles.evtTypeTag}>DIV</div>
       <div className={styles.cardTop}>
-        <CompanyLogo sym={sym || '?'} size={38} />
+        <CompanyLogo sym={sym || '?'} size={46} />
         <div>
           <div className={styles.sym}>{sym || '—'}</div>
           <div className={styles.nm}>Ex-Dividend</div>
@@ -126,7 +126,7 @@ function SplitCard({ event }) {
     <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardSplit}`}>
       <div className={styles.evtTypeTag}>SPLIT</div>
       <div className={styles.cardTop}>
-        <CompanyLogo sym={sym || '?'} size={38} />
+        <CompanyLogo sym={sym || '?'} size={46} />
         <div>
           <div className={styles.sym}>{sym || '—'}</div>
           <div className={styles.nm}>Stock Split</div>
