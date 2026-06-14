@@ -700,6 +700,8 @@
 .hrow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  row-gap: 8px;
   gap: 12px;
   padding: 14px 18px;
 }
