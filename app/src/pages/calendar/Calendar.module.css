@@ -95,16 +95,6 @@
   color: var(--cal-dim);
 }
 
-.bmo {
-  background: rgba(201, 168, 76, 0.15);
-  color: var(--ut-gold);
-}
-
-.amc {
-  background: rgba(107, 163, 190, 0.15);
-  color: var(--cal-blue);
-}
-
 /* Direction B: timing as a quiet top-right label instead of a pill */
 .session {
   font-size: 10px;
@@ -176,37 +166,6 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--cal-gold);
-}
-
-/* Beat / miss history bars */
-.hist {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 20px;
-  margin-top: 9px;
-}
-
-.hist i {
-  flex: 1;
-  border-radius: 2px 2px 0 0;
-  display: block;
-}
-
-.histPos {
-  background: rgba(60, 184, 104, 0.75);
-}
-
-.histNeg {
-  background: rgba(231, 76, 60, 0.75);
-}
-
-.histLbl {
-  font-size: 8px;
-  color: var(--cal-muted);
-  align-self: center;
-  margin-left: 4px;
-  white-space: nowrap;
 }
 
 .beatNote {
@@ -865,13 +824,6 @@
   color: var(--cal-gold);
   margin-top: 5px;
   font-weight: 600;
-}
-
-.sessionLbl {
-  font-size: 9px;
-  color: var(--cal-muted);
-  margin-top: 3px;
-  letter-spacing: 0.3px;
 }
 
 /* ── A3: FiltersPopover ──────────────────────────────────────────────────── */
