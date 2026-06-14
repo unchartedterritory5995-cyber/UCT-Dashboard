@@ -31,6 +31,13 @@ router = APIRouter()
 
 _CACHE_TTL = 600  # 10 min — shorter to pick up reported actuals faster
 
+# EarningsWhispers connection-drops rapid/parallel bursts, so the per-day live
+# fetch is PACED sequentially with a short delay + retry instead of 5 parallel
+# threads (which got ~4/5 requests blocked → an empty calendar).
+_EW_PACE_SECONDS = 0.6    # delay between consecutive EW day-fetches
+_EW_RETRIES = 2           # extra attempts per day on a transient block
+_EW_RETRY_BACKOFF = 1.5   # base seconds between retries (grows per attempt)
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -233,12 +240,29 @@ def _fetch_finviz_week(week_date_strs: list[str]) -> dict[str, dict]:
     return result
 
 
+def _fetch_ew_day_resilient(ds: str) -> list:
+    """Fetch one EarningsWhispers day with retries. EW connection-drops rapid
+    bursts, so callers MUST pace these sequentially. Never raises — returns []
+    only after every attempt fails."""
+    import time as _time
+    from api.services.engine import _fetch_ew_live
+    last_exc = None
+    for attempt in range(_EW_RETRIES + 1):
+        try:
+            return _fetch_ew_live(ds)
+        except Exception as exc:  # any failure is retried, then swallowed
+            last_exc = exc
+            if attempt < _EW_RETRIES:
+                _time.sleep(_EW_RETRY_BACKOFF * (attempt + 1))
+    _logger.warning("EW fetch failed for %s after %d attempts: %s",
+                    ds, _EW_RETRIES + 1, last_exc)
+    return []
+
+
 # ── Live EarningsWhispers + Finviz path ────────────────────────────────────────
 
 def _build_live(week_dates: list[date], today: date) -> dict:
-    """Parallel EarningsWhispers fetch + Finviz Elite supplement for each weekday."""
-    from api.services.engine import _fetch_ew_live
-
+    """Sequential paced EarningsWhispers fetch + Finviz Elite supplement per weekday."""
     week_date_strs = [d.strftime("%Y-%m-%d") for d in week_dates]
     results: dict[str, dict] = {}
 
@@ -259,11 +283,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
 
     def _fetch(d: date) -> None:
         ds = d.strftime("%Y-%m-%d")
-        try:
-            raw = _fetch_ew_live(ds)
-        except Exception as exc:
-            _logger.warning("EW fetch failed for %s: %s", ds, exc)
-            raw = []
+        raw = _fetch_ew_day_resilient(ds)
 
         _EPS_SENTINELS_LIVE = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
 
@@ -308,13 +328,15 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             "fed":      [],
         }
 
-    threads = [threading.Thread(target=_fetch, args=(d,)) for d in week_dates]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join(timeout=20)
+    # EW is fetched SEQUENTIALLY with a short delay — parallel bursts get
+    # connection-dropped by EW (≈4/5 blocked → empty calendar).
+    import time as _time
+    for i, d in enumerate(week_dates):
+        if i:
+            _time.sleep(_EW_PACE_SECONDS)
+        _fetch(d)
 
-    # Wait for Finviz (max 5s beyond EW threads)
+    # Wait for the (parallel) Finviz bulk call
     fv_done.wait(timeout=5)
 
     # Merge Finviz tickers not already in EW, using Finviz estimates
@@ -578,6 +600,17 @@ def get_calendar():
         source = "live"
     except Exception as exc:
         _logger.warning("Calendar: live build error: %s", exc)
+
+    # ── 1b. If live came back with ZERO earnings (e.g. EW throttled every day),
+    #         don't accept an empty calendar — fall through to wire earnings. ──
+    if days is not None:
+        live_total = sum(len(dy.get("bmo", [])) + len(dy.get("amc", [])) for dy in days.values())
+        if live_total == 0 and wire and wire.get("weekly_calendar"):
+            try:
+                days = _from_wire(wire["weekly_calendar"], week_dates, today, cap_universe=cap_uni)
+                source = "wire_after_empty_live"
+            except Exception as exc:
+                _logger.warning("Calendar: wire fallback after empty live error: %s", exc)
 
     # ── 2. Fallback: wire data (from morning engine push) ────────────────────
     if days is None:
