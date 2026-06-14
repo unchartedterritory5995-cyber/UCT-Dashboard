@@ -453,7 +453,7 @@
 .wcol {
   background: var(--cal-panel);
   border: 1px solid var(--cal-line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px;
   min-height: 120px;
 }
@@ -526,7 +526,7 @@
 .gcell {
   background: var(--cal-panel);
   border: 1px solid var(--cal-line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 7px 8px;
   min-height: 104px;
   cursor: pointer;
