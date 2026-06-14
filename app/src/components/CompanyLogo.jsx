@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import styles from './CompanyLogo.module.css'
 
 const MAX_RETRY = 3   // cold logos resolve in the background; re-fetch a few times before giving up to the monogram
+const LOGO_ASSET_VERSION = 2   // bump to force browsers past the 7-day immutable cache (e.g. after a resolution upgrade)
 
 // Deterministic pleasant background from the symbol (stable across renders).
 function bgFor(sym) {
@@ -43,11 +44,11 @@ export default function CompanyLogo({ sym, size = 38, round = false, name = null
   }
   // Optional resolution hints for non-US tickers (company name + exchange-suffixed
   // symbol) so the backend can fall back to name→domain / alt-symbol logo sources.
-  const q = []
+  const q = [`v=${LOGO_ASSET_VERSION}`]
   if (name) q.push(`name=${encodeURIComponent(name)}`)
   if (alt) q.push(`alt=${encodeURIComponent(alt)}`)
   if (retry) q.push(`_r=${retry}`)   // cache-bust the 60s placeholder so the retry re-hits the server
-  const src = `/api/ticker-logo/${s}${q.length ? `?${q.join('&')}` : ''}`
+  const src = `/api/ticker-logo/${s}?${q.join('&')}`
   return (
     <span className={`${styles.wrap}${rc}`} style={{ width: px, height: px }}>
       <img className={styles.img} src={src} alt={`${s} logo`}
