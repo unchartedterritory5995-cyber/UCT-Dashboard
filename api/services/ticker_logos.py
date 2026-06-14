@@ -335,6 +335,7 @@ def schedule_resolve(sym: str, name: str = None, alt: str = None) -> None:
 # ── Miss-retry pass: re-attempt .miss tickers via extended source chain ───────
 
 _MISS_RETRY_LOCK = threading.Lock()
+_HIRES_LOCK = threading.Lock()
 _MISS_RETRY_WORKERS = 2       # ≤2 — Finnhub/Clearbit/yfinance are rate-limited
 _MISS_RETRY_SLEEP  = 1.0      # seconds between attempts per worker
 
@@ -415,4 +416,63 @@ def run_miss_retry() -> dict:
     finally:
         _MISS_RETRY_LOCK.release()
 
+    return stats
+
+
+def run_hires_upgrade(sleep_seconds: float = _MISS_RETRY_SLEEP) -> dict:
+    """Re-resolve every already-cached {SYM}.png at the current (256px) cap and
+    overwrite it in place. One-shot upgrade for logos cached at the old 96px size.
+
+    Low concurrency (≤2 workers) with inter-fetch sleeps to respect upstream rate
+    limits. Never deletes a logo: a failed re-fetch leaves the existing file alone
+    (an existing soft logo beats a blank). Safe to call concurrently — a second
+    call while one is running returns {"skipped": True}.
+    """
+    if not _HIRES_LOCK.acquire(blocking=False):
+        _logger.info("[logo-hires] already running — skipping")
+        return {"skipped": True}
+
+    stats = {"total": 0, "upgraded": 0, "unchanged": 0}
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        try:
+            syms = [f[:-4] for f in os.listdir(_CACHE_DIR) if f.endswith(".png")]
+        except OSError as e:
+            _logger.warning("[logo-hires] listdir failed: %s", e)
+            return stats
+
+        stats["total"] = len(syms)
+        if not syms:
+            return stats
+        _logger.info("[logo-hires] starting: %d cached logos to upgrade", len(syms))
+
+        def _upgrade_one(sym: str) -> bool:
+            s = _safe(sym)
+            try:
+                if sleep_seconds:
+                    time.sleep(sleep_seconds)
+                raw = _fetch_sources(s)
+                png = _normalize_png(raw) if raw else None
+                if not png:
+                    return False
+                tmp = _png_path(s) + ".tmp"
+                with open(tmp, "wb") as fh:
+                    fh.write(png)
+                os.replace(tmp, _png_path(s))
+                return True
+            except Exception as e:
+                _logger.debug("[logo-hires] %s failed: %s", s, e)
+                return False
+
+        with ThreadPoolExecutor(max_workers=_MISS_RETRY_WORKERS,
+                                thread_name_prefix="logo-hires") as ex:
+            from concurrent.futures import as_completed
+            futs = {ex.submit(_upgrade_one, sym): sym for sym in syms}
+            for fut in as_completed(futs):
+                stats["upgraded" if fut.result() else "unchanged"] += 1
+
+        _logger.info("[logo-hires] done: upgraded=%d unchanged=%d",
+                     stats["upgraded"], stats["unchanged"])
+    finally:
+        _HIRES_LOCK.release()
     return stats

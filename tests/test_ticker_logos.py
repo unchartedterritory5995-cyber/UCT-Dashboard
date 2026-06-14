@@ -189,3 +189,21 @@ def test_prewarm_router_misses_param():
     assert r.json()["mode"] == "miss_retry"
     miss_fn.assert_called_once()
     full_fn.assert_not_called()
+
+
+def test_run_hires_upgrade_recaches_existing(tmp_path, monkeypatch):
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    old = _png_bytes(80, 80)
+    png_path = tl._png_path("AAPL")
+    with open(png_path, "wb") as fh:
+        fh.write(old)
+
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: _png_bytes(300, 300))
+
+    stats = tl.run_hires_upgrade(sleep_seconds=0.0)
+    assert stats["total"] == 1
+    assert stats["upgraded"] == 1
+
+    from PIL import Image
+    im = Image.open(png_path)
+    assert max(im.size) == 256
