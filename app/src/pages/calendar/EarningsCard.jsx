@@ -71,8 +71,6 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
 
   // A5: Countdown
   const countdown = fmtCountdown(entry.time_et)
-  // Fallback timing label when no countdown
-  const sessionLabel = timing === 'bmo' ? 'BMO' : 'AMC'
 
   const { menu, openMenu, closeMenu, longPressProps } = useTickerActions()
 
@@ -85,18 +83,18 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
       >
         {entry.mine && <span className={styles.star}>★</span>}
         <div className={styles.cardTop}>
-          <CompanyLogo sym={entry.sym} size={38} />
-          <div>
+          <CompanyLogo sym={entry.sym} size={46} />
+          <div className={styles.cardHead}>
             <div className={styles.sym}>
               {entry.sym}
-              <span className={`${styles.tpill} ${timing === 'bmo' ? styles.bmo : styles.amc}`}>
-                {(timing || '').toUpperCase()}
-              </span>
               {reported && <span className={styles.beatPill}>{
                 surprise(entry.eps_act, entry.eps_est)?.startsWith('-') ? 'MISS' : 'BEAT'}</span>}
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>
+          <span className={`${styles.session} ${timing === 'bmo' ? styles.sessionBmo : styles.sessionAmc}`}>
+            {(timing || '').toUpperCase()}
+          </span>
         </div>
 
         {!reported ? (
@@ -118,12 +116,8 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               </div>
             )}
 
-            {/* A5: Countdown or session label */}
-            {countdown ? (
-              <div className={styles.countdown}>{countdown}</div>
-            ) : (
-              <div className={styles.sessionLbl}>{sessionLabel}</div>
-            )}
+            {/* A5: Countdown (timing now lives in the de-pilled top-right label) */}
+            {countdown && <div className={styles.countdown}>{countdown}</div>}
 
             {em != null && (
               <div className={styles.emv}><span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
@@ -136,13 +130,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               </div>
             )}
             {beats.length > 0 && (
-              <div className={styles.hist}>
-                {beats.map((b, i) => (
-                  <i key={i} className={b.beat ? styles.histPos : styles.histNeg}
-                     style={{ height: `${40 + i * 12}%` }} />
-                ))}
-                <span className={styles.histLbl}>{beatCount}/{beats.length} beat</span>
-              </div>
+              <div className={styles.beatNote}>Beat {beatCount} of last {beats.length} quarters</div>
             )}
           </>
         ) : (

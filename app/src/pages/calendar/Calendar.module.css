@@ -29,8 +29,8 @@
   position: relative;
   background: var(--cal-panel);
   border: 1px solid var(--cal-line);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 16px;
   transition: border-color 0.12s, transform 0.12s;
   cursor: pointer;
   container-type: inline-size;
@@ -57,12 +57,17 @@
 .cardTop {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cardHead {
+  flex: 1;
+  min-width: 0;
 }
 
 .sym {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.1;
   color: var(--cal-txt);
@@ -73,10 +78,10 @@
 }
 
 .nm {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--cal-muted);
   line-height: 1.2;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 /* BMO / AMC timing pills */
@@ -100,6 +105,16 @@
   color: var(--cal-blue);
 }
 
+/* Direction B: timing as a quiet top-right label instead of a pill */
+.session {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  align-self: flex-start;
+}
+.sessionBmo { color: var(--cal-gold); }
+.sessionAmc { color: var(--cal-blue); }
+
 /* BEAT / MISS pill */
 .beatPill {
   font-size: 8px;
@@ -114,10 +129,13 @@
 .met {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  padding: 3px 0;
+  font-size: 12px;
+  padding: 5px 0;
   color: var(--cal-txt);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
+
+.met:last-of-type { border-bottom: none; }
 
 .mono {
   font-family: var(--font-mono);
@@ -139,13 +157,12 @@
 /* Expected move box */
 .emv {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-top: 8px;
-  padding: 7px 9px;
-  background: var(--bg);
-  border: 1px solid var(--cal-line);
-  border-radius: 8px;
+  margin-top: 12px;
+  padding: 0;
+  background: none;
+  border: none;
 }
 
 .emvLbl {
@@ -156,7 +173,7 @@
 }
 
 .emvBig {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--cal-gold);
 }
@@ -190,6 +207,13 @@
   align-self: center;
   margin-left: 4px;
   white-space: nowrap;
+}
+
+.beatNote {
+  font-size: 10px;
+  color: var(--cal-green);
+  font-weight: 600;
+  margin-top: 9px;
 }
 
 /* Post-print reaction row (reported state) */
