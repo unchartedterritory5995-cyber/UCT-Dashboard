@@ -7,7 +7,8 @@ describe('CompanyLogo', () => {
   it('renders an img pointing at the logo endpoint', () => {
     render(<CompanyLogo sym="NVDA" />)
     const img = screen.getByAltText('NVDA logo')
-    expect(img.getAttribute('src')).toBe('/api/ticker-logo/NVDA')
+    // URL carries a LOGO_ASSET_VERSION cache-bust param (e.g. ?v=2); match robustly.
+    expect(img.getAttribute('src')).toMatch(/^\/api\/ticker-logo\/NVDA\?v=\d+/)
   })
 
   it('falls back to a monogram on image error', () => {
