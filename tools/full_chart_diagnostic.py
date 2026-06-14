@@ -62,6 +62,30 @@ def last_date(bars, tf):
         return t[:10]
     return datetime.fromtimestamp(int(t), ET).strftime("%Y-%m-%d")
 
+def _phantom_spike(bars):
+    """Return a SPIKE issue string for a TRANSIENT bad print (price spikes
+    then reverts within one bar), else None.
+
+    A real split or sustained move RE-LEVELS and persists, so it is NOT
+    flagged — that re-leveling (reverse splits, penny-stock moves) was the
+    dominant false positive (~700) that drowned the sweep's signal. A genuine
+    phantom bar deviates from BOTH neighbors: jump out, jump back.
+    """
+    for i in range(1, len(bars) - 1):
+        a = bars[i - 1].get("c") or 0
+        b = bars[i].get("c") or 0
+        n = bars[i + 1].get("c") or 0
+        if a <= 0 or b <= 0:
+            continue
+        jump = b / a
+        if jump > 2.5 or jump < 0.4:
+            # Phantom iff the next close returns toward the pre-spike level
+            # (within ~40%). A split/sustained move keeps n at the new level.
+            if n > 0 and 0.6 <= n / a <= 1.4:
+                return f"SPIKE@{i}({a}->{b}->{n})"
+    return None
+
+
 def analyze(ticker, tf, resp):
     if "_err" in resp:
         return ("ERROR", resp["_err"], None)
@@ -88,11 +112,11 @@ def analyze(ticker, tf, resp):
         if prev_t is not None and tn <= prev_t:
             issues.append("NONMONO_TS"); break
         prev_t = tn
-    # phantom-spike (soft): adjacent close ratio extreme
-    for i in range(1, len(bars)):
-        pc, cc = bars[i - 1].get("c") or 0, bars[i].get("c") or 0
-        if pc > 0 and (cc / pc > 2.5 or cc / pc < 0.4):
-            issues.append(f"SPIKE@{i}({pc}->{cc})"); break
+    # phantom-spike: only TRANSIENT spikes (spike-then-revert), not splits /
+    # sustained moves — see _phantom_spike for why.
+    sp = _phantom_spike(bars)
+    if sp:
+        issues.append(sp)
     ld = last_date(bars, tf)
     integrity = "INTEGRITY_FAIL" if issues else None
     if tf in ("1", "5", "15", "30", "60", "D"):
