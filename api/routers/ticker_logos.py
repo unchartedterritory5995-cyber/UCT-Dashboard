@@ -33,15 +33,17 @@ def ticker_logo(sym: str, name: str = None, alt: str = None):
 
 
 @router.post("/api/logos/prewarm")
-def prewarm_logos(misses: int = 0):
+def prewarm_logos(misses: int = 0, hires: int = 0):
     """Kick a logo warm pass.
 
     Query params:
-        misses=1  Run the slow miss-retry pass (≤2 workers, re-attempts .miss tickers
-                  via extended source chain incl. Clearbit-by-domain). Idempotent —
-                  a second call while one is running returns immediately.
+        hires=1   Re-cache every existing logo at the current (256px) resolution.
+        misses=1  Run the slow miss-retry pass (≤2 workers, extended source chain).
         (default) Run the normal full universe warm pass (12 workers, CDN-fast).
     """
+    if hires:
+        result = pw.run_hires_upgrade_now()
+        return {"ok": True, "mode": "hires", **result}
     if misses:
         result = pw.run_miss_retry_now()
         return {"ok": True, "mode": "miss_retry", **result}

@@ -1145,6 +1145,31 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
+    # Flag-gated so it runs exactly once; background + low-concurrency so it never
+    # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.
+    try:
+        _logo_hires_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".logo_hires_v1")
+        if not os.path.exists(_logo_hires_flag):
+            def _logo_hires_runner():
+                import time as _t
+                _t.sleep(90)  # let startup + names/bars prewarm settle first
+                try:
+                    from api.services import ticker_logos as _tl
+                    _tl.run_hires_upgrade()
+                    with open(_logo_hires_flag, "w"):
+                        pass
+                    print("[startup] logo_hires_v1: upgrade pass complete")
+                except Exception as _e:
+                    print(f"[startup] logo_hires_v1 error (non-fatal): {_e}")
+
+            import threading as _threading
+            _threading.Thread(target=_logo_hires_runner, daemon=True,
+                              name="logo-hires-startup").start()
+            print("[startup] logo_hires_v1: upgrade scheduled (~90s after boot)")
+    except Exception as e:
+        print(f"[startup] logo_hires_v1 scheduling failed (non-fatal): {e}")
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         from api.services import data_sync
 

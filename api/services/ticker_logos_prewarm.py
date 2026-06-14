@@ -156,3 +156,17 @@ def run_miss_retry_now() -> dict:
     t = threading.Thread(target=_job, daemon=True, name="logo-miss-retry-now")
     t.start()
     return {"started": True, "note": "miss-retry running in background"}
+
+
+def run_hires_upgrade_now() -> dict:
+    """Kick the hi-res upgrade pass on a background thread. Returns immediately."""
+    from api.services import ticker_logos as tl
+
+    def _job():
+        try:
+            tl.run_hires_upgrade()
+        except Exception as e:
+            _logger.warning("[logo-prewarm] hires upgrade error: %s", e)
+
+    threading.Thread(target=_job, daemon=True, name="logo-hires-now").start()
+    return {"started": True, "note": "hi-res upgrade running in background"}
