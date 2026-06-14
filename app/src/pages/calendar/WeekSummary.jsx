@@ -11,9 +11,7 @@ export default function WeekSummary({ stats }) {
     <div className={styles.summary}>
       {col('Your reports this week', stats.mineCount, styles.gold)}
       {col('Total reporters', stats.total)}
-      {col('Macro prints', stats.macroCount)}
       {stats.biggestMove && col('Biggest expected move', `${stats.biggestMove.sym} ±${stats.biggestMove.pct}%`, styles.gold)}
-      {stats.next && col('Next of yours', stats.next, styles.blue)}
     </div>
   )
 }
