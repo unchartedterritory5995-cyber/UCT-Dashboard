@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS modelbook_setup_examples (
   target_price REAL,
   grade        TEXT,
   notes        TEXT,
+  advance_note TEXT,              -- free-text move blurb shown in the header (e.g. "160% in 26 days")
+  watermark_x  REAL,              -- per-example watermark position (0..1 pane fraction); null = default
+  watermark_y  REAL,
   drawings_json TEXT,             -- JSON array of chart annotations for this example
   sort_order   INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL
@@ -148,7 +151,8 @@ _CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
 _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
                    "label_date", "frame_start_date", "result_start_date",
                    "result_end_date", "entry_price", "stop_price",
-                   "target_price", "grade", "notes", "drawings_json", "sort_order")
+                   "target_price", "grade", "notes", "advance_note",
+                   "watermark_x", "watermark_y", "drawings_json", "sort_order")
 
 
 def _connect() -> sqlite3.Connection:
@@ -184,6 +188,9 @@ def _init_db() -> None:
             ("modelbook_setups", "drawings_json", "TEXT"),
             ("modelbook_setup_examples", "result_start_date", "TEXT"),
             ("modelbook_setup_examples", "result_end_date", "TEXT"),
+            ("modelbook_setup_examples", "advance_note", "TEXT"),
+            ("modelbook_setup_examples", "watermark_x", "REAL"),
+            ("modelbook_setup_examples", "watermark_y", "REAL"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -580,11 +587,13 @@ def create_setup_example(payload: dict) -> dict:
                (setup_name, symbol, company, data_symbol, year, label_date,
                 frame_start_date, result_start_date, result_end_date,
                 entry_price, stop_price, target_price, grade,
-                notes, drawings_json, sort_order, created_at)
+                notes, advance_note, watermark_x, watermark_y,
+                drawings_json, sort_order, created_at)
                VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
                        :label_date, :frame_start_date, :result_start_date,
                        :result_end_date, :entry_price, :stop_price,
-                       :target_price, :grade, :notes, :drawings_json, :sort_order,
+                       :target_price, :grade, :notes, :advance_note,
+                       :watermark_x, :watermark_y, :drawings_json, :sort_order,
                        :created_at)""",
             data,
         )

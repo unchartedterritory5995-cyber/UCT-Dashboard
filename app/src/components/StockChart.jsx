@@ -486,6 +486,7 @@ export default function StockChart({
   watermarkOpacity = null,   // override the settings watermark opacity (Model Book uses a brighter mark)
   watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
+  onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
   watermarkIndustry = null,  // Model Book: curated historical industry (paired with watermarkSector).
@@ -928,6 +929,9 @@ export default function StockChart({
     controllerRef: wmCtrlRef,
     getActiveTool: () => activeToolRef.current,
     onCommit: ({ x, y }) => {
+      // Setup Library: persist the new position on THIS example only, never the
+      // global chart_settings (so other charts site-wide keep their watermark).
+      if (onWatermarkCommit) { onWatermarkCommit({ x, y }); return }
       const next = mergeChartSettings(prefs.chart_settings)
       next.watermark = { ...next.watermark, x, y }
       next.preset = 'custom'

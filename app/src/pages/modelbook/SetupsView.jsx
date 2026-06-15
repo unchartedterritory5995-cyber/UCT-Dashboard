@@ -409,6 +409,36 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)
+  // Inline header "advance" blurb (e.g. "160% in 26 days"), admin-editable.
+  const [advance, setAdvance] = useState(ex.advance_note || '')
+  useEffect(() => { setAdvance(ex.advance_note || '') }, [ex.advance_note])
+  // Local mirror of the watermark position so a drag-commit sticks across
+  // re-renders without waiting on a refetch (and never snaps back).
+  const [wmPos, setWmPos] = useState({ x: ex.watermark_x ?? 0.2, y: ex.watermark_y ?? 0.2 })
+  useEffect(() => {
+    setWmPos({ x: ex.watermark_x ?? 0.2, y: ex.watermark_y ?? 0.2 })
+  }, [ex.watermark_x, ex.watermark_y])
+
+  // PUT a partial field update on this example (admin-only paths).
+  async function patchExample(body) {
+    await fetch(`/api/modelbook/setup-example/${ex.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
+  function saveAdvance() {
+    const v = advance.trim()
+    if (v === (ex.advance_note || '')) return  // unchanged — skip the write
+    patchExample({ advance_note: v || null }).then(() => onChanged?.())
+  }
+  // Per-example watermark position: drag commits persist HERE only, never the
+  // global chart_settings, so other charts site-wide are unaffected.
+  function saveWatermark({ x, y }) {
+    setWmPos({ x, y })            // keep the dragged spot across re-renders
+    if (!isAdmin) return
+    patchExample({ watermark_x: x, watermark_y: y })
+  }
   const drawings = useMemo(
     () => boundHrays(parseDrawings(ex.drawings_json), ex.label_date),
     [ex.drawings_json, ex.label_date],
@@ -465,6 +495,18 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
         {companyName && <span className={styles.exCo}>{companyName}</span>}
         <span className={styles.exYear}>{ex.year}</span>
         {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
+        {isAdmin ? (
+          <input
+            className={styles.exAdvance}
+            value={advance}
+            placeholder="+ advance (e.g. 160% in 26 days)"
+            onChange={e => setAdvance(e.target.value)}
+            onBlur={saveAdvance}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+          />
+        ) : (
+          ex.advance_note && <span className={styles.exAdvanceText}>{ex.advance_note}</span>
+        )}
         <span className={styles.exTools}>
           {hasResult && (
             <span className={styles.exViewSwitch}>
@@ -528,8 +570,9 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.07}
           watermarkOpacity={0.3}
-          watermarkX={0.2}
-          watermarkY={0.2}
+          watermarkX={wmPos.x}
+          watermarkY={wmPos.y}
+          onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
           priceLines={priceLines}
           annotations={annotating ? draft : (drawings.length ? drawings : null)}

@@ -117,6 +117,9 @@ class ExampleIn(BaseModel):
     target_price: Optional[float] = None
     grade: Optional[str] = None
     notes: Optional[str] = None
+    advance_note: Optional[str] = None
+    watermark_x: Optional[float] = None
+    watermark_y: Optional[float] = None
     sort_order: Optional[int] = 0
 
 
@@ -135,6 +138,9 @@ class ExamplePatch(BaseModel):
     target_price: Optional[float] = None
     grade: Optional[str] = None
     notes: Optional[str] = None
+    advance_note: Optional[str] = None
+    watermark_x: Optional[float] = None
+    watermark_y: Optional[float] = None
     drawings_json: Optional[str] = None
     sort_order: Optional[int] = None
 
