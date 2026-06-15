@@ -120,6 +120,26 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
 })
 
+test('Bottoms opens the field manual; a card opens the study view', () => {
+  mockMbView = 'bottoms'
+  render(<ModelBook />)
+  expect(screen.getByRole('heading', { name: /^bottoms$/i })).toBeInTheDocument()
+  // The anatomy framework + the historical library render.
+  expect(screen.getByText(/the anatomy of a bottom/i)).toBeInTheDocument()
+  expect(screen.getByText(/historical major-market bottoms/i)).toBeInTheDocument()
+  const covid = screen.getByRole('button', { name: /covid crash/i })
+  expect(covid).toBeInTheDocument()
+  // Click a bottom → its study view (annotated chart + signpost timeline) opens.
+  fireEvent.click(covid)
+  expect(screen.getByRole('heading', { name: /covid crash/i })).toBeInTheDocument()
+  expect(screen.getByText(/how it bottomed/i)).toBeInTheDocument()
+  expect(screen.getByText(/signposts that fired/i)).toBeInTheDocument()
+  expect(screen.getByTestId('stock-chart')).toHaveTextContent('chart:^GSPC')
+  // Back returns to the library grid.
+  fireEvent.click(screen.getByRole('button', { name: /^‹ bottoms$/i }))
+  expect(screen.getByRole('button', { name: /generational low/i })).toBeInTheDocument()
+})
+
 test('renders the year tab and a stock card', () => {
   render(<ModelBook />)
   expect(screen.getByRole('button', { name: '2025' })).toBeInTheDocument()

@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import SetupsView from './modelbook/SetupsView'
+import BottomsView from './modelbook/BottomsView'
 import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -28,7 +29,7 @@ const MB_HUB_OPTIONS = [
   { view: 'setups',       label: 'Setups',               blurb: 'Textbook examples of every playbook pattern, pulled from history.',               available: true },
   { view: 'cycles',       label: 'Cycles',               blurb: 'How leadership rotates as the market moves through its cycles.',                  available: false },
   { view: 'corrections',  label: 'Corrections',          blurb: 'How the leaders behaved through past market corrections.',                       available: false },
-  { view: 'bottoms',      label: 'Bottoms',              blurb: 'What major market bottoms actually looked like in real time.',                   available: false },
+  { view: 'bottoms',      label: 'Bottoms',              blurb: 'What major market bottoms actually looked like in real time.',                   available: true },
   { view: 'events',       label: 'Events',               blurb: 'Crashes, shocks, and the trades that played out around them.',                   available: false },
 ]
 const MB_VIEW_LABELS = Object.fromEntries(MB_HUB_OPTIONS.map(o => [o.view, o.label]))
@@ -2108,6 +2109,11 @@ export default function ModelBook() {
   // The Setup Library — the playbook's pattern field guide.
   if (view === 'setups') {
     return <SetupsView onExit={() => setView('hub')} />
+  }
+
+  // Bottoms — the field manual for how major markets bottom.
+  if (view === 'bottoms') {
+    return <BottomsView onExit={() => setView('hub')} />
   }
 
   // Placeholder sections (everything except the 'years' library).
