@@ -98,6 +98,13 @@ function reducer(state, action) {
         rollingTranscript: appendTurn(state.rollingTranscript, 'assistant', action.text),
       }
     case 'c_disconnect':
+      // Only tear down to idle when a Realtime session (mode 'c') is actually
+      // what's active. Read-aloud (mode 'a') and one-shot (mode 'b') share this
+      // same state machine + <audio> element; a lingering Realtime session's
+      // teardown (e.g. its silence timeout) must NOT wipe an active read-aloud.
+      // Doing so hid the player bar while the read-aloud <audio> kept playing —
+      // bar gone, voice still talking, only fix was closing the tab.
+      if (state.mode !== 'c') return state
       return { ...initialState, speed: state.speed }
     case 'c_error':
       return { ...state, status: 'error', mode: 'c', errorMessage: action.message }
@@ -209,29 +216,43 @@ export function VoiceProvider({ children }) {
     }
   }, [])
 
-  const stop = useCallback(() => {
+  // Stop whatever the shared <audio> element is doing — a read-aloud `src`
+  // URL OR a Realtime/one-shot MediaStream `srcObject`. Called on stop and
+  // whenever we switch INTO another voice mode, so a previous read-aloud can
+  // never keep playing underneath the new mode (orphaned audio).
+  const haltAudioEl = useCallback(() => {
     const el = audioRef.current
-    if (el) {
-      el.pause()
-      el.src = ''
-    }
+    if (!el) return
+    try { el.pause() } catch { /* ignore */ }
+    try { if (el.srcObject) el.srcObject = null } catch { /* ignore */ }
+    try { el.src = '' } catch { /* ignore */ }
+  }, [])
+
+  const stop = useCallback(() => {
+    haltAudioEl()
     readAloudReplayRef.current = null
     dispatch({ type: 'stop' })
-  }, [])
+  }, [haltAudioEl])
 
   const setSpeed = useCallback((speed) => {
     if (audioRef.current) audioRef.current.playbackRate = speed
     dispatch({ type: 'setSpeed', speed })
   }, [])
 
-  const startListening = useCallback(() => dispatch({ type: 'b_listening' }), [])
+  // Starting a one-shot or Realtime session is an intentional interrupt — halt
+  // any read-aloud first so it doesn't keep playing under the new mode.
+  const startListening = useCallback(() => {
+    haltAudioEl()
+    dispatch({ type: 'b_listening' })
+  }, [haltAudioEl])
   const startThinking = useCallback(() => dispatch({ type: 'b_thinking' }), [])
   const startResponding = useCallback(({ transcript, narration }) =>
     dispatch({ type: 'b_responding', transcript, narration }), [])
 
-  const beginRealtime = useCallback(
-    (context = 'global') => dispatch({ type: 'c_connecting', context }), [],
-  )
+  const beginRealtime = useCallback((context = 'global') => {
+    haltAudioEl()
+    dispatch({ type: 'c_connecting', context })
+  }, [haltAudioEl])
   const realtimeConnected = useCallback(({ sessionId, openaiSessionId }) =>
     dispatch({ type: 'c_connected', sessionId, openaiSessionId }), [])
   const realtimeUserTurn = useCallback((text) =>
