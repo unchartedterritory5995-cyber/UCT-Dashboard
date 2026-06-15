@@ -14,7 +14,7 @@ function WeekTimingGroup({ label, icon, hdClass, rows, onSelect }) {
       </div>
       {rows.length ? rows.map(e => (
         <div key={`${e.sym}-${e._timing}`} className={styles.wrow} onClick={() => onSelect(e, e._timing)}>
-          <CompanyLogo sym={e.sym} size={28} />
+          <CompanyLogo sym={e.sym} size={34} />
           <span className={`${styles.t} ${e.mine ? styles.gold : ''}`}>{e.sym}</span>
         </div>
       )) : <div className={styles.wtcolEmpty}>—</div>}

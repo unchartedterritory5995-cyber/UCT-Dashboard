@@ -22,7 +22,6 @@ import FeedView from './calendar/FeedView'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
 import DayDetailDrawer from './calendar/DayDetailDrawer'
-import WeekSummary from './calendar/WeekSummary'
 import styles from './calendar/Calendar.module.css'
 
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
@@ -171,24 +170,6 @@ export default function Calendar() {
     return out
   }, [data, weekDates, mySets, mySources, enrichmentByDate])
 
-  // Week summary stats for WeekSummary banner
-  const summary = useMemo(() => {
-    let mineCount = 0, total = 0, macroCount = 0, biggest = null
-    for (const ds of weekDates) {
-      const d = days[ds]
-      if (!d) continue
-      const all = [...(d.bmo || []), ...(d.amc || [])]
-      total += all.length
-      mineCount += all.filter(e => e.mine).length
-      macroCount += (d.econ?.filter(e => e.is_key).length || 0) + (d.fed?.length || 0)
-      for (const e of all) {
-        const pct = e.expected_move?.pct
-        if (pct != null && (!biggest || pct > biggest.pct)) biggest = { sym: e.sym, pct }
-      }
-    }
-    return { mineCount, total, macroCount, biggestMove: biggest }
-  }, [days, weekDates])
-
   // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
   const onSelect = (entry, timing) => {
     const label = timingLabel(timing)
@@ -231,8 +212,6 @@ export default function Calendar() {
         eventTypes={eventTypes}
         setEventTypes={setEventTypes}
       />
-
-      {view !== 'month' && <WeekSummary stats={summary} />}
 
       <div className={styles.body}>
         {view === 'feed' && (
