@@ -510,6 +510,7 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
@@ -2673,7 +2674,12 @@ export default function StockChart({
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
       },
-      crosshair: {
+      crosshair: hideCrosshair ? {
+        mode: 0,
+        // Fully suppress both crosshair lines + their axis labels (Setup Library examples).
+        vertLine: { visible: false, labelVisible: false },
+        horzLine: { visible: false, labelVisible: false },
+      } : {
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
         vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
         horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
