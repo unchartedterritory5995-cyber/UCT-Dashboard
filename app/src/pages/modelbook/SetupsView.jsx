@@ -508,8 +508,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           exitDate={frame.end}
           exactDateRange
           frozen={!annotating}
-          hideCrosshair
-          hideLegend
+          hideCrosshair={!annotating}
+          hideLegend={!annotating}
           forceScaleMode="arith"
           boldCandles
           colorByNetChange
