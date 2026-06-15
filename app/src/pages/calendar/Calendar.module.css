@@ -397,11 +397,33 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin: 7px 0 3px;
+  margin: 0 0 5px;
+}
+
+/* BMO (left) / AMC (right) side-by-side inside a day column */
+.wtimings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wtcol {
+  min-width: 0;
+}
+
+.wtcol + .wtcol {
+  border-left: 1px solid var(--cal-line);
+  padding-left: 10px;
+}
+
+.wtcolEmpty {
+  color: var(--cal-muted);
+  font-size: 12px;
+  padding: 2px 0;
 }
 
 /* ── Task 12: WeekView + MonthView + DayDetailDrawer ────────────────────── */
@@ -439,8 +461,8 @@
 .wrow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 8px;
+  padding: 5px 0;
   cursor: pointer;
   border-radius: 5px;
   transition: background 0.1s;
@@ -451,10 +473,13 @@
 }
 
 .t {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--cal-txt);
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .v {
@@ -1167,6 +1192,19 @@
 
   .weekgrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Half-width day cards are too narrow for a BMO|AMC split — stack them */
+  .wtimings {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .wtcol + .wtcol {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--cal-line);
+    padding-top: 6px;
   }
 
   .mgrid,
