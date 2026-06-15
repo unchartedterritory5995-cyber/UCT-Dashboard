@@ -6,14 +6,10 @@ import {
 } from './bottomsCatalog'
 import styles from './BottomsView.module.css'
 
-// ── Bottom glyph ────────────────────────────────────────────────────────────────
-// A hand-drawn idealized price arc of how a market bottoms: a descent into a
-// climactic low (with a capitulation wick), the turn (gold pivot dot), and the
-// recovery — shaped by the bottom's `type`. Pure SVG illustration, not data.
-// The Bottoms answer to the Setup Library's candlestick <SetupGlyph/>.
+// ── Bottom glyph (hero centerpiece) ─────────────────────────────────────────────
+// A hand-drawn idealized price arc of a market bottom: descent into a climactic
+// low (capitulation wick) → the turn (gold pivot dot) → recovery. Pure SVG.
 const GLYPH_SHAPES = {
-  // value = height fraction from the bottom (1 = top of frame). lowIdx marks the
-  // pivot candle for the capitulation wick + gold turn dot.
   'V-Bottom':       { pts: [0.95, 0.74, 0.46, 0.12, 0.42, 0.7, 0.95], lowIdx: 3 },
   'Double Bottom':  { pts: [0.95, 0.6, 0.16, 0.46, 0.1, 0.52, 0.86], lowIdx: 4 },
   'Rounded Bottom': { pts: [0.94, 0.66, 0.4, 0.2, 0.12, 0.12, 0.2, 0.42, 0.7, 0.93], lowIdx: 4 },
@@ -43,28 +39,21 @@ export function BottomGlyph({ type = 'V-Bottom', className }) {
   const area = `${line} L${x(n - 1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z`
   const lowX = x(shape.lowIdx)
   const lowY = y(shape.pts[shape.lowIdx])
-  const triggerY = y(Math.min(0.55, shape.pts[shape.lowIdx] + 0.42))
 
   return (
     <svg className={className} viewBox={`0 0 ${W} ${H}`} fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id={`bgArea-${type}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="bgHeroArea" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#c9a84c" stopOpacity="0.22" />
           <stop offset="1" stopColor="#c9a84c" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* faint chart-paper rules */}
       {[0.25, 0.5, 0.75].map(fr => (
         <line key={fr} x1="2" y1={H * fr} x2={W - 2} y2={H * fr} stroke="#c9a84c" strokeWidth="0.6" opacity="0.09" />
       ))}
-      {/* dashed "tradable bottom" trigger line, stops before the rising leg */}
-      <line x1={PX} y1={triggerY} x2={W - PX} y2={triggerY} stroke="#e6c965" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.55" />
-      {/* area + the price arc */}
-      <path d={area} fill={`url(#bgArea-${type})`} />
+      <path d={area} fill="url(#bgHeroArea)" />
       <path d={line} stroke="#e6c965" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
-      {/* capitulation wick spiking below the low */}
       <line x1={lowX} y1={lowY} x2={lowX} y2={Math.min(H - 2, lowY + 9)} stroke="#e05252" strokeWidth="1.4" strokeLinecap="round" opacity="0.85" />
-      {/* the turn — gold pivot dot */}
       <circle cx={lowX} cy={lowY} r="3.1" fill="#f0d479" stroke="#0d0d10" strokeWidth="0.8" />
       <circle cx={lowX} cy={lowY} r="5.4" fill="none" stroke="#f0d479" strokeWidth="0.7" opacity="0.4" />
     </svg>
@@ -75,40 +64,103 @@ function fmtPct(v) {
   return v == null ? '—' : `${v > 0 ? '+' : ''}${v}%`
 }
 
-// ── Anatomy signpost card (landing) ─────────────────────────────────────────────
-function SignpostCard({ sp, index }) {
+const SIGNPOST_BY_KEY = Object.fromEntries(BOTTOM_SIGNPOSTS.map(s => [s.key, s]))
+// Deepest drawdown in the library — the shared scale for the depth meters so
+// every bottom's bar is comparable at a glance.
+const MAX_DRAWDOWN = Math.max(...BOTTOMS.map(b => Math.abs(b.drawdownPct || 0)))
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function fmtDate(iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  const mon = MONTHS[parseInt(m, 10) - 1]
+  return mon ? `${mon} ${parseInt(d, 10)}, ${y}` : y
+}
+
+// ── Anatomy of a Bottom: a phased process flow (not a card grid) ────────────────
+// The signposts laid along a left-to-right track grouped under the three phases
+// of a bottom (Exhaustion → Turn → Confirmation), color-coded fear → pivot →
+// thrust. Reads as a process, not a catalog.
+function AnatomyFlow() {
+  const phases = useMemo(() => {
+    const order = ['Exhaustion', 'Turn', 'Confirmation']
+    return order.map(phase => ({
+      phase,
+      steps: BOTTOM_SIGNPOSTS.filter(s => s.phase === phase),
+    }))
+  }, [])
   return (
-    <div className={`${styles.signCard} ${styles['accent_' + sp.accent]}`} style={{ '--i': index }}>
-      <div className={styles.signTop}>
-        <span className={styles.signNum}>{String(sp.num).padStart(2, '0')}</span>
-        <span className={styles.signPhase}>{sp.phase}</span>
-      </div>
-      <div className={styles.signName}>{sp.name}</div>
-      <div className={styles.signBlurb}>{sp.blurb}</div>
+    <div className={styles.flow}>
+      {phases.map((p, pi) => (
+        <div key={p.phase} className={styles.flowPhase} style={{ '--i': pi }}>
+          <div className={`${styles.flowPhaseLabel} ${styles['phase_' + p.phase.toLowerCase()]}`}>
+            {p.phase}
+          </div>
+          <div className={styles.flowSteps}>
+            {p.steps.map(sp => (
+              <div key={sp.key} className={`${styles.flowStep} ${styles['accent_' + sp.accent]}`}>
+                <div className={styles.flowNode}>{String(sp.num).padStart(2, '0')}</div>
+                <div className={styles.flowStepBody}>
+                  <div className={styles.flowName}>{sp.name}</div>
+                  <div className={styles.flowBlurb}>{sp.blurb}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// ── Library card (landing) ──────────────────────────────────────────────────────
-function BottomCard({ bottom, index, onOpen }) {
+// Vertical "depth" meter — a bar hanging down from the prior-high line, length
+// proportional to the drawdown, on a scale shared across the whole ledger.
+function DepthMeter({ pct }) {
+  const frac = Math.min(1, Math.abs(pct || 0) / MAX_DRAWDOWN)
   return (
-    <button type="button" className={styles.card} style={{ '--i': index }} onClick={() => onOpen(bottom)}>
-      <span className={styles.glyphWrap}>
-        <BottomGlyph type={bottom.type} className={styles.glyph} />
-        <span className={styles.cardEra}>{bottom.era}</span>
-        {bottom.legendary && <span className={styles.legendaryBadge}>★ Legendary</span>}
-      </span>
-      <span className={styles.cardName}>{bottom.name}</span>
-      <span className={styles.cardMeta}>
-        <span className={styles.cardDraw}>{fmtPct(bottom.drawdownPct)}</span>
-        <span className={styles.cardDot}>·</span>
-        <span className={styles.cardIndex}>{bottom.index}</span>
-      </span>
-      <span className={styles.cardChar}>{bottom.character}</span>
-      <span className={styles.cardFoot}>
-        <span className={styles.typeChip}>{bottom.type}</span>
-        <span className={styles.cardCta}>Study →</span>
-      </span>
+    <div className={styles.depth}>
+      <div className={styles.depthPct}>{fmtPct(pct)}</div>
+      <div className={styles.depthTrack}>
+        <div className={styles.depthBar} style={{ height: `${(frac * 100).toFixed(1)}%` }} />
+      </div>
+      <div className={styles.depthCap}>trough</div>
+    </div>
+  )
+}
+
+// ── Ledger entry (one bottom, a row on the chronological timeline) ──────────────
+function LedgerEntry({ bottom, index, onOpen }) {
+  return (
+    <button type="button" className={styles.entry} style={{ '--i': index }} onClick={() => onOpen(bottom)}>
+      <div className={styles.rail}>
+        <span className={styles.railNode} />
+        <span className={styles.railYear}>{bottom.era}</span>
+        {bottom.legendary && <span className={styles.railStar} title="Legendary">★</span>}
+      </div>
+      <DepthMeter pct={bottom.drawdownPct} />
+      <div className={styles.entryBody}>
+        <div className={styles.entryTop}>
+          <span className={styles.entryName}>{bottom.name}</span>
+          <span className={styles.entryType}>{bottom.type}</span>
+          <span className={styles.entryIndex}>{bottom.index}</span>
+          <span className={styles.entryDur}>{bottom.durationLabel}</span>
+        </div>
+        <p className={styles.entryChar}>{bottom.character}</p>
+        <div className={styles.entryPips}>
+          {(bottom.signposts || []).map((sp, i) => {
+            const meta = SIGNPOST_BY_KEY[sp.key]
+            return (
+              <span
+                key={i}
+                className={`${styles.pip} ${styles['accent_' + (meta?.accent || 'gold')]}`}
+                title={`${meta?.name || sp.key} — ${fmtDate(sp.date)}`}
+              />
+            )
+          })}
+          <span className={styles.pipLabel}>{(bottom.signposts || []).length} signposts</span>
+        </div>
+      </div>
+      <span className={styles.entryCta}>Study →</span>
     </button>
   )
 }
@@ -119,19 +171,8 @@ const ACCENT_MARKER = {
   gold:  { shape: 'arrowUp', color: '#f0d479', position: 'belowBar' },
   green: { shape: 'arrowUp', color: '#3cb868', position: 'belowBar' },
 }
-const SIGNPOST_BY_KEY = Object.fromEntries(BOTTOM_SIGNPOSTS.map(s => [s.key, s]))
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-function fmtDate(iso) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  const mon = MONTHS[parseInt(m, 10) - 1]
-  return mon ? `${mon} ${parseInt(d, 10)}, ${y}` : y
-}
 
 function BottomDetail({ bottom, onBack }) {
-  // Chart markers from the dated signposts — an annotated index chart of the
-  // bottom (red dots for the selling phase, gold/green arrows for the turn).
   const markers = useMemo(() => {
     return (bottom.signposts || [])
       .filter(sp => sp.date)
@@ -150,7 +191,6 @@ function BottomDetail({ bottom, onBack }) {
         <button className={styles.backBtn} onClick={onBack}>‹ Bottoms</button>
       </div>
 
-      {/* Header: identity + drawdown stat strip */}
       <div className={styles.detailHead}>
         <div className={styles.detailId}>
           <div className={styles.detailEra}>{bottom.era} · {bottom.index}</div>
@@ -177,7 +217,6 @@ function BottomDetail({ bottom, onBack }) {
         </div>
       </div>
 
-      {/* The annotated index chart, framed to the descent → low → recovery */}
       <div className={styles.chartCard}>
         <div className={styles.chartHead}>
           <span className={styles.chartTitle}>{bottom.index} — anatomy of the low</span>
@@ -217,7 +256,6 @@ function BottomDetail({ bottom, onBack }) {
         </div>
       </div>
 
-      {/* How it bottomed */}
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <span className={styles.sectionRule} />
@@ -227,7 +265,6 @@ function BottomDetail({ bottom, onBack }) {
         <p className={styles.narrative}>{bottom.summary}</p>
       </section>
 
-      {/* Signposts that fired — the anatomy timeline for this bottom */}
       {bottom.signposts?.length > 0 && (
         <section className={styles.section}>
           <div className={styles.sectionHead}>
@@ -255,7 +292,6 @@ function BottomDetail({ bottom, onBack }) {
         </section>
       )}
 
-      {/* Leadership that emerged */}
       {bottom.leaders?.length > 0 && (
         <section className={styles.section}>
           <div className={styles.sectionHead}>
@@ -274,7 +310,6 @@ function BottomDetail({ bottom, onBack }) {
         </section>
       )}
 
-      {/* Execution */}
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <span className={styles.sectionRule} />
@@ -316,15 +351,19 @@ export default function BottomsView({ onExit }) {
 
       {/* Hero */}
       <div className={styles.hero}>
-        <BottomGlyph type="V-Bottom" className={styles.heroGlyph} />
-        <h1 className={styles.heroTitle}>Bottoms</h1>
-        <p className={styles.heroTagline}>
-          How major markets bottom — the anatomy of capitulation, the turn, and the thrust. Study the great historical
-          lows so you know when to start hunting a tradable bottom, and how to execute it.
-        </p>
+        <div className={styles.heroGlyphWrap}>
+          <BottomGlyph type="V-Bottom" className={styles.heroGlyph} />
+        </div>
+        <div className={styles.heroText}>
+          <h1 className={styles.heroTitle}>Bottoms</h1>
+          <p className={styles.heroTagline}>
+            How major markets bottom — the anatomy of capitulation, the turn, and the thrust. Study the great historical
+            lows so you know when to start hunting a tradable bottom, and how to execute it.
+          </p>
+        </div>
       </div>
 
-      {/* Anatomy of a Bottom */}
+      {/* Anatomy of a Bottom — phased process flow */}
       <section className={styles.anatomy}>
         <div className={styles.sectionHead}>
           <span className={styles.sectionRule} />
@@ -332,14 +371,10 @@ export default function BottomsView({ onExit }) {
           <span className={styles.sectionRule} />
         </div>
         <p className={styles.anatomyIntro}>
-          Bottoms aren’t a moment — they’re a process. The same tells appear, in roughly this order, as a bear market
-          runs out of sellers and the next cycle quietly begins.
+          A bottom isn’t a moment — it’s a process. The same tells appear, in roughly this order, as a bear market runs
+          out of sellers and the next cycle quietly begins.
         </p>
-        <div className={styles.signGrid}>
-          {BOTTOM_SIGNPOSTS.map((sp, i) => (
-            <SignpostCard key={sp.key} sp={sp} index={i} />
-          ))}
-        </div>
+        <AnatomyFlow />
       </section>
 
       {/* Execution strip */}
@@ -365,28 +400,30 @@ export default function BottomsView({ onExit }) {
         </div>
       </section>
 
-      {/* Historical bottoms library */}
+      {/* The ledger of historical bottoms — a chronological timeline */}
       <section className={styles.gallery}>
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionRule} />
-          <span className={styles.sectionLabel}>Historical Major-Market Bottoms</span>
-          <span className={styles.sectionRule} />
+        <div className={styles.galleryHead}>
+          <div className={styles.sectionHead}>
+            <span className={styles.sectionRule} />
+            <span className={styles.sectionLabel}>The Ledger of Market Lows</span>
+            <span className={styles.sectionRule} />
+          </div>
+          <div className={styles.pills}>
+            {BOTTOM_TYPES.map(t => (
+              <button
+                key={t}
+                type="button"
+                className={`${styles.pill} ${filter === t ? styles.pillActive : ''}`}
+                onClick={() => setFilter(t)}
+              >
+                {t} <span className={styles.pillCount}>{counts[t] || 0}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className={styles.pills}>
-          {BOTTOM_TYPES.map(t => (
-            <button
-              key={t}
-              type="button"
-              className={`${styles.pill} ${filter === t ? styles.pillActive : ''}`}
-              onClick={() => setFilter(t)}
-            >
-              {t} <span className={styles.pillCount}>{counts[t] || 0}</span>
-            </button>
-          ))}
-        </div>
-        <div className={styles.grid}>
+        <div className={styles.ledger}>
           {visible.map((b, i) => (
-            <BottomCard key={b.id} bottom={b} index={i} onOpen={setSelected} />
+            <LedgerEntry key={b.id} bottom={b} index={i} onOpen={setSelected} />
           ))}
         </div>
       </section>

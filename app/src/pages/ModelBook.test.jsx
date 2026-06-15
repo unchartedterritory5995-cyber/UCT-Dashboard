@@ -126,7 +126,7 @@ test('Bottoms opens the field manual; a card opens the study view', () => {
   expect(screen.getByRole('heading', { name: /^bottoms$/i })).toBeInTheDocument()
   // The anatomy framework + the historical library render.
   expect(screen.getByText(/the anatomy of a bottom/i)).toBeInTheDocument()
-  expect(screen.getByText(/historical major-market bottoms/i)).toBeInTheDocument()
+  expect(screen.getByText(/the ledger of market lows/i)).toBeInTheDocument()
   const covid = screen.getByRole('button', { name: /covid crash/i })
   expect(covid).toBeInTheDocument()
   // Click a bottom → its study view (annotated chart + signpost timeline) opens.
