@@ -69,6 +69,7 @@ from zoneinfo import ZoneInfo
 from api.services.bars_fetch import (
     _expected_latest_session_yyyymmdd,
     _is_cold_stale_intraday,
+    _is_cold_stale_daily,
     _paginate_massive_aggs,
 )
 
@@ -162,6 +163,62 @@ class TestIsColdStaleIntraday:
         assert _is_cold_stale_intraday("30", _et_ts(2026, 5, 22, 16, 0), now) is False
         assert _is_cold_stale_intraday("15", _et_ts(2026, 5, 22, 15, 45), now) is False
         assert _is_cold_stale_intraday("60", _et_ts(2026, 5, 22, 15, 30), now) is False
+
+
+class TestIsColdStaleDaily:
+    """Daily twin of `_is_cold_stale_intraday`. A daily cache that is
+    missing the most recent COMPLETED session must be fetched synchronously
+    (so the first chart paint already carries today's bar), NOT served
+    stale-while-revalidate — the latter pins the prior-session bar on the
+    first mount and lets the live-price overlay fuse today's price onto it
+    (the "Frankenstein last candle" / "daily not recognizing today" bug,
+    reproduced 2026-06-15: PAYO daily stuck on Fri 6/12 with the 7.03 live
+    price painted on top). Daily `last_ts` is a YYYYMMDD int, unlike
+    intraday's unix seconds (see `_needs_fresh`/`_last_weekday_yyyymmdd`)."""
+
+    def test_non_daily_never_cold(self):
+        # Only tf=="D" qualifies. W/M key on a representative period date
+        # that legitimately trails today; intraday has its own predicate.
+        now = datetime(2026, 6, 15, 18, 0, tzinfo=_ET)
+        for tf in ("W", "M", "1", "5", "15", "30", "60"):
+            assert _is_cold_stale_daily(tf, 20260101, now) is False
+
+    def test_none_last_ts_never_cold(self):
+        now = datetime(2026, 6, 15, 18, 0, tzinfo=_ET)
+        assert _is_cold_stale_daily("D", None, now) is False
+
+    def test_missing_today_after_close_is_cold(self):
+        # The actual bug: Mon 6/15 post-session, newest daily bar is Fri 6/12.
+        now = datetime(2026, 6, 15, 18, 0, tzinfo=_ET)  # Mon, session complete
+        assert _is_cold_stale_daily("D", 20260612, now) is True
+
+    def test_has_today_is_not_cold(self):
+        # Already carries today's (still-evolving) bar → fast SWR is correct,
+        # don't pay synchronous-fetch latency on every poll.
+        now = datetime(2026, 6, 15, 18, 0, tzinfo=_ET)
+        assert _is_cold_stale_daily("D", 20260615, now) is False
+
+    def test_weekend_with_friday_data_is_not_cold(self):
+        # Sat, newest bar Fri close → freshest data that exists. No penalty.
+        now = datetime(2026, 6, 13, 12, 0, tzinfo=_ET)  # Sat
+        assert _is_cold_stale_daily("D", 20260612, now) is False
+
+    def test_monday_pre_open_with_friday_data_is_not_cold(self):
+        # Mon pre-open → expected session is still Fri; Fri cache is current.
+        # Guards against pre-market saturation (every chart firing a sync
+        # fetch for a session that hasn't produced a bar yet).
+        now = datetime(2026, 6, 15, 9, 0, tzinfo=_ET)  # Mon pre-open
+        assert _is_cold_stale_daily("D", 20260612, now) is False
+
+    def test_holiday_with_prior_session_data_is_not_cold(self):
+        # Memorial Day Mon 2026-05-25 — Friday 5/22 cache is the freshest
+        # data that exists; must NOT fire a synchronous fetch all day.
+        now = datetime(2026, 5, 25, 14, 0, tzinfo=_ET)
+        assert _is_cold_stale_daily("D", 20260522, now) is False
+
+    def test_garbage_last_ts_never_cold(self):
+        now = datetime(2026, 6, 15, 18, 0, tzinfo=_ET)
+        assert _is_cold_stale_daily("D", "not-a-date", now) is False
 
 
 class _FakeClient:

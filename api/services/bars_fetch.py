@@ -292,6 +292,40 @@ def _is_cold_stale_intraday(tf: str, last_ts: int | None, now=None) -> bool:
     return last_date < _expected_latest_session_yyyymmdd(now)
 
 
+def _is_cold_stale_daily(tf: str, last_ts: int | None, now=None) -> bool:
+    """Daily twin of `_is_cold_stale_intraday`: True when the newest stored
+    DAILY bar predates the most recent session that should have data — i.e.
+    the cache is missing >=1 whole completed trading session.
+
+    Cold-stale daily entries MUST be fetched SYNCHRONOUSLY so the FIRST chart
+    paint already carries today's bar, instead of being served stale-while-
+    revalidate. SWR pins the prior-session bar on the first mount (charts
+    fetch once per mount), and the live-price overlay then fuses today's
+    price onto that frozen bar — the "Frankenstein last candle" /
+    "daily not recognizing today" symptom (reproduced 2026-06-15: PAYO
+    daily stuck on Fri 6/12 with the 7.03 live price painted onto it while
+    the real 6/15 session was already complete). Massive's daily AGGREGATE
+    endpoint lags the long tail by several sessions, so without a synchronous
+    path the user keeps seeing yesterday until the background heal lands.
+
+    Daily `last_ts` is a YYYYMMDD int (NOT unix seconds like intraday — see
+    `_needs_fresh`/`_last_weekday_yyyymmdd`), so this is a direct date compare
+    against the holiday/weekend/pre-open-aware expected session.
+
+    Scoped to tf == "D" only. Weekly/monthly bars key on a representative
+    period date that legitimately trails today WITHIN the current period, so
+    the same `<` compare would false-positive on every mid-week / mid-month
+    load; W/M evolve slowly and keep the fast SWR path (their yfinance
+    tail-fill still heals in the background via `_delta_weekly`/`_delta_monthly`).
+    """
+    if tf != "D" or last_ts is None:
+        return False
+    try:
+        return int(last_ts) < _expected_latest_session_yyyymmdd(now)
+    except (TypeError, ValueError):
+        return False
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -1571,7 +1605,18 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # de-duplicated delta fetch so the FIRST paint is already correct.
     # Same-session staleness still uses fast SWR below (serve instantly,
     # top up the developing bar in the background).
-    if stored_rows and last_ts and not _is_cold_stale_intraday(tf, last_ts):
+    # Cold-stale DAILY (missing >=1 completed session) gets the same
+    # synchronous-first-paint treatment as cold-stale intraday — see
+    # `_is_cold_stale_daily`. Without this, a daily cache stuck on the prior
+    # session is served stale-while-revalidate and the live overlay fuses
+    # today's price onto the frozen bar ("daily not recognizing today",
+    # 2026-06-15). Same-session evolving dailies (last_ts == today) are NOT
+    # cold-stale, so they keep the fast SWR developing-bar top-up.
+    if (
+        stored_rows and last_ts
+        and not _is_cold_stale_intraday(tf, last_ts)
+        and not _is_cold_stale_daily(tf, last_ts)
+    ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
         # through here on purpose so the bg path can populate the missing
