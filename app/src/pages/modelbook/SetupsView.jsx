@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
+import useTickerMeta from '../../hooks/useTickerMeta'
 import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
 import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
@@ -400,6 +401,11 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
 // white setup candle, entry/stop/target lines, and admin drawing annotations
 // saved per example.
 function ExampleBlock({ ex, isAdmin, onChanged }) {
+  // Show the company name beside the ticker for every example. Prefer the
+  // curated `ex.company`; when it's missing, fall back to the live ticker-meta
+  // name (same source the watermark uses) so the header is never ticker-only.
+  const meta = useTickerMeta(ex.company ? null : ex.symbol)
+  const companyName = ex.company || meta.name || null
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)
@@ -454,9 +460,9 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   return (
     <div className={styles.exBlock}>
       <div className={styles.exBlockHead}>
-        <CompanyLogo sym={ex.symbol} size={22} round name={ex.company} alt={ex.data_symbol} />
+        <CompanyLogo sym={ex.symbol} size={22} round name={companyName} alt={ex.data_symbol} />
         <span className={styles.exSym}>{ex.symbol}</span>
-        {ex.company && <span className={styles.exCo}>{ex.company}</span>}
+        {companyName && <span className={styles.exCo}>{companyName}</span>}
         <span className={styles.exYear}>{ex.year}</span>
         {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
         <span className={styles.exTools}>
