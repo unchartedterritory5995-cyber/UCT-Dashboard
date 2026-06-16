@@ -1605,7 +1605,21 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15"),
                 id="catalyst_coverage_audit", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET)")
+            # Evidence-based auto-tune: once daily at 5:00 AM ET. Reviews recent
+            # catalyst outcomes and nudges scoring/gate thresholds. run_autotune()
+            # itself honors CATALYST_AUTOTUNE_ENABLED, so this is a no-op when
+            # that's off; wrapped so a failure never breaks the scheduler.
+            def _cat_autotune():
+                try:
+                    from api.services.catalyst import tuning
+                    tuning.run_autotune()
+                except Exception as _e:
+                    print(f"[scheduler] catalyst autotune failed (non-fatal): {_e}")
+            _scheduler.add_job(_cat_autotune,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0"),
+                id="catalyst_autotune", max_instances=1, replace_existing=True)
+
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
 
         # ── Morning Catalyst Digest (the brief reaches you) ───────────────
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
