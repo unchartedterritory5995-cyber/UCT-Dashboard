@@ -168,3 +168,29 @@ def test_compute_catalyst_at_uses_analyst_ts():
     c = {"tweets": [], "rss": [], "earnings_meta": None,
          "analyst_meta": {"action": "upgrade", "at": 1_700_000_000}}
     assert engine._compute_catalyst_at(c) == 1_700_000_000
+
+
+def test_audit_grades_analyst_coverage(monkeypatch, tmp_path):
+    db = tmp_path / "catalysts.db"
+    monkeypatch.setenv("CATALYST_DB_PATH", str(db))
+    import importlib
+    from api.services.catalyst import store as store_mod
+    importlib.reload(store_mod)
+    store_mod._init_db()
+    # One analyst name surfaced (ranked), one missed.
+    store_mod.upsert_catalyst({
+        "market_date": "2026-06-15", "ticker": "AAA", "rank": 1, "score": 50,
+        "tag": "Catalyst", "price": 50, "gap_pct": 3, "vol_x": 2,
+        "market_cap": 1e9, "sector": "Tech", "thesis_text": "x",
+        "thesis_model": "m", "thesis_at": 1, "thesis_sources": "[]",
+        "signals_hash": "h", "catalyst_at": None, "raw_signals": "{}",
+    })
+    monkeypatch.setattr(
+        "api.services.catalyst.analyst_actions.get_analyst_candidates",
+        lambda: {"AAA": {"action": "upgrade"}, "BBB": {"action": "downgrade"}},
+    )
+    from api.services.catalyst import coverage_audit
+    importlib.reload(coverage_audit)
+    rep = coverage_audit._grade_analyst_coverage("2026-06-15")
+    assert rep["caught"] == 1 and "BBB" in [m["ticker"] for m in rep["missed"]]
+    importlib.reload(store_mod)
