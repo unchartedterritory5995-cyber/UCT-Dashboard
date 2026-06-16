@@ -79,16 +79,34 @@ def _currency_code(b: dict) -> str | None:
     return None
 
 
+def _pos_currency(p: dict) -> str | None:
+    c = p.get("currency")
+    if isinstance(c, str):
+        return c.upper()
+    if isinstance(c, dict):
+        return (c.get("code") or c.get("currency") or "").upper() or None
+    return None
+
+
 def market_value(raw_positions: list[dict]) -> float:
-    """Signed mark-to-market of holdings: Σ(units × current price). Short
-    positions (negative units) correctly reduce net liquidation value."""
+    """Signed USD mark-to-market: Σ(units × current price) over USD (or
+    currency-less) holdings only. Non-USD positions are EXCLUDED — summing
+    them into USD cash without an FX rate would mis-state equity. v1 is
+    USD-focused; non-USD support needs per-position FX conversion."""
     total = 0.0
     for p in raw_positions:
+        cur = _pos_currency(p)
+        if cur not in (None, "USD"):
+            continue
         units = _num(p.get("units"))
         price = _num(p.get("price"))
         if units is not None and price is not None:
             total += units * price
     return round(total, 2)
+
+
+def has_non_usd_positions(raw_positions: list[dict]) -> bool:
+    return any(_pos_currency(p) not in (None, "USD") for p in raw_positions)
 
 
 # ── Balances ─────────────────────────────────────────────────────────────────
@@ -161,16 +179,23 @@ def reconcile_positions(
             avg_cost = _num(p.get("average_purchase_price"))
 
             fifo_match = fifo_by_key.get((symbol, side))
-            if fifo_match is not None:
+            if fifo_match is not None and abs(fifo_match["shares"] - shares) <= 1e-6:
+                # FIFO agrees with the broker → trust the real reconstructed entry.
                 entry_price = fifo_match["entryPrice"]
                 entry_date = fifo_match["entryDate"]
                 entry_estimated = 0
-                # Surface a divergence the user/ops may want to know about.
-                if abs(fifo_match["shares"] - shares) > 1e-6:
-                    discrepancies.append({
-                        "symbol": symbol, "side": side,
-                        "brokerShares": shares, "fifoShares": fifo_match["shares"],
-                    })
+            elif fifo_match is not None:
+                # Shares diverge (e.g. a split, a missed/late activity, transfer):
+                # do NOT freeze the stale FIFO basis as authoritative. Seed from
+                # the broker's cost basis and flag estimated so a later clean
+                # reconstruction can correct it.
+                entry_price = avg_cost if avg_cost and avg_cost > 0 else (_num(p.get("price")) or 0.0)
+                entry_date = _now_iso()
+                entry_estimated = 1
+                discrepancies.append({
+                    "symbol": symbol, "side": side,
+                    "brokerShares": shares, "fifoShares": fifo_match["shares"],
+                })
             else:
                 # Carried-in: no activity history for this holding. Seed entry
                 # from the broker's cost basis and flag it as estimated.

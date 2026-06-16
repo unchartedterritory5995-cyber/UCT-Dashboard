@@ -91,7 +91,7 @@ def get_activities(
             """
             SELECT raw_json FROM j2_broker_activities
              WHERE user_id = ? AND broker_account_id = ?
-             ORDER BY (occurred_at IS NULL), occurred_at ASC, created_at ASC
+             ORDER BY (occurred_at IS NULL), occurred_at ASC, external_id ASC
             """,
             (user_id, broker_account_id),
         ).fetchall()

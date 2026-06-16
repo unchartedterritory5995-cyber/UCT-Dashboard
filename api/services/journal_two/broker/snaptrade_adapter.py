@@ -147,8 +147,9 @@ def to_equity_fill(act: dict, row: int) -> Fill | None:
         return None
     if price <= 0:
         return None
+    fee = _num(act.get("fee")) or 0.0
     return Fill(row=row, symbol=symbol, action=action,
-                shares=abs(units), price=price, date=date)
+                shares=abs(units), price=price, date=date, fee=abs(fee))
 
 
 # ── Option events ───────────────────────────────────────────────────────────

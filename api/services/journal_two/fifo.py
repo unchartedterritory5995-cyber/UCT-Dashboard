@@ -37,13 +37,16 @@ from typing import Literal
 @dataclass
 class Fill:
     """A single buy-or-sell fill out of a broker CSV / activity feed.
-    Row is 1-indexed (counting the header), for error reporting."""
+    Row is 1-indexed (counting the header), for error reporting.
+    `fee` is the commission/fees on THIS fill (0 for CSV imports that don't
+    carry fees) — threaded into round-trip P&L."""
     row: int
     symbol: str
     action: Literal["Buy", "Sell"]
     shares: float    # positive number
     price: float
     date: str        # ISO 8601 UTC
+    fee: float = 0.0
 
 
 @dataclass
@@ -51,6 +54,7 @@ class Lot:
     shares: float
     price: float
     date: str
+    fee_per_share: float = 0.0  # opening-fill fee / opening shares, for proration
 
 
 _EPS = 1e-9
@@ -61,7 +65,8 @@ def _round_shares(x: float) -> float:
 
 
 def _round_price(x: float) -> float:
-    return round(x * 100) / 100
+    # 4dp preserves sub-penny / option-tick prices; avoids 2dp P&L drift.
+    return round(x * 10000) / 10000
 
 
 def reconstruct_trades(fills: list[Fill], *, allow_shorts: bool = False) -> dict:
@@ -99,7 +104,8 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
         q = queues.setdefault(f.symbol, deque())
 
         if f.action == "Buy":
-            q.append(Lot(shares=f.shares, price=f.price, date=f.date))
+            q.append(Lot(shares=f.shares, price=f.price, date=f.date,
+                         fee_per_share=(f.fee / f.shares if f.shares else 0.0)))
             ever_bought.add(f.symbol)
             continue
 
@@ -112,12 +118,12 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
             continue
 
         remaining = f.shares
-        consumed: list[tuple[float, float, str]] = []  # (shares, price, date)
+        consumed: list[tuple[float, float, str, float]] = []  # (shares, price, date, fee_portion)
 
         while remaining > _EPS and q:
             lot = q[0]
             take = min(lot.shares, remaining)
-            consumed.append((take, lot.price, lot.date))
+            consumed.append((take, lot.price, lot.date, take * lot.fee_per_share))
             lot.shares -= take
             remaining -= take
             if lot.shares <= _EPS:
@@ -130,7 +136,7 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
             })
             continue
 
-        trades.append(_make_trade(f.symbol, "Long", consumed, f.price, f.date))
+        trades.append(_make_trade(f.symbol, "Long", consumed, f.price, f.date, exit_fee=f.fee))
 
     return {"trades": trades, "errors": errors, "open_positions": _open_from_queues(queues, "Long")}
 
@@ -161,27 +167,33 @@ def _reconstruct_with_shorts(fills: list[Fill]) -> dict:
         is_buy = f.action == "Buy"
         remaining = f.shares
 
+        # Per-share fee of this fill is constant, so any lot opened from it
+        # and any close it performs prorate cleanly by share count.
+        fps = (f.fee / f.shares) if f.shares else 0.0
+
         while remaining > _EPS:
             cur = side[sym]
             if cur is None:
                 # Flat → open in the fill's direction with all remaining.
-                q.append(Lot(shares=remaining, price=f.price, date=f.date))
+                q.append(Lot(shares=remaining, price=f.price, date=f.date, fee_per_share=fps))
                 side[sym] = "long" if is_buy else "short"
                 remaining = 0
                 break
 
             opening = (cur == "long" and is_buy) or (cur == "short" and not is_buy)
             if opening:
-                q.append(Lot(shares=remaining, price=f.price, date=f.date))
+                q.append(Lot(shares=remaining, price=f.price, date=f.date, fee_per_share=fps))
                 remaining = 0
                 break
 
             # Closing the current side. Consume front lots up to `remaining`.
-            consumed: list[tuple[float, float, str]] = []
+            consumed: list[tuple[float, float, str, float]] = []
+            close_shares = 0.0
             while remaining > _EPS and q:
                 lot = q[0]
                 take = min(lot.shares, remaining)
-                consumed.append((take, lot.price, lot.date))
+                consumed.append((take, lot.price, lot.date, take * lot.fee_per_share))
+                close_shares += take
                 lot.shares -= take
                 remaining -= take
                 if lot.shares <= _EPS:
@@ -189,7 +201,9 @@ def _reconstruct_with_shorts(fills: list[Fill]) -> dict:
 
             if consumed:
                 label = "Long" if cur == "long" else "Short"
-                trades.append(_make_trade(sym, label, consumed, f.price, f.date))
+                # Exit fee = this fill's fee for the shares it actually closed.
+                exit_fee = fps * close_shares
+                trades.append(_make_trade(sym, label, consumed, f.price, f.date, exit_fee=exit_fee))
 
             if not q:
                 # Position fully closed. If fill still has size, the next
@@ -208,14 +222,17 @@ def _reconstruct_with_shorts(fills: list[Fill]) -> dict:
 
 # ── Shared helpers ──────────────────────────────────────────────────────────
 
-def _make_trade(symbol: str, side_label: str, consumed: list[tuple[float, float, str]],
-                exit_price: float, exit_date: str) -> dict:
+def _make_trade(symbol: str, side_label: str,
+                consumed: list[tuple[float, float, str, float]],
+                exit_price: float, exit_date: str, *, exit_fee: float = 0.0) -> dict:
     """Aggregate consumed open-lots into one round-trip trade. `consumed`
-    is [(shares, lot_price, lot_date), ...]; for a Long these are buy lots
-    (entry side), for a Short these are sell-to-open lots (entry side)."""
-    total = sum(s for s, _, _ in consumed)
-    vwap = sum(s * p for s, p, _ in consumed) / total if total > 0 else 0.0
-    earliest = min(d for _, _, d in consumed)
+    is [(shares, lot_price, lot_date, fee_portion), ...]; for a Long these are
+    buy lots (entry side), for a Short these are sell-to-open lots. Total trade
+    `fees` = prorated entry-lot fees + this close's exit fee."""
+    total = sum(s for s, _, _, _ in consumed)
+    vwap = sum(s * p for s, p, _, _ in consumed) / total if total > 0 else 0.0
+    earliest = min(d for _, _, d, _ in consumed)
+    entry_fee = sum(fp for _, _, _, fp in consumed)
     return {
         "symbol": symbol,
         "side": side_label,
@@ -224,6 +241,7 @@ def _make_trade(symbol: str, side_label: str, consumed: list[tuple[float, float,
         "entryDate": earliest,
         "exitPrice": exit_price,
         "exitDate": exit_date,
+        "fees": round(entry_fee + (exit_fee or 0.0), 2),
         "originalStop": None,
         "setup": None,
         "notes": None,
