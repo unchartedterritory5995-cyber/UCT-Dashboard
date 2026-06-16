@@ -449,6 +449,122 @@ def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
         c["rss_headline_count"] = len(c["rss"])
 
 
+# Per-day per-ticker guard so the reasoning-mode deep pass runs AT MOST ONCE
+# per ticker per day. The 2-min pre-market cadence would otherwise re-pay the
+# (~2-3x fast) reasoning cost on every refresh for the same names.
+_DEEP_CONTEXT_DONE: dict[str, set[str]] = {}
+
+
+def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) -> None:
+    """DEEP reasoning-mode Perplexity context pass over the top movers.
+
+    For the highest-scored candidates, ask a skeptical sell-side analyst (via
+    Perplexity reasoning-mode / sonar-reasoning-pro) to confirm the SPECIFIC
+    catalyst with concrete numbers, the market read, key technical levels, and
+    what could extend/reverse the move. Injects the synthesis as a synthetic
+    RSS item (same shape as the other Perplexity enrichers) so Opus picks it
+    up at synthesis time.
+
+    Additive + cost-bounded + anti-hallucination:
+    - Gated on CATALYST_DEEP_CONTEXT_ENABLED (default ON). Disable → no deep pass.
+    - Top-N capped by CATALYST_DEEP_CONTEXT_TOP_N (default 5).
+    - Per-(day, ticker) cache → at most one reasoning call per ticker per day.
+    - Skips source-rich rows (>5 tweets + >2 RSS), like the fast top-3 pass.
+    - Drops answers that error, are empty, say "no confirmed catalyst", or are
+      low-info hedging filler — so we never inject vacuous context.
+
+    Supersedes _enrich_top_3_with_deep_context (the old fast top-3 pass).
+    Never raises.
+    """
+    if os.environ.get("CATALYST_DEEP_CONTEXT_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return
+
+    try:
+        top_n = int(os.environ.get("CATALYST_DEEP_CONTEXT_TOP_N", "5"))
+    except (TypeError, ValueError):
+        top_n = 5
+    mode = os.environ.get("CATALYST_DEEP_CONTEXT_MODE", "reasoning")
+    try:
+        max_tokens = int(os.environ.get("CATALYST_DEEP_CONTEXT_MAX_TOKENS", "700"))
+    except (TypeError, ValueError):
+        max_tokens = 700
+
+    done = _DEEP_CONTEXT_DONE.setdefault(market_date, set())
+
+    ranked = sorted(candidates, key=lambda c: c.get("score", 0.0), reverse=True)
+    for c in ranked[:top_n]:
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+        if ticker in done:
+            continue
+
+        # Skip if already source-rich — Opus has plenty of context already.
+        tweet_count = len(c.get("tweets") or [])
+        rss_count = len(c.get("rss") or [])
+        if tweet_count > 5 and rss_count > 2:
+            continue
+
+        gap = c.get("gap_pct") or 0.0
+        direction = "up" if gap >= 0 else "down"
+        prompt = (
+            f"Stock ${ticker} is moving {direction} {abs(gap):.1f}% today. "
+            f"As a skeptical sell-side analyst, using only reliable financial "
+            f"news/filings: (1) state the SPECIFIC confirmed catalyst with "
+            f"concrete details (numbers, guidance, deal terms); (2) the market "
+            f"read (peer/sector reaction); (3) key technical levels to watch; "
+            f"(4) what could extend or reverse the move. If you CANNOT confirm "
+            f"a specific catalyst from reliable sources, reply exactly "
+            f"'No confirmed catalyst.' Do not speculate."
+        )
+
+        # Mark done regardless of outcome below — one (attempted) reasoning call
+        # per ticker per day, whether it injects or drops.
+        done.add(ticker)
+
+        try:
+            result = perplexity_search.web_search(
+                prompt, max_tokens=max_tokens, mode=mode,
+                domain_pack="finance", recency="day",
+            )
+        except Exception:
+            logger.exception("[catalyst-engine] perplexity deep-context %s failed", ticker)
+            continue
+
+        result = result or {}
+        if "error" in result:
+            continue
+        answer = result.get("answer") or ""
+        if not answer.strip():
+            continue
+        if "no confirmed catalyst" in answer.lower():
+            continue
+        if _is_low_info_sector_answer(answer):
+            continue
+
+        citations = result.get("citations") or []
+        url = citations[0] if citations else ""
+        title = answer[:600]
+
+        rss = c.setdefault("rss", [])
+        # Dedup against existing items by url/title so re-runs don't pile up.
+        if any((url and r.get("url") == url) or r.get("title") == title for r in rss):
+            c["rss_headline_count"] = len(rss)
+            continue
+        rss.append({
+            "source": "Perplexity (deep context)",
+            "title": title,
+            "url": url,
+            "time_published": int(time.time()),
+        })
+        c["rss_headline_count"] = len(rss)
+
+
 def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
     """For each top-12 candidate tagged 'Earnings', ask Perplexity for the
     things Finnhub's EPS/rev numbers don't tell us: forward guidance, sell-side
@@ -804,9 +920,11 @@ def run_refresh() -> dict:
     # sell-side context that Finnhub's eps/rev numbers don't carry.
     _enrich_earnings_with_perplexity(top_12)
 
-    # P2-B1: Top 3 by score get the richest context — peer reaction, historical
-    # comparables, key levels. These are the rows the user scrutinizes most.
-    _enrich_top_3_with_deep_context(top_12)
+    # P2-B1 superseded: DEEP reasoning-mode pass over the top movers — confirmed
+    # catalyst + market read + key levels + extend/reverse. Cost-capped by per-day
+    # per-ticker cache + top-N; anti-hallucination drops unconfirmed answers.
+    # (Old fast top-3 pass `_enrich_top_3_with_deep_context` kept for rollback.)
+    _enrich_top_movers_deep_context(top_12, md)
 
     store.clear_ranks_for_date(md)
 
