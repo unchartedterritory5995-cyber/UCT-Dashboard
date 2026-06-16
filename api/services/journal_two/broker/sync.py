@@ -23,7 +23,7 @@ from api.services.auth_db import get_connection
 from api.services import crypto_box
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two.broker import (
-    connections, snaptrade_client as snap, activities_store, reconstruct,
+    connections, snaptrade_client as snap, activities_store, reconstruct, balances,
 )
 
 # Per-account async locks (process-local). Prevents on-open + scheduled +
@@ -186,6 +186,24 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             user_id, broker_account_id, ba["j2AccountId"], all_acts, settings
         )
 
+        # Holdings-as-truth: open positions + real balances from the broker's
+        # CURRENT state. Best-effort — a balances hiccup must not fail the whole
+        # sync (the trade import above already succeeded).
+        pos_res: dict[str, Any] = {"upserted": 0}
+        try:
+            raw_positions = await snap.get_positions(
+                bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
+            )
+            raw_balances = await snap.get_balances(
+                bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
+            )
+            pos_res = balances.reconcile_positions(
+                user_id, ba, raw_positions, recon["openPositions"]
+            )
+            bal_res = balances.write_balances(user_id, ba, raw_balances, raw_positions)
+        except snap.SnapError:
+            bal_res = None  # leave prior balances; surfaced via last_error if needed
+
         # Advance cursor to the newest activity we now hold.
         latest = activities_store.latest_occurred_at(user_id, broker_account_id)
         if latest:
@@ -199,6 +217,8 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             "newActivities": stored["new"],
             "imported": recon["imported"],
             "skipped": recon["skipped"],
+            "positionsUpserted": pos_res.get("upserted", 0),
+            "positionsClosed": pos_res.get("closed", 0),
             "openPositions": recon["openPositions"],
             "optionEvents": recon["optionEvents"],
             "fifoErrors": recon["fifoErrors"],

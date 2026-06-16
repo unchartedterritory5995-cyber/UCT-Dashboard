@@ -605,15 +605,25 @@ def comparison(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        from api.services.journal_two.broker.balance_resolver import resolve_equity
         accounts = list_accounts(user_id, conn=conn)
         out = []
         for a in accounts:
             metrics = _account_metrics(user_id, a["id"], a["startingBalance"], conn)
+            # Balance resolver chokepoint: broker-linked accounts report real
+            # broker equity; manual accounts keep startingBalance + realized P&L
+            # (identical to the prior currentBalance math → no regression).
+            eq = resolve_equity(a, realized_pnl=metrics["totalPnl"])
             out.append({
                 "id": a["id"],
                 "name": a["name"],
                 "color": a["color"],
-                "currentBalance": metrics["currentBalance"],
+                "currentBalance": eq["equity"],
+                "balanceSource": eq["source"],
+                "brokerCash": eq["cash"],
+                "brokerBuyingPower": eq["buyingPower"],
+                "brokerMarketValue": eq["marketValue"],
+                "balanceSyncedAt": eq["syncedAt"],
                 "startingBalance": a["startingBalance"],
                 "totalReturn": metrics["totalReturn"],
                 "totalPnl": metrics["totalPnl"],
@@ -921,6 +931,14 @@ def _row_to_account(row: sqlite3.Row) -> dict[str, Any]:
         "compassEnabled": (
             bool(row["compass_enabled"]) if "compass_enabled" in keys else True
         ),
+        # Broker-sync balance fields (null on manual accounts; populated by the
+        # broker balances sync). Consumed by balance_resolver.
+        "balanceSource": row["balance_source"] if "balance_source" in keys else "manual",
+        "brokerTotalEquity": row["broker_total_equity"] if "broker_total_equity" in keys else None,
+        "brokerCash": row["broker_cash"] if "broker_cash" in keys else None,
+        "brokerBuyingPower": row["broker_buying_power"] if "broker_buying_power" in keys else None,
+        "brokerMarketValue": row["broker_market_value"] if "broker_market_value" in keys else None,
+        "brokerBalanceSyncedAt": row["broker_balance_synced_at"] if "broker_balance_synced_at" in keys else None,
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }

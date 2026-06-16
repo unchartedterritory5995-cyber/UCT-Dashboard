@@ -77,7 +77,11 @@ def env(tmp_path, monkeypatch):
         "institution_name": "Schwab", "type": "margin",
     })
     calls = []
-    snap.configure(_Group(account_information=_Group(get_account_activities=_activities_fn(ACTS, calls))))
+    snap.configure(_Group(account_information=_Group(
+        get_account_activities=_activities_fn(ACTS, calls),
+        get_user_account_positions=lambda **kw: _Resp([]),
+        get_user_account_balance=lambda **kw: _Resp([]),
+    )))
     yield {"ba_id": ba["id"], "j2": ba["j2AccountId"], "calls": calls}
     snap.reset()
 
@@ -88,6 +92,38 @@ def _trade_count(user="u1"):
         return conn.execute("SELECT COUNT(*) AS n FROM j2_trades WHERE user_id=?", (user,)).fetchone()["n"]
     finally:
         conn.close()
+
+
+@pytest.mark.asyncio
+async def test_sync_reconciles_positions_and_balances(env):
+    # Reconfigure the SDK to also return a holding + balances.
+    calls = []
+    snap.configure(_Group(account_information=_Group(
+        get_account_activities=_activities_fn(ACTS, calls),
+        get_user_account_positions=lambda **kw: _Resp(
+            [{"symbol": {"symbol": "NVDA"}, "units": 100, "price": 500, "average_purchase_price": 450}]
+        ),
+        get_user_account_balance=lambda **kw: _Resp(
+            [{"currency": "USD", "cash": 10000, "buying_power": 20000}]
+        ),
+    )))
+    out = await sync.sync_account("u1", env["ba_id"])
+    assert out["positionsUpserted"] == 1
+    # Real broker balances landed on the account.
+    from api.services.journal_two import accounts as accounts_service
+    acct = accounts_service.get_account("u1", env["j2"])
+    assert acct["balanceSource"] == "broker"
+    # equity = cash 10000 + market value (100*500=50000) = 60000
+    assert acct["brokerTotalEquity"] == 60000.0
+    # The holding became an open j2_position (carried-in, estimated entry).
+    conn = auth_db.get_connection()
+    row = conn.execute(
+        "SELECT symbol, shares, entry_price, entry_estimated, source FROM j2_positions "
+        "WHERE user_id='u1' AND symbol='NVDA'"
+    ).fetchone()
+    conn.close()
+    assert row["shares"] == 100 and row["entry_price"] == 450
+    assert row["entry_estimated"] == 1 and row["source"] == "broker"
 
 
 @pytest.mark.asyncio
