@@ -45,6 +45,15 @@ function RowTagChip({ tag }) {
   return <span className={`${styles.tag} ${cls}`}>{tag || '—'}</span>
 }
 
+function NewBadge({ isNew }) {
+  if (!isNew) return null
+  return (
+    <span className={styles.newBadge} title="New catalyst — first surfaced today">
+      NEW
+    </span>
+  )
+}
+
 function GradeBadge({ grade }) {
   if (!grade) return null
   const cls = { A: styles.gradeA, B: styles.gradeB, C: styles.gradeC }[grade] || styles.gradeB
@@ -540,6 +549,7 @@ export default function CatalystTable() {
                     </td>
                     <td className={styles.colVol}>{fmtVolX(r.vol_x)}</td>
                     <td className={styles.colTag}>
+                      <NewBadge isNew={r.is_new} />
                       <RowTagChip tag={r.tag} />
                       <GradeBadge grade={r.grade} />
                     </td>

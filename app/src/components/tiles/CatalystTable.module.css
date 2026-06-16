@@ -364,6 +364,23 @@
 .gradeB { background: rgba(251, 191, 36, 0.16); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
 .gradeC { background: rgba(160, 160, 160, 0.14); color: #9ca3af; border: 1px solid rgba(160,160,160,0.3); }
 
+/* "NEW" badge — fresh catalyst first surfaced today (r.is_new) */
+.newBadge {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  text-align: center;
+  vertical-align: middle;
+  background: rgba(34, 197, 94, 0.16);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
 /* Catalyst type chip — small label leading the thesis text */
 .typeChip {
   display: inline-block;
