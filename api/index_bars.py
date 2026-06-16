@@ -6,31 +6,34 @@ Why this exists:
   Schwab serves /pricehistory for ETFs (SPY, QQQ, IWM, DIA) but silently
   returns {"bars": []} for cash-settled index symbols (SPX, NDX, VIX, RUT,
   DJX, XSP, XND) — the /chains endpoint works for these (which is why GEX
-  data loads), but /pricehistory does not. The fix is to route index
-  symbols through a different data provider for the bars endpoint only.
+  data loads), but /pricehistory does not.
+
+Two-tier fetch strategy:
+  1. PRIMARY: yfinance with the Yahoo index symbol (^GSPC for SPX, ^NDX
+     for NDX, etc.). Works reliably for daily/weekly/monthly.
+  2. FALLBACK: for intraday timeframes (1/5/15/30/60m), if the primary
+     returns sparse data (Yahoo's intraday history for index symbols is
+     often just a few days or empty), fall back to the corresponding ETF
+     × a dynamically-computed ratio that aligns the price scale with the
+     option strikes (SPY × ~10 ≈ SPX).
+
+The ETF-proxy ratio is computed at request time from the latest daily
+close — this handles slow drift in ETF NAV vs index level over time
+(SPY isn't exactly SPX/10 forever; the ratio shifts with dividend
+distributions). Proxy only invoked when primary fails, so normal
+Daily/Weekly/Monthly fetches keep using the true index series.
 
 Output format matches the existing /api/bars/{ticker} response shape:
   {"ticker": <original>, "tf": <tf>, "bars": [{t, o, h, l, c, v}, ...]}
   where t is unix seconds (UTC), o/h/l/c floats, v int.
 
-XSP / XND / DJX are notional sub-units. We divide by their ratio so the
-chart price aligns with option strikes (XSP $450 chart line lines up
-with XSP options struck at $450). For SPX/NDX/VIX/RUT divisor == 1.
-
-yfinance limits:
-  1m bars      → max 7 days history
-  2m-90m bars  → max 60 days history
-  Daily+       → years of history
-
-For typical GEX/swing-trading use (1d Daily setups + intraday confirm)
-these limits are not a constraint. If 60d intraday becomes limiting,
-the natural upgrade path is to swap yfinance for Polygon (Ravi already
-has a Polygon API key from the breadth-indicator work) — same interface,
-just replace fetch_index_bars internals.
+Volume bars are flat zero for true indexes. When the ETF proxy is used,
+real SPY/QQQ/IWM volume IS preserved — useful as a sentiment proxy when
+SPX is being charted.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger("index_bars")
 
@@ -41,13 +44,26 @@ INDEX_MAP = {
     "VIX": ("^VIX",  1.0),
     "RUT": ("^RUT",  1.0),
     "DJX": ("^DJI",  100.0),   # DJX = Dow Jones / 100
-    "XSP": ("^GSPC", 10.0),    # XSP = SPX / 10 (mini SPX option root)
-    "XND": ("^NDX",  100.0),   # XND = NDX / 100 (micro NDX option root)
+    "XSP": ("^GSPC", 10.0),    # XSP = SPX / 10
+    "XND": ("^NDX",  100.0),   # XND = NDX / 100
 }
 INDEX_TICKERS = frozenset(INDEX_MAP.keys())
 
-# Map UI tf values to yfinance interval strings. Tolerates the lowercase
-# variants the frontend occasionally sends.
+# ETF proxy — used when the index symbol returns sparse intraday.
+# Map: original_symbol → (etf_symbol, target_yahoo_for_ratio_numerator)
+#   ratio = latest_daily_close(target_yahoo) / latest_daily_close(etf)
+#   bar_value = etf_value * ratio  (then ÷ original divisor for XSP/XND/DJX)
+# VIX has no clean proxy (VXX is path-dependent), so no fallback for VIX.
+ETF_PROXY = {
+    "SPX": ("SPY", "^GSPC"),
+    "XSP": ("SPY", "^GSPC"),
+    "NDX": ("QQQ", "^NDX"),
+    "XND": ("QQQ", "^NDX"),
+    "RUT": ("IWM", "^RUT"),
+    "DJX": ("DIA", "^DJI"),
+}
+
+# Map UI tf values to yfinance interval strings.
 TF_MAP = {
     "1":  "1m",  "5":  "5m",  "15": "15m",
     "30": "30m", "60": "60m", "1h": "60m",
@@ -55,8 +71,7 @@ TF_MAP = {
     "d":  "1d",  "w":  "1wk", "m":  "1mo",
 }
 
-# Largest period yfinance accepts per interval — exceeding these returns
-# Yahoo's "1m data only available for last 7 days" rejection.
+# Largest period yfinance accepts per interval.
 PERIOD_MAP = {
     "1m":  "7d",
     "2m":  "60d", "5m":  "60d", "15m": "60d", "30m": "60d",
@@ -64,38 +79,108 @@ PERIOD_MAP = {
     "1d":  "5y",  "5d":  "5y",  "1wk": "10y", "1mo": "max", "3mo": "max",
 }
 
+INTRADAY_SPARSE_THRESHOLD = 10
+INTRADAY_INTERVALS = frozenset({"1m", "2m", "5m", "15m", "30m", "60m", "90m"})
+
 
 def is_index(ticker: str) -> bool:
-    """True if the ticker should route through yfinance instead of Schwab.
-
-    Use at the top of /api/bars/{ticker} to decide which fetcher to call.
-    """
+    """True if the ticker should route through yfinance instead of Schwab."""
     return (ticker or "").upper().strip() in INDEX_TICKERS
+
+
+def _fetch_yf(yahoo_sym: str, interval: str, period: str,
+              divisor: float, since: Optional[int]) -> List[Dict[str, Any]]:
+    """Pull bars from yfinance and convert to {t,o,h,l,c,v}. Returns []
+    on any failure — caller decides whether to retry / fall back.
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        logger.error("[index_bars] yfinance not installed")
+        return []
+
+    try:
+        df = yf.download(
+            yahoo_sym,
+            period=period,
+            interval=interval,
+            auto_adjust=False,
+            prepost=False,
+            progress=False,
+            threads=False,
+        )
+    except Exception as e:
+        logger.error(f"[index_bars] yfinance.download failed for "
+                     f"{yahoo_sym} {interval} {period}: {e}")
+        return []
+
+    if df is None or df.empty:
+        return []
+
+    if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
+        df.columns = df.columns.get_level_values(0)
+
+    out: List[Dict[str, Any]] = []
+    for idx, row in df.iterrows():
+        try:
+            t = int(idx.timestamp())
+            o = float(row["Open"])  / divisor
+            h = float(row["High"])  / divisor
+            l = float(row["Low"])   / divisor
+            c = float(row["Close"]) / divisor
+            v_raw = row.get("Volume", 0)
+            v = int(v_raw) if v_raw == v_raw else 0
+        except (KeyError, ValueError, TypeError, AttributeError):
+            continue
+        if any(x != x for x in (o, h, l, c)):
+            continue
+        if since is not None and t <= since:
+            continue
+        out.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
+    return out
+
+
+def _proxy_ratio(target_yahoo: str, etf_sym: str) -> Optional[float]:
+    """Compute index_level / etf_price from latest daily close so ETF-proxied
+    bars scale to match the index. Returns None on failure.
+
+    Done off the daily series because daily data is reliable for both sides
+    and the ratio shifts slowly anyway (dividend distributions ~quarterly).
+    """
+    try:
+        import yfinance as yf
+        idx_df = yf.download(target_yahoo, period="5d", interval="1d",
+                             auto_adjust=False, progress=False, threads=False)
+        etf_df = yf.download(etf_sym, period="5d", interval="1d",
+                             auto_adjust=False, progress=False, threads=False)
+        if idx_df is None or idx_df.empty or etf_df is None or etf_df.empty:
+            return None
+        if hasattr(idx_df.columns, "nlevels") and idx_df.columns.nlevels > 1:
+            idx_df.columns = idx_df.columns.get_level_values(0)
+        if hasattr(etf_df.columns, "nlevels") and etf_df.columns.nlevels > 1:
+            etf_df.columns = etf_df.columns.get_level_values(0)
+        idx_close = float(idx_df["Close"].iloc[-1])
+        etf_close = float(etf_df["Close"].iloc[-1])
+        if etf_close <= 0:
+            return None
+        return idx_close / etf_close
+    except Exception as e:
+        logger.warning(f"[index_bars] proxy ratio fetch failed "
+                       f"({target_yahoo}/{etf_sym}): {e}")
+        return None
 
 
 def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
                      since: Optional[int] = None) -> dict:
-    """Fetch OHLCV bars for an index symbol via yfinance.
+    """Fetch OHLCV bars for an index symbol.
 
-    Args:
-        ticker: original symbol (e.g., 'SPX')
-        tf:     timeframe string from the UI (1/5/15/30/60/D/W/M)
-        bars:   max number of bars to return (most recent N)
-        since:  optional unix-seconds timestamp; returns only bars strictly
-                newer than this (delta fetch). Quietly ignored if the
-                yfinance period window doesn't reach back that far.
+    Strategy:
+      Daily/Weekly/Monthly  → ^GSPC etc. directly (reliable)
+      Intraday              → ^GSPC first, fall back to SPY × ratio if sparse
 
-    Returns the standard bars response shape:
-        {"ticker": ticker, "tf": tf, "bars": [{t, o, h, l, c, v}, ...]}
-
-    On any error returns an empty bars array — matches Schwab's silent-empty
-    behavior. The frontend already handles empty arrays gracefully, so the
-    chart degrades to "no data" rather than throwing.
-
-    NOTE on concurrency: this function is SYNCHRONOUS (yfinance uses
-    requests internally). If your bars route is async, wrap the call:
-        await asyncio.to_thread(fetch_index_bars, ticker, tf, bars, since)
-    Otherwise you'll block the event loop for 200-2000ms per request.
+    NOTE: synchronous (yfinance uses requests internally). FastAPI runs sync
+    route handlers in its thread pool, so blocking here doesn't stall the
+    event loop. If invoked from async code, wrap with asyncio.to_thread.
     """
     sym = (ticker or "").upper().strip()
     if sym not in INDEX_MAP:
@@ -107,66 +192,31 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
         logger.warning(f"[index_bars] unknown tf={tf!r} for {ticker}")
         return {"ticker": ticker, "tf": tf, "bars": []}
 
-    try:
-        import yfinance as yf
-    except ImportError:
-        logger.error("[index_bars] yfinance not installed — `pip install yfinance` "
-                     "and add to requirements.txt")
-        return {"ticker": ticker, "tf": tf, "bars": []}
-
     period = PERIOD_MAP.get(interval, "60d")
-    try:
-        # auto_adjust=False preserves raw OHLC (no dividend back-adjustment,
-        # which is meaningless for indexes anyway but worth being explicit).
-        # prepost=False keeps RTH-only bars, matching Schwab's convention so
-        # the rest of the chart code doesn't see surprise session boundaries.
-        df = yf.download(
-            yahoo_sym,
-            period=period,
-            interval=interval,
-            auto_adjust=False,
-            prepost=False,
-            progress=False,
-            threads=False,  # safer in single-request serverless context
-        )
-    except Exception as e:
-        logger.error(f"[index_bars] yfinance.download failed for "
-                     f"{yahoo_sym} {interval}: {e}")
-        return {"ticker": ticker, "tf": tf, "bars": []}
 
-    if df is None or df.empty:
-        logger.warning(f"[index_bars] yfinance returned empty for "
-                       f"{yahoo_sym} {interval}")
-        return {"ticker": ticker, "tf": tf, "bars": []}
+    # PRIMARY: index symbol directly.
+    out = _fetch_yf(yahoo_sym, interval, period, divisor, since)
 
-    # yfinance flips to a MultiIndex column structure in some versions even
-    # for a single ticker — flatten so row['Open'] etc. work uniformly.
-    if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
-        df.columns = df.columns.get_level_values(0)
+    # FALLBACK: for intraday, if the index symbol returned sparse data,
+    # try the ETF proxy. Common for ^GSPC/^NDX — Yahoo's intraday history
+    # for cash indexes is intermittent vs the rock-solid ETF series.
+    if (interval in INTRADAY_INTERVALS
+            and len(out) < INTRADAY_SPARSE_THRESHOLD
+            and sym in ETF_PROXY):
+        etf_sym, ratio_target = ETF_PROXY[sym]
+        logger.info(f"[index_bars] {sym} {interval} returned {len(out)} bars "
+                    f"from {yahoo_sym}; trying ETF proxy {etf_sym}")
+        ratio = _proxy_ratio(ratio_target, etf_sym)
+        if ratio is not None:
+            # Combined divisor: scale ETF → index level (via ratio), then
+            # ÷ divisor for XSP/XND/DJX. For SPX/NDX/RUT divisor==1.
+            proxy_div = divisor / ratio
+            proxy_out = _fetch_yf(etf_sym, interval, period, proxy_div, since)
+            if len(proxy_out) > len(out):
+                logger.info(f"[index_bars] proxy {etf_sym} returned "
+                            f"{len(proxy_out)} bars — using proxy")
+                out = proxy_out
 
-    out = []
-    for idx, row in df.iterrows():
-        try:
-            t = int(idx.timestamp())
-            o = float(row["Open"])  / divisor
-            h = float(row["High"])  / divisor
-            l = float(row["Low"])   / divisor
-            c = float(row["Close"]) / divisor
-            v_raw = row.get("Volume", 0)
-            # NaN-safe int conversion (volume is often 0 or NaN for indexes
-            # since they don't trade as shares).
-            v = int(v_raw) if v_raw == v_raw else 0
-        except (KeyError, ValueError, TypeError, AttributeError):
-            continue
-        # Skip placeholder rows where OHLC came through as NaN (yfinance
-        # occasionally emits these for non-trading sessions).
-        if any(x != x for x in (o, h, l, c)):
-            continue
-        if since is not None and t <= since:
-            continue
-        out.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
-
-    # yfinance returns the full period window; cap to most recent N bars.
     if len(out) > bars:
         out = out[-bars:]
 
