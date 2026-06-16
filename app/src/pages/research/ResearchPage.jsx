@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
 import OverviewTab from './tabs/OverviewTab'
+import FinancialsTab from './tabs/FinancialsTab'
 import ComingSoonTab from './tabs/ComingSoonTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
@@ -39,9 +40,9 @@ export default function ResearchPage() {
           >{t}</button>
         ))}
       </nav>
-      {active === 'Overview'
-        ? <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />
-        : <ComingSoonTab name={active} />}
+      {active === 'Overview' && <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
+      {active === 'Financials' && <FinancialsTab sym={sym} />}
+      {active !== 'Overview' && active !== 'Financials' && <ComingSoonTab name={active} />}
     </div>
   )
 }

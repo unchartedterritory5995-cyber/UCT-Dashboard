@@ -33,7 +33,8 @@ describe('ResearchPage', () => {
   it('shows the 7 tabs and switches to a coming-soon stub', async () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
-    fireEvent.click(screen.getByRole('button', { name: 'Financials' }))
+    // Estimates is still a stub in Phase 2 (Financials is now a live tab).
+    fireEvent.click(screen.getByRole('button', { name: 'Estimates' }))
     expect(await screen.findByText(/coming soon/i)).toBeInTheDocument()
   })
 

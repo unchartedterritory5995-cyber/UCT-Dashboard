@@ -37,6 +37,21 @@
 .kv b { color: var(--text-bright); }
 .ai { font-size: 12px; line-height: 1.55; color: var(--text); }
 
+/* financials tab */
+.finWrap { display: flex; flex-direction: column; gap: 10px; }
+.gridScroll { overflow-x: auto; }
+.fgrid { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fgrid th, .fgrid td { padding: 4px 8px; text-align: right; white-space: nowrap; }
+.fgrid th:first-child, .fgrid td:first-child { text-align: left; }
+.fgrid th { color: var(--text-muted); font-size: 9px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.fgrid tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+.fperiod { color: var(--text-bright); font-weight: 700; }
+.heatPos2 { background: rgba(60, 184, 104, 0.30); color: #c8f4d8; font-weight: 700; border-radius: 4px; }
+.heatPos1 { background: rgba(60, 184, 104, 0.12); color: var(--gain); border-radius: 4px; }
+.heatNeg1 { background: rgba(231, 76, 60, 0.12); color: var(--loss); border-radius: 4px; }
+.heatNeg2 { background: rgba(231, 76, 60, 0.30); color: #f6cdc8; font-weight: 700; border-radius: 4px; }
+.fnote { color: var(--text-muted); font-size: 12px; padding: 8px 2px; }
+
 /* coming soon */
 .soon { display: flex; align-items: center; justify-content: center; min-height: 280px; }
 .soonInner { text-align: center; color: var(--text-muted); }

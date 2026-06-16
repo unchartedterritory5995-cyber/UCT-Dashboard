@@ -75,6 +75,7 @@ from api.routers import catalysts as catalysts_router
 from api.routers import modelbook as modelbook_router
 from api.routers import fundamentals as fundamentals_router
 from api.routers import filings as filings_router
+from api.routers import research as research_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.flow_router import flow_router
@@ -2102,6 +2103,7 @@ app.include_router(catalysts_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(fundamentals_router.router)
 app.include_router(filings_router.router)
+app.include_router(research_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 
