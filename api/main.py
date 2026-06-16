@@ -1524,6 +1524,20 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
+        # Broker Sync — background incremental sync across all connected users.
+        # Gated by BROKER_SYNC_ENABLED (default OFF → fully inert). Runs on the
+        # web pod (auth.db is web-local). Bounded async concurrency inside the
+        # job keeps it light on the 512MB pod.
+        if os.getenv("BROKER_SYNC_ENABLED") == "1":
+            from api.services.journal_two.broker import sync as _broker_sync_engine
+            _bs_interval = int(os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
+            _scheduler.add_job(
+                _broker_sync_engine.run_due_sync_blocking,
+                trigger=IntervalTrigger(minutes=_bs_interval),
+                id="broker_sync_due", max_instances=1, replace_existing=True,
+            )
+            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m)")
+
         def _cot_daily_catchup():
             try:
                 from datetime import date as _dt

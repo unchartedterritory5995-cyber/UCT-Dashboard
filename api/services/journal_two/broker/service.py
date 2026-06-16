@@ -140,6 +140,42 @@ def _purge_imported(user_id: str, conn) -> dict[str, int]:
     return {"trades": t, "positions": p, "optionStrategies": o}
 
 
+def purge_on_account_deletion(user_id: str, conn) -> dict[str, Any]:
+    """GDPR/CCPA cascade: remove all broker rows (encrypted secret + data) for
+    a user being deleted, and best-effort revoke at SnapTrade. Synchronous and
+    safe to call inside an account-deletion transaction; the SnapTrade revoke
+    never blocks or raises (the local purge is the compliance-critical part).
+
+    `conn` is the caller's open connection (the deletion transaction)."""
+    import asyncio
+
+    snap_uid = None
+    try:
+        row = conn.execute(
+            "SELECT snaptrade_user_id FROM j2_broker_users WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        snap_uid = row["snaptrade_user_id"] if row else None
+    except Exception:
+        snap_uid = None
+
+    # Local purge (always — the encrypted secret + financial data).
+    for tbl in ("j2_broker_activities", "j2_broker_accounts", "j2_broker_sync_log",
+                "j2_broker_dup_flags", "j2_broker_users"):
+        try:
+            conn.execute(f"DELETE FROM {tbl} WHERE user_id = ?", (user_id,))
+        except Exception:
+            pass  # table may not exist on very old DBs
+
+    # Best-effort revoke at SnapTrade (never block deletion).
+    if snap_uid and snap.is_configured():
+        try:
+            asyncio.run(snap.delete_user(snap_uid))
+        except Exception:
+            pass
+    return {"purged": True, "snaptradeUserId": snap_uid}
+
+
 def status(user_id: str) -> dict[str, Any]:
     """Connection + per-account summary for the Settings panel. Never
     decrypts the secret (works even if the key is lost — surfaces 'broken')."""

@@ -188,6 +188,7 @@ def _persist(user_id, broker_account_id, j2_account_id, strategies, conn) -> dic
     conn = conn or get_connection()
     imported = skipped = 0
     seen: dict[str, int] = {}
+    desired: set[str] = set()
     try:
         conn.execute("BEGIN")
         for s in strategies:
@@ -195,6 +196,7 @@ def _persist(user_id, broker_account_id, j2_account_id, strategies, conn) -> dic
             n = seen.get(base, 0)
             seen[base] = n + 1
             ext = _fingerprint(broker_account_id, s, n)
+            desired.add(ext)  # desired regardless of insert vs already-present
             if conn.execute(
                 "SELECT 1 FROM j2_option_strategies WHERE user_id = ? AND external_id = ?",
                 (user_id, ext),
@@ -210,7 +212,8 @@ def _persist(user_id, broker_account_id, j2_account_id, strategies, conn) -> dic
     finally:
         if owned:
             conn.close()
-    return {"imported": imported, "skipped": skipped, "built": len(strategies)}
+    return {"imported": imported, "skipped": skipped, "built": len(strategies),
+            "desiredExternalIds": desired}
 
 
 def _insert_strategy(conn, user_id, account_id, s, external_id) -> None:

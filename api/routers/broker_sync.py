@@ -11,9 +11,12 @@ to isolate the feature and minimize merge surface.
 
 from __future__ import annotations
 
+import asyncio
+import hmac
+import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
@@ -131,3 +134,51 @@ async def disconnect(body: DisconnectBody, user: dict = Depends(_paid)) -> dict[
     """Disconnect: revoke at SnapTrade + purge credentials. Optionally also
     delete broker-imported trade data."""
     return await broker_service.disconnect(user["id"], purge_trades=body.purgeTrades)
+
+
+# Keep references to fire-and-forget webhook sync tasks so they aren't GC'd.
+_webhook_tasks: set = set()
+
+
+@router.post("/webhook")
+async def webhook(request: Request) -> dict[str, Any]:
+    """SnapTrade webhook. Authenticated by a shared secret in the body
+    (SNAPTRADE_WEBHOOK_SECRET, set in the SnapTrade dashboard) — NOT by user
+    session. On a data-changing event we trigger a background sync for that
+    user so the journal updates reactively (reducing polling pressure)."""
+    secret = os.getenv("SNAPTRADE_WEBHOOK_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Webhooks not configured.")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON.")
+    sent = str(body.get("webhookSecret") or "")
+    if not hmac.compare_digest(sent, secret):
+        raise HTTPException(status_code=401, detail="Bad webhook secret.")
+
+    # We registered SnapTrade users keyed by our UCT user id, so userId == ours.
+    uct_user_id = body.get("userId")
+    event = str(body.get("eventType") or body.get("type") or "").upper()
+    # Sync on events that imply new/changed brokerage data.
+    sync_events = {
+        "CONNECTION_ADDED", "CONNECTION_UPDATED", "ACCOUNT_HOLDINGS_UPDATED",
+        "ACCOUNT_TRANSACTIONS_UPDATED", "NEW_ACCOUNT_AVAILABLE", "TRADES_PLACED",
+    }
+    if uct_user_id and (not event or event in sync_events):
+        async def _bg():
+            try:
+                await broker_service_sync_all(uct_user_id)
+            except Exception:
+                pass
+        task = asyncio.create_task(_bg())
+        _webhook_tasks.add(task)
+        task.add_done_callback(_webhook_tasks.discard)
+    return {"ok": True}
+
+
+async def broker_service_sync_all(user_id: str) -> Any:
+    """Indirection so the webhook can trigger a full user sync without a
+    top-level import cycle."""
+    from api.services.journal_two.broker import sync as broker_sync_engine
+    return await broker_sync_engine.sync_all_for_user(user_id)

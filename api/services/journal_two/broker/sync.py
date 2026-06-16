@@ -141,6 +141,42 @@ async def sync_all_for_user(user_id: str, *, full: bool = False) -> dict[str, An
     return results
 
 
+async def sync_due_accounts(
+    *, interval_minutes: int | None = None, concurrency: int | None = None
+) -> dict[str, Any]:
+    """Scheduler entry: sync every account whose last sync is older than the
+    interval, across all users, with bounded concurrency. One failing account
+    never blocks the others (isolated per-account)."""
+    import os
+    interval = interval_minutes if interval_minutes is not None else int(
+        os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
+    conc = concurrency if concurrency is not None else int(
+        os.getenv("BROKER_SYNC_CONCURRENCY", "4"))
+    due = connections.list_due_accounts(interval)
+    sem = asyncio.Semaphore(max(1, conc))
+
+    async def _one(acct: dict) -> Any:
+        async with sem:
+            try:
+                return await sync_account(acct["userId"], acct["id"])
+            except Exception as e:  # noqa: BLE001
+                return {"error": str(e)}
+
+    results = await asyncio.gather(*(_one(a) for a in due)) if due else []
+    ok = sum(1 for r in results if isinstance(r, dict) and "error" not in r)
+    return {"due": len(due), "synced": ok, "failed": len(results) - ok}
+
+
+def run_due_sync_blocking() -> None:
+    """Synchronous wrapper for the BackgroundScheduler (which runs jobs in a
+    thread with no event loop). Never raises into the scheduler."""
+    import logging
+    try:
+        asyncio.run(sync_due_accounts())
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("broker_sync").warning("scheduled broker sync failed: %s", e)
+
+
 async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[str, Any]:
     ba = connections.get_broker_account(user_id, broker_account_id)
     if ba is None:
@@ -179,7 +215,18 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
 
         stored = activities_store.store_activities(user_id, broker_account_id, raw)
 
-        # Reconstruct over the FULL ledger (FIFO needs complete history).
+        # Corrections heal (ledger side): drop any ledger rows the broker no
+        # longer returns within the re-fetched window (voided/amended). Bounded
+        # to the window via `since` so we never delete un-refetched history.
+        present_ids = {str(a["id"]) for a in raw if isinstance(a, dict) and a.get("id")}
+        since = start_date.isoformat() if start_date is not None else None
+        healed = activities_store.heal_window(
+            user_id, broker_account_id, present_ids, since=since
+        )
+
+        # Reconstruct over the FULL (now-healed) ledger (FIFO needs complete
+        # history). reconstruct_account also prunes broker trades/strategies
+        # whose source activity is gone — the trade-side of the heal.
         all_acts = activities_store.get_activities(user_id, broker_account_id)
         settings = accounts_service.get_account_settings(user_id, ba["j2AccountId"])
         recon = reconstruct.reconstruct_account(

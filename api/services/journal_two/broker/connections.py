@@ -236,6 +236,32 @@ def get_broker_account(
             conn.close()
 
 
+def list_due_accounts(
+    interval_minutes: int, conn: sqlite3.Connection | None = None
+) -> list[dict[str, Any]]:
+    """All sync-enabled, active broker accounts (across ALL users) whose last
+    sync is older than `interval_minutes` (or never synced). Used by the
+    background scheduler. Excludes 'broken' (needs reconnect) + 'disabled'."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=interval_minutes)).isoformat()
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM j2_broker_accounts
+             WHERE sync_enabled = 1 AND status = 'active'
+               AND (last_sync_at IS NULL OR last_sync_at < ?)
+             ORDER BY (last_sync_at IS NOT NULL), last_sync_at ASC
+            """,
+            (cutoff,),
+        ).fetchall()
+        return [_row_to_broker_account(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 def map_snaptrade_account(
     user_id: str,
     raw_account: dict[str, Any],

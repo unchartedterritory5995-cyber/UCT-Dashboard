@@ -21,6 +21,7 @@ import hashlib
 import sqlite3
 from typing import Any
 
+from api.services.auth_db import get_connection
 from api.services.journal_two import trades as trades_service
 from api.services.journal_two.broker import snaptrade_adapter as adapter
 from api.services.journal_two import fifo
@@ -75,10 +76,24 @@ def reconstruct_account(
         user_id, broker_account_id, j2_account_id, part["option_events"], conn=conn
     )
 
+    # Corrections heal: because reconstruction runs over the FULL (already
+    # ledger-healed) activity history every sync, the trade/strategy sets above
+    # are the COMPLETE desired state. Prune any broker-sourced rows for this
+    # account that are no longer desired — i.e. their source activity was
+    # voided/amended at the broker. Manual rows (source != 'broker') are never
+    # touched. Unchanged rows keep their id (and any linked Compass reviews).
+    desired_trade_exts = {t["externalId"] for t in trades}
+    pruned_trades = _prune_broker_trades(user_id, j2_account_id, desired_trade_exts, conn=conn)
+    pruned_options = _prune_broker_option_strategies(
+        user_id, j2_account_id, opt_res.get("desiredExternalIds", set()), conn=conn
+    )
+
     return {
         "imported": ins["imported"],
         "skipped": ins["skipped"],
         "tradesReconstructed": len(trades),
+        "prunedTrades": pruned_trades,
+        "prunedOptions": pruned_options,
         "openPositions": fifo_out["open_positions"],
         "optionEvents": part["option_events"],
         "optionsImported": opt_res["imported"],
@@ -88,3 +103,46 @@ def reconstruct_account(
         "fifoErrors": fifo_out["errors"],
         "skippedActivities": part["skipped"],
     }
+
+
+def _prune_broker_trades(user_id, j2_account_id, desired_exts, conn=None) -> int:
+    """Delete broker-sourced trades for the account whose external_id is no
+    longer in the desired set (voided/amended source activities)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, external_id FROM j2_trades "
+            "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
+            "AND external_id IS NOT NULL",
+            (user_id, j2_account_id),
+        ).fetchall()
+        stale = [r["id"] for r in rows if r["external_id"] not in desired_exts]
+        if stale:
+            conn.executemany("DELETE FROM j2_trades WHERE id = ?", [(i,) for i in stale])
+            conn.commit()
+        return len(stale)
+    finally:
+        if owned:
+            conn.close()
+
+
+def _prune_broker_option_strategies(user_id, j2_account_id, desired_exts, conn=None) -> int:
+    """Delete broker-sourced option strategies (legs cascade) no longer desired."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, external_id FROM j2_option_strategies "
+            "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
+            "AND external_id IS NOT NULL",
+            (user_id, j2_account_id),
+        ).fetchall()
+        stale = [r["id"] for r in rows if r["external_id"] not in desired_exts]
+        if stale:
+            conn.executemany("DELETE FROM j2_option_strategies WHERE id = ?", [(i,) for i in stale])
+            conn.commit()
+        return len(stale)
+    finally:
+        if owned:
+            conn.close()

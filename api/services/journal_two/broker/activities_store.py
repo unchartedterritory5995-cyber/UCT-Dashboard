@@ -126,6 +126,56 @@ def latest_occurred_at(
             conn.close()
 
 
+def heal_window(
+    user_id: str,
+    broker_account_id: str,
+    present_external_ids: set[str],
+    *,
+    since: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Remove ledger rows the broker no longer returns within the re-fetched
+    window (corrections / cancellations). `present_external_ids` is the set of
+    activity ids the broker just returned; `since` bounds the comparison to the
+    fetched window so we never delete history we didn't re-pull (NULL = full
+    backfill, compare everything). Returns the count removed.
+
+    Activities with a NULL occurred_at are only healed during a full backfill
+    (since IS NULL) — we can't place them in an incremental window."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if since is None:
+            rows = conn.execute(
+                "SELECT id, external_id FROM j2_broker_activities "
+                "WHERE user_id = ? AND broker_account_id = ?",
+                (user_id, broker_account_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, external_id FROM j2_broker_activities "
+                "WHERE user_id = ? AND broker_account_id = ? "
+                "AND occurred_at IS NOT NULL AND occurred_at >= ?",
+                (user_id, broker_account_id, since),
+            ).fetchall()
+        to_delete = [r["id"] for r in rows if r["external_id"] not in present_external_ids]
+        if to_delete:
+            conn.execute("BEGIN")
+            try:
+                conn.executemany(
+                    "DELETE FROM j2_broker_activities WHERE id = ?",
+                    [(i,) for i in to_delete],
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+        return len(to_delete)
+    finally:
+        if owned:
+            conn.close()
+
+
 def count(user_id: str, broker_account_id: str, conn: sqlite3.Connection | None = None) -> int:
     owned = conn is None
     conn = conn or get_connection()

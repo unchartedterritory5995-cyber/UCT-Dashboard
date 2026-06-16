@@ -696,6 +696,13 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         for wl_id in wl_ids:
             conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
         conn.execute("DELETE FROM watchlists WHERE user_id = ?", (user_id,))
+        # Broker-sync cascade (GDPR/CCPA): purge encrypted credentials + data,
+        # best-effort revoke at SnapTrade.
+        try:
+            from api.services.journal_two.broker import service as _broker_service
+            _broker_service.purge_on_account_deletion(user_id, conn)
+        except Exception as _e:
+            print(f"[admin-delete] broker purge failed (non-fatal): {_e}")
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
         return {"ok": True, "user_id": user_id, "deleted": True}
@@ -763,6 +770,12 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         for wl_id in wl_ids:
             conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
         conn.execute("DELETE FROM watchlists WHERE user_id = ?", (target_id,))
+        # Broker-sync cascade (GDPR/CCPA).
+        try:
+            from api.services.journal_two.broker import service as _broker_service
+            _broker_service.purge_on_account_deletion(target_id, conn)
+        except Exception as _e:
+            print(f"[delete-user] broker purge failed (non-fatal): {_e}")
         conn.execute("DELETE FROM users WHERE id = ?", (target_id,))
         conn.commit()
         return {"ok": True, "email": req.email, "deleted": True}
