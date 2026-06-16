@@ -116,3 +116,12 @@ def test_collect_all_merges_analyst_meta(monkeypatch):
     cands = sources.collect_all()
     aaa = next(c for c in cands if c["ticker"] == "AAA")
     assert aaa["analyst_meta"]["action"] == "upgrade"
+
+
+from api.services.catalyst import tagging
+
+
+def test_analyst_meta_tags_as_catalyst():
+    c = {"gap_pct": 1.0, "vol_x": 1.0, "tweets": [], "rss": [],
+         "analyst_meta": {"action": "upgrade", "firm": "MS"}}
+    assert tagging.assign_tag(c) == "Catalyst"

@@ -509,21 +509,52 @@ def bulk_insert_trades(
     conn: sqlite3.Connection | None = None,
     *,
     account_id: str | None = None,
+    source: str | None = None,
 ) -> dict[str, Any]:
     """Bulk-insert pre-parsed trade dicts. account_id stamped on every
     inserted row (defaults to None if caller doesn't supply one — the
-    router resolves the user's Default account before calling)."""
+    router resolves the user's Default account before calling).
+
+    Origin tagging (broker sync):
+      - `source` (e.g. 'broker') is stamped on every inserted row.
+      - If a trade dict carries an `externalId`, it's stored on the row and
+        used for idempotency: a trade whose (user_id, externalId) already
+        exists is SKIPPED (re-running reconstruction over the same broker
+        activities produces no duplicates). Trades without an externalId
+        (the CSV path) are always inserted — behavior is unchanged.
+    Returns {"imported": n, "skipped": m}."""
     if not parsed_trades:
-        return {"imported": 0, "errors": []}
+        return {"imported": 0, "skipped": 0}
 
     owned_conn = conn is None
     conn = conn or get_connection()
 
+    # Regime is computed ONCE per batch (not per trade). For broker-imported
+    # trades it's left NULL: these are historical round-trips, so stamping
+    # today's regime would be wrong and would pollute regime-aware analytics.
+    # The current regime only makes sense for trades being recorded now
+    # (manual add / CSV of recent trades).
+    batch_regime = (
+        None if source == "broker"
+        else regime_service.get_current_regime().get("regime")
+    )
+
     try:
         conn.execute("BEGIN")
         inserted = 0
+        skipped = 0
         try:
             for pt in parsed_trades:
+                external_id = pt.get("externalId")
+                if external_id is not None:
+                    dup = conn.execute(
+                        "SELECT 1 FROM j2_trades WHERE user_id = ? AND external_id = ?",
+                        (user_id, external_id),
+                    ).fetchone()
+                    if dup is not None:
+                        skipped += 1
+                        continue
+
                 original_stop = pt.get("originalStop")
                 if original_stop is None:
                     # §14.5 edge case #3: entry == originalStop → R null
@@ -553,8 +584,8 @@ def bulk_insert_trades(
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
                         r_multiple, hold_days, result, context_at_entry,
                         account_id, fees, created_at, regime,
-                        mistake_tags, emotion_tags
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        mistake_tags, emotion_tags, source, external_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -579,9 +610,11 @@ def bulk_insert_trades(
                         account_id,
                         float(pt.get("fees") or 0),
                         now,
-                        regime_service.get_current_regime().get("regime"),
+                        batch_regime,
                         '[]',
                         '[]',
+                        source,
+                        external_id,
                     ),
                 )
                 inserted += 1
@@ -589,7 +622,7 @@ def bulk_insert_trades(
         except Exception:
             conn.rollback()
             raise
-        return {"imported": inserted}
+        return {"imported": inserted, "skipped": skipped}
     finally:
         if owned_conn:
             conn.close()

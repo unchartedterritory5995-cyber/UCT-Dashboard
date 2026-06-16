@@ -17,7 +17,8 @@ def _f(name: str, default: float) -> float:
 def assign_tag(c: dict) -> Optional[str]:
     if c.get("earnings_reported_recently"):
         return "Earnings"
-    if c.get("tweet_mention_count", 0) >= 2 or c.get("rss_headline_count", 0) >= 1:
+    # Catalyst: hard analyst action, or 2+ tweets, or 1+ RSS headline.
+    if c.get("analyst_meta") or len(c.get("tweets", [])) >= 2 or len(c.get("rss", [])) >= 1:
         return "Catalyst"
     gap = abs(c.get("gap_pct", 0.0))
     # Big gap alone tags Gapper for ANY candidate. The old extra vol_x>=3

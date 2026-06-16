@@ -13,6 +13,7 @@ import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
+import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import styles from './Settings.module.css'
@@ -1051,6 +1052,9 @@ export default function Settings() {
             )}
           </div>
         </TileCard>
+
+        {/* ── Brokerage Connections (auto-import trades into Journal 2.0) ── */}
+        <BrokerConnectionsCard />
 
         {/* ── Security ── */}
         <TileCard title="Security">
