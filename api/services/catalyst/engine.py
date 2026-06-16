@@ -554,9 +554,11 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
         return
 
     since_unix = int(time.time()) - 24 * 3600
+    skip_at = int(os.environ.get("CATALYST_TWITTER_SEARCH_SKIP_AT", "8"))
+    max_results = int(os.environ.get("CATALYST_TWITTER_SEARCH_MAX", "30"))
     for c in candidates:
         existing = len(c.get("tweets") or [])
-        if existing >= 5:
+        if existing >= skip_at:
             # Already rich; skip the Twitter search call
             continue
         try:
@@ -564,7 +566,7 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
                 query=f"${c['ticker']}",
                 since_unix=since_unix,
                 query_type="Latest",
-                max_results=20,
+                max_results=max_results,
             )
         except twitterapi_io.TwitterApiError as e:
             logger.warning("[catalyst-engine] twitter_search %s failed: %s",
