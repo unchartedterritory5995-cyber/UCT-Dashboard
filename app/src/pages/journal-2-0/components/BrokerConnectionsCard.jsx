@@ -19,6 +19,7 @@ export default function BrokerConnectionsCard() {
   const [consentChecked, setConsentChecked] = useState(false)
   const [error, setError] = useState(null)
   const [dupFlags, setDupFlags] = useState(null)   // null = not loaded
+  const [syncResult, setSyncResult] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -44,8 +45,9 @@ export default function BrokerConnectionsCard() {
         await fetch('/api/j2/broker/accounts/refresh', {
           method: 'POST', credentials: 'include',
         })
-        // Kick off the first import right away.
-        await fetch('/api/j2/broker/sync', { method: 'POST', credentials: 'include' })
+        // First connect → full historical backfill; show what landed.
+        const r = await fetch('/api/j2/broker/sync?full=1', { method: 'POST', credentials: 'include' })
+        if (r.ok) setSyncResult(summarizeSync(await r.json()))
       } catch {
         /* surfaced via status reload below */
       }
@@ -94,10 +96,12 @@ export default function BrokerConnectionsCard() {
     load()
   }
 
-  const syncNow = async () => {
+  const syncNow = async (full = false) => {
     setBusy(true); setError(null)
     try {
-      await fetch('/api/j2/broker/sync', { method: 'POST', credentials: 'include' })
+      const url = full ? '/api/j2/broker/sync?force=1' : '/api/j2/broker/sync'
+      const r = await fetch(url, { method: 'POST', credentials: 'include' })
+      if (r.ok) setSyncResult(summarizeSync(await r.json()))
     } catch {
       setError('Sync failed — try again shortly.')
     }
@@ -241,14 +245,29 @@ export default function BrokerConnectionsCard() {
                       : (a.lastSyncAt ? `Synced ${relTime(a.lastSyncAt)}` : 'Not synced yet')}
                   </span>
                 </div>
-                <label className={styles.toggle} title="Auto-sync this account">
-                  <input type="checkbox" checked={a.syncEnabled} onChange={() => toggleSync(a)} />
-                  <span>{a.syncEnabled ? 'On' : 'Off'}</span>
-                </label>
+                {a.status === 'broken' ? (
+                  <button className={styles.primaryBtn} disabled={busy}
+                          onClick={() => setShowConsent(true)}
+                          title="Re-authorize this brokerage">
+                    Reconnect
+                  </button>
+                ) : (
+                  <label className={styles.toggle} title="Auto-sync this account">
+                    <input type="checkbox" checked={a.syncEnabled} onChange={() => toggleSync(a)} />
+                    <span>{a.syncEnabled ? 'On' : 'Off'}</span>
+                  </label>
+                )}
               </div>
             ))}
+            {syncResult && (
+              <p className={styles.muted} style={{ marginTop: 8 }}>
+                Imported {syncResult.imported} trade{syncResult.imported === 1 ? '' : 's'}
+                {' · '}{syncResult.positions} position{syncResult.positions === 1 ? '' : 's'}
+                {syncResult.options ? ` · ${syncResult.options} option${syncResult.options === 1 ? '' : 's'}` : ''}
+              </p>
+            )}
             <div className={styles.row} style={{ marginTop: 12 }}>
-              <button className={styles.primaryBtn} disabled={busy} onClick={syncNow}>
+              <button className={styles.primaryBtn} disabled={busy} onClick={() => syncNow(true)}>
                 {busy ? 'Syncing…' : 'Sync now'}
               </button>
               <button className={styles.ghostBtn} disabled={busy} onClick={() => setShowConsent(true)}>
@@ -318,6 +337,19 @@ export default function BrokerConnectionsCard() {
       </div>
     </TileCard>
   )
+}
+
+function summarizeSync(data) {
+  const results = data?.results || {}
+  let imported = 0, positions = 0, options = 0
+  for (const v of Object.values(results)) {
+    if (v && typeof v === 'object') {
+      imported += v.imported || 0
+      positions += v.positionsUpserted || 0
+      options += v.optionsImported || 0
+    }
+  }
+  return { imported, positions, options }
 }
 
 function relTime(iso) {

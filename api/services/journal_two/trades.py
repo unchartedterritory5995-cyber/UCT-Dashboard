@@ -482,6 +482,92 @@ def create_trade_manual(
             conn.close()
 
 
+def update_trade(
+    user_id: str,
+    trade_id: str,
+    patch: dict[str, Any],
+    settings: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Enrich an existing trade: set originalStop / setup / notes / mistakeTags /
+    emotionTags after the fact (the primary path for adding a stop to a broker-
+    imported trade so its R-multiple computes). Recomputes r_multiple/result via
+    compute_trade_derived. Returns the updated trade, or None if not found.
+
+    Entry/exit price/shares/dates are immutable here (a trade is a closed
+    record) — only intent/risk metadata is editable."""
+    owned_conn = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_trades WHERE id = ? AND user_id = ?",
+            (trade_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+
+        side = row["side"]
+        entry_price = float(row["entry_price"])
+
+        original_stop = float(row["original_stop"])
+        if "originalStop" in patch:
+            os_raw = patch["originalStop"]
+            if os_raw is None or os_raw == "":
+                original_stop = entry_price  # blank → R null (honest unknown)
+            elif not isinstance(os_raw, (int, float)) or os_raw < 0:
+                raise ManualTradeValidationError("originalStop must be a non-negative number")
+            else:
+                original_stop = float(os_raw)
+                if original_stop > 0:
+                    if side == "Long" and original_stop >= entry_price:
+                        raise ManualTradeValidationError("originalStop must be below entryPrice for a Long")
+                    if side == "Short" and original_stop <= entry_price:
+                        raise ManualTradeValidationError("originalStop must be above entryPrice for a Short")
+
+        setup = patch.get("setup", row["setup"])
+        if isinstance(setup, str):
+            setup = setup.strip() or None
+        notes = patch.get("notes", row["notes"])
+        keys = row.keys()
+        mistake_tags = (_normalize_string_list(patch["mistakeTags"], "mistakeTags")
+                        if "mistakeTags" in patch
+                        else (json.loads(row["mistake_tags"]) if "mistake_tags" in keys and row["mistake_tags"] else []))
+        emotion_tags = (_normalize_string_list(patch["emotionTags"], "emotionTags")
+                        if "emotionTags" in patch
+                        else (json.loads(row["emotion_tags"]) if "emotion_tags" in keys and row["emotion_tags"] else []))
+
+        derived = calc.compute_trade_derived(
+            side=side, shares=float(row["shares"]), entry_price=entry_price,
+            entry_date=row["entry_date"], exit_price=float(row["exit_price"]),
+            exit_date=row["exit_date"], original_stop=original_stop,
+            breakeven_range=settings["breakevenRange"],
+        )
+        conn.execute(
+            """
+            UPDATE j2_trades
+               SET original_stop = ?, setup = ?, notes = ?,
+                   pnl_dollar = ?, pnl_percent = ?, r_multiple = ?, result = ?,
+                   mistake_tags = ?, emotion_tags = ?
+             WHERE id = ? AND user_id = ?
+            """,
+            (original_stop, setup, notes, derived["pnl_dollar"], derived["pnl_percent"],
+             derived["r_multiple"], derived["result"], json.dumps(mistake_tags),
+             json.dumps(emotion_tags), trade_id, user_id),
+        )
+        conn.commit()
+        new_row = conn.execute(
+            "SELECT id, user_id, position_id, symbol, side, shares, entry_price, "
+            "entry_date, exit_price, exit_date, original_stop, setup, notes, "
+            "pnl_dollar, pnl_percent, r_multiple, hold_days, result, context_at_entry, "
+            "account_id, fees, created_at, mistake_tags, emotion_tags, source "
+            "FROM j2_trades WHERE id = ?", (trade_id,),
+        ).fetchone()
+        return _row_to_trade(new_row)
+    finally:
+        if owned_conn:
+            conn.close()
+
+
 def delete_trade(
     user_id: str,
     trade_id: str,

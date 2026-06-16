@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
+import useBrokerSync from './hooks/useBrokerSync'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
 import useJ2UnviewedEOD from './hooks/useJ2UnviewedEOD'
 import useJ2EODRecaps from './hooks/useJ2EODRecaps'
@@ -45,6 +46,9 @@ const NESTED_TABS = [
 
 export default function JournalTwoRoot() {
   const isPaid = useIsPaid()
+  // Best-effort: refresh broker-synced trades when the journal opens
+  // (server-side cooldown keeps this cheap; no-op if broker sync unconfigured).
+  useBrokerSync()
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const { accountId } = useJ2SelectedAccount()
   const { unviewed } = useJ2UnviewedEOD(accountId)

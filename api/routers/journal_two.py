@@ -312,6 +312,25 @@ def create_trade_manual(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.patch("/trades/{trade_id}")
+def update_trade(
+    trade_id: str,
+    patch: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Enrich a trade after the fact — set originalStop / setup / notes /
+    mistakeTags / emotionTags (the path for adding a stop to a broker-imported
+    trade so R-multiple computes). Recomputes derived R/result."""
+    settings = accounts_service.get_account_settings(user["id"])
+    try:
+        updated = trades_service.update_trade(user["id"], trade_id, patch, settings)
+    except trades_service.ManualTradeValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return updated
+
+
 @router.delete("/trades/{trade_id}")
 def delete_trade(
     trade_id: str,

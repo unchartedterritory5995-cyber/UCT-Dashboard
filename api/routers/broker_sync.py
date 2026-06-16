@@ -105,12 +105,18 @@ async def refresh_accounts(user: dict = Depends(_paid)) -> dict[str, Any]:
 
 
 @router.post("/sync")
-async def sync_now(user: dict = Depends(_paid)) -> dict[str, Any]:
-    """On-demand sync of all the user's connected accounts. (Background
-    scheduling is added in a later phase.)"""
+async def sync_now(
+    user: dict = Depends(_paid), full: bool = False, force: bool = False
+) -> dict[str, Any]:
+    """On-demand sync of the user's connected accounts. Applies a per-account
+    cooldown (BROKER_SYNC_COOLDOWN_SEC, default 180s) so opening the journal /
+    repeated clicks don't hammer SnapTrade — pass force=1 to bypass, full=1 for
+    a full historical backfill (used on first connect)."""
     _guard_configured()
     from api.services.journal_two.broker import sync as broker_sync_engine
-    results = await broker_sync_engine.sync_all_for_user(user["id"])
+    cooldown = 0.0 if (force or full) else float(os.getenv("BROKER_SYNC_COOLDOWN_SEC", "180"))
+    results = await broker_sync_engine.sync_all_for_user(
+        user["id"], full=full, cooldown_seconds=cooldown)
     return {"results": results}
 
 

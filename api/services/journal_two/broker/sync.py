@@ -123,13 +123,32 @@ def _finish_log(log_id: str, *, ok: bool, summary: dict | None = None, error: st
         conn.close()
 
 
-async def sync_account(user_id: str, broker_account_id: str, *, full: bool = False) -> dict[str, Any]:
-    """Sync one account. Serialized per account via an asyncio lock."""
+def _within_cooldown(ba: dict, cooldown_seconds: float) -> bool:
+    """True if this account was synced within the cooldown window."""
+    if cooldown_seconds <= 0 or not ba.get("lastSyncAt"):
+        return False
+    try:
+        last = datetime.fromisoformat(str(ba["lastSyncAt"]).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return (datetime.now(timezone.utc) - last).total_seconds() < cooldown_seconds
+
+
+async def sync_account(user_id: str, broker_account_id: str, *,
+                       full: bool = False, cooldown_seconds: float = 0.0) -> dict[str, Any]:
+    """Sync one account. Serialized per account via an asyncio lock. When
+    `cooldown_seconds` is set and the account synced that recently, skip the
+    live pull and return the cached state (debounces on-open/repeated /sync)."""
+    if cooldown_seconds and not full:
+        ba = connections.get_broker_account(user_id, broker_account_id)
+        if ba and _within_cooldown(ba, cooldown_seconds):
+            return {"skipped": "cooldown", "lastSyncAt": ba.get("lastSyncAt")}
     async with _lock_for(broker_account_id):
         return await _do_sync(user_id, broker_account_id, full=full)
 
 
-async def sync_all_for_user(user_id: str, *, full: bool = False) -> dict[str, Any]:
+async def sync_all_for_user(user_id: str, *, full: bool = False,
+                            cooldown_seconds: float = 0.0) -> dict[str, Any]:
     """Sync every sync-enabled account for a user. One failing account never
     blocks the others. Returns per-account results keyed by broker_account_id."""
     results: dict[str, Any] = {}
@@ -138,7 +157,8 @@ async def sync_all_for_user(user_id: str, *, full: bool = False) -> dict[str, An
             results[ba["id"]] = {"skipped": True, "reason": "sync disabled"}
             continue
         try:
-            results[ba["id"]] = await sync_account(user_id, ba["id"], full=full)
+            results[ba["id"]] = await sync_account(
+                user_id, ba["id"], full=full, cooldown_seconds=cooldown_seconds)
         except Exception as e:  # noqa: BLE001 — isolate per-account failures
             results[ba["id"]] = {"error": str(e)}
     return results
