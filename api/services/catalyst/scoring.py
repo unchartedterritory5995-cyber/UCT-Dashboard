@@ -56,6 +56,12 @@ def score(c: dict) -> float:
     if c.get("analyst_meta"):
         s += _w("ANALYST_ACTION", 12.0)
 
+    # Freshness: a catalyst breaking TODAY (not ranked in the prior days) gets a
+    # boost so 'new and sudden' surfaces above multi-day continuations. Multi-day
+    # runners are NOT penalized — they simply don't get this bonus.
+    if c.get("is_new"):
+        s += _w("FRESHNESS", 6.0)
+
     # Penny stock penalties
     price = c.get("price", 100.0) or 100.0
     floor = float(os.environ.get("CATALYST_PRICE_FLOOR", "2.0"))
