@@ -138,6 +138,11 @@ def _compute_catalyst_at(c: dict) -> Optional[int]:
     if isinstance(ts, (int, float)) and ts > 0:
         candidates.append(int(ts))
 
+    am = c.get("analyst_meta") or {}
+    ats = am.get("at")
+    if isinstance(ats, (int, float)) and ats > 0:
+        candidates.append(int(ats))
+
     return min(candidates) if candidates else None
 
 logger = logging.getLogger(__name__)
@@ -592,6 +597,22 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
         c["tweet_mention_count"] = len(merged)
 
 
+def _enrich_with_analyst_actions(top: list[dict]) -> None:
+    """For selected names lacking analyst_meta, check Finnhub for a recent
+    upgrade/downgrade so analyst-driven gappers are explained even before the
+    daily wire push lands. Bounded to the selected set. Best-effort."""
+    from api.services.catalyst.analyst_actions import finnhub_recent_action
+    for c in top:
+        if c.get("analyst_meta"):
+            continue
+        try:
+            meta = finnhub_recent_action(c.get("ticker") or "")
+        except Exception:
+            meta = None
+        if meta:
+            c["analyst_meta"] = meta
+
+
 def run_refresh() -> dict:
     """Single full pass. Returns summary dict for logging.
     Never raises — all errors swallowed + logged."""
@@ -663,6 +684,9 @@ def run_refresh() -> dict:
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
     _enrich_with_twitter_search(top_12)
+
+    # Analyst-action enrichment: catch analyst-driven movers pre-wire-push.
+    _enrich_with_analyst_actions(top_12)
 
     # Tier 2-1: Perplexity fallback for tickers with zero source signals.
     # Runs AFTER Twitter search so it only fires when even broad search

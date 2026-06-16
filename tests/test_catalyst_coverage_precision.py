@@ -161,3 +161,10 @@ def test_prompt_includes_analyst_block():
     prompt = synthesize.format_prompt(c)
     assert "Morgan Stanley" in prompt
     assert "Buy" in prompt
+
+
+def test_compute_catalyst_at_uses_analyst_ts():
+    from api.services.catalyst import engine
+    c = {"tweets": [], "rss": [], "earnings_meta": None,
+         "analyst_meta": {"action": "upgrade", "at": 1_700_000_000}}
+    assert engine._compute_catalyst_at(c) == 1_700_000_000
