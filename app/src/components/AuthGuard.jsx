@@ -103,6 +103,13 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
+  // /research/* is paid-only but renders its OWN paywall teaser (not a hard
+  // redirect), so let it through and let the page decide. Do NOT add it to
+  // FREE_PAGES — it must not appear as a free nav item.
+  if (location.pathname.startsWith('/research')) {
+    return <Outlet />
+  }
+
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
 
   if (plan !== 'pro' && user.role !== 'admin' && !isFreePage) {

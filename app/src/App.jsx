@@ -25,6 +25,7 @@ const Signup = lazy(() => import('./pages/Signup'))
 const Subscribe = lazy(() => import('./pages/Subscribe'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const MorningWire = lazy(() => import('./pages/MorningWire'))
+const ResearchPage = lazy(() => import('./pages/research/ResearchPage'))
 const UCT20 = lazy(() => import('./pages/UCT20'))
 const Breadth = lazy(() => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
@@ -169,6 +170,7 @@ export default function App() {
                 <Route path="/theme-tracker" element={<LegacyRedirect />} />
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
+                <Route path="/research/:sym" element={<ResearchPage />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
