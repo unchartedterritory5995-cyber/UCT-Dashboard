@@ -631,7 +631,19 @@ def run_refresh() -> dict:
         if passed:
             kept.append(c)
         else:
-            excluded[(c.get("ticker") or "").upper()] = reason or "excluded"
+            sym = (c.get("ticker") or "").upper()
+            excluded[sym] = reason or "excluded"
+            try:
+                adv = c.get("avg_volume_30d") or c.get("today_volume") or 0
+                store.log_rejection(
+                    market_date=md, ticker=sym, reason=reason or "excluded",
+                    price=c.get("price"),
+                    dollar_vol=(float(c.get("price") or 0) * float(adv)) or None,
+                    float_shares=c.get("float_shares") or c.get("shares_outstanding"),
+                    market_cap=c.get("market_cap"),
+                )
+            except Exception:
+                logger.debug("[catalyst-engine] rejection log failed for %s", sym)
     _EXCLUDED_BY_DATE[md] = excluded
     summary["excluded"] = len(excluded)
     if excluded:
