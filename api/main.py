@@ -777,16 +777,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    # Live Flow worker — Phase A: consumes Bullflow SSE in-process, buffers
-    # alerts in memory, exposed via GET /api/live/alerts/recent. Requires
-    # BULLFLOW_API_KEY env var; worker logs and remains idle if absent.
-    try:
-        from api import liveflow_worker as _liveflow_worker
-        import asyncio
-        asyncio.create_task(_liveflow_worker.run_forever())
-        logging.getLogger(__name__).info("[startup] liveflow_worker scheduled (Bullflow SSE)")
-    except Exception as e:
-        logging.getLogger(__name__).exception("[startup] failed to schedule liveflow_worker: %s", e)
+    # Live Flow worker — TEMPORARILY DISABLED 2026-06-16
+    # The in-process SSE consumer was causing web service hangs (Cloudflare 524s,
+    # 19s CSV loads on OptionsFlow). The httpx async stream appears to starve
+    # the FastAPI event loop under certain conditions. Re-enable after one of:
+    #   (1) migrating worker to the `worker` Railway service (proper fix)
+    #   (2) running it in an isolated thread with its own event loop
+    #   (3) adding hard read/connect timeouts to all httpx calls
+    # Until then the /api/live/* router still exists but get_status() returns
+    # connected=false. Frontend at /live-flow will show Disconnected state.
+    if False:
+        try:
+            from api import liveflow_worker as _liveflow_worker
+            import asyncio
+            asyncio.create_task(_liveflow_worker.run_forever())
+            logging.getLogger(__name__).info("[startup] liveflow_worker scheduled (Bullflow SSE)")
+        except Exception as e:
+            logging.getLogger(__name__).exception("[startup] failed to schedule liveflow_worker: %s", e)
 
     # SQLite integrity check — heavy on 58M rows, run in background
     def _integrity_check_bg():
