@@ -17,3 +17,23 @@ def test_fetch_via_yfinance_maps_float_and_shares(monkeypatch):
     out = tm._fetch_via_yfinance("FOO")
     assert out["float_shares"] == 40_000_000
     assert out["shares_outstanding"] == 50_000_000
+
+
+def test_enrich_snapshot_includes_float(monkeypatch):
+    from api.services.catalyst import sources
+    monkeypatch.setattr(sources, "_get_client", lambda: None, raising=False)
+
+    class _Client:
+        def get_batch_rich_snapshots(self, tickers):
+            return {"FOO": {"price": 10.0, "vol": 2_000_000, "prev_close": 9.0}}
+
+    monkeypatch.setattr("api.services.massive._get_client", lambda: _Client())
+    monkeypatch.setattr(
+        "api.services.catalyst.ticker_metadata.get_metadata_batch",
+        lambda tickers: {"FOO": {"avg_volume_30d": 1_000_000, "market_cap": 1e9,
+                                 "sector": "Tech", "float_shares": 3_000_000,
+                                 "shares_outstanding": 4_000_000}},
+    )
+    out = sources._enrich_with_snapshot(["FOO"])
+    assert out["FOO"]["float_shares"] == 3_000_000
+    assert out["FOO"]["shares_outstanding"] == 4_000_000

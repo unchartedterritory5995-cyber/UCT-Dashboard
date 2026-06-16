@@ -177,6 +177,8 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "fifty_two_week_high": float(fwh) if fwh else None,
             "near_52w_high": near_52w_high,
             "quote_type": m.get("quote_type"),
+            "float_shares": m.get("float_shares"),
+            "shares_outstanding": m.get("shares_outstanding"),
         }
     return out
 
@@ -721,6 +723,8 @@ def collect_all() -> list[dict]:
             # 52-week-high breakout signal (price at/near new highs).
             "near_52w_high": snap.get("near_52w_high", False),
             "fifty_two_week_high": snap.get("fifty_two_week_high"),
+            "float_shares": snap.get("float_shares"),
+            "shares_outstanding": snap.get("shares_outstanding"),
         })
 
     for c in candidates:
