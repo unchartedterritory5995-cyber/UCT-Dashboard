@@ -30,12 +30,13 @@ describe('ResearchPage', () => {
     expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
   })
 
-  it('shows the 7 tabs and switches to a coming-soon stub', async () => {
+  it('switches tabs away from Overview', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
-    // Ratings is still a stub (Overview/Financials/Estimates/Ownership are live).
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+    // All 7 tabs are live now; switching to Ratings hides the Overview content.
     fireEvent.click(screen.getByRole('button', { name: 'Ratings' }))
-    expect(await screen.findByText(/coming soon/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 
   it('shows the paywall teaser for a non-paid user', () => {

@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
+import useRatings from './hooks/useRatings'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
+import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
-import ComingSoonTab from './tabs/ComingSoonTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
 
@@ -22,6 +23,8 @@ export default function ResearchPage() {
   const [active, setActive] = useState('Overview')
   const data = useResearchOverview(rawSym)
   const sym = data.sym
+  const { data: ratingsData } = useRatings(sym)
+  const headerRatings = ratingsData ? { composite: ratingsData.composite, ...(ratingsData.components || {}) } : null
 
   if (!isPaid) {
     return <div className={styles.page}><PaywallTeaser sym={sym} /></div>
@@ -33,6 +36,7 @@ export default function ResearchPage() {
         sym={sym}
         meta={data.meta}
         live={data.live}
+        ratings={headerRatings}
         onSymbolChange={(s) => s && navigate(`/research/${s.toUpperCase()}`)}
       />
       <nav className={styles.tabs}>
@@ -47,10 +51,10 @@ export default function ResearchPage() {
       {active === 'Overview' && <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
+      {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
       {active === 'Filings & Events' && <FilingsTab sym={sym} />}
-      {active === 'Ratings' && <ComingSoonTab name={active} />}
     </div>
   )
 }

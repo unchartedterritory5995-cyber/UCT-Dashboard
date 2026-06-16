@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
 from api.services.research.ownership import get_ownership
+from api.services.research.ratings import get_ratings
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,3 +39,12 @@ def research_ownership(sym: str):
     except Exception as exc:
         _logger.warning("research ownership failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "institutional": {"pct_held": None, "holders": []}, "short": {}, "insider": []}
+
+
+@router.get("/api/research/ratings/{sym}")
+def research_ratings(sym: str):
+    try:
+        return get_ratings(sym)
+    except Exception as exc:
+        _logger.warning("research ratings failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}

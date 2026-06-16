@@ -8,7 +8,7 @@ function pctClass(v) {
   return v >= 0 ? styles.up : styles.down
 }
 
-export default function ResearchHeader({ sym, meta, live, onSymbolChange }) {
+export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChange }) {
   const change = live?.change_pct
   return (
     <header className={styles.hdr}>
@@ -38,7 +38,7 @@ export default function ResearchHeader({ sym, meta, live, onSymbolChange }) {
         </div>
       </div>
       <div className={styles.hdrRatings}>
-        <RatingBadges ratings={null} />
+        <RatingBadges ratings={ratings} />
       </div>
     </header>
   )
