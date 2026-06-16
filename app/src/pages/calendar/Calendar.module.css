@@ -427,10 +427,10 @@
 .wrow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 0;
+  gap: 11px;
+  padding: 7px 4px;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 8px;
   transition: background 0.1s;
 }
 
@@ -439,7 +439,7 @@
 }
 
 .t {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--cal-txt);
   flex: 1;

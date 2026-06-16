@@ -27,3 +27,5 @@ numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
 praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool
+cryptography>=43.0.0  # Fernet — broker secret-at-rest encryption (api.services.crypto_box)
+snaptrade-python-sdk>=11.0.0  # Brokerage aggregator (read-only); see api/services/journal_two/broker/

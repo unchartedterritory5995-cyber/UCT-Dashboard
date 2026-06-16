@@ -387,6 +387,94 @@ CREATE TABLE IF NOT EXISTS j2_note_folders (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
     ON j2_note_folders(user_id, sort_order);
+
+-- ── Broker Sync (SnapTrade) ─────────────────────────────────────────────────
+-- One SnapTrade registration per UCT user (their "broker identity"). The
+-- userSecret is encrypted via api.services.crypto_box with a versioned prefix.
+CREATE TABLE IF NOT EXISTS j2_broker_users (
+    user_id            TEXT PRIMARY KEY,
+    snaptrade_user_id  TEXT NOT NULL,
+    user_secret_enc    TEXT NOT NULL,
+    consent_at         TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL
+);
+
+-- Each connected brokerage account, mapped 1:1 to a j2_account row.
+CREATE TABLE IF NOT EXISTS j2_broker_accounts (
+    id                    TEXT PRIMARY KEY,
+    user_id               TEXT NOT NULL,
+    snaptrade_account_id  TEXT NOT NULL,
+    brokerage_name        TEXT,
+    account_number_masked TEXT,
+    account_type          TEXT,
+    currency              TEXT,
+    j2_account_id         TEXT NOT NULL,
+    sync_enabled          INTEGER NOT NULL DEFAULT 1,
+    status                TEXT NOT NULL DEFAULT 'active'
+                          CHECK(status IN ('active','broken','disabled')),
+    activities_cursor     TEXT,
+    last_sync_at          TEXT,
+    last_sync_status      TEXT,
+    last_error            TEXT,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL,
+    UNIQUE(user_id, snaptrade_account_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_accounts_user
+    ON j2_broker_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_accounts_j2acct
+    ON j2_broker_accounts(j2_account_id);
+
+-- Raw activity ledger: idempotency + reprocessing source-of-record.
+-- Every SnapTrade activity lands here once; reconstruct.py reads from it.
+CREATE TABLE IF NOT EXISTS j2_broker_activities (
+    id                 TEXT PRIMARY KEY,
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    external_id        TEXT NOT NULL,
+    activity_type      TEXT NOT NULL,
+    symbol             TEXT,
+    occurred_at        TEXT,
+    raw_json           TEXT NOT NULL,
+    processed          INTEGER NOT NULL DEFAULT 0,
+    created_at         TEXT NOT NULL,
+    UNIQUE(user_id, external_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_activities_acct
+    ON j2_broker_activities(user_id, broker_account_id, occurred_at);
+
+-- Sync audit log (no secrets).
+CREATE TABLE IF NOT EXISTS j2_broker_sync_log (
+    id                 TEXT PRIMARY KEY,
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT,
+    started_at         TEXT NOT NULL,
+    finished_at        TEXT,
+    trades_imported    INTEGER NOT NULL DEFAULT 0,
+    positions_upserted INTEGER NOT NULL DEFAULT 0,
+    options_imported   INTEGER NOT NULL DEFAULT 0,
+    dup_candidates     INTEGER NOT NULL DEFAULT 0,
+    status             TEXT,
+    error              TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_sync_log_user
+    ON j2_broker_sync_log(user_id, started_at DESC);
+
+-- Duplicate-candidate flags (manual row vs broker row likely-same trade).
+CREATE TABLE IF NOT EXISTS j2_broker_dup_flags (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    manual_trade_id TEXT NOT NULL,
+    broker_trade_id TEXT NOT NULL,
+    confidence      REAL NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','merged','dismissed')),
+    created_at      TEXT NOT NULL,
+    UNIQUE(user_id, manual_trade_id, broker_trade_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_dup_pending
+    ON j2_broker_dup_flags(user_id, status);
 """
 
 
@@ -459,6 +547,35 @@ _PHASE_2_ALTERS = [
     # created j2_unified_coach_state before unified onboarding shipped).
     "ALTER TABLE j2_unified_coach_state ADD COLUMN onboarding_mode INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE j2_unified_coach_state ADD COLUMN onboarding_session_id TEXT",
+    # ── Broker Sync (SnapTrade) ─────────────────────────────────────────────
+    # Origin tagging + idempotency. NULL source = legacy/manual (back-compat;
+    # existing rows render unchanged). external_id keys upserts and lets us
+    # re-run reconstruction without dupes. entry_estimated on positions = 1
+    # means the entry price came from the broker's average cost basis (seed
+    # for a position carried in before activity history starts), not a real
+    # fill — surfaced visibly to the user so it isn't trusted blindly.
+    "ALTER TABLE j2_trades ADD COLUMN source TEXT",
+    "ALTER TABLE j2_trades ADD COLUMN external_id TEXT",
+    "ALTER TABLE j2_positions ADD COLUMN source TEXT",
+    "ALTER TABLE j2_positions ADD COLUMN external_id TEXT",
+    "ALTER TABLE j2_positions ADD COLUMN entry_estimated INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_option_strategies ADD COLUMN source TEXT",
+    "ALTER TABLE j2_option_strategies ADD COLUMN external_id TEXT",
+    # Partial unique indexes — SQLite supports WHERE clauses on CREATE INDEX
+    # so NULL external_ids (the entire legacy population) don't collide.
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_trades_extid ON j2_trades(user_id, external_id) WHERE external_id IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_positions_extid ON j2_positions(user_id, external_id) WHERE external_id IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_optstrat_extid ON j2_option_strategies(user_id, external_id) WHERE external_id IS NOT NULL",
+    # Real broker balances on the account row. Nulls until first sync; the
+    # balance resolver chooses between these and the legacy closed-equity
+    # math via balance_source. Manual accounts keep balance_source='manual'
+    # → no behavior change for users who never connect a broker.
+    "ALTER TABLE j2_accounts ADD COLUMN balance_source TEXT NOT NULL DEFAULT 'manual'",
+    "ALTER TABLE j2_accounts ADD COLUMN broker_total_equity REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN broker_cash REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN broker_buying_power REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN broker_market_value REAL",
+    "ALTER TABLE j2_accounts ADD COLUMN broker_balance_synced_at TEXT",
 ]
 
 
