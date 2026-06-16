@@ -53,6 +53,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import broker_sync as broker_sync_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
@@ -1102,22 +1103,46 @@ async def lifespan(app: FastAPI):
 
                 print(f"[startup] Memory pre-warm pass 1: {_pw} bar series loaded from SQLite ({len(_pw_syms)} tickers)")
 
-                try:
-                    from api.services.bars_sqlite import get_all_tickers as _gat
-                    _p2_before = _pw
-                    for _sym, _tf in _gat():
-                        if _tf in ('D', 'W') and _sym not in _pw_syms:
-                            _pw_syms.add(_sym)
-                            _warm_sym_into_memory(_sym, 'D')
-                            _warm_sym_into_memory(_sym, 'W')
-                    print(f"[startup] Memory pre-warm pass 2: +{_pw - _p2_before} series ({len(_pw_syms)} total tickers, {_pw} total series)")
-                except Exception as _e2:
-                    print(f"[startup] Memory pre-warm pass 2 failed (non-fatal): {_e2}")
+                # Pass 2 (universe-wide D/W memory warm) REMOVED 2026-06-15.
+                # It looped get_all_tickers() (~3,700 names) and warmed D+W for
+                # each into `cache` — but `cache` is the shared TTLCache bounded
+                # at _MAX_SIZE=500 with LRU eviction. So pass 2 was net-negative:
+                #   1. it EVICTED pass-1's curated hot set (Tier1 + breadth
+                #      movers — the series users actually want instant) and
+                #      replaced them with arbitrary get_all_tickers() order;
+                #   2. of the ~7,400 series it touched, only the last 500
+                #      survived eviction — the rest were warmed then immediately
+                #      dropped;
+                #   3. it churned ~1.8GB of transient bar payloads, which glibc
+                #      keeps resident as arena fragmentation (MALLOC_ARENA_MAX is
+                #      unset), inflating web-pod RSS toward ~2.4GB.
+                # The hot set from pass 1 fits the cache; everything else is
+                # served correct+instant on demand (synchronous cold-stale fetch
+                # + frontend optimistic bar) and from the disk/worker-snapshot
+                # layers. Dropping pass 2 lowers RSS AND improves cache quality.
 
             except Exception as _e:
                 print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
         threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
         print("[startup] Memory pre-warm scheduled (background thread)")
+
+    # Web-pod memory watch — the worker has had a [mem] line since the 2026-06-10
+    # SIGSEGV work; the web pod only exposed RSS via /api/health (point-in-time),
+    # so there was no trend to tell a genuine leak from a large-but-stable
+    # working set. Log RSS + thread count every 60s so the 2.4GB observation
+    # (2026-06-15) can be confirmed as a plateau (post pass-2 removal) vs. a
+    # climb — the prerequisite for any further memory work.
+    def _web_memwatch():
+        import time as _mw_time
+        while True:
+            try:
+                _rss = _process_rss_mb()
+                if _rss is not None:
+                    print(f"[mem] rss_mb={_rss} threads={threading.active_count()}")
+            except Exception:
+                pass
+            _mw_time.sleep(60)
+    threading.Thread(target=_web_memwatch, daemon=True, name="web-memwatch").start()
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] USE_REMOTE_BARS=1 — skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
@@ -2046,6 +2071,7 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+app.include_router(broker_sync_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
