@@ -69,12 +69,20 @@ def reconstruct_account(
         account_id=j2_account_id, source="broker",
     )
 
+    # Single-leg option strategies (incl. expiration/assignment/exercise).
+    from api.services.journal_two.broker import option_reconstruct
+    opt_res = option_reconstruct.reconstruct_options(
+        user_id, broker_account_id, j2_account_id, part["option_events"], conn=conn
+    )
+
     return {
         "imported": ins["imported"],
         "skipped": ins["skipped"],
         "tradesReconstructed": len(trades),
         "openPositions": fifo_out["open_positions"],
         "optionEvents": part["option_events"],
+        "optionsImported": opt_res["imported"],
+        "optionsSkipped": opt_res["skipped"],
         "cashCount": len(part["cash"]),
         "transferCount": len(part["transfers"]),
         "fifoErrors": fifo_out["errors"],

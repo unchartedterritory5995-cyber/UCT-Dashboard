@@ -219,6 +219,7 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             "skipped": recon["skipped"],
             "positionsUpserted": pos_res.get("upserted", 0),
             "positionsClosed": pos_res.get("closed", 0),
+            "optionsImported": recon.get("optionsImported", 0),
             "openPositions": recon["openPositions"],
             "optionEvents": recon["optionEvents"],
             "fifoErrors": recon["fifoErrors"],
