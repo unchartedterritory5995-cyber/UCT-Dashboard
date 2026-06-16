@@ -275,10 +275,27 @@ def run_prewarmer_forever():
             except Exception:
                 pass
             if hot:
-                hot_jobs = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
-                cycle_jobs = list({*jobs, *hot_jobs})
+                # Order matters. The old code did `list({*jobs, *hot_jobs})` — a
+                # set union that SCRAMBLED the queue, so a long-tail static daily
+                # could run before the dailies of tickers users are actually
+                # looking at. Right after the 4pm ET close that left freshly-
+                # viewed charts cold-stale for the ~15-30min a full universe
+                # daily sweep takes (4 workers x ~1-2s/yf-tail-fill x ~3700) —
+                # the "daily not recognizing today" reports (2026-06-15). Build
+                # an ORDERED, de-duplicated queue that puts hot-set DAILIES
+                # first (the reported surface), then hot-set intraday, then the
+                # static universe — so the charts users open are refreshed to
+                # today's session before the long tail.
+                hot_daily = [(s, 'D', 5000) for s in hot]
+                hot_intraday = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
+                seen = set()
+                cycle_jobs = []
+                for j in (*hot_daily, *hot_intraday, *jobs):
+                    if j not in seen:
+                        seen.add(j)
+                        cycle_jobs.append(j)
                 print(f"[prewarm] Hot-set: +{len(hot)} user-viewed tickers "
-                      f"({len(cycle_jobs) - len(jobs)} extra intraday jobs)")
+                      f"(dailies prioritized; {len(cycle_jobs) - len(jobs)} extra jobs)")
         except Exception as _e:
             print(f"[prewarm] Hot-set lookup failed (non-fatal): {_e}")
         refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
