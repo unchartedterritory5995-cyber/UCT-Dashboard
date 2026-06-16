@@ -613,8 +613,11 @@ def _enrich_with_perplexity(candidates: list[dict]) -> None:
 
         query = (f"What is the specific catalyst driving ${ticker} stock "
                  f"{'up' if gap_pct >= 0 else 'down'} {abs(gap_pct):.1f}% today? "
-                 f"Cite earnings, M&A, FDA, contract wins, analyst actions, "
-                 f"or any breaking news. If no clear catalyst exists, say so plainly.")
+                 f"Cite earnings or guidance, M&A, FDA decisions, "
+                 f"contract/customer wins, analyst upgrades/downgrades, "
+                 f"product launches, partnerships, index inclusion, or a "
+                 f"technical breakout, or any breaking news. If no clear "
+                 f"catalyst exists, say so plainly.")
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=300,
