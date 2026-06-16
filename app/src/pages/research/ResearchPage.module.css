@@ -25,8 +25,15 @@
 .tab { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px; font-size: 12px; color: var(--text); cursor: pointer; white-space: nowrap; }
 .tabOn { background: var(--ut-gold-dim); border-color: var(--ut-gold); color: var(--ut-gold); font-weight: 700; }
 
-/* overview grid */
+/* overview */
+.ovWrap { display: flex; flex-direction: column; gap: 10px; }
+.chartCard { padding: 8px; }
+.ovChart { height: 300px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+@media (max-width: 640px) {
+  .ovChart { height: 240px; }
+}
 .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; }
 .ct { font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }

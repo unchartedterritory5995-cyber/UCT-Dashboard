@@ -13,6 +13,9 @@ vi.mock('./hooks/useResearchOverview', () => ({
   }),
 }))
 
+// StockChart uses canvas (lightweight-charts) — stub it for jsdom.
+vi.mock('../../components/StockChart', () => ({ default: () => <div data-testid="stock-chart" /> }))
+
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
 vi.mock('../../context/AuthContext', () => ({

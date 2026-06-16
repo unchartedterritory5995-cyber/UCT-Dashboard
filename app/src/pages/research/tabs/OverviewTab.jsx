@@ -1,3 +1,4 @@
+import StockChart from '../../../components/StockChart'
 import styles from '../ResearchPage.module.css'
 
 function Surprise({ v }) {
@@ -7,11 +8,30 @@ function Surprise({ v }) {
   return <span className={up ? styles.up : styles.down}>{s}</span>
 }
 
-export default function OverviewTab({ stats, analyst, ai, row }) {
+export default function OverviewTab({ sym, stats, analyst, ai, row }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
   return (
-    <div className={styles.grid}>
+    <div className={styles.ovWrap}>
+      <section className={`${styles.card} ${styles.chartCard}`}>
+        <div className={styles.ovChart}>
+          {sym && (
+            <StockChart
+              sym={sym}
+              tf="D"
+              height="100%"
+              showDrawingTools={false}
+              hideReplay
+              hidePatterns
+              hideCompare
+              hideCountdown
+              showVolume
+              volumeSeparatePane
+            />
+          )}
+        </div>
+      </section>
+      <div className={styles.grid}>
       <section className={styles.card}>
         <div className={styles.ct}>Latest report</div>
         <table className={styles.tbl}>
@@ -54,6 +74,7 @@ export default function OverviewTab({ stats, analyst, ai, row }) {
           {ai?.analysis_summary || ai?.preview_text || 'Earnings analysis will appear here once available.'}
         </p>
       </section>
+      </div>
     </div>
   )
 }

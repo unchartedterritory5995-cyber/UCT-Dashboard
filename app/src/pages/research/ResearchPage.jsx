@@ -48,7 +48,7 @@ export default function ResearchPage() {
           >{t}</button>
         ))}
       </nav>
-      {active === 'Overview' && <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
+      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
       {active === 'Ratings' && <RatingsTab sym={sym} />}
