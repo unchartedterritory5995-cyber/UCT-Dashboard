@@ -53,6 +53,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import broker_sync as broker_sync_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
@@ -2070,6 +2071,7 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+app.include_router(broker_sync_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
