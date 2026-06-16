@@ -53,7 +53,6 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
-from api.routers import broker_sync as broker_sync_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
@@ -83,6 +82,7 @@ from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
 from api.liveflow_router import router as liveflow_router
+from api.bullflow_mcp_probe import router as bullflow_mcp_probe_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -1545,28 +1545,6 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
-        # Broker Sync — background incremental sync across all connected users.
-        # Gated by BROKER_SYNC_ENABLED (default OFF → fully inert). Runs on the
-        # web pod (auth.db is web-local). Bounded async concurrency inside the
-        # job keeps it light on the 512MB pod.
-        if os.getenv("BROKER_SYNC_ENABLED") == "1":
-            from api.services.journal_two.broker import sync as _broker_sync_engine
-            _bs_interval = int(os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
-            # Incremental sync — runs only inside the active market-data window
-            # (the runner self-gates), so overnight/weekend ticks are no-ops.
-            _scheduler.add_job(
-                _broker_sync_engine.run_due_sync_blocking,
-                trigger=IntervalTrigger(minutes=_bs_interval),
-                id="broker_sync_due", max_instances=1, replace_existing=True,
-            )
-            # Nightly full reconcile (corrections/voids outside the window).
-            _scheduler.add_job(
-                _broker_sync_engine.run_nightly_reconcile_blocking,
-                trigger=CronTrigger(hour=2, minute=30),
-                id="broker_sync_nightly_reconcile", max_instances=1, replace_existing=True,
-            )
-            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET)")
-
         def _cot_daily_catchup():
             try:
                 from datetime import date as _dt
@@ -2128,7 +2106,6 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
-app.include_router(broker_sync_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
@@ -2154,6 +2131,7 @@ app.include_router(flow_router)
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
+app.include_router(bullflow_mcp_probe_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
