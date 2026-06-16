@@ -132,6 +132,7 @@ def heal_window(
     present_external_ids: set[str],
     *,
     since: str | None = None,
+    min_keep_ratio: float = 0.5,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """Remove ledger rows the broker no longer returns within the re-fetched
@@ -140,8 +141,18 @@ def heal_window(
     fetched window so we never delete history we didn't re-pull (NULL = full
     backfill, compare everything). Returns the count removed.
 
+    SAFETY GUARD: a transient empty/partial broker fetch must NEVER be read as
+    "everything was voided". We refuse to delete when:
+      - present_external_ids is empty (failed/empty fetch), OR
+      - the fetch covers fewer than `min_keep_ratio` of the rows we hold in the
+        window (suspiciously thin — likely a partial/outage response).
+    Real corrections void a few activities, not most of the window, so this
+    errs toward keeping possibly-stale data over deleting good data.
+
     Activities with a NULL occurred_at are only healed during a full backfill
     (since IS NULL) — we can't place them in an incremental window."""
+    if not present_external_ids:
+        return 0
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -158,6 +169,13 @@ def heal_window(
                 "AND occurred_at IS NOT NULL AND occurred_at >= ?",
                 (user_id, broker_account_id, since),
             ).fetchall()
+        if not rows:
+            return 0
+        present_in_window = sum(1 for r in rows if r["external_id"] in present_external_ids)
+        if present_in_window < len(rows) * min_keep_ratio:
+            # Fetch covers too little of the window — treat as untrustworthy,
+            # skip the destructive heal this cycle.
+            return 0
         to_delete = [r["id"] for r in rows if r["external_id"] not in present_external_ids]
         if to_delete:
             conn.execute("BEGIN")

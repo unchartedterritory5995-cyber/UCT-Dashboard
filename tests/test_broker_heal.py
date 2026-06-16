@@ -142,8 +142,10 @@ async def test_heal_does_not_touch_manual_trades(env):
     )
     conn.commit(); conn.close()
 
-    # Void all broker activities → broker trades pruned, manual trade kept.
-    env["acts"] = []
+    # Legitimately void the SELL (a2 disappears; a1 remains) → the AAPL
+    # round-trip is pruned (becomes an open position), manual TSLA untouched.
+    # (Not an empty fetch — that would trip the heal-guard and skip pruning.)
+    env["acts"] = [_act("a1", "BUY", "AAPL", 10, 100, "2026-04-01")]
     await sync.sync_account("u1", env["ba_id"])
     syms = sorted(r["symbol"] for r in _trades())
-    assert syms == ["TSLA"]  # only the manual trade remains
+    assert syms == ["TSLA"]  # broker round-trip pruned; only the manual trade remains
