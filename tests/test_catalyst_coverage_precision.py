@@ -125,3 +125,12 @@ def test_analyst_meta_tags_as_catalyst():
     c = {"gap_pct": 1.0, "vol_x": 1.0, "tweets": [], "rss": [],
          "analyst_meta": {"action": "upgrade", "firm": "MS"}}
     assert tagging.assign_tag(c) == "Catalyst"
+
+
+from api.services.catalyst import scoring
+
+
+def test_analyst_action_scores_higher():
+    base = {"gap_pct": 2.0, "vol_x": 1.0, "price": 50.0}
+    with_analyst = {**base, "analyst_meta": {"action": "upgrade"}}
+    assert scoring.score(with_analyst) > scoring.score(base)
