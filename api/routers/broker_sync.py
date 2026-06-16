@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from api.middleware.auth_middleware import (
     get_current_user,
     require_plan,
+    require_admin,
     PAID_PLANS,
 )
 from api.services import crypto_box
@@ -137,6 +138,39 @@ def update_account(
 
 class DupResolveBody(BaseModel):
     action: str  # 'merge' | 'dismiss'
+
+
+@router.get("/admin/stats")
+def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Connected-user count + cost estimate ($1.50/connected user/mo SnapTrade)
+    + broken connections + recent sync errors. For cost monitoring."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        users = conn.execute("SELECT COUNT(*) AS n FROM j2_broker_users").fetchone()["n"]
+        accts = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_broker_accounts WHERE sync_enabled = 1"
+        ).fetchone()["n"]
+        broken = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_broker_accounts WHERE status = 'broken'"
+        ).fetchone()["n"]
+        errs = conn.execute(
+            "SELECT user_id, broker_account_id, error, started_at FROM j2_broker_sync_log "
+            "WHERE status = 'error' ORDER BY started_at DESC LIMIT 20"
+        ).fetchall()
+        recent_errors = [
+            {"userId": r["user_id"], "brokerAccountId": r["broker_account_id"],
+             "error": r["error"], "at": r["started_at"]} for r in errs
+        ]
+    finally:
+        conn.close()
+    return {
+        "connectedUsers": users,
+        "syncEnabledAccounts": accts,
+        "brokenAccounts": broken,
+        "estMonthlyCostUsd": round(users * 1.50, 2),
+        "recentErrors": recent_errors,
+    }
 
 
 @router.get("/dup-flags")

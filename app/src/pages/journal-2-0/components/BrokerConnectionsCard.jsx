@@ -129,15 +129,22 @@ export default function BrokerConnectionsCard() {
 
   const disconnect = async () => {
     if (!window.confirm(
-      'Disconnect all brokerages? Your imported trades stay in the journal — only the live connection is removed.'
+      'Disconnect all brokerages? The live connection is removed.\n\n' +
+      'Click OK to keep your imported trades in the journal, or Cancel to abort.'
     )) return
+    // Second, explicit opt-in for the destructive option.
+    const purgeTrades = window.confirm(
+      'Also DELETE all broker-imported trades and positions?\n\n' +
+      'OK = delete imported data too · Cancel = keep imported trades (recommended).'
+    )
     setBusy(true)
     await fetch('/api/j2/broker/connections', {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purgeTrades: false }),
+      body: JSON.stringify({ purgeTrades }),
     }).catch(() => {})
+    setSyncResult(null)
     await load()
     setBusy(false)
   }

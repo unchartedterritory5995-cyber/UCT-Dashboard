@@ -176,6 +176,11 @@ async def sync_due_accounts(
     conc = concurrency if concurrency is not None else int(
         os.getenv("BROKER_SYNC_CONCURRENCY", "4"))
     due = connections.list_due_accounts(interval)
+    # Downgrade-pause: only sync accounts whose user is still paid (or admin).
+    # A user who downgrades simply stops being background-synced — no Stripe
+    # hook needed. Plan is checked once per user.
+    paid_cache: dict[str, bool] = {}
+    due = [a for a in due if _user_is_paid(a["userId"], paid_cache)]
     sem = asyncio.Semaphore(max(1, conc))
 
     async def _one(acct: dict) -> Any:
@@ -190,14 +195,76 @@ async def sync_due_accounts(
     return {"due": len(due), "synced": ok, "failed": len(results) - ok}
 
 
-def run_due_sync_blocking() -> None:
-    """Synchronous wrapper for the BackgroundScheduler (which runs jobs in a
-    thread with no event loop). Never raises into the scheduler."""
+def _user_is_paid(user_id: str, cache: dict[str, bool]) -> bool:
+    if user_id in cache:
+        return cache[user_id]
+    allowed = False
+    try:
+        from api.services.auth_service import get_user_plan
+        from api.middleware.auth_middleware import PAID_PLANS
+        plan = get_user_plan(user_id)
+        if plan in PAID_PLANS or plan == "comped":
+            allowed = True
+        else:
+            from api.services.auth_db import get_connection as _gc
+            conn = _gc()
+            try:
+                row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+                allowed = bool(row and row["role"] == "admin")
+            finally:
+                conn.close()
+    except Exception:
+        allowed = False
+    cache[user_id] = allowed
+    return allowed
+
+
+def run_due_sync_blocking(*, market_hours_only: bool = True) -> None:
+    """Synchronous wrapper for the BackgroundScheduler (runs in a worker thread
+    with no event loop). By default only runs inside the active market-data
+    window (weekday ~4am-8pm ET) so we don't burn SnapTrade calls overnight /
+    on weekends for no fresh data. Never raises into the scheduler."""
     import logging
+    log = logging.getLogger("broker_sync")
+    if market_hours_only:
+        try:
+            from api.services.data_sync import in_active_data_window
+            if not in_active_data_window():
+                return
+        except Exception:
+            pass  # if the window check is unavailable, fall through and sync
     try:
         asyncio.run(sync_due_accounts())
     except Exception as e:  # noqa: BLE001
-        logging.getLogger("broker_sync").warning("scheduled broker sync failed: %s", e)
+        log.warning("scheduled broker sync failed: %s", e)
+
+
+def run_nightly_reconcile_blocking() -> None:
+    """Nightly safety net: full reconcile of every connected account (catches
+    corrections/voids outside the incremental window). Bypasses market-hours +
+    cooldown via full=True. Never raises into the scheduler."""
+    import logging
+    try:
+        asyncio.run(_nightly_reconcile())
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("broker_sync").warning("nightly broker reconcile failed: %s", e)
+
+
+async def _nightly_reconcile() -> dict[str, Any]:
+    paid_cache: dict[str, bool] = {}
+    accts = [a for a in connections.list_due_accounts(0)  # interval 0 = all active
+             if _user_is_paid(a["userId"], paid_cache)]
+    conc = int(__import__("os").getenv("BROKER_SYNC_CONCURRENCY", "4"))
+    sem = asyncio.Semaphore(max(1, conc))
+
+    async def _one(a):
+        async with sem:
+            try:
+                return await sync_account(a["userId"], a["id"], full=True)
+            except Exception as e:  # noqa: BLE001
+                return {"error": str(e)}
+    results = await asyncio.gather(*(_one(a) for a in accts)) if accts else []
+    return {"reconciled": len(results)}
 
 
 async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[str, Any]:

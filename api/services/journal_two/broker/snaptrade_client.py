@@ -266,7 +266,8 @@ async def register_user(uct_user_id: str) -> dict[str, str]:
     uid = body.get("userId") if isinstance(body, dict) else None
     secret = body.get("userSecret") if isinstance(body, dict) else None
     if not uid or not secret:
-        raise SnapError(f"register returned unexpected body: {body!r}")
+        # Don't repr the body — register/reset bodies contain the userSecret.
+        raise SnapError(f"register returned unexpected body (keys: {sorted(body.keys()) if isinstance(body, dict) else type(body).__name__})")
     return {"snaptrade_user_id": uid, "user_secret": secret}
 
 
@@ -311,7 +312,7 @@ async def reset_user_secret(snaptrade_user_id: str, user_secret: str) -> str:
     )
     secret = body.get("userSecret") if isinstance(body, dict) else None
     if not secret:
-        raise SnapError(f"reset secret returned no userSecret: {body!r}")
+        raise SnapError(f"reset secret returned unexpected body (keys: {sorted(body.keys()) if isinstance(body, dict) else type(body).__name__})")
     return secret
 
 

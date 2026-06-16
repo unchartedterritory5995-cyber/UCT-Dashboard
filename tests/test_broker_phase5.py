@@ -36,6 +36,7 @@ def env(tmp_path, monkeypatch):
     dbfile = tmp_path / "auth.db"
     monkeypatch.setattr(auth_db, "_DB_PATH", str(dbfile))
     conn = auth_db.get_connection()
+    conn.executescript(auth_db._SCHEMA)  # users/subscriptions (for downgrade-pause check)
     ensure_schema(conn)
     conn.close()
     monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
@@ -78,12 +79,31 @@ def test_list_due_excludes_recent_and_disabled(env):
     assert due == []
 
 
+def _mk_paid_user(uid):
+    # Scheduler only syncs paid/admin users (downgrade-pause). Mark admin.
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES (?, ?, 'x', 'admin')",
+        (uid, f"{uid}@x.com"),
+    )
+    conn.commit(); conn.close()
+
+
 @pytest.mark.asyncio
 async def test_sync_due_accounts_runs_all(env):
+    _mk_paid_user("u1"); _mk_paid_user("u2")
     _mk_account("u1", "S1", "1111")
     _mk_account("u2", "S2", "2222")
     out = await sync.sync_due_accounts(interval_minutes=20, concurrency=2)
     assert out["due"] == 2 and out["synced"] == 2 and out["failed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sync_due_skips_unpaid_user(env):
+    # No subscription / not admin → downgrade-pause: not synced.
+    _mk_account("free1", "S9", "9999")
+    out = await sync.sync_due_accounts(interval_minutes=20, concurrency=2)
+    assert out["due"] == 0
 
 
 # ── webhook ──────────────────────────────────────────────────────────────────

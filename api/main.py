@@ -1531,12 +1531,20 @@ async def lifespan(app: FastAPI):
         if os.getenv("BROKER_SYNC_ENABLED") == "1":
             from api.services.journal_two.broker import sync as _broker_sync_engine
             _bs_interval = int(os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
+            # Incremental sync — runs only inside the active market-data window
+            # (the runner self-gates), so overnight/weekend ticks are no-ops.
             _scheduler.add_job(
                 _broker_sync_engine.run_due_sync_blocking,
                 trigger=IntervalTrigger(minutes=_bs_interval),
                 id="broker_sync_due", max_instances=1, replace_existing=True,
             )
-            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m)")
+            # Nightly full reconcile (corrections/voids outside the window).
+            _scheduler.add_job(
+                _broker_sync_engine.run_nightly_reconcile_blocking,
+                trigger=CronTrigger(hour=2, minute=30),
+                id="broker_sync_nightly_reconcile", max_instances=1, replace_existing=True,
+            )
+            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET)")
 
         def _cot_daily_catchup():
             try:

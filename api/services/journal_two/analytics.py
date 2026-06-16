@@ -62,6 +62,14 @@ def get_analytics(
         )
 
         starting_balance = _starting_balance(conn, user_id, account_id)
+        # For a single broker-linked account, anchor the equity curve so its
+        # final point matches the broker's real net-liquidation equity (keeps
+        # analytics consistent with the comparison view). baseline =
+        # broker_equity − realized P&L; manual accounts keep startingBalance.
+        if account_id:
+            be = _broker_equity_baseline(conn, user_id, account_id, rows)
+            if be is not None:
+                starting_balance = be
 
         strategies = _fetch_option_strategies(
             conn, user_id,
@@ -131,6 +139,26 @@ def _fetch_trades(
             out.append(r)
         return out
     return rows
+
+
+def _broker_equity_baseline(
+    conn: sqlite3.Connection, user_id: str, account_id: str, rows: list,
+) -> float | None:
+    """For a broker-linked account with synced real equity, return the curve
+    baseline = broker_total_equity − realized P&L, so the curve ends at the
+    broker's true net-liq. None for manual accounts (use startingBalance)."""
+    try:
+        row = conn.execute(
+            "SELECT balance_source, broker_total_equity FROM j2_accounts "
+            "WHERE id = ? AND user_id = ?",
+            (account_id, user_id),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row or row["balance_source"] != "broker" or row["broker_total_equity"] is None:
+        return None
+    realized = sum(float(r["pnl_dollar"] or 0) for r in rows)
+    return round(float(row["broker_total_equity"]) - realized, 2)
 
 
 def _starting_balance(
