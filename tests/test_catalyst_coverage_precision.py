@@ -64,3 +64,19 @@ def test_analyst_action_is_a_real_catalyst():
          "analyst_meta": {"action": "upgrade", "firm": "MS"}}
     passed, _ = filters.is_real_catalyst(c)
     assert passed is True
+
+
+def test_gate_rejection_log_roundtrip(monkeypatch, tmp_path):
+    db = tmp_path / "catalysts.db"
+    monkeypatch.setenv("CATALYST_DB_PATH", str(db))
+    import importlib
+    from api.services.catalyst import store as store_mod
+    importlib.reload(store_mod)
+    store_mod._init_db()
+    store_mod.log_rejection(market_date="2026-06-15", ticker="JUNK",
+                            reason="float 1.0M shares below 5.0M floor",
+                            price=8.0, dollar_vol=1.6e7, float_shares=1_000_000,
+                            market_cap=4e8)
+    rows = store_mod.recent_rejections(limit=10)
+    assert any(r["ticker"] == "JUNK" and "float" in r["reason"] for r in rows)
+    importlib.reload(store_mod)  # restore default DB path for other tests
