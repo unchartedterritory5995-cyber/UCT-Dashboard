@@ -79,8 +79,29 @@ to `j2_trades`/`j2_positions`/`j2_option_strategies` (partial-unique index on
 full broker + J2 regression suite green. Pre-existing `test_options.py` failures
 are time-brittle fixtures (hardcoded past expirations), unrelated.
 
-## Deferred
-Multi-leg option auto-grouping (single-leg only v1); edge-cache; deeper Compass
-prompt integration (the `source`/`imported` flags are surfaced to the assembler).
-SnapTrade exact webhook signature scheme + sandbox field shapes to confirm
-against live docs before go-live.
+## Remediation pass (post-audit, 2026-06-15)
+A 3-agent independent audit found real gaps; all addressed (commits
+`452ac8f6`→`96a72a6a`):
+- Data integrity: equity **fees** now threaded through FIFO (were dropped →
+  net=gross); **multi-currency** equity is USD-only (was mixing CAD+USD);
+  split/share-divergence falls back to broker cost-basis estimate (no frozen
+  stale basis); stable ledger ordering by external_id; price rounding 4dp.
+- **Heal guard**: refuses to delete on an empty/thin broker fetch (was a
+  data-loss risk).
+- Reliability/safety: webhook validates the user + known events + caps inflight;
+  GDPR revoke logged not swallowed; `_locks` atomic + pruned; `connect()` won't
+  re-register over a missing key; `require_plan` allows admin/comped; retry +
+  backoff (honors Retry-After).
+- Core UX: on-journal-open auto-sync (cooldowned) so the journal reflects fresh
+  trades; **PATCH /trades/{id}** to add stop/setup to imports (R computes);
+  first-connect full backfill + "Imported N" summary; reconnect button.
+- Completeness: analytics curve anchors to real broker equity; scheduler
+  market-hours + nightly reconcile; downgrade-pause; admin cost endpoint;
+  Compass prompt won't fault imported trades; secret-safe error logs.
+
+## Deferred (low)
+Multi-leg option auto-grouping (single-leg only v1); per-position FX for
+non-USD; broker source badge on the positions/options tables (positions API
+doesn't expose `source` yet); edge-cache. SnapTrade's exact webhook signature
+scheme + sandbox field shapes must be confirmed against live docs before
+go-live (the client wrapper isolates this).
