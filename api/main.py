@@ -640,6 +640,7 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import tweet_store
         tweet_store._init_db()
+        tweet_store.ensure_default_accounts()
         print("[startup] tweets.db initialized")
     except Exception as e:
         print(f"[startup] tweet_store init failed (non-fatal): {e}")

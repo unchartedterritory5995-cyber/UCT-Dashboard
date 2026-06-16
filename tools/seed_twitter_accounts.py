@@ -15,24 +15,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.services import tweet_store
 
-INITIAL_ACCOUNTS = [
-    ("DeItaone", "Walter Bloomberg / breaking single-stock news"),
-    ("FinancialJuice", "Newswire-style econ + single-stock"),
-    ("Benzinga", "Financial newswire, ticker-tagged"),
-    # NOTE: Confirm WallStEngine vs WallStreetEngine via the smoke test
-    # (tools/twitterapi_io_smoke_test.py). Replace the line below with
-    # whichever returned non-zero tweets — and remove this comment.
-    ("WallStEngine", "Single-stock catalyst aggregator"),
-]
-
 
 def main() -> int:
     tweet_store._init_db()
-    for handle, notes in INITIAL_ACCOUNTS:
-        tweet_store.add_account(handle, display_name=handle, notes=notes)
+    # Single source of truth: tweet_store.DEFAULT_ACCOUNTS (idempotent seed).
+    n = tweet_store.ensure_default_accounts()
+    for handle, _display in tweet_store.DEFAULT_ACCOUNTS:
         print(f"  + {handle} (or already present)")
     enabled = tweet_store.list_accounts(enabled_only=True)
-    print(f"Total enabled accounts: {len(enabled)}")
+    print(f"Seeded/attempted: {n}. Total enabled accounts: {len(enabled)}")
     return 0
 
 
