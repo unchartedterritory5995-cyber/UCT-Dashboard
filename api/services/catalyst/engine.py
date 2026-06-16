@@ -159,6 +159,32 @@ _SECTOR_CONTEXT_BY_DATE: dict[str, list[dict]] = {}
 _EXCLUDED_BY_DATE: dict[str, dict[str, str]] = {}
 
 
+def _iso_to_unix(s) -> Optional[int]:
+    """Best-effort parse of a published-date string into unix seconds.
+
+    Defensive across the two formats free news feeds emit:
+      1. ISO 8601 (`datetime.fromisoformat`, with a Z→+00:00 nudge)
+      2. RFC-822 (`email.utils.parsedate_to_datetime`) — Google News uses
+         this, e.g. "Wed, 11 Jun 2025 13:20:00 GMT". fromisoformat can't
+         parse it, so RFC-822 support is required here.
+    Returns int unix seconds, or None on anything unparseable.
+    """
+    if not s or not isinstance(s, str):
+        return None
+    try:
+        return int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+    except (ValueError, TypeError):
+        pass
+    try:
+        import email.utils
+        parsed = email.utils.parsedate_to_datetime(s)
+        if parsed is not None:
+            return int(parsed.timestamp())
+    except (ValueError, TypeError, OverflowError):
+        pass
+    return None
+
+
 def get_sector_contexts(market_date: str) -> list[dict]:
     """Read-only accessor for the catalysts router."""
     return _SECTOR_CONTEXT_BY_DATE.get(market_date, [])
@@ -480,6 +506,78 @@ def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
         c["rss_headline_count"] = len(c["rss"])
 
 
+def _enrich_with_ticker_news(candidates: list[dict]) -> None:
+    """For each top-12 candidate that is THIN on a catalyst (no RSS, <2 tweet
+    mentions, no earnings), pull free Google News headlines for "{ticker} stock"
+    and inject them as synthetic 'rss' items. This fills the "why" with a free
+    source BEFORE the paid Perplexity zero-signal fallback fires — so Perplexity
+    fires less.
+
+    Mutates candidates in-place. Gated on CATALYST_NEWS_FETCH_ENABLED (default
+    on). Never raises — per-candidate errors are swallowed.
+    """
+    if os.environ.get("CATALYST_NEWS_FETCH_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import news_search
+    except Exception:
+        return
+
+    count = int(os.environ.get("CATALYST_NEWS_FETCH_COUNT", "5"))
+
+    for c in candidates:
+        thin = (
+            (c.get("rss_headline_count") or 0) == 0
+            and (c.get("tweet_mention_count") or 0) < 2
+            and not c.get("earnings_meta")
+        )
+        if not thin:
+            continue
+
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+
+        # "{ticker} stock" (NOT a cashtag — cashtags match poorly in general news)
+        try:
+            result = news_search.search_news(f"{ticker} stock", count=count)
+        except Exception:
+            logger.exception("[catalyst-engine] news_search %s failed", ticker)
+            continue
+
+        # search_news returns results under "headlines" (defensive: also "results")
+        rows = (result or {}).get("headlines") or (result or {}).get("results") or []
+        if not rows:
+            continue
+
+        existing = c.setdefault("rss", [])
+        seen_urls = {(it.get("url") or "").strip() for it in existing if it.get("url")}
+        seen_titles = {(it.get("title") or "").strip().lower() for it in existing}
+
+        for r in rows:
+            url = (r.get("url") or "").strip()
+            title = (r.get("title") or "").strip()
+            if not title:
+                continue
+            # Dedup by url (fallback title)
+            if url and url in seen_urls:
+                continue
+            if not url and title.lower() in seen_titles:
+                continue
+            existing.append({
+                "source": "Google News",
+                "title": title,
+                "url": r.get("url"),
+                "time_published": _iso_to_unix(r.get("published")),
+            })
+            if url:
+                seen_urls.add(url)
+            seen_titles.add(title.lower())
+
+        c["rss_headline_count"] = len(existing)
+
+
 def _enrich_with_perplexity(candidates: list[dict]) -> None:
     """For each top-12 candidate with thin source signals (no tweets, no RSS,
     no earnings), ask Perplexity 'what's the catalyst for $XYZ today?' and
@@ -689,6 +787,10 @@ def run_refresh() -> dict:
 
     # Analyst-action enrichment: catch analyst-driven movers pre-wire-push.
     _enrich_with_analyst_actions(top_12)
+
+    # Free per-mover "why" fetch: pull Google News for THIN candidates first
+    # so the paid Perplexity zero-signal fallback below fires less often.
+    _enrich_with_ticker_news(top_12)
 
     # Tier 2-1: Perplexity fallback for tickers with zero source signals.
     # Runs AFTER Twitter search so it only fires when even broad search

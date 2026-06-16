@@ -136,3 +136,162 @@ def test_twitter_search_still_skips_rich_candidate(monkeypatch):
     }
     cat_engine._enrich_with_twitter_search([candidate])
     assert called["n"] == 0
+
+
+# ---------------------------------------------------------------------------
+# TASK B1 — free per-mover Google News "why" fetch + _iso_to_unix
+# ---------------------------------------------------------------------------
+
+def test_iso_to_unix_parses_iso_rfc822_and_garbage():
+    from api.services.catalyst import engine as cat_engine
+
+    # ISO 8601
+    iso_ts = cat_engine._iso_to_unix("2025-06-11T13:20:00+00:00")
+    assert isinstance(iso_ts, int) and iso_ts > 0
+    # ISO with trailing Z
+    z_ts = cat_engine._iso_to_unix("2025-06-11T13:20:00Z")
+    assert z_ts == iso_ts
+    # RFC-822 (Google News style) — same instant as the ISO above
+    rfc_ts = cat_engine._iso_to_unix("Wed, 11 Jun 2025 13:20:00 GMT")
+    assert rfc_ts == iso_ts
+    # garbage / empty / None → None
+    assert cat_engine._iso_to_unix("not a date") is None
+    assert cat_engine._iso_to_unix("") is None
+    assert cat_engine._iso_to_unix(None) is None
+
+
+def test_enrich_with_ticker_news_appends_to_thin_candidate(monkeypatch):
+    from api.services.catalyst import engine as cat_engine
+    from api.services import news_search
+
+    monkeypatch.setenv("CATALYST_NEWS_FETCH_ENABLED", "1")
+
+    rfc822 = "Wed, 11 Jun 2025 13:20:00 GMT"
+    iso = "2025-06-12T09:00:00+00:00"
+
+    calls = {"n": 0, "queries": []}
+
+    def fake_search(query, count=5):
+        calls["n"] += 1
+        calls["queries"].append(query)
+        return {
+            "query": query,
+            "count": 2,
+            "headlines": [
+                {"title": "ABCD beats earnings", "source": "Reuters",
+                 "published": rfc822, "url": "https://news/abcd-1"},
+                {"title": "ABCD lands contract", "source": "Bloomberg",
+                 "published": iso, "url": "https://news/abcd-2"},
+            ],
+        }
+
+    monkeypatch.setattr(news_search, "search_news", fake_search)
+
+    thin = {"ticker": "ABCD"}  # no rss, no tweets, no earnings_meta → thin
+    cat_engine._enrich_with_ticker_news([thin])
+
+    # search ran with "{ticker} stock" (NOT a cashtag)
+    assert calls["n"] == 1
+    assert calls["queries"][0] == "ABCD stock"
+
+    rss = thin.get("rss") or []
+    assert len(rss) == 2
+    assert thin["rss_headline_count"] == 2
+    assert all(it["source"] == "Google News" for it in rss)
+
+    by_title = {it["title"]: it for it in rss}
+    # RFC-822 result parsed to the same int as the ISO equivalent
+    expected_ts = cat_engine._iso_to_unix(rfc822)
+    assert isinstance(expected_ts, int) and expected_ts > 0
+    assert by_title["ABCD beats earnings"]["time_published"] == expected_ts
+    assert by_title["ABCD lands contract"]["time_published"] == cat_engine._iso_to_unix(iso)
+
+
+def test_enrich_with_ticker_news_skips_non_thin_candidate(monkeypatch):
+    from api.services.catalyst import engine as cat_engine
+    from api.services import news_search
+
+    monkeypatch.setenv("CATALYST_NEWS_FETCH_ENABLED", "1")
+
+    called = {"n": 0}
+
+    def fake_search(query, count=5):
+        called["n"] += 1
+        return {"headlines": []}
+
+    monkeypatch.setattr(news_search, "search_news", fake_search)
+
+    # Has 3 existing rss headlines → NOT thin → must be skipped
+    not_thin = {"ticker": "WXYZ", "rss_headline_count": 3,
+                "rss": [{"title": "x"}, {"title": "y"}, {"title": "z"}]}
+    cat_engine._enrich_with_ticker_news([not_thin])
+
+    assert called["n"] == 0
+    assert not_thin["rss_headline_count"] == 3
+
+
+# ---------------------------------------------------------------------------
+# TASK B2 — Perplexity finance-news discovery query
+# ---------------------------------------------------------------------------
+
+def test_perplexity_finance_discovery_query_issued_and_extracted(monkeypatch):
+    """The finance-news variant is issued (captured) AND its ticker surfaces
+    with source 'Perplexity (finance news)'. The stub returns a recognizable
+    $TICKER ONLY for the finance query (isolated via the unique phrase)."""
+    from api.services.catalyst import sources as cat_sources
+    from api.services import perplexity_search
+
+    monkeypatch.setenv("CATALYST_PERPLEXITY_ENABLED", "1")
+    monkeypatch.setenv("CATALYST_PERPLEXITY_FINANCE_DISCOVERY", "1")
+
+    captured = {"queries": []}
+
+    def fake_web_search(query, max_tokens=400, system=None, mode="fast",
+                        recency=None, domain_pack="general", domains=None):
+        captured["queries"].append(query)
+        if "swing traders and news traders" in query:
+            return {"answer": "$FINX — upgraded by a major bank today.",
+                    "citations": ["https://example.com/finx"]}
+        return {"answer": "", "citations": []}
+
+    monkeypatch.setattr(perplexity_search, "web_search", fake_web_search)
+
+    out = cat_sources._pull_perplexity_discovery()
+
+    # (approach noted in report) Finance query WAS issued
+    assert any("swing traders and news traders" in q for q in captured["queries"])
+    # And its ticker surfaced with the finance-news source label
+    assert "FINX" in out
+    sources_seen = {item["source"] for item in out["FINX"]}
+    assert "Perplexity (finance news)" in sources_seen
+
+
+# ---------------------------------------------------------------------------
+# TASK B3 — swing/news-trader prompt alignment in _enrich_with_perplexity
+# ---------------------------------------------------------------------------
+
+def test_enrich_with_perplexity_prompt_includes_swing_catalysts(monkeypatch):
+    from api.services.catalyst import engine as cat_engine
+    from api.services import perplexity_search
+
+    monkeypatch.setenv("CATALYST_PERPLEXITY_ENABLED", "1")
+
+    captured = {"query": None}
+
+    def fake_web_search(query, max_tokens=300, system=None, mode="fast",
+                        recency=None, domain_pack="general", domains=None):
+        captured["query"] = query
+        return {"answer": "Some catalyst.", "citations": ["https://c"]}
+
+    monkeypatch.setattr(perplexity_search, "web_search", fake_web_search)
+
+    # Zero-signal candidate → triggers the paid fallback prompt
+    c = {"ticker": "ZZZZ", "gap_pct": 8.0}
+    cat_engine._enrich_with_perplexity([c])
+
+    q = captured["query"]
+    assert q is not None
+    assert "guidance" in q
+    assert "product launches" in q
+    # Original "no clear catalyst" line preserved
+    assert "no clear catalyst exists, say so plainly" in q
