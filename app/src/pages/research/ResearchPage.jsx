@@ -5,6 +5,7 @@ import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
+import EstimatesTab from './tabs/EstimatesTab'
 import ComingSoonTab from './tabs/ComingSoonTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
@@ -42,7 +43,8 @@ export default function ResearchPage() {
       </nav>
       {active === 'Overview' && <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
-      {active !== 'Overview' && active !== 'Financials' && <ComingSoonTab name={active} />}
+      {active === 'Estimates' && <EstimatesTab sym={sym} />}
+      {!['Overview', 'Financials', 'Estimates'].includes(active) && <ComingSoonTab name={active} />}
     </div>
   )
 }

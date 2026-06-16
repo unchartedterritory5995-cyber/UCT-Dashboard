@@ -52,6 +52,14 @@
 .heatNeg2 { background: rgba(231, 76, 60, 0.30); color: #f6cdc8; font-weight: 700; border-radius: 4px; }
 .fnote { color: var(--text-muted); font-size: 12px; padding: 8px 2px; }
 
+/* rating-change list (Estimates tab) */
+.rclist { display: flex; flex-direction: column; gap: 2px; }
+.rcrow { display: grid; grid-template-columns: 88px 1fr auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.rcdate { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.rcfirm { color: var(--text-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcgrade { color: var(--text); white-space: nowrap; }
+.rcgrade b { color: var(--text-bright); }
+
 /* coming soon */
 .soon { display: flex; align-items: center; justify-content: center; min-height: 280px; }
 .soonInner { text-align: center; color: var(--text-muted); }
