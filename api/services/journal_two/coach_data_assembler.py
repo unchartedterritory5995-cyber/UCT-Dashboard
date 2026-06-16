@@ -154,7 +154,7 @@ def _trades_in_range(
                t.entry_date, t.exit_date,
                t.original_stop, t.setup, t.notes, t.pnl_dollar, t.pnl_percent,
                t.r_multiple, t.hold_days, t.result,
-               t.mistake_tags, t.emotion_tags, t.regime,
+               t.mistake_tags, t.emotion_tags, t.regime, t.source,
                t.account_id, a.name AS account_name
           FROM j2_trades t
           LEFT JOIN j2_accounts a ON a.id = t.account_id
@@ -188,6 +188,10 @@ def _trades_in_range(
             "process_score": None,    # j2 doesn't yet store process_score per trade
             "account_id": r["account_id"],
             "account_name": r["account_name"],
+            # 'broker' = auto-imported (no pre-trade plan was recorded), so the
+            # coach should not fault a missing setup/stop on these rows.
+            "source": r["source"] if "source" in r.keys() else None,
+            "imported": (r["source"] == "broker") if "source" in r.keys() else False,
         })
     return out
 

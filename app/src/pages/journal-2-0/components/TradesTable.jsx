@@ -54,6 +54,15 @@ function cellFor(key, trade, opts) {
       return (
         <span className={styles.symbolCell}>
           {trade.symbol}
+          {trade.source === 'broker' && (
+            <span
+              title="Auto-imported from your connected brokerage"
+              aria-label="Imported from brokerage"
+              style={{ marginLeft: 4, opacity: 0.7, fontSize: '0.85em' }}
+            >
+              🔗
+            </span>
+          )}
           {reviewed && (
             <span
               className={styles.compassDot}
@@ -141,6 +150,9 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
         <p>No trades yet.</p>
         <p className={styles.emptyHint}>
           Close a position or use <strong>+ Add Trade</strong> to record one.
+        </p>
+        <p className={styles.emptyHint}>
+          Or <a href="/settings">connect your brokerage</a> to auto-import every trade.
         </p>
       </div>
     )

@@ -682,6 +682,9 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "mistakeTags": json.loads(row["mistake_tags"]) if "mistake_tags" in keys and row["mistake_tags"] else [],
         "emotionTags": json.loads(row["emotion_tags"]) if "emotion_tags" in keys and row["emotion_tags"] else [],
+        # Origin tag: 'broker' for auto-imported trades (badge in UI; lets
+        # Compass treat them as imports without manual pre-trade intent).
+        "source": row["source"] if "source" in keys else None,
     }
 
 
@@ -702,7 +705,8 @@ def list_trades_for_user(
                        entry_price, entry_date, exit_price, exit_date,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
-                       account_id, fees, created_at, mistake_tags, emotion_tags
+                       account_id, fees, created_at, mistake_tags, emotion_tags,
+                       source
                   FROM j2_trades
                  WHERE user_id = ? AND account_id = ?
                  ORDER BY entry_date DESC, created_at DESC
@@ -716,7 +720,8 @@ def list_trades_for_user(
                        entry_price, entry_date, exit_price, exit_date,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
-                       account_id, fees, created_at, mistake_tags, emotion_tags
+                       account_id, fees, created_at, mistake_tags, emotion_tags,
+                       source
                   FROM j2_trades
                  WHERE user_id = ?
                  ORDER BY entry_date DESC, created_at DESC
