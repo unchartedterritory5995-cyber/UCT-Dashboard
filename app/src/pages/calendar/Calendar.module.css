@@ -407,7 +407,7 @@
   border: 1px solid var(--cal-line);
   border-radius: 12px;
   padding: 16px;
-  min-height: 200px;
+  min-height: 240px;
 }
 
 .wcolToday {
@@ -427,19 +427,20 @@
 .wrow {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 7px 4px;
+  gap: 13px;
+  padding: 9px 6px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background 0.1s;
+  border-radius: 10px;
+  transition: background 0.12s, transform 0.12s;
 }
 
 .wrow:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
 }
 
 .t {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--cal-txt);
   flex: 1;
