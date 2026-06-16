@@ -70,8 +70,12 @@ function StatusPill({ status }) {
   const connected = status?.connected;
   const err = status?.last_error;
   const lastEventAt = status?.last_event_at;
+  // Stale = connected:true but no event in 90s. Bullflow's docs claim a 10s
+  // heartbeat cadence, but observed behavior is less frequent (heartbeats can
+  // gap for 30-60s during quiet stretches). 90s threshold catches genuine
+  // disconnects without false-flagging healthy quiet periods.
   const stale = connected && lastEventAt
-    && (Date.now() - new Date(lastEventAt).getTime()) > 30_000;
+    && (Date.now() - new Date(lastEventAt).getTime()) > 90_000;
 
   let color, label;
   if (err) { color = P.be; label = "Error"; }
