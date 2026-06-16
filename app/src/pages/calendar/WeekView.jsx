@@ -36,7 +36,10 @@ export default function WeekView({ weekDates, days, filters, onSelect }) {
           <div key={ds} className={`${styles.wcol} ${day.is_today ? styles.wcolToday : ''}`}>
             <div className={styles.wd}>{day.label || ds}</div>
             {empty ? (
-              <div className={styles.emptyBucket}>—</div>
+              <div className={styles.wempty}>
+                <span className={styles.wemptyDot} aria-hidden="true" />
+                No earnings
+              </div>
             ) : (
               <div className={styles.wtimings}>
                 <WeekTimingGroup label="BMO" icon="☀" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
