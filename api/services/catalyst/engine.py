@@ -891,8 +891,18 @@ def run_refresh() -> dict:
                     "(junk + non-catalysts)", len(excluded))
     candidates = kept
 
+    # Freshness: a name not RANKED in the prior N days is "new" (breaking today);
+    # one that was is "developing" (a multi-day continuation). Computed once here,
+    # consulted per-candidate in the scoring loop below. Never raises.
+    fresh_lookback = int(os.environ.get("CATALYST_FRESHNESS_LOOKBACK_DAYS", "3"))
+    try:
+        recent_ranked = store.recent_ranked_tickers(md, days=fresh_lookback)
+    except Exception:
+        recent_ranked = set()
+
     for c in candidates:
         c["tag"] = tagging.assign_tag(c)
+        c["is_new"] = (c.get("ticker") or "").upper() not in recent_ranked
         c["score"] = scoring.score(c)
     scored = [c for c in candidates if c.get("tag")]
     summary["scored"] = len(scored)
@@ -982,6 +992,7 @@ def run_refresh() -> dict:
                 "thesis_sources": thesis["thesis_sources"],
                 "grade": grade,
                 "catalyst_type": thesis.get("catalyst_type"),
+                "is_new": 1 if c.get("is_new") else 0,
                 "signals_hash": thesis["signals_hash"],
                 "catalyst_at": catalyst_at,
                 "raw_signals": json.dumps({
@@ -1057,6 +1068,7 @@ def run_refresh() -> dict:
                 "thesis_sources": "[]",
                 "signals_hash": None,
                 "catalyst_at": None,
+                "is_new": 1 if c.get("is_new") else 0,
                 "raw_signals": "{}",
             })
         except Exception:
