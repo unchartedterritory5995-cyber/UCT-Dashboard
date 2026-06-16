@@ -581,7 +581,7 @@ def _pull_gap_scan() -> dict[str, dict]:
     # the survivors by DOLLAR-VOLUME (the best size/liquidity proxy we have
     # from a bare snapshot) and keep the most-traded N — i.e. the big, liquid
     # NEWS movers the user actually wants, not thin small-caps.
-    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 50))
+    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 80))
 
     survivors: list[tuple[float, str, float]] = []  # (dollar_vol, sym, gap)
     for ticker, d in snap.items():
@@ -612,7 +612,7 @@ def _pull_gap_scan() -> dict[str, dict]:
     # smaller names making the day's REAL moves (OXM -19% on earnings missed
     # the top-50 on 2026-06-11). These already passed the price + $vol
     # floors above, so they're liquid — just not megacap-liquid.
-    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 15))
+    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 25))
     for _dv, sym, gap in sorted(survivors, key=lambda x: abs(x[2]),
                                 reverse=True)[:top_gap_n]:
         keep.setdefault(sym, gap)
