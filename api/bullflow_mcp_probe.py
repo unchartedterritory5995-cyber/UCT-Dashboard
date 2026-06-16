@@ -57,7 +57,7 @@ async def _mcp_call(method: str, params: dict | None = None) -> dict:
             try:
                 return {"http": r.status_code, "result": r.json()}
             except Exception:
-                return {"http": r.status_code, "raw_text": text[:5000]}
+                return {"http": r.status_code, "raw_text": text[:50000]}
     except Exception as e:
         return {"error": f"{type(e).__name__}: {str(e)[:300]}"}
 
