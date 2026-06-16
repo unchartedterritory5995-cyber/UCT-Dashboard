@@ -22,6 +22,8 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+from api.services.catalyst import tuning
+
 
 def _f(name: str, default: float) -> float:
     """Read a float threshold from env, or return default."""
@@ -40,9 +42,9 @@ def quality_gate(c: dict) -> tuple[bool, Optional[str]]:
     Returns (passed, reason). reason is None when passed, else a short
     human-readable exclusion string suitable for the "Why isn't X" explainer.
     """
-    min_price = _f("CATALYST_MIN_PRICE", 3.0)
-    min_dollar_vol = _f("CATALYST_MIN_DOLLAR_VOL", 5_000_000.0)
-    min_market_cap = _f("CATALYST_MIN_MARKET_CAP", 300_000_000.0)
+    min_price = tuning.get_threshold("CATALYST_MIN_PRICE", 3.0)
+    min_dollar_vol = tuning.get_threshold("CATALYST_MIN_DOLLAR_VOL", 5_000_000.0)
+    min_market_cap = tuning.get_threshold("CATALYST_MIN_MARKET_CAP", 300_000_000.0)
 
     # ── Not a stock — ETFs/funds/indexes are vehicles, not catalysts. A
     # leveraged-semis ETF (USD) was SELECTED on 2026-06-11; SOXL/SOXS/KORU
@@ -88,6 +90,15 @@ def quality_gate(c: dict) -> tuple[bool, Optional[str]]:
             f"market cap ${mc / 1e6:.0f}M below ${min_market_cap / 1e6:.0f}M floor"
         )
 
+    # ── Float floor — the classic low-float pump tell. Prefer true float;
+    # fall back to shares-outstanding. Fail-open when neither is known. ──
+    min_float = tuning.get_threshold("CATALYST_MIN_FLOAT", 5_000_000.0)
+    flt = c.get("float_shares") or c.get("shares_outstanding")
+    if isinstance(flt, (int, float)) and flt > 0 and flt < min_float:
+        return False, (
+            f"float {flt / 1e6:.1f}M shares below {min_float / 1e6:.1f}M floor"
+        )
+
     return True, None
 
 
@@ -123,6 +134,8 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
         return True, None                              # hard catalyst
     if c.get("scanner_setup"):
         return True, None                              # UCT scanner flagged it
+    if c.get("analyst_meta"):
+        return True, None                              # analyst rating/PT change
 
     return False, (
         f"no real move (gap {gap_abs:.1f}% < {min_move:.0f}%, "

@@ -76,11 +76,13 @@ from api.routers import catalysts as catalysts_router
 from api.routers import modelbook as modelbook_router
 from api.routers import fundamentals as fundamentals_router
 from api.routers import filings as filings_router
+from api.routers import research as research_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
+from api.liveflow_router import router as liveflow_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -640,6 +642,7 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import tweet_store
         tweet_store._init_db()
+        tweet_store.ensure_default_accounts()
         print("[startup] tweets.db initialized")
     except Exception as e:
         print(f"[startup] tweet_store init failed (non-fatal): {e}")
@@ -774,6 +777,24 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # Live Flow worker — TEMPORARILY DISABLED 2026-06-16
+    # The in-process SSE consumer was causing web service hangs (Cloudflare 524s,
+    # 19s CSV loads on OptionsFlow). The httpx async stream appears to starve
+    # the FastAPI event loop under certain conditions. Re-enable after one of:
+    #   (1) migrating worker to the `worker` Railway service (proper fix)
+    #   (2) running it in an isolated thread with its own event loop
+    #   (3) adding hard read/connect timeouts to all httpx calls
+    # Until then the /api/live/* router still exists but get_status() returns
+    # connected=false. Frontend at /live-flow will show Disconnected state.
+    if False:
+        try:
+            from api import liveflow_worker as _liveflow_worker
+            import asyncio
+            asyncio.create_task(_liveflow_worker.run_forever())
+            logging.getLogger(__name__).info("[startup] liveflow_worker scheduled (Bullflow SSE)")
+        except Exception as e:
+            logging.getLogger(__name__).exception("[startup] failed to schedule liveflow_worker: %s", e)
 
     # SQLite integrity check — heavy on 58M rows, run in background
     def _integrity_check_bg():
@@ -1627,7 +1648,21 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15"),
                 id="catalyst_coverage_audit", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET)")
+            # Evidence-based auto-tune: once daily at 5:00 AM ET. Reviews recent
+            # catalyst outcomes and nudges scoring/gate thresholds. run_autotune()
+            # itself honors CATALYST_AUTOTUNE_ENABLED, so this is a no-op when
+            # that's off; wrapped so a failure never breaks the scheduler.
+            def _cat_autotune():
+                try:
+                    from api.services.catalyst import tuning
+                    tuning.run_autotune()
+                except Exception as _e:
+                    print(f"[scheduler] catalyst autotune failed (non-fatal): {_e}")
+            _scheduler.add_job(_cat_autotune,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0"),
+                id="catalyst_autotune", max_instances=1, replace_existing=True)
+
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
 
         # ── Morning Catalyst Digest (the brief reaches you) ───────────────
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
@@ -2118,6 +2153,7 @@ app.include_router(watchlist_router)
 app.include_router(flow_router)
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
+app.include_router(liveflow_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
@@ -2126,6 +2162,7 @@ app.include_router(catalysts_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(fundamentals_router.router)
 app.include_router(filings_router.router)
+app.include_router(research_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 

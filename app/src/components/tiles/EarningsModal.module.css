@@ -281,6 +281,23 @@
 }
 .btnChart:hover { background: var(--gain-border); }
 
+.btnReport {
+  flex: 1;
+  text-align: center;
+  padding: 9px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--ut-gold);
+  border: 1px solid var(--ut-gold);
+  background: var(--ut-gold-dim);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btnReport:hover { background: var(--ut-gold-glow); }
+
 /* ── Earnings Preview (Pending entries) ────────────────────────────────────── */
 
 .previewBox {

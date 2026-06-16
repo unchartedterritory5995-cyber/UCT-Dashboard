@@ -177,6 +177,8 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "fifty_two_week_high": float(fwh) if fwh else None,
             "near_52w_high": near_52w_high,
             "quote_type": m.get("quote_type"),
+            "float_shares": m.get("float_shares"),
+            "shares_outstanding": m.get("shares_outstanding"),
         }
     return out
 
@@ -487,6 +489,38 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     except Exception:
         logger.exception("[catalyst-sources] perplexity A1 discovery failed")
 
+    # ── A2: always-on finance-news discovery (swing/news-trader aligned) ─
+    # Supplements A1 (general domain) with a finance-domain pass framed for
+    # the catalysts swing/news traders watch. Gated by its own env so it can
+    # be toggled independently; only runs when Perplexity is on overall.
+    if os.environ.get("CATALYST_PERPLEXITY_FINANCE_DISCOVERY", "1").lower() in ("1", "true", "yes"):
+        a2_query = (
+            "Which individual US stocks are moving today on company-specific "
+            "catalysts that swing traders and news traders watch — analyst "
+            "upgrades or downgrades, earnings or guidance changes, M&A, major "
+            "customer/contract wins, product launches, or technical breakouts "
+            "on volume? List each ticker with its catalyst."
+        )
+        try:
+            a2_result = perplexity_search.web_search(
+                a2_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
+                domain_pack="finance",
+            )
+            a2_text = (a2_result or {}).get("answer") or ""
+            a2_citations = (a2_result or {}).get("citations") or []
+            for sym in _extract_tickers_from_text(a2_text):
+                out[sym].append({
+                    "source": "Perplexity (finance news)",
+                    "title": a2_text[:400],
+                    "url": a2_citations[0] if a2_citations else "",
+                    "time_published": int(time.time()),
+                })
+            if a2_text:
+                logger.info("[catalyst-sources] perplexity finance-news found %d tickers",
+                            len(_extract_tickers_from_text(a2_text)))
+        except Exception:
+            logger.exception("[catalyst-sources] perplexity A2 finance discovery failed")
+
     # ── F1: EOD tomorrow-setup query (4 PM – 8 PM ET only) ─────────────
     # Seeds tomorrow morning's candidate pool with stuff known after-hours:
     # AMC earnings reactions, post-close analyst actions, M&A announcements,
@@ -579,7 +613,7 @@ def _pull_gap_scan() -> dict[str, dict]:
     # the survivors by DOLLAR-VOLUME (the best size/liquidity proxy we have
     # from a bare snapshot) and keep the most-traded N — i.e. the big, liquid
     # NEWS movers the user actually wants, not thin small-caps.
-    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 50))
+    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 80))
 
     survivors: list[tuple[float, str, float]] = []  # (dollar_vol, sym, gap)
     for ticker, d in snap.items():
@@ -610,11 +644,22 @@ def _pull_gap_scan() -> dict[str, dict]:
     # smaller names making the day's REAL moves (OXM -19% on earnings missed
     # the top-50 on 2026-06-11). These already passed the price + $vol
     # floors above, so they're liquid — just not megacap-liquid.
-    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 15))
+    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 25))
     for _dv, sym, gap in sorted(survivors, key=lambda x: abs(x[2]),
                                 reverse=True)[:top_gap_n]:
         keep.setdefault(sym, gap)
     return {sym: {"gap_pct": gap} for sym, gap in keep.items()}
+
+
+# ── Source 8: Analyst actions (wire + optional TheFly) ──────────────────
+def _pull_analyst_actions() -> dict[str, dict]:
+    """{ticker: analyst_meta} for today (wire + optional TheFly)."""
+    try:
+        from api.services.catalyst.analyst_actions import get_analyst_candidates
+        return get_analyst_candidates()
+    except Exception as e:
+        logger.warning("[catalyst-sources] analyst pull failed: %s", e)
+        return {}
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
@@ -629,9 +674,10 @@ def collect_all() -> list[dict]:
         "rss":        _pull_rss_signals,
         "scanner":    _pull_scanner_setups,
         "perplexity": _pull_perplexity_discovery,
+        "analyst":    _pull_analyst_actions,
     }
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=7, thread_name_prefix="cat-src") as ex:
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
         futures = {ex.submit(_safe, fn, {}, name): name
                    for name, fn in tasks.items()}
         for fut in as_completed(futures, timeout=30):
@@ -651,6 +697,7 @@ def collect_all() -> list[dict]:
     universe.update(results.get("rss", {}).keys())
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
+    universe.update(results.get("analyst", {}).keys())
 
     if not universe:
         return []
@@ -673,6 +720,7 @@ def collect_all() -> list[dict]:
         for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
             rss.append(pp_item)
         setup = results["scanner"].get(ticker)
+        analyst_meta = results.get("analyst", {}).get(ticker)
 
         sector = snap.get("sector")
         if sector:
@@ -721,6 +769,9 @@ def collect_all() -> list[dict]:
             # 52-week-high breakout signal (price at/near new highs).
             "near_52w_high": snap.get("near_52w_high", False),
             "fifty_two_week_high": snap.get("fifty_two_week_high"),
+            "float_shares": snap.get("float_shares"),
+            "shares_outstanding": snap.get("shares_outstanding"),
+            "analyst_meta": analyst_meta,
         })
 
     for c in candidates:

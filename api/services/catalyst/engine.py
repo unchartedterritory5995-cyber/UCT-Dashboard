@@ -138,6 +138,11 @@ def _compute_catalyst_at(c: dict) -> Optional[int]:
     if isinstance(ts, (int, float)) and ts > 0:
         candidates.append(int(ts))
 
+    am = c.get("analyst_meta") or {}
+    ats = am.get("at")
+    if isinstance(ats, (int, float)) and ats > 0:
+        candidates.append(int(ats))
+
     return min(candidates) if candidates else None
 
 logger = logging.getLogger(__name__)
@@ -152,6 +157,32 @@ _SECTOR_CONTEXT_BY_DATE: dict[str, list[dict]] = {}
 # ("excluded: $2.40 below $3 floor") instead of silence. Survives across
 # requests, recomputed each refresh.
 _EXCLUDED_BY_DATE: dict[str, dict[str, str]] = {}
+
+
+def _iso_to_unix(s) -> Optional[int]:
+    """Best-effort parse of a published-date string into unix seconds.
+
+    Defensive across the two formats free news feeds emit:
+      1. ISO 8601 (`datetime.fromisoformat`, with a Z→+00:00 nudge)
+      2. RFC-822 (`email.utils.parsedate_to_datetime`) — Google News uses
+         this, e.g. "Wed, 11 Jun 2025 13:20:00 GMT". fromisoformat can't
+         parse it, so RFC-822 support is required here.
+    Returns int unix seconds, or None on anything unparseable.
+    """
+    if not s or not isinstance(s, str):
+        return None
+    try:
+        return int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+    except (ValueError, TypeError):
+        pass
+    try:
+        import email.utils
+        parsed = email.utils.parsedate_to_datetime(s)
+        if parsed is not None:
+            return int(parsed.timestamp())
+    except (ValueError, TypeError, OverflowError):
+        pass
+    return None
 
 
 def get_sector_contexts(market_date: str) -> list[dict]:
@@ -418,6 +449,122 @@ def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
         c["rss_headline_count"] = len(c["rss"])
 
 
+# Per-day per-ticker guard so the reasoning-mode deep pass runs AT MOST ONCE
+# per ticker per day. The 2-min pre-market cadence would otherwise re-pay the
+# (~2-3x fast) reasoning cost on every refresh for the same names.
+_DEEP_CONTEXT_DONE: dict[str, set[str]] = {}
+
+
+def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) -> None:
+    """DEEP reasoning-mode Perplexity context pass over the top movers.
+
+    For the highest-scored candidates, ask a skeptical sell-side analyst (via
+    Perplexity reasoning-mode / sonar-reasoning-pro) to confirm the SPECIFIC
+    catalyst with concrete numbers, the market read, key technical levels, and
+    what could extend/reverse the move. Injects the synthesis as a synthetic
+    RSS item (same shape as the other Perplexity enrichers) so Opus picks it
+    up at synthesis time.
+
+    Additive + cost-bounded + anti-hallucination:
+    - Gated on CATALYST_DEEP_CONTEXT_ENABLED (default ON). Disable → no deep pass.
+    - Top-N capped by CATALYST_DEEP_CONTEXT_TOP_N (default 5).
+    - Per-(day, ticker) cache → at most one reasoning call per ticker per day.
+    - Skips source-rich rows (>5 tweets + >2 RSS), like the fast top-3 pass.
+    - Drops answers that error, are empty, say "no confirmed catalyst", or are
+      low-info hedging filler — so we never inject vacuous context.
+
+    Supersedes _enrich_top_3_with_deep_context (the old fast top-3 pass).
+    Never raises.
+    """
+    if os.environ.get("CATALYST_DEEP_CONTEXT_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import perplexity_search
+    except Exception:
+        return
+
+    try:
+        top_n = int(os.environ.get("CATALYST_DEEP_CONTEXT_TOP_N", "5"))
+    except (TypeError, ValueError):
+        top_n = 5
+    mode = os.environ.get("CATALYST_DEEP_CONTEXT_MODE", "reasoning")
+    try:
+        max_tokens = int(os.environ.get("CATALYST_DEEP_CONTEXT_MAX_TOKENS", "700"))
+    except (TypeError, ValueError):
+        max_tokens = 700
+
+    done = _DEEP_CONTEXT_DONE.setdefault(market_date, set())
+
+    ranked = sorted(candidates, key=lambda c: c.get("score", 0.0), reverse=True)
+    for c in ranked[:top_n]:
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+        if ticker in done:
+            continue
+
+        # Skip if already source-rich — Opus has plenty of context already.
+        tweet_count = len(c.get("tweets") or [])
+        rss_count = len(c.get("rss") or [])
+        if tweet_count > 5 and rss_count > 2:
+            continue
+
+        gap = c.get("gap_pct") or 0.0
+        direction = "up" if gap >= 0 else "down"
+        prompt = (
+            f"Stock ${ticker} is moving {direction} {abs(gap):.1f}% today. "
+            f"As a skeptical sell-side analyst, using only reliable financial "
+            f"news/filings: (1) state the SPECIFIC confirmed catalyst with "
+            f"concrete details (numbers, guidance, deal terms); (2) the market "
+            f"read (peer/sector reaction); (3) key technical levels to watch; "
+            f"(4) what could extend or reverse the move. If you CANNOT confirm "
+            f"a specific catalyst from reliable sources, reply exactly "
+            f"'No confirmed catalyst.' Do not speculate."
+        )
+
+        # Mark done regardless of outcome below — one (attempted) reasoning call
+        # per ticker per day, whether it injects or drops.
+        done.add(ticker)
+
+        try:
+            result = perplexity_search.web_search(
+                prompt, max_tokens=max_tokens, mode=mode,
+                domain_pack="finance", recency="day",
+            )
+        except Exception:
+            logger.exception("[catalyst-engine] perplexity deep-context %s failed", ticker)
+            continue
+
+        result = result or {}
+        if "error" in result:
+            continue
+        answer = result.get("answer") or ""
+        if not answer.strip():
+            continue
+        if "no confirmed catalyst" in answer.lower():
+            continue
+        if _is_low_info_sector_answer(answer):
+            continue
+
+        citations = result.get("citations") or []
+        url = citations[0] if citations else ""
+        title = answer[:600]
+
+        rss = c.setdefault("rss", [])
+        # Dedup against existing items by url/title so re-runs don't pile up.
+        if any((url and r.get("url") == url) or r.get("title") == title for r in rss):
+            c["rss_headline_count"] = len(rss)
+            continue
+        rss.append({
+            "source": "Perplexity (deep context)",
+            "title": title,
+            "url": url,
+            "time_published": int(time.time()),
+        })
+        c["rss_headline_count"] = len(rss)
+
+
 def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
     """For each top-12 candidate tagged 'Earnings', ask Perplexity for the
     things Finnhub's EPS/rev numbers don't tell us: forward guidance, sell-side
@@ -475,6 +622,78 @@ def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
         c["rss_headline_count"] = len(c["rss"])
 
 
+def _enrich_with_ticker_news(candidates: list[dict]) -> None:
+    """For each top-12 candidate that is THIN on a catalyst (no RSS, <2 tweet
+    mentions, no earnings), pull free Google News headlines for "{ticker} stock"
+    and inject them as synthetic 'rss' items. This fills the "why" with a free
+    source BEFORE the paid Perplexity zero-signal fallback fires — so Perplexity
+    fires less.
+
+    Mutates candidates in-place. Gated on CATALYST_NEWS_FETCH_ENABLED (default
+    on). Never raises — per-candidate errors are swallowed.
+    """
+    if os.environ.get("CATALYST_NEWS_FETCH_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return
+
+    try:
+        from api.services import news_search
+    except Exception:
+        return
+
+    count = int(os.environ.get("CATALYST_NEWS_FETCH_COUNT", "5"))
+
+    for c in candidates:
+        thin = (
+            (c.get("rss_headline_count") or 0) == 0
+            and (c.get("tweet_mention_count") or 0) < 2
+            and not c.get("earnings_meta")
+        )
+        if not thin:
+            continue
+
+        ticker = c.get("ticker")
+        if not ticker:
+            continue
+
+        # "{ticker} stock" (NOT a cashtag — cashtags match poorly in general news)
+        try:
+            result = news_search.search_news(f"{ticker} stock", count=count)
+        except Exception:
+            logger.exception("[catalyst-engine] news_search %s failed", ticker)
+            continue
+
+        # search_news returns results under "headlines" (defensive: also "results")
+        rows = (result or {}).get("headlines") or (result or {}).get("results") or []
+        if not rows:
+            continue
+
+        existing = c.setdefault("rss", [])
+        seen_urls = {(it.get("url") or "").strip() for it in existing if it.get("url")}
+        seen_titles = {(it.get("title") or "").strip().lower() for it in existing}
+
+        for r in rows:
+            url = (r.get("url") or "").strip()
+            title = (r.get("title") or "").strip()
+            if not title:
+                continue
+            # Dedup by url (fallback title)
+            if url and url in seen_urls:
+                continue
+            if not url and title.lower() in seen_titles:
+                continue
+            existing.append({
+                "source": "Google News",
+                "title": title,
+                "url": r.get("url"),
+                "time_published": _iso_to_unix(r.get("published")),
+            })
+            if url:
+                seen_urls.add(url)
+            seen_titles.add(title.lower())
+
+        c["rss_headline_count"] = len(existing)
+
+
 def _enrich_with_perplexity(candidates: list[dict]) -> None:
     """For each top-12 candidate with thin source signals (no tweets, no RSS,
     no earnings), ask Perplexity 'what's the catalyst for $XYZ today?' and
@@ -510,8 +729,11 @@ def _enrich_with_perplexity(candidates: list[dict]) -> None:
 
         query = (f"What is the specific catalyst driving ${ticker} stock "
                  f"{'up' if gap_pct >= 0 else 'down'} {abs(gap_pct):.1f}% today? "
-                 f"Cite earnings, M&A, FDA, contract wins, analyst actions, "
-                 f"or any breaking news. If no clear catalyst exists, say so plainly.")
+                 f"Cite earnings or guidance, M&A, FDA decisions, "
+                 f"contract/customer wins, analyst upgrades/downgrades, "
+                 f"product launches, partnerships, index inclusion, or a "
+                 f"technical breakout, or any breaking news. If no clear "
+                 f"catalyst exists, say so plainly.")
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=300,
@@ -549,9 +771,11 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
         return
 
     since_unix = int(time.time()) - 24 * 3600
+    skip_at = int(os.environ.get("CATALYST_TWITTER_SEARCH_SKIP_AT", "8"))
+    max_results = int(os.environ.get("CATALYST_TWITTER_SEARCH_MAX", "30"))
     for c in candidates:
         existing = len(c.get("tweets") or [])
-        if existing >= 5:
+        if existing >= skip_at:
             # Already rich; skip the Twitter search call
             continue
         try:
@@ -559,7 +783,7 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
                 query=f"${c['ticker']}",
                 since_unix=since_unix,
                 query_type="Latest",
-                max_results=20,
+                max_results=max_results,
             )
         except twitterapi_io.TwitterApiError as e:
             logger.warning("[catalyst-engine] twitter_search %s failed: %s",
@@ -590,6 +814,22 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
                 seen_ids.add(tid)
         c["tweets"] = merged
         c["tweet_mention_count"] = len(merged)
+
+
+def _enrich_with_analyst_actions(top: list[dict]) -> None:
+    """For selected names lacking analyst_meta, check Finnhub for a recent
+    upgrade/downgrade so analyst-driven gappers are explained even before the
+    daily wire push lands. Bounded to the selected set. Best-effort."""
+    from api.services.catalyst.analyst_actions import finnhub_recent_action
+    for c in top:
+        if c.get("analyst_meta"):
+            continue
+        try:
+            meta = finnhub_recent_action(c.get("ticker") or "")
+        except Exception:
+            meta = None
+        if meta:
+            c["analyst_meta"] = meta
 
 
 def run_refresh() -> dict:
@@ -631,7 +871,19 @@ def run_refresh() -> dict:
         if passed:
             kept.append(c)
         else:
-            excluded[(c.get("ticker") or "").upper()] = reason or "excluded"
+            sym = (c.get("ticker") or "").upper()
+            excluded[sym] = reason or "excluded"
+            try:
+                adv = c.get("avg_volume_30d") or c.get("today_volume") or 0
+                store.log_rejection(
+                    market_date=md, ticker=sym, reason=reason or "excluded",
+                    price=c.get("price"),
+                    dollar_vol=(float(c.get("price") or 0) * float(adv)) or None,
+                    float_shares=c.get("float_shares") or c.get("shares_outstanding"),
+                    market_cap=c.get("market_cap"),
+                )
+            except Exception:
+                logger.debug("[catalyst-engine] rejection log failed for %s", sym)
     _EXCLUDED_BY_DATE[md] = excluded
     summary["excluded"] = len(excluded)
     if excluded:
@@ -639,8 +891,18 @@ def run_refresh() -> dict:
                     "(junk + non-catalysts)", len(excluded))
     candidates = kept
 
+    # Freshness: a name not RANKED in the prior N days is "new" (breaking today);
+    # one that was is "developing" (a multi-day continuation). Computed once here,
+    # consulted per-candidate in the scoring loop below. Never raises.
+    fresh_lookback = int(os.environ.get("CATALYST_FRESHNESS_LOOKBACK_DAYS", "3"))
+    try:
+        recent_ranked = store.recent_ranked_tickers(md, days=fresh_lookback)
+    except Exception:
+        recent_ranked = set()
+
     for c in candidates:
         c["tag"] = tagging.assign_tag(c)
+        c["is_new"] = (c.get("ticker") or "").upper() not in recent_ranked
         c["score"] = scoring.score(c)
     scored = [c for c in candidates if c.get("tag")]
     summary["scored"] = len(scored)
@@ -652,6 +914,13 @@ def run_refresh() -> dict:
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
     _enrich_with_twitter_search(top_12)
 
+    # Analyst-action enrichment: catch analyst-driven movers pre-wire-push.
+    _enrich_with_analyst_actions(top_12)
+
+    # Free per-mover "why" fetch: pull Google News for THIN candidates first
+    # so the paid Perplexity zero-signal fallback below fires less often.
+    _enrich_with_ticker_news(top_12)
+
     # Tier 2-1: Perplexity fallback for tickers with zero source signals.
     # Runs AFTER Twitter search so it only fires when even broad search
     # turned up nothing. Bounded by zero-signals check.
@@ -661,9 +930,11 @@ def run_refresh() -> dict:
     # sell-side context that Finnhub's eps/rev numbers don't carry.
     _enrich_earnings_with_perplexity(top_12)
 
-    # P2-B1: Top 3 by score get the richest context — peer reaction, historical
-    # comparables, key levels. These are the rows the user scrutinizes most.
-    _enrich_top_3_with_deep_context(top_12)
+    # P2-B1 superseded: DEEP reasoning-mode pass over the top movers — confirmed
+    # catalyst + market read + key levels + extend/reverse. Cost-capped by per-day
+    # per-ticker cache + top-N; anti-hallucination drops unconfirmed answers.
+    # (Old fast top-3 pass `_enrich_top_3_with_deep_context` kept for rollback.)
+    _enrich_top_movers_deep_context(top_12, md)
 
     store.clear_ranks_for_date(md)
 
@@ -721,6 +992,7 @@ def run_refresh() -> dict:
                 "thesis_sources": thesis["thesis_sources"],
                 "grade": grade,
                 "catalyst_type": thesis.get("catalyst_type"),
+                "is_new": 1 if c.get("is_new") else 0,
                 "signals_hash": thesis["signals_hash"],
                 "catalyst_at": catalyst_at,
                 "raw_signals": json.dumps({
@@ -796,6 +1068,7 @@ def run_refresh() -> dict:
                 "thesis_sources": "[]",
                 "signals_hash": None,
                 "catalyst_at": None,
+                "is_new": 1 if c.get("is_new") else 0,
                 "raw_signals": "{}",
             })
         except Exception:

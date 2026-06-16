@@ -1,5 +1,7 @@
 // app/src/components/tiles/EarningsModal.jsx
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import TickerPopup from '../TickerPopup'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import useTickerTweets from '../../hooks/useTickerTweets'
@@ -81,6 +83,8 @@ function fmtRev(m) {
 }
 
 export default function EarningsModal({ row, label, onClose }) {
+  const navigate = useNavigate()
+  const { isPaid } = useAuth()
   const [gap, setGap]                       = useState(null)
   const [intel, setIntel]                   = useState(null)
   const [aiState, setAiState]               = useState({ loading: true, data: null })
@@ -540,6 +544,12 @@ export default function EarningsModal({ row, label, onClose }) {
           <TickerPopup sym={row.sym} as="button" className={styles.btnChart}>
             View Chart
           </TickerPopup>
+          <button
+            className={styles.btnReport}
+            onClick={() => { onClose?.(); navigate(`/research/${row.sym}`) }}
+          >
+            {isPaid ? 'Open full report →' : '🔒 Unlock full research →'}
+          </button>
         </div>
 
       </div>

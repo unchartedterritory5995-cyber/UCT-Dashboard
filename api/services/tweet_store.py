@@ -127,6 +127,36 @@ def delete_tweets_older_than(days: int) -> int:
 
 # ---- account CRUD ----------------------------------------------------------
 
+# Curated FinTwit accounts seeded idempotently on startup. INSERT OR IGNORE
+# means an admin who later disables/edits one of these is NOT clobbered.
+DEFAULT_ACCOUNTS = [
+    ("DeItaone", "Walter Bloomberg"),
+    ("FinancialJuice", "FinancialJuice"),
+    ("Benzinga", "Benzinga"),
+    ("WallStEngine", "Wall St Engine"),
+    ("FirstSquawk", "First Squawk"),
+    ("LiveSquawk", "LiveSquawk"),
+    ("StockMKTNewz", "Evan @ StockMarketNewz"),
+    ("unusual_whales", "unusual whales"),
+    ("Stocktwits", "Stocktwits"),
+    ("TheTranscript_", "The Transcript"),
+]
+
+
+def ensure_default_accounts() -> int:
+    """Idempotently seed the curated FinTwit accounts. INSERT OR IGNORE means
+    accounts an admin later disabled/edited are NOT clobbered. Returns count
+    seeded/attempted. Never raises."""
+    n = 0
+    for handle, display in DEFAULT_ACCOUNTS:
+        try:
+            add_account(handle, display_name=display, notes="default-seed")
+            n += 1
+        except Exception:
+            pass
+    return n
+
+
 def add_account(handle: str, display_name: Optional[str] = None,
                 added_by_user_id: Optional[int] = None, notes: Optional[str] = None) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:

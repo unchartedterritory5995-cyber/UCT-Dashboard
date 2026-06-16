@@ -250,6 +250,17 @@ def catalyst_stats(user=Depends(require_admin)):
     }
 
 
+@router.get("/admin/catalyst-rejections")
+def catalyst_rejections(market_date: str | None = None, user=Depends(require_admin)):
+    """Gate-rejection telemetry: which candidates entered the pool but were
+    dropped by a quality/activity gate (with the reason), plus a summary."""
+    from api.services.catalyst import store
+    return {
+        "summary": store.rejection_summary(market_date),
+        "rows": store.recent_rejections(limit=200, market_date=market_date),
+    }
+
+
 @router.get("/admin/catalyst-coverage")
 def catalyst_coverage(ymd: str | None = None, user=Depends(require_admin)):
     """Coverage self-audit for a date (default today): the day's biggest
@@ -269,3 +280,31 @@ def catalyst_coverage_run(ymd: str | None = Body(None, embed=True),
     """Force a fresh coverage audit for a date (default today)."""
     from api.services.catalyst import coverage_audit
     return coverage_audit.run_audit(ymd or _today())
+
+
+@router.get("/admin/catalyst-tuning")
+def catalyst_tuning(user=Depends(require_admin)):
+    """Evidence-based auto-tuning state: the currently effective thresholds
+    (with each knob's source: env override / auto-tuned / default) plus the
+    recent change log so the operator can see what the nightly pass adjusted."""
+    from api.services.catalyst import tuning
+    return {
+        "thresholds": tuning.effective_thresholds(),
+        "log": tuning.recent_log(limit=100),
+    }
+
+
+@router.post("/admin/catalyst-tuning/run")
+def catalyst_tuning_run(user=Depends(require_admin)):
+    """Force the nightly auto-tune pass now (admin only). Returns the same
+    {enabled, changes, effective} payload the scheduled job produces."""
+    from api.services.catalyst import tuning
+    return tuning.run_autotune()
+
+
+@router.post("/admin/catalyst-tuning/revert")
+def catalyst_tuning_revert(clear: bool = False, user=Depends(require_admin)):
+    """Revert auto-tuned thresholds back to defaults. With ?clear=true also
+    wipes the change log."""
+    from api.services.catalyst import tuning
+    return tuning.revert(clear=clear)

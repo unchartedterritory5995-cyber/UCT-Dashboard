@@ -92,6 +92,23 @@ def fetch_history(ticker: str, *, timeout: float | None = None, **history_kwargs
         raise
 
 
+def run_in_pool(fn, *, timeout: float | None = None):
+    """Run an arbitrary yfinance-touching callable on the bounded pool with a
+    hard caller-side timeout — same discipline as ``fetch_history`` but for
+    non-history calls (financial statements, ``.info``, etc.).
+
+    Raises ``concurrent.futures.TimeoutError`` on deadline; callers should
+    treat that as "no data, fall through" exactly like an empty result.
+    """
+    deadline = timeout if timeout is not None else _DEFAULT_TIMEOUT_SECONDS
+    fut = _pool.submit(fn)
+    try:
+        return fut.result(timeout=deadline)
+    except _FutureTimeout:
+        _logger.warning(f"[yfinance-pool] pooled call exceeded {deadline}s — abandoning result")
+        raise
+
+
 def pool_status() -> dict:
     """Return current pool state for diagnostic / health endpoint use."""
     return {

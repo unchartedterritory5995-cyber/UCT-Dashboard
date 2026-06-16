@@ -36,6 +36,11 @@ from api.services.bars_fetch import (
 # Re-export module for any consumer that imports `from api.routers import bars`
 from api.services import bars_fetch as _bars_fetch  # noqa: F401
 
+# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — Schwab's
+# /pricehistory silently returns empty for these, so route through yfinance.
+# See api/index_bars.py for the symbol map and divisor logic.
+from api.index_bars import is_index, fetch_index_bars
+
 router = APIRouter()
 
 
@@ -136,7 +141,25 @@ def get_bars(
     response = None
     try:
         try:
-            if since:
+            # Schwab /pricehistory doesn't serve cash-settled indexes — silently
+            # returns empty bar arrays for SPX/NDX/VIX/RUT/DJX/XSP/XND. Route
+            # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
+            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
+            # path unchanged.
+            if is_index(ticker):
+                since_int = None
+                if since:
+                    try:
+                        s = int(since)
+                        # /api/bars accepts `since` in both seconds and ms across
+                        # call sites; index_bars normalizes to seconds. Threshold
+                        # at 10^10 (≈ year 2286 in seconds, but Jan 1971 in ms).
+                        since_int = s // 1000 if s > 10_000_000_000 else s
+                    except ValueError:
+                        since_int = None
+                data = fetch_index_bars(ticker, tf, bars, since_int)
+                response = JSONResponse(content=data)
+            elif since:
                 response = _get_bars_since_response(ticker, tf, bars, since)
             else:
                 response = _get_bars_inner(ticker, tf, bars)
