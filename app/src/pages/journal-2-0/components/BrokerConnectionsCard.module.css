@@ -84,3 +84,25 @@
   cursor: pointer;
   white-space: nowrap;
 }
+
+.dupWrap {
+  margin-top: 14px;
+  border-top: 1px solid var(--color-border, #333);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border, #333);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.dupPair { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dupSym { font-size: 13px; font-weight: 600; }
+.dupMeta { font-size: 11px; opacity: 0.65; }

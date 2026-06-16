@@ -146,3 +146,16 @@ def test_sync_now_paid_gated(client):
     client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
         lambda: {"id": "u1", "plan": "free", "role": "member"}
     assert client.post("/api/j2/broker/sync").status_code == 403
+
+
+def test_dup_flags_list_open_to_logged_in(client):
+    r = client.get("/api/j2/broker/dup-flags")
+    assert r.status_code == 200
+    assert r.json()["flags"] == []
+
+
+def test_dup_flag_resolve_paid_gated(client):
+    client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
+        lambda: {"id": "u1", "plan": "free", "role": "member"}
+    r = client.post("/api/j2/broker/dup-flags/some-id", json={"action": "dismiss"})
+    assert r.status_code == 403

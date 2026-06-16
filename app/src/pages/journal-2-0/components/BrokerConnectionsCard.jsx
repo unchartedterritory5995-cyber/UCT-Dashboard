@@ -18,6 +18,7 @@ export default function BrokerConnectionsCard() {
   const [showConsent, setShowConsent] = useState(false)
   const [consentChecked, setConsentChecked] = useState(false)
   const [error, setError] = useState(null)
+  const [dupFlags, setDupFlags] = useState(null)   // null = not loaded
 
   const load = useCallback(async () => {
     try {
@@ -102,6 +103,24 @@ export default function BrokerConnectionsCard() {
     }
     await load()
     setBusy(false)
+  }
+
+  const loadDups = async () => {
+    try {
+      const r = await fetch('/api/j2/broker/dup-flags', { credentials: 'include' })
+      if (r.ok) setDupFlags((await r.json()).flags || [])
+    } catch { setDupFlags([]) }
+  }
+
+  const resolveDup = async (id, action) => {
+    await fetch(`/api/j2/broker/dup-flags/${id}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    }).catch(() => {})
+    await loadDups()
+    load()
   }
 
   const disconnect = async () => {
@@ -239,6 +258,42 @@ export default function BrokerConnectionsCard() {
                 Disconnect
               </button>
             </div>
+
+            {/* Possible-duplicate review (manual trade vs broker import). */}
+            {status?.dupFlagsPending > 0 && dupFlags === null && (
+              <button className={styles.ghostBtn} style={{ marginTop: 12 }} onClick={loadDups}>
+                Review {status.dupFlagsPending} possible duplicate{status.dupFlagsPending === 1 ? '' : 's'}
+              </button>
+            )}
+            {Array.isArray(dupFlags) && dupFlags.length > 0 && (
+              <div className={styles.dupWrap}>
+                <p className={styles.lead}>Possible duplicate trades</p>
+                <p className={styles.muted}>
+                  These broker imports look like trades you logged manually. Merge keeps
+                  the broker trade and folds in your manual notes; Dismiss keeps both.
+                </p>
+                {dupFlags.map(f => (
+                  <div key={f.id} className={styles.dupRow}>
+                    <div className={styles.dupPair}>
+                      <span className={styles.dupSym}>
+                        {f.broker.symbol} {f.broker.side} · {f.broker.shares} sh
+                      </span>
+                      <span className={styles.dupMeta}>
+                        manual {f.manual.entry_date?.slice(0, 10)} ↔ broker {f.broker.entry_date?.slice(0, 10)}
+                        {' · '}{Math.round(f.confidence * 100)}% match
+                      </span>
+                    </div>
+                    <div className={styles.row}>
+                      <button className={styles.primaryBtn} onClick={() => resolveDup(f.id, 'merge')}>Merge</button>
+                      <button className={styles.ghostBtn} onClick={() => resolveDup(f.id, 'dismiss')}>Dismiss</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {Array.isArray(dupFlags) && dupFlags.length === 0 && (
+              <p className={styles.muted} style={{ marginTop: 8 }}>No duplicates to review.</p>
+            )}
             {/* "Connect another" re-uses the consent panel above when connected */}
             {showConsent && (
               <div className={styles.consent} style={{ marginTop: 12 }}>

@@ -23,7 +23,7 @@ from api.services.auth_db import get_connection
 from api.services import crypto_box
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two.broker import (
-    connections, snaptrade_client as snap, activities_store, reconstruct, balances,
+    connections, snaptrade_client as snap, activities_store, reconstruct, balances, dedup,
 )
 
 # Per-account async locks (process-local). Prevents on-open + scheduled +
@@ -250,6 +250,13 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             bal_res = balances.write_balances(user_id, ba, raw_balances, raw_positions)
         except snap.SnapError:
             bal_res = None  # leave prior balances; surfaced via last_error if needed
+
+        # Flag likely manual↔broker duplicate trades for user review (never
+        # auto-deleted). Best-effort — must not fail the sync.
+        try:
+            dedup.scan_for_duplicates(user_id)
+        except Exception:
+            pass
 
         # Advance cursor to the newest activity we now hold.
         latest = activities_store.latest_occurred_at(user_id, broker_account_id)

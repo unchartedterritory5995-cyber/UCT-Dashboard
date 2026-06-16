@@ -129,6 +129,31 @@ def update_account(
     return broker_conns.get_broker_account(user["id"], broker_account_id)
 
 
+class DupResolveBody(BaseModel):
+    action: str  # 'merge' | 'dismiss'
+
+
+@router.get("/dup-flags")
+def list_dup_flags(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Pending duplicate-candidate flags (manual vs broker) with both trade
+    summaries for side-by-side review."""
+    from api.services.journal_two.broker import dedup
+    return {"flags": dedup.list_flags(user["id"])}
+
+
+@router.post("/dup-flags/{flag_id}")
+def resolve_dup_flag(
+    flag_id: str, body: DupResolveBody, user: dict = Depends(_paid)
+) -> dict[str, Any]:
+    """Resolve a duplicate flag: 'merge' (keep broker trade, fold in manual
+    notes, drop the manual row) or 'dismiss' (keep both)."""
+    from api.services.journal_two.broker import dedup
+    try:
+        return dedup.resolve_flag(user["id"], flag_id, body.action)
+    except dedup.DupFlagError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.delete("/connections")
 async def disconnect(body: DisconnectBody, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Disconnect: revoke at SnapTrade + purge credentials. Optionally also
