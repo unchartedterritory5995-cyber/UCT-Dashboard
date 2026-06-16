@@ -619,6 +619,17 @@ def _pull_gap_scan() -> dict[str, dict]:
     return {sym: {"gap_pct": gap} for sym, gap in keep.items()}
 
 
+# ── Source 8: Analyst actions (wire + optional TheFly) ──────────────────
+def _pull_analyst_actions() -> dict[str, dict]:
+    """{ticker: analyst_meta} for today (wire + optional TheFly)."""
+    try:
+        from api.services.catalyst.analyst_actions import get_analyst_candidates
+        return get_analyst_candidates()
+    except Exception as e:
+        logger.warning("[catalyst-sources] analyst pull failed: %s", e)
+        return {}
+
+
 # ── Orchestrator ────────────────────────────────────────────────────────
 def collect_all() -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
@@ -631,9 +642,10 @@ def collect_all() -> list[dict]:
         "rss":        _pull_rss_signals,
         "scanner":    _pull_scanner_setups,
         "perplexity": _pull_perplexity_discovery,
+        "analyst":    _pull_analyst_actions,
     }
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=7, thread_name_prefix="cat-src") as ex:
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
         futures = {ex.submit(_safe, fn, {}, name): name
                    for name, fn in tasks.items()}
         for fut in as_completed(futures, timeout=30):
@@ -653,6 +665,7 @@ def collect_all() -> list[dict]:
     universe.update(results.get("rss", {}).keys())
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
+    universe.update(results.get("analyst", {}).keys())
 
     if not universe:
         return []
@@ -675,6 +688,7 @@ def collect_all() -> list[dict]:
         for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
             rss.append(pp_item)
         setup = results["scanner"].get(ticker)
+        analyst_meta = results.get("analyst", {}).get(ticker)
 
         sector = snap.get("sector")
         if sector:
@@ -725,6 +739,7 @@ def collect_all() -> list[dict]:
             "fifty_two_week_high": snap.get("fifty_two_week_high"),
             "float_shares": snap.get("float_shares"),
             "shares_outstanding": snap.get("shares_outstanding"),
+            "analyst_meta": analyst_meta,
         })
 
     for c in candidates:

@@ -80,3 +80,39 @@ def test_gate_rejection_log_roundtrip(monkeypatch, tmp_path):
     rows = store_mod.recent_rejections(limit=10)
     assert any(r["ticker"] == "JUNK" and "float" in r["reason"] for r in rows)
     importlib.reload(store_mod)  # restore default DB path for other tests
+
+
+def test_analyst_candidates_from_wire(monkeypatch):
+    from api.services.catalyst import analyst_actions as aa
+    monkeypatch.setattr(
+        "api.services.engine.get_analyst_actions",
+        lambda: {"upgrades": [{"ticker": "AAA", "action": "upgrade",
+                               "firm": "MS", "from_rating": "Hold",
+                               "to_rating": "Buy", "price_target": "$120"}],
+                 "downgrades": [], "pt_changes": []},
+    )
+    monkeypatch.setenv("THEFLY_API_KEY", "")  # TheFly off
+    out = aa.get_analyst_candidates()
+    assert "AAA" in out
+    assert out["AAA"]["action"] == "upgrade"
+    assert out["AAA"]["firm"] == "MS"
+
+
+def test_collect_all_merges_analyst_meta(monkeypatch):
+    from api.services.catalyst import sources
+    monkeypatch.setattr(sources, "_pull_movers", lambda: {})
+    monkeypatch.setattr(sources, "_pull_gap_scan", lambda: {})
+    monkeypatch.setattr(sources, "_pull_earnings", lambda: {})
+    monkeypatch.setattr(sources, "_pull_tweet_signals", lambda: {})
+    monkeypatch.setattr(sources, "_pull_rss_signals", lambda: {})
+    monkeypatch.setattr(sources, "_pull_scanner_setups", lambda: {})
+    monkeypatch.setattr(sources, "_pull_perplexity_discovery", lambda: {})
+    monkeypatch.setattr(
+        "api.services.catalyst.analyst_actions.get_analyst_candidates",
+        lambda: {"AAA": {"action": "upgrade", "firm": "MS"}},
+    )
+    monkeypatch.setattr(sources, "_enrich_with_snapshot",
+                        lambda tickers: {"AAA": {"price": 50.0, "vol_x": 1.0}})
+    cands = sources.collect_all()
+    aaa = next(c for c in cands if c["ticker"] == "AAA")
+    assert aaa["analyst_meta"]["action"] == "upgrade"
