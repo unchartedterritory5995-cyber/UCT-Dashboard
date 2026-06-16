@@ -8,6 +8,7 @@ tweet_store.py (Windows teardown requires explicit close).
 from __future__ import annotations
 
 import contextlib
+import datetime
 import os
 import sqlite3
 import threading
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS catalysts (
   raw_signals     TEXT,
   grade           TEXT,
   catalyst_type   TEXT,
+  is_new          INTEGER,
   PRIMARY KEY (market_date, ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_catalysts_date_rank  ON catalysts(market_date, rank);
@@ -124,7 +126,8 @@ def _init_db() -> None:
         # support IF NOT EXISTS on columns, so we try + swallow duplicate-column.
         for col, decl in (("catalyst_at", "INTEGER"),
                           ("grade", "TEXT"),
-                          ("catalyst_type", "TEXT")):
+                          ("catalyst_type", "TEXT"),
+                          ("is_new", "INTEGER")):
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -144,17 +147,17 @@ def _init_db() -> None:
 
 def upsert_catalyst(row: dict) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        row = {"grade": None, "catalyst_type": None, **row}
+        row = {"grade": None, "catalyst_type": None, "is_new": None, **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type)
+                grade, catalyst_type, is_new)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type)
+                       :grade, :catalyst_type, :is_new)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -172,7 +175,8 @@ def upsert_catalyst(row: dict) -> None:
                  catalyst_at    = excluded.catalyst_at,
                  raw_signals    = excluded.raw_signals,
                  grade          = excluded.grade,
-                 catalyst_type  = excluded.catalyst_type""",
+                 catalyst_type  = excluded.catalyst_type,
+                 is_new         = excluded.is_new""",
             row,
         )
         c.commit()
@@ -308,6 +312,30 @@ def get_for_date(market_date: str, ranked_only: bool = True) -> list[dict]:
     sql += " ORDER BY rank ASC NULLS LAST, score DESC"
     with contextlib.closing(_connect()) as c:
         return [dict(r) for r in c.execute(sql, (market_date,)).fetchall()]
+
+
+def recent_ranked_tickers(market_date: str, days: int = 3) -> set[str]:
+    """Return the set of tickers that were RANKED (rank IS NOT NULL) on any
+    market_date STRICTLY BEFORE `market_date`, within the prior `days` calendar
+    days — i.e. in the window [market_date - days, market_date - 1].
+
+    Used to flag "new" vs "developing" catalysts: a ticker absent from this set
+    is breaking today (new); one present is a multi-day continuation.
+
+    Never raises — returns an empty set on any error.
+    """
+    try:
+        lower = (datetime.date.fromisoformat(market_date)
+                 - datetime.timedelta(days=int(days))).isoformat()
+        with contextlib.closing(_connect()) as c:
+            rows = c.execute(
+                """SELECT DISTINCT ticker FROM catalysts
+                   WHERE rank IS NOT NULL AND market_date < ? AND market_date >= ?""",
+                (market_date, lower),
+            ).fetchall()
+            return {(r["ticker"] or "").upper() for r in rows}
+    except Exception:
+        return set()
 
 
 def get_ticker_for_date(ticker: str, market_date: str) -> Optional[dict]:
