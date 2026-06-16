@@ -489,6 +489,38 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     except Exception:
         logger.exception("[catalyst-sources] perplexity A1 discovery failed")
 
+    # ── A2: always-on finance-news discovery (swing/news-trader aligned) ─
+    # Supplements A1 (general domain) with a finance-domain pass framed for
+    # the catalysts swing/news traders watch. Gated by its own env so it can
+    # be toggled independently; only runs when Perplexity is on overall.
+    if os.environ.get("CATALYST_PERPLEXITY_FINANCE_DISCOVERY", "1").lower() in ("1", "true", "yes"):
+        a2_query = (
+            "Which individual US stocks are moving today on company-specific "
+            "catalysts that swing traders and news traders watch — analyst "
+            "upgrades or downgrades, earnings or guidance changes, M&A, major "
+            "customer/contract wins, product launches, or technical breakouts "
+            "on volume? List each ticker with its catalyst."
+        )
+        try:
+            a2_result = perplexity_search.web_search(
+                a2_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
+                domain_pack="finance",
+            )
+            a2_text = (a2_result or {}).get("answer") or ""
+            a2_citations = (a2_result or {}).get("citations") or []
+            for sym in _extract_tickers_from_text(a2_text):
+                out[sym].append({
+                    "source": "Perplexity (finance news)",
+                    "title": a2_text[:400],
+                    "url": a2_citations[0] if a2_citations else "",
+                    "time_published": int(time.time()),
+                })
+            if a2_text:
+                logger.info("[catalyst-sources] perplexity finance-news found %d tickers",
+                            len(_extract_tickers_from_text(a2_text)))
+        except Exception:
+            logger.exception("[catalyst-sources] perplexity A2 finance discovery failed")
+
     # ── F1: EOD tomorrow-setup query (4 PM – 8 PM ET only) ─────────────
     # Seeds tomorrow morning's candidate pool with stuff known after-hours:
     # AMC earnings reactions, post-close analyst actions, M&A announcements,
