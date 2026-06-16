@@ -134,3 +134,17 @@ def test_analyst_action_scores_higher():
     base = {"gap_pct": 2.0, "vol_x": 1.0, "price": 50.0}
     with_analyst = {**base, "analyst_meta": {"action": "upgrade"}}
     assert scoring.score(with_analyst) > scoring.score(base)
+
+
+from api.services.catalyst import selection
+
+
+def test_min_analyst_reserve_keeps_analyst_rows(monkeypatch):
+    monkeypatch.setenv("CATALYST_MIN_ANALYST_ROWS", "2")
+    # 25 high-score Catalyst rows with NO analyst_meta + 2 lower-score analyst rows.
+    scored = [{"tag": "Catalyst", "score": 100 - i} for i in range(25)]
+    scored += [{"tag": "Catalyst", "score": 1, "analyst_meta": {"action": "upgrade"}},
+               {"tag": "Catalyst", "score": 2, "analyst_meta": {"action": "downgrade"}}]
+    out = selection.select_top_12(scored)
+    analyst_in = [c for c in out if c.get("analyst_meta")]
+    assert len(analyst_in) >= 2
