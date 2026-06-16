@@ -60,6 +60,11 @@
 .rcgrade { color: var(--text); white-space: nowrap; }
 .rcgrade b { color: var(--text-bright); }
 
+/* ownership tab */
+.ownHolders { margin-top: 8px; }
+.holderName { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+
 /* coming soon */
 .soon { display: flex; align-items: center; justify-content: center; min-height: 280px; }
 .soonInner { text-align: center; color: var(--text-muted); }

@@ -6,6 +6,7 @@ import ResearchHeader from './ResearchHeader'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
+import OwnershipTab from './tabs/OwnershipTab'
 import ComingSoonTab from './tabs/ComingSoonTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
@@ -44,7 +45,8 @@ export default function ResearchPage() {
       {active === 'Overview' && <OverviewTab stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
-      {!['Overview', 'Financials', 'Estimates'].includes(active) && <ComingSoonTab name={active} />}
+      {active === 'Ownership' && <OwnershipTab sym={sym} />}
+      {!['Overview', 'Financials', 'Estimates', 'Ownership'].includes(active) && <ComingSoonTab name={active} />}
     </div>
   )
 }

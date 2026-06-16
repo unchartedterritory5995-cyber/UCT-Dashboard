@@ -33,8 +33,8 @@ describe('ResearchPage', () => {
   it('shows the 7 tabs and switches to a coming-soon stub', async () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
-    // Ownership is still a stub (Overview/Financials/Estimates are live tabs).
-    fireEvent.click(screen.getByRole('button', { name: 'Ownership' }))
+    // Ratings is still a stub (Overview/Financials/Estimates/Ownership are live).
+    fireEvent.click(screen.getByRole('button', { name: 'Ratings' }))
     expect(await screen.findByText(/coming soon/i)).toBeInTheDocument()
   })
 
