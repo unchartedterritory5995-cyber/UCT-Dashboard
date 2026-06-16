@@ -7,6 +7,8 @@ import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
 import OwnershipTab from './tabs/OwnershipTab'
+import CallsTab from './tabs/CallsTab'
+import FilingsTab from './tabs/FilingsTab'
 import ComingSoonTab from './tabs/ComingSoonTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
@@ -46,7 +48,9 @@ export default function ResearchPage() {
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
-      {!['Overview', 'Financials', 'Estimates', 'Ownership'].includes(active) && <ComingSoonTab name={active} />}
+      {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
+      {active === 'Filings & Events' && <FilingsTab sym={sym} />}
+      {active === 'Ratings' && <ComingSoonTab name={active} />}
     </div>
   )
 }
