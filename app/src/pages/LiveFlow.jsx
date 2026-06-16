@@ -2,19 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 /**
- * LiveFlow — Phase A
+ * LiveFlow — Phase B
  *
- * Polls the backend's /api/live/alerts/recent endpoint every 5 seconds and
- * renders incoming Bullflow alerts. No filters, no Discord forwarding, no
- * persistence — just a real-time view of what the SSE stream is delivering.
+ * Polls /api/live/alerts/recent every 5 seconds. Renders the alerts that
+ * passed the backend's Filter Engine v1 (premium >= $250K, not in blocklist,
+ * alertName doesn't contain "Grenade"). Backend also forwards high-conviction
+ * alerts to Discord — those rows show a 🔔 badge.
  *
- * Phase B will add: alert filters (alertName patterns, premium minimum,
- * ticker blocklist), Discord webhook forwarding, SQLite-backed history,
- * filter rule configuration UI. Sidebar entry is intentionally omitted in
- * Phase A — accessed manually at /live-flow while we validate the pipeline.
+ * Filter rules live in api/liveflow_worker.py (TABLE_FILTER + scoring tables).
+ * Edit there + redeploy to tune. The header echoes active filter config so
+ * you don't have to dive into code to remember what's active.
  *
- * The route in App.jsx is registered OUTSIDE the Layout wrapper, so this
- * component owns its full-page chrome (header, back-link, footer status).
+ * Phase C would add: editable filter UI, SQLite persistence, migration to
+ * the dedicated `worker` Railway service.
  */
 
 // ─── Palette — matches OptionsFlow's aesthetic ────────────────────────────────
@@ -98,21 +98,18 @@ function StatusPill({ status }) {
 // ─── Alert row ────────────────────────────────────────────────────────────────
 function AlertRow({ alert, isNew }) {
   // Cell color cues:
-  //   alertType: algo=amber, custom=blue (matches custom-alert config UX)
+  //   alertType: algo=amber, custom=blue
   //   cp: green for calls (C), red for puts (P)
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
+  const forwarded = alert.forwardedToDiscord;
+  const score = alert.convictionScore;
   // Brief amber flash on freshly-arrived rows (CSS animation, no JS timer).
-  const flashStyle = isNew ? {
-    animation: "uct-flash 1.4s ease-out",
-  } : {};
+  const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
 
   return (
-    <tr style={{
-      borderBottom: "1px solid " + P.bd + "30",
-      ...flashStyle,
-    }}>
+    <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
       <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10, fontFamily: "ui-monospace, monospace" }}>
         {fmtTime(alert.timestamp)}
       </td>
@@ -149,6 +146,22 @@ function AlertRow({ alert, isNew }) {
         </span>
       </td>
       <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.alertName || "—"}</td>
+      {/* Conviction — color shifts based on threshold (≥2.0 = forwarded color) */}
+      <td style={{
+        padding: "8px 10px", fontSize: 11, fontWeight: 800, fontFamily: "ui-monospace, monospace",
+        color: score >= 2.0 ? P.bu : score >= 1.0 ? P.ac : P.dm, textAlign: "right",
+      }}>
+        {score != null ? score.toFixed(1) : "—"}
+      </td>
+      {/* Discord forwarded badge */}
+      <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        {forwarded ? (
+          <span title="Forwarded to Discord"
+            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}>🔔</span>
+        ) : (
+          <span style={{ color: P.mt, fontSize: 11 }}>·</span>
+        )}
+      </td>
     </tr>
   );
 }
@@ -239,14 +252,18 @@ export default function LiveFlow() {
           <div style={{ height: 16, width: 1, background: P.bd }} />
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>LIVE FLOW</span>
-            <span style={{ fontSize: 9, color: P.mt, letterSpacing: 0.5 }}>PHASE A · STREAM ONLY · NO FILTERS YET</span>
+            <span style={{ fontSize: 9, color: P.mt, letterSpacing: 0.5 }}>PHASE B · FILTER ENGINE v1 · DISCORD FORWARDING ACTIVE</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <StatusPill status={status} />
           {status && (
-            <div style={{ fontSize: 10, color: P.dm, fontFamily: "ui-monospace, monospace" }}>
-              {status.total_alerts_received} received · last event {relTime(status.last_event_at)}
+            <div style={{ fontSize: 10, color: P.dm, fontFamily: "ui-monospace, monospace", display:"flex", gap:10 }}>
+              <span title="Total received from Bullflow (pre-filter)">rx <strong style={{color:P.wh}}>{status.total_alerts_received}</strong></span>
+              <span title="Passed table filter, visible in table">shown <strong style={{color:P.wh}}>{status.total_alerts_shown ?? 0}</strong></span>
+              <span title="Filtered out (below $250K, blocklist, or grenade)">drop <strong style={{color:P.dm}}>{status.total_alerts_dropped ?? 0}</strong></span>
+              <span title="Forwarded to Discord (conviction >= 2.0)">🔔 <strong style={{color:P.bu}}>{status.total_alerts_forwarded ?? 0}</strong></span>
+              <span style={{color:P.mt}}>· last {relTime(status.last_event_at)}</span>
             </div>
           )}
         </div>
@@ -254,6 +271,25 @@ export default function LiveFlow() {
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
+        {/* Active filter summary — minimalist banner */}
+        {status?.filter_config && (
+          <div style={{
+            padding: "8px 20px", borderBottom: "1px solid " + P.bd + "40",
+            background: P.cd + "80", fontSize: 10, color: P.dm,
+            display: "flex", gap: 14, alignItems: "center",
+            fontFamily: "ui-monospace, monospace",
+          }}>
+            <span style={{ color: P.mt, letterSpacing: 0.5, textTransform: "uppercase", fontSize: 9 }}>filter</span>
+            <span>premium ≥ <strong style={{ color: P.wh }}>${(status.filter_config.premium_min / 1000).toFixed(0)}K</strong></span>
+            <span>· blocklist: <strong style={{ color: P.wh }}>{(status.filter_config.ticker_blocklist || []).join(", ") || "none"}</strong></span>
+            <span>· skip: <strong style={{ color: P.wh }}>{(status.filter_config.alertname_block_substrings || []).join(", ") || "none"}</strong></span>
+            <span style={{ marginLeft: "auto" }}>discord ≥ <strong style={{ color: P.bu }}>{status.filter_config.discord_threshold}</strong> conviction</span>
+            {!status.discord_configured && (
+              <span style={{ color: "#FFB300" }}>⚠ webhook not configured</span>
+            )}
+          </div>
+        )}
+
         {error && (
           <div style={{
             padding: "10px 20px", background: P.be + "18",
@@ -306,10 +342,10 @@ export default function LiveFlow() {
                 {[
                   ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
                   ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
-                  ["Type", 9], ["Alert Name", 11],
+                  ["Type", 9], ["Alert Name", 11], ["Score", 11], ["🔔", 11],
                 ].map(([label, fs]) => (
                   <th key={label} style={{
-                    padding: "8px 10px", textAlign: "left",
+                    padding: "8px 10px", textAlign: label === "Score" ? "right" : (label === "🔔" ? "center" : "left"),
                     color: P.dm, fontSize: 9, fontWeight: 700,
                     letterSpacing: 0.5, textTransform: "uppercase",
                   }}>{label}</th>
