@@ -148,3 +148,16 @@ def test_min_analyst_reserve_keeps_analyst_rows(monkeypatch):
     out = selection.select_top_12(scored)
     analyst_in = [c for c in out if c.get("analyst_meta")]
     assert len(analyst_in) >= 2
+
+
+from api.services.catalyst import synthesize
+
+
+def test_prompt_includes_analyst_block():
+    c = {"ticker": "AAA", "price": 50.0, "gap_pct": 3.0, "vol_x": 2.0,
+         "analyst_meta": {"action": "upgrade", "firm": "Morgan Stanley",
+                          "from_rating": "Hold", "to_rating": "Buy",
+                          "price_target": "$120"}}
+    prompt = synthesize.format_prompt(c)
+    assert "Morgan Stanley" in prompt
+    assert "Buy" in prompt
