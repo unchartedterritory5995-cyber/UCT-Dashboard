@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS catalyst_feedback (
   market_cap   REAL,
   sector       TEXT,
   thesis_text  TEXT,
+  dollar_vol   REAL,
+  float_shares INTEGER,
   created_at   INTEGER NOT NULL,
   PRIMARY KEY (user_id, ticker, market_date)
 );
@@ -128,6 +130,15 @@ def _init_db() -> None:
             except sqlite3.OperationalError as e:
                 if "duplicate column name" not in str(e).lower():
                     raise
+        # Backwards-compat for the catalyst_feedback enrichment columns
+        # (float/dollar_vol added for evidence-based auto-tuning).
+        for col, decl in (("dollar_vol", "REAL"),
+                          ("float_shares", "INTEGER")):
+            try:
+                c.execute(f"ALTER TABLE catalyst_feedback ADD COLUMN {col} {decl}")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" not in str(e).lower():
+                    raise
         c.commit()
 
 
@@ -173,6 +184,18 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
     `row` is the stored catalyst dict (from get_ticker_for_date) so we snapshot
     the numbers as they were when flagged."""
     row = row or {}
+    price = row.get("price")
+    # Best-effort metadata enrichment so the auto-tuner can mine the float +
+    # dollar-volume profile of 👎 rows. Never raise out of feedback recording.
+    float_shares = None
+    dollar_vol = None
+    try:
+        from api.services.catalyst import ticker_metadata
+        m = ticker_metadata.get_metadata(ticker) or {}
+        float_shares = m.get("float_shares") or m.get("shares_outstanding")
+        dollar_vol = (price or 0) * (m.get("avg_volume_30d") or 0) or None
+    except Exception:
+        pass
     payload = {
         "user_id": user_id,
         "market_date": market_date,
@@ -183,20 +206,24 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
         "catalyst_type": row.get("catalyst_type"),
         "gap_pct": row.get("gap_pct"),
         "vol_x": row.get("vol_x"),
-        "price": row.get("price"),
+        "price": price,
         "market_cap": row.get("market_cap"),
         "sector": row.get("sector"),
         "thesis_text": row.get("thesis_text"),
+        "dollar_vol": dollar_vol,
+        "float_shares": float_shares,
         "created_at": int(time.time()),
     }
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
             """INSERT INTO catalyst_feedback
                (user_id, market_date, ticker, verdict, tag, grade, catalyst_type,
-                gap_pct, vol_x, price, market_cap, sector, thesis_text, created_at)
+                gap_pct, vol_x, price, market_cap, sector, thesis_text,
+                dollar_vol, float_shares, created_at)
                VALUES (:user_id, :market_date, :ticker, :verdict, :tag, :grade,
                        :catalyst_type, :gap_pct, :vol_x, :price, :market_cap,
-                       :sector, :thesis_text, :created_at)
+                       :sector, :thesis_text, :dollar_vol, :float_shares,
+                       :created_at)
                ON CONFLICT(user_id, ticker, market_date) DO UPDATE SET
                  verdict       = excluded.verdict,
                  tag           = excluded.tag,
@@ -208,10 +235,27 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
                  market_cap    = excluded.market_cap,
                  sector        = excluded.sector,
                  thesis_text   = excluded.thesis_text,
+                 dollar_vol    = excluded.dollar_vol,
+                 float_shares  = excluded.float_shares,
                  created_at    = excluded.created_at""",
             payload,
         )
         c.commit()
+
+
+def recent_feedback(verdict: str, days: int = 30) -> list[dict]:
+    """Return feedback rows of a given verdict created within the last `days`,
+    as a list of dicts. Used by the evidence-based auto-tuner to mine the
+    feature profile of 👎 / 👍 rows."""
+    cutoff = int(time.time()) - int(days) * 86400
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT * FROM catalyst_feedback
+               WHERE verdict = ? AND created_at >= ?
+               ORDER BY created_at DESC""",
+            (verdict, cutoff),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 def get_recent_bad_examples(limit: int = 6) -> list[dict]:
