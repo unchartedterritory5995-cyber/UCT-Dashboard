@@ -81,6 +81,7 @@ from api.routers import ticker_logos as ticker_logos_router
 from api.flow_router import flow_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
+from api.liveflow_router import router as liveflow_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -775,6 +776,17 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # Live Flow worker — Phase A: consumes Bullflow SSE in-process, buffers
+    # alerts in memory, exposed via GET /api/live/alerts/recent. Requires
+    # BULLFLOW_API_KEY env var; worker logs and remains idle if absent.
+    try:
+        from api import liveflow_worker as _liveflow_worker
+        import asyncio
+        asyncio.create_task(_liveflow_worker.run_forever())
+        logging.getLogger(__name__).info("[startup] liveflow_worker scheduled (Bullflow SSE)")
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] failed to schedule liveflow_worker: %s", e)
 
     # SQLite integrity check — heavy on 58M rows, run in background
     def _integrity_check_bg():
@@ -2110,6 +2122,7 @@ app.include_router(watchlist_router)
 app.include_router(flow_router)
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
+app.include_router(liveflow_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
