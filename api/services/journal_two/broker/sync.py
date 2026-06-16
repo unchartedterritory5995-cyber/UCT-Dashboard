@@ -42,11 +42,14 @@ class BrokerAccountNotFound(Exception):
 
 
 def _lock_for(broker_account_id: str) -> asyncio.Lock:
-    lock = _locks.get(broker_account_id)
-    if lock is None:
-        lock = asyncio.Lock()
-        _locks[broker_account_id] = lock
-    return lock
+    # setdefault is atomic (no await in between) → no lazy-create TOCTOU race
+    # that could hand two coroutines distinct locks for the same account.
+    return _locks.setdefault(broker_account_id, asyncio.Lock())
+
+
+def release_lock(broker_account_id: str) -> None:
+    """Drop a per-account lock (call on disconnect/delete) to bound _locks growth."""
+    _locks.pop(broker_account_id, None)
 
 
 def _now_iso() -> str:

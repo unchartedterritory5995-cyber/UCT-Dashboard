@@ -159,3 +159,16 @@ def test_dup_flag_resolve_paid_gated(client):
         lambda: {"id": "u1", "plan": "free", "role": "member"}
     r = client.post("/api/j2/broker/dup-flags/some-id", json={"action": "dismiss"})
     assert r.status_code == 403
+
+
+def test_admin_bypasses_paid_gate(client):
+    # Admin on a free plan must still reach paid broker endpoints.
+    client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
+        lambda: {"id": "u1", "plan": "free", "role": "admin"}
+    assert client.post("/api/j2/broker/connect", json={"consent": True}).status_code == 200
+
+
+def test_comped_plan_passes_paid_gate(client):
+    client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
+        lambda: {"id": "u1", "plan": "comped", "role": "member"}
+    assert client.post("/api/j2/broker/connect", json={"consent": True}).status_code == 200

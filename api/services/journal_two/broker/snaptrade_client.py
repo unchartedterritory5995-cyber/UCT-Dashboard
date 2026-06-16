@@ -210,27 +210,49 @@ def _map_api_exception(e: Any) -> SnapError:
     return SnapError(msg, status=status, code=code, body=body)
 
 
+# Retry config (env-tunable). Injectable sleep so tests don't actually wait.
+_MAX_RETRIES = int(os.getenv("SNAPTRADE_MAX_RETRIES", "3"))
+_RETRY_BASE_DELAY = float(os.getenv("SNAPTRADE_RETRY_BASE_DELAY", "0.5"))
+_RETRY_MAX_DELAY = float(os.getenv("SNAPTRADE_RETRY_MAX_DELAY", "30"))
+_retry_sleep = asyncio.sleep
+
+
+def set_retry_sleep(fn) -> None:
+    """Override the retry sleep (tests use a no-op to avoid real delays)."""
+    global _retry_sleep
+    _retry_sleep = fn
+
+
 async def _call(fn: Callable[..., Any], **kwargs) -> Any:
-    """Run a blocking SDK call in a thread, throttled, with error mapping.
-    Returns the plain-Python body of the response."""
+    """Run a blocking SDK call in a thread, throttled, with error mapping +
+    bounded retry/backoff on rate-limit (honoring Retry-After) and transient
+    errors. Auth/secret/other errors are NOT retried. Returns the plain body."""
     from snaptrade_client.exceptions import ApiException, OpenApiException
 
-    await _get_limiter().acquire(1)
+    attempts = max(1, _MAX_RETRIES)
+    delay = _RETRY_BASE_DELAY
 
     def _blocking():
         return fn(**kwargs)
 
-    try:
-        resp = await asyncio.to_thread(_blocking)
-    except ApiException as e:
-        raise _map_api_exception(e) from e
-    except OpenApiException as e:  # schema/client-config issues
-        raise SnapError(f"SnapTrade client error: {e}") from e
-    except (TimeoutError, ConnectionError, OSError) as e:
-        raise SnapTransient(f"SnapTrade network error: {e}") from e
+    for i in range(attempts):
+        await _get_limiter().acquire(1)
+        try:
+            resp = await asyncio.to_thread(_blocking)
+            return _to_plain(getattr(resp, "body", resp))
+        except ApiException as e:
+            err: SnapError = _map_api_exception(e)
+        except OpenApiException as e:  # schema/client-config issues — not retryable
+            raise SnapError(f"SnapTrade client error: {e}") from e
+        except (TimeoutError, ConnectionError, OSError) as e:
+            err = SnapTransient(f"SnapTrade network error: {e}")
 
-    body = getattr(resp, "body", resp)
-    return _to_plain(body)
+        retryable = isinstance(err, (SnapRateLimited, SnapTransient))
+        if not retryable or i == attempts - 1:
+            raise err
+        wait = err.retry_after if (isinstance(err, SnapRateLimited) and err.retry_after) else delay
+        await _retry_sleep(min(wait, _RETRY_MAX_DELAY))
+        delay *= 2
 
 
 # ── Public API ───────────────────────────────────────────────────────────────

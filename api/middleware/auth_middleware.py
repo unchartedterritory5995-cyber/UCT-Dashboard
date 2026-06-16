@@ -33,11 +33,17 @@ def get_current_user_with_plan(user: dict = Depends(get_current_user)) -> dict:
 
 
 def require_plan(allowed_plans: list[str]):
-    """Factory: returns a dependency that checks user's plan against allowed list."""
+    """Factory: returns a dependency that checks user's plan against allowed list.
+    Admins always pass; 'comped' users (comped to paid) are treated as allowed —
+    matching is_paid_user/requires_voice_access semantics so admin/comp accounts
+    aren't locked out of paid features (and can test them)."""
     def checker(user: dict = Depends(get_current_user_with_plan)) -> dict:
-        if user["plan"] not in allowed_plans:
-            raise HTTPException(status_code=403, detail="Upgrade required")
-        return user
+        if user.get("role") == "admin":
+            return user
+        plan = user.get("plan")
+        if plan in allowed_plans or plan == "comped":
+            return user
+        raise HTTPException(status_code=403, detail="Upgrade required")
     return checker
 
 

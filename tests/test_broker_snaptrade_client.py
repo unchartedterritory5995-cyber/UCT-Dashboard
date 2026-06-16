@@ -50,11 +50,16 @@ class _NoThrottle:
 
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch):
-    # No real throttle waits; clean client state per test.
+    # No real throttle/retry waits; clean client state per test.
     sc.set_limiter(_NoThrottle())
+
+    async def _noop_sleep(_):
+        return None
+    sc.set_retry_sleep(_noop_sleep)
     sc.reset()
     yield
     sc.reset()
+    sc.set_retry_sleep(__import__("asyncio").sleep)
 
 
 # ── _to_plain ────────────────────────────────────────────────────────────────
@@ -156,6 +161,20 @@ async def test_401_user_secret_code_maps_secret_invalid():
     sc.configure(_FakeSDK(account_information=_Group(list_user_accounts=boom)))
     with pytest.raises(sc.SnapUserSecretInvalid):
         await sc.list_accounts("u", "s")
+
+
+@pytest.mark.asyncio
+async def test_retries_then_succeeds_on_transient():
+    calls = {"n": 0}
+    def flaky(**kw):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise _api_exc(503, body={"detail": "temporarily down"})
+        return _Resp([{"id": "a1"}])
+    sc.configure(_FakeSDK(account_information=_Group(list_user_accounts=flaky)))
+    out = await sc.list_accounts("u", "s")
+    assert out == [{"id": "a1"}]
+    assert calls["n"] == 3  # 2 transient failures then success
 
 
 @pytest.mark.asyncio

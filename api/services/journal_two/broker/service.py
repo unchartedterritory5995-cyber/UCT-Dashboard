@@ -35,17 +35,33 @@ async def connect(
 ) -> dict[str, Any]:
     """Ensure the user has a SnapTrade identity, then return a
     Connection-Portal redirect URL. Registers + records consent on first
-    call. If the stored secret can't be decrypted (encryption key lost),
-    we re-register — old connections are already unrecoverable in that
-    case, so a fresh identity is the only path forward."""
+    call. If the stored secret can't be decrypted because the ENCRYPTION KEY
+    IS MISSING, we refuse (don't silently mint a new identity over the real
+    one). Only if a key IS configured but the ciphertext is genuinely
+    undecryptable do we re-register (the old connections are unrecoverable);
+    we best-effort revoke the old SnapTrade user first to avoid orphans."""
     snap_uid: str | None = None
     secret: str | None = None
+    decrypt_failed = False
     try:
         bu = connections.get_broker_user(user_id)
         if bu is not None:
             snap_uid, secret = bu["snaptradeUserId"], bu["userSecret"]
     except crypto_box.CryptoBoxError:
-        snap_uid = None  # fall through to re-register
+        if not crypto_box.is_configured():
+            # Transient/mis-deploy (key unset) — do NOT abandon the real
+            # identity. Surface as a clear error so the operator restores the key.
+            raise
+        decrypt_failed = True  # key present but ciphertext bad → must re-register
+
+    if decrypt_failed:
+        old_uid = _snap_uid_no_decrypt(user_id)
+        if old_uid:
+            try:
+                await snap.delete_user(old_uid)  # best-effort, avoid orphan
+            except snap.SnapError:
+                pass
+        snap_uid = None
 
     if not snap_uid or not secret:
         reg = await snap.register_user(user_id)
@@ -99,6 +115,14 @@ async def disconnect(user_id: str, *, purge_trades: bool = False) -> dict[str, A
         except snap.SnapError:
             pass  # best-effort; we still purge locally
 
+    # Drop per-account sync locks (bound _locks growth).
+    try:
+        from api.services.journal_two.broker import sync as _sync_engine
+        for ba in connections.list_broker_accounts(user_id):
+            _sync_engine.release_lock(ba["id"])
+    except Exception:
+        pass
+
     purged = {"trades": 0, "positions": 0, "optionStrategies": 0}
     conn = get_connection()
     try:
@@ -148,6 +172,10 @@ def purge_on_account_deletion(user_id: str, conn) -> dict[str, Any]:
 
     `conn` is the caller's open connection (the deletion transaction)."""
     import asyncio
+    import logging
+    import sqlite3
+    log = logging.getLogger("broker_sync")
+    errors: list[str] = []
 
     snap_uid = None
     try:
@@ -156,24 +184,35 @@ def purge_on_account_deletion(user_id: str, conn) -> dict[str, Any]:
             (user_id,),
         ).fetchone()
         snap_uid = row["snaptrade_user_id"] if row else None
-    except Exception:
-        snap_uid = None
+    except sqlite3.OperationalError:
+        snap_uid = None  # table absent on very old DBs
 
-    # Local purge (always — the encrypted secret + financial data).
+    # Local purge (always — the encrypted secret + financial data). Only a
+    # missing-table error is benign; any other failure means data may remain,
+    # so we record it and report purged=False rather than falsely succeeding.
     for tbl in ("j2_broker_activities", "j2_broker_accounts", "j2_broker_sync_log",
                 "j2_broker_dup_flags", "j2_broker_users"):
         try:
             conn.execute(f"DELETE FROM {tbl} WHERE user_id = ?", (user_id,))
-        except Exception:
-            pass  # table may not exist on very old DBs
+        except sqlite3.OperationalError as e:
+            if "no such table" not in str(e).lower():
+                errors.append(f"{tbl}: {e}")
+                log.warning("broker purge DELETE failed on %s: %s", tbl, e)
 
-    # Best-effort revoke at SnapTrade (never block deletion).
+    # Revoke at SnapTrade. This is a compliance obligation (erase the link at
+    # the third party), so a failure is LOGGED + recorded, not silently
+    # swallowed. asyncio.run is fine here (sync request thread, no running loop).
+    revoked = False
     if snap_uid and snap.is_configured():
         try:
             asyncio.run(snap.delete_user(snap_uid))
-        except Exception:
-            pass
-    return {"purged": True, "snaptradeUserId": snap_uid}
+            revoked = True
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"revoke: {e}")
+            log.warning("SnapTrade revoke failed for deleted user %s: %s", user_id, e)
+
+    return {"purged": not errors, "revoked": revoked, "errors": errors,
+            "snaptradeUserId": snap_uid}
 
 
 def status(user_id: str) -> dict[str, Any]:

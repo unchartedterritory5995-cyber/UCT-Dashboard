@@ -115,6 +115,28 @@ def test_webhook_missing_secret_config(client, monkeypatch):
     assert r.status_code == 503
 
 
+def test_webhook_unknown_event_ignored(client):
+    r = client.post("/api/j2/broker/webhook",
+                    json={"webhookSecret": "hook-secret", "userId": "u1", "eventType": "SOMETHING_ELSE"})
+    assert r.status_code == 200 and r.json().get("ignored")
+
+
+def test_webhook_unknown_user_ignored(client):
+    # Valid secret + known event but no broker identity for this user → ignored.
+    r = client.post("/api/j2/broker/webhook",
+                    json={"webhookSecret": "hook-secret", "userId": "ghost",
+                          "eventType": "ACCOUNT_HOLDINGS_UPDATED"})
+    assert r.status_code == 200 and r.json().get("ignored") == "unknown user"
+
+
+def test_webhook_known_user_scheduled(client):
+    connections.save_broker_user("u1", "u1-uid", "secret")
+    r = client.post("/api/j2/broker/webhook",
+                    json={"webhookSecret": "hook-secret", "userId": "u1",
+                          "eventType": "ACCOUNT_HOLDINGS_UPDATED"})
+    assert r.status_code == 200 and r.json().get("scheduled") is True
+
+
 # ── deletion cascade ─────────────────────────────────────────────────────────
 
 def test_purge_on_account_deletion(env):

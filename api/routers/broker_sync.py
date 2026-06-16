@@ -163,6 +163,7 @@ async def disconnect(body: DisconnectBody, user: dict = Depends(_paid)) -> dict[
 
 # Keep references to fire-and-forget webhook sync tasks so they aren't GC'd.
 _webhook_tasks: set = set()
+_WEBHOOK_MAX_INFLIGHT = int(os.getenv("BROKER_WEBHOOK_MAX_INFLIGHT", "20"))
 
 
 @router.post("/webhook")
@@ -185,21 +186,30 @@ async def webhook(request: Request) -> dict[str, Any]:
     # We registered SnapTrade users keyed by our UCT user id, so userId == ours.
     uct_user_id = body.get("userId")
     event = str(body.get("eventType") or body.get("type") or "").upper()
-    # Sync on events that imply new/changed brokerage data.
+    # Sync ONLY on known data-changing events (an empty/unknown event no longer
+    # triggers a sync — narrows the abuse surface).
     sync_events = {
         "CONNECTION_ADDED", "CONNECTION_UPDATED", "ACCOUNT_HOLDINGS_UPDATED",
         "ACCOUNT_TRANSACTIONS_UPDATED", "NEW_ACCOUNT_AVAILABLE", "TRADES_PLACED",
     }
-    if uct_user_id and (not event or event in sync_events):
-        async def _bg():
-            try:
-                await broker_service_sync_all(uct_user_id)
-            except Exception:
-                pass
-        task = asyncio.create_task(_bg())
-        _webhook_tasks.add(task)
-        task.add_done_callback(_webhook_tasks.discard)
-    return {"ok": True}
+    if not uct_user_id or event not in sync_events:
+        return {"ok": True, "ignored": True}
+    # Validate the user actually has a broker identity (don't spawn work for
+    # arbitrary/forged userIds) and cap concurrent webhook-driven syncs.
+    if not broker_conns.has_broker_user(str(uct_user_id)):
+        return {"ok": True, "ignored": "unknown user"}
+    if len(_webhook_tasks) >= _WEBHOOK_MAX_INFLIGHT:
+        return {"ok": True, "deferred": "busy"}
+
+    async def _bg():
+        try:
+            await broker_service_sync_all(uct_user_id)
+        except Exception:
+            pass
+    task = asyncio.create_task(_bg())
+    _webhook_tasks.add(task)
+    task.add_done_callback(_webhook_tasks.discard)
+    return {"ok": True, "scheduled": True}
 
 
 async def broker_service_sync_all(user_id: str) -> Any:
