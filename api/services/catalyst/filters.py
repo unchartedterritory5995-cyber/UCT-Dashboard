@@ -88,6 +88,15 @@ def quality_gate(c: dict) -> tuple[bool, Optional[str]]:
             f"market cap ${mc / 1e6:.0f}M below ${min_market_cap / 1e6:.0f}M floor"
         )
 
+    # ── Float floor — the classic low-float pump tell. Prefer true float;
+    # fall back to shares-outstanding. Fail-open when neither is known. ──
+    min_float = _f("CATALYST_MIN_FLOAT", 5_000_000.0)
+    flt = c.get("float_shares") or c.get("shares_outstanding")
+    if isinstance(flt, (int, float)) and flt > 0 and flt < min_float:
+        return False, (
+            f"float {flt / 1e6:.1f}M shares below {min_float / 1e6:.1f}M floor"
+        )
+
     return True, None
 
 
@@ -123,6 +132,8 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
         return True, None                              # hard catalyst
     if c.get("scanner_setup"):
         return True, None                              # UCT scanner flagged it
+    if c.get("analyst_meta"):
+        return True, None                              # analyst rating/PT change
 
     return False, (
         f"no real move (gap {gap_abs:.1f}% < {min_move:.0f}%, "

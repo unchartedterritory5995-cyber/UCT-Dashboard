@@ -177,6 +177,8 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "fifty_two_week_high": float(fwh) if fwh else None,
             "near_52w_high": near_52w_high,
             "quote_type": m.get("quote_type"),
+            "float_shares": m.get("float_shares"),
+            "shares_outstanding": m.get("shares_outstanding"),
         }
     return out
 
@@ -579,7 +581,7 @@ def _pull_gap_scan() -> dict[str, dict]:
     # the survivors by DOLLAR-VOLUME (the best size/liquidity proxy we have
     # from a bare snapshot) and keep the most-traded N — i.e. the big, liquid
     # NEWS movers the user actually wants, not thin small-caps.
-    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 50))
+    max_names = int(_envf("CATALYST_GAPSCAN_MAX", 80))
 
     survivors: list[tuple[float, str, float]] = []  # (dollar_vol, sym, gap)
     for ticker, d in snap.items():
@@ -610,11 +612,22 @@ def _pull_gap_scan() -> dict[str, dict]:
     # smaller names making the day's REAL moves (OXM -19% on earnings missed
     # the top-50 on 2026-06-11). These already passed the price + $vol
     # floors above, so they're liquid — just not megacap-liquid.
-    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 15))
+    top_gap_n = int(_envf("CATALYST_GAPSCAN_TOP_GAP", 25))
     for _dv, sym, gap in sorted(survivors, key=lambda x: abs(x[2]),
                                 reverse=True)[:top_gap_n]:
         keep.setdefault(sym, gap)
     return {sym: {"gap_pct": gap} for sym, gap in keep.items()}
+
+
+# ── Source 8: Analyst actions (wire + optional TheFly) ──────────────────
+def _pull_analyst_actions() -> dict[str, dict]:
+    """{ticker: analyst_meta} for today (wire + optional TheFly)."""
+    try:
+        from api.services.catalyst.analyst_actions import get_analyst_candidates
+        return get_analyst_candidates()
+    except Exception as e:
+        logger.warning("[catalyst-sources] analyst pull failed: %s", e)
+        return {}
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
@@ -629,9 +642,10 @@ def collect_all() -> list[dict]:
         "rss":        _pull_rss_signals,
         "scanner":    _pull_scanner_setups,
         "perplexity": _pull_perplexity_discovery,
+        "analyst":    _pull_analyst_actions,
     }
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=7, thread_name_prefix="cat-src") as ex:
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
         futures = {ex.submit(_safe, fn, {}, name): name
                    for name, fn in tasks.items()}
         for fut in as_completed(futures, timeout=30):
@@ -651,6 +665,7 @@ def collect_all() -> list[dict]:
     universe.update(results.get("rss", {}).keys())
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
+    universe.update(results.get("analyst", {}).keys())
 
     if not universe:
         return []
@@ -673,6 +688,7 @@ def collect_all() -> list[dict]:
         for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
             rss.append(pp_item)
         setup = results["scanner"].get(ticker)
+        analyst_meta = results.get("analyst", {}).get(ticker)
 
         sector = snap.get("sector")
         if sector:
@@ -721,6 +737,9 @@ def collect_all() -> list[dict]:
             # 52-week-high breakout signal (price at/near new highs).
             "near_52w_high": snap.get("near_52w_high", False),
             "fifty_two_week_high": snap.get("fifty_two_week_high"),
+            "float_shares": snap.get("float_shares"),
+            "shares_outstanding": snap.get("shares_outstanding"),
+            "analyst_meta": analyst_meta,
         })
 
     for c in candidates:

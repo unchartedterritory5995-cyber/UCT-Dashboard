@@ -107,6 +107,24 @@ def _format_scanner_block(setup: Optional[dict]) -> str:
     return f"{setup.get('setup_type', '?')}, candle_score {setup.get('candle_score', '?')}/110"
 
 
+def _format_analyst_block(meta: Optional[dict]) -> str:
+    if not meta:
+        return "None"
+    action = (meta.get("action") or "rating change").title()
+    firm = meta.get("firm") or "an analyst"
+    frm = meta.get("from_rating")
+    to = meta.get("to_rating")
+    pt = meta.get("price_target")
+    parts = [f"{action} at {firm}"]
+    if frm and to:
+        parts.append(f"({frm} -> {to})")
+    elif to:
+        parts.append(f"to {to}")
+    if pt:
+        parts.append(f"PT {pt}")
+    return "; ".join(parts)
+
+
 def _format_market_cap(mc: float) -> str:
     if not mc:
         return "?"
@@ -137,6 +155,8 @@ RSS headlines ({len(c.get('rss', []))} total):
 Earnings: {_format_earnings_block(c.get('earnings_meta'))}
 
 UCT scanner: {_format_scanner_block(c.get('scanner_setup'))}
+
+Analyst action: {_format_analyst_block(c.get('analyst_meta'))}
 
 Output the JSON now."""
 
@@ -322,7 +342,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
     prompt = format_prompt(candidate)
     has_sources = bool(candidate.get("tweets") or candidate.get("rss")
                        or candidate.get("earnings_meta")
-                       or candidate.get("scanner_setup"))
+                       or candidate.get("scanner_setup")
+                       or candidate.get("analyst_meta"))
 
     # Steer the grader with rows the user has flagged 👎 as low-quality.
     system_prompt = SYSTEM_PROMPT + _negative_examples_block()

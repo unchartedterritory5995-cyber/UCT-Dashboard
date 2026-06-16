@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS ticker_metadata (
   avg_volume_30d      INTEGER,
   fifty_two_week_high REAL,
   quote_type          TEXT,
+  float_shares        INTEGER,
+  shares_outstanding  INTEGER,
   fetched_at          INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_meta_fetched ON ticker_metadata(fetched_at);
@@ -61,7 +63,9 @@ def _init_db() -> None:
             # Backwards-compat: add columns to pre-existing DBs (SQLite has no
             # IF NOT EXISTS on columns, so try + swallow duplicate-column).
             for col, decl in (("fifty_two_week_high", "REAL"),
-                              ("quote_type", "TEXT")):
+                              ("quote_type", "TEXT"),
+                              ("float_shares", "INTEGER"),
+                              ("shares_outstanding", "INTEGER")):
                 try:
                     c.execute(f"ALTER TABLE ticker_metadata ADD COLUMN {col} {decl}")
                 except sqlite3.OperationalError as e:
@@ -91,14 +95,17 @@ def _get_cached(ticker: str) -> Optional[dict]:
 def _put_cache(ticker: str, sector: Optional[str], industry: Optional[str],
                market_cap: Optional[float], avg_volume_30d: Optional[int],
                fifty_two_week_high: Optional[float] = None,
-               quote_type: Optional[str] = None) -> None:
+               quote_type: Optional[str] = None,
+               float_shares: Optional[int] = None,
+               shares_outstanding: Optional[int] = None) -> None:
     _ensure_init()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
             """INSERT INTO ticker_metadata
                (ticker, sector, industry, market_cap, avg_volume_30d,
-                fifty_two_week_high, quote_type, fetched_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                fifty_two_week_high, quote_type, float_shares,
+                shares_outstanding, fetched_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
                  sector = excluded.sector,
                  industry = excluded.industry,
@@ -106,9 +113,12 @@ def _put_cache(ticker: str, sector: Optional[str], industry: Optional[str],
                  avg_volume_30d = excluded.avg_volume_30d,
                  fifty_two_week_high = excluded.fifty_two_week_high,
                  quote_type = excluded.quote_type,
+                 float_shares = excluded.float_shares,
+                 shares_outstanding = excluded.shares_outstanding,
                  fetched_at = excluded.fetched_at""",
             (ticker.upper(), sector, industry, market_cap, avg_volume_30d,
-             fifty_two_week_high, quote_type, int(time.time())),
+             fifty_two_week_high, quote_type, float_shares,
+             shares_outstanding, int(time.time())),
         )
         c.commit()
 
@@ -135,12 +145,17 @@ def _fetch_via_yfinance(ticker: str) -> dict:
             # quality gate drop non-stock instruments (a leveraged-semis ETF
             # was SELECTED on 2026-06-11; SOXL/SOXS/KORU recur in gap scans).
             "quote_type": info.get("quoteType"),
+            "float_shares": (int(info.get("floatShares"))
+                             if info.get("floatShares") else None),
+            "shares_outstanding": (int(info.get("sharesOutstanding"))
+                                   if info.get("sharesOutstanding") else None),
         }
     except Exception as e:
         logger.warning("[ticker_metadata] yfinance failed for %s: %s", ticker, e)
         return {"sector": None, "industry": None, "market_cap": None,
                 "avg_volume_30d": None, "fifty_two_week_high": None,
-                "quote_type": None}
+                "quote_type": None, "float_shares": None,
+                "shares_outstanding": None}
 
 
 def get_metadata(ticker: str) -> dict:
@@ -150,7 +165,8 @@ def get_metadata(ticker: str) -> dict:
     if not ticker:
         return {"sector": None, "industry": None, "market_cap": None,
                 "avg_volume_30d": None, "fifty_two_week_high": None,
-                "quote_type": None}
+                "quote_type": None, "float_shares": None,
+                "shares_outstanding": None}
 
     cached = _get_cached(ticker)
     if cached:
@@ -161,12 +177,15 @@ def get_metadata(ticker: str) -> dict:
             "avg_volume_30d": cached.get("avg_volume_30d"),
             "fifty_two_week_high": cached.get("fifty_two_week_high"),
             "quote_type": cached.get("quote_type"),
+            "float_shares": cached.get("float_shares"),
+            "shares_outstanding": cached.get("shares_outstanding"),
         }
 
     fresh = _fetch_via_yfinance(ticker)
     _put_cache(ticker, fresh["sector"], fresh["industry"],
                fresh["market_cap"], fresh["avg_volume_30d"],
-               fresh.get("fifty_two_week_high"), fresh.get("quote_type"))
+               fresh.get("fifty_two_week_high"), fresh.get("quote_type"),
+               fresh.get("float_shares"), fresh.get("shares_outstanding"))
     return fresh
 
 

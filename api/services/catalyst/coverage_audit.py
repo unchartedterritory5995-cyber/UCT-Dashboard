@@ -96,6 +96,27 @@ def _biggest_movers(min_abs_pct: float, min_price: float,
     return movers[:limit]
 
 
+def _grade_analyst_coverage(market_date: str) -> dict:
+    """Diff today's market-wide analyst actions against what the engine touched.
+    A 'missed' analyst name means the analyst source/enrichment didn't surface a
+    rating change a trader would have seen."""
+    from api.services.catalyst.analyst_actions import get_analyst_candidates
+    from api.services.catalyst import store
+    try:
+        actions = get_analyst_candidates() or {}
+    except Exception:
+        actions = {}
+    all_rows = {r["ticker"].upper(): r
+                for r in store.get_for_date(market_date, ranked_only=False)}
+    caught, missed = 0, []
+    for sym in actions:
+        if sym in all_rows:
+            caught += 1
+        else:
+            missed.append({"ticker": sym, "action": actions[sym].get("action")})
+    return {"total": len(actions), "caught": caught, "missed": missed}
+
+
 def run_audit(market_date: str) -> dict:
     """Classify the day's biggest movers against what the engine surfaced.
     Persists + returns the report. Never raises (logs + returns error dict)."""
@@ -142,6 +163,20 @@ def run_audit(market_date: str) -> dict:
             "thresholds": {"min_abs_pct": min_abs_pct, "min_price": min_price,
                            "min_dollar_vol": min_dollar_vol, "limit": limit},
         }
+        try:
+            report["analyst"] = _grade_analyst_coverage(market_date)
+        except Exception:
+            logger.debug("[catalyst-audit] analyst grading failed")
+        # Sector breakdown of the ranked rows — surfaces a whole 'group move'
+        # the tile may have under-represented (cheap; reuses stored sectors).
+        try:
+            sec_counts: dict[str, int] = {}
+            for r in store.get_for_date(market_date, ranked_only=True):
+                sec = r.get("sector") or "Unknown"
+                sec_counts[sec] = sec_counts.get(sec, 0) + 1
+            report["ranked_by_sector"] = sec_counts
+        except Exception:
+            logger.debug("[catalyst-audit] sector breakdown failed")
         with _WRITE_LOCK, contextlib.closing(_connect()) as c:
             c.execute(
                 """INSERT INTO catalyst_coverage_audit

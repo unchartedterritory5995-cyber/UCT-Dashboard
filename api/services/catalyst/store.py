@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS catalyst_alerts_fired (
   fired_at     INTEGER NOT NULL,
   PRIMARY KEY (user_id, ticker, market_date)
 );
+
+CREATE TABLE IF NOT EXISTS catalyst_gate_rejections (
+  ts            INTEGER NOT NULL,
+  market_date   TEXT NOT NULL,
+  ticker        TEXT NOT NULL,
+  reason        TEXT NOT NULL,
+  price         REAL,
+  dollar_vol    REAL,
+  float_shares  INTEGER,
+  market_cap    REAL
+);
+CREATE INDEX IF NOT EXISTS idx_gate_rej_date ON catalyst_gate_rejections(market_date, ts DESC);
 """
 
 
@@ -329,3 +341,48 @@ def cost_stats_mtd(year_month: str) -> dict:
             (f"{year_month}-%",),
         ).fetchone()
         return dict(row)
+
+
+def log_rejection(*, market_date: str, ticker: str, reason: str,
+                  price: Optional[float] = None, dollar_vol: Optional[float] = None,
+                  float_shares: Optional[int] = None,
+                  market_cap: Optional[float] = None) -> None:
+    """Persist a quality-gate rejection so thresholds can be tuned from evidence
+    instead of guesswork. Rolling — pruned to the last 14 days on write."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO catalyst_gate_rejections
+               (ts, market_date, ticker, reason, price, dollar_vol,
+                float_shares, market_cap)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (int(time.time()), market_date, ticker.upper(), reason, price,
+             dollar_vol, float_shares, market_cap),
+        )
+        c.execute(
+            "DELETE FROM catalyst_gate_rejections WHERE ts < ?",
+            (int(time.time()) - 14 * 86400,),
+        )
+        c.commit()
+
+
+def recent_rejections(limit: int = 200, market_date: Optional[str] = None) -> list[dict]:
+    sql = "SELECT * FROM catalyst_gate_rejections"
+    params: tuple = ()
+    if market_date:
+        sql += " WHERE market_date = ?"
+        params = (market_date,)
+    sql += " ORDER BY ts DESC LIMIT ?"
+    params = params + (int(limit),)
+    with contextlib.closing(_connect()) as c:
+        return [dict(r) for r in c.execute(sql, params).fetchall()]
+
+
+def rejection_summary(market_date: Optional[str] = None) -> dict:
+    """Counts of rejections grouped by the reason's leading phrase (so
+    'float ... below' and 'liquidity ... below' aggregate)."""
+    rows = recent_rejections(limit=2000, market_date=market_date)
+    by_kind: dict[str, int] = {}
+    for r in rows:
+        kind = (r.get("reason") or "").split(" ")[0] or "other"
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+    return {"total": len(rows), "by_kind": by_kind}
