@@ -127,6 +127,32 @@ async def test_sync_reconciles_positions_and_balances(env):
 
 
 @pytest.mark.asyncio
+async def test_sync_captures_cash_flows(env):
+    acts = ACTS + [
+        {"id": "c1", "type": "CONTRIBUTION", "amount": 5000, "currency": "USD",
+         "trade_date": "2026-04-01"},
+        {"id": "c2", "type": "WITHDRAWAL", "amount": 1000, "currency": "USD",
+         "trade_date": "2026-04-02"},
+        {"id": "c3", "type": "DIVIDEND", "amount": 12.5, "currency": "USD",
+         "trade_date": "2026-04-02"},
+    ]
+    calls = []
+    snap.configure(_Group(account_information=_Group(
+        get_account_activities=_activities_fn(acts, calls),
+        get_user_account_positions=lambda **kw: _Resp([]),
+        get_user_account_balance=lambda **kw: _Resp(
+            [{"currency": "USD", "cash": 10000, "buying_power": 20000}]
+        ),
+    )))
+    await sync.sync_account("u1", env["ba_id"])
+    from api.services.journal_two.broker import cashflow_store as store
+    # External flows = deposit 5000 - withdrawal 1000 = 4000 (dividend excluded).
+    assert store.sum_flows("u1", env["j2"], external_only=True) == 4000.0
+    # All flows incl. dividend = 4012.5.
+    assert store.sum_flows("u1", env["j2"], external_only=False) == 4012.5
+
+
+@pytest.mark.asyncio
 async def test_full_backfill_imports_and_advances_cursor(env):
     out = await sync.sync_account("u1", env["ba_id"])
     assert out["imported"] == 2

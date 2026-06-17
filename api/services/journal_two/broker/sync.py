@@ -323,6 +323,17 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             user_id, broker_account_id, ba["j2AccountId"], all_acts, settings
         )
 
+        # Cash-flow ledger: deposits/withdrawals/dividends/interest/fees from the
+        # same (ledger-healed) activity history. Powers deposit-adjusted
+        # performance. Best-effort — must never fail the core sync.
+        try:
+            from api.services.journal_two.broker import snaptrade_adapter as _adapter
+            from api.services.journal_two.broker import cashflow_reconstruct as _cf
+            _part = _adapter.partition(all_acts)
+            _cf.reconcile_cash_flows(user_id, ba, _part["cash"] + _part["transfers"])
+        except Exception:
+            pass  # best-effort; never break the core sync
+
         # Holdings-as-truth: open positions + real balances from the broker's
         # CURRENT state. Best-effort — a balances hiccup must not fail the whole
         # sync (the trade import above already succeeded).
