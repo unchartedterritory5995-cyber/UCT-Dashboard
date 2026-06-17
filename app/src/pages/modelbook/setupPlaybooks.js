@@ -376,6 +376,54 @@ export const SETUP_PLAYBOOKS = {
     ],
   },
 
+  'Wedge Drop': {
+    intro:
+      'The short-side mirror of the Wedge Pop, and the cycle stage immediately following a ' +
+      'top: after price has stopped going up, it bounces and coils into a rising wedge — often ' +
+      'back up to the underside of the moving averages — and then “drops” out the bottom, ' +
+      'losing the averages and confirming a new down-cycle.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'At the transition from up-cycle to down-cycle — after a topping move or Reversal ' +
+          'Extension, as the change of character is confirmed. Works intraday, daily, and ' +
+          'weekly.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'Price tightens into a rising wedge (converging range, contracting volatility) after ' +
+          'a bounce off the highs, frequently stalling just below the 9/20-EMA. Volume dries up ' +
+          'through the wedge. The drop is a strong-range down candle that breaks the lower ' +
+          'boundary and loses the moving averages, ideally with a gap down and a weak close.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Break of the wedge’s lower trendline together with the loss of the 9/20-EMA; on ' +
+          'earnings, the gap-down that breaks the wedge with a weak close.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body: 'Above the wedge / consolidation high.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Trail the 9/20-EMA as the new downtrend develops; cover into weakness on ' +
+          'reward-to-risk.',
+      },
+    ],
+    mistakes: [
+      'Entering inside the wedge before the drop confirms.',
+      'Ignoring whether volume actually dried up through the coil.',
+    ],
+  },
+
   'Episodic Pivot': {
     intro:
       'The Episodic Pivot (EP) is a neglected or forgotten stock that gaps up powerfully on a ' +
