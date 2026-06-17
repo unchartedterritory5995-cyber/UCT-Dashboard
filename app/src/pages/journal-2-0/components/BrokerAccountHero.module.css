@@ -1,0 +1,38 @@
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 12px;
+  background: var(--surface-1, rgba(255, 255, 255, 0.02));
+  margin-bottom: 14px;
+}
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.label { font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); }
+.value { font-size: 38px; font-weight: 700; line-height: 1.05; color: var(--text-bright); margin-top: 2px; }
+.changes { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
+.change { font-size: 14px; font-weight: 600; }
+.changeLabel { color: var(--text-muted); font-weight: 400; }
+.pos { color: var(--color-success, #4ade80); }
+.neg { color: var(--color-danger, #f87171); }
+.ranges { display: flex; gap: 4px; }
+.rangeBtn {
+  padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border, #333); background: transparent; color: var(--text-muted);
+}
+.rangeActive { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.12); }
+.chartWrap { position: relative; width: 100%; height: 160px; }
+.svg { width: 100%; height: 100%; display: block; }
+.loading { position: absolute; top: 6px; right: 8px; color: var(--text-muted); font-size: 18px; }
+.strip { display: flex; flex-wrap: wrap; gap: 22px; padding-top: 12px; border-top: 1px solid var(--border, #2a2a2a); }
+.metric { display: flex; flex-direction: column; gap: 2px; }
+.metricLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.metricValue { font-size: 15px; font-weight: 600; color: var(--text-bright); }
+
+@media (max-width: 640px) {
+  .value { font-size: 30px; }
+  .changes { flex-direction: column; gap: 4px; }
+  .chartWrap { height: 130px; }
+  .strip { gap: 16px; }
+}
