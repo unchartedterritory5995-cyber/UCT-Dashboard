@@ -1,0 +1,44 @@
+.nudge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--color-warning-bg, rgba(201, 168, 76, 0.10));
+  border: 1px solid var(--color-warning-border, rgba(201, 168, 76, 0.35));
+  font-size: 13px;
+  color: var(--color-text, #e8eaed);
+}
+
+.icon { font-size: 15px; flex: none; }
+
+.text { flex: 1; line-height: 1.4; }
+.text strong { color: var(--color-warning, #c9a84c); }
+
+.btn {
+  flex: none;
+  appearance: none;
+  border: 1px solid var(--color-warning-border, rgba(201, 168, 76, 0.5));
+  background: transparent;
+  color: var(--color-warning, #c9a84c);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--color-warning-bg, rgba(201, 168, 76, 0.16)); }
+
+.dismiss {
+  flex: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #8a909a);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.dismiss:hover { color: var(--color-text, #e8eaed); }

@@ -204,6 +204,34 @@ def equity_curve(
     return {"points": points}
 
 
+@router.get("/unreviewed")
+def unreviewed_imports(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """How many ACTIONABLE broker-imported items still need journaling (a setup
+    tag): current open positions + trades closed in the last 14 days. Scoped to
+    recent/active so the nudge stays meaningful (not 'tag 200 years of history').
+    Drives the 'N imported items need a setup' nudge."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        try:
+            trades = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_trades WHERE user_id = ? "
+                "AND source = 'broker' AND (setup IS NULL OR setup = '') "
+                "AND exit_date >= date('now', '-14 days')",
+                (user["id"],),
+            ).fetchone()["n"]
+        except Exception:
+            trades = 0
+        positions = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_positions WHERE user_id = ? "
+            "AND source = 'broker' AND closed_at IS NULL AND (setup IS NULL OR setup = '')",
+            (user["id"],),
+        ).fetchone()["n"]
+    finally:
+        conn.close()
+    return {"trades": trades, "positions": positions, "total": trades + positions}
+
+
 @router.get("/dup-flags")
 def list_dup_flags(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Pending duplicate-candidate flags (manual vs broker) with both trade
