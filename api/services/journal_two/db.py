@@ -491,6 +491,29 @@ CREATE TABLE IF NOT EXISTS j2_broker_dup_flags (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_broker_dup_pending
     ON j2_broker_dup_flags(user_id, status);
+
+-- Cash-flow ledger: deposits/withdrawals/dividends/interest/fees imported from
+-- the broker. External flows (deposit/withdrawal/transfer) drive deposit-
+-- adjusted performance; internal flows (dividend/interest/fee) are income/cost
+-- already reflected in equity. Idempotent via stable external_id.
+CREATE TABLE IF NOT EXISTS j2_broker_cash_flows (
+    id                TEXT PRIMARY KEY,
+    user_id           TEXT NOT NULL,
+    account_id        TEXT NOT NULL,          -- j2 account
+    broker_account_id TEXT NOT NULL,
+    external_id       TEXT NOT NULL,
+    flow_date         TEXT NOT NULL,          -- YYYY-MM-DD
+    flow_type         TEXT NOT NULL,          -- deposit|withdrawal|dividend|interest|fee|transfer|other
+    amount            REAL NOT NULL,          -- signed USD: + into account, - out
+    is_external       INTEGER NOT NULL DEFAULT 0,
+    currency          TEXT,
+    source            TEXT NOT NULL DEFAULT 'broker',
+    created_at        TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_cash_flows_ext
+    ON j2_broker_cash_flows(user_id, external_id);
+CREATE INDEX IF NOT EXISTS idx_j2_cash_flows_acct
+    ON j2_broker_cash_flows(user_id, account_id, flow_date);
 """
 
 
