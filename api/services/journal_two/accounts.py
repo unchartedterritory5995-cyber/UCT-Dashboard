@@ -614,6 +614,19 @@ def comparison(
             # broker equity; manual accounts keep startingBalance + realized P&L
             # (identical to the prior currentBalance math → no regression).
             eq = resolve_equity(a, realized_pnl=metrics["totalPnl"])
+            # Broker accounts report the cash-flow-adjusted TWR (deposit/
+            # withdrawal-neutral); manual accounts keep the realized-P&L return.
+            total_return = metrics["totalReturn"]
+            if eq["source"] == "broker":
+                try:
+                    from api.services.journal_two.broker.performance_service import (
+                        account_performance,
+                    )
+                    perf = account_performance(user_id, a["id"], "ALL", conn=conn)
+                    if perf.get("timeWeighted") is not None:
+                        total_return = perf["timeWeighted"]
+                except Exception:
+                    pass  # fall back to realized-P&L return on any hiccup
             out.append({
                 "id": a["id"],
                 "name": a["name"],
@@ -625,7 +638,7 @@ def comparison(
                 "brokerMarketValue": eq["marketValue"],
                 "balanceSyncedAt": eq["syncedAt"],
                 "startingBalance": a["startingBalance"],
-                "totalReturn": metrics["totalReturn"],
+                "totalReturn": total_return,
                 "totalPnl": metrics["totalPnl"],
                 "tradeCount": metrics["tradeCount"],
                 "winRate": metrics["winRate"],

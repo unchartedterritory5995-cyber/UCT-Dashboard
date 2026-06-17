@@ -80,3 +80,19 @@ def test_account_performance_prepends_estimated_history(env):
     # equity_est(05-05) = 12000 − (flows strictly after 05-05) = 12000 − 2000 = 10000
     assert est_points[0]["value"] == pytest.approx(10000.0)
     assert out["estimated"] is True
+
+
+def test_comparison_uses_twr_for_broker_account(env):
+    # +20% market move, no flows → TWR 20%. Naive (no trades) would be 0% —
+    # so 0.20 proves comparison() sources the broker return from the engine.
+    _snap("2026-05-01", 10000.0)
+    _snap("2026-05-02", 12000.0)
+    conn = auth_db.get_connection()
+    conn.execute(
+        "UPDATE j2_accounts SET balance_source = 'broker', broker_total_equity = 12000 "
+        "WHERE id = ?", (env["j2"],))
+    conn.commit()
+    conn.close()
+    comp = accounts_service.comparison("u1")
+    row = next(r for r in comp["accounts"] if r["id"] == env["j2"])
+    assert row["totalReturn"] == pytest.approx(0.20)
