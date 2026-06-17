@@ -38,3 +38,35 @@ def test_cash_flows_table_exists(env):
     assert {"id", "user_id", "account_id", "broker_account_id", "external_id",
             "flow_date", "flow_type", "amount", "is_external", "currency",
             "source", "created_at"} <= cols
+
+
+# ── Classification ───────────────────────────────────────────────────────────
+
+def test_classifies_external_and_internal_flows():
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    dep = cf.to_cash_flow(_act("c1", "CONTRIBUTION", 5000), "ba1")
+    assert dep["flowType"] == "deposit" and dep["isExternal"] == 1 and dep["amount"] == 5000.0
+    wd = cf.to_cash_flow(_act("c2", "WITHDRAWAL", 2000), "ba1")
+    assert wd["flowType"] == "withdrawal" and wd["isExternal"] == 1 and wd["amount"] == -2000.0
+    div = cf.to_cash_flow(_act("c3", "DIVIDEND", 12.5), "ba1")
+    assert div["flowType"] == "dividend" and div["isExternal"] == 0 and div["amount"] == 12.5
+    fee = cf.to_cash_flow(_act("c4", "FEE", 1.0), "ba1")
+    assert fee["flowType"] == "fee" and fee["isExternal"] == 0 and fee["amount"] == -1.0
+
+
+def test_margin_interest_negative_amount_preserved():
+    # A broker that reports margin interest as a negative INTEREST amount must
+    # NOT be re-negated — it stays a cost.
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    mi = cf.to_cash_flow(_act("c6", "INTEREST", -8.0), "ba1")
+    assert mi["flowType"] == "interest" and mi["amount"] == -8.0 and mi["isExternal"] == 0
+
+
+def test_skips_non_usd():
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    assert cf.to_cash_flow(_act("c5", "CONTRIBUTION", 100, cur="CAD"), "ba1") is None
+
+
+def test_skips_unknown_type():
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    assert cf.to_cash_flow(_act("c7", "BUY", 100), "ba1") is None
