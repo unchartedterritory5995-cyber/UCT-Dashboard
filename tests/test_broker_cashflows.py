@@ -70,3 +70,36 @@ def test_skips_non_usd():
 def test_skips_unknown_type():
     from api.services.journal_two.broker import cashflow_reconstruct as cf
     assert cf.to_cash_flow(_act("c7", "BUY", 100), "ba1") is None
+
+
+# ── Persistence / idempotency / heal / store ─────────────────────────────────
+
+def test_reconcile_imports_then_idempotent_and_heals(env):
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    acts = [
+        _act("c1", "CONTRIBUTION", 5000, "2026-05-01"),
+        _act("c2", "DIVIDEND", 10, "2026-05-02"),
+        _act("c3", "WITHDRAWAL", 1000, "2026-05-03"),
+    ]
+    r1 = cf.reconcile_cash_flows("u1", env["ba"], acts)
+    assert r1["imported"] == 3
+    r2 = cf.reconcile_cash_flows("u1", env["ba"], acts)        # re-sync
+    assert r2["imported"] == 0 and r2["pruned"] == 0
+    r3 = cf.reconcile_cash_flows("u1", env["ba"], [acts[0], acts[2]])  # c2 voided
+    assert r3["pruned"] == 1
+
+
+def test_store_sums_and_series(env):
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    from api.services.journal_two.broker import cashflow_store as store
+    cf.reconcile_cash_flows("u1", env["ba"], [
+        _act("c1", "CONTRIBUTION", 5000, "2026-05-01"),
+        _act("c2", "DIVIDEND", 10, "2026-05-02"),
+        _act("c3", "WITHDRAWAL", 1000, "2026-05-03"),
+    ])
+    assert store.sum_flows("u1", env["acct_id"], external_only=True) == 4000.0   # 5000 - 1000
+    assert store.sum_flows("u1", env["acct_id"], external_only=False) == 4010.0  # + dividend
+    series = store.external_flow_series("u1", env["acct_id"])
+    assert series == [("2026-05-01", 5000.0), ("2026-05-03", -1000.0)]
+    flows = store.list_flows("u1", env["acct_id"])
+    assert len(flows) == 3 and flows[0]["type"] == "deposit"
