@@ -173,6 +173,37 @@ def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
     }
 
 
+@router.get("/equity-curve")
+def equity_curve(
+    days: int = 365, user: dict = Depends(get_current_user)
+) -> dict[str, Any]:
+    """Daily real broker net-liquidation equity (cash + equity MV + option MV),
+    aggregated across the user's connected accounts. Powers the account growth
+    chart. Any logged-in user (empty list if not broker-connected)."""
+    from api.services.auth_db import get_connection
+    days = max(1, min(int(days or 365), 1830))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT snapshot_date AS date,
+                   ROUND(SUM(total_equity), 2) AS equity,
+                   ROUND(SUM(cash), 2) AS cash,
+                   ROUND(SUM(market_value), 2) AS marketValue
+            FROM j2_broker_equity_snapshots
+            WHERE user_id = ?
+            GROUP BY snapshot_date
+            ORDER BY snapshot_date DESC
+            LIMIT ?
+            """,
+            (user["id"], days),
+        ).fetchall()
+    finally:
+        conn.close()
+    points = [dict(r) for r in rows][::-1]  # chronological
+    return {"points": points}
+
+
 @router.get("/dup-flags")
 def list_dup_flags(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Pending duplicate-candidate flags (manual vs broker) with both trade

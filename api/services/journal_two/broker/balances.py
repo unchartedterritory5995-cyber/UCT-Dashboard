@@ -36,6 +36,15 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _et_date() -> str:
+    """Today's date in America/New_York (market timezone) as YYYY-MM-DD."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    except Exception:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 # ── Field extraction ─────────────────────────────────────────────────────────
 
 def _num(v: Any) -> float | None:
@@ -172,6 +181,20 @@ def write_balances(
             """,
             (equity, cash, buying_power, mv, _now_iso(), _now_iso(),
              broker_account["j2AccountId"], user_id),
+        )
+        # Append a daily net-liq snapshot (latest sync of the day wins) → powers
+        # the real broker equity curve.
+        conn.execute(
+            """
+            INSERT INTO j2_broker_equity_snapshots
+                (user_id, broker_account_id, snapshot_date, total_equity, cash,
+                 market_value, synced_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, broker_account_id, snapshot_date) DO UPDATE SET
+                total_equity = excluded.total_equity, cash = excluded.cash,
+                market_value = excluded.market_value, synced_at = excluded.synced_at
+            """,
+            (user_id, broker_account["id"], _et_date(), equity, cash, mv, _now_iso()),
         )
         conn.commit()
     finally:

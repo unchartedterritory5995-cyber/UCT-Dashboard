@@ -426,6 +426,22 @@ CREATE INDEX IF NOT EXISTS idx_j2_broker_accounts_user
 CREATE INDEX IF NOT EXISTS idx_j2_broker_accounts_j2acct
     ON j2_broker_accounts(j2_account_id);
 
+-- Daily net-liquidation snapshots (cash + equity MV + option MV) per broker
+-- account → the real account equity curve. One row per (account, day); the
+-- latest sync of the day wins (upsert). Source-of-truth for the growth chart.
+CREATE TABLE IF NOT EXISTS j2_broker_equity_snapshots (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    snapshot_date      TEXT NOT NULL,          -- YYYY-MM-DD (ET)
+    total_equity       REAL,
+    cash               REAL,
+    market_value       REAL,
+    synced_at          TEXT NOT NULL,
+    PRIMARY KEY (user_id, broker_account_id, snapshot_date)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_broker_equity_snap_acct
+    ON j2_broker_equity_snapshots(user_id, broker_account_id, snapshot_date);
+
 -- Raw activity ledger: idempotency + reprocessing source-of-record.
 -- Every SnapTrade activity lands here once; reconstruct.py reads from it.
 CREATE TABLE IF NOT EXISTS j2_broker_activities (
