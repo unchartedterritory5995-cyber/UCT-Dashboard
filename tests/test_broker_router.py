@@ -129,6 +129,41 @@ def test_paid_gate_blocks_free_user(client):
     assert client.get("/api/j2/broker/status").status_code == 200
 
 
+def test_performance_and_cash_flows_endpoints(client):
+    from api.services.journal_two import accounts as accounts_service
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    acct = accounts_service.create_account(
+        "u1", {"name": "B", "color": "blue", "startingBalance": 1.0})
+    j2 = acct["id"]
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_broker_accounts (id, user_id, snaptrade_account_id, "
+        "j2_account_id, created_at, updated_at) VALUES "
+        "('bk1', 'u1', 'S1', ?, '2026-01-01', '2026-01-01')", (j2,))
+    for d, eq in [("2026-05-01", 10000.0), ("2026-05-02", 15000.0)]:
+        conn.execute(
+            "INSERT INTO j2_broker_equity_snapshots (user_id, broker_account_id, "
+            "snapshot_date, total_equity, cash, market_value, synced_at) VALUES "
+            "('u1', 'bk1', ?, ?, 0, ?, 'x')", (d, eq, eq))
+    conn.commit()
+    conn.close()
+    cf.reconcile_cash_flows("u1", {"id": "bk1", "j2AccountId": j2}, [
+        {"id": "c1", "type": "CONTRIBUTION", "amount": 5000, "currency": "USD",
+         "trade_date": "2026-05-02"}])
+
+    r = client.get(f"/api/j2/broker/performance?accountId={j2}&period=ALL")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["timeWeighted"] == 0.0            # deposit ≠ gain
+    assert body["netDeposits"] == 5000.0
+    assert len(body["equitySeries"]) == 2
+
+    r2 = client.get(f"/api/j2/broker/cash-flows?accountId={j2}")
+    assert r2.status_code == 200
+    flows = r2.json()["flows"]
+    assert len(flows) == 1 and flows[0]["type"] == "deposit"
+
+
 def test_refresh_before_connect_conflicts(client):
     r = client.post("/api/j2/broker/accounts/refresh")
     assert r.status_code == 409

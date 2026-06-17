@@ -204,6 +204,28 @@ def equity_curve(
     return {"points": points}
 
 
+@router.get("/performance")
+def performance(
+    accountId: str, period: str = "ALL", user: dict = Depends(get_current_user)
+) -> dict[str, Any]:
+    """Cash-flow-adjusted performance for one broker account + window:
+    TWR / money-weighted / simple / $ P&L + net flows + equity series (forward
+    accurate, pre-snapshot history estimated). Scoped to the caller's user_id."""
+    from api.services.journal_two.broker import performance_service
+    return performance_service.account_performance(user["id"], accountId, period)
+
+
+@router.get("/cash-flows")
+def cash_flows(
+    accountId: str, period: str = "ALL", user: dict = Depends(get_current_user)
+) -> dict[str, Any]:
+    """The account's secondary transactions — deposits, withdrawals, dividends,
+    interest, fees — for the window. Scoped to the caller's user_id."""
+    from api.services.journal_two.broker import performance_service, cashflow_store
+    start = performance_service._period_start(period)
+    return {"flows": cashflow_store.list_flows(user["id"], accountId, start=start)}
+
+
 @router.get("/unreviewed")
 def unreviewed_imports(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """How many ACTIONABLE broker-imported items still need journaling (a setup
