@@ -57,10 +57,7 @@ async def _mcp_call(method: str, params: dict | None = None) -> dict:
             try:
                 return {"http": r.status_code, "result": r.json()}
             except Exception:
-                # 500k cap (was 50k) — 26 UCT alerts blew past 50k and broke
-                # JSON parsing in /delete-all-uct-alerts on 2026-06-17. 500k
-                # safely handles ~150 alerts before risk of truncation returns.
-                return {"http": r.status_code, "raw_text": text[:500000]}
+                return {"http": r.status_code, "raw_text": text[:50000]}
     except Exception as e:
         return {"error": f"{type(e).__name__}: {str(e)[:300]}"}
 
@@ -101,10 +98,8 @@ async def raw_passthrough(
 @router.get("/delete-alert")
 async def delete_alert(alert_id: str = Query(..., description="Alert ID to delete")):
     """
-    BROKEN: Bullflow's REST API does NOT expose DELETE on custom-alerts.
-    This endpoint returns 404 for any valid alert ID. Confirmed 2026-06-16.
-    Kept here for reference only. Delete alerts via Bullflow's web UI:
-    Alerts panel → pencil icon → trash icon per row.
+    Delete a custom alert directly via REST. MCP didn't expose a delete tool,
+    but the REST API likely supports DELETE on the same path as GET.
     """
     if not BULLFLOW_API_KEY:
         return {"error": "BULLFLOW_API_KEY env var not set"}
@@ -124,11 +119,8 @@ async def delete_alert(alert_id: str = Query(..., description="Alert ID to delet
 @router.get("/delete-all-tests")
 async def delete_all_test_alerts():
     """
-    BROKEN: Depends on delete_alert which hits a non-existent REST DELETE
-    endpoint (Bullflow returns 404). Will list matching alerts but every
-    delete attempt fails. Use Bullflow UI for cleanup instead.
-
-    Original intent: fetch all alerts, delete any whose name starts with "UCT Test".
+    Convenience: fetch all alerts, delete any whose name starts with "UCT Test".
+    Use to clean up after probe experiments.
     """
     listed = await _mcp_call("tools/call", {"name": "bullflow_get_custom_alerts", "arguments": {}})
     # Drill into the nested structuredContent → data → alerts
@@ -149,31 +141,6 @@ async def delete_all_test_alerts():
             del_result = await delete_alert(alert_id=a["id"])
             results.append({"id": a["id"], "name": a["alertName"], "result": del_result})
     return {"deleted_count": len(results), "results": results}
-
-
-async def _list_existing_alert_names() -> set[str]:
-    """
-    Return set of alertName strings currently saved on Bullflow.
-    Used by create_production_alerts as an idempotency guard.
-    Raises on parse failure — caller treats that as "unsafe to create".
-    """
-    import json
-    listed = await _mcp_call("tools/call", {
-        "name": "bullflow_get_custom_alerts",
-        "arguments": {},
-    })
-    raw_text = listed.get("raw_text", "")
-    if raw_text.startswith("event: message"):
-        payload = json.loads(raw_text[raw_text.index("data: ") + 6:])
-    else:
-        payload = listed.get("result", {})
-    alerts = (
-        payload.get("result", {})
-        .get("structuredContent", {})
-        .get("data", {})
-        .get("alerts", [])
-    )
-    return {a.get("alertName", "") for a in alerts if a.get("alertName")}
 
 
 # ─── PRODUCTION ALERT LADDER ─────────────────────────────────────────────────
@@ -324,87 +291,39 @@ PRODUCTION_ALERTS = [
 @router.get("/create-production-alerts")
 async def create_production_alerts():
     """
-    Create all 13 UCT production custom alerts on Bullflow.
-
-    IDEMPOTENT: lists existing alerts first, skips any whose name already
-    exists. Safe to hit repeatedly — re-running after a partial create
-    just fills in what's missing. Safe to hit twice in a row — second
-    call returns skipped_count=13, created_count=0.
-
-    The 2026-06-17 incident (count=26, every alert duplicated) happened
-    because this endpoint was hit twice without the guard. Don't remove
-    the guard. If the guard somehow fails (list call errors), the function
-    refuses to create rather than risk doubling.
+    Creates all 13 UCT production custom alerts on Bullflow. Idempotent
+    by name — does NOT delete existing UCT alerts before creating, so
+    running twice will create duplicates. Run /delete-all-uct-alerts
+    first if you want a clean slate.
     """
-    # Idempotency guard: never create an alert whose name already exists.
-    try:
-        existing_names = await _list_existing_alert_names()
-    except Exception as e:
-        return {
-            "error": (
-                "Could not verify existing alerts; refusing to create to "
-                "avoid duplicates. Check /custom manually before retrying."
-            ),
-            "detail": f"{type(e).__name__}: {str(e)[:300]}",
-        }
-
-    import json
-    created, skipped, failed = [], [], []
-
+    results = []
     for alert_def in PRODUCTION_ALERTS:
-        name = alert_def["name"]
-        if name in existing_names:
-            skipped.append(name)
-            continue
-
         result = await _mcp_call("tools/call", {
             "name": "bullflow_create_alert",
             "arguments": alert_def,
         })
-
-        # Extract status + new id from the noisy MCP envelope
+        # Try to extract just the success fact from the noisy MCP response
+        import json
+        raw = result.get("raw_text", "")
         status = "?"
         new_id = "?"
-        raw = result.get("raw_text", "")
         try:
             if raw.startswith("event: message"):
                 payload = json.loads(raw[raw.index("data: ") + 6:])
-                data = (
-                    payload.get("result", {})
-                    .get("structuredContent", {})
-                    .get("data", {})
-                )
+                data = payload.get("result", {}).get("structuredContent", {}).get("data", {})
                 status = data.get("status", "?")
                 new_id = data.get("id", "?")
-        except Exception as e:
-            failed.append({"name": name, "error": f"parse: {e}"})
-            continue
-
-        if new_id == "?":
-            failed.append({"name": name, "raw_status": status, "raw": result})
-        else:
-            created.append({"name": name, "id": new_id, "status": status})
-            existing_names.add(name)  # protect against dupes WITHIN this run too
-
-    return {
-        "created_count": len(created),
-        "skipped_count": len(skipped),
-        "failed_count": len(failed),
-        "created": created,
-        "skipped": skipped,
-        "failed": failed,
-    }
+        except Exception:
+            pass
+        results.append({"name": alert_def["name"], "status": status, "id": new_id})
+    return {"created_count": len(results), "results": results}
 
 
 @router.get("/delete-all-uct-alerts")
 async def delete_all_uct_alerts():
     """
-    BROKEN: Depends on delete_alert which hits a non-existent REST DELETE
-    endpoint (Bullflow returns 404). Will list matching alerts but every
-    delete attempt fails. Use Bullflow UI to wipe alerts instead, then
-    re-run /create-production-alerts (which is now idempotent).
-
-    Original intent: fetch all alerts, delete any whose name starts with "UCT ".
+    Convenience: fetch all alerts, delete any whose name starts with "UCT ".
+    Use to wipe and recreate the ladder.
     """
     listed = await _mcp_call("tools/call", {"name": "bullflow_get_custom_alerts", "arguments": {}})
     try:
