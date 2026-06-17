@@ -256,31 +256,25 @@ PRODUCTION_ALERTS = [
     _bear_alert("UCT Mega Whale Bear",
         premiumMin=10_000_000, marketCapMin=500_000_000_000),
 
-    # ─── Tier 3: A Mid-Small — $500K-$5M non-mega ───────────────────────────
-    _bull_alert("UCT A Bull Mid",
-        premiumMin=500_000, premiumMax=5_000_000,
-        marketCapMax=10_000_000_000),
-    _bear_alert("UCT A Bear Mid",
-        premiumMin=500_000, premiumMax=5_000_000,
-        marketCapMax=10_000_000_000),
+    # ─── Tier 3: A — $500K-$10M (cap-agnostic) ─────────────────────────────
+    # 2026-06-17: Collapsed from 3 cap-bracketed sub-tiers (Mid/Large/Mega)
+    # into one cap-agnostic A-tier. Reason: diagnostic confirmed Bullflow's
+    # streaming payload contains NO marketCap field (verified against a live
+    # JPM alert — 18 fields, none cap-related). The min/max MarketCap params
+    # we set on those alerts were silently no-ops, so every Mid/Large/Mega
+    # trio fired simultaneously for the same trade (e.g. NVDA $2.10M matched
+    # all three A-tier rules at 09:27:52 EDT). Frontend dedup masks the
+    # symptom but the right fix is to drop the unused brackets.
+    #
+    # Cap-aware sub-tiering can return via Schwab enrichment on the backend
+    # (Phase D), at which point we'd reinstate Mid/Large/Mega with real cap
+    # filtering. Until then, premium alone defines this tier.
+    _bull_alert("UCT A Bull",
+        premiumMin=500_000, premiumMax=10_000_000),
+    _bear_alert("UCT A Bear",
+        premiumMin=500_000, premiumMax=10_000_000),
 
-    # ─── Tier 4: A Large — $750K-$5M ($10B-$500B mktcap) ────────────────────
-    _bull_alert("UCT A Bull Large",
-        premiumMin=750_000, premiumMax=5_000_000,
-        marketCapMin=10_000_000_000, marketCapMax=500_000_000_000),
-    _bear_alert("UCT A Bear Large",
-        premiumMin=750_000, premiumMax=5_000_000,
-        marketCapMin=10_000_000_000, marketCapMax=500_000_000_000),
-
-    # ─── Tier 5: A Mega — $1M-$10M (mega cap) ───────────────────────────────
-    _bull_alert("UCT A Bull Mega",
-        premiumMin=1_000_000, premiumMax=10_000_000,
-        marketCapMin=500_000_000_000),
-    _bear_alert("UCT A Bear Mega",
-        premiumMin=1_000_000, premiumMax=10_000_000,
-        marketCapMin=500_000_000_000),
-
-    # ─── Tier 6: Unusual — Vol > OI + repeat trades (your UOA flag) ─────────
+    # ─── Tier 4: Unusual — Vol > OI + repeat trades (your UOA flag) ─────────
     # Direction-agnostic (catches both calls and puts) — Vol>OI is a structural
     # signal, not directional. Premium floor $250K so it overlaps with A tiers.
     {
@@ -309,7 +303,7 @@ PRODUCTION_ALERTS = [
         "dteMax": 365,
     },
 
-    # ─── Tier 7: LEAPS — DTE > 180, lower premium floor ─────────────────────
+    # ─── Tier 5: LEAPS — DTE > 180, lower premium floor ─────────────────────
     # LEAPS = long-dated conviction. Your autoScore gives +0.5 for DTE>180.
     # Premium floor lower ($500K) since LEAPS are inherently large per contract.
     _bull_alert("UCT LEAPS Bull",
@@ -424,3 +418,143 @@ async def delete_all_uct_alerts():
             del_result = await delete_alert(alert_id=a["id"])
             results.append({"id": a["id"], "name": a["alertName"], "result": del_result})
     return {"deleted_count": len(results), "results": results}
+
+
+# ─── BACKTEST ─────────────────────────────────────────────────────────────────
+# Replay a historical trading day using saved custom alerts. Returns alerts
+# normalized into approximately /api/live/alerts/recent shape so the existing
+# LiveFlow UI can render them.
+#
+# Caveats:
+#   - Bullflow MCP `bullflow_backtesting_replay_sample` caps at 100 alerts.
+#     Active days may have more. Surface this in the UI as a banner.
+#   - Conviction scoring is NOT applied here — that's Phase C. Frontend will
+#     show "—" for missing convictionScore.
+#   - Discord forwarding does NOT fire (backtest is dry-run by definition).
+
+def _normalize_backtest_alert(raw: dict) -> dict:
+    """
+    Map a raw Bullflow backtest alert payload to the shape LiveFlow.jsx expects.
+
+    Bullflow streaming alerts carry only ~7 fields (symbol, alertName,
+    alertPremium, averageFillPrice, timestamp, alertType, latency etc.).
+    Contract details (cp, strike, exp, dte) are not in the streaming payload
+    per our 2026-06-16 session findings — they'd require a separate
+    contract-detail call. For now, we surface what we have and let the
+    frontend render "—" for missing fields.
+    """
+    # Map symbol -> ticker (frontend uses 'ticker')
+    ticker = raw.get("ticker") or raw.get("symbol")
+    return {
+        "id": raw.get("id") or raw.get("alertId") or f"{ticker}:{raw.get('timestamp', '')}",
+        "ticker": ticker,
+        "timestamp": raw.get("timestamp") or raw.get("receivedAt"),
+        "alertName": raw.get("alertName"),
+        "alertType": raw.get("alertType"),
+        "alertPremium": raw.get("alertPremium"),
+        "averageFillPrice": raw.get("averageFillPrice"),
+        # Contract details — pass through if Bullflow includes them, else null
+        "cp": raw.get("cp") or raw.get("type"),
+        "strike": raw.get("strike"),
+        "exp": raw.get("exp") or raw.get("expiry"),
+        "dte": raw.get("dte"),
+        # Backend-added fields not present in backtest data
+        "convictionScore": None,
+        "forwardedToDiscord": False,
+        # Preserve raw for debugging if normalization fails
+        "_raw": raw,
+    }
+
+
+@router.get("/backtest")
+async def backtest_replay(
+    date: str = Query(..., description="Replay date in YYYY-MM-DD format"),
+    max_alerts: int = Query(100, ge=1, le=100,
+        description="Max alerts to return (Bullflow MCP hard cap = 100)"),
+    speed: float = Query(300, gt=0, le=1000,
+        description="Replay speed multiplier (higher = faster sample)"),
+    timeout_seconds: int = Query(120, ge=5, le=120,
+        description="Max seconds to wait for the sample"),
+):
+    """
+    Run Bullflow's backtest replay for `date` against saved custom alerts.
+
+    Returns alerts in the same shape LiveFlow.jsx renders. Backtest is dry-run:
+    no Discord forwarding, no buffer mutation, no side effects.
+    """
+    result = await _mcp_call("tools/call", {
+        "name": "bullflow_backtesting_replay_sample",
+        "arguments": {
+            "date": date,
+            "max_alerts": max_alerts,
+            "speed": speed,
+            "timeout_seconds": timeout_seconds,
+        },
+    })
+
+    # Parse the MCP SSE envelope
+    import json
+    raw_text = result.get("raw_text", "")
+    try:
+        if raw_text.startswith("event: message"):
+            payload = json.loads(raw_text[raw_text.index("data: ") + 6:])
+        elif result.get("result"):
+            payload = {"result": result["result"]}
+        else:
+            return {
+                "error": "Empty/unexpected MCP response",
+                "raw": result,
+                "date": date,
+            }
+
+        # Bullflow MCP wraps the actual data in result.structuredContent.data
+        structured = (
+            payload.get("result", {})
+            .get("structuredContent", {})
+        )
+        # The exact key isn't documented — try common shapes
+        data = structured.get("data") or structured
+        raw_alerts = (
+            data.get("alerts")
+            or data.get("samples")
+            or data.get("events")
+            or []
+        )
+    except Exception as e:
+        return {
+            "error": f"failed to parse backtest response: {type(e).__name__}: {e}",
+            "raw_excerpt": raw_text[:1500],
+            "date": date,
+        }
+
+    # Normalize each alert into the shape the frontend expects.
+    # Sort newest-first so the LiveFlow UI's "most recent at top" expectation holds.
+    normalized = [_normalize_backtest_alert(a) for a in raw_alerts]
+    normalized.sort(key=lambda a: str(a.get("timestamp") or ""), reverse=True)
+
+    # Build a status block matching /api/live/alerts/recent's shape so the
+    # frontend StatusPill/counter code doesn't need to branch.
+    status = {
+        "connected": True,  # backtest is inherently "connected" for the duration of the sample
+        "last_event_at": normalized[0]["timestamp"] if normalized else None,
+        "total_alerts_received": len(raw_alerts),
+        "total_alerts_shown": len(normalized),
+        "total_alerts_dropped": 0,  # we don't filter in backtest mode
+        "total_alerts_forwarded": 0,  # dry-run
+        "last_error": None,
+        "reconnect_count": 0,
+        "started_at": None,
+        "mode": "backtest",
+        "backtest_date": date,
+        "backtest_capped": len(normalized) >= max_alerts,
+    }
+
+    return {
+        "mode": "backtest",
+        "date": date,
+        "alerts": normalized,
+        "status": status,
+        "max_alerts": max_alerts,
+        "speed": speed,
+        "capped": len(normalized) >= max_alerts,
+    }
