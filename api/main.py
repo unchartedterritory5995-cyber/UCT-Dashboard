@@ -779,23 +779,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    # Live Flow worker — TEMPORARILY DISABLED 2026-06-16
-    # The in-process SSE consumer was causing web service hangs (Cloudflare 524s,
-    # 19s CSV loads on OptionsFlow). The httpx async stream appears to starve
-    # the FastAPI event loop under certain conditions. Re-enable after one of:
-    #   (1) migrating worker to the `worker` Railway service (proper fix)
-    #   (2) running it in an isolated thread with its own event loop
-    #   (3) adding hard read/connect timeouts to all httpx calls
-    # Until then the /api/live/* router still exists but get_status() returns
-    # connected=false. Frontend at /live-flow will show Disconnected state.
-    if False:
-        try:
-            from api import liveflow_worker as _liveflow_worker
-            import asyncio
-            asyncio.create_task(_liveflow_worker.run_forever())
-            logging.getLogger(__name__).info("[startup] liveflow_worker scheduled (Bullflow SSE)")
-        except Exception as e:
-            logging.getLogger(__name__).exception("[startup] failed to schedule liveflow_worker: %s", e)
+    # Live Flow worker — RE-ENABLED 2026-06-17 with thread isolation (Option 2).
+    # Previously disabled because the in-process SSE consumer was starving
+    # FastAPI's main event loop (Cloudflare 524s, 19s CSV loads). The fix:
+    # run liveflow_worker.run_forever() inside a dedicated daemon thread with
+    # its own asyncio loop, so httpx SSE reads (timeout=None) can never block
+    # request-handling. See api/liveflow_worker_threaded.py.
+    # If perf regresses (CSV fetch >5s on /options-flow), wrap this block in
+    # `if False:` to disable and ping the dev channel.
+    try:
+        from api import liveflow_worker_threaded
+        liveflow_worker_threaded.start()
+        logging.getLogger(__name__).info(
+            "[startup] liveflow_worker started in isolated thread"
+        )
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] failed to start liveflow_worker thread: %s", e
+        )
 
     # SQLite integrity check — heavy on 58M rows, run in background
     def _integrity_check_bg():
