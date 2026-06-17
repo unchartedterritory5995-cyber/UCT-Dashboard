@@ -92,3 +92,59 @@ async def raw_passthrough(
     if method == "tools/call" and tool_name:
         return await _mcp_call(method, {"name": tool_name, "arguments": {}})
     return await _mcp_call(method)
+
+
+# ── Test-create endpoint (one-off Side semantics verification) ───────────────
+# Creates a single throwaway custom alert with explicit Ask-side flag, so we
+# can read it back via /custom and confirm:
+#   (1) Does includeAskSide=true cover both ASK and AA, or only plain ASK?
+#   (2) What does Bullflow store the config as after save? (raw JSON form)
+#   (3) Does it appear in /v1/streaming/alerts within seconds?
+# Delete the test alert after verification via /test-delete?alert_id=...
+@router.get("/test-create")
+async def test_create_alert():
+    """
+    Create a minimal test alert: NVDA calls, $500K+, ask side, sweep only.
+    Specific enough that it's unlikely to fire by accident — but loose enough
+    to fire if NVDA gets real action during market hours.
+    """
+    test_payload = {
+        "name": "UCT Test Alert — DELETE ME",
+        "tickerAllowlist": ["NVDA"],
+        "includeCalls": True,
+        "includePuts": False,
+        "includeAskSide": True,
+        "includeBidSide": False,
+        "includeMid": False,
+        "includeSweeps": True,
+        "includeBlocks": False,
+        "includeSingles": False,
+        "includeSplits": False,
+        "includeMultiLeg": False,
+        "premiumMin": 500000,
+        "quickFilters": ["sw", "a", "c"],   # Sweeps + Ask + Calls labels
+    }
+    return await _mcp_call("tools/call", {
+        "name": "bullflow_create_alert",
+        "arguments": test_payload,
+    })
+
+
+@router.get("/test-delete")
+async def test_delete_alert(alert_id: str = Query(..., description="Alert ID returned by test-create")):
+    """
+    Delete the test alert. The MCP server doesn't expose a delete tool by
+    name in tools/list output — so this tries the most likely method names
+    and reports what works. If both fail, delete via Bullflow's web UI.
+    """
+    for method_name in ["bullflow_delete_alert", "bullflow_remove_alert", "delete_alert"]:
+        result = await _mcp_call("tools/call", {
+            "name": method_name,
+            "arguments": {"id": alert_id},
+        })
+        # If the method exists, we'll get either success or a domain error.
+        # If the method doesn't exist, MCP returns a "Method not found" style error.
+        text = str(result).lower()
+        if "not found" not in text and "unknown tool" not in text:
+            return {"tried_method": method_name, "result": result}
+    return {"error": "no working delete method — remove via Bullflow UI", "tried": ["bullflow_delete_alert", "bullflow_remove_alert", "delete_alert"]}
