@@ -1,55 +1,70 @@
 /**
  * BrokerAccountHero — broker-app-style summary at the top of Open Positions.
  * Dominant account value + Today / period P&L + large equity curve + a
- * secondary balances strip. Reuses useBrokerEquityCurve + the account object +
- * the already-computed portfolioAggregates (passed in, so no live-price refetch).
- * Renders null for non-broker accounts (the normal stats row renders below).
+ * secondary balances strip.
+ *
+ * Curve + period P&L come from the cash-flow-adjusted performance engine
+ * (/api/j2/broker/performance → equitySeries), which includes ESTIMATED
+ * pre-snapshot history walked back through realized trades — so the curve is
+ * populated from day one and converges to accurate daily net-liq snapshots over
+ * time. Account value/cash/buying-power come straight from the account object;
+ * Open P&L / Invested% from the already-computed portfolioAggregates (passed in,
+ * so no live-price refetch). Renders null for non-broker accounts.
  */
 import { useMemo, useState } from 'react'
 import { money, moneySigned, percent } from '../../../lib/journal-2-0'
-import useBrokerEquityCurve from '../hooks/useBrokerEquityCurve'
+import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import styles from './BrokerAccountHero.module.css'
 
 const RANGES = [
-  { label: '1M', days: 31 },
-  { label: '3M', days: 93 },
-  { label: '1Y', days: 365 },
-  { label: 'All', days: 1825 },
+  { label: '1M', period: '1M' },
+  { label: '3M', period: '3M' },
+  { label: '1Y', period: '1Y' },
+  { label: 'All', period: 'ALL' },
 ]
 
 export default function BrokerAccountHero({ account, aggregates }) {
   const [range, setRange] = useState(RANGES[1]) // default 3M
-  const { points, isLoading } = useBrokerEquityCurve(range.days)
+  const { data, isLoading } = useJ2BrokerPerformance(account?.id, range.period)
 
   const model = useMemo(() => {
-    if (!points || points.length < 2) return null
-    const ys = points.map((p) => p.equity)
+    const series = data?.equitySeries || []
+    if (series.length < 2) return null
+    const ys = series.map((p) => p.value)
     const min = Math.min(...ys)
     const max = Math.max(...ys)
     const span = max - min || 1
-    const n = points.length
-    const coords = points.map((p, i) => ({
+    const n = series.length
+    const coords = series.map((p, i) => ({
       x: (i / (n - 1)) * 100,
-      y: 100 - ((p.equity - min) / span) * 100,
+      y: 100 - ((p.value - min) / span) * 100,
     }))
     const line = coords.map((c, i) => `${i ? 'L' : 'M'}${c.x.toFixed(2)} ${c.y.toFixed(2)}`).join(' ')
     const area = `${line} L100 100 L0 100 Z`
-    const first = points[0].equity
-    const last = points[n - 1].equity
-    const prev = points[n - 2].equity
-    const change = last - first
-    const todayChange = last - prev
-    return {
-      line, area,
-      change, changePct: first ? change / Math.abs(first) : null, up: change >= 0,
-      todayChange, todayPct: prev ? todayChange / Math.abs(prev) : null, todayUp: todayChange >= 0,
+    // Today = change across the last two REAL (non-estimated) daily snapshots.
+    const real = series.filter((p) => !p.estimated)
+    let todayChange = null
+    let todayPct = null
+    if (real.length >= 2) {
+      const prev = real[real.length - 2].value
+      todayChange = real[real.length - 1].value - prev
+      todayPct = prev ? todayChange / Math.abs(prev) : null
     }
-  }, [points])
+    // Curve color follows the period return (deposit-adjusted).
+    const up = (data?.timeWeighted ?? data?.dollarPnl ?? 0) >= 0
+    return {
+      line, area, up,
+      todayChange, todayPct, todayUp: (todayChange ?? 0) >= 0,
+      estimated: series.some((p) => p.estimated),
+    }
+  }, [data])
 
   const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   if (!isBroker) return null
 
   const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
+  const periodPnl = data?.dollarPnl
+  const periodPct = data?.timeWeighted
 
   return (
     <section className={styles.hero} aria-label="Account summary">
@@ -58,18 +73,18 @@ export default function BrokerAccountHero({ account, aggregates }) {
           <div className={styles.label}>Account Value</div>
           <div className={styles.value}>{money(account.brokerTotalEquity)}</div>
           <div className={styles.changes}>
-            {model && (
+            {model && model.todayChange != null && (
               <span className={`${styles.change} ${model.todayUp ? styles.pos : styles.neg}`}>
                 {model.todayUp ? '▲' : '▼'} {moneySigned(model.todayChange)}
                 {model.todayPct != null && <>{' '}({percent(model.todayPct, { signed: true, dp: 1, isRatio: true })})</>}
                 <span className={styles.changeLabel}> Today</span>
               </span>
             )}
-            {model && (
-              <span className={`${styles.change} ${model.up ? styles.pos : styles.neg}`}>
-                {model.up ? '▲' : '▼'} {moneySigned(model.change)}
-                {model.changePct != null && <>{' '}({percent(model.changePct, { signed: true, dp: 1, isRatio: true })})</>}
-                <span className={styles.changeLabel}> · {range.label}</span>
+            {periodPnl != null && (
+              <span className={`${styles.change} ${periodPnl >= 0 ? styles.pos : styles.neg}`}>
+                {periodPnl >= 0 ? '▲' : '▼'} {moneySigned(periodPnl)}
+                {periodPct != null && <>{' '}({percent(periodPct, { signed: true, dp: 1, isRatio: true })})</>}
+                <span className={styles.changeLabel}> · {range.label}{model?.estimated ? ' · est.' : ''}</span>
               </span>
             )}
           </div>

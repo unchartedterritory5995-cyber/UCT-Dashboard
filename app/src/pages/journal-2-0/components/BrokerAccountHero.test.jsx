@@ -1,38 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-let mockCurve = { points: [{ equity: 10000 }, { equity: 14000 }], isLoading: false }
-vi.mock('../hooks/useBrokerEquityCurve', () => ({ default: () => mockCurve }))
+let mockPerf = {
+  data: {
+    timeWeighted: 0.21,
+    dollarPnl: 1234.5,
+    netDeposits: 5000,
+    equitySeries: [
+      { date: '2026-04-01', value: 12000, estimated: true },
+      { date: '2026-05-01', value: 13500, estimated: true },
+      { date: '2026-06-16', value: 14000, estimated: false },
+      { date: '2026-06-17', value: 14632.18, estimated: false },
+    ],
+  },
+  isLoading: false,
+  error: null,
+}
+vi.mock('../hooks/useJ2BrokerPerformance', () => ({ default: () => mockPerf }))
 
 import BrokerAccountHero from './BrokerAccountHero'
 
 const brokerAccount = {
-  balanceSource: 'broker', brokerTotalEquity: 14632.18,
+  id: 'a1', balanceSource: 'broker', brokerTotalEquity: 14632.18,
   brokerCash: -12053.04, brokerBuyingPower: 9470.11,
 }
 const aggregates = { unrealized: 1204, invested: 1.78 }
 
-describe('BrokerAccountHero', () => {
-  beforeEach(() => { mockCurve = { points: [{ equity: 10000 }, { equity: 14000 }], isLoading: false } })
+function resetPerf() {
+  mockPerf = {
+    data: {
+      timeWeighted: 0.21,
+      dollarPnl: 1234.5,
+      netDeposits: 5000,
+      equitySeries: [
+        { date: '2026-04-01', value: 12000, estimated: true },
+        { date: '2026-05-01', value: 13500, estimated: true },
+        { date: '2026-06-16', value: 14000, estimated: false },
+        { date: '2026-06-17', value: 14632.18, estimated: false },
+      ],
+    },
+    isLoading: false,
+    error: null,
+  }
+}
 
-  it('renders account value, today P&L, and margin used for a broker account', () => {
-    render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
-    expect(screen.getByText('$14,632.18')).toBeInTheDocument()          // account value
-    expect(screen.getByText('Today')).toBeInTheDocument()               // today block label
+describe('BrokerAccountHero', () => {
+  beforeEach(resetPerf)
+
+  it('renders account value, the equity curve, Today P&L, and margin used', () => {
+    const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    expect(screen.getByText('$14,632.18')).toBeInTheDocument()      // account value
+    expect(container.querySelector('svg')).toBeInTheDocument()      // the curve
+    expect(screen.getByText('Today')).toBeInTheDocument()           // 2 real points → Today shows
     expect(screen.getByText('Margin Used')).toBeInTheDocument()
-    expect(screen.getByText('$12,053.04')).toBeInTheDocument()          // = -brokerCash
+    expect(screen.getByText('$12,053.04')).toBeInTheDocument()      // = -brokerCash
+  })
+
+  it('draws the curve from estimated history even with no real snapshots yet', () => {
+    // Freshly connected: only estimated points (from trade history), 0 real
+    // snapshots. The curve must STILL render (the bug we are fixing), and
+    // Today is hidden until ≥2 real daily snapshots exist.
+    mockPerf.data.equitySeries = [
+      { date: '2026-04-01', value: 12000, estimated: true },
+      { date: '2026-05-01', value: 14632.18, estimated: true },
+    ]
+    const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    expect(container.querySelector('svg')).toBeInTheDocument()      // curve shows
+    expect(screen.queryByText('Today')).not.toBeInTheDocument()     // no Today yet
+    expect(screen.getByText('$14,632.18')).toBeInTheDocument()
   })
 
   it('returns null for a non-broker account', () => {
     const { container } = render(
       <BrokerAccountHero account={{ balanceSource: 'manual' }} aggregates={aggregates} />)
     expect(container).toBeEmptyDOMElement()
-  })
-
-  it('hides Today when there are fewer than two equity points', () => {
-    mockCurve = { points: [{ equity: 14000 }], isLoading: false }
-    render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
-    expect(screen.queryByText('Today')).not.toBeInTheDocument()
-    expect(screen.getByText('$14,632.18')).toBeInTheDocument()          // value still shows
   })
 })
