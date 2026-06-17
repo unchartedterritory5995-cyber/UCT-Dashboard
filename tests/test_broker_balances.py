@@ -116,6 +116,51 @@ def test_resync_updates_shares_preserves_enrichment(env):
     assert r["setup"] == "VCP"
 
 
+def test_resync_refreshes_avg_entry_on_real_fills(env):
+    # Regression: adding to a broker position must update the average entry.
+    # First sync — real FIFO entry (entry_estimated=0), like TLN reconstructed
+    # exactly from fills.
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 10, 200, 100)],
+        [{"symbol": "TLN", "side": "Long", "shares": 10,
+          "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    r = _positions()[0]
+    assert r["entry_price"] == 98.5 and r["entry_estimated"] == 0
+    # User buys 1 more share at a higher price. On re-sync, FIFO recomputes the
+    # weighted-average entry across all open lots → 102.3, and broker holds 11.
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 11, 210, 110)],
+        [{"symbol": "TLN", "side": "Long", "shares": 11,
+          "entryPrice": 102.3, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    r = _positions()[0]
+    assert r["shares"] == 11             # broker share count updated
+    assert r["entry_price"] == 102.3     # average entry refreshed (was the bug)
+    assert r["entry_estimated"] == 0
+
+
+def test_resync_does_not_downgrade_real_entry_to_estimate(env):
+    # Existing real entry must NOT be overwritten by an estimate when FIFO
+    # later diverges (e.g. a late/missing activity). Keep the real basis.
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 10, 200, 100)],
+        [{"symbol": "TLN", "side": "Long", "shares": 10,
+          "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    # Broker now shows 11 but FIFO can only reconstruct 10 → discrepancy →
+    # incoming entry is estimated. Don't clobber the good 98.5.
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 11, 210, 110)],
+        [{"symbol": "TLN", "side": "Long", "shares": 10,
+          "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    r = _positions()[0]
+    assert r["shares"] == 11             # broker fact still wins for share count
+    assert r["entry_price"] == 98.5      # real basis preserved, not downgraded
+    assert r["entry_estimated"] == 0
+
+
 def test_closed_holding_removed(env):
     balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 150, 100)], [])
     assert len(_positions()) == 1

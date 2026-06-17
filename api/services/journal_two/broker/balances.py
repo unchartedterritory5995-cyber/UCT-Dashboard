@@ -296,9 +296,13 @@ def reconcile_positions(
                 )
             else:
                 # Update broker-owned facts only. Preserve user enrichments
-                # (stop/setup/notes). Refresh estimated entry while still
-                # estimated; once we have real fills (entry_estimated=0) keep them.
-                if existing["entry_estimated"] == 1 and entry_estimated == 0:
+                # (stop/setup/notes) — but entry_price/entry_date are broker
+                # facts, NOT enrichments, so they must track the broker.
+                if entry_estimated == 0:
+                    # Fresh real fills (FIFO agrees with the broker). Refresh the
+                    # weighted-average entry + share count regardless of whether
+                    # the existing row was estimated or already real — this is
+                    # what makes "add 1 share → average entry recomputes" work.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_date = ?, entry_estimated = 0, updated_at = ? "
@@ -306,12 +310,16 @@ def reconcile_positions(
                         (shares, shares, entry_price, entry_date, now, existing["id"]),
                     )
                 elif existing["entry_estimated"] == 1:
+                    # Still estimated on both sides → refresh the estimated entry.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, updated_at = ? WHERE id = ?",
                         (shares, shares, entry_price, now, existing["id"]),
                     )
                 else:
+                    # Existing entry is real but FIFO now diverges (incoming is
+                    # only an estimate) — keep the real basis, never downgrade.
+                    # Broker still wins on the share count.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, updated_at = ? WHERE id = ?",
                         (shares, now, existing["id"]),
