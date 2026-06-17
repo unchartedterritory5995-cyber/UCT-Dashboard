@@ -231,4 +231,249 @@ export const SETUP_PLAYBOOKS = {
       'Ignoring direction — the setup is symmetrical and can break long or short; the environment dictates which side to trade.',
     ],
   },
+
+  '20 EMA Pullback': {
+    intro:
+      'A core continuation entry: a stock in a bullish daily trend, or gapping up on a ' +
+      'catalyst, pulls back intraday to the 20-EMA, and is bought as it stabilises and turns ' +
+      'back up. The community’s phrasing is “pullback to the 20 EMA and remount the 9 EMA.”',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'On stocks with bullish daily charts or a fresh catalyst plus sector strength. On ' +
+          'trend days there are often only a few entries available; this is one of the most ' +
+          'reliable.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'The stock gaps up or thrusts, then retraces in an orderly way to the 20-EMA — often ' +
+          'printing a clear lower wick that tags the 20-EMA — on diminishing momentum. Key ' +
+          'reference spots for the pullback are the 9-EMA, the 20-EMA, and the gap fill.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'A green candle holds at the 20-EMA; entry is taken as the next candle breaks that ' +
+          'holding candle’s high and price remounts the 9-EMA.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body: 'Below the lower wick / low of the candle that held the 20-EMA.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Scale into new highs or on reward-to-risk; a useful exit is into the 15-minute ' +
+          'opening-range-breakout buyers who step in near the highs.',
+      },
+    ],
+    mistakes: [
+      'Buying the pullback before a candle actually holds the 20-EMA.',
+      'Using the setup on a stock whose daily chart is not bullish.',
+    ],
+  },
+
+  'EMA Crossback': {
+    intro:
+      'Another Oliver Kell cycle concept, traded both long and short. Long: after a stock has ' +
+      'been extended, it pulls back into and crosses back to the 9/20-EMA, the averages cross, ' +
+      'and price reclaims them — a low-risk re-entry into an ongoing trend (the community’s ' +
+      '“Happy Panda” is a packaged version, combining a bottoming pattern, a 9/20-EMA crossover ' +
+      'as a launch pad, and a tight flag). Short: price that has broken down rallies back up to ' +
+      'the moving averages from below and rejects — one of the four climax-day entries listed ' +
+      'for the Parabolic Short.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'Long version: a stock resuming an uptrend after a pullback, or an early reversal ' +
+          'starting a fresh trend. Short version: a stock in a confirmed downtrend or on the ' +
+          'backside of a parabolic move, retesting the averages from below.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'Long: price crosses back down to the 9/20-EMA, the 9-EMA crosses the 20-EMA, price ' +
+          'tightens and then remounts both. Short: price rallies into the underside of the ' +
+          '9/20-EMA (or VWAP) and stalls, printing a rejection.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Long: as price holds and remounts the averages, or breaks the high of the candle ' +
+          'that held them. Short: on the breakdown below the rejection candle’s low at the ' +
+          'moving average.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'Long: below the candle that held the averages. Short: above the rejection candle’s ' +
+          'high / above the moving average.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Long: trail the 9/20-EMA into the new trend. Short: on a parabolic backside, target ' +
+          'the daily 9-EMA.',
+      },
+    ],
+    mistakes: [
+      'Long: anticipating the reclaim before price actually crosses back above the averages.',
+      'Short: shorting into the averages before a rejection candle confirms.',
+    ],
+  },
+
+  'Wedge Pop': {
+    intro:
+      'The cycle stage immediately following a reversal: after price has stopped going down, ' +
+      'it coils into a wedge — often beneath the moving averages — and then “pops” out the ' +
+      'top, reclaiming the averages and confirming a new up-cycle.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'At the transition from down-cycle to up-cycle — after a Reversal Extension, as the ' +
+          'change of character is confirmed. Works intraday, daily, and weekly.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'Price tightens into a wedge (converging range, contracting volatility) after a ' +
+          'reversal off lows, frequently still below the 9/20-EMA. Volume dries up through the ' +
+          'wedge. The pop is a strong-range candle that breaks the upper boundary and reclaims ' +
+          'the moving averages, ideally with a gap and a strong close.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Break of the wedge’s upper trendline together with the reclaim of the 9/20-EMA; on ' +
+          'earnings, the gap-up that pops the wedge with a strong close.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body: 'Below the wedge / consolidation low.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Trail the 9/20-EMA as the new trend develops; scale into strength on reward-to-risk.',
+      },
+    ],
+    mistakes: [
+      'Entering inside the wedge before the pop confirms.',
+      'Ignoring whether volume actually dried up through the coil.',
+    ],
+  },
+
+  'Wedge Drop': {
+    intro:
+      'The short-side mirror of the Wedge Pop, and the cycle stage immediately following a ' +
+      'top: after price has stopped going up, it bounces and coils into a rising wedge — often ' +
+      'back up to the underside of the moving averages — and then “drops” out the bottom, ' +
+      'losing the averages and confirming a new down-cycle.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'At the transition from up-cycle to down-cycle — after a topping move or Reversal ' +
+          'Extension, as the change of character is confirmed. Works intraday, daily, and ' +
+          'weekly.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'Price tightens into a rising wedge (converging range, contracting volatility) after ' +
+          'a bounce off the highs, frequently stalling just below the 9/20-EMA. Volume dries up ' +
+          'through the wedge. The drop is a strong-range down candle that breaks the lower ' +
+          'boundary and loses the moving averages, ideally with a gap down and a weak close.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Break of the wedge’s lower trendline together with the loss of the 9/20-EMA; on ' +
+          'earnings, the gap-down that breaks the wedge with a weak close.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body: 'Above the wedge / consolidation high.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'Trail the 9/20-EMA as the new downtrend develops; cover into weakness on ' +
+          'reward-to-risk.',
+      },
+    ],
+    mistakes: [
+      'Entering inside the wedge before the drop confirms.',
+      'Ignoring whether volume actually dried up through the coil.',
+    ],
+  },
+
+  'Episodic Pivot': {
+    intro:
+      'The Episodic Pivot (EP) is a neglected or forgotten stock that gaps up powerfully on a ' +
+      'major catalyst — most often earnings — on massive volume, beginning a sustained new ' +
+      'trend. The community’s worked example is a stock that gapped up 50% on earnings with ' +
+      'massive volume, broke the earnings-day high the following day, and did not look back. ' +
+      'This is the setup Pradeep Bonde named and Qullamaggie systematised.',
+    sections: [
+      {
+        label: 'Market Context',
+        body:
+          'A confirmed market uptrend strongly preferred. The ideal candidate was previously ' +
+          'neglected (little overhead supply) with a genuine surprising catalyst behind the gap.',
+      },
+      {
+        label: 'Chart Criteria',
+        body:
+          'A significant gap up (community example ~50%; Qullamaggie’s qualifying gaps are ' +
+          'large and on the highest volume) on volume far above average, ideally closing in the ' +
+          'top 25% of the range. A previously quiet, forgotten chart is a feature — the gap ' +
+          'resets the chart.',
+      },
+      {
+        label: 'Entry Trigger',
+        accent: 'entry',
+        body:
+          'Two documented entries. Day 1: the earnings-day opening-range breakout — ' +
+          'Qullamaggie’s version waits 30 minutes, then enters on the break above the 30-minute ' +
+          'high with stop below the 30-minute low, holding overnight only if the close is in ' +
+          'the top 25% of the range. Day 2+: a 15-minute volume-support zone from Day 1, or an ' +
+          'inside bar that then breaks the Day 1 high.',
+      },
+      {
+        label: 'Stop',
+        accent: 'stop',
+        body:
+          'Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support ' +
+          'level.',
+      },
+      {
+        label: 'Exit / Targets',
+        accent: 'exit',
+        body:
+          'EPs are meant to be held — trail the daily 9-EMA. The community treats these as ' +
+          'priority focus for weeks and months, surfing the short-term daily moving averages.',
+      },
+    ],
+    mistakes: [
+      'Chasing when the opening-range high does not break (no edge — move on).',
+      'Selling the entire position into the first day or two and missing the multi-week trend.',
+    ],
+  },
 }
