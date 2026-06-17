@@ -48,3 +48,19 @@ def test_simple_and_dollar_pnl():
 
 def test_simple_none_on_zero_start():
     assert perf.simple_return(0, 100, 0) is None
+
+
+# ── Money-weighted (XIRR) ────────────────────────────────────────────────────
+
+def test_xirr_simple_doubling_one_year():
+    # -1000 today, +2000 in 365 days → 100% annual.
+    flows = [("2026-01-01", -1000.0), ("2027-01-01", 2000.0)]
+    assert perf.money_weighted_return(flows) == pytest.approx(1.0, abs=1e-3)
+
+
+def test_xirr_none_on_degenerate():
+    assert perf.money_weighted_return([("2026-01-01", -1000.0)]) is None
+    # All same sign → no root to bracket.
+    assert perf.money_weighted_return(
+        [("2026-01-01", -1000.0), ("2027-01-01", -50.0)]
+    ) is None

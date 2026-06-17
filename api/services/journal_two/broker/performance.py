@@ -50,3 +50,45 @@ def simple_return(start_equity, end_equity, net_external) -> float | None:
 def dollar_pnl(start_equity, end_equity, net_external) -> float:
     """True gain net of external flows."""
     return round(end_equity - start_equity - net_external, 2)
+
+
+def _to_date(s: str) -> _date:
+    return _date.fromisoformat(s[:10])
+
+
+def _npv(rate: float, flows: list[tuple[_date, float]], t0: _date) -> float:
+    total = 0.0
+    for d, amt in flows:
+        yrs = (d - t0).days / 365.0
+        total += amt / ((1.0 + rate) ** yrs)
+    return total
+
+
+def money_weighted_return(cash_flows) -> float | None:
+    """Annualized money-weighted return (XIRR) via bisection on NPV.
+
+    `cash_flows` are dated signed amounts from the INVESTOR's perspective:
+    start equity is a negative flow (money in), deposits negative, withdrawals
+    positive, end value positive. Returns None if there's no sign change to
+    bracket a root, or on degenerate input.
+    """
+    if not cash_flows or len(cash_flows) < 2:
+        return None
+    flows = sorted(((_to_date(d), a) for d, a in cash_flows), key=lambda x: x[0])
+    if not (any(a < 0 for _, a in flows) and any(a > 0 for _, a in flows)):
+        return None
+    t0 = flows[0][0]
+    lo, hi = -0.9999, 100.0
+    f_lo, f_hi = _npv(lo, flows, t0), _npv(hi, flows, t0)
+    if f_lo * f_hi > 0:
+        return None  # can't bracket a root in [-99.99%, 10000%]
+    for _ in range(200):
+        mid = (lo + hi) / 2.0
+        f_mid = _npv(mid, flows, t0)
+        if abs(f_mid) < 1e-7:
+            return round(mid, 6)
+        if f_lo * f_mid < 0:
+            hi, f_hi = mid, f_mid
+        else:
+            lo, f_lo = mid, f_mid
+    return round((lo + hi) / 2.0, 6)
