@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS modelbook_setup_examples (
   data_symbol  TEXT,              -- exchange-suffixed provider symbol for non-US tickers
   year         INTEGER NOT NULL,  -- calendar year the chart is framed to
   label_date   TEXT,              -- 'YYYY-MM-DD' the setup day (highlighted candle)
+  timeframe    TEXT,              -- chart timeframe for this example: 'D' (daily) or 'W' (weekly); null = daily
   frame_start_date TEXT,          -- optional left edge for the focus-zoom frame
   result_start_date TEXT,         -- optional left edge of the "result" (after) view; defaults to the setup frame's left edge
   result_end_date TEXT,           -- right edge of the "result" view (the move 1-2 months later); enables the Setup/Result flip
@@ -149,7 +150,7 @@ _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
 _CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
                     "sort_order", "source")
 _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
-                   "label_date", "frame_start_date", "result_start_date",
+                   "label_date", "timeframe", "frame_start_date", "result_start_date",
                    "result_end_date", "entry_price", "stop_price",
                    "target_price", "grade", "notes", "advance_note",
                    "watermark_x", "watermark_y", "drawings_json", "sort_order")
@@ -191,6 +192,7 @@ def _init_db() -> None:
             ("modelbook_setup_examples", "advance_note", "TEXT"),
             ("modelbook_setup_examples", "watermark_x", "REAL"),
             ("modelbook_setup_examples", "watermark_y", "REAL"),
+            ("modelbook_setup_examples", "timeframe", "TEXT"),
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -585,12 +587,12 @@ def create_setup_example(payload: dict) -> dict:
         cur = c.execute(
             """INSERT INTO modelbook_setup_examples
                (setup_name, symbol, company, data_symbol, year, label_date,
-                frame_start_date, result_start_date, result_end_date,
+                timeframe, frame_start_date, result_start_date, result_end_date,
                 entry_price, stop_price, target_price, grade,
                 notes, advance_note, watermark_x, watermark_y,
                 drawings_json, sort_order, created_at)
                VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
-                       :label_date, :frame_start_date, :result_start_date,
+                       :label_date, :timeframe, :frame_start_date, :result_start_date,
                        :result_end_date, :entry_price, :stop_price,
                        :target_price, :grade, :notes, :advance_note,
                        :watermark_x, :watermark_y, :drawings_json, :sort_order,

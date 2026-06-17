@@ -107,12 +107,12 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   // Family dividers + a few well-known pattern cards render.
   expect(screen.getByText(/bases & breakouts — \d+ patterns/i)).toBeInTheDocument()
   expect(screen.getByText(/gaps & catalysts — \d+ patterns/i)).toBeInTheDocument()
-  const htfCard = screen.getByRole('button', { name: /high tight flag/i })
-  expect(htfCard).toBeInTheDocument()
+  const bullFlagCard = screen.getByRole('button', { name: /bull flag/i })
+  expect(bullFlagCard).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
   // Click a card → the detail scaffold (playbook + examples sections) opens.
-  fireEvent.click(htfCard)
-  expect(screen.getByRole('heading', { name: /high tight flag/i })).toBeInTheDocument()
+  fireEvent.click(bullFlagCard)
+  expect(screen.getByRole('heading', { name: /bull flag/i })).toBeInTheDocument()
   expect(screen.getByText(/the playbook/i)).toBeInTheDocument()
   expect(screen.getByText(/charted examples/i)).toBeInTheDocument()
   // Back returns to the library grid.

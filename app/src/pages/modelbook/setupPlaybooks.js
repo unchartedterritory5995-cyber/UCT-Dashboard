@@ -11,63 +11,63 @@
 // Setups without an entry here show the "being authored" placeholder.
 
 export const SETUP_PLAYBOOKS = {
-  'High Tight Flag (Powerplay)': {
+  'Bull Flag': {
     intro:
-      'The High Tight Flag is the rarest and most explosive of O’Neil’s base patterns; ' +
-      'Qullamaggie trades a faster version of the same idea. It marks a stock that has just ' +
-      'made an extraordinary momentum move and then refuses to give any of it back, ' +
-      'consolidating in an extremely tight range.',
+      'The Bull Flag is one of the most reliable continuation patterns in a trending stock. ' +
+      'A strong, near-vertical advance forms the flagpole; price then pauses in a brief, ' +
+      'orderly pullback or sideways drift — the flag — on contracting volume, before breaking ' +
+      'out to resume the move in the direction of the prior trend.',
     sections: [
       {
         label: 'Market Context',
         body:
-          'Confirmed market uptrend only; the pattern is fragile and fails often, so it is ' +
-          'taken only with the broader environment fully supportive and a genuine theme behind ' +
-          'the move. Often forms after a catalyst has occurred, such as earnings or other ' +
-          'relevant positive news.',
+          'Best taken in a confirmed market uptrend with the stock already in a clear uptrend ' +
+          'of its own. A genuine theme or catalyst behind the flagpole adds conviction. The ' +
+          'pattern is a continuation play, so the underlying trend must be intact.',
       },
       {
         label: 'Chart Criteria',
         body:
-          'O’Neil: pole of +100–120% in 4–8 weeks, then a flag of 3–5 weeks correcting only ' +
-          '10–25%. Qullamaggie’s faster variant: 300%+ in days, then 2–4 tiny candles riding ' +
-          'the 10-day SMA. The defining feature in both is extreme tightness.',
+          'A sharp flagpole advance, then a shallow consolidation that drifts slightly lower or ' +
+          'sideways — typically retracing only one-third to one-half of the pole. The flag is ' +
+          'orderly and tight, with volume drying up through the pause; deeper, sloppier pullbacks ' +
+          'are not flags. Price ideally holds above a rising short-term moving average.',
       },
       {
         label: 'Entry Trigger',
         accent: 'entry',
         body:
-          'Breakout above the high of the flag + $0.10 (O’Neil pivot). Intraday variant: break ' +
-          'of the prior day’s high while price sits on the 10-day SMA. Additionally — entry off ' +
-          'a U&R of support near the bottom of the range, or even a 30min pivot off support ' +
-          'near the base of the range.',
+          'Breakout above the upper boundary (downtrend line) of the flag, ideally on a pickup in ' +
+          'volume. Aggressive variant: an early entry off support inside the flag — a U&R or a ' +
+          '30-minute pivot near the base of the range as the consolidation resolves.',
       },
       {
         label: 'Stop',
         accent: 'stop',
         body:
-          'Below the flag low; on the Qullamaggie variant, below the 10-SMA, and only if that ' +
-          'stop is within 3% of entry.',
+          'Below the low of the flag. Keep the stop tight — a clean flag should not give much ' +
+          'back; a break below the flag low invalidates the continuation thesis.',
       },
       {
         label: 'Exit / Targets',
         accent: 'exit',
         body:
-          'Trim into a 20–25% gain; invoke the 8-week hold rule if up 20%+ within three weeks. ' +
-          'Qullamaggie’s variant trails the 10-SMA on a closing basis.',
+          'Measured move: project the height of the flagpole up from the breakout point for a ' +
+          'first target. Trim into strength and trail the remainder beneath a rising short-term ' +
+          'moving average to ride the continuation.',
       },
       {
         label: 'Position Sizing',
         body:
-          'Standard fixed-dollar risk ÷ stop distance. Because the flagpole is so steep, valid ' +
-          'stops can be wide in percentage terms; if the stop exceeds the account’s risk ' +
-          'tolerance at a sensible share count, the trade is passed.',
+          'Standard fixed-dollar risk ÷ stop distance. Because the flag keeps the stop close to ' +
+          'entry, position size can be meaningful while staying within risk tolerance; if the ' +
+          'stop is too wide at a sensible share count, the trade is passed.',
       },
     ],
     mistakes: [
-      'Buying the flagpole instead of the flag.',
-      'Tolerating a loose or deep “flag” that is really just a normal pullback.',
-      'Chasing past the +5% buy zone.',
+      'Buying the flagpole instead of waiting for the flag and breakout.',
+      'Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.',
+      'Chasing well past the breakout instead of entering near the pivot.',
     ],
   },
 

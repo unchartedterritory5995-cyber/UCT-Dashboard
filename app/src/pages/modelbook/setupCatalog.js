@@ -48,10 +48,10 @@ export const FAMILY_CHIP = {
 export const SETUP_CATALOG = [
   // ── Bases & Breakouts ──────────────────────────────────────────────────────
   {
-    name: 'High Tight Flag (Powerplay)',
+    name: 'Bull Flag',
     family: 'Bases & Breakouts',
     direction: 'long',
-    essence: 'An extraordinary momentum move that refuses to give any back — a dead-tight flag near the highs, then breakout.',
+    essence: 'A sharp advance (the flagpole) followed by a brief, orderly pullback on lighter volume, then a breakout that resumes the trend.',
     candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, [8, 0, 0.4, 1.5]],
     trend: { from: 3, to: 8, side: 'h' },
     emas: [9, 20],

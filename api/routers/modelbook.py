@@ -109,6 +109,7 @@ class ExampleIn(BaseModel):
     data_symbol: Optional[str] = None
     year: int
     label_date: Optional[str] = None
+    timeframe: Optional[str] = "D"
     frame_start_date: Optional[str] = None
     result_start_date: Optional[str] = None
     result_end_date: Optional[str] = None
@@ -130,6 +131,7 @@ class ExamplePatch(BaseModel):
     data_symbol: Optional[str] = None
     year: Optional[int] = None
     label_date: Optional[str] = None
+    timeframe: Optional[str] = None
     frame_start_date: Optional[str] = None
     result_start_date: Optional[str] = None
     result_end_date: Optional[str] = None
@@ -151,6 +153,8 @@ def _validate_example(d: dict) -> None:
             raise HTTPException(400, f"{key} must be YYYY-MM-DD")
     if d.get("grade") not in (None, "") and d["grade"] not in _GRADES:
         raise HTTPException(400, f"grade must be one of {sorted(_GRADES)}")
+    if d.get("timeframe") not in (None, "") and d["timeframe"] not in _TIMEFRAMES:
+        raise HTTPException(400, f"timeframe must be one of {sorted(_TIMEFRAMES)}")
     if d.get("year") is not None and not (1900 <= int(d["year"]) <= 2100):
         raise HTTPException(400, "year out of range")
     if d.get("symbol") is not None and not str(d["symbol"]).strip():
