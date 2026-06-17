@@ -334,10 +334,23 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             raw_balances = await snap.get_balances(
                 bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
             )
+            # Options are a separate endpoint (the positions endpoint is equities
+            # only); needed so net-liq equity includes option market value.
+            try:
+                raw_option_holdings = await snap.get_option_holdings(
+                    bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
+                )
+            except Exception:
+                # Best-effort enrichment for equity MV — never let it break the
+                # core sync (unsupported broker, SDK shape drift, network, etc.).
+                raw_option_holdings = []
             pos_res = balances.reconcile_positions(
                 user_id, ba, raw_positions, recon["openPositions"]
             )
-            bal_res = balances.write_balances(user_id, ba, raw_balances, raw_positions)
+            bal_res = balances.write_balances(
+                user_id, ba, raw_balances, raw_positions,
+                raw_option_holdings=raw_option_holdings,
+            )
         except snap.SnapError:
             bal_res = None  # leave prior balances; surfaced via last_error if needed
 

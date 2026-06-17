@@ -109,6 +109,32 @@ def has_non_usd_positions(raw_positions: list[dict]) -> bool:
     return any(_pos_currency(p) not in (None, "USD") for p in raw_positions)
 
 
+def _opt_contract_multiplier(o: dict) -> int:
+    """Equity options are 100 shares/contract; mini options are 10."""
+    sym = o.get("symbol")
+    osym = sym.get("option_symbol") if isinstance(sym, dict) else None
+    if isinstance(osym, dict) and osym.get("is_mini_option"):
+        return 10
+    return 100
+
+
+def option_market_value(raw_option_holdings: list[dict]) -> float:
+    """Signed USD mark-to-market of option holdings:
+    Σ(units × price × contract_multiplier) over USD (or currency-less) contracts.
+    The positions endpoint excludes options, so without this the account's
+    net-liq equity understates by the value of any options held."""
+    total = 0.0
+    for o in raw_option_holdings or []:
+        cur = _pos_currency(o)
+        if cur not in (None, "USD"):
+            continue
+        units = _num(o.get("units"))
+        price = _num(o.get("price"))
+        if units is not None and price is not None:
+            total += units * price * _opt_contract_multiplier(o)
+    return round(total, 2)
+
+
 # ── Balances ─────────────────────────────────────────────────────────────────
 
 def write_balances(
@@ -117,10 +143,19 @@ def write_balances(
     raw_balances: list[dict],
     raw_positions: list[dict],
     conn: sqlite3.Connection | None = None,
+    *,
+    raw_option_holdings: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """Compute + persist real broker balances onto the mapped j2_account."""
+    """Compute + persist real broker balances onto the mapped j2_account.
+
+    Net-liq equity = cash + equity market value + OPTION market value. The
+    options term is essential: SnapTrade's positions endpoint returns equities
+    only, so omitting option holdings understates equity by the value of any
+    options held (e.g. a long call worth thousands)."""
     cash, buying_power = usd_cash_buying_power(raw_balances)
-    mv = market_value(raw_positions)
+    equity_mv = market_value(raw_positions)
+    opt_mv = option_market_value(raw_option_holdings or [])
+    mv = round(equity_mv + opt_mv, 2)
     equity = round((cash or 0.0) + mv, 2)
 
     owned = conn is None

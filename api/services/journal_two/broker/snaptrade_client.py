@@ -350,6 +350,22 @@ async def get_positions(user_id: str, user_secret: str, account_id: str) -> list
     return body if isinstance(body, list) else []
 
 
+async def get_option_holdings(user_id: str, user_secret: str, account_id: str) -> list[dict]:
+    """Current OPTION contract holdings for one account. Separate endpoint from
+    get_positions (which returns equities only) — this is the source of truth
+    for open-option market value in the account's net-liquidation equity.
+
+    Each holding: {units (contracts), price (per-share premium), currency,
+    average_purchase_price, symbol: {option_symbol: {strike_price,
+    expiration_date, is_mini_option, underlying_symbol, ...}}}."""
+    sdk = _sdk()
+    body = await _call(
+        sdk.options.list_option_holdings,
+        user_id=user_id, user_secret=user_secret, account_id=account_id,
+    )
+    return body if isinstance(body, list) else []
+
+
 async def get_activities(
     user_id: str,
     user_secret: str,
