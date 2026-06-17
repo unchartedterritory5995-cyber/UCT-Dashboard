@@ -269,7 +269,7 @@ def reconcile_positions(
             ext = f"bkpos:{broker_account_id}:{symbol}:{side}"
             seen_ext.add(ext)
             existing = conn.execute(
-                "SELECT id, entry_estimated FROM j2_positions "
+                "SELECT id, entry_estimated, shares FROM j2_positions "
                 "WHERE user_id = ? AND external_id = ?",
                 (user_id, ext),
             ).fetchone()
@@ -297,29 +297,40 @@ def reconcile_positions(
             else:
                 # Update broker-owned facts only. Preserve user enrichments
                 # (stop/setup/notes) — but entry_price/entry_date are broker
-                # facts, NOT enrichments, so they must track the broker.
+                # facts, NOT enrichments, so they must track the broker. The whole
+                # point: whenever the share count changes (an add or trim), the
+                # average entry must be refreshed for EVERY position.
+                prior_shares = existing["shares"] if existing["shares"] is not None else 0.0
+                shares_changed = abs(prior_shares - shares) > 1e-6
                 if entry_estimated == 0:
                     # Fresh real fills (FIFO agrees with the broker). Refresh the
-                    # weighted-average entry + share count regardless of whether
-                    # the existing row was estimated or already real — this is
-                    # what makes "add 1 share → average entry recomputes" work.
+                    # weighted-average entry + entry date + share count regardless
+                    # of whether the existing row was estimated or already real —
+                    # this is what makes "add → average entry recomputes" work
+                    # once the new fills have backfilled.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_date = ?, entry_estimated = 0, updated_at = ? "
                         "WHERE id = ?",
                         (shares, shares, entry_price, entry_date, now, existing["id"]),
                     )
-                elif existing["entry_estimated"] == 1:
-                    # Still estimated on both sides → refresh the estimated entry.
+                elif shares_changed or existing["entry_estimated"] == 1:
+                    # Either the share count actually changed (a real add/trim whose
+                    # fills haven't backfilled to the broker's activity feed yet, so
+                    # FIFO can't reconstruct them) OR we never had a real basis.
+                    # Reseed the average from the broker's reported cost so the
+                    # displayed average always tracks the current holding; flag
+                    # estimated so the later clean reconstruction (branch above)
+                    # corrects it to the precise FIFO entry + real date.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
-                        "entry_price = ?, updated_at = ? WHERE id = ?",
+                        "entry_price = ?, entry_estimated = 1, updated_at = ? WHERE id = ?",
                         (shares, shares, entry_price, now, existing["id"]),
                     )
                 else:
-                    # Existing entry is real but FIFO now diverges (incoming is
-                    # only an estimate) — keep the real basis, never downgrade.
-                    # Broker still wins on the share count.
+                    # Holding unchanged + existing basis is real; FIFO just can't
+                    # reconstruct this sync (transient heal window). Keep the real
+                    # basis — never downgrade an unchanged position to an estimate.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, updated_at = ? WHERE id = ?",
                         (shares, now, existing["id"]),

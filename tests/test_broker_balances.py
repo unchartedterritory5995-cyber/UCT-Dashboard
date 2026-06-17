@@ -140,23 +140,43 @@ def test_resync_refreshes_avg_entry_on_real_fills(env):
     assert r["entry_estimated"] == 0
 
 
-def test_resync_does_not_downgrade_real_entry_to_estimate(env):
-    # Existing real entry must NOT be overwritten by an estimate when FIFO
-    # later diverges (e.g. a late/missing activity). Keep the real basis.
+def test_resync_reseeds_avg_when_shares_change_before_backfill(env):
+    # Real add whose fill hasn't backfilled to the activity feed yet: broker
+    # holds 11 but FIFO can still only reconstruct 10. The average MUST still
+    # refresh — reseed from the broker's reported cost, flagged estimated, so it
+    # tracks the current holding instead of freezing at the 10-share basis.
     balances.reconcile_positions(
         "u1", env["ba"], [_pos("TLN", 10, 200, 100)],
         [{"symbol": "TLN", "side": "Long", "shares": 10,
           "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
     )
-    # Broker now shows 11 but FIFO can only reconstruct 10 → discrepancy →
-    # incoming entry is estimated. Don't clobber the good 98.5.
+    assert _positions()[0]["entry_estimated"] == 0
     balances.reconcile_positions(
-        "u1", env["ba"], [_pos("TLN", 11, 210, 110)],
-        [{"symbol": "TLN", "side": "Long", "shares": 10,
+        "u1", env["ba"], [_pos("TLN", 11, 210, 105)],   # broker avg cost 105
+        [{"symbol": "TLN", "side": "Long", "shares": 10,   # FIFO lags at 10
           "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
     )
     r = _positions()[0]
-    assert r["shares"] == 11             # broker fact still wins for share count
+    assert r["shares"] == 11             # broker share count wins
+    assert r["entry_price"] == 105       # average refreshed from broker cost
+    assert r["entry_estimated"] == 1     # flagged until FIFO catches up
+
+
+def test_resync_unchanged_holding_keeps_real_basis(env):
+    # Holding UNCHANGED (broker still 10) but FIFO transiently can't reconstruct
+    # it this sync (heal window) → must NOT downgrade the real basis.
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 10, 200, 100)],
+        [{"symbol": "TLN", "side": "Long", "shares": 10,
+          "entryPrice": 98.5, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    balances.reconcile_positions(
+        "u1", env["ba"], [_pos("TLN", 10, 210, 110)],
+        [{"symbol": "TLN", "side": "Long", "shares": 9,   # transient FIFO divergence
+          "entryPrice": 97.0, "entryDate": "2026-01-02T00:00:00Z"}],
+    )
+    r = _positions()[0]
+    assert r["shares"] == 10             # unchanged
     assert r["entry_price"] == 98.5      # real basis preserved, not downgraded
     assert r["entry_estimated"] == 0
 
