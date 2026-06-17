@@ -70,10 +70,20 @@ function pnlCell(value, fmt) {
   return <span className={cls}>{fmt(value)}</span>
 }
 
+const DASH = (title) => <span className={styles.dash} title={title || undefined}>—</span>
+
 function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete }) {
   const active = activeStop(position)
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
+  // Broker-imported positions have no stop; the importer stores stop_price =
+  // entry_price as a NOT-NULL placeholder. Treat that as "no stop set" and blank
+  // the stop-derived columns until the user sets a real stop.
+  const noRealStop =
+    position.source === 'broker' && active != null && active === position.entryPrice
+  // Broker holdings imported before activity history reconstructs the real fill
+  // have an unknown (placeholder) entry date — show "est." not a misleading day.
+  const dateEstimated = !!position.entryEstimated
 
   const pnlD = hasPrice ? positionPnlDollar(position, current) : null
   const pnlP = hasPrice ? positionPnlPercent(position, current) : null
@@ -93,7 +103,9 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
       case 'side':
         return sideBadge(position.side)
       case 'date':
-        return dateShort(position.entryDate)
+        return dateEstimated
+          ? <span className={styles.dash} title="Entry date unknown — imported from broker holdings, no activity history yet">est.</span>
+          : dateShort(position.entryDate)
       case 'sharesCol':
         return fmtShares(position.shares, allowFractional)
       case 'entry':
@@ -101,7 +113,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
       case 'current':
         return hasPrice ? money(current) : <span className={styles.dash}>—</span>
       case 'stop':
-        return money(active)
+        return noRealStop ? DASH('No stop set on this broker-imported position') : money(active)
       case 'pnlDollar':
         return pnlCell(pnlD, moneySigned)
       case 'pnlPercent':
@@ -109,12 +121,14 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
       case 'accountPct':
         return accountPct == null ? <span className={styles.dash}>—</span> : percent(accountPct, { dp: 1 })
       case 'stopDist':
+        if (noRealStop) return DASH('No stop set')
         return stopDist == null ? <span className={styles.dash}>—</span> : percent(stopDist, { dp: 1 })
       case 'riskDollar':
-        return money(riskD)
+        return noRealStop ? DASH('No stop set — risk undefined') : money(riskD)
       case 'riskAcct':
-        return percent(riskAcctPct, { dp: 2 })
+        return noRealStop ? DASH('No stop set — risk undefined') : percent(riskAcctPct, { dp: 2 })
       case 'beSell':
+        if (noRealStop) return DASH('No stop set')
         if (beSell == null) return <span className={styles.dash}>—</span>
         // Display: "55 (22%)" — count plus percent of remaining shares
         return (
@@ -127,7 +141,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
           </span>
         )
       case 'heat':
-        return pnlCell(heatD, money)
+        return noRealStop ? DASH('No stop set') : pnlCell(heatD, money)
       case 'actions':
         return (
           <div className={styles.actionsCell}>

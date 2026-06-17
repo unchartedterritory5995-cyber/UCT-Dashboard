@@ -23,3 +23,7 @@ tools/mobile_audit_out/
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/
 tools/_local_backend.log
+
+# SnapTrade smoke-test state (contains a userSecret)
+tools/.snaptrade_smoke_state.json
+tools/.snaptrade_captures/

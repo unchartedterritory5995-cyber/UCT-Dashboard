@@ -190,6 +190,9 @@ def reconcile_positions(
                 # the broker's cost basis and flag estimated so a later clean
                 # reconstruction can correct it.
                 entry_price = avg_cost if avg_cost and avg_cost > 0 else (_num(p.get("price")) or 0.0)
+                # True entry date is unknown until activities reconstruct it. entry_date
+                # is NOT NULL, so store a placeholder; entry_estimated=1 tells the UI to
+                # render the date as "—/est." rather than this placeholder.
                 entry_date = _now_iso()
                 entry_estimated = 1
                 discrepancies.append({
@@ -200,6 +203,8 @@ def reconcile_positions(
                 # Carried-in: no activity history for this holding. Seed entry
                 # from the broker's cost basis and flag it as estimated.
                 entry_price = avg_cost if avg_cost and avg_cost > 0 else (_num(p.get("price")) or 0.0)
+                # Carried-in: true entry date predates our history. NOT NULL column →
+                # placeholder; entry_estimated=1 drives the UI to show "—/est." not this.
                 entry_date = _now_iso()
                 entry_estimated = 1
 
@@ -224,6 +229,9 @@ def reconcile_positions(
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, '{}',
                               ?, ?, NULL, ?, 'broker', ?, ?)
                     """,
+                    # stop_price column is NOT NULL; broker imports have no stop, so we
+                    # store entry_price as a placeholder and the UI renders it as "—"
+                    # for broker positions until the user sets a real stop.
                     (str(uuid.uuid4()), user_id, symbol, side, entry_date, shares,
                      shares, entry_price, entry_price, now, now, j2_account_id,
                      ext, entry_estimated),

@@ -50,6 +50,9 @@ def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
         "closedAt": row["closed_at"],
+        # Broker-sync provenance (absent on legacy/manual pre-migration rows).
+        "source": row["source"] if "source" in keys else None,
+        "entryEstimated": bool(row["entry_estimated"]) if "entry_estimated" in keys else False,
     }
 
 
