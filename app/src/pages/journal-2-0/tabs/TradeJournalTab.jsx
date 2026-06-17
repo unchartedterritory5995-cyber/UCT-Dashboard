@@ -17,7 +17,6 @@ import useReviewedTradeIds from '../hooks/useReviewedTradeIds'
 import TradeDrawer from '../components/TradeDrawer'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import useJ2Filters from '../hooks/useJ2Filters'
-import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
 import { applyFilters } from '../hooks/useJ2Filters'
 import StatsGrid from '../components/StatsGrid'
 import TradesTable, { buildTradesColumns } from '../components/TradesTable'
@@ -50,6 +49,49 @@ async function jsonFetch(url, method, body) {
   return res.json()
 }
 
+// Normalize a CLOSED option strategy into a trade-table row so options sit in
+// the same closed-trades table as shares (Symbol "CRWV Oct 16 $110C", Side
+// "Long Call"). Field shape matches TradesTable/summaryStats/applyFilters
+// exactly (pnlPercent is a fraction, like share trades), so no table changes.
+function optionClosedToRow(s) {
+  const leg = (s.legs && s.legs[0]) || {}
+  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
+  const isCall = (s.strategyType || '').endsWith('call')
+  let when = ''
+  if (leg.expiration) {
+    const d = new Date(`${leg.expiration}T00:00:00`)
+    if (!Number.isNaN(d.getTime())) {
+      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+    }
+  }
+  let holdDays = null
+  if (s.entryDate && s.closedAt) {
+    const dd = (new Date(s.closedAt) - new Date(s.entryDate)) / 86_400_000
+    if (Number.isFinite(dd)) holdDays = Math.max(0, Math.round(dd))
+  }
+  return {
+    id: s.id,
+    isOption: true,
+    symbol: `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`,
+    side: `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`,
+    result: s.result,
+    shares: leg.qty,                          // contracts
+    entryPrice: leg.entryPrice,               // premium per contract
+    entryDate: s.entryDate,
+    exitPrice: leg.exitPrice,                 // exit premium per contract
+    exitDate: s.closedAt,
+    pnlDollar: s.pnlDollar,
+    pnlDollarNet: s.pnlDollar,                // options P&L is already net of fees
+    fees: (s.fees || 0) + (s.exitFees || 0),
+    pnlPercent: s.pnlPercent,                 // fraction (same as share trades)
+    rMultiple: s.rMultiple,
+    holdDays,
+    setup: s.setup,
+    originalStop: null,
+    source: s.source,
+  }
+}
+
 export default function TradeJournalTab({ settings }) {
   const { trades, isLoading, error, refresh } = useJ2Trades()
   const {
@@ -79,9 +121,18 @@ export default function TradeJournalTab({ settings }) {
   const { filters, setFilter, toggleSetMember, resetFilters, activeCount } =
     useJ2Filters()
 
+  // Closed shares + closed option strategies (as rows) in one unified list.
+  const allClosed = useMemo(
+    () => [
+      ...(showShares ? trades : []),
+      ...(showOptions ? closedStrategies.map(optionClosedToRow) : []),
+    ],
+    [showShares, showOptions, trades, closedStrategies],
+  )
+
   const filteredTrades = useMemo(
-    () => applyFilters(trades, filters),
-    [trades, filters],
+    () => applyFilters(allClosed, filters),
+    [allClosed, filters],
   )
 
   const summary = useMemo(() => summaryStats(filteredTrades), [filteredTrades])
@@ -308,8 +359,8 @@ export default function TradeJournalTab({ settings }) {
         </div>
       </div>
 
-      {showShares && (
-        isLoading && trades.length === 0 ? (
+      {(showShares || showOptions) && (
+        (isLoading || stratLoading) && filteredTrades.length === 0 ? (
           <div className={styles.loading}>Loading trades…</div>
         ) : (
           <TradesTable
@@ -317,19 +368,11 @@ export default function TradeJournalTab({ settings }) {
             visibleColumns={visibleColumns}
             reviewedIds={reviewedIds}
             onRowAction={(action, trade) => {
-              if (action === 'open') setDrawerTrade(trade)
+              // Option rows have no trade drawer (yet) — only shares open it.
+              if (action === 'open' && !trade.isOption) setDrawerTrade(trade)
             }}
           />
         )
-      )}
-
-      {showOptions && (
-        <OptionStrategiesSection
-          strategies={closedStrategies}
-          variant="closed"
-          isLoading={stratLoading}
-          error={stratError}
-        />
       )}
 
 
