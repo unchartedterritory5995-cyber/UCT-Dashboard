@@ -83,6 +83,16 @@ export default function OptionStrategiesSection({
           <Stat label="Strategies" value={summary.count} />
           {variant === 'open' ? (
             <>
+              {summary.hasMarks && (
+                <>
+                  <Stat label="Market Value" value={money(summary.totalCurrentValue)} />
+                  <Stat
+                    label="Open P&L"
+                    value={moneySigned(summary.totalOpenPnl)}
+                    tone={summary.totalOpenPnl > 0 ? 'pos' : summary.totalOpenPnl < 0 ? 'neg' : null}
+                  />
+                </>
+              )}
               <Stat label="Net Debit" value={money(summary.totalDebit)} />
               <Stat label="Net Credit" value={money(summary.totalCredit)} />
               <Stat label="Expiring ≤ 7d" value={summary.expiringSoon} warn={summary.expiringSoon > 0} />
@@ -125,6 +135,9 @@ export default function OptionStrategiesSection({
                 <th className={styles.right}>Entry</th>
                 {variant === 'open' ? (
                   <>
+                    <th className={styles.right}>Current</th>
+                    <th className={styles.right}>P&L $</th>
+                    <th className={styles.right}>P&L %</th>
                     <th className={styles.right}>Fees</th>
                     <th className={styles.right}>DTE</th>
                     <th className={styles.right}>Max Risk</th>
@@ -194,6 +207,13 @@ function StrategyRow({
   const expiringSoon = dte != null && dte >= 0 && dte <= 7
   const expired = dte != null && dte < 0 && strategy.status === 'open'
   const maxRisk = computeMaxRisk(strategy.strategyType, strategy.legs, strategy.netEntry)
+  // Live-ish current value + P&L from the broker mark (refreshed each sync),
+  // so open broker options read like equity positions. brokerCurrentValue is
+  // signed on the same convention as netEntry (long +, short −).
+  const hasMark = strategy.brokerCurrentValue != null
+  const curVal = hasMark ? strategy.brokerCurrentValue : null
+  const openPnl = hasMark ? curVal - strategy.netEntry : null
+  const openPnlPct = hasMark && strategy.netEntry ? openPnl / Math.abs(strategy.netEntry) : null
 
   return (
     <>
@@ -232,6 +252,17 @@ function StrategyRow({
         </td>
         {variant === 'open' ? (
           <>
+            <td className={styles.right}>
+              {curVal == null
+                ? <span className={styles.muted} title="Current value updates on each broker sync">—</span>
+                : money(Math.abs(curVal))}
+            </td>
+            <td className={`${styles.right} ${openPnl > 0 ? styles.pos : openPnl < 0 ? styles.neg : ''}`}>
+              {openPnl == null ? <span className={styles.muted}>—</span> : moneySigned(openPnl)}
+            </td>
+            <td className={`${styles.right} ${openPnlPct > 0 ? styles.pos : openPnlPct < 0 ? styles.neg : ''}`}>
+              {openPnlPct == null ? <span className={styles.muted}>—</span> : percent(openPnlPct, { dp: 1, isRatio: true, signed: true })}
+            </td>
             <td className={styles.right}>{money(strategy.fees)}</td>
             <td className={`${styles.right} ${expiringSoon ? styles.warn : ''} ${expired ? styles.neg : ''}`}>
               {dte == null ? '—' : expired ? `${dte}d` : `${dte}d`}
@@ -334,7 +365,7 @@ function StrategyRow({
       </tr>
       {expanded && (
         <tr className={styles.legsRow}>
-          <td colSpan={variant === 'open' ? 9 : 10}>
+          <td colSpan={variant === 'open' ? 12 : 10}>
             <LegsTable legs={strategy.legs} variant={variant} />
           </td>
         </tr>
@@ -398,7 +429,12 @@ function buildSummary(strategies, variant) {
       const dte = computeDaysToExpiration(s.legs)
       return dte != null && dte >= 0 && dte <= 7
     }).length
-    return { count: strategies.length, totalDebit, totalCredit, expiringSoon }
+    const marked = strategies.filter((s) => s.brokerCurrentValue != null)
+    const hasMarks = marked.length > 0
+    const totalCurrentValue = marked.reduce((sum, s) => sum + Math.abs(s.brokerCurrentValue), 0)
+    const totalOpenPnl = marked.reduce((sum, s) => sum + (s.brokerCurrentValue - s.netEntry), 0)
+    return { count: strategies.length, totalDebit, totalCredit, expiringSoon,
+             hasMarks, totalCurrentValue, totalOpenPnl }
   }
   // closed
   const totalPnl = strategies.reduce((sum, s) => sum + (s.pnlDollar || 0), 0)

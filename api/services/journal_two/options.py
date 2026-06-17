@@ -322,6 +322,8 @@ def _validate_create_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, Any]:
+    keys = row.keys() if hasattr(row, "keys") else []
+    bcv = row["broker_current_value"] if "broker_current_value" in keys else None
     return {
         "id": row["id"],
         "userId": row["user_id"],
@@ -347,6 +349,10 @@ def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, 
         "parentStrategyId": row["parent_strategy_id"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+        # Broker-sync: current market value (mark x qty x 100, signed) so open
+        # broker option strategies can show Current + P&L like equity positions.
+        "source": row["source"] if "source" in keys else None,
+        "brokerCurrentValue": None if bcv is None else float(bcv),
         "legs": legs,
     }
 

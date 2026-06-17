@@ -351,6 +351,14 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                 user_id, ba, raw_balances, raw_positions,
                 raw_option_holdings=raw_option_holdings,
             )
+            # Holdings-as-truth for OPEN options: guarantee held contracts show
+            # (even without backfilled activity) + refresh each open strategy's
+            # current mark so the UI can show Current + P&L like equities.
+            try:
+                from api.services.journal_two.broker import option_reconstruct as _optr
+                _optr.reconcile_option_holdings(user_id, ba, raw_option_holdings)
+            except Exception:
+                pass  # best-effort; never break the core sync
         except snap.SnapError:
             bal_res = None  # leave prior balances; surfaced via last_error if needed
 

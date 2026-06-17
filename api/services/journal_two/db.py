@@ -561,6 +561,11 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_positions ADD COLUMN entry_estimated INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE j2_option_strategies ADD COLUMN source TEXT",
     "ALTER TABLE j2_option_strategies ADD COLUMN external_id TEXT",
+    # Current option market value (broker mark x qty x 100), refreshed each sync
+    # via holdings-as-truth, so open option strategies can show Current + P&L
+    # like equity positions (no tick-live option quote feed).
+    "ALTER TABLE j2_option_strategies ADD COLUMN broker_current_value REAL",
+    "ALTER TABLE j2_option_strategies ADD COLUMN broker_mark_synced_at TEXT",
     # Partial unique indexes — SQLite supports WHERE clauses on CREATE INDEX
     # so NULL external_ids (the entire legacy population) don't collide.
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_trades_extid ON j2_trades(user_id, external_id) WHERE external_id IS NOT NULL",
