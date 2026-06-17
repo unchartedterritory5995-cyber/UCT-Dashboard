@@ -2,37 +2,91 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 /**
- * LiveFlow — Phase B
+ * LiveFlow — subscriber-facing
  *
- * Polls /api/live/alerts/recent every 5 seconds. Renders the alerts that
- * passed the backend's Filter Engine v1 (premium >= $250K, not in blocklist,
- * alertName doesn't contain "Grenade"). Backend also forwards high-conviction
- * alerts to Discord — those rows show a 🔔 badge.
+ * Polls /api/live/alerts/recent every 5s. Renders alerts that passed the
+ * backend's Filter Engine v1 (premium >= $250K, not in blocklist, no
+ * Grenade). Backend forwards high-conviction alerts to Discord; those
+ * rows show a 🔔 badge.
  *
- * Filter rules live in api/liveflow_worker.py (TABLE_FILTER + scoring tables).
- * Edit there + redeploy to tune. The header echoes active filter config so
- * you don't have to dive into code to remember what's active.
+ * Display:
+ *   - Tier-grouped sections (Mega → Whale → A → LEAPS → Unusual → Algo)
+ *   - Colored left border per row indicates tier at a glance
+ *   - Multi-select filter chips at top, state persists in localStorage
+ *   - Click a tier header to collapse that group
  *
- * Phase C would add: editable filter UI, SQLite persistence, migration to
- * the dedicated `worker` Railway service.
+ * Tier is derived from alertName: "UCT Mega Whale Bull" → mega, etc.
+ * Non-UCT alerts (Bullflow's native algo stream) → algo group.
+ *
+ * Subscriber version is leaner than admin: no filter-config banner, no
+ * drop/forwarded counts, no PHASE B labeling.
  */
 
-// ─── Palette — matches OptionsFlow's aesthetic ────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const P = {
-  bg: "#0e0f0d",       // page background
-  cd: "#161714",       // card background
-  bd: "#2a2926",       // borders
-  ac: "#c9a84c",       // amber accent (Live/algo)
-  bl: "#5b9bd5",       // blue (custom alerts)
-  bu: "#3cb868",       // calls / green
-  be: "#e74c3c",       // puts / red
-  wh: "#e8e6df",       // primary text
-  dm: "#a8a290",       // dim text
-  mt: "#6a6660",       // muted
+  bg: "#0e0f0d",
+  cd: "#161714",
+  bd: "#2a2926",
+  ac: "#c9a84c",   // amber accent
+  bl: "#5b9bd5",   // blue
+  bu: "#3cb868",   // calls/green
+  be: "#e74c3c",   // puts/red
+  wh: "#e8e6df",
+  dm: "#a8a290",
+  mt: "#6a6660",
 };
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_ROWS = 200;
+const LS_KEY = "uct_liveflow_filters_v1";
+
+// ─── Tier metadata + derivation ───────────────────────────────────────────────
+// Order: Q2-B (Mega → Whale → A → LEAPS → Unusual). Algo last.
+const TIER_META = {
+  mega:    { label: "Mega Whale", color: "#e74c3c", bg: "#e74c3c14" },
+  whale:   { label: "Whale",      color: "#c9a84c", bg: "#c9a84c14" },
+  a:       { label: "A-tier",     color: "#5b9bd5", bg: "#5b9bd514" },
+  leaps:   { label: "LEAPS",      color: "#a892e0", bg: "#a892e014" },
+  unusual: { label: "Unusual",    color: "#1d9e75", bg: "#1d9e7514" },
+  algo:    { label: "Algo",       color: "#888780", bg: "#88878014" },
+};
+const TIER_ORDER = ["mega", "whale", "a", "leaps", "unusual", "algo"];
+
+// Map alertName → tier key. Check Mega before Whale (longest prefix wins).
+// Anything not starting with "UCT" falls through to "algo".
+function deriveTier(alertName) {
+  if (!alertName) return "algo";
+  const n = alertName.toLowerCase();
+  if (n.startsWith("uct mega whale")) return "mega";
+  if (n.startsWith("uct whale")) return "whale";
+  if (n.startsWith("uct a ")) return "a";
+  if (n.startsWith("uct leaps")) return "leaps";
+  if (n.startsWith("uct unusual")) return "unusual";
+  return "algo";
+}
+
+// ─── Filter state helpers (localStorage-backed) ───────────────────────────────
+function defaultFilters() {
+  // All chips on by default — user sees everything until they opt out.
+  const f = {};
+  for (const t of TIER_ORDER) f[t] = true;
+  return f;
+}
+
+function loadFilters() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultFilters();
+    const parsed = JSON.parse(raw);
+    return { ...defaultFilters(), ...parsed };  // forward-compat if tiers added
+  } catch {
+    return defaultFilters();
+  }
+}
+
+function saveFilters(filters) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(filters)); } catch {}
+}
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 function fmtPremium(n) {
@@ -63,17 +117,11 @@ function relTime(iso) {
   return Math.floor(sec / 3600) + "h ago";
 }
 
-// ─── Connection status indicator ──────────────────────────────────────────────
+// ─── Connection status pill ───────────────────────────────────────────────────
 function StatusPill({ status }) {
-  // Determines a 3-state visual: green (healthy), amber (stale), red (error).
-  // Stale = connected:true but no event in 30s (heartbeat should arrive every 10s).
   const connected = status?.connected;
   const err = status?.last_error;
   const lastEventAt = status?.last_event_at;
-  // Stale = connected:true but no event in 90s. Bullflow's docs claim a 10s
-  // heartbeat cadence, but observed behavior is less frequent (heartbeats can
-  // gap for 30-60s during quiet stretches). 90s threshold catches genuine
-  // disconnects without false-flagging healthy quiet periods.
   const stale = connected && lastEventAt
     && (Date.now() - new Date(lastEventAt).getTime()) > 90_000;
 
@@ -99,22 +147,77 @@ function StatusPill({ status }) {
   );
 }
 
+// ─── Filter chip row ──────────────────────────────────────────────────────────
+function FilterChips({ filters, setFilters, counts }) {
+  const toggle = (tier) => {
+    const next = { ...filters, [tier]: !filters[tier] };
+    setFilters(next);
+    saveFilters(next);
+  };
+  const reset = () => {
+    const f = defaultFilters();
+    setFilters(f);
+    saveFilters(f);
+  };
+  const allOn = TIER_ORDER.every(t => filters[t]);
+
+  return (
+    <div style={{
+      display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 20px",
+      borderBottom: "1px solid " + P.bd + "80",
+      background: P.cd + "60", alignItems: "center",
+    }}>
+      <span style={{
+        fontSize: 9, color: P.mt, letterSpacing: 0.5,
+        textTransform: "uppercase", marginRight: 4,
+      }}>show</span>
+      {TIER_ORDER.map(tier => {
+        const meta = TIER_META[tier];
+        const active = filters[tier];
+        const count = counts[tier] || 0;
+        return (
+          <button key={tier} onClick={() => toggle(tier)} style={{
+            padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+            border: "1px solid " + (active ? meta.color + "80" : P.bd),
+            background: active ? meta.bg : "transparent",
+            color: active ? meta.color : P.dm,
+            cursor: "pointer", letterSpacing: 0.3,
+            transition: "all 0.15s ease",
+            fontFamily: "inherit",
+          }}>
+            {meta.label}
+            <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 500 }}>{count}</span>
+          </button>
+        );
+      })}
+      <button onClick={reset} disabled={allOn} style={{
+        marginLeft: "auto", padding: "4px 10px", fontSize: 9,
+        color: allOn ? P.mt : P.dm,
+        background: "transparent", border: "1px solid " + P.bd, borderRadius: 12,
+        cursor: allOn ? "default" : "pointer", letterSpacing: 0.3,
+        opacity: allOn ? 0.4 : 1, fontFamily: "inherit",
+      }}>reset</button>
+    </div>
+  );
+}
+
 // ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew }) {
-  // Cell color cues:
-  //   alertType: algo=amber, custom=blue
-  //   cp: green for calls (C), red for puts (P)
+function AlertRow({ alert, isNew, tierColor }) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
   const forwarded = alert.forwardedToDiscord;
   const score = alert.convictionScore;
-  // Brief amber flash on freshly-arrived rows (CSS animation, no JS timer).
   const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
 
   return (
     <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
-      <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10, fontFamily: "ui-monospace, monospace" }}>
+      {/* First cell carries the tier-colored left border */}
+      <td style={{
+        padding: "8px 10px", color: P.dm, fontSize: 10,
+        fontFamily: "ui-monospace, monospace",
+        borderLeft: tierColor ? "3px solid " + tierColor : "none",
+      }}>
         {fmtTime(alert.timestamp)}
       </td>
       <td style={{ padding: "8px 10px", fontWeight: 800, color: P.wh, fontSize: 13 }}>
@@ -124,9 +227,7 @@ function AlertRow({ alert, isNew }) {
         <span style={{
           padding: "2px 8px", borderRadius: 4,
           background: cpColor + "20", color: cpColor,
-        }}>
-          {alert.cp || "—"}
-        </span>
+        }}>{alert.cp || "—"}</span>
       </td>
       <td style={{ padding: "8px 10px", fontWeight: 700, color: P.wh, fontSize: 12 }}>
         {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
@@ -135,29 +236,28 @@ function AlertRow({ alert, isNew }) {
       <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10 }}>
         {alert.dte != null ? alert.dte + "d" : "—"}
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, color: P.ac, fontSize: 12, fontFamily: "ui-monospace, monospace" }}>
-        {fmtPremium(alert.alertPremium)}
-      </td>
-      <td style={{ padding: "8px 10px", color: P.dm, fontSize: 11, fontFamily: "ui-monospace, monospace" }}>
+      <td style={{
+        padding: "8px 10px", fontWeight: 800, color: P.ac, fontSize: 12,
+        fontFamily: "ui-monospace, monospace",
+      }}>{fmtPremium(alert.alertPremium)}</td>
+      <td style={{
+        padding: "8px 10px", color: P.dm, fontSize: 11,
+        fontFamily: "ui-monospace, monospace",
+      }}>
         {alert.averageFillPrice != null ? "$" + Number(alert.averageFillPrice).toFixed(2) : "—"}
       </td>
       <td style={{ padding: "8px 10px", fontSize: 9, fontWeight: 700 }}>
         <span style={{
           padding: "2px 7px", borderRadius: 3, letterSpacing: 0.5,
           background: typeColor + "18", color: typeColor,
-        }}>
-          {(alert.alertType || "?").toUpperCase()}
-        </span>
+        }}>{(alert.alertType || "?").toUpperCase()}</span>
       </td>
       <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.alertName || "—"}</td>
-      {/* Conviction — color shifts based on threshold (≥2.0 = forwarded color) */}
       <td style={{
-        padding: "8px 10px", fontSize: 11, fontWeight: 800, fontFamily: "ui-monospace, monospace",
+        padding: "8px 10px", fontSize: 11, fontWeight: 800,
+        fontFamily: "ui-monospace, monospace",
         color: score >= 2.0 ? P.bu : score >= 1.0 ? P.ac : P.dm, textAlign: "right",
-      }}>
-        {score != null ? score.toFixed(1) : "—"}
-      </td>
-      {/* Discord forwarded badge */}
+      }}>{score != null ? score.toFixed(1) : "—"}</td>
       <td style={{ padding: "8px 10px", textAlign: "center" }}>
         {forwarded ? (
           <span title="Forwarded to Discord"
@@ -170,24 +270,59 @@ function AlertRow({ alert, isNew }) {
   );
 }
 
+// ─── Tier section: collapsible header + tier rows ─────────────────────────────
+function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
+  if (alerts.length === 0) return null;
+  const meta = TIER_META[tier];
+  return (
+    <>
+      <tr style={{
+        background: meta.bg,
+        borderTop: "1px solid " + P.bd,
+        borderBottom: "1px solid " + meta.color + "30",
+      }}>
+        <td colSpan={12} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+            textTransform: "uppercase", color: meta.color,
+          }}>
+            <span style={{ fontSize: 9 }}>{collapsed ? "▶" : "▼"}</span>
+            <span>{meta.label}</span>
+            <span style={{ color: P.dm, fontWeight: 500 }}>{alerts.length}</span>
+          </div>
+        </td>
+      </tr>
+      {!collapsed && alerts.map(a => (
+        <AlertRow
+          key={a.id || (a.symbol + ":" + a.timestamp)}
+          alert={a}
+          isNew={newIds.has(a.id)}
+          tierColor={meta.color}
+        />
+      ))}
+    </>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LiveFlow() {
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
-  const [now, setNow] = useState(Date.now());  // for relTime re-render
-  const lastIdRef = useRef(null);                // tracks newest-seen alert ID for flash detection
-  const newIdsRef = useRef(new Set());           // IDs to flash on next render
+  const [now, setNow] = useState(Date.now());
+  const [filters, setFilters] = useState(loadFilters);
+  const [collapsedTiers, setCollapsedTiers] = useState({});
+  const lastIdRef = useRef(null);
+  const newIdsRef = useRef(new Set());
 
-  // Tick once per second so relative-time labels stay fresh.
+  // 1Hz tick keeps relTime labels fresh without re-polling.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Polling loop. Fetches the most recent N alerts, detects new ones, sets
-  // them to flash on render. AbortController prevents stale fetches from
-  // overwriting fresh state if a previous request is still in flight.
+  // Polling loop — AbortController prevents stale fetches from clobbering state.
   useEffect(() => {
     let abort = null;
     let timer = null;
@@ -201,7 +336,7 @@ export default function LiveFlow() {
         const d = await r.json();
         if (cancelled) return;
         const incoming = d.alerts || [];
-        // Detect new alerts since last poll — flash them.
+        // Detect new alerts since last poll → flash them.
         const newIds = new Set();
         for (const a of incoming) {
           if (!lastIdRef.current) break;
@@ -228,13 +363,22 @@ export default function LiveFlow() {
     };
   }, []);
 
+  // Group alerts by tier (preserves arrival order within tier).
+  const byTier = {};
+  for (const t of TIER_ORDER) byTier[t] = [];
+  for (const a of alerts) byTier[deriveTier(a.alertName)].push(a);
+
+  const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
+  const visibleTotal = TIER_ORDER.reduce(
+    (sum, t) => filters[t] ? sum + byTier[t].length : sum, 0
+  );
+
   return (
     <div style={{
       minHeight: "100vh", background: P.bg, color: P.wh,
       fontFamily: "Inter, system-ui, sans-serif",
       display: "flex", flexDirection: "column",
     }}>
-      {/* CSS keyframes for new-row flash */}
       <style>{`
         @keyframes uct-flash {
           0%   { background: ${P.ac}22; }
@@ -242,7 +386,7 @@ export default function LiveFlow() {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header — subscriber view, no PHASE B labeling */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "14px 20px", borderBottom: "1px solid " + P.bd,
@@ -254,54 +398,41 @@ export default function LiveFlow() {
             display: "inline-flex", alignItems: "center", gap: 4,
           }}>← Dashboard</Link>
           <div style={{ height: 16, width: 1, background: P.bd }} />
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>LIVE FLOW</span>
-            <span style={{ fontSize: 9, color: P.mt, letterSpacing: 0.5 }}>PHASE B · FILTER ENGINE v1 · DISCORD FORWARDING ACTIVE</span>
-          </div>
+          <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>
+            LIVE FLOW
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <StatusPill status={status} />
           {status && (
-            <div style={{ fontSize: 10, color: P.dm, fontFamily: "ui-monospace, monospace", display:"flex", gap:10 }}>
-              <span title="Total received from Bullflow (pre-filter)">rx <strong style={{color:P.wh}}>{status.total_alerts_received}</strong></span>
-              <span title="Passed table filter, visible in table">shown <strong style={{color:P.wh}}>{status.total_alerts_shown ?? 0}</strong></span>
-              <span title="Filtered out (below $250K, blocklist, or grenade)">drop <strong style={{color:P.dm}}>{status.total_alerts_dropped ?? 0}</strong></span>
-              <span title="Forwarded to Discord (conviction >= 2.0)">🔔 <strong style={{color:P.bu}}>{status.total_alerts_forwarded ?? 0}</strong></span>
-              <span style={{color:P.mt}}>· last {relTime(status.last_event_at)}</span>
+            <div style={{
+              fontSize: 10, color: P.dm,
+              fontFamily: "ui-monospace, monospace",
+              display: "flex", gap: 10,
+            }}>
+              <span title="Alerts in current view">
+                shown <strong style={{ color: P.wh }}>{visibleTotal}</strong>
+              </span>
+              <span title="Forwarded to Discord">
+                🔔 <strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
+              </span>
+              <span style={{ color: P.mt }}>· last {relTime(status.last_event_at)}</span>
             </div>
           )}
         </div>
       </div>
 
+      {/* Filter chips */}
+      <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
+
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        {/* Active filter summary — minimalist banner */}
-        {status?.filter_config && (
-          <div style={{
-            padding: "8px 20px", borderBottom: "1px solid " + P.bd + "40",
-            background: P.cd + "80", fontSize: 10, color: P.dm,
-            display: "flex", gap: 14, alignItems: "center",
-            fontFamily: "ui-monospace, monospace",
-          }}>
-            <span style={{ color: P.mt, letterSpacing: 0.5, textTransform: "uppercase", fontSize: 9 }}>filter</span>
-            <span>premium ≥ <strong style={{ color: P.wh }}>${(status.filter_config.premium_min / 1000).toFixed(0)}K</strong></span>
-            <span>· blocklist: <strong style={{ color: P.wh }}>{(status.filter_config.ticker_blocklist || []).join(", ") || "none"}</strong></span>
-            <span>· skip: <strong style={{ color: P.wh }}>{(status.filter_config.alertname_block_substrings || []).join(", ") || "none"}</strong></span>
-            <span style={{ marginLeft: "auto" }}>discord ≥ <strong style={{ color: P.bu }}>{status.filter_config.discord_threshold}</strong> conviction</span>
-            {!status.discord_configured && (
-              <span style={{ color: "#FFB300" }}>⚠ webhook not configured</span>
-            )}
-          </div>
-        )}
-
         {error && (
           <div style={{
             padding: "10px 20px", background: P.be + "18",
             borderBottom: "1px solid " + P.be + "60",
             color: P.be, fontSize: 11,
-          }}>
-            Polling error: {error}
-          </div>
+          }}>Polling error: {error}</div>
         )}
 
         {status && !status.connected && status.last_error && (
@@ -310,7 +441,7 @@ export default function LiveFlow() {
             borderBottom: "1px solid " + P.be + "40",
             color: P.be, fontSize: 11,
           }}>
-            <strong>Backend reports disconnected:</strong> {status.last_error}
+            <strong>Disconnected:</strong> {status.last_error}
             <span style={{ color: P.dm, marginLeft: 8 }}>
               · reconnect attempts: {status.reconnect_count}
             </span>
@@ -319,37 +450,51 @@ export default function LiveFlow() {
 
         {alerts.length === 0 ? (
           <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
             padding: "60px 20px", color: P.dm, gap: 8,
           }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
               {status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…"}
             </div>
             <div style={{ fontSize: 10, color: P.mt }}>
-              Bullflow algo alerts fire on unusual activity. Quiet stretches are normal.
+              Quiet stretches are normal — flow fires on unusual activity only.
             </div>
             {status?.started_at && (
-              <div style={{ fontSize: 9, color: P.mt, marginTop: 8, fontFamily: "ui-monospace, monospace" }}>
-                worker started {relTime(status.started_at)}
-              </div>
+              <div style={{
+                fontSize: 9, color: P.mt, marginTop: 8,
+                fontFamily: "ui-monospace, monospace",
+              }}>worker started {relTime(status.started_at)}</div>
             )}
+          </div>
+        ) : visibleTotal === 0 ? (
+          <div style={{
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: "60px 20px", color: P.dm, gap: 8,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
+              All tiers filtered out
+            </div>
+            <div style={{ fontSize: 10, color: P.mt }}>
+              {alerts.length} alert{alerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
+            </div>
           </div>
         ) : (
           <table style={{
             width: "100%", borderCollapse: "collapse",
             fontFamily: "Inter, system-ui, sans-serif",
           }}>
-            <thead style={{
-              position: "sticky", top: 0, background: P.cd, zIndex: 1,
-            }}>
+            <thead style={{ position: "sticky", top: 0, background: P.cd, zIndex: 1 }}>
               <tr style={{ borderBottom: "1px solid " + P.bd }}>
                 {[
                   ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
                   ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
                   ["Type", 9], ["Alert Name", 11], ["Score", 11], ["🔔", 11],
-                ].map(([label, fs]) => (
+                ].map(([label]) => (
                   <th key={label} style={{
-                    padding: "8px 10px", textAlign: label === "Score" ? "right" : (label === "🔔" ? "center" : "left"),
+                    padding: "8px 10px",
+                    textAlign: label === "Score" ? "right" : (label === "🔔" ? "center" : "left"),
                     color: P.dm, fontSize: 9, fontWeight: 700,
                     letterSpacing: 0.5, textTransform: "uppercase",
                   }}>{label}</th>
@@ -357,9 +502,15 @@ export default function LiveFlow() {
               </tr>
             </thead>
             <tbody>
-              {alerts.map((a) => (
-                <AlertRow key={a.id || (a.symbol + ":" + a.timestamp)} alert={a}
-                  isNew={newIdsRef.current.has(a.id)} />
+              {TIER_ORDER.map(tier => filters[tier] && (
+                <TierSection
+                  key={tier}
+                  tier={tier}
+                  alerts={byTier[tier]}
+                  newIds={newIdsRef.current}
+                  collapsed={!!collapsedTiers[tier]}
+                  onToggle={() => setCollapsedTiers(c => ({ ...c, [tier]: !c[tier] }))}
+                />
               ))}
             </tbody>
           </table>
@@ -373,12 +524,9 @@ export default function LiveFlow() {
         display: "flex", justifyContent: "space-between", alignItems: "center",
         fontFamily: "ui-monospace, monospace", flexShrink: 0,
       }}>
+        <div>polling every {POLL_INTERVAL_MS / 1000}s · buffer {MAX_ROWS}</div>
         <div>
-          Polling /api/live/alerts/recent every {POLL_INTERVAL_MS / 1000}s
-          · buffer max {MAX_ROWS}
-        </div>
-        <div>
-          {alerts.length > 0 && "showing " + alerts.length + " · "}
+          {visibleTotal > 0 && "showing " + visibleTotal + " · "}
           updated {relTime(new Date(now).toISOString())}
         </div>
       </div>
