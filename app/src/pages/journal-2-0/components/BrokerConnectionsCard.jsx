@@ -99,7 +99,9 @@ export default function BrokerConnectionsCard() {
   const syncNow = async (full = false) => {
     setBusy(true); setError(null)
     try {
-      const url = full ? '/api/j2/broker/sync?force=1' : '/api/j2/broker/sync'
+      // full=1 re-fetches ALL history (catches activities SnapTrade backfilled
+      // after the first sync, e.g. options); force=1 also bypasses the cooldown.
+      const url = full ? '/api/j2/broker/sync?full=1&force=1' : '/api/j2/broker/sync'
       const r = await fetch(url, { method: 'POST', credentials: 'include' })
       if (r.ok) setSyncResult(summarizeSync(await r.json()))
     } catch {
