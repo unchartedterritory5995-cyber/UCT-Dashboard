@@ -18,6 +18,8 @@ module only writes equity/short round-trip trades.
 from __future__ import annotations
 
 import hashlib
+import logging
+import os
 import sqlite3
 from typing import Any
 
@@ -25,6 +27,38 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import trades as trades_service
 from api.services.journal_two.broker import snaptrade_adapter as adapter
 from api.services.journal_two import fifo
+
+logger = logging.getLogger(__name__)
+
+
+def _dust_max_notional() -> float:
+    """Round-trips below this $ notional are treated as dust (default $10).
+    Set BROKER_DUST_MAX_NOTIONAL=0 to disable the filter entirely."""
+    try:
+        return float(os.environ.get("BROKER_DUST_MAX_NOTIONAL", "10"))
+    except (TypeError, ValueError):
+        return 10.0
+
+
+def _filter_dust(trades: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Drop phantom micro-SHORT round-trips — the DRIP/fractional + pre-history-gap
+    artifacts (e.g. SPY 0.0133sh) that holdings-as-truth already suppresses from
+    open positions but that otherwise litter the closed-trade log. Scoped to
+    Shorts because long round-trips fold their fractional DRIP shares into the
+    parent sell; an intentional sub-$10 short doesn't occur in practice. Real
+    shorts of meaningful size and ALL longs are kept. Returns (kept, dust)."""
+    thresh = _dust_max_notional()
+    if thresh <= 0:
+        return trades, []
+    kept: list[dict] = []
+    dust: list[dict] = []
+    for t in trades:
+        notional = abs((t.get("shares") or 0.0) * (t.get("entryPrice") or 0.0))
+        if t.get("side") == "Short" and notional < thresh:
+            dust.append(t)
+        else:
+            kept.append(t)
+    return kept, dust
 
 
 def _fingerprint(broker_account_id: str, t: dict, ordinal: int) -> str:
@@ -63,6 +97,15 @@ def reconstruct_account(
     part = adapter.partition(activities)
     fifo_out = fifo.reconstruct_trades(part["equity_fills"], allow_shorts=True)
     trades = fifo_out["trades"]
+    # Drop phantom micro-short dust BEFORE assigning external_ids + computing the
+    # desired set, so dust never imports AND any dust already in j2_trades from a
+    # pre-filter sync is pruned below (it's no longer in desired_trade_exts).
+    trades, dust = _filter_dust(trades)
+    if dust:
+        logger.info(
+            "[broker] dropped %d dust short round-trip(s): %s",
+            len(dust), ", ".join(sorted({d["symbol"] for d in dust})),
+        )
     assign_external_ids(broker_account_id, trades)
 
     ins = trades_service.bulk_insert_trades(
@@ -92,6 +135,7 @@ def reconstruct_account(
         "imported": ins["imported"],
         "skipped": ins["skipped"],
         "tradesReconstructed": len(trades),
+        "dustDropped": len(dust),
         "prunedTrades": pruned_trades,
         "prunedOptions": pruned_options,
         "openPositions": fifo_out["open_positions"],

@@ -87,6 +87,54 @@ def test_short_persisted_with_correct_side(env):
     assert rows[0]["entry_price"] == 60 and rows[0]["exit_price"] == 50
 
 
+def test_dust_short_round_trips_filtered(env, monkeypatch):
+    # Phantom micro-short artifact: a tiny sell with no prior buy in our window
+    # (DRIP/fractional + pre-history gap) opens then covers a sub-share short →
+    # a dust round-trip that shouldn't clutter the trade log.
+    monkeypatch.setenv("BROKER_DUST_MAX_NOTIONAL", "10")
+    acts = [
+        _act("a1", "BUY", "AAPL", 10, 100, "2026-04-01"),   # real — kept
+        _act("a2", "SELL", "AAPL", 10, 110, "2026-04-02"),
+        _act("a3", "SELL", "SPY", 0.0133, 600, "2026-04-01"),  # ~$8 dust short
+        _act("a4", "BUY", "SPY", 0.0133, 590, "2026-04-03"),
+    ]
+    out = reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    syms = {r["symbol"] for r in _trades()}
+    assert "AAPL" in syms       # real trade kept
+    assert "SPY" not in syms    # dust short dropped
+    assert out["dustDropped"] == 1
+
+
+def test_real_short_not_filtered_as_dust(env, monkeypatch):
+    # A meaningful short ($300 notional) is NOT dust.
+    monkeypatch.setenv("BROKER_DUST_MAX_NOTIONAL", "10")
+    acts = [
+        _act("a1", "SELL", "TSLA", 5, 60, "2026-04-01"),
+        _act("a2", "BUY", "TSLA", 5, 50, "2026-04-03"),
+    ]
+    out = reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    assert {r["symbol"] for r in _trades()} == {"TSLA"}
+    assert out["dustDropped"] == 0
+
+
+def test_dust_already_imported_pruned_on_resync(env, monkeypatch):
+    # Dust imported before the filter existed self-heals: on the next sync it's
+    # no longer in the desired set, so the prune removes it.
+    monkeypatch.setenv("BROKER_DUST_MAX_NOTIONAL", "0")  # filter OFF → dust imports
+    acts = [
+        _act("a1", "BUY", "AAPL", 10, 100, "2026-04-01"),
+        _act("a2", "SELL", "AAPL", 10, 110, "2026-04-02"),
+        _act("a3", "SELL", "SPY", 0.0133, 600, "2026-04-01"),
+        _act("a4", "BUY", "SPY", 0.0133, 590, "2026-04-03"),
+    ]
+    reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    assert "SPY" in {r["symbol"] for r in _trades()}   # dust present
+    monkeypatch.setenv("BROKER_DUST_MAX_NOTIONAL", "10")  # filter ON
+    out = reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    assert "SPY" not in {r["symbol"] for r in _trades()}  # dust pruned
+    assert out["prunedTrades"] >= 1
+
+
 def test_identical_round_trips_stay_distinct(env):
     # Two identical day-trades on the same day → both must import (distinct
     # external ids via the deterministic ordinal), and a re-run dedups both.
