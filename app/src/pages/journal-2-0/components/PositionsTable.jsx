@@ -55,11 +55,12 @@ export const POSITIONS_COLUMNS = [
 const isFractional = (position) =>
   Number.isFinite(position.shares) && !Number.isInteger(position.shares)
 
-function sideBadge(side) {
-  const cls = side === 'Long' ? styles.badgeLong : styles.badgeShort
+function sideBadge(label, isLong) {
+  const long = isLong ?? (label === 'Long')
+  const cls = long ? styles.badgeLong : styles.badgeShort
   return (
     <span className={`${styles.sideBadge} ${cls}`}>
-      {side.toUpperCase()}
+      {label.toUpperCase()}
     </span>
   )
 }
@@ -72,7 +73,13 @@ function pnlCell(value, fmt) {
 
 const DASH = (title) => <span className={styles.dash} title={title || undefined}>—</span>
 
-function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete }) {
+function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete, onOptionClose, onOptionDelete }) {
+  // Option rows (merged into the same table as shares): all option-specific
+  // values are precomputed on the row (no per-share price formula applies).
+  const isOpt = !!position.isOption
+  const optAcctPct = (position.optMarketValue != null && accountSize)
+    ? position.optMarketValue / accountSize : null
+
   const active = activeStop(position)
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
@@ -97,6 +104,65 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   const beSell = hasPrice ? positionBeSellShares(position, current, allowFractional) : null
 
   const cellFor = (key) => {
+    if (isOpt) {
+      switch (key) {
+        case 'symbol':
+          return position.symbol
+        case 'side':
+          return sideBadge(position.side, position.sideKind === 'long')
+        case 'date':
+          return position.entryDate ? dateShort(position.entryDate) : DASH()
+        case 'sharesCol':
+          return `${position.shares}`  // contracts
+        case 'entry':
+          return money(position.entryPrice)  // premium per contract
+        case 'current':
+          return position.optCurrent == null
+            ? DASH('Mark updates on each broker sync') : money(position.optCurrent)
+        case 'pnlDollar':
+          return pnlCell(position.optPnlDollar, moneySigned)
+        case 'pnlPercent':
+          return pnlCell(position.optPnlPercent,
+            (v) => percent(v, { signed: true, dp: 1, isRatio: true }))
+        case 'accountPct':
+          return optAcctPct == null ? DASH() : percent(optAcctPct, { dp: 1 })
+        case 'stop':
+        case 'stopDist':
+        case 'riskDollar':
+        case 'riskAcct':
+        case 'beSell':
+        case 'heat':
+          return DASH('Not applicable to options')
+        case 'actions':
+          return (
+            <div className={styles.actionsCell}>
+              <TickerPopup sym={position.underlying} as="button" className={styles.actionBtn}>
+                <span title="Open underlying chart">📈</span>
+              </TickerPopup>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                onClick={() => onOptionClose?.(position.strategy)}
+                aria-label={`Close ${position.symbol}`}
+                disabled={!onOptionClose}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                onClick={() => onOptionDelete?.(position.strategy)}
+                aria-label={`Delete ${position.symbol}`}
+                disabled={!onOptionDelete}
+              >
+                Del
+              </button>
+            </div>
+          )
+        default:
+          return null
+      }
+    }
     switch (key) {
       case 'symbol':
         return position.symbol
@@ -208,6 +274,8 @@ export default function PositionsTable({
   onEdit,
   onClose,
   onDelete,
+  onOptionClose,
+  onOptionDelete,
 }) {
   const sorted = useMemo(
     () => [...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)),
@@ -253,6 +321,8 @@ export default function PositionsTable({
               onEdit={onEdit}
               onClose={onClose}
               onDelete={onDelete}
+              onOptionClose={onOptionClose}
+              onOptionDelete={onOptionDelete}
             />
           ))}
         </tbody>

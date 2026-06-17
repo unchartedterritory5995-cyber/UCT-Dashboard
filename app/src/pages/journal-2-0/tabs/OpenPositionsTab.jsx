@@ -16,7 +16,6 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Nudges from '../hooks/useJ2Nudges'
 import NudgesBanner from '../components/NudgesBanner'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
-import OptionStrategiesSection from '../components/options/OptionStrategiesSection'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
@@ -56,6 +55,44 @@ async function jsonFetch(url, method, body) {
     throw new Error(msg)
   }
   return res.json()
+}
+
+// Normalize an OPEN option strategy into a position-table row so options show
+// alongside shares (Symbol "CRWV Oct 16 $110C", Side "Long Call"). Current value
+// + P&L come from the broker mark (brokerCurrentValue), refreshed each sync.
+function optionToRow(s) {
+  const leg = (s.legs && s.legs[0]) || {}
+  const qty = leg.qty ?? 0
+  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
+  const isCall = (s.strategyType || '').endsWith('call')
+  const sideLabel = `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`
+  let when = ''
+  if (leg.expiration) {
+    const d = new Date(`${leg.expiration}T00:00:00`)
+    if (!Number.isNaN(d.getTime())) {
+      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+    }
+  }
+  const symbol = `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`
+  const bcv = s.brokerCurrentValue
+  const pnlDollar = bcv == null ? null : bcv - s.netEntry
+  return {
+    id: s.id,
+    isOption: true,
+    symbol,
+    side: sideLabel,
+    sideKind: isLong ? 'long' : 'short',
+    underlying: s.underlying,
+    entryDate: s.entryDate,
+    shares: qty,                                   // contracts
+    entryPrice: leg.entryPrice ?? null,            // premium per contract
+    optCurrent: (bcv != null && qty) ? Math.abs(bcv) / (qty * 100) : null,  // mark/contract
+    optMarketValue: bcv == null ? null : Math.abs(bcv),
+    optPnlDollar: pnlDollar,
+    optPnlPercent: (bcv != null && s.netEntry) ? pnlDollar / Math.abs(s.netEntry) : null,
+    source: s.source,
+    strategy: s,
+  }
 }
 
 export default function OpenPositionsTab({ settings, onTradeWritten }) {
@@ -160,12 +197,35 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     onTradeWritten?.(res.trade)
   }, [refreshPositions, mutate, showToast, onTradeWritten])
 
+  // Option strategies as position-table rows, merged with shares into one list.
+  const optionRows = useMemo(
+    () => (showOptions ? optionStrategies.map(optionToRow) : []),
+    [showOptions, optionStrategies],
+  )
+  const mergedPositions = useMemo(
+    () => [...(showShares ? positions : []), ...optionRows],
+    [showShares, positions, optionRows],
+  )
+
   const aggregates = useMemo(() => {
     const priceMap = Object.fromEntries(
       Object.entries(prices).map(([sym, v]) => [sym, v?.price]),
     )
-    return portfolioAggregates(positions, priceMap, accountSize)
-  }, [positions, prices, accountSize])
+    const base = portfolioAggregates(positions, priceMap, accountSize)
+    if (optionRows.length === 0) return base
+    // Fold options into Value / Unrealized / count (Risk/Heat: options add none).
+    const optValue = optionRows.reduce((s, r) => s + (r.optMarketValue || 0), 0)
+    const optPnl = optionRows.reduce((s, r) => s + (r.optPnlDollar || 0), 0)
+    const value = (base.value || 0) + optValue
+    const unrealized = (base.unrealized || 0) + optPnl
+    return {
+      ...base,
+      count: (base.count || 0) + optionRows.length,
+      value,
+      unrealized,
+      invested: accountSize ? value / accountSize : base.invested,
+    }
+  }, [positions, optionRows, prices, accountSize])
 
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -262,21 +322,32 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               + Add Position
             </button>
           )}
+          {showOptions && (
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setOptionsAddOpen(true)}
+            >
+              + Option Strategy
+            </button>
+          )}
         </div>
       </div>
 
-      {showShares && (
-        isLoading && positions.length === 0 ? (
+      {(showShares || showOptions) && (
+        (isLoading || optionsLoading) && mergedPositions.length === 0 ? (
           <div className={styles.loading}>Loading positions…</div>
         ) : (
           <PositionsTable
-            positions={positions}
+            positions={mergedPositions}
             prices={prices}
             accountSize={accountSize}
             visibleColumns={visibleColumns}
             onEdit={(p) => setEditTarget(p)}
             onClose={(p) => setCloseTarget(p)}
             onDelete={handleDeleteRequest}
+            onOptionClose={(s) => setOptionsCloseTarget(s)}
+            onOptionDelete={(s) => setOptionsDeleteTarget(s)}
           />
         )
       )}
@@ -302,28 +373,9 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         />
       )}
 
-      {showOptions && (
-      <OptionStrategiesSection
-        strategies={optionStrategies}
-        variant="open"
-        isLoading={optionsLoading}
-        error={optionsError}
-        onAddClick={() => setOptionsAddOpen(true)}
-        onExpire={async (s) => {
-          try {
-            await jsonFetch(`/api/j2/options/${s.id}/expire`, 'POST')
-            refreshOptions()
-            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
-            mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
-            setToast({ message: `Marked ${s.underlying} expired.`, tone: 'success' })
-          } catch (e) {
-            setToast({ message: `Couldn't expire: ${e.message}`, tone: 'error' })
-          }
-        }}
-        onClose={(s) => setOptionsCloseTarget(s)}
-        onDelete={(s) => setOptionsDeleteTarget(s)}
-      />
-      )}
+      {/* Option strategies now render as rows inside PositionsTable above
+          (merged with shares). Manual add is the "+ Option Strategy" button;
+          expiring/close/delete flow via the row actions + ExpiredBanner. */}
 
 
       {(addOpen || addPrefill) && (
