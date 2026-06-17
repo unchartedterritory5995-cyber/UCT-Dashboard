@@ -64,3 +64,24 @@ def test_xirr_none_on_degenerate():
     assert perf.money_weighted_return(
         [("2026-01-01", -1000.0), ("2027-01-01", -50.0)]
     ) is None
+
+
+# ── Aggregator ───────────────────────────────────────────────────────────────
+
+def test_compute_performance_assembles_all():
+    equity = [("2026-05-01", 10000.0), ("2026-05-02", 15000.0)]
+    flows = [("2026-05-02", 5000.0)]
+    out = perf.compute_performance(
+        equity, flows, {"dividends": 10.0, "interest": -2.0, "fees": -1.0}
+    )
+    assert out["timeWeighted"] == pytest.approx(0.0)
+    assert out["netDeposits"] == 5000.0 and out["netWithdrawals"] == 0.0
+    assert out["dollarPnl"] == 0.0
+    assert out["startEquity"] == 10000.0 and out["endEquity"] == 15000.0
+    assert out["dividends"] == 10.0 and out["interest"] == -2.0 and out["fees"] == -1.0
+
+
+def test_compute_performance_empty_equity_is_nulls():
+    out = perf.compute_performance([], [], {})
+    assert out["timeWeighted"] is None and out["startEquity"] is None
+    assert out["netDeposits"] == 0.0

@@ -52,6 +52,43 @@ def dollar_pnl(start_equity, end_equity, net_external) -> float:
     return round(end_equity - start_equity - net_external, 2)
 
 
+def compute_performance(equity, external_flows, internal_summary) -> dict:
+    """Assemble all metrics for one window.
+
+    equity = [(date, value)] ascending; external_flows = [(date, signed)];
+    internal_summary = {"dividends": x, "interest": y, "fees": z}. Returns a dict
+    with timeWeighted/moneyWeighted/simple/dollarPnl + flow line items + start/end.
+    """
+    if not equity:
+        out = {k: None for k in ("timeWeighted", "moneyWeighted", "simple", "dollarPnl",
+                                 "startEquity", "endEquity")}
+        out.update({"netDeposits": 0.0, "netWithdrawals": 0.0,
+                    "dividends": 0.0, "interest": 0.0, "fees": 0.0})
+        return out
+    start_v, end_v = equity[0][1], equity[-1][1]
+    net_ext = round(sum(a for _, a in external_flows), 2)
+    net_dep = round(sum(a for _, a in external_flows if a > 0), 2)
+    net_wd = round(sum(a for _, a in external_flows if a < 0), 2)
+    # Investor-perspective flows for XIRR: start equity in (−), deposits in (−),
+    # withdrawals out (+), end value out (+).
+    xirr_flows = ([(equity[0][0], -start_v)]
+                  + [(d, -a) for d, a in external_flows]
+                  + [(equity[-1][0], end_v)])
+    return {
+        "timeWeighted": time_weighted_return(equity, external_flows),
+        "moneyWeighted": money_weighted_return(xirr_flows),
+        "simple": simple_return(start_v, end_v, net_ext),
+        "dollarPnl": dollar_pnl(start_v, end_v, net_ext),
+        "netDeposits": net_dep,
+        "netWithdrawals": net_wd,
+        "dividends": round(internal_summary.get("dividends", 0.0), 2),
+        "interest": round(internal_summary.get("interest", 0.0), 2),
+        "fees": round(internal_summary.get("fees", 0.0), 2),
+        "startEquity": round(start_v, 2),
+        "endEquity": round(end_v, 2),
+    }
+
+
 def _to_date(s: str) -> _date:
     return _date.fromisoformat(s[:10])
 
