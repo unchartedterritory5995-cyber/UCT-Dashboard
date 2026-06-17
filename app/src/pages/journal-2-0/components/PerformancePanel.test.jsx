@@ -46,4 +46,13 @@ describe('PerformancePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /money-weighted/i }))
     expect(screen.getByText('+18.0%')).toBeInTheDocument()
   })
+
+  it('shows buying power + margin used from the account', () => {
+    render(<PerformancePanel accountId="a1" account={{
+      balanceSource: 'broker', brokerCash: -12053.04, brokerBuyingPower: 9470.11,
+    }} />)
+    expect(screen.getByText('Margin Used')).toBeInTheDocument()
+    expect(screen.getByText('$12,053.04')).toBeInTheDocument()  // = -cash
+    expect(screen.getByText('Buying Power')).toBeInTheDocument()
+  })
 })

@@ -129,6 +129,20 @@ export default function PerformancePanel({ accountId, account }) {
         <Stat label="Fees" value={moneySigned(data.fees)} tone={data.fees < 0 ? 'neg' : undefined} />
       </div>
 
+      {account && (account.brokerBuyingPower != null || account.brokerCash != null) && (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap',
+                      paddingTop: 4, borderTop: '1px solid var(--border, #2a2a2a)' }}>
+          {account.brokerBuyingPower != null && (
+            <Stat label="Buying Power" value={money(account.brokerBuyingPower)} />
+          )}
+          <Stat
+            label="Margin Used"
+            value={money(account.brokerCash < 0 ? -account.brokerCash : 0)}
+            tone={account.brokerCash < 0 ? 'neg' : undefined}
+          />
+        </div>
+      )}
+
       <ReactECharts option={option} style={{ height: 240 }} />
 
       <div>
