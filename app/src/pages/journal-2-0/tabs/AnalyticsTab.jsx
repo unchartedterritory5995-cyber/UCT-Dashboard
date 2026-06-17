@@ -14,6 +14,7 @@ import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import useJ2Analytics from '../hooks/useJ2Analytics'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import PerformancePanel from '../components/PerformancePanel'
 import useLivePrices from '../../../hooks/useLivePrices'
 import {
   fmtSignedDollar,
@@ -116,6 +117,7 @@ export default function AnalyticsTab() {
   const from = searchParams.get('afrom') || null
   const to = searchParams.get('ato') || null
   const [activePreset, setActivePreset] = useState('all')
+  const { accountId, account } = useJ2SelectedAccount()
 
   const { data, isLoading, error } = useJ2Analytics({ from, to })
 
@@ -186,6 +188,10 @@ export default function AnalyticsTab() {
           </div>
         )}
       </div>
+
+      {account?.balanceSource === 'broker' && accountId && (
+        <PerformancePanel accountId={accountId} account={account} />
+      )}
 
       {error && (
         <div className={styles.errorBanner} role="alert">
