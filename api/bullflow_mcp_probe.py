@@ -148,3 +148,52 @@ async def test_delete_alert(alert_id: str = Query(..., description="Alert ID ret
         if "not found" not in text and "unknown tool" not in text:
             return {"tried_method": method_name, "result": result}
     return {"error": "no working delete method — remove via Bullflow UI", "tried": ["bullflow_delete_alert", "bullflow_remove_alert", "delete_alert"]}
+
+
+@router.get("/test-create-2")
+async def test_create_alert_2():
+    """
+    Second test: rely ONLY on `quickFilters` to set Ask side, omit the
+    boolean side flags entirely. Read it back via /custom to see what
+    Bullflow stores. This determines whether quickFilters or checkboxes
+    are the canonical source of truth for Side filtering.
+    """
+    test_payload = {
+        "name": "UCT Test 2 — quickFilters only",
+        "tickerAllowlist": ["AMD"],
+        "includeCalls": True,
+        "includePuts": False,
+        # Note: NO includeAskSide / includeBidSide / includeMid passed
+        "includeSweeps": True,
+        "premiumMin": 500000,
+        "quickFilters": ["sw", "a", "c"],
+    }
+    return await _mcp_call("tools/call", {
+        "name": "bullflow_create_alert",
+        "arguments": test_payload,
+    })
+
+
+@router.get("/test-create-3")
+async def test_create_alert_3():
+    """
+    Third test: try the apparent internal field names directly to see if
+    they're accepted (i.e. can we set plain ASK via `aCheckBox` or similar).
+    """
+    test_payload = {
+        "name": "UCT Test 3 — internal field probe",
+        "tickerAllowlist": ["MU"],
+        "includeCalls": True,
+        "includePuts": False,
+        # Probe undocumented field names that might map to plain ASK:
+        "includeAsk": True,           # singular
+        "aCheckBox": True,            # internal-style name
+        "askCheckBox": True,          # another variant
+        "includeSweeps": True,
+        "premiumMin": 500000,
+        "quickFilters": ["sw", "a", "c"],
+    }
+    return await _mcp_call("tools/call", {
+        "name": "bullflow_create_alert",
+        "arguments": test_payload,
+    })
