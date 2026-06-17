@@ -344,7 +344,20 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
 export default function LiveFlow() {
   const [searchParams, setSearchParams] = useSearchParams();
   const backtestDate = searchParams.get("backtest");
-  const isBacktest = isValidBacktestDate(backtestDate);
+  // Admin gate — backtest UI is only visible if ?admin=1 is in the URL.
+  // Frontend-only gate while we tune; subscribers won't see the date picker
+  // or the BACKTEST pill even if they somehow land on a ?backtest=... URL.
+  // For real auth, add server-side check on /api/admin/bullflow/backtest.
+  const isAdmin = searchParams.get("admin") === "1";
+  const isBacktest = isAdmin && isValidBacktestDate(backtestDate);
+
+  // Helper: when changing URL params, preserve the admin flag so the admin
+  // user stays in admin mode across date picks and × live exits.
+  const updateParams = (mutator) => {
+    const next = new URLSearchParams(searchParams);
+    mutator(next);
+    setSearchParams(next);
+  };
 
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
@@ -483,53 +496,51 @@ export default function LiveFlow() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Backtest controls — date picker + exit-to-live */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "4px 8px", borderRadius: 4,
-            border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
-            background: isBacktest ? P.bl + "10" : "transparent",
-          }}>
-            <span style={{
-              fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
-              letterSpacing: 0.5, textTransform: "uppercase",
-            }}>{isBacktest ? "replay" : "backtest"}</span>
-            <input
-              type="date"
-              value={isBacktest ? backtestDate : mostRecentMarketDay()}
-              min={thirtyDaysAgo()}
-              max={formatDateForInput(new Date())}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (isValidBacktestDate(v)) {
-                  setSearchParams({ backtest: v });
-                }
-              }}
-              style={{
-                fontSize: 10, padding: "2px 4px",
-                background: P.bg, color: P.wh,
-                border: "1px solid " + P.bd, borderRadius: 3,
-                fontFamily: "ui-monospace, monospace",
-                colorScheme: "dark",
-              }}
-            />
-            {isBacktest && (
-              <button
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  next.delete("backtest");
-                  setSearchParams(next);
+          {/* Backtest controls — admin-gated. Only visible when ?admin=1 is in URL */}
+          {isAdmin && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "4px 8px", borderRadius: 4,
+              border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
+              background: isBacktest ? P.bl + "10" : "transparent",
+            }}>
+              <span style={{
+                fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
+                letterSpacing: 0.5, textTransform: "uppercase",
+              }}>{isBacktest ? "replay" : "backtest"}</span>
+              <input
+                type="date"
+                value={isBacktest ? backtestDate : mostRecentMarketDay()}
+                min={thirtyDaysAgo()}
+                max={formatDateForInput(new Date())}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (isValidBacktestDate(v)) {
+                    updateParams(p => p.set("backtest", v));
+                  }
                 }}
-                title="Exit backtest, return to live"
                 style={{
-                  fontSize: 9, padding: "2px 6px", fontWeight: 700,
-                  letterSpacing: 0.5,
-                  background: "transparent", color: P.dm,
+                  fontSize: 10, padding: "2px 4px",
+                  background: P.bg, color: P.wh,
                   border: "1px solid " + P.bd, borderRadius: 3,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}>× live</button>
-            )}
-          </div>
+                  fontFamily: "ui-monospace, monospace",
+                  colorScheme: "dark",
+                }}
+              />
+              {isBacktest && (
+                <button
+                  onClick={() => updateParams(p => p.delete("backtest"))}
+                  title="Exit backtest, return to live"
+                  style={{
+                    fontSize: 9, padding: "2px 6px", fontWeight: 700,
+                    letterSpacing: 0.5,
+                    background: "transparent", color: P.dm,
+                    border: "1px solid " + P.bd, borderRadius: 3,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}>× live</button>
+              )}
+            </div>
+          )}
           <StatusPill status={status} />
           {status && (
             <div style={{
