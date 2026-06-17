@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 /**
  * LiveFlow — subscriber-facing
@@ -39,6 +39,41 @@ const P = {
 const POLL_INTERVAL_MS = 5000;
 const MAX_ROWS = 200;
 const LS_KEY = "uct_liveflow_filters_v1";
+
+// ─── Backtest helpers ─────────────────────────────────────────────────────────
+// Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
+//   - Data source switches to /api/admin/bullflow/backtest?date=...
+//   - Polling is disabled (one-shot fetch)
+//   - Header shows a backtest pill + date picker stays visible
+//   - Bullflow MCP caps the sample at 100 alerts; we surface that in the banner
+
+function formatDateForInput(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Most recent weekday — Bullflow only has data for market days. Doesn't
+// account for holidays; user can pick another date if a Monday was closed.
+function mostRecentMarketDay() {
+  const d = new Date();
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+  return formatDateForInput(d);
+}
+
+function thirtyDaysAgo() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return formatDateForInput(d);
+}
+
+function isValidBacktestDate(s) {
+  if (!s || typeof s !== "string") return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00");
+  return !Number.isNaN(d.getTime());
+}
 
 // ─── Tier metadata + derivation ───────────────────────────────────────────────
 // Order: Q2-B (Mega → Whale → A → LEAPS → Unusual). Algo last.
@@ -307,12 +342,17 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LiveFlow() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const backtestDate = searchParams.get("backtest");
+  const isBacktest = isValidBacktestDate(backtestDate);
+
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filters, setFilters] = useState(loadFilters);
   const [collapsedTiers, setCollapsedTiers] = useState({});
+  const [backtestLoading, setBacktestLoading] = useState(false);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -322,11 +362,38 @@ export default function LiveFlow() {
     return () => clearInterval(t);
   }, []);
 
-  // Polling loop — AbortController prevents stale fetches from clobbering state.
+  // Data fetch — branches on isBacktest. Live = polling loop, Backtest = one-shot.
   useEffect(() => {
     let abort = null;
     let timer = null;
     let cancelled = false;
+
+    async function fetchBacktest() {
+      setBacktestLoading(true);
+      setAlerts([]);
+      setStatus(null);
+      setError(null);
+      try {
+        abort = new AbortController();
+        const url = `/api/admin/bullflow/backtest?date=${encodeURIComponent(backtestDate)}`;
+        const r = await fetch(url, { signal: abort.signal });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        if (cancelled) return;
+        if (d.error) throw new Error(d.error);
+        const incoming = d.alerts || [];
+        // No flash detection in backtest mode — historical data, not live arrivals
+        newIdsRef.current = new Set();
+        lastIdRef.current = incoming[0]?.id || null;
+        setAlerts(incoming);
+        setStatus(d.status);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        if (!cancelled) setError(e?.message || String(e));
+      } finally {
+        if (!cancelled) setBacktestLoading(false);
+      }
+    }
 
     async function poll() {
       try {
@@ -336,7 +403,6 @@ export default function LiveFlow() {
         const d = await r.json();
         if (cancelled) return;
         const incoming = d.alerts || [];
-        // Detect new alerts since last poll → flash them.
         const newIds = new Set();
         for (const a of incoming) {
           if (!lastIdRef.current) break;
@@ -355,13 +421,18 @@ export default function LiveFlow() {
         if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS);
       }
     }
-    poll();
+
+    if (isBacktest) {
+      fetchBacktest();
+    } else {
+      poll();
+    }
     return () => {
       cancelled = true;
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [isBacktest, backtestDate]);
 
   // Group alerts by tier (preserves arrival order within tier).
   const byTier = {};
@@ -398,11 +469,67 @@ export default function LiveFlow() {
             display: "inline-flex", alignItems: "center", gap: 4,
           }}>← Dashboard</Link>
           <div style={{ height: 16, width: 1, background: P.bd }} />
-          <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>
-            LIVE FLOW
-          </span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>
+              LIVE FLOW
+            </span>
+            {isBacktest && (
+              <span style={{
+                fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                background: P.bl + "20", color: P.bl, fontWeight: 800,
+                letterSpacing: 0.5,
+              }}>BACKTEST · {backtestDate}</span>
+            )}
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Backtest controls — date picker + exit-to-live */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "4px 8px", borderRadius: 4,
+            border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
+            background: isBacktest ? P.bl + "10" : "transparent",
+          }}>
+            <span style={{
+              fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: "uppercase",
+            }}>{isBacktest ? "replay" : "backtest"}</span>
+            <input
+              type="date"
+              value={isBacktest ? backtestDate : mostRecentMarketDay()}
+              min={thirtyDaysAgo()}
+              max={formatDateForInput(new Date())}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (isValidBacktestDate(v)) {
+                  setSearchParams({ backtest: v });
+                }
+              }}
+              style={{
+                fontSize: 10, padding: "2px 4px",
+                background: P.bg, color: P.wh,
+                border: "1px solid " + P.bd, borderRadius: 3,
+                fontFamily: "ui-monospace, monospace",
+                colorScheme: "dark",
+              }}
+            />
+            {isBacktest && (
+              <button
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("backtest");
+                  setSearchParams(next);
+                }}
+                title="Exit backtest, return to live"
+                style={{
+                  fontSize: 9, padding: "2px 6px", fontWeight: 700,
+                  letterSpacing: 0.5,
+                  background: "transparent", color: P.dm,
+                  border: "1px solid " + P.bd, borderRadius: 3,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>× live</button>
+            )}
+          </div>
           <StatusPill status={status} />
           {status && (
             <div style={{
@@ -427,6 +554,35 @@ export default function LiveFlow() {
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
+        {/* Backtest banner — only when in backtest mode */}
+        {isBacktest && (
+          <div style={{
+            padding: "10px 20px", borderBottom: "1px solid " + P.bl + "30",
+            background: P.bl + "10", fontSize: 11, color: P.bl,
+            display: "flex", gap: 14, alignItems: "center",
+            fontFamily: "ui-monospace, monospace",
+          }}>
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+              textTransform: "uppercase",
+            }}>backtest</span>
+            <span style={{ color: P.dm }}>
+              Replaying <strong style={{ color: P.wh }}>{backtestDate}</strong>
+              {backtestLoading && " · loading…"}
+            </span>
+            {status?.backtest_capped && (
+              <span style={{ color: "#FFB300", marginLeft: "auto" }}>
+                ⚠ capped at 100 alerts — day had more flow than shown
+              </span>
+            )}
+            {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && (
+              <span style={{ color: P.dm, marginLeft: "auto" }}>
+                {alerts.length} alert{alerts.length !== 1 ? "s" : ""} returned
+              </span>
+            )}
+          </div>
+        )}
+
         {error && (
           <div style={{
             padding: "10px 20px", background: P.be + "18",
@@ -455,12 +611,18 @@ export default function LiveFlow() {
             padding: "60px 20px", color: P.dm, gap: 8,
           }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
-              {status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…"}
+              {isBacktest
+                ? (backtestLoading ? "Running backtest replay…" : "No alerts for " + backtestDate)
+                : (status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…")}
             </div>
             <div style={{ fontSize: 10, color: P.mt }}>
-              Quiet stretches are normal — flow fires on unusual activity only.
+              {isBacktest
+                ? (backtestLoading
+                    ? "Bullflow sample replay can take up to 2 minutes."
+                    : "Either the market was quiet or it was a non-trading day.")
+                : "Quiet stretches are normal — flow fires on unusual activity only."}
             </div>
-            {status?.started_at && (
+            {!isBacktest && status?.started_at && (
               <div style={{
                 fontSize: 9, color: P.mt, marginTop: 8,
                 fontFamily: "ui-monospace, monospace",
@@ -524,7 +686,11 @@ export default function LiveFlow() {
         display: "flex", justifyContent: "space-between", alignItems: "center",
         fontFamily: "ui-monospace, monospace", flexShrink: 0,
       }}>
-        <div>polling every {POLL_INTERVAL_MS / 1000}s · buffer {MAX_ROWS}</div>
+        <div>
+          {isBacktest
+            ? `backtest · ${backtestDate} · one-shot`
+            : `polling every ${POLL_INTERVAL_MS / 1000}s · buffer ${MAX_ROWS}`}
+        </div>
         <div>
           {visibleTotal > 0 && "showing " + visibleTotal + " · "}
           updated {relTime(new Date(now).toISOString())}
