@@ -170,16 +170,23 @@ def write_balances(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Mirror the broker: a broker account's "size" IS its real net-liq
+        # equity. account_size is the denominator for % invested / risk% / heat%
+        # and the base for position sizing — keeping it at the static seed made
+        # those wildly wrong on a real (esp. margined) account, where gross
+        # position value can exceed equity (>100% invested). Sync it every
+        # balance refresh so all of that math reflects the actual account.
         conn.execute(
             """
             UPDATE j2_accounts
                SET balance_source = 'broker',
                    broker_total_equity = ?, broker_cash = ?,
                    broker_buying_power = ?, broker_market_value = ?,
+                   account_size = ?,
                    broker_balance_synced_at = ?, updated_at = ?
              WHERE id = ? AND user_id = ?
             """,
-            (equity, cash, buying_power, mv, _now_iso(), _now_iso(),
+            (equity, cash, buying_power, mv, equity, _now_iso(), _now_iso(),
              broker_account["j2AccountId"], user_id),
         )
         # Append a daily net-liq snapshot (latest sync of the day wins) → powers

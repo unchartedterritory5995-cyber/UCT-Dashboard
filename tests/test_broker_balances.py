@@ -54,6 +54,24 @@ def test_usd_cash_buying_power_filters_currency():
     assert cash == 5000 and bp == 10000
 
 
+def test_write_balances_syncs_account_size_to_equity_with_margin(env):
+    # % invested / risk% / position sizing all divide by account_size; for a
+    # broker account that MUST be the real net-liq equity, not the static seed.
+    # Margin: a negative cash (debit balance) correctly reduces equity below MV.
+    raw_bal = [{"currency": "USD", "cash": -12053.04, "buying_power": 9470.11}]
+    raw_pos = [_pos("AAPL", 200, 100, 90)]  # MV 20000 → equity = -12053.04 + 20000
+    out = balances.write_balances("u1", env["ba"], raw_bal, raw_pos)
+    assert out["equity"] == 7946.96            # net-liq nets the margin debt
+    conn = auth_db.get_connection()
+    try:
+        acct_size = conn.execute(
+            "SELECT account_size FROM j2_accounts WHERE id=?", (env["acct_id"],)
+        ).fetchone()["account_size"]
+    finally:
+        conn.close()
+    assert acct_size == 7946.96                # synced to real balance, not seed
+
+
 def test_write_balances_sets_account_fields(env):
     raw_bal = [{"currency": "USD", "cash": 8000, "buying_power": 16000}]
     raw_pos = [_pos("AAPL", 10, 150, 100)]  # mv 1500

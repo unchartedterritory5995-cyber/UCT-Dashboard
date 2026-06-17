@@ -25,7 +25,14 @@ export default function AccountsTab({ onNewAccount }) {
   const [deleteConflict, setDeleteConflict] = useState(null)
 
   const tradeCountByAccount = {}
-  for (const a of comparison) tradeCountByAccount[a.id] = a.tradeCount
+  const balanceByAccount = {}
+  for (const a of comparison) {
+    tradeCountByAccount[a.id] = a.tradeCount
+    // currentBalance is the resolver's truth: real broker net-liq for broker
+    // accounts, startingBalance + realized P&L for manual ones. Mirrors
+    // AccountSelector — the static startingBalance seed is NOT the balance.
+    balanceByAccount[a.id] = a.currentBalance
+  }
 
   const tryDelete = async (account) => {
     // Probe with DELETE — if 409, surface the conflict modal with counts.
@@ -91,7 +98,7 @@ export default function AccountsTab({ onNewAccount }) {
                   )}
                 </div>
                 <span className={styles.balance}>
-                  {money(a.startingBalance)}
+                  {money(balanceByAccount[a.id] != null ? balanceByAccount[a.id] : a.startingBalance)}
                 </span>
                 <span className={styles.tradeCount}>
                   {tradeCountByAccount[a.id] ?? 0} trades
