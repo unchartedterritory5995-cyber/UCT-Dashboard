@@ -21,7 +21,7 @@ import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyM
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useLivePrices from '../../../hooks/useLivePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
-import BrokerEquityCurve from '../components/BrokerEquityCurve'
+import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import BrokerSyncStatus from '../components/BrokerSyncStatus'
 import ColumnsPicker from '../components/ColumnsPicker'
@@ -245,7 +245,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     <div className={styles.wrap}>
       <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
       <BrokerSyncStatus onSynced={() => { refreshPositions(); refreshOptions() }} />
-      <BrokerEquityCurve />
+      <BrokerAccountHero account={selectedAccount} aggregates={aggregates} />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}
       <div className={styles.statsBar}>
