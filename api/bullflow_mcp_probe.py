@@ -432,32 +432,76 @@ async def delete_all_uct_alerts():
 #     show "—" for missing convictionScore.
 #   - Discord forwarding does NOT fire (backtest is dry-run by definition).
 
+import re
+from datetime import datetime, timezone
+
+# OCC symbol parser — duplicated from liveflow_worker.py to keep the probe
+# self-contained. Bullflow's backtest replay returns the OCC symbol verbatim
+# (e.g. "O:AAPL260618C00297500") and the frontend needs it split into
+# ticker/cp/strike/exp/dte to route into the right tier section.
+_OCC_RE = re.compile(r"^O:([A-Z0-9]+?)(\d{6})([CP])(\d{8})$")
+
+
+def _parse_occ(symbol: str) -> dict:
+    empty = {"ticker": None, "exp": None, "cp": None, "strike": None, "dte": None}
+    if not symbol or not symbol.startswith("O:"):
+        return empty
+    m = _OCC_RE.match(symbol)
+    if not m:
+        return empty
+    ticker, yymmdd, cp, strike_str = m.groups()
+    try:
+        year = 2000 + int(yymmdd[:2])
+        exp_date = datetime(year, int(yymmdd[2:4]), int(yymmdd[4:6])).date()
+    except ValueError:
+        return {**empty, "ticker": ticker, "cp": cp}
+    strike = int(strike_str) / 1000.0
+    today = datetime.now(timezone.utc).date()
+    dte = (exp_date - today).days
+    return {
+        "ticker": ticker,
+        "exp": exp_date.strftime("%Y-%m-%d"),
+        "cp": cp,
+        "strike": strike,
+        "dte": dte,
+    }
+
+
 def _normalize_backtest_alert(raw: dict) -> dict:
     """
     Map a raw Bullflow backtest alert payload to the shape LiveFlow.jsx expects.
 
-    Bullflow streaming alerts carry only ~7 fields (symbol, alertName,
-    alertPremium, averageFillPrice, timestamp, alertType, latency etc.).
-    Contract details (cp, strike, exp, dte) are not in the streaming payload
-    per our 2026-06-16 session findings — they'd require a separate
-    contract-detail call. For now, we surface what we have and let the
-    frontend render "—" for missing fields.
+    Bullflow's backtest replay returns the same payload shape as the live
+    SSE stream: the OCC symbol is in the `symbol` (or sometimes `ticker`)
+    field as the full identifier (e.g. "O:AAPL260618C00297500"). We parse
+    that into ticker/cp/strike/exp/dte so the frontend's tier router can
+    route by cp and the table can render the contract details.
+
+    2026-06-17 fix: previous version put the raw OCC symbol directly into
+    the `ticker` field, leaving cp/strike/exp/dte as null. That broke
+    tier routing entirely — every backtest row landed in the Algo fallback.
     """
-    # Map symbol -> ticker (frontend uses 'ticker')
-    ticker = raw.get("ticker") or raw.get("symbol")
+    # Bullflow uses `symbol` in the live stream but `ticker` carries the OCC
+    # symbol in the backtest replay (confirmed via diagnostic on 2026-06-17:
+    # `ticker: "O:AAPL260618C00297500"`).
+    raw_symbol = raw.get("symbol") or raw.get("ticker") or ""
+    occ = _parse_occ(raw_symbol)
+
     return {
-        "id": raw.get("id") or raw.get("alertId") or f"{ticker}:{raw.get('timestamp', '')}",
-        "ticker": ticker,
+        "id": raw.get("id") or raw.get("alertId") or f"{occ['ticker']}:{raw.get('timestamp', '')}",
+        "symbol": raw_symbol,  # preserve full OCC for the frontend's _matchedNames keying
+        "ticker": occ["ticker"],
         "timestamp": raw.get("timestamp") or raw.get("receivedAt"),
-        "alertName": raw.get("alertName"),
+        "alertName": (raw.get("alertName") or "").strip() or None,  # strip trailing whitespace seen in Bullflow data
         "alertType": raw.get("alertType"),
         "alertPremium": raw.get("alertPremium"),
         "averageFillPrice": raw.get("averageFillPrice"),
-        # Contract details — pass through if Bullflow includes them, else null
-        "cp": raw.get("cp") or raw.get("type"),
-        "strike": raw.get("strike"),
-        "exp": raw.get("exp") or raw.get("expiry"),
-        "dte": raw.get("dte"),
+        # Contract details from OCC parse (Bullflow's payload doesn't carry
+        # these as discrete fields — they're all encoded in the symbol).
+        "cp": occ["cp"],
+        "strike": occ["strike"],
+        "exp": occ["exp"],
+        "dte": occ["dte"],
         # Backend-added fields not present in backtest data
         "convictionScore": None,
         "forwardedToDiscord": False,
