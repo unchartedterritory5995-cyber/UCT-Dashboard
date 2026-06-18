@@ -22,9 +22,29 @@
   border: 1px solid var(--border, #333); background: transparent; color: var(--text-muted);
 }
 .rangeActive { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.12); }
-.chartWrap { position: relative; width: 100%; height: 160px; }
+.chartWrap { position: relative; width: 100%; height: 210px; cursor: crosshair; touch-action: none; }
 .svg { width: 100%; height: 100%; display: block; }
 .loading { position: absolute; top: 6px; right: 8px; color: var(--text-muted); font-size: 18px; }
+
+/* Robinhood-style scrub overlay */
+.tracker {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--text-muted); opacity: 0.5; pointer-events: none;
+  transform: translateX(-0.5px);
+}
+.dot {
+  position: absolute; width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid var(--surface-1, #111); pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+.dotPos { background: var(--color-success, #4ade80); }
+.dotNeg { background: var(--color-danger, #f87171); }
+
+.dateAxis {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-muted); margin-top: -4px;
+}
 .strip { display: flex; flex-wrap: wrap; gap: 22px; padding-top: 12px; border-top: 1px solid var(--border, #2a2a2a); }
 .metric { display: flex; flex-direction: column; gap: 2px; }
 .metricLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }

@@ -18,7 +18,19 @@ let mockPerf = {
 }
 vi.mock('../hooks/useJ2BrokerPerformance', () => ({ default: () => mockPerf }))
 
-import BrokerAccountHero from './BrokerAccountHero'
+import BrokerAccountHero, { indexFromFraction } from './BrokerAccountHero'
+
+describe('indexFromFraction (scrub math)', () => {
+  it('maps a 0..1 pointer fraction to a clamped data index', () => {
+    expect(indexFromFraction(0, 5)).toBe(0)
+    expect(indexFromFraction(1, 5)).toBe(4)        // last index
+    expect(indexFromFraction(0.5, 5)).toBe(2)      // middle
+    expect(indexFromFraction(-0.3, 5)).toBe(0)     // clamp low
+    expect(indexFromFraction(2, 5)).toBe(4)        // clamp high
+    expect(indexFromFraction(0.5, 1)).toBe(0)      // single point
+    expect(indexFromFraction(0.5, 0)).toBe(0)      // empty
+  })
+})
 
 const brokerAccount = {
   id: 'a1', balanceSource: 'broker', brokerTotalEquity: 14632.18,
