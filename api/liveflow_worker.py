@@ -862,7 +862,7 @@ def _build_embed(agg: dict) -> dict:
         "title": title,
         "color": color,
         "fields": fields,
-        "footer": {"text": "via Bullflow · UCT Live Flow"},
+        "footer": {"text": "via UCT Live Flow"},
     }
     if badges:
         embed["description"] = " · ".join(badges)
