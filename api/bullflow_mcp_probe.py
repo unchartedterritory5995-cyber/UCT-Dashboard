@@ -513,8 +513,11 @@ def _normalize_backtest_alert(raw: dict) -> dict:
 @router.get("/backtest")
 async def backtest_replay(
     date: str = Query(..., description="Replay date in YYYY-MM-DD format"),
-    max_alerts: int = Query(100, ge=1, le=100,
-        description="Max alerts to return (Bullflow MCP hard cap = 100)"),
+    max_alerts: int = Query(300, ge=1, le=500,
+        description="Max alerts to request from Bullflow before filtering. "
+                    "Default 300 so that after worker-side filtering (mega-caps, "
+                    "user blocklist, premium floor) the visible list stays ~100+. "
+                    "Bullflow's MCP may enforce its own server-side cap regardless."),
     speed: float = Query(300, gt=0, le=1000,
         description="Replay speed multiplier (higher = faster sample)"),
     timeout_seconds: int = Query(120, ge=5, le=120,
