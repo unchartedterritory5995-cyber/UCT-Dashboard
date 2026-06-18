@@ -23,13 +23,17 @@ def occ_symbol(underlying: str, expiration: str, contract_type: str, strike: flo
     return f"O:{underlying.upper()}{yymmdd}{cp}{strike_int:08d}"
 
 
-def replay_timeline(events: list[dict]) -> list[dict]:
+def replay_timeline(events: list[dict], *, init_stocks: dict | None = None,
+                    init_options: dict | None = None, init_cash: float = 0.0) -> list[dict]:
     """Fold dated events into a daily timeline of cumulative holdings + cash.
     One row per distinct event date (ascending), reflecting state as of end of
-    that date. Event kinds: stock / option / option_close / cash / split."""
-    stocks: dict[str, float] = {}
-    options: dict[str, float] = {}
-    cash = 0.0
+    that date. Event kinds: stock / option / option_close / cash / split.
+
+    Seed with init_* to anchor the replay to a known starting state (e.g. the
+    pre-history holdings derived from current broker truth) instead of zero."""
+    stocks: dict[str, float] = dict(init_stocks or {})
+    options: dict[str, float] = dict(init_options or {})
+    cash = float(init_cash)
     by_date: dict[str, list[dict]] = {}
     for e in events:
         by_date.setdefault(e["date"][:10], []).append(e)
@@ -171,6 +175,53 @@ def _load_cash_flows(user_id, account_id):
     return cashflow_store.list_flows(user_id, account_id)
 
 
+def _load_current_state(user_id, account_id, conn=None):
+    """Current broker truth → (stocks{ticker:signed shares}, options{occ:signed
+    contracts}, cash). The anchor the historical replay is seeded against."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import accounts as _accounts
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        stocks: dict[str, float] = {}
+        for r in conn.execute(
+            "SELECT symbol, side, shares FROM j2_positions WHERE user_id=? AND account_id=? "
+            "AND source='broker' AND closed_at IS NULL", (user_id, account_id)).fetchall():
+            sign = 1.0 if r["side"] == "Long" else -1.0
+            stocks[r["symbol"]] = stocks.get(r["symbol"], 0.0) + sign * float(r["shares"])
+
+        options: dict[str, float] = {}
+        for r in conn.execute(
+            "SELECT l.side, l.contract_type, l.strike, l.expiration, l.qty, s.underlying "
+            "FROM j2_option_strategies s JOIN j2_option_legs l ON l.strategy_id = s.id "
+            "WHERE s.user_id=? AND s.account_id=? AND s.status='open'",
+            (user_id, account_id)).fetchall():
+            occ = occ_symbol(r["underlying"], r["expiration"], r["contract_type"], r["strike"])
+            sign = 1.0 if r["side"] == "buy" else -1.0
+            options[occ] = options.get(occ, 0.0) + sign * float(r["qty"])
+
+        acct = _accounts.get_account(user_id, account_id, conn=conn)
+        cash = float(acct["brokerCash"]) if acct and acct.get("brokerCash") is not None else 0.0
+        return stocks, options, cash
+    finally:
+        if owned:
+            conn.close()
+
+
+def _weekday_range(start_iso: str, end_iso: str) -> list[str]:
+    """Every weekday (Mon–Fri) ISO date from start..end inclusive. Holidays are
+    handled downstream by carry-forward of the last close."""
+    from datetime import timedelta
+    out: list[str] = []
+    d = date.fromisoformat(start_iso[:10])
+    end = date.fromisoformat(end_iso[:10])
+    while d <= end:
+        if d.weekday() < 5:
+            out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
 def _default_price_fn():
     """Memoized Massive-backed daily-close lookup. One fetch per symbol, indexed
     by ISO date. `_bounds[symbol] = (start, end)` should be set before use."""
@@ -207,11 +258,41 @@ def reconstruct_daily_equity(user_id, account_id, *, price_fn=None, live_equity=
     events = events_from_account(user_id, account_id, bkid, activities, cash_flows)
     if not events:
         return []
-    timeline = replay_timeline(events)
 
-    dates = sorted({r["date"] for r in timeline})
-    if today and today > dates[-1]:
-        dates.append(today)
+    # Anchor to current broker truth: seed = current holdings/cash − Σ in-window
+    # event deltas. Forward-replaying from that seed lands exactly on today's real
+    # state and keeps every historical point consistent with it — instead of
+    # fabricating a zero start (which made cash go negative on the first buy and
+    # the whole curve wrong).
+    cur_stocks, cur_options, cur_cash = _load_current_state(user_id, account_id, conn=conn)
+    d_stocks: dict[str, float] = {}
+    d_options: dict[str, float] = {}
+    d_cash = 0.0
+    for e in events:
+        if e["kind"] == "stock":
+            d_stocks[e["ticker"]] = d_stocks.get(e["ticker"], 0.0) + e["shares_delta"]
+            d_cash += e.get("cash_delta", 0.0)
+        elif e["kind"] == "option":
+            d_options[e["occ"]] = d_options.get(e["occ"], 0.0) + e["contracts_delta"]
+            d_cash += e.get("cash_delta", 0.0)
+        elif e["kind"] == "cash":
+            d_cash += e["amount"]
+    seed_stocks = dict(cur_stocks)
+    for t, dv in d_stocks.items():
+        seed_stocks[t] = cur_stocks.get(t, 0.0) - dv
+    seed_options = dict(cur_options)
+    for o, dv in d_options.items():
+        seed_options[o] = cur_options.get(o, 0.0) - dv
+    seed_cash = cur_cash - d_cash
+
+    timeline = replay_timeline(events, init_stocks=seed_stocks,
+                               init_options=seed_options, init_cash=seed_cash)
+
+    # Sample EVERY trading day (not just event dates) so the curve tracks daily
+    # market movement; union event dates + today so no state change is skipped.
+    event_dates = sorted({r["date"] for r in timeline})
+    end = today or event_dates[-1]
+    dates = sorted(set(_weekday_range(event_dates[0], end)) | set(event_dates) | {end})
 
     if price_fn is None:
         price_fn = _default_price_fn()
