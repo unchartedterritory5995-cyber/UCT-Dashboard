@@ -991,17 +991,30 @@ def _build_embed(agg: dict) -> dict:
         alert_label = f"{best_name}  +{extras} more"
     fields.append({"name": "Alert", "value": alert_label, "inline": True})
 
-    # Title: ticker + C/P + strike + exp, with moneyness suffix when available.
+    # Title: ticker + strike + CALL/PUT + exp (US date), with moneyness suffix
+    # when available.
     # Format examples:
-    #   "🚨 LIVE · DDOG C $150 2026-08-21 (+32% ITM)"
-    #   "🚨 LIVE · MU C $1200 2026-06-26 (-6% OTM)"
-    #   "🚨 LIVE · ARM C $130 2026-08-15 (ATM)"
+    #   "MSTR $110 CALL 07-17-2026 (1% OTM)"
+    #   "MU $1000 PUT 06-26-2026 (13% ITM)"
+    #   "ARM $130 CALL 08-15-2026 (ATM)"
     # No moneyness suffix when spot lookup failed (graceful degradation).
-    # Magnitude only — the label already conveys direction ("OTM" means it's
-    # out, no need for a negative sign). Matches Tradytics/BlackBox convention.
+    # Magnitude only — the label already conveys direction. Matches Tradytics/
+    # BlackBox convention.
     moneyness_pct = agg.get("moneyness_pct")
     moneyness_label = agg.get("moneyness_label")
-    title_base = f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}"
+    # Expand C/P to full words for clarity (calls/puts more readable than 1-letter)
+    cp_label = "CALL" if cp == "C" else ("PUT" if cp == "P" else cp)
+    # Convert exp ISO 'YYYY-MM-DD' → US 'MM-DD-YYYY' format. Bullflow's stream
+    # gives us ISO; subscribers are US-based and parse MM-DD-YYYY faster.
+    exp_us = exp
+    if exp and "-" in exp:
+        parts = exp.split("-")
+        if len(parts) == 3:
+            try:
+                exp_us = f"{int(parts[1]):02d}-{int(parts[2]):02d}-{int(parts[0])}"
+            except (ValueError, IndexError):
+                pass  # leave as-is on malformed input
+    title_base = f"{ticker} {strike_str} {cp_label} {exp_us}"
     if moneyness_label == "ATM":
         title = f"{title_base} (ATM)"
     elif moneyness_label in ("ITM", "OTM") and moneyness_pct is not None:
