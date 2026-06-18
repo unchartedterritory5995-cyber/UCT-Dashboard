@@ -313,6 +313,141 @@ function FilterChips({ filters, setFilters, counts }) {
   );
 }
 
+// ─── User blocklist panel (admin-only) ────────────────────────────────────────
+// Inline panel below the chip row that lets the admin manage a custom ticker
+// exclusion list. Reads current state from /api/live/user-blocklist on mount,
+// PUTs the full replacement list on Save. Tickers are uppercased server-side
+// and persisted to disk so the list survives worker restarts.
+function UserBlocklistPanel({ visible }) {
+  const [tickers, setTickers] = useState([]);
+  const [draftText, setDraftText] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+
+  // Initial load. Refresh quietly any time the panel becomes visible (no-op
+  // if visible was always true).
+  useEffect(() => {
+    if (!visible) return;
+    fetch("/api/live/user-blocklist")
+      .then(r => r.json())
+      .then(d => {
+        setTickers(d.tickers || []);
+        setDraftText((d.tickers || []).join(", "));
+      })
+      .catch(() => setStatus("load failed"));
+  }, [visible]);
+
+  if (!visible) return null;
+
+  // Parse the comma/space/newline-separated draft into a clean list. Used both
+  // for "did anything change?" check and for the save payload.
+  const parseDraft = (s) => Array.from(new Set(
+    (s || "")
+      .split(/[\s,]+/)
+      .map(t => t.trim().toUpperCase())
+      .filter(Boolean)
+  )).sort();
+
+  const draftParsed = parseDraft(draftText);
+  const isDirty = JSON.stringify(draftParsed) !== JSON.stringify(tickers);
+
+  const save = async () => {
+    setSaving(true);
+    setStatus("");
+    try {
+      const r = await fetch("/api/live/user-blocklist", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tickers: draftParsed }),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      setTickers(d.tickers || []);
+      setDraftText((d.tickers || []).join(", "));
+      setStatus("saved · " + (d.count || 0) + " tickers");
+      setTimeout(() => setStatus(""), 3000);
+    } catch (e) {
+      setStatus("save failed: " + (e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: "6px 20px",
+      borderBottom: "1px solid " + P.bd,
+      background: P.bg,
+      fontSize: 11,
+      fontFamily: "ui-monospace, monospace",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            cursor: "pointer", color: P.dm, fontWeight: 700,
+            letterSpacing: 0.5, textTransform: "uppercase", fontSize: 9,
+            userSelect: "none",
+          }}>
+          {expanded ? "▼" : "▶"} EXCLUDE TICKERS
+        </span>
+        <span style={{ color: P.mt, fontSize: 10 }}>
+          {tickers.length === 0 ? "(none)" : tickers.length + " active"}
+        </span>
+        {!expanded && tickers.length > 0 && (
+          <span style={{ color: P.dm, fontSize: 10, overflow: "hidden",
+                         textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {tickers.join(", ")}
+          </span>
+        )}
+        {status && (
+          <span style={{
+            marginLeft: "auto", fontSize: 10,
+            color: status.startsWith("saved") ? P.bu : P.be,
+          }}>{status}</span>
+        )}
+      </div>
+      {expanded && (
+        <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <textarea
+            value={draftText}
+            onChange={e => setDraftText(e.target.value)}
+            placeholder="SPCX, RKLB, ABCD ..."
+            rows={2}
+            style={{
+              flex: 1, padding: "6px 8px",
+              background: P.bg, color: P.wh,
+              border: "1px solid " + P.bd, borderRadius: 4,
+              fontFamily: "inherit", fontSize: 11,
+              resize: "vertical",
+            }}
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <button
+              onClick={save}
+              disabled={saving || !isDirty}
+              style={{
+                padding: "6px 12px", fontSize: 10, fontWeight: 700,
+                letterSpacing: 0.5,
+                background: isDirty ? P.bl : "transparent",
+                color: isDirty ? P.wh : P.dm,
+                border: "1px solid " + (isDirty ? P.bl : P.bd),
+                borderRadius: 3, cursor: saving || !isDirty ? "default" : "pointer",
+                fontFamily: "inherit",
+              }}>
+              {saving ? "..." : "SAVE"}
+            </button>
+            <span style={{ fontSize: 9, color: P.mt, textAlign: "center" }}>
+              {draftParsed.length} parsed
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Alert row ────────────────────────────────────────────────────────────────
 function AlertRow({ alert, isNew, tierColor, directionTinted }) {
   const isCall = alert.cp === "C";
@@ -696,6 +831,9 @@ export default function LiveFlow() {
 
       {/* Filter chips */}
       <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
+
+      {/* Admin: user-managed ticker exclusion list */}
+      <UserBlocklistPanel visible={isAdmin} />
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
