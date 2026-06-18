@@ -29,10 +29,33 @@ import re
 import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+# Eastern Time zone — used for displaying market timestamps to subscribers.
+# Railway runs UTC by default, so naive datetime.fromtimestamp() returns UTC
+# (not local market time). Use this with fromtimestamp(ts, tz=ET) to convert.
+# Handles DST automatically (EDT vs EST).
+ET = ZoneInfo("America/New_York")
+
+# Discord embed branding — small icon shown next to "UCT Live Flow" label at
+# top of every embed. Must be a publicly accessible image URL (PNG/JPG/WebP;
+# AVIF unreliable in Discord). Override via env var for easy swap without code.
+#
+# WARNING: Discord CDN URLs (cdn.discordapp.com) include signed query params
+# (ex=, is=, hm=) that EXPIRE in 24-48 hours. For production stability, host
+# the logo somewhere permanent (GitHub raw, your own static site, etc.) and
+# set UCT_LOGO_URL env var to that URL.
+UCT_LOGO_URL = os.getenv(
+    "UCT_LOGO_URL",
+    "https://cdn.discordapp.com/attachments/843673571113173022/1517245954074345584/"
+    "https3A2F2Fassets-2-prod.whop.com2Fpublic2Fuploads2F2024-03-112F"
+    "user_890280_8c38e7b6-501d-40d4-8029-f2db1429372b.png"
+    "?ex=6a3594e8&is=6a344368&hm=a7c0514577bea935bdd81872ba553826f236962df3b7a60e5dfb79eb43460b7b&",
+).strip()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 BULLFLOW_API_KEY = os.getenv("BULLFLOW_API_KEY", "").strip()
@@ -954,9 +977,13 @@ def _build_embed(agg: dict) -> dict:
         first_ts = agg.get("first_fire_ts")
         last_ts = agg.get("last_fire_ts")
         if first_ts and last_ts:
-            first_t = datetime.fromtimestamp(first_ts).strftime("%-H:%M ET")
-            last_t = datetime.fromtimestamp(last_ts).strftime("%-H:%M ET")
-            fields.append({"name": "Active From", "value": f"{first_t} → {last_t}", "inline": True})
+            # Convert UNIX timestamp to Eastern time (market hours). Worker
+            # runs on Railway in UTC; without explicit conversion fromtimestamp
+            # returns the server's local time which displays as UTC labeled "ET".
+            # %-I = hour without leading zero (Linux); %p = AM/PM.
+            first_t = datetime.fromtimestamp(first_ts, tz=ET).strftime("%-I:%M %p")
+            last_t = datetime.fromtimestamp(last_ts, tz=ET).strftime("%-I:%M %p")
+            fields.append({"name": "Active From", "value": f"{first_t} → {last_t} ET", "inline": True})
 
     # Spot price — sits next to the trade data so subscribers can sanity-check
     # the strike against current underlying. The moneyness % itself lives in
@@ -1026,8 +1053,18 @@ def _build_embed(agg: dict) -> dict:
         "title": title,
         "color": color,
         "fields": fields,
-        "footer": {"text": "via UCT Live Flow"},
     }
+    # Top-of-card branding: small logo + "UCT Live Flow" label. Replaces the
+    # plain text footer for a more polished look. If UCT_LOGO_URL is unset or
+    # the image fails to load, Discord still shows the "name" text alone.
+    if UCT_LOGO_URL:
+        embed["author"] = {
+            "name": "UCT Live Flow",
+            "icon_url": UCT_LOGO_URL,
+        }
+    else:
+        # Fallback: no logo, just keep the text label at the bottom as before.
+        embed["footer"] = {"text": "via UCT Live Flow"}
     if badges:
         embed["description"] = " · ".join(badges)
     return embed
