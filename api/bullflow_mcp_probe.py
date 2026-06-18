@@ -527,9 +527,31 @@ async def backtest_replay(
             "date": date,
         }
 
+    # Filter to actual alert events. Bullflow's backtesting replay (same as
+    # live SSE) emits init + heartbeat events alongside the real alerts.
+    # Those have `event: "init"` or `event: "heartbeat"` and no useful data.
+    # 2026-06-17: discovered when backtest UI showed a phantom "Algo 1" row
+    # with all fields null — that was the init event being normalized.
+    real_alerts = [
+        a for a in raw_alerts
+        if isinstance(a, dict) and a.get("event") == "alert"
+    ]
+
+    # Bullflow nests the actual alert payload inside `data` (matching live SSE
+    # shape: {event: "alert", id: ..., data: {...real fields...}}). Unwrap if
+    # present so the normalizer sees the inner fields directly.
+    unwrapped = []
+    for a in real_alerts:
+        inner = a.get("data") if isinstance(a.get("data"), dict) else None
+        if inner:
+            merged = {**inner, "id": a.get("id"), "_envelope": True}
+            unwrapped.append(merged)
+        else:
+            unwrapped.append(a)
+
     # Normalize each alert into the shape the frontend expects.
     # Sort newest-first so the LiveFlow UI's "most recent at top" expectation holds.
-    normalized = [_normalize_backtest_alert(a) for a in raw_alerts]
+    normalized = [_normalize_backtest_alert(a) for a in unwrapped]
     normalized.sort(key=lambda a: str(a.get("timestamp") or ""), reverse=True)
 
     # Build a status block matching /api/live/alerts/recent's shape so the
@@ -537,10 +559,10 @@ async def backtest_replay(
     status = {
         "connected": True,  # backtest is inherently "connected" for the duration of the sample
         "last_event_at": normalized[0]["timestamp"] if normalized else None,
-        "total_alerts_received": len(raw_alerts),
+        "total_alerts_received": len(real_alerts),  # only count real alert events, not init/heartbeat
         "total_alerts_shown": len(normalized),
-        "total_alerts_dropped": 0,  # we don't filter in backtest mode
-        "total_alerts_forwarded": 0,  # dry-run
+        "total_alerts_dropped": len(raw_alerts) - len(real_alerts),  # init + heartbeat counted as dropped
+        "total_alerts_forwarded": 0,  # dry-run — backtest never posts to Discord
         "last_error": None,
         "reconnect_count": 0,
         "started_at": None,
