@@ -556,6 +556,8 @@ export default function LiveFlowAdmin() {
   const [status, setStatus] = useState(null);
   const [simulation, setSimulation] = useState(null);  // simulation block from backtest
   const [simView, setSimView] = useState("posts");     // "posts" | "edits" | "gated"
+  const [uploadedFile, setUploadedFile] = useState(null);  // JSON file for JSON-mode backtest
+  const [uploadError, setUploadError] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filters, setFilters] = useState(loadFilters);
@@ -576,6 +578,48 @@ export default function LiveFlowAdmin() {
     let abort = null;
     let timer = null;
     let cancelled = false;
+
+    async function fetchBacktestFromJSON() {
+      // JSON-sourced backtest. Uploaded file POST'd to a separate endpoint
+      // that parses Discord embeds and runs the same simulator. Re-fired
+      // whenever simulation params change so the user can tune thresholds
+      // without re-uploading. Browser keeps the File object alive in state
+      // until they refresh or pick another.
+      setBacktestLoading(true);
+      setAlerts([]);
+      setStatus(null);
+      setSimulation(null);
+      setError(null);
+      try {
+        abort = new AbortController();
+        const fd = new FormData();
+        fd.append("file", uploadedFile);
+        const params = new URLSearchParams({
+          min_grade: simMinGrade,
+        });
+        if (simExcludeETF) params.set("exclude_etf_flow", "true");
+        const r = await fetch(
+          `/api/admin/bullflow/backtest-from-json?${params.toString()}`,
+          { method: "POST", body: fd, signal: abort.signal }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error(errBody.error || `HTTP ${r.status}`);
+        }
+        const d = await r.json();
+        if (cancelled) return;
+        newIdsRef.current = new Set();
+        lastIdRef.current = (d.alerts || [])[0]?.id || null;
+        setAlerts(d.alerts || []);
+        setStatus(d.status);
+        setSimulation(d.simulation || null);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        if (!cancelled) setError(e?.message || String(e));
+      } finally {
+        if (!cancelled) setBacktestLoading(false);
+      }
+    }
 
     async function fetchBacktest() {
       setBacktestLoading(true);
@@ -649,7 +693,12 @@ export default function LiveFlowAdmin() {
       }
     }
 
-    if (isBacktest) {
+    if (isBacktest && uploadedFile) {
+      // JSON-sourced backtest takes precedence over MCP when a file is loaded.
+      // Conviction simulation auto-enabled in this mode since the whole point
+      // of uploading is to see the simulator output.
+      fetchBacktestFromJSON();
+    } else if (isBacktest) {
       fetchBacktest();
     } else {
       poll();
@@ -659,7 +708,7 @@ export default function LiveFlowAdmin() {
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [isBacktest, backtestDate, simulateMode, simMinGrade, simExcludeETF]);
+  }, [isBacktest, backtestDate, simulateMode, simMinGrade, simExcludeETF, uploadedFile]);
 
   const byTier = {};
   for (const t of TIER_ORDER) byTier[t] = [];
@@ -848,6 +897,63 @@ export default function LiveFlowAdmin() {
                 {simulateMode ? "✓ simulate gate" : "simulate gate"}
               </button>
 
+              {/* JSON upload — sidesteps Bullflow MCP using a Discord export.
+                  When a file is loaded, the simulation auto-runs and the UI
+                  shows what the gate would do for that day's alerts. */}
+              <label
+                style={{
+                  padding: "3px 10px", fontSize: 10, borderRadius: 4,
+                  border: "1px solid " + (uploadedFile ? P.gn : P.bd),
+                  background: uploadedFile ? P.gn + "20" : "transparent",
+                  color: uploadedFile ? P.gn : P.dm,
+                  cursor: "pointer", letterSpacing: 0.5,
+                  textTransform: "uppercase", fontWeight: 700,
+                }}
+                title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts (bypasses Bullflow MCP)"
+              >
+                {uploadedFile ? `✓ ${uploadedFile.name.slice(0, 18)}…` : "upload json"}
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (f.size > 50 * 1024 * 1024) {  // 50 MB hard cap, prevents accidents
+                      setUploadError("File too large (>50MB)");
+                      return;
+                    }
+                    setUploadError(null);
+                    setUploadedFile(f);
+                    // Auto-enable simulate mode on upload — viewing raw alerts
+                    // without the simulation defeats the purpose of uploading.
+                    const next = new URLSearchParams(searchParams);
+                    if (!next.get("simulate")) {
+                      next.set("simulate", "full");
+                      next.set("min_grade", "B");
+                      setSearchParams(next);
+                    }
+                  }}
+                />
+              </label>
+
+              {uploadedFile && (
+                <button
+                  onClick={() => {
+                    setUploadedFile(null);
+                    setUploadError(null);
+                  }}
+                  style={{
+                    padding: "3px 8px", fontSize: 10, borderRadius: 4,
+                    border: "1px solid " + P.bd, background: "transparent",
+                    color: P.dm, cursor: "pointer",
+                  }}
+                  title="Clear uploaded file and return to MCP-sourced backtest"
+                >
+                  ×
+                </button>
+              )}
+
               {simulateMode && (
                 <>
                   <label style={{ color: P.dm, fontSize: 10 }}>min grade:</label>
@@ -922,6 +1028,15 @@ export default function LiveFlowAdmin() {
             fontSize: 12, fontFamily: "ui-monospace, monospace",
           }}>
             simulation failed: {simulation.error}
+          </div>
+        )}
+        {uploadError && (
+          <div style={{
+            padding: "12px 20px", background: P.rd + "20",
+            borderBottom: "1px solid " + P.rd + "40", color: P.rd,
+            fontSize: 12, fontFamily: "ui-monospace, monospace",
+          }}>
+            upload error: {uploadError}
           </div>
         )}
 
