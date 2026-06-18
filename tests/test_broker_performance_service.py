@@ -71,20 +71,15 @@ def test_account_performance_twr_with_deposit(env, monkeypatch):
     assert out["estimated"] is False
 
 
-def test_account_performance_prepends_estimated_history(env, monkeypatch):
-    # Fallback path (reconstruction stubbed empty): one real snapshot + a prior
-    # deposit → an estimated point walked back from the first snapshot, flagged.
-    from api.services.journal_two.broker import historical_equity
-    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity", lambda *a, **k: [])
+def test_account_performance_is_snapshots_only_no_estimated(env):
+    # Default curve = broker's reported daily snapshots only — exact, never
+    # fabricated. A pre-snapshot deposit does NOT inject an estimated point.
     _snap("2026-05-10", 12000.0)
     cf.reconcile_cash_flows("u1", env["ba"], [_dep("c1", 2000, "2026-05-05")])
     out = svc.account_performance("u1", env["j2"], "ALL")
-    est_points = [p for p in out["equitySeries"] if p["estimated"]]
-    assert len(est_points) >= 1
-    assert est_points[0]["date"] == "2026-05-05"
-    # equity_est(05-05) = 12000 − (flows strictly after 05-05) = 12000 − 2000 = 10000
-    assert est_points[0]["value"] == pytest.approx(10000.0)
-    assert out["estimated"] is True
+    assert all(p["estimated"] is False for p in out["equitySeries"])
+    assert out["estimated"] is False
+    assert [p["date"] for p in out["equitySeries"]] == ["2026-05-10"]  # only the real snapshot
 
 
 def test_comparison_uses_twr_for_broker_account(env):
@@ -105,6 +100,7 @@ def test_comparison_uses_twr_for_broker_account(env):
 
 def test_account_performance_prefers_reconstruction(env, monkeypatch):
     from api.services.journal_two.broker import historical_equity
+    monkeypatch.setenv("BROKER_RECON_HISTORY", "1")   # opt-in path
     monkeypatch.setattr(
         historical_equity, "reconstruct_daily_equity",
         lambda user_id, account_id, **kw: [
