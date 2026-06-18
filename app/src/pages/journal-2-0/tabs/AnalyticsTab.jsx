@@ -190,7 +190,13 @@ export default function AnalyticsTab() {
       </div>
 
       {account?.balanceSource === 'broker' && accountId && (
-        <PerformancePanel accountId={accountId} account={account} />
+        <div className={styles.section}>
+          <h3 className={styles.sectionHeader}>Account Balance</h3>
+          <p className={styles.sectionCaption}>
+            Real net-liquidation value — cash plus open positions marked to market.
+          </p>
+          <PerformancePanel accountId={accountId} account={account} />
+        </div>
       )}
 
       {error && (
@@ -421,7 +427,10 @@ function EquitySection({ equity }) {
 
   return (
     <section className={styles.section}>
-      <h3 className={styles.sectionHeader}>Equity</h3>
+      <h3 className={styles.sectionHeader}>Closed-Trade Equity</h3>
+      <p className={styles.sectionCaption}>
+        Running balance from realized P&amp;L only — excludes open-position mark-to-market.
+      </p>
       <div className={styles.kpiStrip}>
         <Kpi label="Peak P&L" value={fmtSignedDollar(kpis.peakPnl)} positive={kpis.peakPnl > 0} />
         <Kpi label="Max Drawdown" value={fmtSignedDollar(kpis.maxDrawdown)} negative={kpis.maxDrawdown < 0} />
@@ -431,7 +440,7 @@ function EquitySection({ equity }) {
       </div>
       <div className={styles.chartCard}>
         <div className={styles.chartHeader}>
-          <h4 className={styles.chartTitle}>Equity Curve</h4>
+          <h4 className={styles.chartTitle}>Closed-Trade Equity Curve</h4>
           <div className={styles.toggleGroup}>
             <button
               type="button"

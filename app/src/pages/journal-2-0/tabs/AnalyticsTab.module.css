@@ -139,6 +139,14 @@
   color: var(--text-muted);
 }
 
+.sectionCaption {
+  margin: -2px 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
 .kpiStrip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
