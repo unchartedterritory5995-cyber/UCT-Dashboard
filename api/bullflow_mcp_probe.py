@@ -19,7 +19,7 @@ to subscribers.
 """
 import os
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, UploadFile, File
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/api/admin/bullflow", tags=["bullflow-mcp-probe"])
@@ -927,4 +927,233 @@ async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
             "unique_contracts_posted": len(posted_contracts),
             "min_grade": min_grade,
         },
+    }
+
+
+# ─── JSON-sourced backtest (Discord export → simulator) ────────────────────────
+#
+# Bullflow's MCP replay API has been silently returning empty results for recent
+# dates (no error, just zero alerts) — a reliability problem we don't control.
+# Fortunately, every alert that posted to Discord is captured in DiscordChatExporter
+# JSON exports, with full embed structure intact. This endpoint accepts that JSON
+# directly and runs it through the same simulation pipeline.
+#
+# Workflow for the user:
+#   1. Export the #uct-live-flow channel via DiscordChatExporter (JSON format)
+#   2. Upload the file via /api/admin/bullflow/backtest-from-json
+#   3. Get the same simulation block as the MCP backtest endpoint
+#
+# This is reliable because Discord stores embeds durably — neither Bullflow gaps
+# nor worker restarts can affect what's already been posted.
+#
+# Caveat: only contains alerts that PASSED the live gate. To get a complete
+# historical picture, run with MIN_DISCORD_GRADE=D in production for a few days
+# (everything posts), export, then experiment with tighter thresholds offline.
+
+_BOT_NAMES = {"UCTOptionsAlert", "UCT Options Alert"}
+
+
+def _parse_discord_embed_alert(embed: dict, message_ts: str) -> dict | None:
+    """
+    Reconstruct an alert payload from a Discord embed posted by the live worker.
+    Returns None if the embed doesn't match the expected UCT alert shape (e.g.
+    Watchlist summaries, test posts, malformed embeds).
+
+    The output shape matches what _simulate_pipeline expects: ticker, cp, strike,
+    exp, alertPremium, alertName, alertType, averageFillPrice, timestamp.
+    """
+    title = (embed.get("title") or "").strip()
+    if not title or "TEST" in title:
+        return None
+
+    # Strip legacy "🚨 LIVE · " prefix; current format omits it.
+    title = title.replace("\U0001f6a8 LIVE · ", "").replace("\U0001f6a8 LIVE ", "").strip()
+
+    # Current format: "TICKER $STRIKE CALL/PUT EXP: MM-DD-YYYY (X% LABEL)"
+    # Older format:   "TICKER C/P $STRIKE YYYY-MM-DD ..."
+    parsed = None
+    m = re.match(r"^([A-Z0-9$.]+)\s+\$([\d.]+)\s+(CALL|PUT)\s+EXP:\s+(\S+)", title)
+    if m:
+        parsed = {
+            "ticker": m.group(1),
+            "strike": float(m.group(2)),
+            "cp": m.group(3)[0],   # CALL/PUT → C/P (matches worker internal repr)
+            "exp": m.group(4),
+        }
+    else:
+        m = re.match(r"^([A-Z0-9$.]+)\s+([CP])\s+\$([\d.]+)\s+(\S+)", title)
+        if m:
+            parsed = {
+                "ticker": m.group(1),
+                "strike": float(m.group(3)),
+                "cp": m.group(2),
+                "exp": m.group(4),
+            }
+    if not parsed:
+        return None
+
+    # Extract embed fields by name. DiscordChatExporter uses "isInline" not
+    # "inline", but the field structure is otherwise identical to Discord's.
+    fields = {(f.get("name") or "").strip(): (f.get("value") or "").strip()
+              for f in embed.get("fields", [])}
+
+    def parse_premium(s):
+        """'$1.27M', '$917K' → float dollars."""
+        if not s:
+            return 0.0
+        s = s.replace("$", "").replace(",", "").strip().strip("*")
+        try:
+            if s.endswith("M"): return float(s[:-1]) * 1e6
+            if s.endswith("K"): return float(s[:-1]) * 1e3
+            if s.endswith("B"): return float(s[:-1]) * 1e9
+            return float(s)
+        except (ValueError, IndexError):
+            return 0.0
+
+    def parse_int(s):
+        if not s or s == "—":
+            return None
+        try:
+            return int(s.replace(",", ""))
+        except (ValueError, IndexError):
+            return None
+
+    def parse_fill(s):
+        """'$13.50' → 13.50"""
+        if not s:
+            return None
+        try:
+            return float(s.replace("$", "").replace(",", "").strip())
+        except ValueError:
+            return None
+
+    premium = parse_premium(fields.get("Total Premium") or fields.get("Premium"))
+    alert_name = fields.get("Alert", "")
+    # Strip "+N more" suffix; some embeds show multiple alert tiers caught the
+    # same trade. We just want the primary one for re-running the pipeline.
+    alert_name = re.sub(r"\s+\+\d+ more", "", alert_name).strip()
+    fill = parse_fill(fields.get("Avg Fill") or fields.get("Latest Fill"))
+
+    return {
+        "id": embed.get("_id"),  # may be None
+        "alertName": alert_name,
+        "alertType": "custom",   # Discord embeds don't carry the original type
+        "alertPremium": premium,
+        "averageFillPrice": fill,
+        "ticker": parsed["ticker"],
+        "cp": parsed["cp"],
+        "strike": parsed["strike"],
+        "exp": parsed["exp"],
+        "dte": None,
+        "timestamp": message_ts,
+        # Keep a few enrichment hints if present in the embed — these are not
+        # used by the simulator (which re-derives them) but useful for debug.
+        "_embed_volume": parse_int(fields.get("Volume")),
+        "_embed_oi": parse_int(fields.get("OI")),
+        "_embed_grade": fields.get("Conviction"),
+    }
+
+
+def _parse_discord_export(data: dict) -> list[dict]:
+    """
+    Walk a DiscordChatExporter JSON dump and extract alert-shaped dicts from
+    every UCTOptionsAlert bot post that has a parseable embed. Watchlist
+    summaries and other non-alert embeds are silently skipped.
+    """
+    alerts: list[dict] = []
+    messages = data.get("messages") or []
+    for msg in messages:
+        author = (msg.get("author") or {}).get("name", "")
+        if author not in _BOT_NAMES:
+            continue
+        ts = msg.get("timestamp") or ""
+        for embed in (msg.get("embeds") or []):
+            a = _parse_discord_embed_alert(embed, ts)
+            if a:
+                alerts.append(a)
+    return alerts
+
+
+@router.post("/admin/bullflow/backtest-from-json")
+async def backtest_from_json(
+    file: UploadFile = File(..., description="DiscordChatExporter JSON export"),
+    min_grade: str = Query("B", description="Conviction gate threshold"),
+    exclude_etf_flow: bool = Query(False, description="Strip UCT ETF Flow"),
+):
+    """
+    Run the simulation pipeline against alerts reconstructed from a Discord
+    channel export. Independent of Bullflow MCP — purely file-driven, which
+    makes it reliable even when upstream APIs misbehave.
+
+    Returns the same response shape as the MCP backtest endpoint so the
+    frontend can reuse all its existing rendering code without branching.
+    """
+    import json as _json
+    try:
+        raw = await file.read()
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as e:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"Invalid JSON: {e}"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"File read failed: {type(e).__name__}: {e}"},
+        )
+
+    alerts = _parse_discord_export(data)
+    if not alerts:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "No alerts parsed from JSON. Expected DiscordChatExporter "
+                         "format with UCTOptionsAlert bot embeds.",
+                "messages_in_file": len(data.get("messages", [])),
+            },
+        )
+
+    # Apply ETF filter pre-simulation so the gate doesn't see those alerts.
+    if exclude_etf_flow:
+        alerts = [a for a in alerts if "ETF Flow" not in (a.get("alertName") or "")]
+
+    # Run the same simulator the MCP endpoint uses. This applies enrichment
+    # (OI lookup + Schwab spot for moneyness), aggregation, conviction grading,
+    # and the gate. Output shape identical to the MCP backtest endpoint.
+    try:
+        simulation = await _simulate_pipeline(alerts, min_grade=min_grade)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Simulator failed: {type(e).__name__}: {str(e)[:300]}"},
+        )
+
+    # Extract date range from the file for the response header
+    date_range = data.get("dateRange") or {}
+    date_from = (date_range.get("after") or "")[:10]
+    date_to = (date_range.get("before") or "")[:10]
+
+    return {
+        "mode": "backtest_json",
+        "source": "discord_export",
+        "filename": file.filename,
+        "date_from": date_from,
+        "date_to": date_to,
+        "alerts": alerts,
+        "status": {
+            "connected": True,
+            "last_event_at": alerts[-1]["timestamp"] if alerts else None,
+            "total_alerts_received": len(alerts),
+            "total_alerts_shown": len(alerts),
+            "total_alerts_dropped": 0,
+            "total_alerts_forwarded": 0,
+            "last_error": None,
+            "reconnect_count": 0,
+            "started_at": None,
+            "mode": "backtest_json",
+            "backtest_date": date_to or date_from,
+            "backtest_capped": False,
+        },
+        "simulation": simulation,
     }
