@@ -318,7 +318,7 @@ function FilterChips({ filters, setFilters, counts }) {
 // exclusion list. Reads current state from /api/live/user-blocklist on mount,
 // PUTs the full replacement list on Save. Tickers are uppercased server-side
 // and persisted to disk so the list survives worker restarts.
-function UserBlocklistPanel({ visible }) {
+function UserBlocklistPanel({ visible, onSaved }) {
   const [tickers, setTickers] = useState([]);
   const [draftText, setDraftText] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -367,6 +367,10 @@ function UserBlocklistPanel({ visible }) {
       setDraftText((d.tickers || []).join(", "));
       setStatus("saved · " + (d.count || 0) + " tickers");
       setTimeout(() => setStatus(""), 3000);
+      // Signal parent to re-fetch alert data so the visible buffer reflects
+      // the new blocklist immediately (otherwise the page shows stale rows
+      // with excluded tickers until next poll cycle or backtest re-trigger).
+      if (typeof onSaved === "function") onSaved();
     } catch (e) {
       setStatus("save failed: " + (e?.message || e));
     } finally {
@@ -622,6 +626,9 @@ export default function LiveFlow() {
   const [filters, setFilters] = useState(loadFilters);
   const [collapsedTiers, setCollapsedTiers] = useState({});
   const [backtestLoading, setBacktestLoading] = useState(false);
+  // Bump this to force the data-fetch effect to re-run (e.g. after the user
+  // saves a new ticker blocklist — both live polling and backtest re-fetch).
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -701,7 +708,7 @@ export default function LiveFlow() {
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [isBacktest, backtestDate]);
+  }, [isBacktest, backtestDate, refreshTrigger]);
 
   // Dedup first: collapse alerts that fired multiple custom-alert rules for the
   // same trade. Then group by tier (direction from cp), then sort within each
@@ -833,7 +840,10 @@ export default function LiveFlow() {
       <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
 
       {/* Admin: user-managed ticker exclusion list */}
-      <UserBlocklistPanel visible={isAdmin} />
+      <UserBlocklistPanel
+        visible={isAdmin}
+        onSaved={() => setRefreshTrigger(x => x + 1)}
+      />
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
