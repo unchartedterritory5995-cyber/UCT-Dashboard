@@ -8,11 +8,14 @@ using external flows + realized trade P&L (each such point flagged estimated).
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from api.services.auth_db import get_connection
 from api.services.journal_two.broker import performance, cashflow_store
+
+logger = logging.getLogger(__name__)
 
 
 def _period_start(period: str | None) -> str | None:
@@ -41,6 +44,35 @@ def account_performance(user_id: str, account_id: str, period: str = "ALL",
         ).fetchone()
         broker_account_id = ba["id"] if ba else None
         start = _period_start(period)
+
+        # Prefer the EXACT daily mark-to-market reconstruction (stocks + options
+        # + cash marked to historical prices). Fall back to the snapshot +
+        # estimated-prefix series below only if it yields nothing / errors.
+        recon = []
+        try:
+            from api.services.journal_two import accounts as _accounts
+            from api.services.journal_two.broker import historical_equity
+            acct = _accounts.get_account(user_id, account_id, conn=conn)
+            live_eq = (float(acct["brokerTotalEquity"])
+                       if acct and acct.get("brokerTotalEquity") is not None else None)
+            recon = historical_equity.reconstruct_daily_equity(
+                user_id, account_id, live_equity=live_eq, conn=conn) or []
+        except Exception:
+            logger.exception("[broker] historical reconstruction failed; using estimated")
+        if recon:
+            equity = [(p["date"], p["equity"]) for p in recon
+                      if (start is None or p["date"] >= start)]
+            external = cashflow_store.external_flow_series(user_id, account_id, start=start, conn=conn)
+            by_type = cashflow_store.sum_by_type(user_id, account_id, start=start, conn=conn)
+            internal = {"dividends": by_type.get("dividend", 0.0),
+                        "interest": by_type.get("interest", 0.0),
+                        "fees": by_type.get("fee", 0.0)}
+            result = performance.compute_performance(equity, external, internal)
+            result["equitySeries"] = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+            result["flows"] = cashflow_store.list_flows(user_id, account_id, start=start, conn=conn)
+            result["estimated"] = False
+            result["period"] = (period or "ALL").upper()
+            return result
 
         snaps = []
         if broker_account_id:

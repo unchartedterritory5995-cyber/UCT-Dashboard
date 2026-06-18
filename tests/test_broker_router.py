@@ -129,9 +129,13 @@ def test_paid_gate_blocks_free_user(client):
     assert client.get("/api/j2/broker/status").status_code == 200
 
 
-def test_performance_and_cash_flows_endpoints(client):
+def test_performance_and_cash_flows_endpoints(client, monkeypatch):
     from api.services.journal_two import accounts as accounts_service
     from api.services.journal_two.broker import cashflow_reconstruct as cf
+    # Pin to the snapshot/estimated path so this endpoint test is deterministic
+    # (no trade activity here; the reconstruction engine has its own tests).
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity", lambda *a, **k: [])
     acct = accounts_service.create_account(
         "u1", {"name": "B", "color": "blue", "startingBalance": 1.0})
     j2 = acct["id"]

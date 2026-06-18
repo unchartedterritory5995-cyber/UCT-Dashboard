@@ -55,7 +55,10 @@ def _dep(aid, amount, date):
             "trade_date": date}
 
 
-def test_account_performance_twr_with_deposit(env):
+def test_account_performance_twr_with_deposit(env, monkeypatch):
+    # Fallback path: reconstruction stubbed empty → snapshot + estimated series.
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity", lambda *a, **k: [])
     _snap("2026-05-01", 10000.0)
     _snap("2026-05-02", 15000.0)
     cf.reconcile_cash_flows("u1", env["ba"], [_dep("c1", 5000, "2026-05-02")])
@@ -68,9 +71,11 @@ def test_account_performance_twr_with_deposit(env):
     assert out["estimated"] is False
 
 
-def test_account_performance_prepends_estimated_history(env):
-    # Only one real snapshot. A deposit predates it → an estimated point is
-    # walked back (first_snap − external flows after that date), flagged.
+def test_account_performance_prepends_estimated_history(env, monkeypatch):
+    # Fallback path (reconstruction stubbed empty): one real snapshot + a prior
+    # deposit → an estimated point walked back from the first snapshot, flagged.
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity", lambda *a, **k: [])
     _snap("2026-05-10", 12000.0)
     cf.reconcile_cash_flows("u1", env["ba"], [_dep("c1", 2000, "2026-05-05")])
     out = svc.account_performance("u1", env["j2"], "ALL")
@@ -96,3 +101,30 @@ def test_comparison_uses_twr_for_broker_account(env):
     comp = accounts_service.comparison("u1")
     row = next(r for r in comp["accounts"] if r["id"] == env["j2"])
     assert row["totalReturn"] == pytest.approx(0.20)
+
+
+def test_account_performance_prefers_reconstruction(env, monkeypatch):
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(
+        historical_equity, "reconstruct_daily_equity",
+        lambda user_id, account_id, **kw: [
+            {"date": "2026-05-01", "equity": 10000.0, "estimated": False, "partial": False},
+            {"date": "2026-05-02", "equity": 12000.0, "estimated": False, "partial": False},
+        ])
+    out = svc.account_performance("u1", env["j2"], "ALL")
+    assert [p["date"] for p in out["equitySeries"]] == ["2026-05-01", "2026-05-02"]
+    assert all(p["estimated"] is False for p in out["equitySeries"])
+    assert out["estimated"] is False
+    assert out["timeWeighted"] == pytest.approx(0.20)   # 10000 → 12000, no flows
+
+
+def test_account_performance_falls_back_when_reconstruction_empty(env, monkeypatch):
+    # Reconstruction yields nothing → keep the snapshot/estimated path.
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity",
+                        lambda user_id, account_id, **kw: [])
+    _snap("2026-05-01", 10000.0)
+    _snap("2026-05-02", 12000.0)
+    out = svc.account_performance("u1", env["j2"], "ALL")
+    assert [p["date"] for p in out["equitySeries"]] == ["2026-05-01", "2026-05-02"]
+    assert out["timeWeighted"] == pytest.approx(0.20)
