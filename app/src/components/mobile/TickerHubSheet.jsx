@@ -10,6 +10,7 @@ import CompassAssistButton from '../voice/CompassAssistButton'
 import styles from './TickerHubSheet.module.css'
 
 const StockChart = lazy(() => import('../StockChart'))
+const FundamentalSnapshot = lazy(() => import('../FundamentalSnapshot'))
 
 const TFS = [
   { key: 'D', label: '1D' },
@@ -36,6 +37,7 @@ function TickerHubBody({ sym, onClose }) {
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertDir, setAlertDir] = useState('above')
   const [alertPrice, setAlertPrice] = useState('')
+  const [showFund, setShowFund] = useState(false)
 
   const live = prices[sym] || prices[String(sym).toUpperCase()]
   const flagged = isFlagged(sym)
@@ -117,7 +119,22 @@ function TickerHubBody({ sym, onClose }) {
           <button type="button" className={styles.action} onClick={() => go('/journal')}>
             <span className={styles.aicon} aria-hidden="true">📓</span>Journal
           </button>
+          <button
+            type="button"
+            className={`${styles.action} ${showFund ? styles.on : ''}`}
+            onClick={() => setShowFund((o) => !o)}
+            aria-expanded={showFund}
+          >
+            <span className={styles.aicon} aria-hidden="true">📊</span>Funds
+          </button>
         </div>
+
+        {/* Fundamentals snapshot — lazy + fetch-gated on open */}
+        {showFund && (
+          <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
+            <FundamentalSnapshot sym={sym} enabled={showFund} />
+          </Suspense>
+        )}
 
         {/* Inline alert form */}
         {alertOpen && (

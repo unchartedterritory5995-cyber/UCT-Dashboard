@@ -46,6 +46,23 @@ const LETTER_COMPONENTS = [
   ['sponsorship', 'Sponsor'],
 ]
 
+const _MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function earnLabel(iso) {
+  // iso = 'YYYY-MM-DD' → "Jul 31 · in 12d" / "today" / "Jul 31"
+  const parts = String(iso).split('-')
+  if (parts.length !== 3) return null
+  const [y, mo, da] = parts.map(Number)
+  if (!y || !mo || !da) return null
+  const md = `${_MONTHS[mo - 1]} ${da}`
+  const target = Date.UTC(y, mo - 1, da)
+  const now = new Date()
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const days = Math.round((target - today) / 86400000)
+  if (days === 0) return `${md} · today`
+  if (days > 0 && days <= 45) return `${md} · in ${days}d`
+  return md
+}
+
 function Cell({ label, value, color }) {
   return (
     <div className={styles.kv}>
@@ -82,10 +99,25 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
     <div className={styles.wrap}>
       {/* Header */}
       <div className={styles.head}>
-        <div className={styles.name}>{d.name || sym}</div>
-        {(d.sector || d.industry) && (
-          <div className={styles.sub}>{[d.sector, d.industry].filter(Boolean).join(' · ')}</div>
-        )}
+        <div className={styles.headMain}>
+          <div className={styles.name}>{d.name || sym}</div>
+          {(d.sector || d.industry) && (
+            <div className={styles.sub}>{[d.sector, d.industry].filter(Boolean).join(' · ')}</div>
+          )}
+        </div>
+        <div className={styles.headChips}>
+          {d.next_earnings && earnLabel(d.next_earnings) && (
+            <span className={styles.earnChip} title="Next earnings date">📅 {earnLabel(d.next_earnings)}</span>
+          )}
+          {d.basis && (
+            <span className={`${styles.basisPill} ${d.basis === 'percentile' ? styles.basisPct : styles.basisAbs}`}
+                  title={d.basis === 'percentile'
+                    ? `Ratings are percentile ranks vs a ${d.universe_n || '—'}-stock universe`
+                    : 'Ratings use absolute threshold bands (universe percentile not yet warmed)'}>
+              {d.basis === 'percentile' ? `Percentile · ${d.universe_n || '—'}` : 'Absolute v1'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Ratings row */}
@@ -110,6 +142,17 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Sector RS — relative strength rank within the GICS sector */}
+      {d.group_rs != null && (
+        <div className={styles.sectorRs}>
+          <span className={styles.sectorRsLbl}>Sector RS</span>
+          <span className={styles.sectorRsVal} style={{ color: scoreColor(d.group_rs) }}>{d.group_rs}</span>
+          {d.group_sector_n && d.sector && (
+            <span className={styles.sectorRsCtx}>vs {d.group_sector_n} {d.sector} peers</span>
+          )}
         </div>
       )}
 

@@ -11,6 +11,7 @@ def db(tmp_path, monkeypatch):
     """Fresh ratings_db pointed at a temp file, schema initialized."""
     monkeypatch.setenv("RESEARCH_RATINGS_DB_PATH", str(tmp_path / "rr.db"))
     monkeypatch.setenv("RATINGS_PERCENTILE_MIN_SAMPLE", "10")
+    monkeypatch.setenv("RATINGS_SECTOR_MIN_SAMPLE", "5")
     import api.services.research.ratings_db as rdb
     importlib.reload(rdb)
     rdb.init_db()
@@ -97,3 +98,36 @@ def test_fresh_syms_skip_set(db):
 def test_empty_db_returns_empty_distributions(db):
     assert db.get_distributions() == {}
     assert db.percentile("rs_return", 5) is None  # no dists → None
+
+
+def test_sector_distributions_and_percentile(db):
+    # 10 Tech names rs 0..9, 6 Energy names rs 0..5, 3 Utilities (below gate of 5)
+    for i in range(10):
+        db.upsert_metrics(f"TECH{i}", {"rs_return": float(i), "sector": "Technology"})
+    for i in range(6):
+        db.upsert_metrics(f"ENE{i}", {"rs_return": float(i), "sector": "Energy"})
+    for i in range(3):
+        db.upsert_metrics(f"UTL{i}", {"rs_return": float(i), "sector": "Utilities"})
+    db.rebuild_distributions()
+
+    sd = db.get_sector_distributions()
+    assert sd["Technology"]["rs_return"]["n"] == 10
+    assert sd["Energy"]["rs_return"]["n"] == 6
+    # within-sector rank: a high rs in Tech ranks high vs Tech peers
+    assert db.sector_percentile("Technology", "rs_return", 9) >= 90
+    assert db.sector_percentile("Technology", "rs_return", 0) <= 10
+    assert db.sector_count("Technology") == 10
+    # Utilities pool (3) is below SECTOR_MIN_SAMPLE=5 → unusable
+    assert db.sector_percentile("Utilities", "rs_return", 1) is None
+    # unknown sector / None
+    assert db.sector_percentile("Nonexistent", "rs_return", 5) is None
+    assert db.sector_percentile(None, "rs_return", 5) is None
+
+
+def test_sector_column_migration_on_existing_table(db, monkeypatch):
+    # simulate a pre-Sector-RS table: drop the sector column path by re-running init
+    # (init_db is idempotent + adds the column if missing) — just assert upsert+read works
+    db.upsert_metrics("X1", {"rs_return": 5.0, "sector": "Healthcare"})
+    db.init_db()  # idempotent, must not error or wipe
+    db.upsert_metrics("X2", {"rs_return": 6.0, "sector": "Healthcare"})
+    assert db.status()["tickers_stored"] == 2

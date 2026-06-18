@@ -6,6 +6,8 @@ sub-millisecond.
 """
 
 import logging
+import time
+from datetime import datetime, timezone
 from typing import Any
 
 import yfinance as yf
@@ -43,6 +45,28 @@ def _round(v, digits: int = 2) -> float | None:
     try:
         return round(float(v), digits)
     except (TypeError, ValueError):
+        return None
+
+
+def _next_earnings_iso(info: dict) -> str | None:
+    """Earliest FUTURE earnings date (ISO YYYY-MM-DD) from yfinance .info unix
+    timestamps. Returns None if no upcoming date is known."""
+    now = time.time()
+    cands = []
+    for k in ("earningsTimestampStart", "earningsTimestamp", "earningsTimestampEnd"):
+        ts = info.get(k)
+        try:
+            ts = float(ts)
+        except (TypeError, ValueError):
+            continue
+        # allow a small past window (today) so same-day reporters still show
+        if ts >= now - 86400:
+            cands.append(ts)
+    if not cands:
+        return None
+    try:
+        return datetime.fromtimestamp(min(cands), tz=timezone.utc).strftime("%Y-%m-%d")
+    except (OverflowError, OSError, ValueError):
         return None
 
 
@@ -113,6 +137,8 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "analyst_target_mean": _round(info.get("targetMeanPrice")),
         "analyst_recommendation": info.get("recommendationKey"),
         "analyst_count": info.get("numberOfAnalystOpinions"),
+        # Next earnings (free from .info) — surfaced in the snapshot header
+        "next_earnings": _next_earnings_iso(info),
     }
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result

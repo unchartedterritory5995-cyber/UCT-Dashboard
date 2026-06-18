@@ -279,6 +279,18 @@ def get_ratings(sym):
 
     rs_ret = _weighted_rs_return(closes)
     rs = _pctile("rs_return", rs_ret) or (_band(rs_ret, _RS_BANDS) if rs_ret is not None else None)
+
+    # Sector RS: rank this ticker's RS return WITHIN its GICS sector.
+    sector = fund.get("sector")
+    group_rs = group_sector_n = None
+    try:
+        if sector and rs_ret is not None:
+            sdists = ratings_db.get_sector_distributions()
+            group_rs = ratings_db.sector_percentile(sector, "rs_return", rs_ret, sdists)
+            if group_rs is not None:
+                group_sector_n = ratings_db.sector_count(sector, "rs_return", sdists)
+    except Exception:
+        group_rs = group_sector_n = None
     eps = _pctile("earnings_growth", eps_g) or (_band(eps_g, _EPS_BANDS) if eps_g is not None else None)
     growth_in = _blend_growth(rev_g, eps_g)
     growth = _pctile("blended_growth", growth_in) or (_band(growth_in, _GROWTH_BANDS) if growth_in is not None else None)
@@ -324,6 +336,9 @@ def get_ratings(sym):
         "method": method,
         "basis": basis,
         "universe_n": universe_n,
+        "sector": sector,
+        "group_rs": group_rs,          # RS percentile within sector (1-99)
+        "group_sector_n": group_sector_n,  # # names in the sector pool
     }
     cache.set(ck, out, _CACHE_TTL)
     return out

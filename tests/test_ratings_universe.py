@@ -45,6 +45,7 @@ def test_compute_one_composes_local_and_fundamentals(ru, monkeypatch):
         "earnings_growth_pct": 25.0, "revenue_growth_pct": 15.0,
         "operating_margin_pct": 20.0, "roe_pct": 30.0,
         "peg": 1.5, "pe_forward": 22.0, "held_pct_institutions": 65.0,
+        "sector": "Technology",
     })
     m = ru._compute_one("AAPL")
     assert m["earnings_growth"] == 25.0
@@ -54,6 +55,7 @@ def test_compute_one_composes_local_and_fundamentals(ru, monkeypatch):
     assert m["accdis_ratio"] is not None          # from local bars
     assert m["inst_pct"] == 65.0
     assert m["peg"] == 1.5
+    assert m["sector"] == "Technology"            # for Sector RS
 
 
 def test_compute_one_survives_missing_bars_and_funds(ru, monkeypatch):

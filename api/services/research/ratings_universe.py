@@ -94,6 +94,7 @@ def _compute_one(sym: str) -> dict | None:
         "roe": fund.get("roe_pct"),
         "inst_pct": fund.get("held_pct_institutions"),
         "accdis_ratio": accdis_ratio,
+        "sector": fund.get("sector"),  # for Sector RS (per-sector distributions)
     }
 
 

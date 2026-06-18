@@ -43,6 +43,7 @@ _FUND = {
 def rat(tmp_path, monkeypatch):
     monkeypatch.setenv("RESEARCH_RATINGS_DB_PATH", str(tmp_path / "rr.db"))
     monkeypatch.setenv("RATINGS_PERCENTILE_MIN_SAMPLE", "10")
+    monkeypatch.setenv("RATINGS_SECTOR_MIN_SAMPLE", "5")
     import api.services.research.ratings_db as rdb
     importlib.reload(rdb)
     import api.services.research.ratings as r
@@ -112,6 +113,31 @@ def test_percentile_low_peg_ranks_high(rat, monkeypatch):
     monkeypatch.setattr(r, "get_fundamentals", lambda s: cheap)
     out = r.get_ratings("CHEAP")
     assert out["components"]["value"] >= 90
+
+
+def test_sector_rs_present_when_sector_dists_exist(rat):
+    r, rdb = rat
+    _seed_uniform_dists(rdb)
+    # seed 8 "Tech" names with rs_return so the sector pool clears the gate (5)
+    for i in range(8):
+        rdb.upsert_metrics(f"TK{i}", {"rs_return": float(i * 5 - 10), "sector": "Tech"})
+    rdb.rebuild_distributions()
+    out = r.get_ratings("GRPTEST")
+    assert out["sector"] == "Tech"
+    assert out["group_rs"] is not None and 1 <= out["group_rs"] <= 99
+    assert out["group_sector_n"] == 8
+
+
+def test_no_sector_rs_when_sector_pool_too_small(rat):
+    r, rdb = rat
+    _seed_uniform_dists(rdb)
+    # only 3 Tech names → below SECTOR_MIN_SAMPLE=5 → no group_rs
+    for i in range(3):
+        rdb.upsert_metrics(f"TK{i}", {"rs_return": float(i), "sector": "Tech"})
+    rdb.rebuild_distributions()
+    out = r.get_ratings("GRPSMALL")
+    assert out["group_rs"] is None
+    assert out["group_sector_n"] is None
 
 
 def test_missing_metric_degrades_per_component(rat, monkeypatch):

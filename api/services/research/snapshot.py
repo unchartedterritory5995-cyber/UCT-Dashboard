@@ -66,6 +66,7 @@ def get_snapshot(sym: str) -> dict:
     out["name"] = fund.get("name") or sym
     out["sector"] = fund.get("sector")
     out["industry"] = fund.get("industry")
+    out["next_earnings"] = fund.get("next_earnings")  # ISO date or None (header chip)
 
     out["composite"] = rat.get("composite")
     out["components"] = rat.get("components") or {}
@@ -73,6 +74,8 @@ def get_snapshot(sym: str) -> dict:
     out["method"] = rat.get("method")
     out["basis"] = rat.get("basis")            # 'percentile' | 'absolute'
     out["universe_n"] = rat.get("universe_n")
+    out["group_rs"] = rat.get("group_rs")            # RS percentile within sector
+    out["group_sector_n"] = rat.get("group_sector_n")  # # names in sector pool
 
     # MarketSmith-style "data boxes" — curated, grouped on the frontend.
     out["metrics"] = {

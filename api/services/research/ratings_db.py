@@ -51,13 +51,20 @@ _DIST_COLUMNS = (
     "peg", "op_margin", "roe", "inst_pct", "accdis_ratio",
 )
 
+# Per-sector distributions (Sector RS): metrics ranked WITHIN each GICS sector.
+_SECTOR_DIST_COLUMNS = ("rs_return",)
+
 # A distribution needs at least this many real samples to be trusted.
 MIN_SAMPLE = int(os.environ.get("RATINGS_PERCENTILE_MIN_SAMPLE", "200"))
+# Sectors are smaller pools (~11 GICS buckets) so the gate is lower.
+SECTOR_MIN_SAMPLE = int(os.environ.get("RATINGS_SECTOR_MIN_SAMPLE", "15"))
 
 _DIST_MEMO_TTL = 600  # 10 min in-process memo for the parsed distributions
 _memo_lock = threading.Lock()
 _memo: dict | None = None
 _memo_at: float = 0.0
+_sector_memo: dict | None = None
+_sector_memo_at: float = 0.0
 # monotonic clock is import-safe (unlike Date.now-style wall clock concerns);
 # time.time is used only for human-readable stamps written to the DB.
 
@@ -93,8 +100,20 @@ def init_db() -> None:
                 n INTEGER,
                 computed_at REAL
             );
+            CREATE TABLE IF NOT EXISTS sector_distributions (
+                sector TEXT,
+                metric TEXT,
+                sorted_values TEXT,   -- JSON array of floats, ascending
+                n INTEGER,
+                computed_at REAL,
+                PRIMARY KEY (sector, metric)
+            );
             """
         )
+        # Migration: add the `sector` column to an existing ticker_metrics table.
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(ticker_metrics)").fetchall()}
+        if "sector" not in cols:
+            c.execute("ALTER TABLE ticker_metrics ADD COLUMN sector TEXT")
         c.commit()
 
 
@@ -105,12 +124,13 @@ def upsert_metrics(sym: str, metrics: dict) -> None:
         return
     try:
         vals = [metrics.get(col) for col in METRIC_COLUMNS]
-        placeholders = ", ".join(["?"] * (len(METRIC_COLUMNS) + 2))
-        collist = ", ".join(("sym", *METRIC_COLUMNS, "updated_at"))
+        sector = metrics.get("sector")
+        placeholders = ", ".join(["?"] * (len(METRIC_COLUMNS) + 3))
+        collist = ", ".join(("sym", *METRIC_COLUMNS, "sector", "updated_at"))
         with _conn() as c:
             c.execute(
                 f"INSERT OR REPLACE INTO ticker_metrics ({collist}) VALUES ({placeholders})",
-                [sym, *vals, time.time()],
+                [sym, *vals, sector, time.time()],
             )
             c.commit()
     except Exception as exc:  # pragma: no cover - defensive
@@ -151,6 +171,24 @@ def rebuild_distributions() -> dict:
                     (col, json.dumps(values), len(values), time.time()),
                 )
                 summary[col] = len(values)
+
+            # Per-sector distributions (Sector RS): group each metric by sector.
+            for col in _SECTOR_DIST_COLUMNS:
+                rows = c.execute(
+                    f"SELECT sector, {col} AS v FROM ticker_metrics "
+                    f"WHERE sector IS NOT NULL AND {col} IS NOT NULL"
+                ).fetchall()
+                by_sector: dict[str, list[float]] = {}
+                for r in rows:
+                    by_sector.setdefault(r["sector"], []).append(float(r["v"]))
+                for sector, vals in by_sector.items():
+                    vals.sort()
+                    c.execute(
+                        "INSERT OR REPLACE INTO sector_distributions "
+                        "(sector, metric, sorted_values, n, computed_at) VALUES (?, ?, ?, ?, ?)",
+                        (sector, col, json.dumps(vals), len(vals), time.time()),
+                    )
+                summary[f"sectors::{col}"] = len(by_sector)
             c.commit()
     except Exception as exc:
         _logger.warning("ratings_db rebuild_distributions failed: %s", exc)
@@ -160,10 +198,12 @@ def rebuild_distributions() -> dict:
 
 
 def _invalidate_memo() -> None:
-    global _memo, _memo_at
+    global _memo, _memo_at, _sector_memo, _sector_memo_at
     with _memo_lock:
         _memo = None
         _memo_at = 0.0
+        _sector_memo = None
+        _sector_memo_at = 0.0
 
 
 def get_distributions() -> dict:
@@ -234,6 +274,65 @@ def percentile(metric: str, value, dists: dict | None = None, invert: bool = Fal
     return rank
 
 
+def get_sector_distributions() -> dict:
+    """Parsed per-sector distributions ``{sector: {metric: {"values","n"}}}``.
+
+    Memoized for _DIST_MEMO_TTL. Returns {} if none — caller skips Sector RS.
+    """
+    global _sector_memo, _sector_memo_at
+    now = time.monotonic()
+    with _memo_lock:
+        if _sector_memo is not None and (now - _sector_memo_at) < _DIST_MEMO_TTL:
+            return _sector_memo
+    parsed: dict = {}
+    try:
+        with _conn() as c:
+            rows = c.execute(
+                "SELECT sector, metric, sorted_values, n FROM sector_distributions"
+            ).fetchall()
+        for r in rows:
+            try:
+                values = json.loads(r["sorted_values"]) or []
+            except (TypeError, ValueError):
+                values = []
+            parsed.setdefault(r["sector"], {})[r["metric"]] = {"values": values, "n": int(r["n"] or 0)}
+    except Exception:
+        parsed = {}
+    with _memo_lock:
+        _sector_memo = parsed
+        _sector_memo_at = now
+    return parsed
+
+
+def sector_percentile(sector: str, metric: str, value, sdists: dict | None = None):
+    """1-99 rank of ``value`` for ``metric`` WITHIN its sector. None if the
+    sector pool is missing or below SECTOR_MIN_SAMPLE."""
+    if value is None or not sector:
+        return None
+    if sdists is None:
+        sdists = get_sector_distributions()
+    d = (sdists.get(sector) or {}).get(metric)
+    if not d:
+        return None
+    values = d.get("values") or []
+    if len(values) < SECTOR_MIN_SAMPLE:
+        return None
+    try:
+        return _rank(values, float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def sector_count(sector: str, metric: str = "rs_return", sdists: dict | None = None):
+    """How many universe names populate this sector's distribution (the 'of N')."""
+    if not sector:
+        return None
+    if sdists is None:
+        sdists = get_sector_distributions()
+    d = (sdists.get(sector) or {}).get(metric)
+    return d.get("n") if d else None
+
+
 def status() -> dict:
     """Coverage summary for the admin endpoint. Never raises."""
     try:
@@ -244,10 +343,18 @@ def status() -> dict:
             ).fetchall()
         dists = {r["metric"]: {"n": r["n"], "computed_at": r["computed_at"]} for r in dist_rows}
         computed_ats = [r["computed_at"] for r in dist_rows if r["computed_at"]]
+        with _conn() as c:
+            sec_rows = c.execute(
+                "SELECT sector, n FROM sector_distributions WHERE metric='rs_return' ORDER BY n DESC"
+            ).fetchall()
+        sectors = {r["sector"]: r["n"] for r in sec_rows}
         return {
             "tickers_stored": total,
             "min_sample": MIN_SAMPLE,
+            "sector_min_sample": SECTOR_MIN_SAMPLE,
             "distributions": dists,
+            "sectors": sectors,
+            "sectors_usable": sum(1 for n in sectors.values() if (n or 0) >= SECTOR_MIN_SAMPLE),
             "last_computed_at": max(computed_ats) if computed_ats else None,
             "usable": any((v["n"] or 0) >= MIN_SAMPLE for v in dists.values()),
             "db_path": DB_PATH,
