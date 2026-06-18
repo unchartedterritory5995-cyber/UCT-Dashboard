@@ -570,8 +570,8 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
         {alert.oiExceeded && alert.volumeOIRatio && (
           <span
             title={
-              "Trade size " + (alert.tradeSize || "?") +
-              " exceeded prior OI " + (alert.priorOI || "?") +
+              "Volume " + (alert.tradeSize || "?") +
+              " exceeded OI " + (alert.priorOI || "?") +
               " (ratio " + alert.volumeOIRatio.toFixed(2) + "x)" +
               (alert.oiSnapshotDate ? " — OI from " + alert.oiSnapshotDate : "")
             }
@@ -642,6 +642,194 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
   );
 }
 
+// ─── Simulation Panel (admin backtest only) ───────────────────────────────────
+// Renders the output of the backtest endpoint's simulate=full mode. Three views:
+//   - posts: contracts that would have triggered a fresh Discord message
+//   - edits: subsequent fires that would have updated an existing message
+//   - gated: alerts silenced by the conviction threshold
+// Stats row up top, grade distribution chips, then the tabbed list.
+function SimulationPanel({ simulation, view, setView }) {
+  const s = simulation.stats || {};
+  const dist = simulation.grade_distribution || {};
+  const GRADES = ["A+", "A", "B", "C", "D"];
+  const distTotal = GRADES.reduce((sum, g) => sum + (dist[g] || 0), 0) || 1;
+
+  const GRADE_COLOR = {
+    "A+": P.gn,
+    "A": P.gn + "cc",
+    "B": P.bl,
+    "C": "#9aa3a8",
+    "D": P.dm,
+  };
+
+  const list = view === "posts" ? simulation.would_post :
+               view === "edits" ? simulation.would_edit :
+               simulation.gated;
+  const listLen = (list || []).length;
+
+  return (
+    <div style={{
+      borderBottom: "1px solid " + P.gn + "30",
+      background: P.gn + "08",
+    }}>
+      {/* Stats row */}
+      <div style={{
+        padding: "12px 20px", display: "flex", gap: 22,
+        alignItems: "center", flexWrap: "wrap",
+        fontFamily: "ui-monospace, monospace",
+      }}>
+        <span style={{
+          fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+          textTransform: "uppercase", color: P.gn,
+        }}>simulated gate</span>
+        <span style={{ fontSize: 12, color: P.dm }}>
+          MIN_DISCORD_GRADE={" "}
+          <strong style={{ color: P.wh }}>{s.min_grade || "—"}</strong>
+        </span>
+        <span style={{ fontSize: 12 }}>
+          <strong style={{ color: P.gn, fontSize: 16 }}>{s.posts ?? 0}</strong>
+          <span style={{ color: P.dm, marginLeft: 4 }}>posts</span>
+        </span>
+        <span style={{ fontSize: 12 }}>
+          <strong style={{ color: P.bl, fontSize: 16 }}>{s.edits ?? 0}</strong>
+          <span style={{ color: P.dm, marginLeft: 4 }}>edits</span>
+        </span>
+        <span style={{ fontSize: 12 }}>
+          <strong style={{ color: P.dm, fontSize: 16 }}>{s.gated_count ?? 0}</strong>
+          <span style={{ color: P.dm, marginLeft: 4 }}>gated</span>
+        </span>
+        <span style={{
+          fontSize: 12, marginLeft: 8, padding: "3px 8px",
+          background: P.gn + "20", borderRadius: 4,
+        }}>
+          <strong style={{ color: P.gn }}>−{s.reduction_vs_raw_pct ?? 0}%</strong>
+          <span style={{ color: P.dm, marginLeft: 4 }}>vs raw</span>
+        </span>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {GRADES.map((g) => {
+            const c = dist[g] || 0;
+            if (!c) return null;
+            const pct = Math.round(100 * c / distTotal);
+            return (
+              <span key={g} style={{
+                fontSize: 10, padding: "2px 6px", borderRadius: 3,
+                background: GRADE_COLOR[g] + "25",
+                color: GRADE_COLOR[g],
+                fontWeight: 700,
+              }}>
+                {g}: {c} ({pct}%)
+              </span>
+            );
+          })}
+        </span>
+      </div>
+
+      {/* Tab strip */}
+      <div style={{
+        padding: "0 20px", display: "flex", gap: 4,
+        borderBottom: "1px solid " + P.bd + "30",
+      }}>
+        {[
+          ["posts", "would post", s.posts ?? 0, P.gn],
+          ["edits", "would edit", s.edits ?? 0, P.bl],
+          ["gated", "gated", s.gated_count ?? 0, P.dm],
+        ].map(([k, label, count, color]) => (
+          <button
+            key={k}
+            onClick={() => setView(k)}
+            style={{
+              padding: "8px 14px", border: "none",
+              borderBottom: "2px solid " + (view === k ? color : "transparent"),
+              background: "transparent",
+              color: view === k ? P.wh : P.dm,
+              cursor: "pointer", fontSize: 11,
+              fontFamily: "ui-monospace, monospace",
+              textTransform: "uppercase", letterSpacing: 0.5,
+            }}
+          >
+            {label}{" "}
+            <span style={{ color: view === k ? color : P.dm }}>
+              ({count})
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Tabbed list */}
+      <div style={{
+        maxHeight: 360, overflowY: "auto",
+        fontFamily: "ui-monospace, monospace", fontSize: 11,
+      }}>
+        {listLen === 0 ? (
+          <div style={{ padding: 20, color: P.dm, fontSize: 11 }}>
+            No alerts in this view.
+          </div>
+        ) : (
+          (list || []).map((r, i) => (
+            <SimRow key={i} row={r} view={view} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Compact row for simulation list. Highlights premium, fires, and grade.
+function SimRow({ row, view }) {
+  const t = row.ticker || "?";
+  const cp = row.cp || "";
+  const strike = row.strike;
+  const exp = row.exp || "";
+  const prem = row.agg_total_premium || row.alertPremium || 0;
+  const fires = row.agg_fire_count || 1;
+  const grade = row.conviction_grade || "—";
+  const alertName = (row.alertName || "").replace(/\s+\+\d+ more$/, "");
+
+  let timeStr = "?";
+  try {
+    const d = new Date(row.timestamp);
+    timeStr = d.toLocaleTimeString("en-US", {
+      hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/New_York",
+    });
+  } catch {}
+
+  const gradeColor =
+    grade.startsWith("A+") ? P.gn :
+    grade.startsWith("A")  ? P.gn + "cc" :
+    grade.startsWith("B")  ? P.bl :
+    grade.startsWith("C")  ? "#9aa3a8" : P.dm;
+
+  return (
+    <div style={{
+      padding: "6px 20px", display: "flex", gap: 14,
+      alignItems: "center", borderBottom: "1px solid " + P.bd + "20",
+    }}>
+      <span style={{ color: P.dm, minWidth: 50 }}>{timeStr}</span>
+      <span style={{ color: P.wh, fontWeight: 700, minWidth: 60 }}>{t}</span>
+      <span style={{
+        color: cp === "C" ? P.gn : P.rd, minWidth: 40, fontWeight: 600,
+      }}>{cp === "C" ? "CALL" : cp === "P" ? "PUT " : cp}</span>
+      <span style={{ color: P.wh, minWidth: 70 }}>${strike}</span>
+      <span style={{ color: P.dm, minWidth: 95 }}>{exp}</span>
+      <span style={{ color: P.wh, minWidth: 75 }}>
+        {fmtPremium(prem)}
+      </span>
+      {fires > 1 && (
+        <span style={{
+          color: "#FFB300", fontWeight: 700, minWidth: 30,
+        }}>🔁 {fires}x</span>
+      )}
+      <span style={{
+        marginLeft: "auto", color: gradeColor,
+        fontWeight: 800, fontSize: 12,
+      }}>{grade}</span>
+      <span style={{ color: P.dm, minWidth: 150, fontSize: 10 }}>
+        {alertName}
+      </span>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LiveFlow() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -663,6 +851,10 @@ export default function LiveFlow() {
 
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
+  const [simulation, setSimulation] = useState(null);   // simulation block from backtest
+  const [simView, setSimView] = useState("posts");      // "posts" | "edits" | "gated"
+  const [uploadedFile, setUploadedFile] = useState(null);  // JSON file for JSON-mode backtest
+  const [uploadError, setUploadError] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filters, setFilters] = useState(loadFilters);
@@ -673,6 +865,14 @@ export default function LiveFlow() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
+
+  // ─── Simulation mode (admin + backtest only) ─────────────────────────────
+  // URL params drive simulation so links are bookmarkable. When `simulate=full`,
+  // the backtest endpoint runs the full pipeline (enrich → aggregate → gate)
+  // and returns a `simulation` block. min_grade + exclude_etf are passthrough.
+  const simulateMode = isBacktest && searchParams.get("simulate") === "full";
+  const simMinGrade = (searchParams.get("min_grade") || "B").toUpperCase();
+  const simExcludeETF = searchParams.get("exclude_etf") === "true";
 
   // 1Hz tick keeps relTime labels fresh without re-polling.
   useEffect(() => {
@@ -686,14 +886,66 @@ export default function LiveFlow() {
     let timer = null;
     let cancelled = false;
 
+    async function fetchBacktestFromJSON() {
+      // JSON-sourced backtest. Uploaded file POST'd to a separate endpoint
+      // that parses Discord embeds and runs the same simulator. Re-fired
+      // whenever simulation params change so user can tune thresholds
+      // without re-uploading.
+      setBacktestLoading(true);
+      setAlerts([]);
+      setStatus(null);
+      setSimulation(null);
+      setError(null);
+      try {
+        abort = new AbortController();
+        const fd = new FormData();
+        fd.append("file", uploadedFile);
+        const qparams = new URLSearchParams({ min_grade: simMinGrade });
+        if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
+        const r = await fetch(
+          `/api/admin/bullflow/backtest-from-json?${qparams.toString()}`,
+          { method: "POST", body: fd, signal: abort.signal }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error(errBody.error || `HTTP ${r.status}`);
+        }
+        const d = await r.json();
+        if (cancelled) return;
+        newIdsRef.current = new Set();
+        lastIdRef.current = (d.alerts || [])[0]?.id || null;
+        setAlerts(d.alerts || []);
+        setStatus(d.status);
+        setSimulation(d.simulation || null);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        if (!cancelled) setError(e?.message || String(e));
+      } finally {
+        if (!cancelled) setBacktestLoading(false);
+      }
+    }
+
     async function fetchBacktest() {
       setBacktestLoading(true);
       setAlerts([]);
       setStatus(null);
+      setSimulation(null);
       setError(null);
       try {
         abort = new AbortController();
-        const url = `/api/admin/bullflow/backtest?date=${encodeURIComponent(backtestDate)}`;
+        // Build URL with simulation params when requested. Backtest endpoint
+        // defaults to simulate=off so adding the param explicitly is needed
+        // to trigger the full pipeline run.
+        const qparams = new URLSearchParams({
+          date: backtestDate,
+          max_alerts: "500",
+        });
+        if (simulateMode) {
+          qparams.set("simulate", "full");
+          qparams.set("min_grade", simMinGrade);
+          if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
+        }
+        const url = `/api/admin/bullflow/backtest?${qparams.toString()}`;
         const r = await fetch(url, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -705,6 +957,9 @@ export default function LiveFlow() {
         lastIdRef.current = incoming[0]?.id || null;
         setAlerts(incoming);
         setStatus(d.status);
+        // simulation may be null (simulate=off) or contain the full block.
+        // Surface simulator-side errors inline without breaking the alert list.
+        setSimulation(d.simulation || null);
       } catch (e) {
         if (e?.name === "AbortError") return;
         if (!cancelled) setError(e?.message || String(e));
@@ -740,7 +995,12 @@ export default function LiveFlow() {
       }
     }
 
-    if (isBacktest) {
+    if (isBacktest && uploadedFile) {
+      // JSON-sourced backtest takes precedence over MCP when file is loaded.
+      // Conviction simulation auto-enabled in this mode since the whole point
+      // of uploading is to see the simulator output.
+      fetchBacktestFromJSON();
+    } else if (isBacktest) {
       fetchBacktest();
     } else {
       poll();
@@ -750,7 +1010,7 @@ export default function LiveFlow() {
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [isBacktest, backtestDate, refreshTrigger]);
+  }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile]);
 
   // Dedup first: collapse alerts that fired multiple custom-alert rules for the
   // same trade. Then group by tier (direction from cp), then sort within each
@@ -889,12 +1149,12 @@ export default function LiveFlow() {
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        {/* Backtest banner — only when in backtest mode */}
+        {/* Backtest banner — only when in backtest mode (admin gated) */}
         {isBacktest && (
           <div style={{
             padding: "10px 20px", borderBottom: "1px solid " + P.bl + "30",
             background: P.bl + "10", fontSize: 11, color: P.bl,
-            display: "flex", gap: 14, alignItems: "center",
+            display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap",
             fontFamily: "ui-monospace, monospace",
           }}>
             <span style={{
@@ -905,16 +1165,175 @@ export default function LiveFlow() {
               Replaying <strong style={{ color: P.wh }}>{backtestDate}</strong>
               {backtestLoading && " · loading…"}
             </span>
+
+            {/* Simulation controls — opt-in via "simulate" toggle. When on,
+                threshold + ETF-exclusion controls become editable. */}
+            <span style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 12, flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  if (simulateMode) {
+                    next.delete("simulate");
+                    next.delete("min_grade");
+                    next.delete("exclude_etf");
+                  } else {
+                    next.set("simulate", "full");
+                    next.set("min_grade", "B");
+                  }
+                  setSearchParams(next);
+                }}
+                style={{
+                  padding: "3px 10px", fontSize: 10, borderRadius: 4,
+                  border: "1px solid " + (simulateMode ? P.gn : P.bd),
+                  background: simulateMode ? P.gn + "20" : "transparent",
+                  color: simulateMode ? P.gn : P.dm,
+                  cursor: "pointer", letterSpacing: 0.5,
+                  textTransform: "uppercase", fontWeight: 700,
+                }}
+                title="Run the full live pipeline (enrich → aggregate → conviction → gate) to see what would have posted to Discord"
+              >
+                {simulateMode ? "✓ simulate gate" : "simulate gate"}
+              </button>
+
+              {/* JSON upload — sidesteps Bullflow MCP using a Discord export.
+                  When a file is loaded, simulation auto-runs and the UI shows
+                  what the gate would do for that day's alerts. */}
+              <label
+                style={{
+                  padding: "3px 10px", fontSize: 10, borderRadius: 4,
+                  border: "1px solid " + (uploadedFile ? P.gn : P.bd),
+                  background: uploadedFile ? P.gn + "20" : "transparent",
+                  color: uploadedFile ? P.gn : P.dm,
+                  cursor: "pointer", letterSpacing: 0.5,
+                  textTransform: "uppercase", fontWeight: 700,
+                }}
+                title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts"
+              >
+                {uploadedFile ? `✓ ${uploadedFile.name.slice(0, 18)}…` : "upload json"}
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (f.size > 50 * 1024 * 1024) {
+                      setUploadError("File too large (>50MB)");
+                      return;
+                    }
+                    setUploadError(null);
+                    setUploadedFile(f);
+                    // Auto-enable simulate mode on upload — viewing raw alerts
+                    // without the simulation defeats the purpose of uploading.
+                    const next = new URLSearchParams(searchParams);
+                    if (!next.get("simulate")) {
+                      next.set("simulate", "full");
+                      next.set("min_grade", "B");
+                      setSearchParams(next);
+                    }
+                  }}
+                />
+              </label>
+
+              {uploadedFile && (
+                <button
+                  onClick={() => {
+                    setUploadedFile(null);
+                    setUploadError(null);
+                  }}
+                  style={{
+                    padding: "3px 8px", fontSize: 10, borderRadius: 4,
+                    border: "1px solid " + P.bd, background: "transparent",
+                    color: P.dm, cursor: "pointer",
+                  }}
+                  title="Clear uploaded file"
+                >
+                  ×
+                </button>
+              )}
+
+              {simulateMode && (
+                <>
+                  <label style={{ color: P.dm, fontSize: 10 }}>min grade:</label>
+                  <select
+                    value={simMinGrade}
+                    onChange={(e) => {
+                      const next = new URLSearchParams(searchParams);
+                      next.set("min_grade", e.target.value);
+                      setSearchParams(next);
+                    }}
+                    style={{
+                      padding: "2px 6px", fontSize: 10, borderRadius: 3,
+                      background: P.cd, color: P.wh,
+                      border: "1px solid " + P.bd, cursor: "pointer",
+                    }}
+                  >
+                    {["A+", "A", "B", "C", "D"].map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+
+                  <label
+                    style={{
+                      color: simExcludeETF ? P.wh : P.dm, fontSize: 10,
+                      display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={simExcludeETF}
+                      onChange={(e) => {
+                        const next = new URLSearchParams(searchParams);
+                        if (e.target.checked) next.set("exclude_etf", "true");
+                        else next.delete("exclude_etf");
+                        setSearchParams(next);
+                      }}
+                      style={{ accentColor: P.gn, cursor: "pointer" }}
+                    />
+                    exclude ETF Flow
+                  </label>
+                </>
+              )}
+            </span>
+
             {status?.backtest_capped && (
               <span style={{ color: "#FFB300", marginLeft: "auto" }}>
-                ⚠ capped at 100 alerts — day had more flow than shown
+                ⚠ capped at 500 alerts — day had more flow than shown
               </span>
             )}
-            {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && (
+            {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && !simulateMode && (
               <span style={{ color: P.dm, marginLeft: "auto" }}>
                 {alerts.length} alert{alerts.length !== 1 ? "s" : ""} returned
               </span>
             )}
+          </div>
+        )}
+
+        {/* Simulation results panel — appears when sim is active and backend
+            returned a simulation block. Shows stats + grade distribution + tabs. */}
+        {isBacktest && simulateMode && simulation && !simulation.error && (
+          <SimulationPanel
+            simulation={simulation}
+            view={simView}
+            setView={setSimView}
+          />
+        )}
+        {isBacktest && simulateMode && simulation?.error && (
+          <div style={{
+            padding: "12px 20px", background: P.rd + "20",
+            borderBottom: "1px solid " + P.rd + "40", color: P.rd,
+            fontSize: 12, fontFamily: "ui-monospace, monospace",
+          }}>
+            simulation failed: {simulation.error}
+          </div>
+        )}
+        {uploadError && (
+          <div style={{
+            padding: "12px 20px", background: P.rd + "20",
+            borderBottom: "1px solid " + P.rd + "40", color: P.rd,
+            fontSize: 12, fontFamily: "ui-monospace, monospace",
+          }}>
+            upload error: {uploadError}
           </div>
         )}
 
