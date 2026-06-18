@@ -710,11 +710,16 @@ def _build_embed(agg: dict) -> dict:
     ]
     # Enrichment row — only show when data is available so we don't render
     # rows of "—" placeholders.
+    # Naming convention (Tradytics/BlackBox style):
+    #   - "Volume" = cumulative contracts traded across UCT-alerted trades
+    #     on this contract today. On a single-fire alert this equals the
+    #     one trade's size; on multi-fire it's the running sum.
+    #   - "OI" = prior open interest (yesterday's close) from our snapshot.
+    #   - "Vol/OI" = Volume / OI, the standard unusual-activity ratio.
     if total_size:
-        size_label = "Total Size" if fire_count > 1 else "Size"
-        fields.append({"name": size_label, "value": f"{total_size:,}", "inline": True})
+        fields.append({"name": "Volume", "value": f"{total_size:,}", "inline": True})
     if prior_oi is not None:
-        fields.append({"name": "Prior OI", "value": f"{prior_oi:,}", "inline": True})
+        fields.append({"name": "OI", "value": f"{prior_oi:,}", "inline": True})
     if vol_oi_ratio is not None:
         fields.append({"name": "Vol/OI", "value": f"{vol_oi_ratio:.2f}x", "inline": True})
 
