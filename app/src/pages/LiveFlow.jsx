@@ -38,11 +38,10 @@ const P = {
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_ROWS = 200;
-// 2026-06-17: bumped v1→v2 because tier structure changed from size-based
-// (mega/whale/a/leaps/unusual) to direction-based (bullish/bearish). Existing
-// v1 localStorage values would map to non-existent tier keys and produce
-// confused chip state on first load after deploy.
-const LS_KEY = "uct_liveflow_filters_v2";
+// 2026-06-17 v3: bumped v2→v3 because tier structure expanded from 3 tiers
+// (bullish/bearish/algo) to 6 (alpha/bullish/bearish/leaps/unusual/algo).
+// Old v2 filter state references non-existent tier keys.
+const LS_KEY = "uct_liveflow_filters_v3";
 
 // ─── Backtest helpers ─────────────────────────────────────────────────────────
 // Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
@@ -80,49 +79,58 @@ function isValidBacktestDate(s) {
 }
 
 // ─── Tier metadata + derivation ───────────────────────────────────────────────
-// 2026-06-17 v2: Restructured from size-based tiers (Mega/Whale/A/LEAPS/Unusual)
-// to direction-first (Bullish/Bearish). Direction comes from the trade's cp
-// (Call=bullish, Put=bearish). Within each direction, rows are sorted by a
-// sub-priority derived from the alert NAME: Alpha Gold > Size > Regular > Leaps.
-// This matches how flow is actually scanned during market hours.
+// 2026-06-17 v3: Six tiers in priority cascade. Special tiers (Alpha Gold,
+// LEAPS, Unusual) are checked first by name, then direction (Bullish/Bearish)
+// catches everything else by cp. Each row lives in exactly ONE tier.
+//
+// Display order: Alpha pinned at top (rare, high-conviction). Bullish/Bearish
+// next (the bread-and-butter directional flow). LEAPS and Unusual below
+// (specialized signals worth their own sections). Algo last as fallback.
 const TIER_META = {
-  bullish: { label: "Bullish", color: "#3CB868", bg: "#3CB86814" },  // green like cp=C
-  bearish: { label: "Bearish", color: "#E74C3C", bg: "#E74C3C14" },  // red like cp=P
-  algo:    { label: "Algo",    color: "#888780", bg: "#88878014" },  // catch-all (no direction)
+  alpha:   { label: "Alpha Gold", color: "#c9a84c", bg: "#c9a84c14" },
+  bullish: { label: "Bullish",    color: "#3CB868", bg: "#3CB86814" },
+  bearish: { label: "Bearish",    color: "#E74C3C", bg: "#E74C3C14" },
+  leaps:   { label: "LEAPS",      color: "#a892e0", bg: "#a892e014" },
+  unusual: { label: "Unusual",    color: "#1d9e75", bg: "#1d9e7514" },
+  algo:    { label: "Algo",       color: "#888780", bg: "#88878014" },
 };
-const TIER_ORDER = ["bullish", "bearish", "algo"];
+const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
 
-// Map alert → tier key. Direction-first: cp field decides bullish vs bearish.
-// Anything without a cp (parse failure / weird payload) falls into algo.
+// Tiers that mix calls and puts (rows can be either direction). In these
+// sections, row text is tinted green/red based on cp so direction is visible
+// at a glance without scanning the C/P column. Bullish/Bearish tiers don't
+// need this — their direction is self-evident from the tier itself.
+const MIXED_DIRECTION_TIERS = new Set(["alpha", "leaps", "unusual", "algo"]);
+
+// Map alert → tier key via priority cascade (first match wins). Special tiers
+// take precedence over direction tiers — e.g. a bullish LEAPS trade lands in
+// the LEAPS section, not the Bullish section.
 function deriveTier(alert) {
+  const name = (alert?.alertName || "").toLowerCase();
+  if (name.includes("alpha gold")) return "alpha";
+  if (name.includes("leaps")) return "leaps";
+  if (name.includes("unusual") || name.includes("vol>oi")) return "unusual";
   const cp = alert?.cp;
   if (cp === "C") return "bullish";
   if (cp === "P") return "bearish";
   return "algo";
 }
 
-// Within a tier, rows are sorted by this priority. Lower number = appears
-// HIGHER in the list (Alpha Gold pinned to top, LEAPS pushed to bottom).
-//   1 = Alpha Gold (special highest-conviction signal)
-//   2 = Size (large premium — old "Whale" equivalent)
-//   3 = Regular (everything else — Bullish/Bearish, Unusual, Vol>OI)
-//   4 = Leaps (long-dated — least urgent for active scans)
-// Substring matching on alertName, lowercased. Check Alpha Gold FIRST since
-// "Alpha Gold Leaps" (if it ever exists) should rank as Alpha Gold not Leaps.
+// Within a tier, sub-priority controls row order. With the v3 structure, only
+// the Bullish and Bearish tiers benefit from sub-sorting:
+//   1 = Size (UCT Size Bulls/Bears — large premium)
+//   2 = Regular (everything else)
+// Alpha/LEAPS/Unusual are their own tiers now, so no sub-priority needed there.
 function deriveSubPriority(alertName) {
   const n = (alertName || "").toLowerCase();
-  if (n.includes("alpha gold")) return 1;
-  if (n.includes("size")) return 2;
-  if (n.includes("leaps")) return 4;
-  return 3;
+  if (n.includes("size")) return 1;
+  return 2;
 }
 
 // Display label for the sub-priority badge that appears next to alert names.
-// Empty string when subPriority is 3 (Regular) — no badge needed for the default.
+// Only Size gets a badge — Regular is the unmarked default.
 function subPriorityLabel(p) {
-  if (p === 1) return "ALPHA";
-  if (p === 2) return "SIZE";
-  if (p === 4) return "LEAPS";
+  if (p === 1) return "SIZE";
   return "";
 }
 
@@ -306,13 +314,21 @@ function FilterChips({ filters, setFilters, counts }) {
 }
 
 // ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, tierColor }) {
+function AlertRow({ alert, isNew, tierColor, directionTinted }) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
   const forwarded = alert.forwardedToDiscord;
   const score = alert.convictionScore;
   const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
+
+  // In mixed-direction tier sections (Alpha Gold, LEAPS, Unusual, Algo) we
+  // tint the row's primary text by direction so a bullish vs bearish trade
+  // is recognizable at a glance without scanning the C/P column. The C/P
+  // pill, type pill, score, and bell stay as-is since they have their own
+  // semantic colors that shouldn't be overridden.
+  const primaryTextColor = directionTinted ? cpColor : P.wh;
+  const accentTextColor = directionTinted ? cpColor : P.ac;
 
   return (
     <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
@@ -324,7 +340,7 @@ function AlertRow({ alert, isNew, tierColor }) {
       }}>
         {fmtTime(alert.timestamp)}
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, color: P.wh, fontSize: 13 }}>
+      <td style={{ padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13 }}>
         {alert.ticker || "—"}
       </td>
       <td style={{ padding: "8px 10px", fontWeight: 800, fontSize: 11 }}>
@@ -333,15 +349,15 @@ function AlertRow({ alert, isNew, tierColor }) {
           background: cpColor + "20", color: cpColor,
         }}>{alert.cp || "—"}</span>
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 700, color: P.wh, fontSize: 12 }}>
+      <td style={{ padding: "8px 10px", fontWeight: 700, color: primaryTextColor, fontSize: 12 }}>
         {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
       </td>
-      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.exp || "—"}</td>
+      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
       <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10 }}>
         {alert.dte != null ? alert.dte + "d" : "—"}
       </td>
       <td style={{
-        padding: "8px 10px", fontWeight: 800, color: P.ac, fontSize: 12,
+        padding: "8px 10px", fontWeight: 800, color: accentTextColor, fontSize: 12,
         fontFamily: "ui-monospace, monospace",
       }}>{fmtPremium(alert.alertPremium)}</td>
       <td style={{
@@ -356,17 +372,15 @@ function AlertRow({ alert, isNew, tierColor }) {
           background: typeColor + "18", color: typeColor,
         }}>{(alert.alertType || "?").toUpperCase()}</span>
       </td>
-      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>
+      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>
         {(() => {
           const sp = deriveSubPriority(alert.alertName);
           const spLabel = subPriorityLabel(sp);
           if (!spLabel) return null;
-          // Visual cue for the sub-tier. Alpha Gold gets a gold pill so it
-          // pops; Size gets a neutral pill; Leaps gets a purple pill.
-          const spColor = sp === 1 ? "#c9a84c"
-                        : sp === 2 ? "#d8c878"
-                        : sp === 4 ? "#a892e0"
-                        : P.dm;
+          // SIZE badge — the only sub-priority indicator left in v3. Alpha,
+          // LEAPS, and Unusual are now full tiers with their own sections,
+          // so they don't need inline badges.
+          const spColor = "#d8c878";
           return (
             <span style={{
               marginRight: 6, fontSize: 8, padding: "1px 5px", borderRadius: 3,
@@ -411,6 +425,10 @@ function AlertRow({ alert, isNew, tierColor }) {
 function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
   if (alerts.length === 0) return null;
   const meta = TIER_META[tier];
+  // In mixed-direction tiers (Alpha/LEAPS/Unusual/Algo) we direction-tint rows.
+  // In Bullish/Bearish the tier itself signals direction so per-row tint would
+  // be redundant noise.
+  const directionTinted = MIXED_DIRECTION_TIERS.has(tier);
   return (
     <>
       <tr style={{
@@ -436,6 +454,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
           alert={a}
           isNew={newIds.has(a.id)}
           tierColor={meta.color}
+          directionTinted={directionTinted}
         />
       ))}
     </>
