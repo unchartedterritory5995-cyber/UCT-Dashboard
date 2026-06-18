@@ -1,4 +1,5 @@
 import StockChart from '../../../components/StockChart'
+import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import styles from '../ResearchPage.module.css'
 
 function Surprise({ v }) {
@@ -13,6 +14,9 @@ export default function OverviewTab({ sym, stats, analyst, ai, row }) {
   const pt = analyst?.price_target || {}
   return (
     <div className={styles.ovWrap}>
+      <section className={styles.card}>
+        <FundamentalSnapshot sym={sym} showResearchLink={false} />
+      </section>
       <section className={`${styles.card} ${styles.chartCard}`}>
         <div className={styles.ovChart}>
           {sym && (

@@ -12,6 +12,7 @@ import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import styles from './TickerPopup.module.css'
 
 const StockChart = lazy(() => import('./StockChart'))
+const FundamentalSnapshot = lazy(() => import('./FundamentalSnapshot'))
 
 const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Monthly']
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
@@ -20,6 +21,7 @@ const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [
 export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [tab, setTab] = useState('Daily')
+  const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
 
@@ -73,7 +75,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
           // On touch, a tap opens the universal Ticker Hub sheet; desktop keeps
           // the full chart modal.
           if (isTouch) { openTicker(sym); return }
-          setModalOpen(true); setTab('Daily'); prefetchAllTimeframes(sym)
+          setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
         }}
         onMouseEnter={() => prefetchBar(sym, 'D')}
         {...tickerActions.longPressProps(sym)}
@@ -132,31 +134,59 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               </button>
             </div>
 
-            <div className={styles.modalTabs}>
-              {TABS.map(t => (
+            <div className={styles.modalModeRow}>
+              <div className={styles.modalModeToggle} role="tablist" aria-label="View mode">
                 <button
-                  key={t}
-                  className={`${styles.modalTab} ${tab === t ? styles.modalTabActive : ''}`}
-                  onClick={() => setTab(t)}
+                  className={`${styles.modalModeBtn} ${view === 'chart' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('chart')}
+                  role="tab"
+                  aria-selected={view === 'chart'}
                 >
-                  {t}
+                  Chart
                 </button>
-              ))}
+                <button
+                  className={`${styles.modalModeBtn} ${view === 'fundamentals' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('fundamentals')}
+                  role="tab"
+                  aria-selected={view === 'fundamentals'}
+                >
+                  Fundamentals
+                </button>
+              </div>
+              {view === 'chart' && (
+                <div className={styles.modalTabs}>
+                  {TABS.map(t => (
+                    <button
+                      key={t}
+                      className={`${styles.modalTab} ${tab === t ? styles.modalTabActive : ''}`}
+                      onClick={() => setTab(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className={styles.chartArea}>
-              <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
-                <StockChart
-                  sym={sym}
-                  tf={TAB_TO_TF[tab]}
-                  height="min(650px, 70vh)"
-                  markers={markers}
-                  priceLines={priceLines}
-                  onTfChange={tf => setTab(TF_TO_TAB[tf] || tab)}
-                  compareSymbol={compareSymbol || null}
-                  onCompareChange={setCompareSymbol}
-                />
-              </Suspense>
+              {view === 'chart' ? (
+                <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
+                  <StockChart
+                    sym={sym}
+                    tf={TAB_TO_TF[tab]}
+                    height="min(650px, 70vh)"
+                    markers={markers}
+                    priceLines={priceLines}
+                    onTfChange={tf => setTab(TF_TO_TAB[tf] || tab)}
+                    compareSymbol={compareSymbol || null}
+                    onCompareChange={setCompareSymbol}
+                  />
+                </Suspense>
+              ) : (
+                <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
+                  <FundamentalSnapshot sym={sym} enabled={view === 'fundamentals'} />
+                </Suspense>
+              )}
             </div>
 
           </div>

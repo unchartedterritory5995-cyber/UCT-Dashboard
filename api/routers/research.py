@@ -9,6 +9,7 @@ from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
 from api.services.research.ownership import get_ownership
 from api.services.research.ratings import get_ratings
+from api.services.research.snapshot import get_snapshot
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -48,3 +49,14 @@ def research_ratings(sym: str):
     except Exception as exc:
         _logger.warning("research ratings failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}
+
+
+@router.get("/api/research/snapshot/{sym}")
+def research_snapshot(sym: str):
+    """Consolidated ratings + key fundamentals for the glanceable snapshot card."""
+    try:
+        return get_snapshot(sym)
+    except Exception as exc:
+        _logger.warning("research snapshot failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "name": None, "sector": None, "industry": None,
+                "composite": None, "components": {}, "checkup": [], "method": None, "metrics": {}}
