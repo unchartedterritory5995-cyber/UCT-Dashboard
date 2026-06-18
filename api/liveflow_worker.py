@@ -237,6 +237,113 @@ def _track_repeat(alert: dict) -> int:
     return entry["count"]
 
 
+# ─── Contract aggregation for Discord ─────────────────────────────────────────
+# When multiple distinct trades fire on the same contract (e.g. today's MU
+# 1000P firing 8 times), we want ONE evolving Discord post — not 8 separate
+# messages. This cache holds per-contract running totals; the Discord forwarder
+# creates a post on the first fire and EDITS it on subsequent fires via the
+# webhook PATCH endpoint.
+#
+# Reset behavior: keyed by (contract_key, YYYY-MM-DD). New trading day starts
+# a fresh aggregate even if the worker has been up for >24 hours. In-memory
+# only — if worker restarts mid-day, the next fire on a contract creates a
+# new Discord post (mild duplication, acceptable trade-off).
+
+_contract_aggregates: dict = {}  # contract_key -> {date, ...fields, message_id, ...}
+
+
+def _aggregate_key(alert: dict, today_iso: str) -> tuple:
+    return (_make_contract_key(alert), today_iso)
+
+
+def _update_aggregate(alert: dict) -> dict:
+    """
+    Update the running aggregate for this alert's contract. Returns the
+    current aggregate dict (a live reference, mutated each call).
+
+    Always call this AFTER _track_repeat and _enrich_with_oi so that the
+    aggregate has access to enriched fields. Called on accept only.
+    """
+    today_iso = datetime.now().date().isoformat()
+    key = _aggregate_key(alert, today_iso)
+
+    premium = float(alert.get("alertPremium") or 0)
+    fill = alert.get("averageFillPrice")
+    size = alert.get("tradeSize") or 0
+    name = (alert.get("alertName") or "").strip()
+    ts = alert.get("timestamp") or time.time()
+
+    agg = _contract_aggregates.get(key)
+    if not agg:
+        # First fire on this contract today — initialize from current alert.
+        agg = {
+            "contract_key": key[0],
+            "date": today_iso,
+            "ticker": alert.get("ticker"),
+            "cp": alert.get("cp"),
+            "strike": alert.get("strike"),
+            "exp": alert.get("exp"),
+            "dte": alert.get("dte"),
+            "alert_type": alert.get("alertType"),
+            "total_premium": premium,
+            "max_premium": premium,
+            "total_size": size,
+            "max_size": size,
+            "fire_count": 1,
+            "first_fire_ts": ts,
+            "last_fire_ts": ts,
+            "first_fill_price": fill,
+            "last_fill_price": fill,
+            # The "best" alert name seen so far (lowest priority number wins).
+            # On first fire it's just whatever fired. As more arrive with
+            # higher-priority names, we promote.
+            "best_alert_name": name,
+            "best_alert_priority": _alert_priority(alert),
+            # Set of all distinct alert names seen — surfaced in Discord
+            # embed as "UCT Bearish + 2 others" or similar.
+            "alert_names_seen": {name} if name else set(),
+            # OI snapshot — captured once on first fire (assumes OI doesn't
+            # change intraday; safe since snapshots reflect prior-day close).
+            "prior_oi": alert.get("priorOI"),
+            "oi_snapshot_date": alert.get("oiSnapshotDate"),
+            # Discord message handle (set after first successful POST).
+            "discord_message_id": None,
+            "discord_webhook_base": None,  # the URL we POSTed to, for PATCH
+        }
+        _contract_aggregates[key] = agg
+        return agg
+
+    # Subsequent fire — update running totals.
+    agg["total_premium"] += premium
+    agg["max_premium"] = max(agg["max_premium"], premium)
+    agg["total_size"] = (agg["total_size"] or 0) + size
+    agg["max_size"] = max(agg["max_size"] or 0, size)
+    agg["fire_count"] += 1
+    agg["last_fire_ts"] = ts
+    agg["last_fill_price"] = fill
+    if name:
+        agg["alert_names_seen"].add(name)
+    # Promote best alert name if this one has higher priority (lower number).
+    new_pri = _alert_priority(alert)
+    if new_pri < agg["best_alert_priority"]:
+        agg["best_alert_name"] = name
+        agg["best_alert_priority"] = new_pri
+    # Backfill OI if we didn't have it on first fire and the new alert did
+    # — covers cases where the snapshot cron caught up mid-day.
+    if agg["prior_oi"] is None and alert.get("priorOI") is not None:
+        agg["prior_oi"] = alert.get("priorOI")
+        agg["oi_snapshot_date"] = alert.get("oiSnapshotDate")
+    return agg
+
+
+def _prune_aggregates():
+    """Drop yesterday's aggregates so the cache doesn't grow unbounded."""
+    today_iso = datetime.now().date().isoformat()
+    expired = [k for k, v in _contract_aggregates.items() if v.get("date") != today_iso]
+    for k in expired:
+        del _contract_aggregates[k]
+
+
 # ─── OI snapshot lookup ──────────────────────────────────────────────────────
 # Wires Bullflow live alerts to our daily Schwab OI snapshot data captured by
 # api/oi_snapshots.py. The snapshot cron runs at 5:30 UTC = 1:30 AM ET daily,
@@ -543,62 +650,187 @@ def _passes_table_filter(alert_name, premium, ticker):
 
 
 # ─── Discord forwarder ───────────────────────────────────────────────────────
-async def _post_to_discord(client, alert):
+def _build_embed(agg: dict) -> dict:
     """
-    Posts a rich embed to the configured Discord webhook. Color-codes by C/P.
-    Failures are swallowed and logged — never block the SSE consumer.
-
-    Mirrors the embed structure used by discord_watchlist.py: title with the
-    most important fact (ticker + C/P + strike + exp), fields with context.
+    Build the Discord embed dict from an aggregate. Same builder used for
+    both POST (initial) and PATCH (update) so the layout is consistent —
+    only differences are the running totals that change between calls.
     """
-    if not DISCORD_WEBHOOK_URL:
-        return
-    cp = alert.get("cp") or "?"
-    ticker = alert.get("ticker") or "?"
-    strike = alert.get("strike")
-    exp = alert.get("exp") or "?"
-    dte = alert.get("dte")
-    premium = alert.get("alertPremium") or 0
-    avg_fill = alert.get("averageFillPrice")
-    name = alert.get("alertName") or "Alert"
-    score = alert.get("convictionScore")
-    score_str = f"{score:.1f}" if score is not None else "—"
+    cp = agg.get("cp") or "?"
+    ticker = agg.get("ticker") or "?"
+    strike = agg.get("strike")
+    exp = agg.get("exp") or "?"
+    dte = agg.get("dte")
+    fire_count = agg.get("fire_count") or 1
+    total_prem = agg.get("total_premium") or 0
+    max_prem = agg.get("max_premium") or 0
+    total_size = agg.get("total_size") or 0
+    last_fill = agg.get("last_fill_price")
+    prior_oi = agg.get("prior_oi")
+    best_name = agg.get("best_alert_name") or "Alert"
+    names_seen = agg.get("alert_names_seen") or set()
+    alert_type = (agg.get("alert_type") or "?").upper()
 
+    # Color by direction (calls=green, puts=red, fallback amber).
     color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xc9a84c)
     strike_str = f"${strike:g}" if strike is not None else "?"
     dte_str = f"{dte}d" if dte is not None else "?"
-    if premium >= 1_000_000:
-        prem_str = f"${premium/1_000_000:.2f}M"
-    else:
-        prem_str = f"${premium/1_000:.0f}K"
-    avg_fill_str = f"${avg_fill:.2f}" if avg_fill is not None else "?"
+
+    def _fmt_money(n):
+        if n >= 1_000_000:
+            return f"${n/1_000_000:.2f}M"
+        return f"${n/1_000:.0f}K"
+
+    total_prem_str = _fmt_money(total_prem)
+    max_prem_str = _fmt_money(max_prem)
+    fill_str = f"${last_fill:.2f}" if last_fill is not None else "?"
+
+    # Vol/OI computed over the TOTAL (aggregated) volume vs prior OI — much
+    # more meaningful than per-trade ratio when a contract fires many times.
+    vol_oi_ratio = None
+    oi_exceeded = False
+    if prior_oi and prior_oi > 0 and total_size:
+        vol_oi_ratio = round(total_size / prior_oi, 2)
+        oi_exceeded = vol_oi_ratio > 1.0
+
+    # Badge line in description. Shown above the data fields.
+    badges = []
+    if oi_exceeded and vol_oi_ratio:
+        badges.append(f"🚀 **OI BREAK** {vol_oi_ratio:.1f}x")
+    if fire_count > 1:
+        badges.append(f"🔁 **{fire_count}x** today")
+
+    # Core fields. Same 3-per-row layout as before via inline=True.
+    fields = [
+        {"name": "Total Premium" if fire_count > 1 else "Premium",
+         "value": total_prem_str, "inline": True},
+        {"name": "Largest" if fire_count > 1 else "Avg Fill",
+         "value": max_prem_str if fire_count > 1 else fill_str, "inline": True},
+        {"name": "DTE", "value": dte_str, "inline": True},
+    ]
+    # Enrichment row — only show when data is available so we don't render
+    # rows of "—" placeholders.
+    if total_size:
+        size_label = "Total Size" if fire_count > 1 else "Size"
+        fields.append({"name": size_label, "value": f"{total_size:,}", "inline": True})
+    if prior_oi is not None:
+        fields.append({"name": "Prior OI", "value": f"{prior_oi:,}", "inline": True})
+    if vol_oi_ratio is not None:
+        fields.append({"name": "Vol/OI", "value": f"{vol_oi_ratio:.2f}x", "inline": True})
+
+    # For multi-fire aggregates, show fill price + time range so user can see
+    # how the trade pattern evolved.
+    if fire_count > 1:
+        fields.append({"name": "Latest Fill", "value": fill_str, "inline": True})
+        first_ts = agg.get("first_fire_ts")
+        last_ts = agg.get("last_fire_ts")
+        if first_ts and last_ts:
+            first_t = datetime.fromtimestamp(first_ts).strftime("%-H:%M ET")
+            last_t = datetime.fromtimestamp(last_ts).strftime("%-H:%M ET")
+            fields.append({"name": "First → Last", "value": f"{first_t} → {last_t}", "inline": True})
+
+    # Alert label: show the best (highest-priority) name; if multiple distinct
+    # names fired, add a "+N more" suffix so subscribers see the diversity.
+    extras = len(names_seen) - 1
+    alert_label = best_name
+    if extras > 0:
+        alert_label = f"{best_name}  +{extras} more"
+    fields.append({"name": "Alert", "value": alert_label, "inline": True})
+    fields.append({"name": "Type", "value": alert_type, "inline": True})
 
     embed = {
         "title": f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}",
         "color": color,
-        "fields": [
-            {"name": "Premium",    "value": prem_str,       "inline": True},
-            {"name": "Avg Fill",   "value": avg_fill_str,   "inline": True},
-            {"name": "DTE",        "value": dte_str,        "inline": True},
-            {"name": "Alert",      "value": name,           "inline": True},
-            {"name": "Conviction", "value": score_str, "inline": True},
-            {"name": "Type",       "value": (alert.get("alertType") or "?").upper(), "inline": True},
-        ],
+        "fields": fields,
         "footer": {"text": "via Bullflow · UCT Live Flow"},
-        "timestamp": alert.get("ingestedAt"),
     }
+    if badges:
+        embed["description"] = " · ".join(badges)
+    return embed
+
+
+def _discord_post_url() -> str:
+    """Return the webhook URL with ?wait=true so Discord returns the message
+    object (including id) on POST — needed for later PATCH calls."""
+    base = DISCORD_WEBHOOK_URL.rstrip("?&/")
+    # If user's env var already has query params, append wait=true; else add ?
+    if "?" in base:
+        return base + "&wait=true"
+    return base + "?wait=true"
+
+
+def _discord_patch_url(message_id: str) -> str:
+    """Build the PATCH URL: {webhook}/messages/{message_id}. Strips any
+    query string (?wait=true belongs only on POST)."""
+    base = DISCORD_WEBHOOK_URL.split("?", 1)[0].rstrip("/")
+    return f"{base}/messages/{message_id}"
+
+
+async def _post_to_discord(client, alert):
+    """
+    Aggregate-aware Discord forwarder.
+
+    - First fire on a contract today → POST new message, store message_id.
+    - Subsequent fires → PATCH the existing message with updated aggregate.
+    - PATCH failure (deleted message, rate limit) → fall back to POST.
+
+    Failures swallowed and logged; never blocks the SSE consumer.
+    """
+    if not DISCORD_WEBHOOK_URL:
+        return
+
+    _prune_aggregates()
+    agg = _update_aggregate(alert)
+    embed = _build_embed(agg)
     payload = {"embeds": [embed]}
+
+    # Decide POST vs PATCH based on whether this contract already has a
+    # Discord message today. message_id is set on successful initial POST.
+    message_id = agg.get("discord_message_id")
+
+    if message_id:
+        # Edit the existing post in place.
+        url = _discord_patch_url(message_id)
+        try:
+            r = await client.patch(url, json=payload, timeout=10.0)
+            if 200 <= r.status_code < 300:
+                _status["last_discord_error"] = None
+                return
+            # Discord returns 404 if the message was manually deleted.
+            # Fall through to POST a fresh one so the aggregate continues
+            # to be visible to subscribers.
+            body = (await r.aread())[:200]
+            log.warning("[liveflow] discord PATCH %s HTTP %s: %r — re-POSTing",
+                        message_id, r.status_code, body)
+            agg["discord_message_id"] = None  # invalidate so we POST
+        except Exception as e:
+            log.warning("[liveflow] discord PATCH error: %s — re-POSTing", e)
+            agg["discord_message_id"] = None
+
+    # POST (first fire OR after PATCH failure). Use ?wait=true so Discord
+    # returns the message object including its id.
+    url = _discord_post_url()
     try:
-        r = await client.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10.0)
+        r = await client.post(url, json=payload, timeout=10.0)
         if r.status_code >= 400:
             body = (await r.aread())[:200]
-            log.warning("[liveflow] discord post HTTP %s: %r", r.status_code, body)
+            log.warning("[liveflow] discord POST HTTP %s: %r", r.status_code, body)
             _status["last_discord_error"] = f"HTTP {r.status_code}: {body!r}"
             return
+        # Parse out the message_id so we can PATCH on future fires.
+        try:
+            body_json = r.json()
+            agg["discord_message_id"] = str(body_json.get("id") or "")
+        except Exception:
+            # If the response isn't JSON (shouldn't happen with ?wait=true),
+            # we still posted successfully — just can't edit later. Subsequent
+            # fires will POST again, producing duplicate messages. Acceptable
+            # degraded behavior.
+            agg["discord_message_id"] = None
         _status["total_alerts_forwarded"] += 1
         _status["last_discord_error"] = None
     except Exception as e:
-        log.warning("[liveflow] discord post error: %s", e)
+        log.warning("[liveflow] discord POST error: %s", e)
         _status["last_discord_error"] = f"{type(e).__name__}: {str(e)[:200]}"
 
 
