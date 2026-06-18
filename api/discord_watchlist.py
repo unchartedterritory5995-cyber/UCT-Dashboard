@@ -18,7 +18,16 @@ from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
-DISCORD_FLOW_WEBHOOK_URL = os.getenv("DISCORD_FLOW_WEBHOOK_URL", "")
+DISCORD_FLOW_WEBHOOK_URL = (
+    # Primary: matches liveflow_worker.py's lookup so both push paths share
+    # the same channel. Env var renamed 2026-06-17 from DISCORD_FLOW_WEBHOOK_URL
+    # to DISCORD_LIVE_FLOW_WEBHOOK_URL to align with worker code expectations.
+    os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
+    # Legacy name — kept for safety if the rename ever gets reverted in Railway.
+    or os.getenv("DISCORD_FLOW_WEBHOOK_URL")
+    # Last-resort generic webhook (same fallback liveflow_worker.py uses).
+    or os.getenv("DISCORD_WEBHOOK_URL", "")
+).strip()
 ET = ZoneInfo("America/New_York")
 
 # ── Discord embed color constants ──────────────────────────────────────────
@@ -436,7 +445,8 @@ async def send_to_discord(
 ) -> dict:
     """Build messages from bull/bear + unusual items and send to Discord webhook."""
     if not DISCORD_FLOW_WEBHOOK_URL:
-        logger.error("[Discord] No DISCORD_FLOW_WEBHOOK_URL configured")
+        logger.error("[Discord] No webhook URL configured "
+                     "(set DISCORD_LIVE_FLOW_WEBHOOK_URL)")
         return {"ok": False, "error": "No webhook URL configured"}
 
     messages = build_messages(
