@@ -522,6 +522,23 @@ async def backtest_replay(
         description="Replay speed multiplier (higher = faster sample)"),
     timeout_seconds: int = Query(120, ge=5, le=120,
         description="Max seconds to wait for the sample"),
+    simulate: str = Query("off",
+        description="Simulation mode. 'off' = raw filtered alerts only (default, "
+                    "backward compat). 'full' = also run alerts through the live "
+                    "worker's pipeline (OI lookup, Schwab spot moneyness, "
+                    "aggregation, conviction grading) and return what would have "
+                    "posted to Discord vs been gated. Use this to test threshold "
+                    "tuning against historical data."),
+    min_grade: str = Query("B",
+        description="Conviction threshold for the simulation gate when "
+                    "simulate=full. One of: A+, A, B, C, D. D effectively "
+                    "disables the gate (everything posts). Default B matches "
+                    "the live worker's default."),
+    exclude_etf_flow: bool = Query(False,
+        description="When simulate=full, exclude UCT ETF Flow alerts from the "
+                    "simulation. Useful for evaluating single-name flow in "
+                    "isolation since ETF Flow tends to dominate volume but "
+                    "lives better in its own Discord channel."),
 ):
     """
     Run Bullflow's backtest replay for `date` against saved custom alerts.
@@ -622,6 +639,28 @@ async def backtest_replay(
     # Sort newest-first so the LiveFlow UI's "most recent at top" expectation holds.
     normalized.sort(key=lambda a: str(a.get("timestamp") or ""), reverse=True)
 
+    # If the caller asked for full pipeline simulation, run it against the
+    # filtered alerts. This applies enrichment (OI + moneyness) and the same
+    # conviction gate that the live worker uses, returning what would have
+    # posted to Discord vs been silenced. Computed pre-status so we can echo
+    # post counts into the status block for the frontend to display.
+    simulation_result = None
+    if simulate.lower() == "full":
+        # Optionally exclude ETF Flow before simulating (single-name lens)
+        if exclude_etf_flow:
+            sim_input = [a for a in normalized
+                         if "ETF Flow" not in (a.get("alertName") or "")]
+        else:
+            sim_input = normalized
+        try:
+            simulation_result = await _simulate_pipeline(sim_input, min_grade=min_grade)
+        except Exception as e:
+            # Don't let a simulator bug break the regular backtest response —
+            # surface the error in the response but keep the raw alerts visible.
+            simulation_result = {
+                "error": f"{type(e).__name__}: {str(e)[:300]}",
+            }
+
     # Build a status block matching /api/live/alerts/recent's shape so the
     # frontend StatusPill/counter code doesn't need to branch.
     status = {
@@ -653,4 +692,239 @@ async def backtest_replay(
         "max_alerts": max_alerts,
         "speed": speed,
         "capped": len(real_alerts) >= max_alerts,
+        "simulation": simulation_result,
+    }
+
+
+# ─── Full-pipeline simulator ─────────────────────────────────────────────────
+#
+# The endpoint above shows raw filtered alerts — useful but misses what the
+# LIVE worker actually does: enrichment, aggregation, conviction grading, and
+# the conviction gate that decides what reaches Discord. This simulator runs
+# alerts through the SAME logic the live worker uses, so we can ask "what would
+# Discord have looked like on date X if we applied threshold Y today?"
+#
+# Three enrichment phases mirror the worker exactly:
+#   1) OI snapshot lookup (sync SQLite) — for the OI BREAK signal.
+#   2) Schwab spot price (async, batched, cached per-ticker) — for moneyness.
+#   3) Aggregate replay — same _update_aggregate logic used in live, but with
+#      a private aggregates dict so we don't touch the real worker state.
+#
+# Then the gate is applied: for each alert in time order, decide whether it
+# would have POSTED (first fire above threshold), EDITED (subsequent fire of
+# an already-posted contract), or been GATED (below threshold, no existing
+# post). The categorized output lets the admin UI show side-by-side what
+# would and would not have made it through.
+
+async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
+    """
+    Replay a list of normalized alerts through the live worker's pipeline:
+    enrichment → aggregation → conviction → gate.
+
+    Returns a dict with:
+      would_post:  alerts that would have triggered a fresh Discord post
+      would_edit:  alerts that would have updated an existing Discord post
+      gated:       alerts silenced by the conviction gate
+      grade_distribution: counts by letter grade
+      stats:       summary numbers (totals, reduction vs raw)
+
+    Pure simulation — does NOT post anything, does NOT mutate live aggregates.
+    Safe to call repeatedly with different thresholds.
+    """
+    # Import inside function so this module doesn't fail to load if the
+    # worker has a transient issue (defensive — the probe is also used to
+    # create production alerts and shouldn't be coupled to worker health).
+    from api.liveflow_worker import (
+        _lookup_prior_oi,
+        _get_cached_spot,
+        _calc_moneyness,
+        _alert_priority,
+        _compute_conviction,
+        _grade_level,
+    )
+
+    if not alerts:
+        return {
+            "would_post": [], "would_edit": [], "gated": [],
+            "grade_distribution": {},
+            "stats": {
+                "total_alerts": 0, "posts": 0, "edits": 0, "gated_count": 0,
+                "discord_actions": 0, "reduction_vs_raw_pct": 0,
+                "min_grade": min_grade,
+            },
+        }
+
+    min_level = _grade_level(min_grade)
+
+    # Sort by timestamp ascending so aggregation replays in correct order.
+    # Some timestamps may be None (init/heartbeat sentinels already filtered
+    # out, but defensive sort handles edge cases gracefully).
+    sorted_alerts = sorted(alerts, key=lambda a: str(a.get("timestamp") or ""))
+
+    # Phase 1: OI snapshot enrichment (sync, fast). Add priorOI, volumeOIRatio,
+    # oiExceeded fields to each alert in place so aggregation sees them.
+    for a in sorted_alerts:
+        premium = float(a.get("alertPremium") or 0)
+        fill = float(a.get("averageFillPrice") or 0)
+        trade_size = round(premium / (fill * 100)) if fill > 0 else None
+        a["tradeSize"] = trade_size
+        snap = _lookup_prior_oi(
+            a.get("ticker"), a.get("cp"),
+            a.get("strike"), a.get("exp"),
+        )
+        if snap and trade_size and snap[0] > 0:
+            oi, snap_date = snap
+            ratio = round(trade_size / oi, 2)
+            a["priorOI"] = oi
+            a["oiSnapshotDate"] = snap_date
+            a["volumeOIRatio"] = ratio
+            a["oiExceeded"] = ratio > 1.0
+        else:
+            a["priorOI"] = snap[0] if snap else None
+            a["volumeOIRatio"] = None
+            a["oiExceeded"] = False
+
+    # Phase 2: Moneyness enrichment (async, expensive but cached per-ticker).
+    # Use existing _get_cached_spot which already has 2-min TTL. Concurrent
+    # lookups via asyncio.gather over UNIQUE tickers minimize Schwab API hits.
+    import asyncio
+    unique_tickers = list({
+        a.get("ticker") for a in sorted_alerts
+        if a.get("ticker") and not a["ticker"].startswith("$") and "." not in a["ticker"]
+    })
+    spot_results = await asyncio.gather(
+        *(_get_cached_spot(t) for t in unique_tickers),
+        return_exceptions=True,
+    )
+    spot_map = {}
+    for ticker, result in zip(unique_tickers, spot_results):
+        if isinstance(result, (int, float)) and result:
+            spot_map[ticker] = float(result)
+
+    for a in sorted_alerts:
+        spot = spot_map.get(a.get("ticker"))
+        if spot:
+            a["spot"] = round(spot, 2)
+            pct, label = _calc_moneyness(spot, a.get("strike"), a.get("cp"))
+            a["moneynessPct"] = round(pct, 1) if pct is not None else None
+            a["moneynessLabel"] = label
+        else:
+            a["spot"] = None
+            a["moneynessPct"] = None
+            a["moneynessLabel"] = None
+
+    # Phase 3: Aggregate replay + gate. Mirrors _update_aggregate in worker
+    # but uses a LOCAL aggregates dict so we don't touch live state.
+    aggregates: dict = {}
+    posted_contracts = set()  # contracts with a simulated Discord post
+
+    would_post = []
+    would_edit = []
+    gated = []
+    grade_dist = {"A+": 0, "A": 0, "B": 0, "C": 0, "D": 0}
+
+    for a in sorted_alerts:
+        ticker = a.get("ticker") or ""
+        cp = a.get("cp") or ""
+        strike = a.get("strike")
+        exp = a.get("exp") or ""
+        key = (ticker, cp, strike, exp)
+
+        # Update / create aggregate in local dict
+        premium = float(a.get("alertPremium") or 0)
+        size = a.get("tradeSize") or 0
+        name = a.get("alertName") or ""
+        priority = _alert_priority(a)
+        if key not in aggregates:
+            aggregates[key] = {
+                "ticker": ticker, "cp": cp, "strike": strike, "exp": exp,
+                "total_premium": premium,
+                "max_premium": premium,
+                "total_size": size,
+                "max_size": size,
+                "fire_count": 1,
+                "best_alert_name": name,
+                "best_alert_priority": priority,
+                "alert_names_seen": {name} if name else set(),
+                "first_fire_ts": a.get("timestamp"),
+                "last_fire_ts": a.get("timestamp"),
+                "prior_oi": a.get("priorOI"),
+                "spot": a.get("spot"),
+                "moneyness_pct": a.get("moneynessPct"),
+                "moneyness_label": a.get("moneynessLabel"),
+            }
+        else:
+            agg = aggregates[key]
+            agg["total_premium"] += premium
+            agg["max_premium"] = max(agg["max_premium"], premium)
+            agg["total_size"] = (agg["total_size"] or 0) + size
+            agg["max_size"] = max(agg["max_size"] or 0, size)
+            agg["fire_count"] += 1
+            agg["last_fire_ts"] = a.get("timestamp")
+            if name:
+                agg["alert_names_seen"].add(name)
+            if priority < agg["best_alert_priority"]:
+                agg["best_alert_name"] = name
+                agg["best_alert_priority"] = priority
+            if agg["prior_oi"] is None and a.get("priorOI") is not None:
+                agg["prior_oi"] = a.get("priorOI")
+            if a.get("spot") is not None:
+                agg["spot"] = a.get("spot")
+                agg["moneyness_pct"] = a.get("moneynessPct")
+                agg["moneyness_label"] = a.get("moneynessLabel")
+
+        agg = aggregates[key]
+        score, grade = _compute_conviction(agg)
+
+        # Categorize: post (new + above threshold), edit (already posted),
+        # gate (new + below threshold).
+        snapshot = {
+            **{k: a.get(k) for k in (
+                "id", "alertName", "alertType", "alertPremium", "ticker",
+                "cp", "strike", "exp", "dte", "timestamp",
+            )},
+            "agg_total_premium": agg["total_premium"],
+            "agg_fire_count": agg["fire_count"],
+            "agg_total_size": agg["total_size"],
+            "conviction_score": score,
+            "conviction_grade": grade,
+            "spot": agg.get("spot"),
+            "moneynessLabel": agg.get("moneyness_label"),
+            "priorOI": agg.get("prior_oi"),
+            "oiExceeded": a.get("oiExceeded"),
+        }
+
+        if key in posted_contracts:
+            would_edit.append(snapshot)
+        elif _grade_level(grade) >= min_level:
+            posted_contracts.add(key)
+            would_post.append(snapshot)
+            grade_dist[grade] = grade_dist.get(grade, 0) + 1
+        else:
+            gated.append(snapshot)
+            # Count gated grades too so user sees the full distribution
+            grade_dist[grade] = grade_dist.get(grade, 0) + 1
+
+    total = len(sorted_alerts)
+    posts = len(would_post)
+    edits = len(would_edit)
+    gated_count = len(gated)
+    discord_actions = posts + edits
+    reduction = (1 - discord_actions / total) * 100 if total > 0 else 0
+
+    return {
+        "would_post": would_post,
+        "would_edit": would_edit,
+        "gated": gated,
+        "grade_distribution": grade_dist,
+        "stats": {
+            "total_alerts": total,
+            "posts": posts,
+            "edits": edits,
+            "gated_count": gated_count,
+            "discord_actions": discord_actions,
+            "reduction_vs_raw_pct": round(reduction, 1),
+            "unique_contracts_posted": len(posted_contracts),
+            "min_grade": min_grade,
+        },
     }
