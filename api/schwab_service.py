@@ -417,6 +417,51 @@ def is_authenticated() -> bool:
     return tokens is not None and "access_token" in tokens
 
 
+# ─── Single-symbol equity quote (used by LiveFlow worker for moneyness) ─────────
+async def get_equity_quote(symbol: str) -> float | None:
+    """
+    Fetch the last price for a single equity. Returns None on auth failure,
+    HTTP error, or any unexpected response shape. Designed for hot-path use
+    (called per Bullflow alert) — keep latency tight, fail gracefully.
+
+    Caller is expected to cache results since Schwab rate limits apply.
+    """
+    token = await get_valid_token()
+    if not token:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                QUOTES_URL,
+                headers={"Authorization": f"Bearer {token}"},
+                params={"symbols": symbol, "indicative": "false"},
+            )
+            # Token refresh + retry (mirrors get_market_summary pattern)
+            if resp.status_code == 401:
+                new_tokens = await refresh_access_token()
+                if new_tokens:
+                    token = new_tokens["access_token"]
+                    resp = await client.get(
+                        QUOTES_URL,
+                        headers={"Authorization": f"Bearer {token}"},
+                        params={"symbols": symbol, "indicative": "false"},
+                    )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            q = data.get(symbol, {})
+            # Quote container can be at root or under "quote" — handle both
+            quote = q.get("quote", q)
+            last = quote.get(
+                "lastPrice",
+                quote.get("last", quote.get("regularMarketLastPrice", 0)),
+            )
+            return float(last) if last else None
+    except Exception as e:
+        logger.warning(f"[schwab] equity quote failed for {symbol}: {e}")
+        return None
+
+
 # ─── Market Index Quotes ─────────────────────────────────────────────────────────
 MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM"]
 VIX_SYMBOLS = ["$VIX.X", "$VIX", "VIX", "UVXY"]  # Try multiple formats
