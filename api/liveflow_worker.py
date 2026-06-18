@@ -202,6 +202,39 @@ _load_user_blocklist()
 DEDUP_WINDOW_SEC = 60               # how long to remember a dedup key
 DISCORD_FORWARD_DELAY_SEC = 2.0     # how long to wait before posting to Discord
 
+# ─── Conviction-based Discord gate ───────────────────────────────────────────
+# To prevent bombarding the channel with low-signal alerts, we only POST to
+# Discord when the aggregate conviction grade reaches a minimum threshold.
+# Alerts below threshold are still buffered + aggregated (so a trade that gains
+# conviction over multiple fires gets surfaced when it crosses the threshold),
+# but they never produce a Discord notification on their own.
+#
+# Behavior:
+#   - First fire on a contract: gate by current conviction grade.
+#       grade < MIN_DISCORD_GRADE → silently aggregate, no post.
+#       grade >= MIN_DISCORD_GRADE → post fresh, store message_id.
+#   - Subsequent fires: always PATCH the existing message (no re-gating).
+#     A trade that was already posted should keep its message thread alive
+#     even if subsequent fires don't add new conviction.
+#
+# Env var: MIN_DISCORD_GRADE = "A+" | "A" | "B" | "C" | "D"  (default "B")
+# Setting to "D" effectively disables the gate (every aggregate gets posted).
+MIN_DISCORD_GRADE = os.getenv("MIN_DISCORD_GRADE", "B").strip().upper()
+
+
+def _grade_level(grade_str: str) -> int:
+    """Map a conviction grade string to numeric level for comparison.
+    Strips any trailing emoji (e.g. 'A+ 🚀' → 4)."""
+    g = (grade_str or "D").strip()
+    if g.startswith("A+"): return 4
+    if g.startswith("A"):  return 3
+    if g.startswith("B"):  return 2
+    if g.startswith("C"):  return 1
+    return 0  # D, unknown, or empty
+
+
+MIN_DISCORD_GRADE_LEVEL = _grade_level(MIN_DISCORD_GRADE)
+
 # Maps dedup_key tuple -> {"alert_id", "priority", "first_seen", "alert_obj"}
 _dedup_cache: dict = {}
 
@@ -689,6 +722,7 @@ _status = {
     "total_alerts_shown": 0,       # passed table filter
     "total_alerts_dropped": 0,     # failed table filter
     "total_alerts_forwarded": 0,   # passed Discord threshold
+    "total_alerts_grade_gated": 0, # below MIN_DISCORD_GRADE — silently aggregated
     "last_error": None,
     "last_discord_error": None,
     "started_at": None,
@@ -699,9 +733,9 @@ _status = {
         "premium_min": TABLE_FILTER["premium_min"],
         "ticker_blocklist": sorted(TABLE_FILTER["ticker_blocklist"]),
         "alertname_block_substrings": list(TABLE_FILTER["alertname_block_substrings"]),
-        # Conviction threshold removed 2026-06-17 — Bullflow's per-alert filters
-        # are the conviction signal now. Every alert that passes TABLE_FILTER
-        # forwards to Discord.
+        # Conviction grade gate for Discord (2026-06-18) — only post B+ by default.
+        # Tunable via MIN_DISCORD_GRADE env var.
+        "discord_min_grade": MIN_DISCORD_GRADE,
         "discord_threshold": None,
         # Per-alert ticker exclusions (e.g. mega-caps blocked on Unusual scans).
         "per_alert_blocklists": {
@@ -1095,10 +1129,13 @@ def _discord_patch_url(message_id: str) -> str:
 
 async def _post_to_discord(client, alert):
     """
-    Aggregate-aware Discord forwarder.
+    Aggregate-aware Discord forwarder with conviction-grade gating.
 
-    - First fire on a contract today → POST new message, store message_id.
-    - Subsequent fires → PATCH the existing message with updated aggregate.
+    - First fire on a contract today → check conviction grade. Below
+      MIN_DISCORD_GRADE: silently aggregate, no post. At/above: POST new
+      message, store message_id.
+    - Subsequent fires → PATCH the existing message with updated aggregate
+      (no re-gating — once a message is alive we keep it updated).
     - PATCH failure (deleted message, rate limit) → fall back to POST.
 
     Failures swallowed and logged; never blocks the SSE consumer.
@@ -1108,12 +1145,25 @@ async def _post_to_discord(client, alert):
 
     _prune_aggregates()
     agg = _update_aggregate(alert)
+
+    # Compute conviction first — needed for the gate decision and for the embed.
+    _, grade = _compute_conviction(agg)
+    message_id = agg.get("discord_message_id")
+
+    # GATE: only applies to FIRST posts. If we already have a message_id, we
+    # always edit it regardless of current grade (preserves the message thread
+    # in subscribers' channels — a trade that earned its way in stays in).
+    if not message_id and _grade_level(grade) < MIN_DISCORD_GRADE_LEVEL:
+        _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
+        log.debug(
+            "[liveflow] grade %s below min %s — silent aggregate for %s %s $%s %s",
+            grade, MIN_DISCORD_GRADE,
+            agg.get("ticker"), agg.get("cp"), agg.get("strike"), agg.get("exp"),
+        )
+        return
+
     embed = _build_embed(agg)
     payload = {"embeds": [embed]}
-
-    # Decide POST vs PATCH based on whether this contract already has a
-    # Discord message today. message_id is set on successful initial POST.
-    message_id = agg.get("discord_message_id")
 
     if message_id:
         # Edit the existing post in place.
