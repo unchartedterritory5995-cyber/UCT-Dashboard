@@ -38,7 +38,11 @@ const P = {
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_ROWS = 200;
-const LS_KEY = "uct_liveflow_filters_v1";
+// 2026-06-17: bumped v1→v2 because tier structure changed from size-based
+// (mega/whale/a/leaps/unusual) to direction-based (bullish/bearish). Existing
+// v1 localStorage values would map to non-existent tier keys and produce
+// confused chip state on first load after deploy.
+const LS_KEY = "uct_liveflow_filters_v2";
 
 // ─── Backtest helpers ─────────────────────────────────────────────────────────
 // Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
@@ -76,28 +80,93 @@ function isValidBacktestDate(s) {
 }
 
 // ─── Tier metadata + derivation ───────────────────────────────────────────────
-// Order: Q2-B (Mega → Whale → A → LEAPS → Unusual). Algo last.
+// 2026-06-17 v2: Restructured from size-based tiers (Mega/Whale/A/LEAPS/Unusual)
+// to direction-first (Bullish/Bearish). Direction comes from the trade's cp
+// (Call=bullish, Put=bearish). Within each direction, rows are sorted by a
+// sub-priority derived from the alert NAME: Alpha Gold > Size > Regular > Leaps.
+// This matches how flow is actually scanned during market hours.
 const TIER_META = {
-  mega:    { label: "Mega Whale", color: "#e74c3c", bg: "#e74c3c14" },
-  whale:   { label: "Whale",      color: "#c9a84c", bg: "#c9a84c14" },
-  a:       { label: "A-tier",     color: "#5b9bd5", bg: "#5b9bd514" },
-  leaps:   { label: "LEAPS",      color: "#a892e0", bg: "#a892e014" },
-  unusual: { label: "Unusual",    color: "#1d9e75", bg: "#1d9e7514" },
-  algo:    { label: "Algo",       color: "#888780", bg: "#88878014" },
+  bullish: { label: "Bullish", color: "#3CB868", bg: "#3CB86814" },  // green like cp=C
+  bearish: { label: "Bearish", color: "#E74C3C", bg: "#E74C3C14" },  // red like cp=P
+  algo:    { label: "Algo",    color: "#888780", bg: "#88878014" },  // catch-all (no direction)
 };
-const TIER_ORDER = ["mega", "whale", "a", "leaps", "unusual", "algo"];
+const TIER_ORDER = ["bullish", "bearish", "algo"];
 
-// Map alertName → tier key. Check Mega before Whale (longest prefix wins).
-// Anything not starting with "UCT" falls through to "algo".
-function deriveTier(alertName) {
-  if (!alertName) return "algo";
-  const n = alertName.toLowerCase();
-  if (n.startsWith("uct mega whale")) return "mega";
-  if (n.startsWith("uct whale")) return "whale";
-  if (n.startsWith("uct a ")) return "a";
-  if (n.startsWith("uct leaps")) return "leaps";
-  if (n.startsWith("uct unusual")) return "unusual";
+// Map alert → tier key. Direction-first: cp field decides bullish vs bearish.
+// Anything without a cp (parse failure / weird payload) falls into algo.
+function deriveTier(alert) {
+  const cp = alert?.cp;
+  if (cp === "C") return "bullish";
+  if (cp === "P") return "bearish";
   return "algo";
+}
+
+// Within a tier, rows are sorted by this priority. Lower number = appears
+// HIGHER in the list (Alpha Gold pinned to top, LEAPS pushed to bottom).
+//   1 = Alpha Gold (special highest-conviction signal)
+//   2 = Size (large premium — old "Whale" equivalent)
+//   3 = Regular (everything else — Bullish/Bearish, Unusual, Vol>OI)
+//   4 = Leaps (long-dated — least urgent for active scans)
+// Substring matching on alertName, lowercased. Check Alpha Gold FIRST since
+// "Alpha Gold Leaps" (if it ever exists) should rank as Alpha Gold not Leaps.
+function deriveSubPriority(alertName) {
+  const n = (alertName || "").toLowerCase();
+  if (n.includes("alpha gold")) return 1;
+  if (n.includes("size")) return 2;
+  if (n.includes("leaps")) return 4;
+  return 3;
+}
+
+// Display label for the sub-priority badge that appears next to alert names.
+// Empty string when subPriority is 3 (Regular) — no badge needed for the default.
+function subPriorityLabel(p) {
+  if (p === 1) return "ALPHA";
+  if (p === 2) return "SIZE";
+  if (p === 4) return "LEAPS";
+  return "";
+}
+
+// ─── Trade-level dedup ────────────────────────────────────────────────────────
+// Custom alert brackets can overlap, so a single trade can fire multiple
+// alerts in the same instant (e.g. NVDA $2.10M matched A Mid + A Large +
+// A Mega simultaneously on 2026-06-17 because Bullflow's marketCap filter
+// wasn't actually rejecting matches — see diagnostic). Collapse those into
+// one display row. The first occurrence wins; additional matched names
+// accumulate in _matchedNames for the "+N" badge in the Alert Name column.
+
+function tradeKey(a) {
+  return [
+    a.ticker || "",
+    a.cp || "",
+    a.strike ?? "",
+    a.exp || "",
+    a.alertPremium ?? "",
+    a.timestamp || "",
+  ].join("|");
+}
+
+function dedupAlerts(alerts) {
+  const seen = new Map();
+  for (const a of alerts) {
+    const k = tradeKey(a);
+    if (!seen.has(k)) {
+      // Clone so we don't mutate cached refs from the polling buffer
+      seen.set(k, { ...a, _matchedNames: a.alertName ? [a.alertName] : [] });
+    } else {
+      const existing = seen.get(k);
+      if (a.alertName && !existing._matchedNames.includes(a.alertName)) {
+        existing._matchedNames.push(a.alertName);
+        // If this match is higher-priority than the current primary name,
+        // promote it. E.g. trade matched both "UCT Bullish" (regular=3) AND
+        // "UCT Size Bulls" (size=2) — primary should be Size since that's
+        // the conviction-bearing fact. The +N badge still shows the rest.
+        if (deriveSubPriority(a.alertName) < deriveSubPriority(existing.alertName)) {
+          existing.alertName = a.alertName;
+        }
+      }
+    }
+  }
+  return Array.from(seen.values());
 }
 
 // ─── Filter state helpers (localStorage-backed) ───────────────────────────────
@@ -287,7 +356,40 @@ function AlertRow({ alert, isNew, tierColor }) {
           background: typeColor + "18", color: typeColor,
         }}>{(alert.alertType || "?").toUpperCase()}</span>
       </td>
-      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.alertName || "—"}</td>
+      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>
+        {(() => {
+          const sp = deriveSubPriority(alert.alertName);
+          const spLabel = subPriorityLabel(sp);
+          if (!spLabel) return null;
+          // Visual cue for the sub-tier. Alpha Gold gets a gold pill so it
+          // pops; Size gets a neutral pill; Leaps gets a purple pill.
+          const spColor = sp === 1 ? "#c9a84c"
+                        : sp === 2 ? "#d8c878"
+                        : sp === 4 ? "#a892e0"
+                        : P.dm;
+          return (
+            <span style={{
+              marginRight: 6, fontSize: 8, padding: "1px 5px", borderRadius: 3,
+              background: spColor + "22", color: spColor, fontWeight: 800,
+              fontFamily: "ui-monospace, monospace", letterSpacing: 0.5,
+              verticalAlign: "1px",
+            }}>{spLabel}</span>
+          );
+        })()}
+        {alert.alertName || "—"}
+        {alert._matchedNames && alert._matchedNames.length > 1 && (
+          <span
+            title={"Also matched: " + alert._matchedNames.slice(1).join(", ")}
+            style={{
+              marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 8,
+              background: P.dm + "20", color: P.dm, cursor: "help",
+              fontWeight: 700, fontFamily: "ui-monospace, monospace",
+              verticalAlign: "1px",
+            }}>
+            +{alert._matchedNames.length - 1}
+          </span>
+        )}
+      </td>
       <td style={{
         padding: "8px 10px", fontSize: 11, fontWeight: 800,
         fontFamily: "ui-monospace, monospace",
@@ -447,10 +549,23 @@ export default function LiveFlow() {
     };
   }, [isBacktest, backtestDate]);
 
-  // Group alerts by tier (preserves arrival order within tier).
+  // Dedup first: collapse alerts that fired multiple custom-alert rules for the
+  // same trade. Then group by tier (direction from cp), then sort within each
+  // tier by sub-priority so Alpha Gold pins to top, Leaps drops to bottom.
+  const dedupedAlerts = dedupAlerts(alerts);
   const byTier = {};
   for (const t of TIER_ORDER) byTier[t] = [];
-  for (const a of alerts) byTier[deriveTier(a.alertName)].push(a);
+  for (const a of dedupedAlerts) byTier[deriveTier(a)].push(a);
+
+  // Sort each tier's alerts: sub-priority ascending (1 first), ties broken by
+  // arrival order (timestamp descending — newest within the same priority on top).
+  for (const t of TIER_ORDER) {
+    byTier[t].sort((a, b) => {
+      const dp = deriveSubPriority(a.alertName) - deriveSubPriority(b.alertName);
+      if (dp !== 0) return dp;
+      return (b.timestamp || 0) - (a.timestamp || 0);
+    });
+  }
 
   const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
   const visibleTotal = TIER_ORDER.reduce(
@@ -650,7 +765,7 @@ export default function LiveFlow() {
               All tiers filtered out
             </div>
             <div style={{ fontSize: 10, color: P.mt }}>
-              {alerts.length} alert{alerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
+              {dedupedAlerts.length} alert{dedupedAlerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
             </div>
           </div>
         ) : (
