@@ -17,12 +17,17 @@ import logging
 from api.services.cache import cache
 from api.services.fundamentals import get_fundamentals
 from api.services.research.ownership import get_ownership
+from api.services.research import ratings_db
 from api.services.yfinance_pool import fetch_history
 
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12h
-_METHOD = "Threshold-calibrated v1 — absolute scoring; universe-percentile ranking is a future enhancement."
+_METHOD_ABSOLUTE = "Threshold-calibrated v1 — absolute scoring; universe-percentile ranking is a future enhancement."
+
+
+def _method_percentile(n) -> str:
+    return f"Percentile rank vs {n:,}-stock universe (IBD-style; 1-99, higher is stronger)."
 
 _LETTER_NUM = {"A": 85, "B": 68, "C": 50, "D": 32, "E": 15}
 
@@ -251,17 +256,62 @@ def get_ratings(sym):
     except Exception as exc:
         _logger.warning("ratings: history failed for %s: %s", sym, exc)
 
+    # ── Phase 2: rank against the nightly universe distributions when available,
+    # else fall back to the absolute threshold bands (cold-start / on-demand
+    # tickers / missing metric all degrade gracefully).
+    try:
+        dists = ratings_db.get_distributions()
+    except Exception:
+        dists = {}
+    _used_pct = {"hit": False}
+
+    def _pctile(metric, val, invert=False):
+        p = ratings_db.percentile(metric, val, dists, invert=invert) if dists else None
+        if p is not None:
+            _used_pct["hit"] = True
+        return p
+
+    rev_g = fund.get("revenue_growth_pct")
+    eps_g = fund.get("earnings_growth_pct")
+    op_m = fund.get("operating_margin_pct")
+    roe = fund.get("roe_pct")
+    peg = fund.get("peg")
+
     rs_ret = _weighted_rs_return(closes)
-    rs = _band(rs_ret, _RS_BANDS) if rs_ret is not None else None
-    eps = _band(fund.get("earnings_growth_pct"), _EPS_BANDS) if fund.get("earnings_growth_pct") is not None else None
-    growth_in = _blend_growth(fund.get("revenue_growth_pct"), fund.get("earnings_growth_pct"))
-    growth = _band(growth_in, _GROWTH_BANDS) if growth_in is not None else None
-    value = _value_score(fund.get("peg"), fund.get("pe_forward"))
-    smr_n, smr = _smr(fund.get("revenue_growth_pct"), fund.get("operating_margin_pct"), fund.get("roe_pct"))
-    accdis = _accdis_letter(_accdis_ratio(closes, vols))
+    rs = _pctile("rs_return", rs_ret) or (_band(rs_ret, _RS_BANDS) if rs_ret is not None else None)
+    eps = _pctile("earnings_growth", eps_g) or (_band(eps_g, _EPS_BANDS) if eps_g is not None else None)
+    growth_in = _blend_growth(rev_g, eps_g)
+    growth = _pctile("blended_growth", growth_in) or (_band(growth_in, _GROWTH_BANDS) if growth_in is not None else None)
+
+    # Value: lower PEG = stronger → inverted percentile; fall back to absolute value score.
+    value = None
+    if peg is not None and peg > 0:
+        value = _pctile("peg", peg, invert=True)
+    if value is None:
+        value = _value_score(peg, fund.get("pe_forward"))
+
+    # SMR: mean of the three sub-metric percentiles when ranked, else absolute composite.
+    smr_parts = [p for p in (_pctile("rev_growth", rev_g), _pctile("op_margin", op_m), _pctile("roe", roe)) if p is not None]
+    if smr_parts:
+        smr_n = round(sum(smr_parts) / len(smr_parts))
+        smr = _letter(smr_n)
+    else:
+        smr_n, smr = _smr(rev_g, op_m, roe)
+
+    # Acc/Dis + Sponsorship: percentile → quintile letter, else absolute letter bands.
+    accdis_r = _accdis_ratio(closes, vols)
+    ad_pct = _pctile("accdis_ratio", accdis_r)
+    accdis = _letter(ad_pct) if ad_pct is not None else _accdis_letter(accdis_r)
+
     inst_pct = (own.get("institutional") or {}).get("pct_held")
-    sponsorship = _sponsorship_letter(inst_pct)
+    sp_pct = _pctile("inst_pct", inst_pct)
+    sponsorship = _letter(sp_pct) if sp_pct is not None else _sponsorship_letter(inst_pct)
+
     composite = _composite(eps, rs, growth, value, smr_n, accdis)
+
+    basis = "percentile" if _used_pct["hit"] else "absolute"
+    universe_n = (dists.get("rs_return") or {}).get("n") if dists else None
+    method = _method_percentile(universe_n) if (basis == "percentile" and universe_n) else _METHOD_ABSOLUTE
 
     out = {
         "sym": sym,
@@ -271,7 +321,9 @@ def get_ratings(sym):
             "smr": smr, "accdis": accdis, "sponsorship": sponsorship,
         },
         "checkup": _checkup(fund, rs, last_close, inst_pct),
-        "method": _METHOD,
+        "method": method,
+        "basis": basis,
+        "universe_n": universe_n,
     }
     cache.set(ck, out, _CACHE_TTL)
     return out

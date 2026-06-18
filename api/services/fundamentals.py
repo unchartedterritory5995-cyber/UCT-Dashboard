@@ -101,6 +101,8 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         # Yield / shareholder return
         "dividend_yield_pct": _round_pct(info.get("dividendYield")),
         "payout_ratio_pct": _round_pct(info.get("payoutRatio")),
+        # Ownership (free from the same .info call — feeds ratings sponsorship percentile)
+        "held_pct_institutions": _round_pct(info.get("heldPercentInstitutions")),
         # Price action context
         "fifty_two_week_high": _round(info.get("fiftyTwoWeekHigh")),
         "fifty_two_week_low": _round(info.get("fiftyTwoWeekLow")),

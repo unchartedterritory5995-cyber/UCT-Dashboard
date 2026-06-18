@@ -1498,6 +1498,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] COT init error (non-fatal): {e}")
 
+    # ── Ratings percentile (Phase 2): startup catch-up if distributions stale ──
+    # Gated off by default; when enabled, warms the universe percentile DB in the
+    # background so /research ratings show true 1-99 ranks. Never blocks boot.
+    if os.environ.get("RATINGS_PERCENTILE_ENABLED", "0").lower() in ("1", "true", "yes"):
+        try:
+            from api.services.research import ratings_universe as _ratings_universe
+            _ratings_universe.ratings_db.init_db()
+            if _ratings_universe.distributions_stale():
+                print("[startup] ratings percentile distributions stale — running catch-up refresh...")
+                threading.Thread(target=_ratings_universe.nightly_job, daemon=True,
+                                 name="ratings-percentile-catchup").start()
+            else:
+                print("[startup] ratings percentile distributions ready.")
+        except Exception as e:
+            print(f"[startup] ratings percentile init error (non-fatal): {e}")
+
     from api.services.scheduler_lock import acquire_scheduler_lock
     _scheduler = None
     if acquire_scheduler_lock():
@@ -1622,6 +1638,16 @@ async def lifespan(app: FastAPI):
         #   • 4:00–4:30 PM ET every 5 min — AMC earnings burst (7 fires)
         # Total 15 auto refreshes/day on weekdays (mon-fri).
         # Scheduler timezone is America/New_York (set at BackgroundScheduler init).
+        # ── Ratings percentile nightly gather (Phase 2) ───────────────────────
+        # 2:30 AM ET daily — off-market, low load. Incremental + capped so each
+        # run refreshes a bounded slice of cap_universe; distributions rebuild
+        # every run. Gated off by default (RATINGS_PERCENTILE_ENABLED).
+        if os.environ.get("RATINGS_PERCENTILE_ENABLED", "0").lower() in ("1", "true", "yes"):
+            from api.services.research.ratings_universe import nightly_job as _ratings_pct_nightly
+            _scheduler.add_job(_ratings_pct_nightly,
+                trigger=CronTrigger(hour=2, minute=30),
+                id="ratings_percentile_nightly", max_instances=1, replace_existing=True)
+
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
 

@@ -71,6 +71,8 @@ def get_snapshot(sym: str) -> dict:
     out["components"] = rat.get("components") or {}
     out["checkup"] = rat.get("checkup") or []
     out["method"] = rat.get("method")
+    out["basis"] = rat.get("basis")            # 'percentile' | 'absolute'
+    out["universe_n"] = rat.get("universe_n")
 
     # MarketSmith-style "data boxes" — curated, grouped on the frontend.
     out["metrics"] = {
