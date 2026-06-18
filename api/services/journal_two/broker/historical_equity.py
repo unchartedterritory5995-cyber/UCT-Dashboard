@@ -58,3 +58,42 @@ def replay_timeline(events: list[dict]) -> list[dict]:
             "cash": round(cash, 2),
         })
     return out
+
+
+def value_timeline(timeline: list[dict], calendar_dates: list[str],
+                   price_fn: Callable[[str, str, str], float | None]) -> list[dict]:
+    """Mark each calendar date's holdings to market. price_fn(kind, symbol, date)
+    returns a close or None; a missing price carries the last-known close forward,
+    and a symbol that never prices flags the row partial (contributes 0). Holdings
+    state is carried forward between event dates."""
+    states = {r["date"]: r for r in timeline}
+    last_close: dict[tuple[str, str], float] = {}
+    cur = {"stocks": {}, "options": {}, "cash": 0.0}
+    out: list[dict] = []
+    for d in calendar_dates:
+        if d in states:
+            cur = states[d]
+        partial = False
+        equity = cur["cash"]
+        for ticker, shares in cur["stocks"].items():
+            c = price_fn("stock", ticker, d)
+            if c is None:
+                c = last_close.get(("stock", ticker))
+            else:
+                last_close[("stock", ticker)] = c
+            if c is None:
+                partial = True
+            else:
+                equity += shares * c
+        for occ, contracts in cur["options"].items():
+            c = price_fn("option", occ, d)
+            if c is None:
+                c = last_close.get(("option", occ))
+            else:
+                last_close[("option", occ)] = c
+            if c is None:
+                partial = True
+            else:
+                equity += contracts * c * 100
+        out.append({"date": d, "equity": round(equity, 2), "estimated": False, "partial": partial})
+    return out

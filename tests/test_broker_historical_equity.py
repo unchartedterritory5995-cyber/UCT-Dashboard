@@ -37,3 +37,30 @@ def test_replay_accumulates_stock_option_cash_and_handles_split_and_close():
     assert tl[3]["stocks"]["AAPL"] == 200
     assert tl[4]["stocks"]["AAPL"] == 150 and tl[4]["cash"] == 9300.0
     assert tl[5]["options"].get("O:AAPL260116C00200000", 0) == 0
+
+
+# ── value_timeline ───────────────────────────────────────────────────────────
+
+def test_value_timeline_marks_holdings_to_market():
+    timeline = [{"date": "2026-01-01", "stocks": {"AAPL": 100}, "options": {}, "cash": 0.0}]
+    dates = ["2026-01-01", "2026-01-02", "2026-01-03"]
+    prices = {("stock", "AAPL", "2026-01-01"): 10.0,
+              ("stock", "AAPL", "2026-01-02"): 11.0,
+              ("stock", "AAPL", "2026-01-03"): 12.0}
+    pf = lambda kind, sym, d: prices.get((kind, sym, d))
+    out = he.value_timeline(timeline, dates, pf)
+    assert [round(r["equity"]) for r in out] == [1000, 1100, 1200]
+    assert all(r["estimated"] is False and r["partial"] is False for r in out)
+
+
+def test_value_timeline_options_x100_carry_forward_and_partial():
+    timeline = [{"date": "2026-01-01", "stocks": {}, "options": {"O:X": 2}, "cash": 500.0}]
+    prices = {("option", "O:X", "2026-01-01"): 1.50}
+    pf = lambda kind, sym, d: prices.get((kind, sym, d))
+    out = he.value_timeline(timeline, ["2026-01-01", "2026-01-02"], pf)
+    assert round(out[0]["equity"]) == 800            # 500 + 2×1.50×100
+    assert round(out[1]["equity"]) == 800            # carried forward
+
+    tl2 = [{"date": "2026-01-01", "stocks": {"ZZZ": 5}, "options": {}, "cash": 0.0}]
+    out2 = he.value_timeline(tl2, ["2026-01-01"], lambda *a: None)
+    assert out2[0]["partial"] is True and out2[0]["equity"] == 0.0
