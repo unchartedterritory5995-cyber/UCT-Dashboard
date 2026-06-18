@@ -1014,7 +1014,7 @@ def _build_embed(agg: dict) -> dict:
                 exp_us = f"{int(parts[1]):02d}-{int(parts[2]):02d}-{int(parts[0])}"
             except (ValueError, IndexError):
                 pass  # leave as-is on malformed input
-    title_base = f"{ticker} {strike_str} {cp_label} {exp_us}"
+    title_base = f"{ticker} {strike_str} {cp_label} EXP: {exp_us}"
     if moneyness_label == "ATM":
         title = f"{title_base} (ATM)"
     elif moneyness_label in ("ITM", "OTM") and moneyness_pct is not None:
