@@ -742,6 +742,139 @@ def _passes_table_filter(alert_name, premium, ticker):
 
 
 # ─── Discord forwarder ───────────────────────────────────────────────────────
+def _compute_conviction(agg: dict) -> tuple:
+    """
+    Composite conviction score from aggregate state. Returns (score_0_to_10,
+    letter_grade). Inputs use what we already track — no new lookups needed.
+
+    Weights (0-12 total, capped at 10):
+      Premium tier:       0-3     (whale > big > medium > standard > small)
+      OI Break:           0-2     (size > priorOI = institutional positioning)
+      Repeat count:       0-2     (5x+ sustained > mild > none)
+      Best alert tier:    0-3     (Alpha Gold heavily weighted)
+      Moneyness:          0-1     (near-strike > deep OTM)
+      Multi-alert match:  0-1     (2+ tiers fired same trade = overlap)
+
+    Calibrated against real cards from 2026-06-18 session: AVGO Alpha Gold
+    $1.27M near-ATM lands at B; DDOG Alpha Gold $3.22M deep ITM at A+;
+    MU multi-fire $22M at A+; small lottery stays at D.
+    """
+    score = 0.0
+
+    # Premium tier (0-3): wider band so $1M Alpha Gold gets meaningful credit
+    total_prem = agg.get("total_premium") or 0
+    if total_prem >= 5_000_000:
+        score += 3.0
+    elif total_prem >= 2_000_000:
+        score += 2.5
+    elif total_prem >= 1_000_000:
+        score += 2.0
+    elif total_prem >= 500_000:
+        score += 1.5
+    else:
+        score += 0.75
+
+    # OI Break (0-2): full points when single trade exceeded prior OI;
+    # scaled by ratio magnitude (10x+ = massive accumulation vs noise).
+    total_size = agg.get("total_size") or 0
+    prior_oi = agg.get("prior_oi") or 0
+    if prior_oi > 0 and total_size > prior_oi:
+        ratio = total_size / prior_oi
+        if ratio >= 5.0:
+            score += 2.0
+        elif ratio >= 2.0:
+            score += 1.5
+        else:
+            score += 1.0
+
+    # Repeat count (0-2): more fires = more sustained conviction.
+    fire_count = agg.get("fire_count") or 1
+    if fire_count >= 5:
+        score += 2.0
+    elif fire_count >= 3:
+        score += 1.5
+    elif fire_count >= 2:
+        score += 1.0
+
+    # Best alert tier (0-3): Alpha Gold is the rarest catch and deserves
+    # significant weight. Calibration: a clean Alpha Gold + $1M+ premium
+    # should land at B minimum (subscribers expect Alpha Gold = strong signal).
+    best_pri = agg.get("best_alert_priority") or 99
+    if best_pri == 1:        # Alpha Gold
+        score += 3.0
+    elif best_pri == 2:      # Size Bulls/Bears
+        score += 2.0
+    elif best_pri == 3:      # Bullish/Bearish
+        score += 1.25
+    elif best_pri == 4:      # LEAPS directional
+        score += 1.0
+    elif best_pri == 5:      # Leaps neutral
+        score += 0.75
+    else:                    # Unusual / Vol>OI / unknown
+        score += 0.5
+
+    # Moneyness (0-1): near-strike = high delta directional; far OTM = lottery.
+    # OTM stored as positive magnitude per recent change — use abs() to be safe.
+    money_pct = agg.get("moneyness_pct")
+    money_label = agg.get("moneyness_label")
+    if money_label == "ITM":
+        if money_pct and 5 <= money_pct <= 30:
+            score += 1.0   # sweet spot for directional bets
+        else:
+            score += 0.75
+    elif money_label == "ATM":
+        score += 0.75
+    elif money_label == "OTM" and money_pct is not None:
+        ap = abs(money_pct)
+        if ap <= 5:
+            score += 0.6   # near-the-money OTM still meaningful
+        elif ap <= 15:
+            score += 0.3   # moderate OTM
+        # deep OTM (>15%) = lottery; no bonus
+
+    # Multi-alert match (0-1): 2+ UCT tiers catching the same trade is real
+    # confirmation that multiple conviction criteria agreed.
+    names_seen = agg.get("alert_names_seen") or set()
+    if len(names_seen) >= 3:
+        score += 1.0
+    elif len(names_seen) == 2:
+        score += 0.6
+
+    # Map to letter grade. Calibrated so A+ requires multi-criteria excellence
+    # (rare — maybe 1-2% of daily alerts); B is the "respectable single signal"
+    # baseline; D filters out sub-million lottery noise.
+    score = min(score, 10.0)
+    if score >= 8.5:
+        grade = "A+ 🚀"
+    elif score >= 7.0:
+        grade = "A"
+    elif score >= 5.5:
+        grade = "B"
+    elif score >= 3.5:
+        grade = "C"
+    else:
+        grade = "D"
+
+    return (round(score, 1), grade)
+
+
+def _derive_direction(agg: dict) -> str:
+    """
+    Return 'Bullish' / 'Bearish' / 'Neutral' label for the embed.
+
+    Most cases are trivial (call = bullish, put = bearish). For mixed-direction
+    alert tiers (Alpha Gold, Vol>OI, Unusual) where alertName doesn't carry
+    direction, we still classify by C/P since the buyer of a call is
+    directionally bullish on the underlying regardless of which alert fired.
+    """
+    cp = (agg.get("cp") or "").upper()
+    if cp == "C":
+        return "Bullish"
+    if cp == "P":
+        return "Bearish"
+    return "Neutral"
+
+
 def _build_embed(agg: dict) -> dict:
     """
     Build the Discord embed dict from an aggregate. Same builder used for
@@ -831,6 +964,23 @@ def _build_embed(agg: dict) -> dict:
     spot = agg.get("spot")
     if spot is not None:
         fields.append({"name": "Spot", "value": f"${spot:,.2f}", "inline": True})
+
+    # Direction — explicit Bullish/Bearish label so subscribers don't have to
+    # infer from C/P + alert name. Calls = Bullish, Puts = Bearish (the trader
+    # buying the option is directionally betting that way regardless of which
+    # UCT alert tier caught it).
+    direction = _derive_direction(agg)
+    if direction != "Neutral":
+        fields.append({"name": "Direction", "value": direction, "inline": True})
+
+    # Conviction — composite grade from premium tier, OI break, repeat count,
+    # alert tier, moneyness, and multi-alert overlap. Hidden for D-grade
+    # signals (don't want to discourage subscribers from acting on weak setups
+    # by labeling them — let them decide; we only surface a grade when there's
+    # real signal to communicate).
+    conv_score, conv_grade = _compute_conviction(agg)
+    if conv_grade != "D":
+        fields.append({"name": "Conviction", "value": conv_grade, "inline": True})
 
     # Alert label: show the best (highest-priority) name; if multiple distinct
     # names fired, add a "+N more" suffix so subscribers see the diversity.
