@@ -270,6 +270,27 @@ def _default_price_fn():
     return price_fn
 
 
+def debug_bundle(user_id, account_id, conn=None) -> dict:
+    """Diagnostic dump of the reconstruction internals for one account: current
+    broker truth (the seed anchor), every normalized event, and the daily series.
+    Lets us pinpoint a missing/misplaced trade behind a wrong historical value."""
+    bkid = _resolve_broker_account_id(user_id, account_id, conn=conn)
+    if not bkid:
+        return {"error": "no broker account mapped"}
+    activities = _load_activities(user_id, bkid)
+    cash_flows = _load_cash_flows(user_id, account_id)
+    events = events_from_account(user_id, account_id, bkid, activities, cash_flows)
+    cur_stocks, cur_options, cur_cash = _load_current_state(user_id, account_id, conn=conn)
+    series = reconstruct_daily_equity(user_id, account_id, conn=conn)
+    return {
+        "currentState": {"stocks": cur_stocks, "options": cur_options, "cash": cur_cash},
+        "eventCount": len(events),
+        "activityCount": len(activities or []),
+        "events": events,
+        "equitySeries": series,
+    }
+
+
 def reconstruct_daily_equity(user_id, account_id, *, price_fn=None, live_equity=None,
                              today=None, conn=None) -> list[dict]:
     """True daily mark-to-market net-liq series for a broker account. Returns

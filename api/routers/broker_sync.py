@@ -204,26 +204,62 @@ def equity_curve(
     return {"points": points}
 
 
+def _default_broker_account_j2id(user_id: str) -> str | None:
+    """The user's first broker-linked j2 account id — lets /performance &c. be
+    called without hunting for an account id."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT j2_account_id FROM j2_broker_accounts WHERE user_id=? "
+            "ORDER BY created_at ASC LIMIT 1", (user_id,)).fetchone()
+        return row["j2_account_id"] if row else None
+    finally:
+        conn.close()
+
+
 @router.get("/performance")
 def performance(
-    accountId: str, period: str = "ALL", user: dict = Depends(get_current_user)
+    accountId: str | None = None, period: str = "ALL",
+    user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Cash-flow-adjusted performance for one broker account + window:
-    TWR / money-weighted / simple / $ P&L + net flows + equity series (forward
-    accurate, pre-snapshot history estimated). Scoped to the caller's user_id."""
+    TWR / money-weighted / simple / $ P&L + net flows + equity series. Scoped to
+    the caller; accountId defaults to their first broker account."""
     from api.services.journal_two.broker import performance_service
-    return performance_service.account_performance(user["id"], accountId, period)
+    acct = accountId or _default_broker_account_j2id(user["id"])
+    if not acct:
+        return {"equitySeries": [], "flows": [], "estimated": False}
+    return performance_service.account_performance(user["id"], acct, period)
+
+
+@router.get("/performance-debug")
+def performance_debug(
+    accountId: str | None = None, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Diagnostic dump of the reconstruction internals (current holdings, every
+    event, the daily series) for debugging wrong historical values."""
+    from api.services.journal_two.broker import historical_equity
+    acct = accountId or _default_broker_account_j2id(user["id"])
+    if not acct:
+        return {"error": "no broker account"}
+    return historical_equity.debug_bundle(user["id"], acct)
 
 
 @router.get("/cash-flows")
 def cash_flows(
-    accountId: str, period: str = "ALL", user: dict = Depends(get_current_user)
+    accountId: str | None = None, period: str = "ALL",
+    user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """The account's secondary transactions — deposits, withdrawals, dividends,
-    interest, fees — for the window. Scoped to the caller's user_id."""
+    interest, fees — for the window. Scoped to the caller; accountId defaults to
+    their first broker account."""
     from api.services.journal_two.broker import performance_service, cashflow_store
+    acct = accountId or _default_broker_account_j2id(user["id"])
+    if not acct:
+        return {"flows": []}
     start = performance_service._period_start(period)
-    return {"flows": cashflow_store.list_flows(user["id"], accountId, start=start)}
+    return {"flows": cashflow_store.list_flows(user["id"], acct, start=start)}
 
 
 @router.get("/unreviewed")
