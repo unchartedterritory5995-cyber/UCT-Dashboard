@@ -122,3 +122,78 @@ def account_performance(user_id: str, account_id: str, period: str = "ALL",
     finally:
         if owned:
             conn.close()
+
+
+def portfolio_performance(user_id: str, period: str = "ALL",
+                          conn: sqlite3.Connection | None = None) -> dict:
+    """Accurate equity curve across ALL of the user's connected brokers: the
+    SUM of each broker's OWN reported daily net-liq (j2_broker_equity_snapshots),
+    per day, + a live right-edge = sum of current broker totals. Exact, no
+    reconstruction, builds forward from first connect."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        start = _period_start(period)
+        rows = conn.execute(
+            "SELECT id, j2_account_id FROM j2_broker_accounts WHERE user_id = ?",
+            (user_id,)).fetchall()
+        bk_ids = [r["id"] for r in rows]
+        j2_ids = [r["j2_account_id"] for r in rows]
+
+        equity: list[tuple[str, float]] = []
+        if bk_ids:
+            ph = ",".join("?" * len(bk_ids))
+            snaps = conn.execute(
+                f"SELECT snapshot_date AS d, SUM(total_equity) AS eq "
+                f"FROM j2_broker_equity_snapshots "
+                f"WHERE user_id = ? AND broker_account_id IN ({ph}) "
+                f"GROUP BY snapshot_date ORDER BY snapshot_date ASC",
+                (user_id, *bk_ids)).fetchall()
+            equity = [(r["d"], round(float(r["eq"]), 2)) for r in snaps
+                      if (start is None or r["d"] >= start)]
+
+        # Live right-edge: sum of current broker totals across all broker accounts.
+        try:
+            from api.services.journal_two import accounts as _accounts
+            from api.services.journal_two.broker.historical_equity import _et_today
+            live_total = 0.0
+            have_live = False
+            for j2 in j2_ids:
+                a = _accounts.get_account(user_id, j2, conn=conn)
+                if a and a.get("brokerTotalEquity") is not None:
+                    live_total += float(a["brokerTotalEquity"])
+                    have_live = True
+            if have_live:
+                today = _et_today()
+                live = round(live_total, 2)
+                if start is None or today >= start:
+                    if equity and equity[-1][0] >= today:
+                        equity[-1] = (equity[-1][0], live)
+                    else:
+                        equity.append((today, live))
+        except Exception:
+            pass
+
+        # External flows + income aggregated across all broker accounts.
+        external: list[tuple[str, float]] = []
+        div = interest = fees = 0.0
+        flows: list[dict] = []
+        for j2 in j2_ids:
+            external += cashflow_store.external_flow_series(user_id, j2, start=start, conn=conn)
+            bt = cashflow_store.sum_by_type(user_id, j2, start=start, conn=conn)
+            div += bt.get("dividend", 0.0)
+            interest += bt.get("interest", 0.0)
+            fees += bt.get("fee", 0.0)
+            flows += cashflow_store.list_flows(user_id, j2, start=start, conn=conn)
+
+        result = performance.compute_performance(
+            equity, external, {"dividends": div, "interest": interest, "fees": fees})
+        result["equitySeries"] = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+        result["flows"] = sorted(flows, key=lambda f: f["date"])
+        result["estimated"] = False
+        result["period"] = (period or "ALL").upper()
+        result["brokerCount"] = len(bk_ids)
+        return result
+    finally:
+        if owned:
+            conn.close()

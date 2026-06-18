@@ -98,6 +98,36 @@ def test_comparison_uses_twr_for_broker_account(env):
     assert row["totalReturn"] == pytest.approx(0.20)
 
 
+def test_portfolio_performance_sums_across_brokers(env):
+    # Two broker accounts; portfolio curve = SUM of each broker's reported total
+    # per day (the accurate all-brokers equity curve).
+    acct2 = accounts_service.create_account(
+        "u1", {"name": "B2", "color": "blue", "startingBalance": 1.0})
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_broker_accounts (id, user_id, snaptrade_account_id, "
+        "j2_account_id, created_at, updated_at) VALUES "
+        "('bk2', 'u1', 'S2', ?, '2026-01-02', '2026-01-02')", (acct2["id"],))
+    # bk1 (env): 2026-05-01 → 10000, 2026-05-02 → 12000
+    for d, eq in [("2026-05-01", 10000.0), ("2026-05-02", 12000.0)]:
+        conn.execute("INSERT INTO j2_broker_equity_snapshots (user_id, broker_account_id, "
+                     "snapshot_date, total_equity, cash, market_value, synced_at) VALUES "
+                     "('u1', 'bk1', ?, ?, 0, ?, 'x')", (d, eq, eq))
+    # bk2: same days → 5000, 6000
+    for d, eq in [("2026-05-01", 5000.0), ("2026-05-02", 6000.0)]:
+        conn.execute("INSERT INTO j2_broker_equity_snapshots (user_id, broker_account_id, "
+                     "snapshot_date, total_equity, cash, market_value, synced_at) VALUES "
+                     "('u1', 'bk2', ?, ?, 0, ?, 'x')", (d, eq, eq))
+    conn.commit()
+    conn.close()
+    out = svc.portfolio_performance("u1", "ALL")
+    assert out["brokerCount"] == 2
+    series = {p["date"]: p["value"] for p in out["equitySeries"]}
+    assert series["2026-05-01"] == 15000.0     # 10000 + 5000
+    assert series["2026-05-02"] == 18000.0     # 12000 + 6000
+    assert all(p["estimated"] is False for p in out["equitySeries"])
+
+
 def test_account_performance_prefers_reconstruction(env, monkeypatch):
     from api.services.journal_two.broker import historical_equity
     monkeypatch.setenv("BROKER_RECON_HISTORY", "1")   # opt-in path

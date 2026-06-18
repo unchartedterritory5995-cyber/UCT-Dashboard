@@ -223,14 +223,13 @@ def performance(
     accountId: str | None = None, period: str = "ALL",
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Cash-flow-adjusted performance for one broker account + window:
-    TWR / money-weighted / simple / $ P&L + net flows + equity series. Scoped to
-    the caller; accountId defaults to their first broker account."""
+    """Accurate equity curve from real broker balances. With no accountId, this
+    is the PORTFOLIO across ALL connected brokers (sum of each broker's reported
+    daily net-liq). With an accountId, just that account."""
     from api.services.journal_two.broker import performance_service
-    acct = accountId or _default_broker_account_j2id(user["id"])
-    if not acct:
-        return {"equitySeries": [], "flows": [], "estimated": False}
-    return performance_service.account_performance(user["id"], acct, period)
+    if accountId:
+        return performance_service.account_performance(user["id"], accountId, period)
+    return performance_service.portfolio_performance(user["id"], period)
 
 
 @router.get("/performance-debug")

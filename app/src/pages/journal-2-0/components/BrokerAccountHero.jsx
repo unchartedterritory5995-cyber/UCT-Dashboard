@@ -41,7 +41,9 @@ export default function BrokerAccountHero({ account, aggregates }) {
   const [range, setRange] = useState(RANGES[1]) // default 3M
   const [scrub, setScrub] = useState(null)       // hovered/dragged data index
   const wrapRef = useRef(null)
-  const { data, isLoading } = useJ2BrokerPerformance(account?.id, range.period)
+  // Portfolio curve across ALL connected brokers (sum of each broker's real
+  // reported net-liq) — accurate, not per-selected-account.
+  const { data, isLoading } = useJ2BrokerPerformance(null, range.period, { portfolio: true })
 
   const series = data?.equitySeries || []
 
@@ -87,7 +89,8 @@ export default function BrokerAccountHero({ account, aggregates }) {
 
   // Scrub state → what the headline shows.
   const scrubbing = scrub != null && model && series[scrub]
-  const headValue = scrubbing ? series[scrub].value : account.brokerTotalEquity
+  // Headline = portfolio total across all brokers (endEquity), or the scrub point.
+  const headValue = scrubbing ? series[scrub].value : (data?.endEquity ?? account.brokerTotalEquity)
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
   const scrubUp = (scrubChange ?? 0) >= 0
