@@ -81,6 +81,9 @@ export default function BrokerAccountHero({ account, aggregates }) {
   const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
   const periodPnl = data?.dollarPnl
   const periodPct = data?.timeWeighted
+  // Vibrant green/red by direction — the app's real tokens (the old
+  // --color-success/-danger were undefined → the line rendered black).
+  const curveColor = model && !model.up ? 'var(--loss, #e74c3c)' : 'var(--gain, #3cb868)'
 
   // Scrub state → what the headline shows.
   const scrubbing = scrub != null && model && series[scrub]
@@ -162,20 +165,21 @@ export default function BrokerAccountHero({ account, aggregates }) {
             <svg className={styles.svg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <defs>
                 <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={model.up ? 'var(--color-success)' : 'var(--color-danger)'} stopOpacity="0.28" />
-                  <stop offset="100%" stopColor={model.up ? 'var(--color-success)' : 'var(--color-danger)'} stopOpacity="0" />
+                  <stop offset="0%" stopColor={curveColor} stopOpacity="0.42" />
+                  <stop offset="55%" stopColor={curveColor} stopOpacity="0.12" />
+                  <stop offset="100%" stopColor={curveColor} stopOpacity="0" />
                 </linearGradient>
               </defs>
               {/* period-open baseline (dotted) */}
               <line x1="0" y1={model.baselineY} x2="100" y2={model.baselineY}
-                    stroke="var(--text-muted)" strokeWidth="1" strokeDasharray="2 3"
+                    stroke="var(--text-muted, #8a8a8a)" strokeWidth="1" strokeDasharray="2 3"
                     vectorEffect="non-scaling-stroke" opacity="0.4" />
               <path d={model.area} fill="url(#heroFill)" />
               <path
                 d={model.line}
                 fill="none"
-                stroke={model.up ? 'var(--color-success)' : 'var(--color-danger)'}
-                strokeWidth="2"
+                stroke={curveColor}
+                strokeWidth="2.5"
                 vectorEffect="non-scaling-stroke"
                 strokeLinejoin="round"
                 strokeLinecap="round"

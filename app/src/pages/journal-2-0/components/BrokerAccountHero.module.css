@@ -14,8 +14,8 @@
 .changes { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
 .change { font-size: 14px; font-weight: 600; }
 .changeLabel { color: var(--text-muted); font-weight: 400; }
-.pos { color: var(--color-success, #4ade80); }
-.neg { color: var(--color-danger, #f87171); }
+.pos { color: var(--gain, #3cb868); }
+.neg { color: var(--loss, #e74c3c); }
 .ranges { display: flex; gap: 4px; }
 .rangeBtn {
   padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
@@ -38,8 +38,8 @@
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
 }
-.dotPos { background: var(--color-success, #4ade80); }
-.dotNeg { background: var(--color-danger, #f87171); }
+.dotPos { background: var(--gain, #3cb868); }
+.dotNeg { background: var(--loss, #e74c3c); }
 
 .dateAxis {
   display: flex; justify-content: space-between;
