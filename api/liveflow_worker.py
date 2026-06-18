@@ -306,6 +306,12 @@ def _update_aggregate(alert: dict) -> dict:
             # change intraday; safe since snapshots reflect prior-day close).
             "prior_oi": alert.get("priorOI"),
             "oi_snapshot_date": alert.get("oiSnapshotDate"),
+            # Spot price + moneyness — updated on every fire so the title
+            # reflects the most recent price (price drifts intraday, even
+            # 2-3% can flip a contract between ITM/OTM categorization).
+            "spot": alert.get("spot"),
+            "moneyness_pct": alert.get("moneynessPct"),
+            "moneyness_label": alert.get("moneynessLabel"),
             # Discord message handle (set after first successful POST).
             "discord_message_id": None,
             "discord_webhook_base": None,  # the URL we POSTed to, for PATCH
@@ -333,6 +339,12 @@ def _update_aggregate(alert: dict) -> dict:
     if agg["prior_oi"] is None and alert.get("priorOI") is not None:
         agg["prior_oi"] = alert.get("priorOI")
         agg["oi_snapshot_date"] = alert.get("oiSnapshotDate")
+    # Always refresh moneyness — spot price changes through the day, so the
+    # latest fire has the most accurate ITM/OTM picture.
+    if alert.get("spot") is not None:
+        agg["spot"] = alert.get("spot")
+        agg["moneyness_pct"] = alert.get("moneynessPct")
+        agg["moneyness_label"] = alert.get("moneynessLabel")
     return agg
 
 
@@ -453,6 +465,86 @@ def _enrich_with_oi(alert: dict):
         alert["oiSnapshotDate"] = snap[1] if snap else None
         alert["volumeOIRatio"] = None
         alert["oiExceeded"] = False
+
+
+# ─── Spot price + moneyness enrichment ───────────────────────────────────────
+# Bullflow's streaming payload doesn't include spot price, but we need it to
+# compute how deep ITM/OTM a contract is — a key signal for distinguishing
+# high-delta directional bets (deep ITM) from lottery plays (far OTM).
+#
+# Strategy: call Schwab's equity quote endpoint, cache results per-symbol with
+# a 2-minute TTL. Same MU ticker firing 8 times in 2 hours hits Schwab once.
+# Moneyness recomputed per alert though (price drifts intraday).
+#
+# Failure mode: any error → fields set to None, alert still flows. Title
+# format gracefully omits the moneyness suffix when data isn't available.
+
+SPOT_CACHE_TTL_SEC = 120          # 2 min — spot rarely moves 1%+ in that window
+_spot_cache: dict = {}            # symbol → (price, cached_at_ts)
+
+
+async def _get_cached_spot(symbol):
+    """Fetch spot price for an equity, using a short-TTL cache. Returns
+    float price or None. Safe to call concurrently — last write wins on
+    cache update which is fine since values are functionally equivalent."""
+    if not symbol:
+        return None
+    # Skip indexes / unusual symbols that Schwab's equity endpoint won't quote.
+    if symbol.startswith("$") or "." in symbol:
+        return None
+
+    now = time.time()
+    cached = _spot_cache.get(symbol)
+    if cached and (now - cached[1]) < SPOT_CACHE_TTL_SEC:
+        return cached[0]
+
+    try:
+        from api import schwab_service
+        price = await schwab_service.get_equity_quote(symbol)
+        if price:
+            _spot_cache[symbol] = (price, now)
+            return price
+    except Exception as e:
+        log.debug("[liveflow] spot lookup failed for %s: %s", symbol, e)
+    return None
+
+
+def _calc_moneyness(spot, strike, cp):
+    """
+    Returns (pct, label) tuple. Sign convention: positive % = ITM, negative = OTM.
+    Calls: ITM when spot > strike. Puts: ITM when spot < strike.
+    Within ±1% → ATM (no meaningful direction); avoids spurious "+0.3% ITM" noise.
+    """
+    if not spot or not strike or strike <= 0:
+        return (None, None)
+    spot_f = float(spot)
+    strike_f = float(strike)
+    if cp == "C":
+        pct = (spot_f - strike_f) / strike_f * 100
+    elif cp == "P":
+        pct = (strike_f - spot_f) / strike_f * 100
+    else:
+        return (None, None)
+    if abs(pct) < 1.0:
+        return (pct, "ATM")
+    return (pct, "ITM" if pct > 0 else "OTM")
+
+
+async def _enrich_with_moneyness(alert: dict):
+    """
+    Adds spot, moneynessPct, moneynessLabel fields to the alert. Async because
+    Schwab quote lookup is async. Always sets the three fields (None on miss).
+    """
+    spot = await _get_cached_spot(alert.get("ticker"))
+    if not spot:
+        alert["spot"] = None
+        alert["moneynessPct"] = None
+        alert["moneynessLabel"] = None
+        return
+    alert["spot"] = round(spot, 2)
+    pct, label = _calc_moneyness(spot, alert.get("strike"), alert.get("cp"))
+    alert["moneynessPct"] = round(pct, 1) if pct is not None else None
+    alert["moneynessLabel"] = label
 
 
 def _make_dedup_key(alert: dict) -> tuple:
@@ -669,7 +761,6 @@ def _build_embed(agg: dict) -> dict:
     prior_oi = agg.get("prior_oi")
     best_name = agg.get("best_alert_name") or "Alert"
     names_seen = agg.get("alert_names_seen") or set()
-    alert_type = (agg.get("alert_type") or "?").upper()
 
     # Color by direction (calls=green, puts=red, fallback amber).
     color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xc9a84c)
@@ -732,19 +823,43 @@ def _build_embed(agg: dict) -> dict:
         if first_ts and last_ts:
             first_t = datetime.fromtimestamp(first_ts).strftime("%-H:%M ET")
             last_t = datetime.fromtimestamp(last_ts).strftime("%-H:%M ET")
-            fields.append({"name": "First → Last", "value": f"{first_t} → {last_t}", "inline": True})
+            fields.append({"name": "Active From", "value": f"{first_t} → {last_t}", "inline": True})
+
+    # Spot price — sits next to the trade data so subscribers can sanity-check
+    # the strike against current underlying. The moneyness % itself lives in
+    # the title (next to ticker/strike) where direction is most relevant.
+    spot = agg.get("spot")
+    if spot is not None:
+        fields.append({"name": "Spot", "value": f"${spot:,.2f}", "inline": True})
 
     # Alert label: show the best (highest-priority) name; if multiple distinct
     # names fired, add a "+N more" suffix so subscribers see the diversity.
+    # Type field removed — source is already conveyed via the embed footer.
     extras = len(names_seen) - 1
     alert_label = best_name
     if extras > 0:
         alert_label = f"{best_name}  +{extras} more"
     fields.append({"name": "Alert", "value": alert_label, "inline": True})
-    fields.append({"name": "Type", "value": alert_type, "inline": True})
+
+    # Title: ticker + C/P + strike + exp, with moneyness suffix when available.
+    # Format examples:
+    #   "🚨 LIVE · DDOG C $150 2026-08-21 (+32% ITM)"
+    #   "🚨 LIVE · MU C $1200 2026-06-26 (-6% OTM)"
+    #   "🚨 LIVE · ARM C $130 2026-08-15 (ATM)"
+    # No moneyness suffix when spot lookup failed (graceful degradation).
+    moneyness_pct = agg.get("moneyness_pct")
+    moneyness_label = agg.get("moneyness_label")
+    title_base = f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}"
+    if moneyness_label == "ATM":
+        title = f"{title_base} (ATM)"
+    elif moneyness_label in ("ITM", "OTM") and moneyness_pct is not None:
+        sign = "+" if moneyness_pct > 0 else ""
+        title = f"{title_base} ({sign}{moneyness_pct:.0f}% {moneyness_label})"
+    else:
+        title = title_base
 
     embed = {
-        "title": f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}",
+        "title": title,
         "color": color,
         "fields": fields,
         "footer": {"text": "via Bullflow · UCT Live Flow"},
@@ -967,6 +1082,11 @@ async def _ingest_alert(msg, discord_client):
     # Done after dedup so we don't waste SQLite reads on dropped alerts. The
     # cache means repeat fires on the same contract only hit the DB once/day.
     _enrich_with_oi(enriched)
+
+    # Enrich with spot price + moneyness (how deep ITM/OTM). Async because
+    # Schwab quote lookup is async, but cached per-ticker for 2 min so the
+    # network cost is one call per unique ticker every 2 min.
+    await _enrich_with_moneyness(enriched)
 
     _alerts.append(enriched)
     _status["total_alerts_shown"] += 1
