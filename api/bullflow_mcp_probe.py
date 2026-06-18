@@ -1074,7 +1074,7 @@ def _parse_discord_export(data: dict) -> list[dict]:
     return alerts
 
 
-@router.post("/admin/bullflow/backtest-from-json")
+@router.post("/backtest-from-json")
 async def backtest_from_json(
     file: UploadFile = File(..., description="DiscordChatExporter JSON export"),
     min_grade: str = Query("B", description="Conviction gate threshold"),
