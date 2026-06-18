@@ -461,6 +461,25 @@ def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
         return []
 
 
+def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
+                  adjusted: bool = False, map_symbol: bool = True) -> list[dict]:
+    """Daily OHLCV bars from the Massive agg endpoint. Generic over ticker —
+    works for equities (map_symbol=True applies to_polygon_symbol) AND option
+    OCC symbols like 'O:AAPL260116C00200000' (map_symbol=False, verbatim).
+    adjusted=False gives raw point-in-time prices for portfolio valuation."""
+    try:
+        client = _get_client()
+        sym = to_polygon_symbol(symbol) if map_symbol else symbol
+        adj = "true" if adjusted else "false"
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{sym}/range/1/day/{from_date}/{to_date}"
+            f"?adjusted={adj}&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        return client._get(url).get("results") or []
+    except Exception:
+        return []
+
+
 def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:
     """Return intraday minute-aggregated OHLCV bars for a ticker over a date
     range from the Massive agg endpoint (timespan=minute). Follows ``next_url``
