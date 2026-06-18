@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
 import useJ2DayNotesMutation from '../../hooks/useJ2DayNotesMutation'
 import MiniMonthNav from './MiniMonthNav'
 import DayReflection from './DayReflection'
@@ -67,9 +68,15 @@ function formatLongDate(date) {
 
 export default function DayDetailPage() {
   const { date } = useParams()
-  const { accountId } = useJ2SelectedAccount()
+  const { accountId, account } = useJ2SelectedAccount()
+  const isBroker =
+    !!account && account.balanceSource && account.balanceSource !== 'manual'
+  const { prefs } = usePreferences()
+  const effectiveBasis = isBroker
+    ? parsePref(prefs.j2_calendar_pnl_basis, 'account')
+    : 'closed'
   const valid = isValidDate(date || '')
-  const { metrics, trades, strategies, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId)
+  const { metrics, trades, strategies, notes, isLoading, error } = useJ2DayDetail(valid ? date : null, accountId, effectiveBasis)
   const { save, saving, error: saveError } = useJ2DayNotesMutation(valid ? date : null)
   const notesText = notes?.notes ?? ''
   const prepText = notes?.prepNotes ?? ''
@@ -175,6 +182,23 @@ function DayMetricsRow({ metrics }) {
     ? `${(metrics.winRate * 100).toFixed(0)}%`
     : '—'
   return (
+    <>
+    {metrics.basis === 'account' && (
+      <div className={styles.basisBreakdown}>
+        <span
+          className={`${styles.basisHeadline} ${
+            metrics.accountBalanceChange > 0 ? styles.pos
+              : metrics.accountBalanceChange < 0 ? styles.neg : ''
+          }`}
+        >
+          Account balance {fmtSignedDollar(metrics.accountBalanceChange)}
+        </span>
+        <span className={styles.basisDetail}>
+          Realized {fmtSignedDollar(metrics.realizedPnl)} · Open positions{' '}
+          {fmtSignedDollar(metrics.unrealizedChange)}
+        </span>
+      </div>
+    )}
     <div className={styles.metricsRow}>
       <Stat label="Net P&L" value={fmtSignedDollar(metrics.netPnlDollar)}
             positive={metrics.netPnlDollar > 0} negative={metrics.netPnlDollar < 0} />
@@ -187,6 +211,7 @@ function DayMetricsRow({ metrics }) {
       <Stat label="Losers" value={metrics.losers} />
       <Stat label="Win Rate" value={winRatePct} />
     </div>
+    </>
   )
 }
 

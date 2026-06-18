@@ -8,9 +8,10 @@ const fetcher = (url) =>
     return r.json()
   })
 
-export default function useJ2DayDetail(date, accountId) {
+export default function useJ2DayDetail(date, accountId, basis) {
   const params = new URLSearchParams()
   if (accountId) params.set('account_id', accountId)
+  if (basis) params.set('basis', basis)
   const qs = params.toString() ? `?${params.toString()}` : ''
   const key = date ? `/api/j2/calendar/day/${date}${qs}` : null
   const { data, error, isLoading, mutate } = useSWR(key, fetcher, {

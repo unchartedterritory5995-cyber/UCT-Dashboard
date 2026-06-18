@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Calendar from '../hooks/useJ2Calendar'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import CalendarHeader from '../components/calendar/CalendarHeader'
 import MonthView from '../components/calendar/MonthView'
 import YearView from '../components/calendar/YearView'
@@ -36,9 +37,15 @@ export default function CalendarTab() {
   const month = Number(searchParams.get('m')) || defaultMonth
   const week = Number(searchParams.get('w')) || undefined
 
-  const { accountId } = useJ2SelectedAccount()
+  const { accountId, account } = useJ2SelectedAccount()
+  const isBroker =
+    !!account && account.balanceSource && account.balanceSource !== 'manual'
+  const { prefs, setPref } = usePreferences()
+  const basisPref = parsePref(prefs.j2_calendar_pnl_basis, 'account')
+  const effectiveBasis = isBroker ? basisPref : 'closed'
+
   const { days, totals, isLoading, error } = useJ2Calendar({
-    view, year, month, week, accountId,
+    view, year, month, week, accountId, basis: effectiveBasis,
   })
 
   const setView = (newView) => {
@@ -80,6 +87,9 @@ export default function CalendarTab() {
         onViewChange={setView}
         onPeriodChange={setPeriod}
         onModeChange={setModePersisted}
+        basis={effectiveBasis}
+        showBasisToggle={isBroker}
+        onBasisChange={(b) => setPref('j2_calendar_pnl_basis', b)}
       />
 
       {error && (

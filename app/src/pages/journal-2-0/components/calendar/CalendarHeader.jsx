@@ -18,6 +18,11 @@ const MODES = [
   { key: 'r', label: 'R' },
 ]
 
+const BASES = [
+  { key: 'account', label: 'Account Balance' },
+  { key: 'closed', label: 'Closed Trades' },
+]
+
 export default function CalendarHeader({
   view,
   year,
@@ -28,6 +33,9 @@ export default function CalendarHeader({
   onViewChange,
   onPeriodChange,
   onModeChange,
+  basis,
+  showBasisToggle = false,
+  onBasisChange,
 }) {
   const periodLabel =
     view === 'year' ? String(year) :
@@ -86,6 +94,25 @@ export default function CalendarHeader({
           <span className={styles.periodLabel}>{periodLabel}</span>
           <button type="button" className={styles.navBtn} onClick={onNext} aria-label="Next period">›</button>
         </div>
+
+        {showBasisToggle && (
+          <div className={styles.modeGroup}>
+            <span className={styles.modeLabel}>P&amp;L basis</span>
+            <div className={styles.viewPills} role="radiogroup" aria-label="P&L basis">
+              {BASES.map((b) => (
+                <button
+                  key={b.key}
+                  type="button"
+                  className={`${styles.pill} ${basis === b.key ? styles.pillActive : ''}`}
+                  onClick={() => onBasisChange?.(b.key)}
+                  aria-pressed={basis === b.key}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className={styles.modeGroup}>
           <span className={styles.modeLabel}>Color by</span>

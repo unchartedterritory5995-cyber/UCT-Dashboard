@@ -67,6 +67,31 @@
   font-size: 13px;
 }
 
+.basisBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.basisHeadline {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.basisDetail {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .metricsRow {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
