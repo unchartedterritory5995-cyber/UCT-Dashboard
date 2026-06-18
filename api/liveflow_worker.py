@@ -28,7 +28,7 @@ import os
 import re
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -181,6 +181,171 @@ DISCORD_FORWARD_DELAY_SEC = 2.0     # how long to wait before posting to Discord
 
 # Maps dedup_key tuple -> {"alert_id", "priority", "first_seen", "alert_obj"}
 _dedup_cache: dict = {}
+
+# ─── Repeat counter (per-contract aggregation) ───────────────────────────────
+# Tracks how many DISTINCT trades have fired on a given contract within a
+# rolling window. Separate from _dedup_cache (which collapses identical trades
+# — same premium + fill). This one only counts NEW trades, so today's MU
+# 1000P 6/26 firing 8 times at different premiums shows up as "8x" while a
+# single trade reported by both UCT Bullish AND Sizable Sweep stays as "1x".
+#
+# Display use: frontend shows "🔁 Nx" badge on the alert row when count > 1.
+# Inspired by BlackBox's "Repeater Alert" and Tradytics' "Orders Today" UX.
+REPEAT_WINDOW_SEC = 12 * 3600        # 12hr — covers full trading day + ext hours
+_contract_repeats: dict = {}         # contract_key -> {count, first_seen, first_alert_id}
+
+
+def _make_contract_key(alert: dict) -> tuple:
+    """
+    Contract key for repeat counter. INTENTIONALLY excludes premium and fill,
+    so we count distinct trades ON the same contract (different prices).
+    """
+    return (
+        (alert.get("ticker") or "").upper(),
+        alert.get("cp") or "",
+        alert.get("strike"),
+        alert.get("exp") or "",
+    )
+
+
+def _prune_repeat_cache():
+    """Drop repeat entries older than REPEAT_WINDOW_SEC. Lazy cleanup on read."""
+    cutoff = time.time() - REPEAT_WINDOW_SEC
+    expired = [k for k, v in _contract_repeats.items() if v["first_seen"] < cutoff]
+    for k in expired:
+        del _contract_repeats[k]
+
+
+def _track_repeat(alert: dict) -> int:
+    """
+    Increment the repeat count for this alert's contract. Returns the new
+    count (1 if first fire on contract today, 2 if second distinct trade…).
+    Called only on accepted alerts — identical-trade duplicates and superseded
+    alerts intentionally don't bump the count because they're the same trade.
+    """
+    _prune_repeat_cache()
+    key = _make_contract_key(alert)
+    entry = _contract_repeats.get(key)
+    if not entry:
+        _contract_repeats[key] = {
+            "count": 1,
+            "first_seen": time.time(),
+            "first_alert_id": alert.get("id"),
+        }
+        return 1
+    entry["count"] += 1
+    return entry["count"]
+
+
+# ─── OI snapshot lookup ──────────────────────────────────────────────────────
+# Wires Bullflow live alerts to our daily Schwab OI snapshot data captured by
+# api/oi_snapshots.py. The snapshot cron runs at 5:30 UTC = 1:30 AM ET daily,
+# so by 9:30 ET market open we have today's snapshot reflecting yesterday's
+# closing OI. Each incoming alert is enriched with:
+#   - tradeSize:        contracts traded (derived: premium / fill / 100)
+#   - priorOI:          most recent snapshot OI for this contract
+#   - oiSnapshotDate:   when that OI was captured (sanity check)
+#   - volumeOIRatio:    tradeSize / priorOI — anything > 1.0 means a single
+#                       trade exceeded all prior open interest (institutional)
+#   - oiExceeded:       True if volumeOIRatio > 1.0
+#
+# Caching: per-contract result cached for the day. MU 1000P firing 8 times
+# hits SQLite once. Cache invalidates at midnight when the day key rolls.
+#
+# Failure mode: any error → fields set to None/False, alert still flows. The
+# OI badge just doesn't render. Worker keeps running.
+
+_OI_LOOKUP_MAX_DAYS_BACK = 5     # walk back this many days to find a snapshot
+_oi_cache: dict = {}             # cache_key -> (oi, snap_date_iso) | None
+_oi_cache_date: str = ""         # YYYY-MM-DD — invalidates when day changes
+
+
+def _exp_iso_to_mdy(exp_iso: str) -> str:
+    """Convert ISO '2026-06-26' → BBS 'M/D/YYYY' format used in snapshot keys."""
+    if not exp_iso or "-" not in exp_iso:
+        return ""
+    parts = exp_iso.split("-")
+    if len(parts) != 3:
+        return ""
+    try:
+        return f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
+    except (ValueError, IndexError):
+        return ""
+
+
+def _lookup_prior_oi(ticker, cp, strike, exp_iso):
+    """
+    Look up the most recent OI snapshot for a contract. Returns (oi, snap_date)
+    tuple or None. Walks back up to _OI_LOOKUP_MAX_DAYS_BACK days to handle
+    weekends/holidays/skipped cron runs.
+
+    Cached per-contract for the calendar day to avoid hammering SQLite when
+    the same contract fires many alerts (e.g. today's MU 1000P 6/26).
+    """
+    global _oi_cache, _oi_cache_date
+
+    today_iso = datetime.now().date().isoformat()
+    if _oi_cache_date != today_iso:
+        _oi_cache.clear()
+        _oi_cache_date = today_iso
+
+    cache_key = f"{ticker}|{cp}|{strike}|{exp_iso}"
+    if cache_key in _oi_cache:
+        return _oi_cache[cache_key]
+
+    result = None
+    try:
+        # Lazy import: keeps liveflow_worker bootable even if oi_snapshots
+        # has import issues on Railway (e.g. flow.db not mounted yet).
+        from api import oi_snapshots
+
+        exp_mdy = _exp_iso_to_mdy(exp_iso or "")
+        if exp_mdy and ticker and cp and strike is not None:
+            key = oi_snapshots.make_key(ticker, cp, strike, exp_mdy)
+            today = datetime.now().date()
+            for delta in range(_OI_LOOKUP_MAX_DAYS_BACK + 1):
+                snap_date_iso = (today - timedelta(days=delta)).isoformat()
+                snap = oi_snapshots.get_snapshot(key, snap_date_iso)
+                if snap is not None:
+                    # snap = (oi, source) — only need OI here
+                    result = (snap[0], snap_date_iso)
+                    break
+    except Exception as e:
+        log.debug("[liveflow] OI lookup failed for %s: %s", cache_key, e)
+
+    _oi_cache[cache_key] = result
+    return result
+
+
+def _enrich_with_oi(alert: dict):
+    """
+    Mutates `alert` in-place adding OI enrichment fields. Always sets all four
+    fields (None / False on miss) so the frontend can render conditionally
+    without null-checking each individually.
+    """
+    premium = float(alert.get("alertPremium") or 0)
+    fill = float(alert.get("averageFillPrice") or 0)
+    trade_size = round(premium / (fill * 100)) if fill > 0 else None
+    alert["tradeSize"] = trade_size
+
+    snap = _lookup_prior_oi(
+        alert.get("ticker"), alert.get("cp"),
+        alert.get("strike"), alert.get("exp"),
+    )
+    if snap and trade_size and snap[0] > 0:
+        oi, snap_date = snap
+        ratio = round(trade_size / oi, 2)
+        alert["priorOI"] = oi
+        alert["oiSnapshotDate"] = snap_date
+        alert["volumeOIRatio"] = ratio
+        alert["oiExceeded"] = ratio > 1.0
+    else:
+        # Either no snapshot, no fill price, or OI is 0. Set defaults so
+        # frontend has stable shape and doesn't render a misleading badge.
+        alert["priorOI"] = snap[0] if snap else None
+        alert["oiSnapshotDate"] = snap[1] if snap else None
+        alert["volumeOIRatio"] = None
+        alert["oiExceeded"] = False
 
 
 def _make_dedup_key(alert: dict) -> tuple:
@@ -551,7 +716,20 @@ async def _ingest_alert(msg, discord_client):
         for a in reversed(_alerts):
             if a.get("id") == old_id:
                 a["_superseded"] = True
+                # Inherit the old alert's contract repeat count so the new
+                # winner shows the same "Nx" badge — this is the same trade
+                # being relabeled by a higher-priority alert, not a new fire.
+                enriched["contractRepeatCount"] = a.get("contractRepeatCount", 1)
                 break
+    else:
+        # action == "accept": this is a NEW distinct trade on this contract.
+        # Increment per-contract counter and attach the badge value.
+        enriched["contractRepeatCount"] = _track_repeat(enriched)
+
+    # Enrich with OI data (trade size, prior OI, vol/OI ratio, exceeded flag).
+    # Done after dedup so we don't waste SQLite reads on dropped alerts. The
+    # cache means repeat fires on the same contract only hit the DB once/day.
+    _enrich_with_oi(enriched)
 
     _alerts.append(enriched)
     _status["total_alerts_shown"] += 1
