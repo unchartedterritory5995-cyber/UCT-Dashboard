@@ -85,6 +85,78 @@ ALERT_TICKER_BLOCKLISTS = {
     "UCT Vol>OI":  MEGA_CAP_TICKERS,
 }
 
+# User-managed ticker blocklist — edited live via the admin UI and persisted
+# to a JSON file on the Railway volume so it survives worker restarts. Use
+# cases: recent IPOs with noisy flow (SPCX, RKLB), tickers you don't trade,
+# rumor-driven names that generate false signals, etc.
+#
+# The file lives on the Railway volume mount (/data) by default; override
+# via USER_BLOCKLIST_FILE env var for local testing. If the file doesn't
+# exist or can't be written, the blocklist degrades to in-memory only —
+# the worker keeps running.
+USER_BLOCKLIST_FILE = os.getenv(
+    "USER_BLOCKLIST_FILE", "/data/liveflow_user_blocklist.json"
+)
+_user_ticker_blocklist: set = set()
+
+
+def _load_user_blocklist():
+    """Load tickers from disk into the in-memory set. Idempotent and safe."""
+    global _user_ticker_blocklist
+    try:
+        with open(USER_BLOCKLIST_FILE, "r") as f:
+            data = json.load(f)
+        tickers = data.get("tickers", [])
+        _user_ticker_blocklist = {
+            t.upper().strip() for t in tickers if t and t.strip()
+        }
+        log.info("[liveflow] loaded %d user-blocked tickers from %s",
+                 len(_user_ticker_blocklist), USER_BLOCKLIST_FILE)
+    except FileNotFoundError:
+        _user_ticker_blocklist = set()
+        log.info("[liveflow] no user blocklist file at %s — starting empty",
+                 USER_BLOCKLIST_FILE)
+    except Exception as e:
+        _user_ticker_blocklist = set()
+        log.warning("[liveflow] error loading user blocklist (%s) — starting empty", e)
+
+
+def _save_user_blocklist():
+    """Persist current set to disk. Errors are logged but non-fatal."""
+    try:
+        os.makedirs(os.path.dirname(USER_BLOCKLIST_FILE), exist_ok=True)
+        with open(USER_BLOCKLIST_FILE, "w") as f:
+            json.dump({"tickers": sorted(_user_ticker_blocklist)}, f, indent=2)
+    except Exception as e:
+        log.warning("[liveflow] error saving user blocklist: %s", e)
+
+
+def get_user_blocklist():
+    """Public accessor used by API endpoint. Returns sorted list for stable UI."""
+    return sorted(_user_ticker_blocklist)
+
+
+def set_user_blocklist(tickers):
+    """
+    Replace the entire user blocklist atomically. Uppercases + strips each
+    ticker. Empty/whitespace-only entries are dropped. Persists to disk on
+    success and returns the new normalized list.
+    """
+    global _user_ticker_blocklist
+    cleaned = {
+        t.upper().strip() for t in (tickers or [])
+        if t and isinstance(t, str) and t.strip()
+    }
+    _user_ticker_blocklist = cleaned
+    _save_user_blocklist()
+    # Reflect in status block so /api/live/alerts/recent surfaces current state.
+    _status["filter_config"]["user_ticker_blocklist"] = sorted(_user_ticker_blocklist)
+    return sorted(_user_ticker_blocklist)
+
+
+# Load on module import so the worker has the blocklist available immediately.
+_load_user_blocklist()
+
 # ─── Conviction scoring — REMOVED 2026-06-17 ─────────────────────────────────
 # Previously this module computed per-alert conviction scores using substring
 # matching against alertName plus premium tiers, then gated Discord forwarding
@@ -129,6 +201,9 @@ _status = {
         "per_alert_blocklists": {
             name: sorted(tickers) for name, tickers in ALERT_TICKER_BLOCKLISTS.items()
         },
+        # User-managed blocklist — read fresh from module-level set each call
+        # so the API echoes the current state, not a snapshot at startup.
+        "user_ticker_blocklist": sorted(_user_ticker_blocklist),
     },
 }
 
@@ -171,6 +246,10 @@ def _passes_table_filter(alert_name, premium, ticker):
         return False, f"premium<{TABLE_FILTER['premium_min']}"
     if ticker and ticker.upper() in TABLE_FILTER["ticker_blocklist"]:
         return False, f"ticker_blocked:{ticker}"
+    # User-curated blocklist — managed live via admin UI, persisted to disk.
+    # Applies globally across all alerts (unlike ALERT_TICKER_BLOCKLISTS).
+    if ticker and ticker.upper() in _user_ticker_blocklist:
+        return False, f"user_blocked:{ticker}"
     name_lc = (alert_name or "").lower()
     for sub in TABLE_FILTER["alertname_block_substrings"]:
         if sub.lower() in name_lc:
