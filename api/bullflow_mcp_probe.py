@@ -594,8 +594,29 @@ async def backtest_replay(
             unwrapped.append(a)
 
     # Normalize each alert into the shape the frontend expects.
+    normalized_all = [_normalize_backtest_alert(a) for a in unwrapped]
+
+    # Apply the SAME table filter used in live mode so backtest mirrors live
+    # exactly. Import here (not at module top) to avoid circular import: the
+    # liveflow_worker imports nothing from this probe, but defensive locality
+    # keeps the dependency direction obvious.
+    # 2026-06-17: added so backtest excludes mega-caps on Unusual/Vol>OI, drops
+    # sub-$250K trades, blocks SPY/QQQ/IWM globally — same conviction lens the
+    # subscriber sees on live flow.
+    from api.liveflow_worker import _passes_table_filter
+
+    normalized = []
+    dropped_by_filter = 0
+    for a in normalized_all:
+        passes, _reason = _passes_table_filter(
+            a.get("alertName"), a.get("alertPremium"), a.get("ticker"),
+        )
+        if passes:
+            normalized.append(a)
+        else:
+            dropped_by_filter += 1
+
     # Sort newest-first so the LiveFlow UI's "most recent at top" expectation holds.
-    normalized = [_normalize_backtest_alert(a) for a in unwrapped]
     normalized.sort(key=lambda a: str(a.get("timestamp") or ""), reverse=True)
 
     # Build a status block matching /api/live/alerts/recent's shape so the
@@ -605,14 +626,20 @@ async def backtest_replay(
         "last_event_at": normalized[0]["timestamp"] if normalized else None,
         "total_alerts_received": len(real_alerts),  # only count real alert events, not init/heartbeat
         "total_alerts_shown": len(normalized),
-        "total_alerts_dropped": len(raw_alerts) - len(real_alerts),  # init + heartbeat counted as dropped
+        # Combined drop count: init/heartbeat sentinels + alerts that failed
+        # table filter (premium floor, ticker blocklist, per-alert mega-cap
+        # exclusion). Frontend treats this as a single "dropped" stat.
+        "total_alerts_dropped": (len(raw_alerts) - len(real_alerts)) + dropped_by_filter,
         "total_alerts_forwarded": 0,  # dry-run — backtest never posts to Discord
         "last_error": None,
         "reconnect_count": 0,
         "started_at": None,
         "mode": "backtest",
         "backtest_date": date,
-        "backtest_capped": len(normalized) >= max_alerts,
+        # Capping check uses pre-filter count: if Bullflow returned 100 alerts
+        # but our filter trimmed to 60, the day still had MORE than 100 raw
+        # alerts. Marker stays accurate to the source-side cap.
+        "backtest_capped": len(real_alerts) >= max_alerts,
     }
 
     return {
@@ -622,5 +649,5 @@ async def backtest_replay(
         "status": status,
         "max_alerts": max_alerts,
         "speed": speed,
-        "capped": len(normalized) >= max_alerts,
+        "capped": len(real_alerts) >= max_alerts,
     }
