@@ -58,6 +58,33 @@ TABLE_FILTER = {
     "alertname_block_substrings": ["grenade"],  # lottery/hedge noise
 }
 
+# Mega-cap tickers — used by per-alert blocklists below to exclude these from
+# alerts where mega-cap noise drowns out signal. Edit this list freely; it's
+# the single source of truth. To exclude more names (large-cap, $200B-$500B
+# range), uncomment the additional entries below.
+MEGA_CAP_TICKERS = frozenset({
+    # $1T+ market cap
+    "AAPL", "MSFT", "NVDA", "GOOGL", "GOOG", "AMZN", "META", "TSLA",
+    # $500B-$1T
+    "BRK.A", "BRK.B", "LLY", "AVGO", "V", "JPM", "WMT", "XOM", "UNH", "MA",
+    # $300B-$500B (heavy options activity, large enough to drown unusual scans)
+    "ORCL", "NFLX", "COST", "JNJ", "HD", "ABBV", "PG", "BAC",
+    # Optional: $200B-$300B (uncomment if Unusual is still too noisy)
+    # "MRK", "CRM", "CSCO", "ADBE", "AMD", "TMO", "ACN", "MCD", "CVX",
+    # "NOW", "IBM", "DIS", "GE", "INTU", "T", "CMCSA", "PEP", "KO",
+})
+
+# Per-alert ticker blocklists — applied IN ADDITION to TABLE_FILTER's global
+# blocklist. Keyed by exact alert name (whitespace stripped). Mega-caps are
+# excluded from Unusual / Vol>OI because unusual activity in those names is
+# typically noise — their average daily volume is high enough that ratio-based
+# anomaly detection generates false positives. Small/mid-cap unusual activity
+# is the real alpha here.
+ALERT_TICKER_BLOCKLISTS = {
+    "UCT Unusual": MEGA_CAP_TICKERS,
+    "UCT Vol>OI":  MEGA_CAP_TICKERS,
+}
+
 # ─── Conviction scoring — REMOVED 2026-06-17 ─────────────────────────────────
 # Previously this module computed per-alert conviction scores using substring
 # matching against alertName plus premium tiers, then gated Discord forwarding
@@ -98,6 +125,10 @@ _status = {
         # are the conviction signal now. Every alert that passes TABLE_FILTER
         # forwards to Discord.
         "discord_threshold": None,
+        # Per-alert ticker exclusions (e.g. mega-caps blocked on Unusual scans).
+        "per_alert_blocklists": {
+            name: sorted(tickers) for name, tickers in ALERT_TICKER_BLOCKLISTS.items()
+        },
     },
 }
 
@@ -144,6 +175,13 @@ def _passes_table_filter(alert_name, premium, ticker):
     for sub in TABLE_FILTER["alertname_block_substrings"]:
         if sub.lower() in name_lc:
             return False, f"name_blocked:{sub}"
+    # Per-alert ticker blocklists supplementing the global block. Lookup uses
+    # the stripped name because Bullflow sometimes stores names with trailing
+    # whitespace (e.g. "UCT Bullish " — confirmed in 2026-06-17 audit).
+    alert_key = (alert_name or "").strip()
+    alert_blocklist = ALERT_TICKER_BLOCKLISTS.get(alert_key)
+    if alert_blocklist and ticker and ticker.upper() in alert_blocklist:
+        return False, f"alert_blocked:{alert_key}:{ticker}"
     return True, ""
 
 
