@@ -360,9 +360,21 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             pos_res = balances.reconcile_positions(
                 user_id, ba, raw_positions, recon["openPositions"]
             )
+            # Prefer the broker's OWN reported account total (mirrors the user's
+            # app exactly) over our derived cash+MV. Best-effort: one extra
+            # accounts call; fall back to derived if absent.
+            broker_total = None
+            try:
+                accts = await snap.list_accounts(bu["snaptradeUserId"], bu["userSecret"])
+                match = next((a for a in (accts or [])
+                              if a.get("id") == ba["snaptradeAccountId"]), None)
+                if match:
+                    broker_total = balances._account_total_usd(match)
+            except Exception:
+                broker_total = None
             bal_res = balances.write_balances(
                 user_id, ba, raw_balances, raw_positions,
-                raw_option_holdings=raw_option_holdings,
+                raw_option_holdings=raw_option_holdings, broker_total=broker_total,
             )
             # Holdings-as-truth for OPEN options: guarantee held contracts show
             # (even without backfilled activity) + refresh each open strategy's

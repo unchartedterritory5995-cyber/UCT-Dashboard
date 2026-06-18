@@ -72,6 +72,32 @@ def test_write_balances_syncs_account_size_to_equity_with_margin(env):
     assert acct_size == 7946.96                # synced to real balance, not seed
 
 
+def test_account_total_usd_extracts_amount():
+    assert balances._account_total_usd(
+        {"balance": {"total": {"amount": 8731.52, "currency": "USD"}}}) == 8731.52
+    assert balances._account_total_usd(
+        {"balance": {"total": {"amount": 100, "currency": {"code": "USD"}}}}) == 100.0
+    assert balances._account_total_usd(
+        {"balance": {"total": {"amount": 50, "currency": "CAD"}}}) is None
+    assert balances._account_total_usd({}) is None
+
+
+def test_write_balances_prefers_broker_reported_total(env):
+    # Broker reports its own total ($8,731.52) — use it verbatim, NOT the derived
+    # cash + MV ($-12053.04 + 200×100 = $7,946.96).
+    raw_bal = [{"currency": "USD", "cash": -12053.04, "buying_power": 9470.11}]
+    raw_pos = [_pos("AAPL", 200, 100, 90)]
+    out = balances.write_balances("u1", env["ba"], raw_bal, raw_pos, broker_total=8731.52)
+    assert out["equity"] == 8731.52
+    conn = auth_db.get_connection()
+    try:
+        sz = conn.execute("SELECT account_size FROM j2_accounts WHERE id=?",
+                          (env["acct_id"],)).fetchone()["account_size"]
+    finally:
+        conn.close()
+    assert sz == 8731.52     # account_size synced to the broker's real total
+
+
 def test_write_balances_sets_account_fields(env):
     raw_bal = [{"currency": "USD", "cash": 8000, "buying_power": 16000}]
     raw_pos = [_pos("AAPL", 10, 150, 100)]  # mv 1500

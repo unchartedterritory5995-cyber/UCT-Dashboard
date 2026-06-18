@@ -97,6 +97,23 @@ def _pos_currency(p: dict) -> str | None:
     return None
 
 
+def _account_total_usd(raw_account: dict) -> float | None:
+    """The broker's OWN reported total account value from a raw SnapTrade
+    account (`balance.total.amount`), USD only — the authoritative net-liq that
+    mirrors the user's app. None if absent or non-USD."""
+    if not isinstance(raw_account, dict):
+        return None
+    bal = raw_account.get("balance")
+    tot = bal.get("total") if isinstance(bal, dict) else None
+    if not isinstance(tot, dict):
+        return None
+    cur = tot.get("currency")
+    code = cur.get("code") if isinstance(cur, dict) else cur
+    if code not in (None, "", "USD"):
+        return None
+    return _num(tot.get("amount"))
+
+
 def market_value(raw_positions: list[dict]) -> float:
     """Signed USD mark-to-market: Σ(units × current price) over USD (or
     currency-less) holdings only. Non-USD positions are EXCLUDED — summing
@@ -154,18 +171,23 @@ def write_balances(
     conn: sqlite3.Connection | None = None,
     *,
     raw_option_holdings: list[dict] | None = None,
+    broker_total: float | None = None,
 ) -> dict[str, Any]:
     """Compute + persist real broker balances onto the mapped j2_account.
 
-    Net-liq equity = cash + equity market value + OPTION market value. The
-    options term is essential: SnapTrade's positions endpoint returns equities
-    only, so omitting option holdings understates equity by the value of any
-    options held (e.g. a long call worth thousands)."""
+    Net-liq equity PREFERS the broker's OWN reported account total
+    (`account.balance.total.amount`, passed as `broker_total`) — that's the
+    broker's exact number and mirrors what the user sees in their app. Only when
+    the broker doesn't report a total do we DERIVE it as cash + equity MV +
+    option MV (the options term matters: SnapTrade's positions endpoint is
+    equities-only). Deriving from SnapTrade's position prices drifts a little vs
+    the broker's live marks — hence preferring the reported total."""
     cash, buying_power = usd_cash_buying_power(raw_balances)
     equity_mv = market_value(raw_positions)
     opt_mv = option_market_value(raw_option_holdings or [])
     mv = round(equity_mv + opt_mv, 2)
-    equity = round((cash or 0.0) + mv, 2)
+    derived = round((cash or 0.0) + mv, 2)
+    equity = round(float(broker_total), 2) if broker_total is not None else derived
 
     owned = conn is None
     conn = conn or get_connection()
