@@ -542,6 +542,48 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
             +{alert._matchedNames.length - 1}
           </span>
         )}
+        {/* Repeat-fire badge: shown when this contract has fired >1 distinct
+            trades in the rolling window. Tooltip explains the count. Coloring
+            ramps with intensity — amber for casual (2-4x), red for heavy (5x+)
+            which usually signals OpEx noise or concentrated conviction. */}
+        {alert.contractRepeatCount > 1 && (() => {
+          const c = alert.contractRepeatCount;
+          const heavy = c >= 5;
+          return (
+            <span
+              title={"This contract has fired " + c + " distinct trades today"}
+              style={{
+                marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
+                background: (heavy ? P.be : P.ac) + "22",
+                color:      (heavy ? P.be : P.ac),
+                fontWeight: 800, fontFamily: "ui-monospace, monospace",
+                letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
+              }}>
+              🔁 {c}x
+            </span>
+          );
+        })()}
+        {/* OI Exceeded badge: this single trade traded more contracts than
+            existed in open interest before today. Strong signal of
+            institutional positioning, not retail churn. Tooltip shows the
+            trade size, prior OI, and ratio for context. */}
+        {alert.oiExceeded && alert.volumeOIRatio && (
+          <span
+            title={
+              "Trade size " + (alert.tradeSize || "?") +
+              " exceeded prior OI " + (alert.priorOI || "?") +
+              " (ratio " + alert.volumeOIRatio.toFixed(2) + "x)" +
+              (alert.oiSnapshotDate ? " — OI from " + alert.oiSnapshotDate : "")
+            }
+            style={{
+              marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
+              background: P.bu + "22", color: P.bu,
+              fontWeight: 800, fontFamily: "ui-monospace, monospace",
+              letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
+            }}>
+            🚀 OI BREAK
+          </span>
+        )}
       </td>
       <td style={{
         padding: "8px 10px", fontSize: 11, fontWeight: 800,
