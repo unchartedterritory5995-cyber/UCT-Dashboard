@@ -97,3 +97,49 @@ def value_timeline(timeline: list[dict], calendar_dates: list[str],
                 equity += contracts * c * 100
         out.append({"date": d, "equity": round(equity, 2), "estimated": False, "partial": partial})
     return out
+
+
+def _partition(activities):
+    return _adapter.partition(activities)
+
+
+_OPT_LIFECYCLE = {"option_expiration", "option_assignment", "option_exercise"}
+
+
+def events_from_account(user_id, account_id, broker_account_id, activities, cash_flows) -> list[dict]:
+    """Normalize raw broker activities + the persisted cash-flow ledger into the
+    event stream replay_timeline consumes."""
+    part = _partition(activities)
+    events: list[dict] = []
+
+    for f in part.get("equity_fills", []):
+        d = f.date[:10]
+        gross = f.shares * f.price
+        if f.action == "Buy":
+            events.append({"kind": "stock", "date": d, "ticker": f.symbol,
+                           "shares_delta": f.shares, "cash_delta": -(gross + f.fee)})
+        else:
+            events.append({"kind": "stock", "date": d, "ticker": f.symbol,
+                           "shares_delta": -f.shares, "cash_delta": (gross - f.fee)})
+
+    for ev in part.get("option_events", []):
+        d = (ev.get("date") or "")[:10]
+        occ = occ_symbol(ev["underlying"], ev["expiration"], ev["contractType"], ev["strike"])
+        if ev.get("eventKind") in _OPT_LIFECYCLE:
+            events.append({"kind": "option_close", "date": d, "occ": occ})
+            continue
+        contracts = ev.get("contracts") or 0
+        price = ev.get("price") or 0.0
+        fee = ev.get("fee") or 0.0
+        gross = contracts * price * 100
+        if ev.get("side") == "buy":
+            events.append({"kind": "option", "date": d, "occ": occ,
+                           "contracts_delta": contracts, "cash_delta": -(gross + fee)})
+        elif ev.get("side") == "sell":
+            events.append({"kind": "option", "date": d, "occ": occ,
+                           "contracts_delta": -contracts, "cash_delta": (gross - fee)})
+
+    for cf in (cash_flows or []):
+        events.append({"kind": "cash", "date": cf["date"][:10], "amount": cf["amount"]})
+
+    return events
