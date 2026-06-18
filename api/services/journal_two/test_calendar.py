@@ -506,3 +506,132 @@ def test_calendar_marks_expiring_strategies(db_conn):
     assert by_date[exp]["expiringCount"] == 1
 
 
+
+
+# ─── Account-balance basis ────────────────────────────────────────────────────
+
+
+def _add_broker_account(conn, user_id, *, balance_source="snaptrade", name="RH",
+                        broker_total_equity=None):
+    now = datetime.now(timezone.utc).isoformat()
+    acct_id = str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO j2_accounts (id, user_id, name, color, account_size, "
+        "starting_balance, created_at, updated_at, balance_source, broker_total_equity) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (acct_id, user_id, name, "#888", 100000, 100000, now, now,
+         balance_source, broker_total_equity),
+    )
+    conn.commit()
+    return acct_id
+
+
+def test_account_equity_days_diffs_close_to_close():
+    from api.services.journal_two.calendar import _account_equity_days
+    series = [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+        {"date": "2026-06-03", "equity": 100200.0},
+        {"date": "2026-06-04", "equity": 101000.0},
+    ]
+    days, totals = _account_equity_days(series, "2026-06-02", "2026-06-04", [])
+    by_date = {d["date"]: d for d in days}
+    assert round(by_date["2026-06-02"]["pnlDollar"], 2) == 500.0
+    assert round(by_date["2026-06-03"]["pnlDollar"], 2) == -300.0
+    assert round(by_date["2026-06-04"]["pnlDollar"], 2) == 800.0
+    assert round(by_date["2026-06-02"]["pnlPercent"], 6) == round(500.0 / 100000.0, 6)
+    assert round(totals["netPnlDollar"], 2) == 1000.0
+
+
+def test_account_equity_days_skips_inception_point():
+    from api.services.journal_two.calendar import _account_equity_days
+    series = [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+    ]
+    days, totals = _account_equity_days(series, "2026-06-01", "2026-06-02", [])
+    by_date = {d["date"]: d for d in days}
+    assert "2026-06-01" not in by_date
+    assert round(by_date["2026-06-02"]["pnlDollar"], 2) == 500.0
+
+
+def test_account_equity_days_overlays_closed_badges():
+    from api.services.journal_two.calendar import _account_equity_days
+    series = [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+    ]
+    closed_days = [{"date": "2026-06-02", "pnlDollar": 200.0, "rSum": 1.5,
+                    "tradeCount": 3, "winners": 2, "losers": 1,
+                    "hasNotes": True, "expiringCount": 0, "pnlPercent": 0.002}]
+    days, _ = _account_equity_days(series, "2026-06-02", "2026-06-02", closed_days)
+    d = days[0]
+    assert d["pnlDollar"] == 500.0
+    assert d["tradeCount"] == 3
+    assert d["winners"] == 2 and d["losers"] == 1
+    assert d["hasNotes"] is True
+
+
+def test_get_calendar_account_basis_uses_equity_series(db_conn, monkeypatch):
+    import api.services.journal_two.calendar as cal
+    uid = "u-acct"
+    _add_user(db_conn, uid, "acct@example.com")
+    acct_id = _add_broker_account(db_conn, uid)
+    monkeypatch.setattr(cal, "_load_equity_series", lambda u, a, conn=None: [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+        {"date": "2026-06-03", "equity": 100200.0},
+    ])
+    out = cal.get_calendar(uid, view="month", year=2026, month=6,
+                           account_id=acct_id, basis="account", conn=db_conn)
+    assert out["basis"] == "account"
+    by_date = {d["date"]: d for d in out["days"]}
+    assert round(by_date["2026-06-02"]["pnlDollar"], 2) == 500.0
+    assert round(by_date["2026-06-03"]["pnlDollar"], 2) == -300.0
+
+
+def test_get_calendar_account_basis_falls_back_when_empty(db_conn, monkeypatch):
+    import api.services.journal_two.calendar as cal
+    uid = "u-fb"
+    _add_user(db_conn, uid, "fb@example.com")
+    acct_id = _add_broker_account(db_conn, uid)
+    monkeypatch.setattr(cal, "_load_equity_series", lambda u, a, conn=None: [])
+    out = cal.get_calendar(uid, view="month", year=2026, month=6,
+                           account_id=acct_id, basis="account", conn=db_conn)
+    assert out["basis"] == "closed"
+
+
+def test_get_calendar_manual_account_forces_closed(db_conn, monkeypatch):
+    import api.services.journal_two.calendar as cal
+    uid = "u-man"
+    _add_user(db_conn, uid, "man@example.com")
+    acct_id = _add_broker_account(db_conn, uid, balance_source="manual", name="Manual")
+    monkeypatch.setattr(cal, "_load_equity_series",
+                        lambda u, a, conn=None: [{"date": "2026-06-02", "equity": 1.0}])
+    out = cal.get_calendar(uid, view="month", year=2026, month=6,
+                           account_id=acct_id, basis="account", conn=db_conn)
+    assert out["basis"] == "closed"
+
+
+def test_day_detail_account_mode_breakdown(db_conn, monkeypatch):
+    import api.services.journal_two.calendar as cal
+    uid = "u-dd"
+    _add_user(db_conn, uid, "dd@example.com")
+    acct_id = _add_broker_account(db_conn, uid)
+    _add_trade(db_conn, uid, exit_date_iso="2026-06-02T18:00:00Z", pnl=200.0)
+    db_conn.execute("UPDATE j2_trades SET account_id = ? WHERE user_id = ?",
+                    (acct_id, uid))
+    db_conn.commit()
+    monkeypatch.setattr(cal, "_load_equity_series", lambda u, a, conn=None: [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+    ])
+    out = cal.get_day_detail(uid, "2026-06-02", account_id=acct_id,
+                             basis="account", conn=db_conn)
+    m = out["metrics"]
+    assert m["basis"] == "account"
+    assert round(m["accountBalanceChange"], 2) == 500.0
+    assert round(m["realizedPnl"], 2) == 200.0
+    assert round(m["unrealizedChange"], 2) == 300.0
+    assert round(m["accountBalanceChange"], 2) == round(
+        m["realizedPnl"] + m["unrealizedChange"], 2)

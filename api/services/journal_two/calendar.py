@@ -182,6 +182,111 @@ def _aggregate_trades(
     return days, totals
 
 
+def _account_is_broker(
+    user_id: str, account_id: str, conn: sqlite3.Connection
+) -> bool:
+    """True iff the account row's balance_source is broker-sourced (not manual)."""
+    row = conn.execute(
+        "SELECT balance_source FROM j2_accounts WHERE id = ? AND user_id = ?",
+        (account_id, user_id),
+    ).fetchone()
+    if row is None:
+        return False
+    keys = row.keys()
+    src = row["balance_source"] if "balance_source" in keys else "manual"
+    return bool(src) and src != "manual"
+
+
+def _load_equity_series(
+    user_id: str, account_id: str, conn: sqlite3.Connection | None = None
+) -> list[dict[str, Any]]:
+    """Live-edged daily net-liq series for a broker account. Returns [] on any
+    failure so the calendar always degrades to closed-trade mode rather than
+    erroring. Monkeypatched in tests."""
+    try:
+        from api.services.journal_two import accounts as _accounts
+        from api.services.journal_two.broker import historical_equity
+        acct = _accounts.get_account(user_id, account_id, conn=conn)
+        live_eq = (
+            float(acct["brokerTotalEquity"])
+            if acct and acct.get("brokerTotalEquity") is not None
+            else None
+        )
+        return historical_equity.reconstruct_daily_equity(
+            user_id, account_id, live_equity=live_eq, conn=conn
+        ) or []
+    except Exception:
+        return []
+
+
+def _account_equity_days(
+    series: list[dict[str, Any]],
+    start_iso: str,
+    end_iso: str,
+    closed_days: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Difference a daily net-liq series into per-day balance-change buckets.
+
+    `series` is the full ascending [{date, equity}, ...] reconstruction. Each
+    in-window day's pnlDollar = equity(d) − equity(immediately-preceding point
+    in the FULL series); the absolute first point (no predecessor) is skipped.
+    pnlPercent = delta / prevEquity. Badge/count fields are overlaid from the
+    closed-trade aggregation (`closed_days`)."""
+    closed_by_date = {d["date"]: d for d in closed_days}
+
+    days: list[dict[str, Any]] = []
+    window_first_prev: float | None = None
+    window_last_equity: float | None = None
+
+    for i, point in enumerate(series):
+        d = point["date"]
+        if not (start_iso <= d <= end_iso):
+            continue
+        if i == 0:
+            # Inception day: no predecessor → no defined daily change. Skip.
+            continue
+        prev_equity = float(series[i - 1]["equity"])
+        equity = float(point["equity"])
+        delta = equity - prev_equity
+        if window_first_prev is None:
+            window_first_prev = prev_equity
+        window_last_equity = equity
+
+        c = closed_by_date.get(d, {})
+        days.append({
+            "date": d,
+            "pnlDollar": delta,
+            "pnlPercent": (delta / prev_equity) if prev_equity > 0 else 0.0,
+            "rSum": c.get("rSum", 0.0),
+            "tradeCount": c.get("tradeCount", 0),
+            "winners": c.get("winners", 0),
+            "losers": c.get("losers", 0),
+            "hasNotes": c.get("hasNotes", False),
+            "expiringCount": c.get("expiringCount", 0),
+        })
+
+    days.sort(key=lambda x: x["date"])
+
+    net = (
+        (window_last_equity - window_first_prev)
+        if (window_last_equity is not None and window_first_prev is not None)
+        else 0.0
+    )
+    winners = sum(c.get("winners", 0) for c in closed_days)
+    losers = sum(c.get("losers", 0) for c in closed_days)
+    totals = {
+        "netPnlDollar": net,
+        "grossPnlDollar": net,
+        "fees": 0.0,
+        "tradeCount": sum(c.get("tradeCount", 0) for c in closed_days),
+        "winners": winners,
+        "losers": losers,
+        "winRate": (winners / (winners + losers)) if (winners + losers) > 0 else None,
+        "rSum": sum(c.get("rSum", 0.0) for c in closed_days),
+    }
+    return days, totals
+
+
 def _fetch_strategies_in_window(
     user_id: str,
     sql_lo: str,
@@ -305,7 +410,8 @@ def get_calendar(
     year: int,
     month: int | None = None,
     week: int | None = None,
-    account_id: str | None = None,  # Phase 2 hook; ignored in Phase 1
+    account_id: str | None = None,
+    basis: str = "closed",
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Aggregate the user's trades for the requested period.
@@ -402,9 +508,26 @@ def get_calendar(
                 days.append(bucket)
         days.sort(key=lambda x: x["date"])
 
+        # Account-balance basis (broker accounts only): replace the closed-trade
+        # day numbers with the net-liq close-to-close deltas, overlaying the
+        # closed-trade counts/notes as badges. Falls back to closed silently.
+        effective_basis = "closed"
+        if (
+            basis == "account"
+            and account_id
+            and _account_is_broker(user_id, account_id, conn)
+        ):
+            series = _load_equity_series(user_id, account_id, conn)
+            if series:
+                days, totals = _account_equity_days(
+                    series, start.isoformat(), end.isoformat(), days,
+                )
+                effective_basis = "account"
+
         payload: dict[str, Any] = {
             "view": view,
             "year": year,
+            "basis": effective_basis,
             "days": days,
             "totals": totals,
         }
@@ -422,7 +545,8 @@ def get_day_detail(
     user_id: str,
     date: str,
     *,
-    account_id: str | None = None,  # Phase 2 hook
+    account_id: str | None = None,
+    basis: str = "closed",
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Return the day's metrics + trade list + (optional) saved notes."""
@@ -489,6 +613,29 @@ def get_day_detail(
             totals["netPnlDollar"] / account_size if account_size > 0 else 0.0
         )
 
+        metrics = {**totals, "pnlPercent": pnl_pct}
+        # Account-balance basis: add the day's net-liq change + realized/open split.
+        if (
+            basis == "account"
+            and account_id
+            and _account_is_broker(user_id, account_id, conn)
+        ):
+            series = _load_equity_series(user_id, account_id, conn)
+            by_date = {p["date"]: float(p["equity"]) for p in series}
+            dates = sorted(by_date)
+            if date in by_date:
+                idx = dates.index(date)
+                if idx > 0:
+                    bal_change = by_date[date] - by_date[dates[idx - 1]]
+                    realized = float(totals["netPnlDollar"])
+                    metrics = {
+                        **metrics,
+                        "basis": "account",
+                        "accountBalanceChange": bal_change,
+                        "realizedPnl": realized,
+                        "unrealizedChange": bal_change - realized,
+                    }
+
         trades_out = []
         for r in same_day:
             trades_out.append(
@@ -553,10 +700,7 @@ def get_day_detail(
 
         return {
             "date": date,
-            "metrics": {
-                **totals,
-                "pnlPercent": pnl_pct,
-            },
+            "metrics": metrics,
             "trades": trades_out,
             "strategies": strategies_out,
             "notes": notes,

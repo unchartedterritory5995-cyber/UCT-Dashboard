@@ -1009,11 +1009,12 @@ def get_calendar(
     month: int | None = None,
     week: int | None = None,
     account_id: str | None = None,
+    basis: str = "closed",
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Aggregate trades into per-day buckets for the requested period.
-    `view` = year|month|week. `account_id` is accepted but unused until
-    Phase 2 (Accounts) ships."""
+    `view` = year|month|week. `basis` = closed|account (account-balance mode
+    is broker-only; falls back to closed when unavailable)."""
     if year is None:
         from datetime import datetime
         year = datetime.now().year
@@ -1025,6 +1026,7 @@ def get_calendar(
             month=month,
             week=week,
             account_id=account_id,
+            basis=basis,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1034,6 +1036,7 @@ def get_calendar(
 def get_calendar_day(
     date: str,
     account_id: str | None = None,
+    basis: str = "closed",
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Per-day metrics + trade list + saved reflection notes."""
@@ -1044,7 +1047,7 @@ def get_calendar_day(
     except ValueError:
         raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
     return calendar_service.get_day_detail(
-        user["id"], date, account_id=account_id,
+        user["id"], date, account_id=account_id, basis=basis,
     )
 
 
