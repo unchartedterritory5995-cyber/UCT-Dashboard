@@ -7,12 +7,36 @@ A thin Massive-backed fetcher + orchestrator wire it to real data.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date
 from typing import Callable
 
 from api.services.journal_two.broker import snaptrade_adapter as _adapter
 
 logger = logging.getLogger(__name__)
+
+# Reconstructing the full daily series fetches historical bars for every
+# ever-held symbol — expensive. Cache the result per (user, account, day) so
+# range-tab switches re-slice it instead of recomputing. Invalidated on sync.
+_RECON_CACHE: dict[tuple, tuple[float, list]] = {}
+_RECON_TTL = 300.0  # seconds
+
+
+def _et_today() -> str:
+    from datetime import datetime, timezone
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    except Exception:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def invalidate_cache(user_id: str, account_id: str | None = None) -> None:
+    """Drop cached reconstructions for a user (or one account) — call after a
+    sync so the curve reflects fresh holdings/prices immediately."""
+    for k in [k for k in _RECON_CACHE
+              if k[0] == user_id and (account_id is None or k[1] == account_id)]:
+        _RECON_CACHE.pop(k, None)
 
 
 def occ_symbol(underlying: str, expiration: str, contract_type: str, strike: float) -> str:
@@ -249,7 +273,16 @@ def _default_price_fn():
 def reconstruct_daily_equity(user_id, account_id, *, price_fn=None, live_equity=None,
                              today=None, conn=None) -> list[dict]:
     """True daily mark-to-market net-liq series for a broker account. Returns
-    [{date, equity, estimated:False, partial}]; [] if no broker account / events."""
+    [{date, equity, estimated:False, partial}]; [] if no broker account / events.
+    Cached per (user, account, day) on the default-fetch path so range-tab
+    switches re-slice instead of refetching every ever-held symbol's bars."""
+    if today is None:
+        today = _et_today()
+    use_cache = price_fn is None
+    if use_cache:
+        hit = _RECON_CACHE.get((user_id, account_id, today))
+        if hit and hit[0] > time.time():
+            return hit[1]
     bkid = _resolve_broker_account_id(user_id, account_id, conn=conn)
     if not bkid:
         return []
@@ -303,4 +336,6 @@ def reconstruct_daily_equity(user_id, account_id, *, price_fn=None, live_equity=
     valued = value_timeline(timeline, dates, price_fn)
     if live_equity is not None and valued:
         valued[-1] = {**valued[-1], "equity": round(float(live_equity), 2)}
+    if use_cache:
+        _RECON_CACHE[(user_id, account_id, today)] = (time.time() + _RECON_TTL, valued)
     return valued

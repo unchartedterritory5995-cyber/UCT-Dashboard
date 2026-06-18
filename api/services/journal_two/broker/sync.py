@@ -329,8 +329,10 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
         try:
             from api.services.journal_two.broker import snaptrade_adapter as _adapter
             from api.services.journal_two.broker import cashflow_reconstruct as _cf
+            from api.services.journal_two.broker import historical_equity as _he
             _part = _adapter.partition(all_acts)
             _cf.reconcile_cash_flows(user_id, ba, _part["cash"] + _part["transfers"])
+            _he.invalidate_cache(user_id)  # fresh holdings/cash → recompute curve
         except Exception:
             pass  # best-effort; never break the core sync
 

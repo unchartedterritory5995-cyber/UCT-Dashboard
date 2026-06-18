@@ -160,3 +160,38 @@ def test_reconstruct_live_equity_overrides_final_point(monkeypatch):
 def test_reconstruct_returns_empty_when_no_broker_account(monkeypatch):
     monkeypatch.setattr(he, "_resolve_broker_account_id", lambda u, a, conn=None: None)
     assert he.reconstruct_daily_equity("u1", "acc", price_fn=lambda *a: 1.0) == []
+
+
+def test_reconstruct_caches_per_account_and_invalidates(monkeypatch):
+    import time
+    he._RECON_CACHE.clear()
+    calls = {"n": 0}
+
+    def counting_loader(u, b):
+        calls["n"] += 1
+        return [{}]
+
+    fills = [Fill(row=1, symbol="AAPL", action="Buy", shares=10, price=10.0,
+                  date="2026-01-05T00:00:00Z", fee=0.0)]
+    monkeypatch.setattr(he, "_partition", lambda a: {"equity_fills": fills, "option_events": []})
+    monkeypatch.setattr(he, "_load_activities", counting_loader)
+    monkeypatch.setattr(he, "_load_cash_flows", lambda u, a: [])
+    monkeypatch.setattr(he, "_resolve_broker_account_id", lambda u, a, conn=None: "bk1")
+    monkeypatch.setattr(he, "_load_current_state", lambda u, a, conn=None: ({"AAPL": 10.0}, {}, 0.0))
+
+    def fake_default():
+        def pf(kind, sym, d):
+            return 10.0
+        pf._bounds = {}
+        pf._cache = {}
+        return pf
+    monkeypatch.setattr(he, "_default_price_fn", fake_default)
+
+    a = he.reconstruct_daily_equity("u1", "acc", today="2026-01-09")   # computes + caches
+    b = he.reconstruct_daily_equity("u1", "acc", today="2026-01-09")   # cache hit
+    assert a == b and calls["n"] == 1                                  # loaded once
+
+    he.invalidate_cache("u1")
+    he.reconstruct_daily_equity("u1", "acc", today="2026-01-09")       # recomputes
+    assert calls["n"] == 2
+    he._RECON_CACHE.clear()
