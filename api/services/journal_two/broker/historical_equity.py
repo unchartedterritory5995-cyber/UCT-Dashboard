@@ -143,3 +143,83 @@ def events_from_account(user_id, account_id, broker_account_id, activities, cash
         events.append({"kind": "cash", "date": cf["date"][:10], "amount": cf["amount"]})
 
     return events
+
+
+# ── Data loaders (indirections so the orchestrator stays unit-testable) ───────
+
+def _resolve_broker_account_id(user_id, account_id, conn=None):
+    from api.services.auth_db import get_connection
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id FROM j2_broker_accounts WHERE user_id=? AND j2_account_id=? "
+            "ORDER BY created_at ASC LIMIT 1", (user_id, account_id)).fetchone()
+        return row["id"] if row else None
+    finally:
+        if owned:
+            conn.close()
+
+
+def _load_activities(user_id, broker_account_id):
+    from api.services.journal_two.broker import activities_store
+    return activities_store.get_activities(user_id, broker_account_id)
+
+
+def _load_cash_flows(user_id, account_id):
+    from api.services.journal_two.broker import cashflow_store
+    return cashflow_store.list_flows(user_id, account_id)
+
+
+def _default_price_fn():
+    """Memoized Massive-backed daily-close lookup. One fetch per symbol, indexed
+    by ISO date. `_bounds[symbol] = (start, end)` should be set before use."""
+    from api.services import massive
+    cache: dict[str, dict[str, float]] = {}
+    bounds: dict[str, tuple[str, str]] = {}
+
+    def price_fn(kind, symbol, d):
+        if symbol not in cache:
+            start, end = bounds.get(symbol, (d, d))
+            bars = massive.get_daily_agg(symbol, start, end,
+                                         adjusted=False, map_symbol=(kind == "stock"))
+            series: dict[str, float] = {}
+            for b in bars:
+                iso = date.fromtimestamp(b["t"] / 1000).isoformat()
+                series[iso] = b.get("c")
+            cache[symbol] = series
+        return cache[symbol].get(d)
+
+    price_fn._cache = cache
+    price_fn._bounds = bounds
+    return price_fn
+
+
+def reconstruct_daily_equity(user_id, account_id, *, price_fn=None, live_equity=None,
+                             today=None, conn=None) -> list[dict]:
+    """True daily mark-to-market net-liq series for a broker account. Returns
+    [{date, equity, estimated:False, partial}]; [] if no broker account / events."""
+    bkid = _resolve_broker_account_id(user_id, account_id, conn=conn)
+    if not bkid:
+        return []
+    activities = _load_activities(user_id, bkid)
+    cash_flows = _load_cash_flows(user_id, account_id)
+    events = events_from_account(user_id, account_id, bkid, activities, cash_flows)
+    if not events:
+        return []
+    timeline = replay_timeline(events)
+
+    dates = sorted({r["date"] for r in timeline})
+    if today and today > dates[-1]:
+        dates.append(today)
+
+    if price_fn is None:
+        price_fn = _default_price_fn()
+        syms = {t for r in timeline for t in r["stocks"]} | {o for r in timeline for o in r["options"]}
+        for s in syms:
+            price_fn._bounds[s] = (dates[0], dates[-1])
+
+    valued = value_timeline(timeline, dates, price_fn)
+    if live_equity is not None and valued:
+        valued[-1] = {**valued[-1], "equity": round(float(live_equity), 2)}
+    return valued

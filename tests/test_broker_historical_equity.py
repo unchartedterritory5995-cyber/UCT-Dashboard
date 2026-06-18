@@ -96,3 +96,36 @@ def test_events_from_account_option_lifecycle_closes(monkeypatch):
     evs = he.events_from_account("u1", "acc", "bk1", activities=[], cash_flows=[])
     assert evs == [{"kind": "option_close", "date": "2026-01-16",
                     "occ": "O:AAPL260116C00200000"}]
+
+
+# ── reconstruct_daily_equity (orchestrator) ──────────────────────────────────
+
+def test_reconstruct_daily_equity_end_to_end(monkeypatch):
+    fills = [Fill(row=1, symbol="AAPL", action="Buy", shares=100, price=10.0,
+                  date="2026-01-02T00:00:00Z", fee=0.0)]
+    monkeypatch.setattr(he, "_partition", lambda a: {"equity_fills": fills, "option_events": []})
+    monkeypatch.setattr(he, "_load_activities", lambda u, b: [{"x": 1}])
+    monkeypatch.setattr(he, "_load_cash_flows",
+                        lambda u, a: [{"date": "2026-01-01", "type": "deposit", "amount": 5000.0}])
+    monkeypatch.setattr(he, "_resolve_broker_account_id", lambda u, a, conn=None: "bk1")
+    prices = {"2026-01-01": 10.0, "2026-01-02": 10.0, "2026-01-03": 12.0}
+    pf = lambda kind, sym, d: prices.get(d)
+    out = he.reconstruct_daily_equity("u1", "acc", price_fn=pf, today="2026-01-03")
+    assert out[-1]["date"] == "2026-01-03" and round(out[-1]["equity"]) == 5200
+
+
+def test_reconstruct_live_equity_overrides_final_point(monkeypatch):
+    fills = [Fill(row=1, symbol="AAPL", action="Buy", shares=10, price=10.0,
+                  date="2026-01-02T00:00:00Z", fee=0.0)]
+    monkeypatch.setattr(he, "_partition", lambda a: {"equity_fills": fills, "option_events": []})
+    monkeypatch.setattr(he, "_load_activities", lambda u, b: [{}])
+    monkeypatch.setattr(he, "_load_cash_flows", lambda u, a: [])
+    monkeypatch.setattr(he, "_resolve_broker_account_id", lambda u, a, conn=None: "bk1")
+    out = he.reconstruct_daily_equity("u1", "acc", price_fn=lambda *a: 10.0,
+                                      live_equity=999.0, today="2026-01-03")
+    assert out[-1]["equity"] == 999.0
+
+
+def test_reconstruct_returns_empty_when_no_broker_account(monkeypatch):
+    monkeypatch.setattr(he, "_resolve_broker_account_id", lambda u, a, conn=None: None)
+    assert he.reconstruct_daily_equity("u1", "acc", price_fn=lambda *a: 1.0) == []
