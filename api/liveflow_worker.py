@@ -58,52 +58,22 @@ TABLE_FILTER = {
     "alertname_block_substrings": ["grenade"],  # lottery/hedge noise
 }
 
-# Conviction scoring — per-alert score that gates Discord forwarding.
+# ─── Conviction scoring — REMOVED 2026-06-17 ─────────────────────────────────
+# Previously this module computed per-alert conviction scores using substring
+# matching against alertName plus premium tiers, then gated Discord forwarding
+# on a score >= threshold check.
 #
-# Two scoring tables because UCT custom alerts and Bullflow native algo alerts
-# have different naming structures:
+# That layer is gone because conviction is now expressed directly in Bullflow's
+# custom alert filters. When you create/edit a `UCT *` alert in Bullflow's UI,
+# you stack quick filters (Sweeps + Ask + Bullish + High Sig + Vol>OI + etc).
+# A trade that fires that alert has already passed every conviction criterion
+# you encoded into the alert. Re-scoring it server-side would be duplicative
+# and lossy (we'd be guessing at filters we already pre-committed to).
 #
-#   - UCT custom alerts: tier-prefixed ("UCT Mega Whale Bull", "UCT A Bull").
-#     Substrings overlap by design ("uct whale" is in "uct mega whale"), so we
-#     score them MUTUALLY EXCLUSIVELY — longest match wins, break after first
-#     match. Tier ladder: Mega Whale > Whale > LEAPS > Unusual > A.
-#
-#   - Bullflow algo alerts: descriptive names that often stack characteristics
-#     ("Urgent Repeater", "Whale Above Ask"). Score ADDITIVELY because each
-#     substring describes an independent quality.
-#
-# Premium adders apply to both. 2026-06-17: rewritten from a single additive
-# list that double-counted UCT custom alerts (the bare "whale" substring
-# matched both UCT Whale and UCT Mega Whale, inflating Mega Whale to ~5.0).
-
-# UCT custom alert tiers (mutually exclusive — first match wins, longest first).
-UCT_TIER_CONVICTION = [
-    ("uct mega whale",   3.0),
-    ("uct whale",        2.0),
-    ("uct leaps",        1.0),
-    ("uct unusual",      1.0),
-    ("uct a ",           0.5),   # trailing space avoids matching "uct algo" etc.
-]
-
-# Bullflow native algo alerts (additive substring scoring).
-ALERT_NAME_CONVICTION = [
-    ("whale",            2.0),
-    ("urgent",           1.0),
-    ("above ask",        1.0),
-    ("repeater",         0.5),
-    ("position builder", 0.5),
-]
-# Premium tiers stack on top of alertName conviction.
-PREMIUM_CONVICTION_TIERS = [
-    (1_000_000, 1.0),   # $1M+
-    (  500_000, 0.5),   # $500K+
-]
-# Forward to Discord when total conviction >= this threshold.
-# 2026-06-17: lowered from 2.0 → 1.5 after scoring restructure. At 1.5,
-# LEAPS $500K+, Unusual $500K+, and A-tier $1M+ also forward (in addition
-# to Whales). Estimated ~5-20 Discord posts per market hour. Tighten back
-# to 2.0 if too noisy after a few days.
-DISCORD_CONVICTION_THRESHOLD = 1.5
+# Result: every alert that passes TABLE_FILTER is now forwarded to Discord.
+# The `convictionScore` field on each alert remains in the payload (set to
+# None) so the frontend rendering code keeps working unchanged. We can wire
+# scoring back in later if a useful signal-on-top-of-filters emerges.
 
 # ─── State (module-level; single event loop = no lock needed) ────────────────
 _alerts: deque = deque(maxlen=MAX_BUFFER)
@@ -124,7 +94,10 @@ _status = {
         "premium_min": TABLE_FILTER["premium_min"],
         "ticker_blocklist": sorted(TABLE_FILTER["ticker_blocklist"]),
         "alertname_block_substrings": list(TABLE_FILTER["alertname_block_substrings"]),
-        "discord_threshold": DISCORD_CONVICTION_THRESHOLD,
+        # Conviction threshold removed 2026-06-17 — Bullflow's per-alert filters
+        # are the conviction signal now. Every alert that passes TABLE_FILTER
+        # forwards to Discord.
+        "discord_threshold": None,
     },
 }
 
@@ -174,36 +147,6 @@ def _passes_table_filter(alert_name, premium, ticker):
     return True, ""
 
 
-def _conviction_score(alert_type, alert_name, premium):
-    """
-    Compute conviction score per Filter Engine v1 rules.
-
-    UCT custom alerts use mutually-exclusive tier scoring (one tier per
-    alert, longest substring match wins). Bullflow algo alerts use additive
-    substring matching because their names describe independent qualities
-    that can stack ("Urgent Repeater" = urgent + repeater).
-    """
-    score = 0.0
-    name_lc = (alert_name or "").lower()
-
-    if alert_type == "custom":
-        for substring, points in UCT_TIER_CONVICTION:
-            if substring in name_lc:
-                score += points
-                break  # tier match is exclusive — never stack multiple tiers
-    else:
-        for substring, points in ALERT_NAME_CONVICTION:
-            if substring in name_lc:
-                score += points
-
-    # Premium adders apply to both algo and custom alerts.
-    for threshold, points in PREMIUM_CONVICTION_TIERS:
-        if premium and premium >= threshold:
-            score += points
-
-    return score
-
-
 # ─── Discord forwarder ───────────────────────────────────────────────────────
 async def _post_to_discord(client, alert):
     """
@@ -223,7 +166,8 @@ async def _post_to_discord(client, alert):
     premium = alert.get("alertPremium") or 0
     avg_fill = alert.get("averageFillPrice")
     name = alert.get("alertName") or "Alert"
-    score = alert.get("convictionScore", 0)
+    score = alert.get("convictionScore")
+    score_str = f"{score:.1f}" if score is not None else "—"
 
     color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xc9a84c)
     strike_str = f"${strike:g}" if strike is not None else "?"
@@ -242,7 +186,7 @@ async def _post_to_discord(client, alert):
             {"name": "Avg Fill",   "value": avg_fill_str,   "inline": True},
             {"name": "DTE",        "value": dte_str,        "inline": True},
             {"name": "Alert",      "value": name,           "inline": True},
-            {"name": "Conviction", "value": f"{score:.1f}", "inline": True},
+            {"name": "Conviction", "value": score_str, "inline": True},
             {"name": "Type",       "value": (alert.get("alertType") or "?").upper(), "inline": True},
         ],
         "footer": {"text": "via Bullflow · UCT Live Flow"},
@@ -327,8 +271,10 @@ async def _ingest_alert(msg, discord_client):
         # Don't buffer — drop counter is enough for status visibility.
         return
 
-    score = _conviction_score(data.get("alertType"), name, premium)
-    forwarded = score >= DISCORD_CONVICTION_THRESHOLD
+    # Every alert that passes TABLE_FILTER is forwarded to Discord. The trade
+    # already satisfied every conviction criterion baked into its Bullflow
+    # alert filter — there's no further scoring to apply here.
+    forwarded = True
 
     enriched = {
         "id": msg.get("id"),
@@ -348,7 +294,10 @@ async def _ingest_alert(msg, discord_client):
         "deliveryLatency": data.get("deliveryLatency"),
         "ingestedAt": _status["last_event_at"],
         # Phase B additions:
-        "convictionScore": round(score, 2),
+        # convictionScore is None — scoring layer removed 2026-06-17. Field
+        # preserved so frontend rendering code doesn't break; revive with
+        # real value if/when we reintroduce a scoring concept.
+        "convictionScore": None,
         "forwardedToDiscord": forwarded,
     }
     _alerts.append(enriched)
