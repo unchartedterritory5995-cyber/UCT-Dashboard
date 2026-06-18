@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import time
 from collections import deque
 from datetime import datetime, timezone
 
@@ -156,6 +157,118 @@ def set_user_blocklist(tickers):
 
 # Load on module import so the worker has the blocklist available immediately.
 _load_user_blocklist()
+
+# ─── Dedup engine ────────────────────────────────────────────────────────────
+# Bullflow fires one event per matching alert, so a single trade often arrives
+# 2-3 times (e.g. matches both UCT Bullish and UCT Vol>OI, plus their native
+# "Sizable Sweep" algo alert). This dedup engine collapses those to a single
+# Discord post + a single table row, while preserving legitimately distinct
+# trades on the same contract (different premium / fill price).
+#
+# Dedup behavior:
+# - Same contract (ticker+cp+strike+exp) + same premium + same fill price
+#   within DEDUP_WINDOW_SEC → considered duplicates of the same trade.
+# - Highest-priority alert wins. Lower-priority duplicates are dropped from
+#   the buffer entirely.
+# - Priority: UCT Alpha Gold > Size > directional Bullish/Bearish > LEAPS >
+#   Unusual/Vol>OI > everything else > ALGO (Bullflow's native alerts).
+# - Discord forwarding uses a small delay (DISCORD_FORWARD_DELAY_SEC) so when
+#   a UCT alert arrives after an ALGO alert for the same trade, the UCT wins
+#   and Discord shows only the UCT post.
+
+DEDUP_WINDOW_SEC = 60               # how long to remember a dedup key
+DISCORD_FORWARD_DELAY_SEC = 2.0     # how long to wait before posting to Discord
+
+# Maps dedup_key tuple -> {"alert_id", "priority", "first_seen", "alert_obj"}
+_dedup_cache: dict = {}
+
+
+def _make_dedup_key(alert: dict) -> tuple:
+    """
+    Per user spec (2026-06-18): dedup on ticker + cp + strike + exp + premium
+    + avgFill. Including premium AND fill ensures legitimately different trades
+    on the same contract (DRAM 80C 9/18 at $575K @ $12.20 vs $595K @ $12.25)
+    stay as separate alerts, while genuine same-trade duplicates collapse.
+    Premium rounded to nearest dollar, fill rounded to 2dp to absorb minor
+    float drift between Bullflow's algo + custom alert paths.
+    """
+    return (
+        (alert.get("ticker") or "").upper(),
+        alert.get("cp") or "",
+        alert.get("strike"),
+        alert.get("exp") or "",
+        round(float(alert.get("alertPremium") or 0)),
+        round(float(alert.get("averageFillPrice") or 0), 2),
+    )
+
+
+def _alert_priority(alert: dict) -> int:
+    """
+    LOWER number = HIGHER priority (wins over higher numbers in dedup).
+    Aligned with the tier ordering in LiveFlow.jsx so the table and Discord
+    show the same conviction signal subscribers expect.
+    """
+    name = (alert.get("alertName") or "").strip()
+    alert_type = (alert.get("alertType") or "").lower()
+    # Bullflow's native alerts (Sizable Sweep, etc.) lose to any UCT alert.
+    if alert_type == "algo":
+        return 100
+    if "Alpha Gold" in name:
+        return 1
+    if "Size" in name:                  # UCT Size Bulls / UCT Size Bears
+        return 2
+    if "Bullish" in name or "Bearish" in name:
+        # LEAPS variants come slightly behind regular directional since users
+        # generally weight short-term flow heavier than long-dated.
+        return 4 if "Leaps" in name else 3
+    if "Leaps" in name:                 # neutral "UCT Leaps" (no direction)
+        return 5
+    if "Unusual" in name or "Vol>OI" in name:
+        return 6
+    return 90  # Unknown UCT alert — still beats ALGO
+
+
+def _prune_dedup_cache():
+    """Drop dedup entries older than DEDUP_WINDOW_SEC to bound memory."""
+    cutoff = time.time() - DEDUP_WINDOW_SEC
+    expired = [k for k, v in _dedup_cache.items() if v["first_seen"] < cutoff]
+    for k in expired:
+        del _dedup_cache[k]
+
+
+def _dedup_check(alert: dict) -> tuple:
+    """
+    Returns one of:
+      ("accept", None)         — first time seeing this trade; add + forward
+      ("supersede", old_id)    — new alert beats existing; mark old superseded
+      ("drop", reason_str)     — new alert loses to existing; ignore entirely
+    """
+    _prune_dedup_cache()
+    key = _make_dedup_key(alert)
+    new_priority = _alert_priority(alert)
+    existing = _dedup_cache.get(key)
+
+    if not existing:
+        _dedup_cache[key] = {
+            "alert_id": alert.get("id"),
+            "priority": new_priority,
+            "first_seen": time.time(),
+        }
+        return ("accept", None)
+
+    if new_priority < existing["priority"]:
+        old_id = existing["alert_id"]
+        _dedup_cache[key] = {
+            "alert_id": alert.get("id"),
+            "priority": new_priority,
+            # Keep original timestamp so the dedup window doesn't extend
+            # indefinitely as supersedes happen.
+            "first_seen": existing["first_seen"],
+        }
+        return ("supersede", old_id)
+
+    return ("drop", f"dupe_of:{existing['alert_id']}:p{existing['priority']}")
+
 
 # ─── Conviction scoring — REMOVED 2026-06-17 ─────────────────────────────────
 # Previously this module computed per-alert conviction scores using substring
@@ -326,8 +439,14 @@ async def _post_to_discord(client, alert):
 
 # ─── Public accessors (used by router) ───────────────────────────────────────
 def get_recent_alerts(limit=200):
+    """
+    Return the most recent alerts in reverse chronological order. Alerts that
+    were superseded by higher-priority duplicates are filtered out so the
+    frontend never renders them — see _dedup_check + _ingest_alert.
+    """
     limit = max(1, min(int(limit or 200), MAX_BUFFER))
-    return list(reversed(_alerts))[:limit]
+    visible = [a for a in _alerts if not a.get("_superseded")]
+    return list(reversed(visible))[:limit]
 
 
 def get_status():
@@ -369,8 +488,9 @@ async def _consume_stream(client, discord_client):
 
 async def _ingest_alert(msg, discord_client):
     """
-    Decode → filter → buffer → maybe-forward. Always increment received counter
-    even on filter failure, so the UI shows true throughput vs filter selectivity.
+    Decode → filter → dedup → buffer → maybe-forward. Always increment received
+    counter even on filter/dedup failure, so the UI shows true throughput vs
+    filter selectivity.
     """
     data = msg.get("data") or {}
     symbol = data.get("symbol", "") or ""
@@ -387,11 +507,6 @@ async def _ingest_alert(msg, discord_client):
         _status["total_alerts_dropped"] += 1
         # Don't buffer — drop counter is enough for status visibility.
         return
-
-    # Every alert that passes TABLE_FILTER is forwarded to Discord. The trade
-    # already satisfied every conviction criterion baked into its Bullflow
-    # alert filter — there's no further scoring to apply here.
-    forwarded = True
 
     enriched = {
         "id": msg.get("id"),
@@ -410,19 +525,65 @@ async def _ingest_alert(msg, discord_client):
         "latency": data.get("latency"),
         "deliveryLatency": data.get("deliveryLatency"),
         "ingestedAt": _status["last_event_at"],
-        # Phase B additions:
-        # convictionScore is None — scoring layer removed 2026-06-17. Field
-        # preserved so frontend rendering code doesn't break; revive with
-        # real value if/when we reintroduce a scoring concept.
+        # Conviction score deprecated — see note above the filter engine block.
         "convictionScore": None,
-        "forwardedToDiscord": forwarded,
+        # Will be flipped to True if the delayed Discord forward actually fires.
+        "forwardedToDiscord": False,
+        # Set to True if a later, higher-priority alert supersedes this one.
+        "_superseded": False,
     }
+
+    # Run dedup check AFTER building the enriched object so we have a stable
+    # alert_id reference to compare against.
+    action, payload = _dedup_check(enriched)
+
+    if action == "drop":
+        # Same trade already represented in the buffer by a higher-priority
+        # alert. Don't add, don't forward.
+        _status["total_alerts_dropped"] += 1
+        return
+
+    if action == "supersede":
+        # New alert beats an existing one. Mark the older entry hidden so the
+        # table/Discord re-checks pick the winner. Walk recent buffer entries
+        # only (most supersedes happen within seconds; deep walk is wasted work).
+        old_id = payload
+        for a in reversed(_alerts):
+            if a.get("id") == old_id:
+                a["_superseded"] = True
+                break
+
     _alerts.append(enriched)
     _status["total_alerts_shown"] += 1
 
-    if forwarded:
-        # Fire-and-forget — never block SSE consumer waiting on Discord
-        asyncio.create_task(_post_to_discord(discord_client, enriched))
+    # Delayed forward: gives a brief window for a higher-priority alert to
+    # arrive and supersede this one. The forward task re-checks the dedup
+    # cache before posting, so superseded alerts never reach Discord.
+    asyncio.create_task(_delayed_discord_forward(discord_client, enriched))
+
+
+async def _delayed_discord_forward(discord_client, alert: dict):
+    """
+    Wait DISCORD_FORWARD_DELAY_SEC, then post to Discord only if this alert
+    is still the dedup winner for its contract key. If a higher-priority
+    alert superseded it during the delay, this is a no-op.
+    """
+    await asyncio.sleep(DISCORD_FORWARD_DELAY_SEC)
+    if alert.get("_superseded"):
+        return
+    key = _make_dedup_key(alert)
+    winner = _dedup_cache.get(key)
+    # If the dedup cache no longer points to this alert, it was superseded
+    # (or the cache rotated out due to a >60s gap, in which case forwarding
+    # would be stale anyway).
+    if not winner or winner.get("alert_id") != alert.get("id"):
+        return
+    alert["forwardedToDiscord"] = True
+    try:
+        await _post_to_discord(discord_client, alert)
+    except Exception as e:
+        log.warning("[liveflow] delayed discord forward failed: %s", e)
+
 
 
 # ─── Forever loop with exponential-backoff reconnect ─────────────────────────
