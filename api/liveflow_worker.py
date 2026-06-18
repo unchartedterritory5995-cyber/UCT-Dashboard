@@ -612,6 +612,12 @@ def _alert_priority(alert: dict) -> int:
         return 5
     if "Unusual" in name or "Vol>OI" in name:
         return 6
+    if "ETF Flow" in name:
+        # ETF Flow is a category tier (broad market positioning on SPX/SPXW/
+        # GLD/SMH/etc), not a conviction tier. Priority 6 = same level as
+        # Unusual/Vol>OI so it doesn't outrank single-name Alpha Gold signals
+        # but stays above any unrecognized UCT alert.
+        return 6
     return 90  # Unknown UCT alert — still beats ALGO
 
 
