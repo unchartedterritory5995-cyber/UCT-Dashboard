@@ -847,14 +847,15 @@ def _build_embed(agg: dict) -> dict:
     #   "🚨 LIVE · MU C $1200 2026-06-26 (-6% OTM)"
     #   "🚨 LIVE · ARM C $130 2026-08-15 (ATM)"
     # No moneyness suffix when spot lookup failed (graceful degradation).
+    # Magnitude only — the label already conveys direction ("OTM" means it's
+    # out, no need for a negative sign). Matches Tradytics/BlackBox convention.
     moneyness_pct = agg.get("moneyness_pct")
     moneyness_label = agg.get("moneyness_label")
     title_base = f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}"
     if moneyness_label == "ATM":
         title = f"{title_base} (ATM)"
     elif moneyness_label in ("ITM", "OTM") and moneyness_pct is not None:
-        sign = "+" if moneyness_pct > 0 else ""
-        title = f"{title_base} ({sign}{moneyness_pct:.0f}% {moneyness_label})"
+        title = f"{title_base} ({abs(moneyness_pct):.0f}% {moneyness_label})"
     else:
         title = title_base
 
