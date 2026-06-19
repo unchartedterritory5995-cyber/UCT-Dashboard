@@ -28,8 +28,9 @@
   font-weight: 600;
 }
 
-/* Gold ambient wash across the whole section — shared by the CTA and the
- * connected (hero + holdings) view, so both carry the brand. */
+/* Gold ambient wash across the ENTIRE section — a full-height gold tint plus a
+ * stronger glow at the top. Shared by the CTA and the connected view so the
+ * whole journal preview spot carries the brand, top to bottom. */
 .body {
   display: flex;
   flex-direction: column;
@@ -37,8 +38,8 @@
   padding: 12px 10px 10px;
   border-radius: 9px;
   background:
-    radial-gradient(125% 78% at 50% -6%, rgba(201, 168, 76, 0.13), transparent 56%),
-    linear-gradient(180deg, rgba(201, 168, 76, 0.045), rgba(201, 168, 76, 0) 42%);
+    radial-gradient(115% 50% at 50% 0%, rgba(201, 168, 76, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(201, 168, 76, 0.075), rgba(201, 168, 76, 0.04));
 }
 
 .pos { color: var(--gain, #22c55e); }
