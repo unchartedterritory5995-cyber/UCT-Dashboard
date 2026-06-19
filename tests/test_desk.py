@@ -262,6 +262,36 @@ def test_ensure_default_team_idempotent_and_preserves_edits(store):
     assert bracco2["role"] == "Head Trader"  # admin edit preserved
 
 
+def test_seed_backfills_bundled_avatars(store, monkeypatch, tmp_path):
+    """ensure_default_team writes each seed member's bundled avatar into the live
+    photo dir and flags has_photo — every trader card gets an image."""
+    monkeypatch.setattr(store, "_TEAM_PHOTO_DIR", str(tmp_path))
+    store.ensure_default_team()
+    team = store.list_team()
+    with_photo = [m for m in team if m["has_photo"]]
+    assert len(with_photo) == 18  # all 18 traders have a bundled avatar
+    # The webp file was actually written for a member.
+    bracco = next(m for m in team if m["name"] == "Bracco")
+    assert (tmp_path / f"{bracco['id']}.webp").exists()
+
+
+def test_seed_photo_never_clobbers_admin_upload(store, monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_TEAM_PHOTO_DIR", str(tmp_path))
+    store.ensure_default_team()
+    bracco = next(m for m in store.list_team() if m["name"] == "Bracco")
+    # Admin replaces the avatar with their own bytes.
+    (tmp_path / f"{bracco['id']}.webp").write_bytes(b"ADMIN_UPLOAD")
+    store.ensure_default_team()  # re-run must not overwrite (has_photo already 1)
+    assert (tmp_path / f"{bracco['id']}.webp").read_bytes() == b"ADMIN_UPLOAD"
+
+
+def test_seed_member_photo_missing_file_is_safe(store, monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_TEAM_PHOTO_DIR", str(tmp_path))
+    m = store.create_member({"name": "Ghost"})
+    assert store.seed_member_photo(m["id"], "does_not_exist.webp") is False
+    assert store.get_member(m["id"])["has_photo"] == 0
+
+
 def test_team_alters_apply_to_legacy_db(monkeypatch):
     """A pre-existing team_members table without the strategy columns gets them
     ALTERed in on _init_db()."""

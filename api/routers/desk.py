@@ -213,6 +213,83 @@ async def upload_member_photo(member_id: int, file: UploadFile = File(...),
     return {"ok": True, "url": f"/api/desk/team/{member_id}/photo"}
 
 
+def _handle_from_url(url: str) -> str:
+    """Extract the bare X handle from a profile URL (or a bare handle)."""
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return ""
+    return url.split("/")[-1].lstrip("@")
+
+
+def _store_avatar_from_x(member_id: int, twitter_url: str) -> str:
+    """Pull the member's X profile picture, convert to WebP, store as their photo.
+    Returns "" on success or a short reason string on failure. Best-effort."""
+    handle = _handle_from_url(twitter_url)
+    if not handle:
+        return "no handle"
+    import io
+    import requests as _requests
+    from PIL import Image
+    from api.services import twitterapi_io
+    try:
+        img_url = twitterapi_io.get_user_profile_image(handle)
+    except twitterapi_io.TwitterApiConfigError:
+        return "twitter api not configured"
+    except twitterapi_io.TwitterApiError as e:
+        return f"twitter api: {type(e).__name__}"
+    if not img_url:
+        return "no avatar found"
+    try:
+        resp = _requests.get(img_url, timeout=15)
+        if resp.status_code != 200 or not resp.content:
+            return f"download HTTP {resp.status_code}"
+        img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+        img.thumbnail((512, 512), Image.LANCZOS)
+        TEAM_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP", quality=85)
+        (TEAM_PHOTO_DIR / f"{member_id}.webp").write_bytes(buf.getvalue())
+        desk_store.set_member_photo(member_id, True)
+        return ""
+    except Exception as e:  # noqa: BLE001 — best-effort, report and move on
+        return f"store error: {e}"
+
+
+@router.post("/team/{member_id}/photo-from-x")
+def member_photo_from_x(member_id: int, _admin: dict = Depends(require_admin)):
+    """Pull a single member's avatar from their X handle (overwrites their photo)."""
+    member = desk_store.get_member(member_id)
+    if not member:
+        raise HTTPException(404, "Member not found")
+    reason = _store_avatar_from_x(member_id, member.get("twitter_url") or "")
+    if reason:
+        raise HTTPException(400, reason)
+    return {"ok": True, "url": f"/api/desk/team/{member_id}/photo"}
+
+
+@router.post("/team/refresh-photos-from-x")
+def refresh_team_photos_from_x(only_missing: bool = True,
+                               _admin: dict = Depends(require_admin)):
+    """Bulk-pull X avatars for every member with a handle. By default only fills
+    members who have no photo yet (only_missing=1); pass only_missing=0 to refresh
+    all of them. Best-effort per member — one failure never aborts the batch."""
+    updated, skipped, failures = 0, 0, []
+    for m in desk_store.list_team():
+        if only_missing and m.get("has_photo"):
+            skipped += 1
+            continue
+        if not (m.get("twitter_url") or "").strip():
+            skipped += 1
+            continue
+        reason = _store_avatar_from_x(m["id"], m["twitter_url"])
+        if reason:
+            failures.append({"name": m.get("name"), "reason": reason})
+        else:
+            updated += 1
+    return {"updated": updated, "skipped": skipped,
+            "failed": len(failures), "failures": failures}
+
+
 @router.get("/team/{member_id}/photo")
 def get_member_photo(member_id: int):
     path = TEAM_PHOTO_DIR / f"{member_id}.webp"

@@ -36,6 +36,7 @@ export default function TeamSection() {
   const { data, isLoading, mutate } = useSWR('/api/desk/team', fetcher)
   const [editing, setEditing] = useState(null)
   const [viewing, setViewing] = useState(null)
+  const [syncing, setSyncing] = useState(false)
 
   const team = (data?.team || []).filter((m) => isAdmin || m.enabled)
 
@@ -43,6 +44,23 @@ export default function TeamSection() {
     if (!window.confirm(`Remove ${m.name}?`)) return
     await fetch(`/api/desk/team/${m.id}`, { method: 'DELETE', credentials: 'include' })
     mutate()
+  }, [mutate])
+
+  // Admin: re-pull every member's avatar from their live X profile (only_missing=0).
+  const refreshFromX = useCallback(async () => {
+    if (!window.confirm('Refresh all member avatars from their X profiles?')) return
+    setSyncing(true)
+    try {
+      const r = await fetch('/api/desk/team/refresh-photos-from-x?only_missing=0',
+        { method: 'POST', credentials: 'include' })
+      const j = await r.json().catch(() => ({}))
+      if (r.ok) {
+        alert(`Avatars refreshed: ${j.updated} updated, ${j.failed} failed.`)
+        mutate()
+      } else {
+        alert(j.detail || 'Refresh failed')
+      }
+    } finally { setSyncing(false) }
   }, [mutate])
 
   return (
@@ -57,9 +75,14 @@ export default function TeamSection() {
           </div>
         </div>
         {isAdmin && (
-          <button className={styles.goldBtn} onClick={() => setEditing({})}>
-            <PlusIcon /> Add member
-          </button>
+          <div className={styles.headActions}>
+            <button className={styles.ghostBtn} onClick={refreshFromX} disabled={syncing}>
+              {syncing ? 'Refreshing…' : 'Refresh avatars from X'}
+            </button>
+            <button className={styles.goldBtn} onClick={() => setEditing({})}>
+              <PlusIcon /> Add member
+            </button>
+          </div>
         )}
       </div>
 

@@ -223,3 +223,56 @@ def search_tweets(query: str, since_unix: Optional[int] = None,
             continue
         out.append(_normalize_tweet(raw, fallback_handle="search"))
     return out
+
+
+def _hi_res_avatar(url: str) -> str:
+    """Twitter avatar URLs carry a size suffix (_normal/_bigger/_mini, 48px).
+    Swap to _400x400 for a crisp card avatar; leave non-matching URLs alone."""
+    if not url:
+        return url
+    for sz in ("_normal", "_bigger", "_mini", "_200x200", "_reasonably_small"):
+        if sz in url:
+            return url.replace(sz, "_400x400")
+    return url
+
+
+def get_user_profile_image(handle: str) -> Optional[str]:
+    """Return the high-res profile-image URL for an X handle, or None if not
+    available. Best-effort: raises the usual structured errors on auth/credit
+    problems so the caller can stop, but returns None on a soft miss."""
+    handle = (handle or "").lstrip("@").strip()
+    if not handle:
+        return None
+    try:
+        r = requests.get(
+            f"{BASE_URL}/twitter/user/info",
+            params={"userName": handle},
+            headers={"x-api-key": _api_key()},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as e:
+        raise TwitterApiTransientError(f"network error: {e}") from e
+    if r.status_code == 401:
+        raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
+    if r.status_code == 402:
+        raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
+    if r.status_code == 429:
+        raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
+    if r.status_code >= 500:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+    if r.status_code != 200:
+        return None
+    try:
+        body = r.json()
+    except ValueError:
+        return None
+    # The user object may be at the top level or nested under data/user.
+    user = body.get("data") or body.get("user") or body
+    if isinstance(user, dict) and isinstance(user.get("data"), dict):
+        user = user["data"]
+    for field in ("profilePicture", "profile_image_url_https",
+                  "profile_image_url", "avatar"):
+        url = user.get(field) if isinstance(user, dict) else None
+        if url:
+            return _hi_res_avatar(url)
+    return None

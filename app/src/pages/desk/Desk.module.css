@@ -102,6 +102,8 @@
   font-size: var(--text-base); cursor: pointer; min-height: var(--tap-min);
 }
 .ghostBtn:hover { color: var(--text-bright); border-color: var(--border-accent); }
+.ghostBtn:disabled { opacity: 0.6; cursor: default; }
+.headActions { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
 
 /* ── Empty state ── */
 .empty { text-align: center; padding: var(--space-3xl) var(--space-lg); max-width: 460px; margin: 0 auto; }

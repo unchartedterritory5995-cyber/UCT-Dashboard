@@ -3,6 +3,9 @@
 Generated from the firm's "Inside Uncharted Territory: Meet the Traders" sheet.
 Consumed by desk_store.ensure_default_team(), which inserts any member whose
 name is not already present (idempotent; never clobbers admin edits or photos).
+
+Each entry's "photo" names a bundled avatar in desk_team_photos/ (the trader's
+X profile picture from the sheet); seeded as the member photo unless one is set.
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "",
         "twitter_url": "https://x.com/TSDR_Trading",
         "sort_order": 0,
+        "photo": "tsdr.webp",
     },
     {
         "name": "Bracco",
@@ -26,6 +30,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Identifying high‑quality, high‑conviction “fat pitch” setups\nPattern recognition developed through years of studying market history\nUnderstanding when to size up and when to stay small\nTransparency around drawdowns, mistakes, and the emotional side of trading\nHelping traders recognize when he’s excited about an idea — a signal of strong conviction\nEncouraging community, accountability, and continuous study",
         "twitter_url": "https://x.com/Braczyy",
         "sort_order": 1,
+        "photo": "bracco.webp",
     },
     {
         "name": "1ChartMaster",
@@ -36,6 +41,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Reading charts with precision and simplicity\nIdentifying patterns before they break\nSpotting momentum shifts and RS leaders\nUnderstanding catalysts and how they drive price\nExecuting a disciplined risk‑to‑reward strategy\nSharing practical techniques learned over 10+ years of trading",
         "twitter_url": "https://x.com/1ChartMaster",
         "sort_order": 2,
+        "photo": "1chartmaster.webp",
     },
     {
         "name": "Manrav",
@@ -46,6 +52,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Top‑down process to stay aligned with market trend\nIdentifying high‑probability momentum setups with tight risk\nTracking Relative Strength leaders during corrections\nSitting in cash during chop and avoiding overtrading\nMastering 1–2 core setups deeply\nUsing options flow as a secondary confidence tool\nBuilding pattern recognition through screen time and chart reps\nI post entries and stop levels. Because I work a full-time job, I can't always alert exits in real-time. If a stop is hit, assume I am out. Don't wait for confirmation. Respect your stops.\nMy DMs are always open; looking forward to learning from you all!",
         "twitter_url": "https://x.com/manrav",
         "sort_order": 3,
+        "photo": "manrav.webp",
     },
     {
         "name": "AlexJonesIndustrialAverage",
@@ -56,6 +63,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Real‑time options flow and how to interpret it\nUsing flow as a confluence tool (not a standalone signal)\nIdentifying high‑probability momentum setups\nTransparency in entries, invalidations, and trade management\nHelping members understand the 5% of flow that actually matters\nPairing technical setups with flow‑based conviction",
         "twitter_url": "https://x.com/AlexJonesIA",
         "sort_order": 4,
+        "photo": "alexjonesindustrialaverage.webp",
     },
     {
         "name": "Jersace",
@@ -66,6 +74,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Not a formal “teacher,” but an open conversational mentor who explains his thinking, answers questions, and helps others identify true opportunities — the most important tool in any trader’s belt. Emphasizes self‑belief, mindset, and overcoming the inner enemy that holds traders back. \"You are youre own greatest enemy. Read that again\"",
         "twitter_url": "https://x.com/JersaceX",
         "sort_order": 5,
+        "photo": "jersace.webp",
     },
     {
         "name": "DarkOblivion",
@@ -76,6 +85,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Identifying the shapes, behaviors, and structural traits that big winning stocks show before they move\nRecognizing constructive, accumulative chart patterns and understanding where the strongest bases form\nDistinguishing healthy consolidations from traps and low‑quality structures\nFinding leadership early while it’s still building pressure beneath key moving averages\nUnderstanding how to spot the best stocks and bases before they make their move",
         "twitter_url": "",
         "sort_order": 6,
+        "photo": "darkoblivion.webp",
     },
     {
         "name": "Tiny Trades",
@@ -86,6 +96,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Higher‑timeframe structure (weekly/daily)\nIdentifying logical risk points\nMomentum swings in strong uptrends\nAccumulating in bases rather than chasing breakouts\nConsistency, discipline, and risk management\nSlow, steady account growth (“tortoise, not the hare”)\nEncouraging long‑term investing as a foundation",
         "twitter_url": "https://x.com/Tiny__Trades",
         "sort_order": 7,
+        "photo": "tiny_trades.webp",
     },
     {
         "name": "DMarbz",
@@ -96,6 +107,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Identifying significant new information for individual companies\nUnderstanding what’s driving overall market price action\nExplaining market mechanics (CTA flows, dealer positioning, OPEX effects)\nHighlighting windows where price action may turn\nHelping members interpret catalysts and structural forces behind moves",
         "twitter_url": "",
         "sort_order": 8,
+        "photo": "dmarbz.webp",
     },
     {
         "name": "Ciro Viotti",
@@ -106,6 +118,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "How to identify high‑ADR momentum opportunities\nStructuring trades with tight risk and defined stops\nUsing options responsibly (only for advanced traders)\nUnderstanding volume, themes, and high‑probability bursts\nManaging risk while scaling size\nBalancing momentum trades with leadership swings\nNavigating the psychological brutality of trading\nDeveloping discipline, resilience, and consistency\nRecognizing when a trade should work immediately vs. when to cut it",
         "twitter_url": "https://x.com/CiroViotti",
         "sort_order": 9,
+        "photo": "ciro_viotti.webp",
     },
     {
         "name": "Financial Contagion",
@@ -116,6 +129,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Weekly/monthly charts often signal major moves before they happen\nSupport/resistance is king — especially on long‑term charts; avoid the “dead bodies”\nFinviz is an elite free tool for scanning despite its bullish bias",
         "twitter_url": "https://x.com/SpecializedA4",
         "sort_order": 10,
+        "photo": "financial_contagion.webp",
     },
     {
         "name": "Beebe 🐝",
@@ -126,6 +140,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Price action trading and support‑based entries\nManaging risk through tight stops and controlled sizing\nDeveloping resilience and emotional discipline\nUnderstanding that losing is part of the process — losing small, winning big\nLong‑term compounding and building a sustainable equity curve\nThe personal development side of trading: patience, consistency, and incremental improvement\nEncouraging traders to pursue growth, learning, and self‑belief",
         "twitter_url": "https://x.com/awackywabbit",
         "sort_order": 11,
+        "photo": "beebe.webp",
     },
     {
         "name": "Camden Chris",
@@ -136,6 +151,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "My goal is not to tell anyone what to blindly buy or sell. My goal is to provide (MY) perspective, thought process, and situational awareness that members can use within their own system and decision making",
         "twitter_url": "https://x.com/Camden_Chris",
         "sort_order": 12,
+        "photo": "camden_chris.webp",
     },
     {
         "name": "Zen",
@@ -146,6 +162,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Identifying themes with structural tailwinds, understanding how catalysts drive group movement, and using multi‑timeframe alignment (weekly/daily with 30‑min entries) to build high‑probability swing setups.",
         "twitter_url": "https://x.com/mindofzen_",
         "sort_order": 13,
+        "photo": "zen.webp",
     },
     {
         "name": "LostNotFound",
@@ -156,6 +173,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Helping traders find their own pace and process; highlighting overlooked opportunities; showing how to build conviction through narrative + technical alignment; emphasizing learning through mistakes; demonstrating how catalysts reshape trajectories; reinforcing purposeful, reason‑based trading.",
         "twitter_url": "",
         "sort_order": 14,
+        "photo": "lostnotfound.webp",
     },
     {
         "name": "Bucket Head",
@@ -166,6 +184,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Rule‑based system built around market tide and net premiums\nUnderstanding premium/price disconnects and how to exploit them\nLayering hedges on top of swing positions\nProcess‑first mindset and disciplined execution\nHelping traders integrate a structured, flow‑driven framework into their own playbook",
         "twitter_url": "https://x.com/Zack_Davis15",
         "sort_order": 15,
+        "photo": "bucket_head.webp",
     },
     {
         "name": "Nickstro",
@@ -176,6 +195,7 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "Helping traders zoom out and understand the bigger picture; teaching when to press and when to sit tight; reinforcing that low win‑rate/high R:R is viable; encouraging patience, base‑building awareness, and holding leaders through volatility; showing that swing trading doesn’t require staring at intraday charts.",
         "twitter_url": "https://x.com/Nickstro_",
         "sort_order": 16,
+        "photo": "nickstro.webp",
     },
     {
         "name": "Stef",
@@ -186,5 +206,6 @@ SEED_MEMBERS: list[dict] = [
         "teaching_focus": "I became Chief Recording Officer because I nagged the guys until the recordings actually got uploaded — and it worked. Now I organize and maintain the entire library so traders can easily rewatch sessions and learn at their own pace. My focus in this group is making the content accessible, searchable, and structured so no one has to dig for the information they need. There is so much valuable content in Uncharted Territory and the growth never stops for any of us",
         "twitter_url": "https://x.com/StefCR0",
         "sort_order": 17,
+        "photo": "stef.webp",
     },
 ]

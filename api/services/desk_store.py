@@ -120,26 +120,61 @@ def ensure_default_publications() -> None:
             pass
 
 
+# Avatar storage. Bundled seed avatars (the traders' X profile pics, pulled from
+# the roster sheet) ship in the repo; the live serving copy lives on the Railway
+# volume next to admin-uploaded photos. DESK_PHOTO_DIR mirrors api/routers/desk.py.
+_BUNDLED_PHOTO_DIR = os.path.join(os.path.dirname(__file__), "desk_team_photos")
+_TEAM_PHOTO_DIR = os.environ.get("DESK_PHOTO_DIR", "/data/team_photos")
+
+
+def seed_member_photo(member_id: int, photo_filename: str) -> bool:
+    """Copy a bundled seed avatar into the live photo dir as {id}.webp and flag
+    the member has_photo. The bundled files are already WebP. Returns True on
+    success, False on a missing file. Never raises."""
+    if not photo_filename:
+        return False
+    src = os.path.join(_BUNDLED_PHOTO_DIR, photo_filename)
+    if not os.path.exists(src):
+        return False
+    try:
+        os.makedirs(_TEAM_PHOTO_DIR, exist_ok=True)
+        with open(src, "rb") as f:
+            data = f.read()
+        with open(os.path.join(_TEAM_PHOTO_DIR, f"{int(member_id)}.webp"), "wb") as f:
+            f.write(data)
+        set_member_photo(member_id, True)
+        return True
+    except Exception:
+        return False
+
+
 def ensure_default_team() -> None:
     """Idempotently seed the firm's traders ("Meet the Team") from the curated
     roster. Inserts only members whose name is not already present, so an admin
     who edits/hides/reorders a member or uploads a photo is never clobbered, and
-    re-runs on every boot never duplicate. Never raises."""
+    re-runs on every boot never duplicate. Also backfills the bundled X-avatar for
+    any seed member that still has no photo (covers members seeded before avatars
+    shipped). Never raises."""
     try:
         from api.services.desk_team_seed import SEED_MEMBERS
     except Exception:
         return
     try:
-        existing = {(m.get("name") or "").strip().lower() for m in list_team()}
+        existing = {(m.get("name") or "").strip().lower(): m for m in list_team()}
     except Exception:
-        existing = set()
+        existing = {}
     for member in SEED_MEMBERS:
-        if (member.get("name") or "").strip().lower() in existing:
-            continue
-        try:
-            create_member(member)
-        except Exception:
-            pass
+        key = (member.get("name") or "").strip().lower()
+        row = existing.get(key)
+        if row is None:
+            try:
+                row = create_member(member)
+            except Exception:
+                continue
+        # Backfill the bundled avatar only when the member has no photo yet —
+        # never clobbers an admin upload (has_photo == 1).
+        if row and not row.get("has_photo") and member.get("photo"):
+            seed_member_photo(row["id"], member["photo"])
 
 
 # ── Substack publications ───────────────────────────────────────────────────────
