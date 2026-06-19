@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
+import UIcon from '../../components/ui/UIcon'
 import { prefetchBars } from '../../utils/prefetchBars'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
@@ -70,7 +71,7 @@ export default function ScannerPro({ embedded = false }) {
         {!embedded && <h1 className={styles.heading}>Scanner</h1>}
         {isPhone ? (
           <button type="button" className={styles.filterToggle} onClick={() => setSheetOpen(true)}>
-            ⚙ Filters{activeCount ? ` · ${activeCount}` : ''}
+            <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeCount ? ` · ${activeCount}` : ''}
           </button>
         ) : (
           <button type="button" className={styles.filterToggle} onClick={() => setShowFilters(v => !v)}>

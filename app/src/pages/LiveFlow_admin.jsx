@@ -895,7 +895,7 @@ export default function LiveFlowAdmin() {
                 }}
                 title="Run the full live pipeline (enrich → aggregate → conviction → gate) to see what would have posted to Discord"
               >
-                {simulateMode ? "✓ simulate gate" : "simulate gate"}
+                {simulateMode ? <><UIcon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />simulate gate</> : "simulate gate"}
               </button>
 
               {/* JSON upload — sidesteps Bullflow MCP using a Discord export.
@@ -912,7 +912,7 @@ export default function LiveFlowAdmin() {
                 }}
                 title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts (bypasses Bullflow MCP)"
               >
-                {uploadedFile ? `✓ ${uploadedFile.name.slice(0, 18)}…` : "upload json"}
+                {uploadedFile ? <><UIcon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />{`${uploadedFile.name.slice(0, 18)}…`}</> : "upload json"}
                 <input
                   type="file"
                   accept="application/json,.json"

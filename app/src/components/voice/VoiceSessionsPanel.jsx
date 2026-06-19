@@ -164,7 +164,7 @@ export default function VoiceSessionsPanel() {
                           <td className={styles.args}>
                             <code>{c.args ? JSON.stringify(c.args).slice(0, 60) : '—'}</code>
                           </td>
-                          <td>{c.ok ? '✓' : '✗'}</td>
+                          <td>{c.ok ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}</td>
                           <td>{c.latency_ms ? `${c.latency_ms}ms` : '—'}</td>
                         </tr>
                       ))}
