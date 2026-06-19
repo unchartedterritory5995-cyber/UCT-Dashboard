@@ -12,6 +12,7 @@ from api.services import tweet_store
 def store(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
         monkeypatch.setattr(desk_store, "_DB_PATH", os.path.join(d, "desk.db"))
+        monkeypatch.setattr(desk_store, "_TEAM_PHOTO_DIR", os.path.join(d, "photos"))
         desk_store._init_db()
         yield desk_store
 
@@ -290,6 +291,25 @@ def test_seed_member_photo_missing_file_is_safe(store, monkeypatch, tmp_path):
     m = store.create_member({"name": "Ghost"})
     assert store.seed_member_photo(m["id"], "does_not_exist.webp") is False
     assert store.get_member(m["id"])["has_photo"] == 0
+
+
+def test_reseed_refreshes_existing_seed_photos_once(store, monkeypatch, tmp_path):
+    """The versioned one-shot reseed replaces an older seed photo with the
+    current bundled avatar, then never runs again."""
+    monkeypatch.setattr(store, "_TEAM_PHOTO_DIR", str(tmp_path))
+    store.ensure_default_team()
+    bracco = next(m for m in store.list_team() if m["name"] == "Bracco")
+    f = tmp_path / f"{bracco['id']}.webp"
+    # Simulate an older small image + clear the version flag so reseed re-runs.
+    f.write_bytes(b"OLD_SMALL_IMG")
+    (tmp_path / f".photos_{store._PHOTO_VERSION}").unlink()
+    store.ensure_default_team()  # reseed should re-stamp from bundled avatars
+    assert f.read_bytes()[:4] == b"RIFF"      # real WebP again, not the stub
+    assert (tmp_path / f".photos_{store._PHOTO_VERSION}").exists()
+    # Idempotent: flag present → a later stub is NOT replaced.
+    f.write_bytes(b"OLD_SMALL_IMG")
+    store.ensure_default_team()
+    assert f.read_bytes() == b"OLD_SMALL_IMG"
 
 
 def test_team_alters_apply_to_legacy_db(monkeypatch):

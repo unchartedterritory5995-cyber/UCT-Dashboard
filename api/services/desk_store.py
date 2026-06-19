@@ -175,6 +175,39 @@ def ensure_default_team() -> None:
         # never clobbers an admin upload (has_photo == 1).
         if row and not row.get("has_photo") and member.get("photo"):
             seed_member_photo(row["id"], member["photo"])
+    _reseed_photos_once()
+
+
+# Bump when the bundled avatar set is regenerated (e.g. crisper sources) and you
+# want already-seeded members to adopt the new images. Each version runs exactly
+# once (flag file on the photo volume).
+_PHOTO_VERSION = "v2_crisp"
+
+
+def _reseed_photos_once() -> None:
+    """One-shot: re-stamp every seed member's photo from the (updated) bundled
+    avatars, so members seeded with an older/smaller image pick up the crisper
+    set. Gated by a per-version flag file on the photo volume → runs once. This
+    DOES overwrite an existing seed photo (that's the point); it only touches
+    members whose name matches the seed roster. Never raises."""
+    flag = os.path.join(_TEAM_PHOTO_DIR, f".photos_{_PHOTO_VERSION}")
+    try:
+        if os.path.exists(flag):
+            return
+    except Exception:
+        return
+    try:
+        from api.services.desk_team_seed import SEED_MEMBERS
+        by_name = {(m.get("name") or "").strip().lower(): m for m in SEED_MEMBERS}
+        for row in list_team():
+            seed = by_name.get((row.get("name") or "").strip().lower())
+            if seed and seed.get("photo"):
+                seed_member_photo(row["id"], seed["photo"])
+        os.makedirs(_TEAM_PHOTO_DIR, exist_ok=True)
+        with open(flag, "w") as f:
+            f.write(_PHOTO_VERSION)
+    except Exception:
+        pass
 
 
 # ── Substack publications ───────────────────────────────────────────────────────
