@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from api.middleware.auth_middleware import get_current_user, require_admin
 
 # Importing the detector modules triggers self-registration with the registry.
 from api.services.pattern_engine.detectors.classical import golden_cross as _golden_cross  # noqa: F401
@@ -828,8 +830,18 @@ def get_detections(
     tf: str = Query(default="D"),
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
+    confirmed_only: bool = Query(default=True, description="only Opus-vision-confirmed verdicts"),
 ):
-    """Return active detections for a symbol (status NOT in completed/failed/expired)."""
+    """Return detections for a symbol.
+
+    Default (confirmed_only) returns Opus-vision-confirmed verdicts with rationale.
+    Set confirmed_only=false to get the raw rule-engine active detections.
+    """
+    if confirmed_only:
+        from api.services.pattern_vision import store as pv_store
+        pv_store.init_db()
+        verdicts = pv_store.get_confirmed(sym, tf)
+        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts, "count": len(verdicts)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
@@ -849,3 +861,35 @@ def post_feedback(detection_id: str, body: FeedbackBody):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True, "feedback_id": fb_id}
+
+
+# ---- Opus-vision pattern judge (confirmed-only surface) -------------------
+
+@router.get("/confirmed/{sym}")
+def patterns_confirmed(sym: str, tf: str = "D", user=Depends(get_current_user)):
+    """Confirmed vision verdicts for a symbol (with rationale)."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    return {"sym": sym.upper(), "tf": tf, "verdicts": pv_store.get_confirmed(sym, tf)}
+
+
+@router.post("/judge/{sym}")
+def patterns_judge(sym: str, tf: str = "D", user=Depends(require_admin)):
+    """Admin: run the Opus-vision judge for a symbol in the background."""
+    import threading
+    from api.services.pattern_vision import orchestrator as pv_orch
+    threading.Thread(
+        target=lambda: pv_orch.judge_ticker(sym, tf, force=True),
+        daemon=True, name=f"pv-judge-{sym}",
+    ).start()
+    return {"started": True}
+
+
+@router.get("/admin/vision-stats")
+def patterns_vision_stats(user=Depends(require_admin)):
+    """Admin: today's vision-judge spend + cap state."""
+    import datetime
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    day = datetime.date.today().isoformat()
+    return {"cost_today": pv_store.cost_today(day), "may_judge": pv_store.may_judge(day)}
