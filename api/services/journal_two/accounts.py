@@ -493,13 +493,68 @@ def update_account(
             conn.close()
 
 
+# Every table that stamps rows with (user_id, account_id). When an account is
+# purged, all of its data is removed from each of these. j2_option_legs is not
+# listed — it cascades from j2_option_strategies (PRAGMA foreign_keys=ON).
+_ACCOUNT_SCOPED_TABLES = (
+    "j2_positions",
+    "j2_trades",
+    "j2_option_strategies",
+    "j2_notes",
+    "j2_coach_outputs",
+    "j2_chat_messages",
+    "j2_onboarding_responses",
+    "j2_verdicts",
+    "j2_trade_reviews",
+    "j2_interventions",
+    "j2_profile_suggestions",
+)
+
+
+def _purge_account_scoped_data(
+    conn: sqlite3.Connection, user_id: str, account_id: str
+) -> dict[str, int]:
+    """Delete every (user_id, account_id) row across all account-scoped
+    tables. Caller owns the transaction. Tolerates schema drift: a table
+    missing entirely (or lacking an account_id column) is skipped."""
+    deleted: dict[str, int] = {}
+    for table in _ACCOUNT_SCOPED_TABLES:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?",
+            (table,),
+        ).fetchone()
+        if not exists:
+            continue
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if "account_id" not in cols or "user_id" not in cols:
+            continue
+        n = conn.execute(
+            f"DELETE FROM {table} WHERE user_id = ? AND account_id = ?",
+            (user_id, account_id),
+        ).rowcount
+        if n:
+            deleted[table] = n
+    return deleted
+
+
 def delete_account(
     user_id: str,
     account_id: str,
     conn: sqlite3.Connection | None = None,
+    *,
+    purge: bool = False,
 ) -> bool:
-    """Delete an account ONLY if it has zero positions and zero trades.
-    Raises AccountConflictError with counts otherwise."""
+    """Delete an account.
+
+    By default, deletes ONLY if it has zero positions and zero trades —
+    raises AccountConflictError with counts otherwise (the caller is
+    expected to move trades elsewhere first).
+
+    When ``purge=True``, the account's positions, trades, option
+    strategies and all coach artifacts are deleted along with it — no
+    move required. Either way, the user's last remaining account cannot
+    be deleted.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -510,26 +565,8 @@ def delete_account(
         if row is None:
             return False
 
-        pos_count = conn.execute(
-            "SELECT COUNT(*) AS n FROM j2_positions "
-            "WHERE user_id = ? AND account_id = ?",
-            (user_id, account_id),
-        ).fetchone()["n"]
-        trade_count = conn.execute(
-            "SELECT COUNT(*) AS n FROM j2_trades "
-            "WHERE user_id = ? AND account_id = ?",
-            (user_id, account_id),
-        ).fetchone()["n"]
-        if pos_count > 0 or trade_count > 0:
-            raise AccountConflictError(
-                "Account has positions or trades — move them first.",
-                payload={
-                    "openPositionCount": pos_count,
-                    "tradeCount": trade_count,
-                },
-            )
-
-        # Block deleting the user's last remaining account.
+        # Block deleting the user's last remaining account (checked before
+        # any destructive purge so we never wipe data then refuse).
         remaining = conn.execute(
             "SELECT COUNT(*) AS n FROM j2_accounts WHERE user_id = ?",
             (user_id,),
@@ -539,11 +576,38 @@ def delete_account(
                 "Cannot delete your only account. Create another first."
             )
 
-        conn.execute(
-            "DELETE FROM j2_accounts WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        )
-        conn.commit()
+        if not purge:
+            pos_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_positions "
+                "WHERE user_id = ? AND account_id = ?",
+                (user_id, account_id),
+            ).fetchone()["n"]
+            trade_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_trades "
+                "WHERE user_id = ? AND account_id = ?",
+                (user_id, account_id),
+            ).fetchone()["n"]
+            if pos_count > 0 or trade_count > 0:
+                raise AccountConflictError(
+                    "Account has positions or trades — move them first.",
+                    payload={
+                        "openPositionCount": pos_count,
+                        "tradeCount": trade_count,
+                    },
+                )
+
+        try:
+            conn.execute("BEGIN")
+            if purge:
+                _purge_account_scoped_data(conn, user_id, account_id)
+            conn.execute(
+                "DELETE FROM j2_accounts WHERE id = ? AND user_id = ?",
+                (account_id, user_id),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         return True
     finally:
         if owned:
