@@ -109,6 +109,7 @@ async def test_discord_post():
     pointed at production. Safe to call repeatedly.
     """
     import datetime as _dt
+    import traceback
     import httpx
 
     if not liveflow_worker.DISCORD_WEBHOOK_URL:
@@ -117,51 +118,61 @@ async def test_discord_post():
             "error": "DISCORD_WEBHOOK_URL not configured. Set env var first.",
         }
 
-    # Synthesize an aggregate with the exact field shape _build_embed expects.
-    # Values picked to exercise every branch: $1.5M premium (medium tier), 2
-    # fires (multi-fire badge), proper OI for delta computation, OTM call
-    # (moneyness path), Alpha Gold tier (top priority). Real-looking data that
-    # subscribers won't mistake for a tradeable signal because of the markers.
-    now_ts = _dt.datetime.now(_dt.timezone.utc).timestamp()
-    test_agg = {
-        "ticker": "TEST",
-        "cp": "C",
-        "strike": 100.0,
-        "exp": "2026-07-17",
-        "dte": 28,
-        "total_premium": 1_500_000.0,
-        "max_premium": 1_500_000.0,
-        "total_size": 1500,
-        "max_size": 1500,
-        "fire_count": 2,
-        "best_alert_name": "UCT Test Alert",
-        "best_alert_priority": 1,
-        "alert_names_seen": {"UCT Test Alert"},
-        "first_fire_ts": _dt.datetime.fromtimestamp(now_ts, tz=_dt.timezone.utc).isoformat(),
-        "last_fire_ts": _dt.datetime.fromtimestamp(now_ts, tz=_dt.timezone.utc).isoformat(),
-        "prior_oi": 5000,
-        "spot": 99.50,
-        "moneyness_pct": -0.5,
-        "moneyness_label": "ATM",
-        "avg_fill": 12.50,
-        "discord_message_id": None,
-    }
-
-    # Build the embed using the production helper so any rendering bug surfaces
-    # here too — single source of truth for embed structure.
-    embed = liveflow_worker._build_embed(test_agg)
-
-    # Inject "TEST" markers so subscribers can tell this isn't a real signal.
-    # We modify the embed AFTER _build_embed so the helper's logic stays clean.
-    embed["title"] = "🧪 TEST · " + embed.get("title", "")
-    if "footer" in embed and isinstance(embed["footer"], dict):
-        embed["footer"]["text"] = (
-            "🧪 MANUAL TEST POST · " + embed["footer"].get("text", "")
-        )
-
-    payload = {"embeds": [embed]}
-
+    # Wrap everything in try/except so future bugs surface as JSON instead of
+    # generic "Internal Server Error" — much easier to debug from a browser.
     try:
+        # Synthesize an aggregate with the exact field shape _build_embed expects.
+        # Field names and types must match the worker's internal aggregate dict
+        # EXACTLY — wrong field name → KeyError, wrong type (e.g. ISO string vs
+        # UNIX timestamp) → TypeError inside datetime.fromtimestamp().
+        #
+        # Values picked to exercise every branch: $1.5M premium (medium tier), 2
+        # fires (multi-fire badge), proper OI for delta computation, OTM call
+        # (moneyness path), Alpha Gold tier (top priority). Real-looking data that
+        # subscribers won't mistake for a tradeable signal because of the markers.
+        now_ts = _dt.datetime.now(_dt.timezone.utc).timestamp()
+        test_agg = {
+            "ticker": "TEST",
+            "cp": "C",
+            "strike": 100.0,
+            "exp": "2026-07-17",
+            "dte": 28,
+            "total_premium": 1_500_000.0,
+            "max_premium": 1_500_000.0,
+            "total_size": 1500,
+            "max_size": 1500,
+            "fire_count": 2,
+            "best_alert_name": "UCT Test Alert",
+            "best_alert_priority": 1,
+            "alert_names_seen": {"UCT Test Alert"},
+            # first_fire_ts / last_fire_ts are UNIX timestamps (floats), NOT ISO
+            # strings — the embed builder passes them to datetime.fromtimestamp().
+            # Spread by 5 minutes to show as a small time range in the embed.
+            "first_fire_ts": now_ts - 300,
+            "last_fire_ts": now_ts,
+            "prior_oi": 5000,
+            "spot": 99.50,
+            "moneyness_pct": -0.5,
+            "moneyness_label": "ATM",
+            # Worker uses "last_fill_price" (not "avg_fill") — match exactly.
+            "last_fill_price": 12.50,
+            "discord_message_id": None,
+        }
+
+        # Build the embed using the production helper so any rendering bug surfaces
+        # here too — single source of truth for embed structure.
+        embed = liveflow_worker._build_embed(test_agg)
+
+        # Inject "TEST" markers so subscribers can tell this isn't a real signal.
+        # We modify the embed AFTER _build_embed so the helper's logic stays clean.
+        embed["title"] = "🧪 TEST · " + embed.get("title", "")
+        if "footer" in embed and isinstance(embed["footer"], dict):
+            embed["footer"]["text"] = (
+                "🧪 MANUAL TEST POST · " + embed["footer"].get("text", "")
+            )
+
+        payload = {"embeds": [embed]}
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.post(
                 liveflow_worker.DISCORD_WEBHOOK_URL + "?wait=true",
@@ -183,7 +194,10 @@ async def test_discord_post():
             "response_body": e.response.text[:500],
         }
     except Exception as e:
+        # Catch-all — surfaces exceptions as JSON instead of generic 500.
+        # Traceback truncated to last 1500 chars to fit in a browser response.
         return {
             "ok": False,
             "error": f"{type(e).__name__}: {str(e)[:300]}",
+            "traceback": traceback.format_exc()[-1500:],
         }
