@@ -519,10 +519,11 @@ def update_account_route(
 @router.delete("/accounts/{account_id}")
 def delete_account_route(
     account_id: str,
+    purge: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
-        ok = accounts_service.delete_account(user["id"], account_id)
+        ok = accounts_service.delete_account(user["id"], account_id, purge=purge)
     except accounts_service.AccountConflictError as e:
         raise HTTPException(
             status_code=409,

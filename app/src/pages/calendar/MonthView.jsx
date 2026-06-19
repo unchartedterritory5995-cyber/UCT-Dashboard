@@ -43,34 +43,38 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 }
 
 // ── MonthGrid cell ─────────────────────────────────────────────────────────
+// Mirrors WeekView's WeekTimingGroup so the month grid reads exactly like the
+// week view: a BMO / AMC column with a gold/blue header and logo + ticker rows.
 
-// One timing band (BMO or AMC) inside a month cell.
-function TimingBand({ label, icon, syms, mineSyms }) {
-  const MAX_LOGOS = 5
-  const shown = syms.slice(0, MAX_LOGOS)
-  const overflow = syms.length - MAX_LOGOS
+const MONTH_MAX_PER_TIMING = 6   // keep cells from ballooning on heavy earnings days; click → drawer for the full list
+
+function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
+  const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
+  const overflow = syms.length - MONTH_MAX_PER_TIMING
   return (
-    <div className={styles.gband}>
-      <span className={styles.gbandLbl}>
-        <span className={styles.gbandIcon} aria-hidden="true">{icon}</span>{label}
-      </span>
+    <div className={styles.wtcol}>
+      <div className={`${styles.wgroupHd} ${hdClass}`}>
+        <span aria-hidden="true">{icon}</span> {label}
+      </div>
       {shown.length ? (
-        <div className={styles.glogos}>
+        <>
           {shown.map(s => (
-            <span key={s} className={mineSyms.has(s) ? styles.mineRing : ''}>
-              <CompanyLogo sym={s} size={18} />
-            </span>
+            <div key={s} className={styles.mrow}>
+              <CompanyLogo sym={s} size={40} />
+              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
+            </div>
           ))}
-          {overflow > 0 && <span className={styles.gmore}>+{overflow}</span>}
-        </div>
+          {overflow > 0 && <div className={styles.mmore}>+{overflow} more</div>}
+        </>
       ) : (
-        <span className={styles.gbandEmpty}>—</span>
+        <div className={styles.wtcolEmpty}>—</div>
       )}
     </div>
   )
 }
 
 function MonthCell({ cell, onOpenDay }) {
+  const empty = cell.bmoSyms.length === 0 && cell.amcSyms.length === 0
   return (
     <div
       className={[
@@ -84,9 +88,17 @@ function MonthCell({ cell, onOpenDay }) {
         {cell.dayNum}
         {cell.hasMacro && <span className={styles.macroStar}> ★</span>}
       </div>
-      <TimingBand label="BMO" icon="☀" syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
-      <div className={styles.gbandDivider} />
-      <TimingBand label="AMC" icon="🌙" syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+      {empty ? (
+        <div className={styles.mempty}>
+          <span className={styles.wemptyDot} aria-hidden="true" />
+          No earnings
+        </div>
+      ) : (
+        <div className={styles.mtimings}>
+          <MonthTimingGroup label="BMO" icon="☀" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="AMC" icon="🌙" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+        </div>
+      )}
     </div>
   )
 }

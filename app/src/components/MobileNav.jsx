@@ -8,6 +8,7 @@ import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import Sheet from './mobile/Sheet'
 import MoversSidebar from './MoversSidebar'
 import styles from './MobileNav.module.css'
+import uctLogo from './intro/assets/compass-mark.png'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -179,8 +180,13 @@ export default function MobileNav() {
               {user?.display_name || user?.email || ''}
             </span>
           </div>
-          <span className={styles.brand}>UCT</span>
-          <span className={styles.brandSub}>Intelligence Engine</span>
+          <div className={styles.brandRow}>
+            <img className={styles.brandLogo} src={uctLogo} alt="" aria-hidden="true" />
+            <div className={styles.brandText}>
+              <span className={styles.brand}>UCT</span>
+              <span className={styles.brandSub}>Intelligence Engine</span>
+            </div>
+          </div>
         </div>
 
         <div className={styles.drawerScroll}>

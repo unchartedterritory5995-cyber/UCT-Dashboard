@@ -8,7 +8,7 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
-import NewsFeed from '../components/tiles/NewsFeed'
+import TapeFeed from '../components/tiles/TapeFeed'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import RegimeTile from '../components/tiles/RegimeTile'
 import MoversSidebar from '../components/MoversSidebar'
@@ -85,7 +85,7 @@ export default function Dashboard() {
           <div className={styles.row3}>
             <CatalystFlow />
             <LeadershipTile />
-            <NewsFeed />
+            <TapeFeed />
           </div>
           <div className={styles.row4}>
             <TileCard title="Options Flow">
@@ -155,11 +155,11 @@ export default function Dashboard() {
             <MobileSection
               icon="📰"
               title="News"
-              subtitle="Latest market headlines"
+              subtitle="Live market tweets — on the tape"
               expanded={openSection === 'news'}
               onToggle={() => toggle('news')}
             >
-              <NewsFeed />
+              <TapeFeed />
             </MobileSection>
           </PullToRefresh>
         </div>

@@ -21,6 +21,9 @@
   --cal-green: var(--gain);
   --cal-red: var(--loss);
   --cal-blue: var(--info);
+  /* Uniform text size for everything inside the month grid (weekday header,
+     day number, BMO/AMC labels, icon, empty dash, +N overflow). */
+  --cal-month-fs: 11px;
 }
 
 /* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
@@ -515,6 +518,15 @@
   text-align: center;
 }
 
+/* Weekday header labels (Mon/Tue/…) — match the cell label tier for uniformity. */
+.scolLbl {
+  font-size: var(--cal-month-fs);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+}
+
 .mgrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -525,9 +537,9 @@
 .gcell {
   background: var(--cal-panel);
   border: 1px solid var(--cal-line);
-  border-radius: 10px;
-  padding: 7px 8px;
-  min-height: 104px;
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 132px;
   cursor: pointer;
   transition: border-color 0.12s;
   display: flex;
@@ -547,10 +559,76 @@
 }
 
 .dn {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 800;
-  color: var(--cal-dim);
-  margin-bottom: 4px;
+  color: var(--cal-gold);
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+
+/* ── Month cell content — mirrors the week view (logo + ticker rows under
+   gold/blue BMO·AMC headers) so the month grid reads exactly like the week. ── */
+.mtimings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 5px;
+  cursor: pointer;
+  border-radius: 9px;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.mrow:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
+}
+
+.mrow > span:first-child {
+  transition: transform 0.14s ease;
+}
+
+.mrow:hover > span:first-child {
+  transform: scale(1.09);
+}
+
+.mt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mmore {
+  font-size: 12px;
+  color: var(--cal-muted);
+  font-weight: 700;
+  padding: 4px 5px 0;
+}
+
+.mempty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-height: 80px;
+  color: var(--cal-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  opacity: 0.7;
 }
 
 /* ── BMO / AMC split bands ─────────────────────────────────────────────── */
@@ -568,7 +646,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--cal-muted);
@@ -576,7 +654,7 @@
 }
 
 .gbandIcon {
-  font-size: 9px;
+  font-size: var(--cal-month-fs);
   line-height: 1;
   filter: saturate(0.85);
 }
@@ -588,7 +666,7 @@
 }
 
 .gbandEmpty {
-  font-size: 11px;
+  font-size: var(--cal-month-fs);
   font-weight: 700;
   color: var(--cal-line2);
   line-height: 1;
@@ -597,7 +675,7 @@
 .glogos {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
 }
 
@@ -608,7 +686,7 @@
 }
 
 .gmore {
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   color: var(--cal-muted);
   font-weight: 700;
   padding: 1px 3px;
