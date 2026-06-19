@@ -7,6 +7,7 @@ import useLivePrices from '../../hooks/useLivePrices'
 import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
 import useTickerTweets from '../../hooks/useTickerTweets'
 import CompassAssistButton from '../voice/CompassAssistButton'
+import UIcon from '../ui/UIcon'
 import styles from './TickerHubSheet.module.css'
 
 const StockChart = lazy(() => import('../StockChart'))
@@ -100,24 +101,24 @@ function TickerHubBody({ sym, onClose }) {
         {/* Action row */}
         <div className={styles.actions}>
           <button type="button" className={styles.action} onClick={openChart}>
-            <span className={styles.aicon} aria-hidden="true">📈</span>Chart
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="equity" size={14} /></span>Chart
           </button>
           <button
             type="button"
             className={`${styles.action} ${hasAlert(sym) ? styles.on : ''}`}
             onClick={() => setAlertOpen((o) => !o)}
           >
-            <span className={styles.aicon} aria-hidden="true">🔔</span>Alert
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="bell" size={14} /></span>Alert
           </button>
           <button
             type="button"
             className={`${styles.action} ${flagged ? styles.on : ''}`}
             onClick={() => toggle(sym)}
           >
-            <span className={styles.aicon} aria-hidden="true">⚑</span>Flag
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="flag" size={14} /></span>Flag
           </button>
           <button type="button" className={styles.action} onClick={() => go('/journal')}>
-            <span className={styles.aicon} aria-hidden="true">📓</span>Journal
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="journal" size={14} /></span>Journal
           </button>
           <button
             type="button"
@@ -125,7 +126,7 @@ function TickerHubBody({ sym, onClose }) {
             onClick={() => setShowFund((o) => !o)}
             aria-expanded={showFund}
           >
-            <span className={styles.aicon} aria-hidden="true">📊</span>Funds
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="breadth" size={14} /></span>Funds
           </button>
         </div>
 

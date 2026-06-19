@@ -4,6 +4,7 @@ import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import HeroImagePicker from './HeroImagePicker'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './NoteEditorPage.module.css'
 
 const AUTOSAVE_MS = 800
@@ -239,7 +240,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
           {saveStatus === 'saving' && 'Saving…'}
           {saveStatus === 'dirty' && 'Editing'}
           {saveStatus === 'reconnecting' && 'Reconnecting…'}
-          {saveStatus === 'error' && `⚠ Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
+          {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
         </div>
         <div className={styles.headerControls}>
           <select
@@ -339,11 +340,11 @@ export default function NoteEditorPage({ noteId, onBack }) {
                 const url = prompt('Link URL (https only):')
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
-              label="🔗"
+              label={<UIcon name="link" size={14} />}
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
-              label="🖼"
+              label={<UIcon name="document" size={14} />}
             />
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}

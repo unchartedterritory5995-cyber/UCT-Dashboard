@@ -5,6 +5,7 @@
  */
 
 import { computeDaysToExpiration } from '../../lib/optionCalcs'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './ExpiredBanner.module.css'
 
 export default function ExpiredBanner({ strategies, onMarkAll, onDismiss }) {
@@ -18,7 +19,7 @@ export default function ExpiredBanner({ strategies, onMarkAll, onDismiss }) {
 
   return (
     <div className={styles.wrap} role="alert">
-      <div className={styles.icon} aria-hidden="true">⚠</div>
+      <div className={styles.icon} aria-hidden="true"><UIcon name="warning" size={20} /></div>
       <div className={styles.body}>
         <div className={styles.title}>
           {expired.length} option {expired.length === 1 ? 'strategy has' : 'strategies have'} expired

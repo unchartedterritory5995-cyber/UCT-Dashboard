@@ -19,6 +19,7 @@ import BreadthViews from './breadth/BreadthViews'
 import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
 import GroupControls from './breadth/grouping/GroupControls'
 import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
+import UIcon from '../components/ui/UIcon'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -398,7 +399,7 @@ function CopyTickersButton({ items }) {
   }
   return (
     <button className={styles.copyBtn} onClick={handleCopy} title="Copy all tickers to clipboard">
-      {copied ? '✓ Copied' : 'Copy List'}
+      {copied ? <><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : 'Copy List'}
     </button>
   )
 }
@@ -535,7 +536,7 @@ function DrillModal({ drill, latestDate, onClose }) {
               <CopyTickersButton items={grouped ? grouped.order : items} />
             </div>
           </div>
-          <button className={styles.drillClose} onClick={onClose} aria-label="Close">✕</button>
+          <button className={styles.drillClose} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>
         </div>
 
         <div className={styles.drillSplit}>
@@ -647,14 +648,14 @@ function DrillModal({ drill, latestDate, onClose }) {
                 {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                    {flagToast === 'added' ? <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Flagged</> : <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Removed</>}
                   </span>
                 )}
                 <button
                   className={`${styles.drillFlagBtn}${isFlagged(selected.t) ? ' ' + styles.drillFlagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(selected.t); toggleFlag(selected.t); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                >⚑ {isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
+                ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.drillChartTabs}>
                   {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
                     <button
@@ -1291,7 +1292,7 @@ export default function Breadth() {
                   onClick={() => setCustomizeOpen(o => !o)}
                   title="Customize which metrics show in the sheet"
                 >
-                  <span className={customizeStyles.triggerIcon}>⚙</span>
+                  <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={14} /></span>
                   Customize
                 </button>
                 {customizeOpen && (
@@ -1476,7 +1477,7 @@ export default function Breadth() {
                                 return (
                                   <div key={k} className={styles.maItem}>
                                     <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
-                                      {v === null || v === undefined ? '—' : isCheck ? '✓' : '✗'}
+                                      {v === null || v === undefined ? '—' : isCheck ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}
                                     </span>
                                   </div>
                                 )

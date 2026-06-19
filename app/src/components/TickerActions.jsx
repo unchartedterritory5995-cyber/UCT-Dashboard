@@ -8,6 +8,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
+import UIcon from './ui/UIcon'
 import styles from './TickerActions.module.css'
 
 export function useTickerActions() {
@@ -97,7 +98,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
     <>
       {/* Flag */}
         <button className={styles.item} onClick={() => { toggleFlag(sym); onClose() }}>
-          {flagged ? '⚑ Unflag' : '⚑ Flag'}
+          <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{flagged ? 'Unflag' : 'Flag'}
         </button>
 
         {/* Tags */}
@@ -133,7 +134,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
         {/* Alert */}
         {!showAlert ? (
           <button className={styles.item} onClick={() => setShowAlert(true)}>
-            🔔 {hasAlert(sym) ? 'Manage alerts' : 'Set alert'}
+            <UIcon name="bell" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{hasAlert(sym) ? 'Manage alerts' : 'Set alert'}
           </button>
         ) : (
           <div className={styles.alertSection}>

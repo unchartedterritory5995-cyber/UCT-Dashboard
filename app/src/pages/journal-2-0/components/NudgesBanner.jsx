@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 
 const SNOOZE_MS = 60 * 60 * 1000   // 1 hour
 const STORAGE_KEY_PREFIX = 'uct.j2.nudges.dismissed.'
@@ -64,7 +65,7 @@ export default function NudgesBanner({ accountId, state }) {
     if (lossStreakCount >= T.loss && !isSnoozed('loss')) {
       out.push({
         key: 'loss',
-        icon: '🛑',
+        icon: 'noEntry',
         message: `${lossStreakCount} down today. Take 15?`,
         tint: 'rgba(239,68,68,0.10)',
         border: 'rgba(239,68,68,0.5)',
@@ -73,7 +74,7 @@ export default function NudgesBanner({ accountId, state }) {
     if (winStreakCount >= T.win && !isSnoozed('win')) {
       out.push({
         key: 'win',
-        icon: '🏆',
+        icon: 'star-fill',
         message: `${winStreakCount} in a row. Don't size up out of euphoria.`,
         tint: 'rgba(34,197,94,0.10)',
         border: 'rgba(34,197,94,0.5)',
@@ -82,7 +83,7 @@ export default function NudgesBanner({ accountId, state }) {
     if (staleCount > 0 && !isSnoozed('stale')) {
       out.push({
         key: 'stale',
-        icon: '⏳',
+        icon: 'clock',
         message: `${staleCount} position${staleCount === 1 ? '' : 's'} held ${T.staleDays}+ days with no notes — review these.`,
         tint: 'rgba(201,168,76,0.10)',
         border: 'rgba(201,168,76,0.5)',
@@ -112,7 +113,7 @@ export default function NudgesBanner({ accountId, state }) {
             gap: 10,
           }}
         >
-          <span style={{ fontSize: 14 }}>{n.icon}</span>
+          <span style={{ fontSize: 14 }}><UIcon name={n.icon} size={14} /></span>
           <span style={{ flex: 1 }}>{n.message}</span>
           <button
             type="button"

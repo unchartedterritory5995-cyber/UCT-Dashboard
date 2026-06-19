@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useRef, useContext } from 'react'
 import { VoiceContext } from '../../../context/VoiceContext'
+import UIcon from '../../../components/ui/UIcon'
 
 const LABEL_STYLES = {
   GO: { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.5)', text: '#22c55e' },
@@ -93,7 +94,7 @@ export default function PreTradeVerdictCard({ verdict, isLoading, error }) {
     return (
       <div style={cardStyle('var(--border)', 'rgba(255,255,255,0.02)')}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          🧭 Compass is thinking…
+          <UIcon name="compass" size={12} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass is thinking…
         </div>
       </div>
     )
@@ -113,7 +114,7 @@ export default function PreTradeVerdictCard({ verdict, isLoading, error }) {
   return (
     <div style={cardStyle(styles.border, styles.bg)}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>🧭 Compass</div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}><UIcon name="compass" size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} />Compass</div>
         <div style={{
           padding: '4px 12px', fontSize: 14, fontWeight: 700,
           borderRadius: 4, background: styles.text, color: '#000',

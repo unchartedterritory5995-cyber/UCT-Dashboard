@@ -13,6 +13,7 @@ import { useEffect } from 'react'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
+import UIcon from '../../../components/ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
@@ -115,7 +116,7 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               lineHeight: 1, padding: '2px 6px',
             }}
           >
-            ✕
+            <UIcon name="x" size={20} />
           </button>
         </div>
 
@@ -185,7 +186,7 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
                 cursor: 'pointer', margin: '6px 0',
               }}
             >
-              🧭 Tell me about this trade
+              <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Tell me about this trade
             </button>
           )}
 

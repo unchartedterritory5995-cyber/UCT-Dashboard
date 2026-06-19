@@ -13,6 +13,7 @@ import {
   dateShort,
   holdDaysDisplay,
 } from '../../../lib/journal-2-0'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './TradesTable.module.css'
 
 export function buildTradesColumns() {
@@ -60,7 +61,7 @@ function cellFor(key, trade, opts) {
               aria-label="Imported from brokerage"
               style={{ marginLeft: 4, opacity: 0.7, fontSize: '0.85em' }}
             >
-              🔗
+              <UIcon name="link" size={12} />
             </span>
           )}
           {reviewed && (
@@ -69,7 +70,7 @@ function cellFor(key, trade, opts) {
               title="Compass has a post-mortem for this trade"
               aria-label="Compass post-mortem available"
             >
-              🧭
+              <UIcon name="compass" size={12} />
             </span>
           )}
         </span>

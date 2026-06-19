@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
+import UIcon from '../../components/ui/UIcon'
 import styles from './PatternFilter.module.css'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -166,7 +167,7 @@ export default function PatternFilter({ filters, onChange }) {
             className={`${styles.mobileFiltersBtn} ${activeCount > 0 ? styles.mobileFiltersBtnActive : ''}`}
             onClick={() => setSheetOpen(true)}
           >
-            ⚙ Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
+            <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
           </button>
           <span className={styles.mobileSummary}>{tfLabel} · conf {filters.min_conf}{filters.leaders_only ? ' · leaders' : ''}</span>
         </div>

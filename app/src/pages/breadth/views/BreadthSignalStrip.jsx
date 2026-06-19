@@ -5,6 +5,7 @@
  * signal resolved.
  */
 import styles from './signals.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 function Chip({ kicker, kickerClass, metric, currentRow, reason, pulse, onDrill }) {
   if (!metric) return null
@@ -30,7 +31,7 @@ export default function BreadthSignalStrip({
   if (!signalMetric && !notableMetric) return null
   return (
     <div className={styles.strip}>
-      <Chip kicker="★ Signal of the Day" kickerClass={styles.kickerSignal}
+      <Chip kicker={<><UIcon name="star-fill" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Signal of the Day</>} kickerClass={styles.kickerSignal}
             metric={signalMetric} currentRow={currentRow} reason={signalReason} onDrill={onDrill} />
       <Chip kicker="◆ Notable" kickerClass={styles.kickerNotable}
             metric={notableMetric} currentRow={currentRow} reason={notableReason} pulse onDrill={onDrill} />

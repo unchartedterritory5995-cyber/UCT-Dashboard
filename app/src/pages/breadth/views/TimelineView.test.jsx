@@ -19,7 +19,9 @@ describe('TimelineView', () => {
   })
   it('marks the signal row with a ★', () => {
     render(<TimelineView recentRows={recentRows} metrics={metrics} signalKey="breadth_score" onDrill={() => {}} />)
-    expect(screen.getByText('★ Health')).toBeInTheDocument()
+    const label = screen.getByText('Health')
+    expect(label).toBeInTheDocument()
+    expect(label.querySelector('svg')).toBeTruthy() // star-fill signal marker
   })
   it('clicking a drillable row label calls onDrill', () => {
     const onDrill = vi.fn()

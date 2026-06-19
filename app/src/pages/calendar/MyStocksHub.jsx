@@ -31,6 +31,7 @@ import CallRecapSection from '../../components/calendar/CallRecapSection'
 import EarningsModal from '../../components/tiles/EarningsModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import { toModalRow, timingLabel } from './earningsModalRow'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -100,9 +101,9 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
 
   return (
     <>
-      <HubTimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
+      <HubTimingSection label="Before Open" icon="sparkle" hdClass={styles.bmoHd}
         entries={bmoEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
-      <HubTimingSection label="After Close" icon="🌙" hdClass={styles.amcHd}
+      <HubTimingSection label="After Close" icon="moon" hdClass={styles.amcHd}
         entries={amcEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
     </>
   )
@@ -114,7 +115,7 @@ function HubTimingSection({ label, icon, hdClass, entries, seen, markSeen, onSel
   return (
     <div className={styles.timedGroup}>
       <div className={`${styles.timedHd} ${hdClass}`}>
-        <span aria-hidden="true">{icon}</span> {label}
+        <UIcon name={icon} size={13} aria-hidden="true" /> {label}
         <span className={styles.timedCount}>{entries.length}</span>
       </div>
       <div className={styles.hubCardGrid}>
@@ -363,7 +364,7 @@ export default function MyStocksHub() {
       {/* Header */}
       <div className={styles.hubHeader}>
         <Link to="/calendar" className={styles.hubBack}>← Calendar</Link>
-        <span className={styles.hubTitle}>⭐ My Stocks</span>
+        <span className={styles.hubTitle}><UIcon name="star-fill" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />My Stocks</span>
 
         {/* ⚙ Source customizer — same pattern as CalendarHeader */}
         <SourceCustomizer mySources={mySources} setMySources={setMySources} />
@@ -463,7 +464,7 @@ function SourceCustomizer({ mySources, setMySources }) {
   return (
     <span className={styles.gearWrap}>
       <button className={styles.mystk} onClick={() => setOpen(o => !o)}>
-        ⚙ Sources
+        <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Sources
       </button>
       {open && (
         <div className={styles.gearPop}>

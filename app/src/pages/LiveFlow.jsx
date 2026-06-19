@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import UIcon from "../components/ui/UIcon";
 
 /**
  * LiveFlow — subscriber-facing
@@ -559,7 +560,7 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
                 fontWeight: 800, fontFamily: "ui-monospace, monospace",
                 letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
               }}>
-              🔁 {c}x
+              <UIcon name="refresh" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />{c}x
             </span>
           );
         })()}
@@ -581,7 +582,7 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
               fontWeight: 800, fontFamily: "ui-monospace, monospace",
               letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
             }}>
-            🚀 OI BREAK
+            <UIcon name="rocket" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />OI BREAK
           </span>
         )}
       </td>
@@ -593,7 +594,7 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
       <td style={{ padding: "8px 10px", textAlign: "center" }}>
         {forwarded ? (
           <span title="Forwarded to Discord"
-            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}>🔔</span>
+            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}><UIcon name="bell" size={11} /></span>
         ) : (
           <span style={{ color: P.mt, fontSize: 11 }}>·</span>
         )}
@@ -817,7 +818,7 @@ function SimRow({ row, view }) {
       {fires > 1 && (
         <span style={{
           color: "#FFB300", fontWeight: 700, minWidth: 30,
-        }}>🔁 {fires}x</span>
+        }}><UIcon name="refresh" size={11} style={{ verticalAlign: '-2px', marginRight: 3 }} />{fires}x</span>
       )}
       <span style={{
         marginLeft: "auto", color: gradeColor,
@@ -1130,7 +1131,7 @@ export default function LiveFlow() {
                 shown <strong style={{ color: P.wh }}>{visibleTotal}</strong>
               </span>
               <span title="Forwarded to Discord">
-                🔔 <strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
+                <UIcon name="bell" size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} /><strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
               </span>
               <span style={{ color: P.mt }}>· last {relTime(status.last_event_at)}</span>
             </div>
@@ -1298,7 +1299,7 @@ export default function LiveFlow() {
 
             {status?.backtest_capped && (
               <span style={{ color: "#FFB300", marginLeft: "auto" }}>
-                ⚠ capped at 500 alerts — day had more flow than shown
+                <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />capped at 500 alerts — day had more flow than shown
               </span>
             )}
             {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && !simulateMode && (

@@ -129,7 +129,7 @@ export default function FeedbackWidget() {
               <div style={S.starsRow}>
                 <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginRight: 3 }}>Rating:</span>
                 {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} style={S.star(n <= rating)} onClick={() => setRating(n === rating ? 0 : n)}>★</button>
+                  <button key={n} style={S.star(n <= rating)} onClick={() => setRating(n === rating ? 0 : n)}><UIcon name="star-fill" size={17} /></button>
                 ))}
               </div>
               <button

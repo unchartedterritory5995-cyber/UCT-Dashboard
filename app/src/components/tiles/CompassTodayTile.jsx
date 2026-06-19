@@ -17,6 +17,7 @@ import useSWR from 'swr'
 import TileCard from '../TileCard'
 import { VoiceContext } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
+import UIcon from '../ui/UIcon'
 import styles from './CompassTodayTile.module.css'
 
 const fetcher = (url) =>
@@ -66,7 +67,7 @@ function CompassTodayBody({ insights }) {
     <div className={styles.body}>
       {recentInterventionCount > 0 && (
         <div className={styles.interventionBanner}>
-          ⚠️ {recentInterventionCount} active{' '}
+          <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{recentInterventionCount} active{' '}
           {recentInterventionCount === 1 ? 'intervention' : 'interventions'}
           {' — '}
           <Link to="/journal" className={styles.interventionLink}>
@@ -127,7 +128,7 @@ function TalkButtonInner({ inSession }) {
       className={`${styles.talkBtn} ${inSession ? styles.talkBtnActive : ''}`}
       aria-label={inSession ? 'End voice conversation' : 'Talk to Compass'}
     >
-      {inSession ? '◉ End call' : '🧭 Talk to Compass'}
+      {inSession ? '◉ End call' : <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Talk to Compass</>}
     </button>
   )
 }

@@ -8,6 +8,7 @@
 
 import { useState, useMemo } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
+import UIcon from '../../components/ui/UIcon'
 import { useMonthCalendar } from './useCalendarData'
 import { buildMonthGrid } from './monthGrid'
 import styles from './Calendar.module.css'
@@ -54,7 +55,7 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
   return (
     <div className={styles.wtcol}>
       <div className={`${styles.wgroupHd} ${hdClass}`}>
-        <span aria-hidden="true">{icon}</span> {label}
+        <UIcon name={icon} size={13} aria-hidden="true" /> {label}
       </div>
       {shown.length ? (
         <>
@@ -87,7 +88,7 @@ function MonthCell({ cell, onOpenDay }) {
     >
       <div className={styles.dn}>
         {cell.dayNum}
-        {cell.hasMacro && <span className={styles.macroStar}> ★</span>}
+        {cell.hasMacro && <span className={styles.macroStar}> <UIcon name="star-fill" size={11} /></span>}
       </div>
       {empty ? (
         <div className={styles.mempty}>
@@ -96,8 +97,8 @@ function MonthCell({ cell, onOpenDay }) {
         </div>
       ) : (
         <div className={styles.mtimings}>
-          <MonthTimingGroup label="BMO" icon="☀" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
-          <MonthTimingGroup label="AMC" icon="🌙" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
         </div>
       )}
     </div>

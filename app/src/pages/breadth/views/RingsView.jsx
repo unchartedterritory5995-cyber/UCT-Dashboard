@@ -5,6 +5,7 @@
  */
 import { metricColor, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable, colors }) {
   const stroke = size >= 110 ? 11 : 7
@@ -36,7 +37,7 @@ function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable, colors })
       </svg>
       <div style={{ font: '700 9px Instrument Sans, sans-serif', letterSpacing: '.6px',
                     textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8', marginTop: 2 }}>
-        {isSignal ? '★ ' : ''}{metric.label}
+        {isSignal ? <><UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{metric.label}
       </div>
     </div>
   )

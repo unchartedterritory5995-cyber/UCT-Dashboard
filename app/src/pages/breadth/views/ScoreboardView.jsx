@@ -5,6 +5,7 @@
  */
 import { metricValue, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 function buildSpark(values, polarity, bull = '#34d399', bear = '#f87171') {
   const vals = values.filter(v => v != null)
@@ -50,7 +51,7 @@ export default function ScoreboardView({ currentRow, recentRows = [], metrics, o
                           cursor: clickable ? 'pointer' : 'default' }}>
               <div style={{ font: '700 8px Instrument Sans, sans-serif', letterSpacing: '.5px',
                             textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8' }}>
-                {isSignal ? '★ ' : ''}{m.label}
+                {isSignal ? <><UIcon name="star-fill" size={8} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
               </div>
               <div style={{ font: `800 ${compact ? 18 : 22}px Instrument Sans, sans-serif`, color: '#e8e8ea',
                             lineHeight: 1.15, marginTop: 2 }}>

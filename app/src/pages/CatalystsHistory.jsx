@@ -11,6 +11,7 @@ import useSWR from 'swr'
 import HighlightThesis from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
+import UIcon from '../components/ui/UIcon'
 import styles from './CatalystsHistory.module.css'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : { rows: [] }))
@@ -82,7 +83,7 @@ export default function CatalystsHistory() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>📚 Catalyst History</h1>
+        <h1 className={styles.title}><UIcon name="book" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Catalyst History</h1>
         <p className={styles.subtitle}>
           Browse the engine's top-ranked single-stock catalysts from any past trading day.
           What was moving — and why — on a date you remember.
@@ -116,7 +117,7 @@ export default function CatalystsHistory() {
 
       <div className={styles.tile}>
         <div className={styles.tileHeader}>
-          <span className={styles.tileTitle}>🎯 Top Catalysts · {date}</span>
+          <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date}</span>
           <span className={styles.tileMeta}>{rows.length} rows</span>
         </div>
 

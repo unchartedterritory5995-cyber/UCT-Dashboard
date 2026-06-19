@@ -13,17 +13,18 @@ import { useEffect, useRef, useState } from 'react'
 import styles from './DayReflection.module.css'
 import VoiceInputButton from '../VoiceInputButton'
 import CompassAssistButton from '../../../../components/voice/CompassAssistButton'
+import UIcon from '../../../../components/ui/UIcon'
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
 const SECTIONS = [
-  { key: 'prepNotes', label: 'Pre-market Prep', icon: '📋',
+  { key: 'prepNotes', label: 'Pre-market Prep', icon: 'document',
     placeholder: "Watchlist, catalysts, key levels, plan for the day…" },
-  { key: 'midDayNotes', label: 'Mid-day Review', icon: '🔍',
+  { key: 'midDayNotes', label: 'Mid-day Review', icon: 'search',
     placeholder: "How's the plan going? Deviations? Emotional state?" },
-  { key: 'recapNotes', label: 'Post-market Recap', icon: '📊',
+  { key: 'recapNotes', label: 'Post-market Recap', icon: 'breadth',
     placeholder: "What worked? What didn't? Carries over to tomorrow?" },
-  { key: 'notes', label: 'General Notes', icon: '📝',
+  { key: 'notes', label: 'General Notes', icon: 'edit',
     placeholder: "Anything else?" },
 ]
 
@@ -146,7 +147,7 @@ function Section({
         aria-expanded={open}
       >
         <span className={styles.chev}>{open ? '▼' : '▶'}</span>
-        <span className={styles.icon}>{icon}</span>
+        <span className={styles.icon}><UIcon name={icon} size={14} /></span>
         <span className={styles.title}>{label}</span>
         {!open && preview && (
           <span className={styles.preview}>{preview}{text.length > 80 ? '…' : ''}</span>
@@ -181,7 +182,7 @@ function Section({
                 }}
                 title="Prepend an auto-generated summary of today's options activity"
               >
-                ✨ Insert today's options summary
+                <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Insert today's options summary
               </button>
             )}
           </div>

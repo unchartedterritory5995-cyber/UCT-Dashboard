@@ -2,6 +2,7 @@
 import { useEffect, useMemo } from 'react'
 import TickerPopup from '../TickerPopup'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
+import UIcon from '../ui/UIcon'
 import styles from './NHNLModal.module.css'
 
 export default function NHNLModal({ type, tickers, onClose }) {
@@ -28,7 +29,7 @@ export default function NHNLModal({ type, tickers, onClose }) {
           <span className={styles.count} style={{ color }}>
             {tickers.length} stocks
           </span>
-          <button className={styles.close} onClick={onClose}>✕</button>
+          <button className={styles.close} onClick={onClose}><UIcon name="x" size={14} /></button>
         </div>
         <div className={styles.grid}>
           {tickers.length === 0

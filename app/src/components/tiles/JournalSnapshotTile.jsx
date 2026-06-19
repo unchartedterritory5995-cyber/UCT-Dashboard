@@ -36,6 +36,7 @@ import {
   classifyDebitCredit,
 } from '../../pages/journal-2-0/lib/optionCalcs'
 import compassLogo from '../intro/assets/compass-mark.png'
+import UIcon from '../ui/UIcon'
 import styles from './JournalSnapshotTile.module.css'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
@@ -382,7 +383,7 @@ function EmptyState({ connected }) {
   if (connected) {
     return (
       <div className={styles.empty}>
-        <div className={styles.emptyIcon} aria-hidden="true">🧭</div>
+        <div className={styles.emptyIcon} aria-hidden="true"><UIcon name="compass" size={32} /></div>
         <div className={styles.emptyTitle}>You&rsquo;re all synced</div>
         <div className={styles.emptySub}>
           No open positions right now. New trades import automatically and

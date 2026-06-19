@@ -9,6 +9,8 @@
  *   day: string       // the recap's day, displayed for context
  */
 
+import UIcon from '../../../components/ui/UIcon'
+
 export default function EODRecapBanner({ onClick, onDismiss, day }) {
   return (
     <div
@@ -27,7 +29,7 @@ export default function EODRecapBanner({ onClick, onDismiss, day }) {
       }}
     >
       <span>
-        🧭 Compass wrapped {day === todayISO() ? "today's" : `the ${day}`} session — read it →
+        <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass wrapped {day === todayISO() ? "today's" : `the ${day}`} session — read it →
       </span>
       <span style={{ display: 'flex', gap: 6 }}>
         <button

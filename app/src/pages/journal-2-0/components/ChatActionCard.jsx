@@ -8,6 +8,8 @@
  *   disabled?: bool
  */
 
+import UIcon from '../../../components/ui/UIcon'
+
 export default function ChatActionCard({ pendingAction, onConfirm, onCancel, disabled }) {
   if (!pendingAction) return null
   const { preview } = pendingAction
@@ -24,7 +26,7 @@ export default function ChatActionCard({ pendingAction, onConfirm, onCancel, dis
       }}
     >
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-        ⏸ Compass wants to:
+        <UIcon name="pause" size={12} style={{ verticalAlign: '-2px', marginRight: 4 }} />Compass wants to:
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 8 }}>
         {preview?.narration}
@@ -36,7 +38,7 @@ export default function ChatActionCard({ pendingAction, onConfirm, onCancel, dis
           border: '1px solid rgba(239,68,68,0.5)', borderRadius: 4,
           color: 'var(--loss, #ef4444)',
         }}>
-          ⚠ Heads up:
+          <UIcon name="warning" size={11} style={{ verticalAlign: '-2px', marginRight: 4 }} />Heads up:
           <ul style={{ margin: '4px 0 0 18px' }}>
             {preview.contextual_warnings.map((w, i) => <li key={i}>{w}</li>)}
           </ul>

@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import Sheet from '../mobile/Sheet'
+import UIcon from '../ui/UIcon'
 import styles from './ChartContextMenu.module.css'
 
 export default function ChartContextMenu({ open, x, y, sections = [], onClose }) {
@@ -135,7 +136,7 @@ function renderSections({ visible, styles, expanded, setExpanded, select }) {
                           onClick={() => select(sub)}
                         >
                           <span className={styles.check} aria-hidden="true">
-                            {sub.swatch ? <span className={styles.swatchDot} style={{ background: sub.swatch }} /> : (sub.checked ? '✓' : '')}
+                            {sub.swatch ? <span className={styles.swatchDot} style={{ background: sub.swatch }} /> : (sub.checked ? <UIcon name="check" size={13} /> : '')}
                           </span>
                           <span className={styles.label}>{sub.label}</span>
                         </button>
@@ -157,7 +158,7 @@ function renderSections({ visible, styles, expanded, setExpanded, select }) {
                 onClick={() => select(item)}
               >
                 {item.kind === 'toggle' && (
-                  <span className={styles.check} aria-hidden="true">{item.checked ? '✓' : ''}</span>
+                  <span className={styles.check} aria-hidden="true">{item.checked ? <UIcon name="check" size={13} /> : ''}</span>
                 )}
                 <span className={styles.label}>{item.label}</span>
               </button>

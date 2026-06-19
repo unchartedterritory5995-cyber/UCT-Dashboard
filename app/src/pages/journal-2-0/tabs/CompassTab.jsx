@@ -24,6 +24,7 @@ import InterventionBanner from '../components/InterventionBanner'
 import useProfileSuggestions from '../hooks/useProfileSuggestions'
 import useCompassOverview from '../hooks/useCompassOverview'
 import CompassOverview from '../components/CompassOverview'
+import UIcon from '../../../components/ui/UIcon'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -139,7 +140,7 @@ export default function CompassTab() {
   return (
     <div style={{ padding: '16px 20px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 8 }}>
-        🧭 Compass{isUnified ? ' — Portfolio' : ''}
+        <UIcon name="compass" size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />Compass{isUnified ? ' — Portfolio' : ''}
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 0 }}>
         {isUnified
@@ -169,7 +170,7 @@ export default function CompassTab() {
           gap: 10,
         }}>
           <div style={{ fontSize: 12 }}>
-            <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>🧭 Compass wants to refine its understanding of you.</strong>
+            <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass wants to refine its understanding of you.</strong>
             <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
               {profileSuggestions.length} pending suggestion{profileSuggestions.length === 1 ? '' : 's'} from your recent feedback. Start a chat to walk through them.
             </div>

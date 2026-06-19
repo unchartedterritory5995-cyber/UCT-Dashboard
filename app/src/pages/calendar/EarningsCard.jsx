@@ -1,5 +1,6 @@
 // app/src/pages/calendar/EarningsCard.jsx
 import CompanyLogo from '../../components/CompanyLogo'
+import UIcon from '../../components/ui/UIcon'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
 import styles from './Calendar.module.css'
@@ -35,9 +36,9 @@ function fmtCountdown(timeEt) {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York',
     })
     if (h >= 1) {
-      return `⏱ in ~${h}h · ${timeStr} ET`
+      return `in ~${h}h · ${timeStr} ET`
     }
-    return `⏱ in ~${m}m · ${timeStr} ET`
+    return `in ~${m}m · ${timeStr} ET`
   } catch {
     return null
   }
@@ -81,7 +82,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
         onClick={() => onSelect?.(entry, timing)}
         {...longPressProps(entry.sym)}
       >
-        {entry.mine && <span className={styles.star}>★</span>}
+        {entry.mine && <span className={styles.star}><UIcon name="star-fill" size={13} /></span>}
         <div className={styles.cardTop}>
           <CompanyLogo sym={entry.sym} size={46} tile />
           <div className={styles.cardHead}>
@@ -117,7 +118,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             )}
 
             {/* A5: Countdown (timing now lives in the de-pilled top-right label) */}
-            {countdown && <div className={styles.countdown}>{countdown}</div>}
+            {countdown && <div className={styles.countdown}><UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{countdown}</div>}
 
             {em != null && (
               <div className={styles.emv}><span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>

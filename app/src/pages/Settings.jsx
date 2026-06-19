@@ -16,6 +16,7 @@ import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
+import UIcon from '../components/ui/UIcon'
 import styles from './Settings.module.css'
 
 const TF_OPTIONS = [
@@ -424,8 +425,8 @@ function VoicePanel() {
           display: 'flex', flexDirection: 'column', gap: 7,
           fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
         }}>
-          <li><strong style={{ color: 'var(--text-bright)' }}>🎤 Dictate</strong> — push-to-talk into any journal text field (notes, thesis, recaps). High-accuracy Whisper transcription with auto-cleanup.</li>
-          <li><strong style={{ color: 'var(--text-bright)' }}>🧭 Assist / 🎙️ Talk</strong> — opens a full voice conversation with Compass that already knows the trade, note, or review you're looking at.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}><UIcon name="mic" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Dictate</strong> — push-to-talk into any journal text field (notes, thesis, recaps). High-accuracy Whisper transcription with auto-cleanup.</li>
+          <li><strong style={{ color: 'var(--text-bright)' }}><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Assist / <UIcon name="mic" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Talk</strong> — opens a full voice conversation with Compass that already knows the trade, note, or review you're looking at.</li>
           <li><strong style={{ color: 'var(--text-bright)' }}>Floating orb</strong> — bottom-right on every page; tap to speak to Compass from anywhere.</li>
           <li><strong style={{ color: 'var(--text-bright)' }}>Push-to-talk hotkey</strong> — hold the spacebar shortcut for a quick voice question without leaving the keyboard.</li>
           <li><strong style={{ color: 'var(--text-bright)' }}>Wake word</strong> — say "Jarvis" (toggle above) for fully hands-free activation.</li>
@@ -781,7 +782,7 @@ function ReferralSection() {
             uctintelligence.com/signup?ref={referral.code}
           </span>
           <button className={styles.copyBtn} onClick={handleCopy}>
-            {copied ? '✓ Copied' : 'Copy'}
+            {copied ? <><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : 'Copy'}
           </button>
         </div>
         <div className={styles.row} style={{ marginTop: 12 }}>
@@ -957,9 +958,9 @@ export default function Settings() {
               <span className={styles.rowLabel}>Email Verified</span>
               <span className={styles.rowValue}>
                 {user?.email_verified ? (
-                  <span className={styles.verifiedBadge}>✓ Verified</span>
+                  <span className={styles.verifiedBadge}><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Verified</span>
                 ) : (
-                  <span className={styles.unverifiedBadge}>✗ Not verified</span>
+                  <span className={styles.unverifiedBadge}><UIcon name="x" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Not verified</span>
                 )}
               </span>
             </div>

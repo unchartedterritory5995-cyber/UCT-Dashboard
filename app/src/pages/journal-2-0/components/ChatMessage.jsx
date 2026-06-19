@@ -8,6 +8,7 @@
  */
 import { renderMarkdown } from '../lib/coachMarkdown'
 import ChatToolChip from './ChatToolChip'
+import UIcon from '../../../components/ui/UIcon'
 
 export default function ChatMessage({ message, toolResults = {}, toolSummaries = {} }) {
   const role = message.role
@@ -40,7 +41,7 @@ export default function ChatMessage({ message, toolResults = {}, toolSummaries =
       }}>
         {role === 'assistant' && (
           <div style={{ fontSize: 10, color: 'var(--ut-gold, #c9a84c)', marginBottom: 4 }}>
-            🧭 Compass {flagged && <span title="Some claims unverified" style={{ color: 'var(--loss, #ef4444)' }}>⚠</span>}
+            <UIcon name="compass" size={12} style={{ verticalAlign: '-2px', marginRight: 4 }} />Compass {flagged && <span title="Some claims unverified" style={{ color: 'var(--loss, #ef4444)' }}><UIcon name="warning" size={12} style={{ verticalAlign: '-2px' }} /></span>}
           </div>
         )}
         {message.content && (

@@ -12,6 +12,7 @@
 // and passed as props so the component is purely presentational + testable.
 import { useState, useRef, useEffect, useCallback } from 'react'
 import useTranscript from '../../hooks/useTranscript'
+import UIcon from '../ui/UIcon'
 import styles from './CallRecapSection.module.css'
 
 // ── TTS helper ────────────────────────────────────────────────────────────────
@@ -186,7 +187,7 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
             onClick={handleTTSToggle}
             title={ttsActive ? 'Stop' : 'Read recap aloud'}
           >
-            {ttsActive ? '⏹ Stop' : '🔊 Listen'}
+            {ttsActive ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Stop</> : <><UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Listen</>}
           </button>
         )}
       </div>
@@ -281,7 +282,7 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
       {showAudioPlayer && (
         <div className={styles.audioBlock}>
           <div className={styles.sectionLabel}>
-            {audio.kind === 'live' ? '🔴 LISTEN LIVE' : '▶ REPLAY'}
+            {audio.kind === 'live' ? <><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />LISTEN LIVE</> : <><UIcon name="play" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY</>}
           </div>
           {/* Native <audio> — works for MP3/AAC/WAV/OGG natively.
               For .m3u8 HLS: Safari plays natively; Chrome/Firefox degrade to a
@@ -363,7 +364,7 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
                         onClick={handleTranscriptTTSToggle}
                         title={transcriptTtsActive ? 'Stop reading' : 'Listen to call'}
                       >
-                        {transcriptTtsActive ? '⏹ Stop' : '🔊 Listen to call'}
+                        {transcriptTtsActive ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Stop</> : <><UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Listen to call</>}
                       </button>
                     )}
                   </div>

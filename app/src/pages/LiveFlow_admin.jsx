@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import UIcon from "../components/ui/UIcon";
 
 /**
  * LiveFlow — admin view
@@ -294,7 +295,7 @@ function AlertRow({ alert, isNew, tierColor }) {
       <td style={{ padding: "8px 10px", textAlign: "center" }}>
         {forwarded ? (
           <span title="Forwarded to Discord"
-            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}>🔔</span>
+            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}><UIcon name="bell" size={11} /></span>
         ) : (
           <span style={{ color: P.mt, fontSize: 11 }}>·</span>
         )}
@@ -524,7 +525,7 @@ function SimRow({ row, view }) {
       {fires > 1 && (
         <span style={{
           color: "#FFB300", fontWeight: 700, minWidth: 30,
-        }}>🔁 {fires}x</span>
+        }}><UIcon name="refresh" size={11} style={{ verticalAlign: '-2px', marginRight: 3 }} />{fires}x</span>
       )}
       <span style={{
         marginLeft: "auto", color: gradeColor,
@@ -830,7 +831,7 @@ export default function LiveFlowAdmin() {
                 drop <strong style={{ color: P.dm }}>{status.total_alerts_dropped ?? 0}</strong>
               </span>
               <span title="Forwarded to Discord (conviction >= 2.0)">
-                🔔 <strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
+                <UIcon name="bell" size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} /><strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
               </span>
               <span style={{ color: P.mt }}>· last {relTime(status.last_event_at)}</span>
             </div>
@@ -1000,7 +1001,7 @@ export default function LiveFlowAdmin() {
 
             {status?.backtest_capped && (
               <span style={{ color: "#FFB300", marginLeft: "auto" }}>
-                ⚠ capped at 500 alerts (Bullflow MCP limit) — day had more flow than visible
+                <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />capped at 500 alerts (Bullflow MCP limit) — day had more flow than visible
               </span>
             )}
             {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && !simulateMode && (
@@ -1065,7 +1066,7 @@ export default function LiveFlowAdmin() {
               {status.filter_config.discord_threshold}
             </strong> conviction</span>
             {!status.discord_configured && (
-              <span style={{ color: "#FFB300" }}>⚠ webhook not configured</span>
+              <span style={{ color: "#FFB300" }}><UIcon name="warning" size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} />webhook not configured</span>
             )}
           </div>
         )}

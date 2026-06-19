@@ -5,6 +5,7 @@
  */
 import { metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 export default function MetersView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || metrics.length === 0) return null
@@ -29,7 +30,7 @@ export default function MetersView({ currentRow, metrics, normalize, onDrill, si
                         alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default' }}>
             <span style={{ font: '700 9px Instrument Sans, sans-serif', letterSpacing: '.5px',
                            textTransform: 'uppercase', color: isSignal ? '#c9a84c' : '#94a3b8', textAlign: 'right' }}>
-              {isSignal ? '★ ' : ''}{m.label}
+              {isSignal ? <><UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
             </span>
             <div style={{ height: 10, borderRadius: 6, position: 'relative',
                           background: 'linear-gradient(90deg,#14532d,#3f6212,#713f12,#7f1d1d)' }}>

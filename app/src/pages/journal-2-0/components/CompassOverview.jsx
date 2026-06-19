@@ -47,7 +47,7 @@ export default function CompassOverview({ overview, onScrollToProfile }) {
         marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ut-gold, #c9a84c)' }}>
-          🧭 Compass overview
+          <UIcon name="compass" size={12} style={{ verticalAlign: '-1px', marginRight: 5 }} />Compass overview
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
           {regime && <span>Regime: <strong>{regime}</strong> · </span>}
@@ -141,7 +141,7 @@ export default function CompassOverview({ overview, onScrollToProfile }) {
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
             {today?.has_eod_recap
-              ? '✓ EOD recap ready'
+              ? <><UIcon name="check" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />EOD recap ready</>
               : <>EOD recap: <em>scheduled 4:30 PM ET</em></>}
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
+import UIcon from '../../components/ui/UIcon'
 import useTickerMeta from '../../hooks/useTickerMeta'
 import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
@@ -217,7 +218,7 @@ function Playbook({ pb, hideIntro }) {
           <ul className={styles.pbMistakesList}>
             {pb.mistakes.map(m => (
               <li key={m} className={styles.pbMistake}>
-                <span className={styles.pbX} aria-hidden="true">✕</span>
+                <span className={styles.pbX} aria-hidden="true"><UIcon name="x" size={13} /></span>
                 {m}
               </li>
             ))}
@@ -584,7 +585,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
             </span>
           )}
           {isAdmin && !annotating && (
-            <button className={styles.exTool} onClick={startAnnotate} title="Draw annotations on this example">✏️ Annotate</button>
+            <button className={styles.exTool} onClick={startAnnotate} title="Draw annotations on this example"><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Annotate</button>
           )}
           {isAdmin && annotating && (
             <>
@@ -593,12 +594,12 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
             </>
           )}
           {isAdmin && !annotating && (
-            <button className={styles.exTool} onClick={() => setEditing(v => !v)}>✎ Edit</button>
+            <button className={styles.exTool} onClick={() => setEditing(v => !v)}><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Edit</button>
           )}
           {isAdmin && !annotating && (
             <button className={styles.exTool} onClick={() => barsFileRef.current?.click()}
               title="Upload a TradingView OHLCV CSV as this example's chart data (for delisted/renamed/foreign tickers)">
-              📈 {ex.has_custom_bars ? 'Replace Data' : 'Upload Data'}
+              <UIcon name="equity" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{ex.has_custom_bars ? 'Replace Data' : 'Upload Data'}
             </button>
           )}
           {isAdmin && !annotating && ex.has_custom_bars && (
@@ -606,7 +607,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           )}
           <input ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
           {isAdmin && !annotating && (
-            <button className={styles.exToolDanger} onClick={del} title="Delete this example">🗑</button>
+            <button className={styles.exToolDanger} onClick={del} title="Delete this example"><UIcon name="trash" size={14} /></button>
           )}
         </span>
       </div>

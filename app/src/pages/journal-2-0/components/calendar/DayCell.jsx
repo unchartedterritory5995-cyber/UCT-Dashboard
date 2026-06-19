@@ -7,6 +7,7 @@
  */
 
 import { useNavigate } from 'react-router-dom'
+import UIcon from '../../../../components/ui/UIcon'
 import {
   cellBackground,
   fmtSignedDollar,
@@ -45,14 +46,14 @@ export default function DayCell({ cell, summary, mode = 'pct', isToday = false }
       <div className={styles.head}>
         <span className={styles.day}>{cell.day}</span>
         {summary?.hasNotes && (
-          <span className={styles.notesBadge} title="Has reflection notes">📝</span>
+          <span className={styles.notesBadge} title="Has reflection notes"><UIcon name="edit" size={13} /></span>
         )}
         {summary?.expiringCount > 0 && (
           <span
             className={styles.expBadge}
             title={`${summary.expiringCount} option ${summary.expiringCount === 1 ? 'strategy' : 'strategies'} expiring`}
           >
-            ⏳{summary.expiringCount}
+            <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 2 }} />{summary.expiringCount}
           </span>
         )}
         {summary?.tradeCount > 0 && (

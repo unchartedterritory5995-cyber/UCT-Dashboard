@@ -12,6 +12,7 @@ import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import { Fragment } from 'react'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import { FiltersSheet, useTickerHub } from '../components/mobile'
+import UIcon from '../components/ui/UIcon'
 import styles from './CustomScan.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -528,7 +529,7 @@ export default function CustomScan({ allCandidates }) {
             className={`${styles.filterToggle} ${activeFilterCount > 0 ? styles.filterToggleActive : ''}`}
             onClick={() => setMobileFiltersOpen(true)}
           >
-            ⚙ Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
           </button>
           <span className={styles.mobileResultCount}>{results.length}</span>
         </div>
@@ -778,14 +779,14 @@ export default function CustomScan({ allCandidates }) {
                 <span className={styles.chartName}>{selectedName}</span>
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                    {flagToast === 'added' ? <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Flagged</> : <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Removed</>}
                   </span>
                 )}
                 <button
                   className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
+                ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.chartPeriodTabs}>
                   {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
                     <button

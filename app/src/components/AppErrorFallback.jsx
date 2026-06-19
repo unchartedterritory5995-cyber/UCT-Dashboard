@@ -6,6 +6,8 @@
 // can debug; in prod we show only error.name to give support tickets
 // a usable identifier without spilling sensitive data.
 
+import UIcon from './ui/UIcon'
+
 export default function AppErrorFallback({ error }) {
   const isDev = import.meta.env.DEV
   const errorName = error?.name || 'Error'
@@ -26,7 +28,7 @@ export default function AppErrorFallback({ error }) {
       padding: '24px',
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+      <div style={{ fontSize: '48px', marginBottom: '16px' }}><UIcon name="warning" size={48} /></div>
       <h1 style={{ fontSize: '20px', fontWeight: 600, margin: '0 0 8px', letterSpacing: '0.5px' }}>
         Something went wrong on this page
       </h1>

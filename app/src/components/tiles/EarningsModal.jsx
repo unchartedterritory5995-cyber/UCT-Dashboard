@@ -13,6 +13,7 @@ import useFilings from '../../hooks/useFilings'
 import useCallRecap from '../../hooks/useCallRecap'
 import useEarningsAudio from '../../hooks/useEarningsAudio'
 import CompanyLogo from '../CompanyLogo'
+import UIcon from '../ui/UIcon'
 import styles from './EarningsModal.module.css'
 
 const TWEETS_UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
@@ -45,7 +46,7 @@ function TweetsBlock({ sym }) {
         onClick={() => setCollapsed(c => !c)}
         type="button"
       >
-        <span>🐦 Recent tweets ({tweets.length})</span>
+        <span><UIcon name="chat" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Recent tweets ({tweets.length})</span>
         <span>{isOpen ? '▾' : '▸'}</span>
       </button>
       {isOpen && (
@@ -174,9 +175,10 @@ export default function EarningsModal({ row, label, onClose }) {
 
   const isBeat = verdict === 'beat'
   const isMixed = verdict === 'mixed'
-  const verdictLabel = isBeat ? '✓ Beat' : isMixed ? '~ Mixed' : '✗ Miss'
+  const verdictIcon = isBeat ? 'check' : isMixed ? null : 'x'
+  const verdictWord = isBeat ? 'Beat' : isMixed ? '~ Mixed' : 'Miss'
   const summaryText = row.reported_eps != null && row.eps_estimate != null
-    ? `${verdictLabel} — EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
+    ? `EPS ${fmtEps(row.reported_eps)} vs ${fmtEps(row.eps_estimate)} est (${row.surprise_pct} surprise)`
     : null
 
   const hasAiContent = aiState.data?.analysis || aiState.data?.analysis_bullets?.length || aiState.data?.news?.length
@@ -228,7 +230,7 @@ export default function EarningsModal({ row, label, onClose }) {
 
         {summaryText && (
           <div className={`${styles.summary} ${isBeat ? styles.summaryBeat : isMixed ? styles.summaryMixed : styles.summaryMiss}`}>
-            {summaryText}
+            {verdictIcon && <UIcon name={verdictIcon} size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />}{verdictWord} — {summaryText}
           </div>
         )}
 
@@ -334,7 +336,7 @@ export default function EarningsModal({ row, label, onClose }) {
               <span className={styles.beatHistory}>
                 {aiState.data.beat_history.map((s, i) => (
                   <span key={i} className={s === '✓' ? styles.pos : s === '✗' ? styles.neg : styles.muted}>
-                    {s}
+                    {s === '✓' ? <UIcon name="check" size={12} /> : s === '✗' ? <UIcon name="x" size={12} /> : s}
                   </span>
                 ))}
                 <span className={styles.muted}>{aiState.data.beat_streak}</span>
@@ -548,7 +550,7 @@ export default function EarningsModal({ row, label, onClose }) {
             className={styles.btnReport}
             onClick={() => { onClose?.(); navigate(`/research/${row.sym}`) }}
           >
-            {isPaid ? 'Open full report →' : '🔒 Unlock full research →'}
+            {isPaid ? 'Open full report →' : <><UIcon name="lock" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Unlock full research →</>}
           </button>
         </div>
 

@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback, useId } from 'react'
 import styles from './PortfolioSettingsModal.module.css'
 import NoTradeWindowsEditor from './NoTradeWindowsEditor'
+import UIcon from '../../../components/ui/UIcon'
 
 const STOP_MODES = [
   {
@@ -553,7 +554,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
                       }}
                       aria-pressed={active}
                     >
-                      {active ? '★ ' : ''}{s}
+                      {active ? <UIcon name="star-fill" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> : ''}{s}
                     </button>
                   )
                 })}

@@ -7,6 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from './StockChart'
+import UIcon from './ui/UIcon'
 
 const POPOVER_W = 460
 const POPOVER_H = 360
@@ -204,7 +205,7 @@ export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anc
                       border: '1px solid var(--ut-gold, #c9a84c)', background: 'rgba(201,168,76,0.12)',
                       color: 'var(--ut-gold, #c9a84c)',
                     }}
-                  >📈 Upload 5-min CSV</button>
+                  ><UIcon name="equity" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Upload 5-min CSV</button>
                   <span style={{ fontSize: 11, color: 'var(--text-muted, #8b8778)' }}>
                     {uploadMsg || 'TradingView export: time, open, high, low, close, Volume'}
                   </span>

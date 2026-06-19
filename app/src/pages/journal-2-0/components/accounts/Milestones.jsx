@@ -4,6 +4,7 @@
  * shows progress; hit milestones are gold; future milestones are dim.
  */
 
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './Milestones.module.css'
 
 const TIERS = [1, 5, 10, 25, 50, 100]
@@ -13,7 +14,7 @@ export default function Milestones({ totalReturn = 0 }) {
   return (
     <section className={styles.section}>
       <div className={styles.header}>
-        <span className={styles.dot}>🏆</span>
+        <span className={styles.dot}><UIcon name="star-fill" size={14} /></span>
         <h3 className={styles.title}>Milestones</h3>
         <span className={styles.current}>
           Current: <strong>{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</strong>
@@ -34,7 +35,7 @@ export default function Milestones({ totalReturn = 0 }) {
               className={`${styles.tier} ${hit ? styles.tierHit : ''} ${nextUnhit ? styles.tierActive : ''}`}
             >
               <span className={styles.badge}>
-                {hit ? '✓' : `${tier}%`}
+                {hit ? <UIcon name="check" size={13} /> : `${tier}%`}
               </span>
               <span className={styles.tierLabel}>
                 {tier}% return

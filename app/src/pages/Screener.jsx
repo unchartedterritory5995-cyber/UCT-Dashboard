@@ -12,7 +12,7 @@ const fetcher = url => fetch(url).then(r => r.json())
 
 const PAGE_TABS = [
   { key: 'scanner', label: 'Scanner' },
-  { key: 'live',    label: '⚡ Live Scan' },
+  { key: 'live',    label: 'Live Scan', icon: 'bolt' },
   { key: 'custom',  label: 'Custom Scan' },
 ]
 
@@ -464,7 +464,7 @@ export default function Screener({ embedded = false }) {
               className={`${styles.pageTab}${pageTab === t.key ? ' ' + styles.pageTabActive : ''}`}
               onClick={() => setPageTab(t.key)}
             >
-              {t.label}
+              {t.icon && <UIcon name={t.icon} size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />}{t.label}
             </button>
           ))}
         </div>

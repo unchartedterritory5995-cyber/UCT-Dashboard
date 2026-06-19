@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
+import UIcon from '../../components/ui/UIcon'
 import {
   BOTTOM_SIGNPOSTS, BOTTOMS, BOTTOM_TYPES, EXECUTION,
 } from './bottomsCatalog'
@@ -135,7 +136,7 @@ function LedgerEntry({ bottom, index, onOpen }) {
       <div className={styles.rail}>
         <span className={styles.railNode} />
         <span className={styles.railYear}>{bottom.era}</span>
-        {bottom.legendary && <span className={styles.railStar} title="Legendary">★</span>}
+        {bottom.legendary && <span className={styles.railStar} title="Legendary"><UIcon name="star-fill" size={13} /></span>}
       </div>
       <DepthMeter pct={bottom.drawdownPct} />
       <div className={styles.entryBody}>
@@ -197,7 +198,7 @@ function BottomDetail({ bottom, onBack }) {
           <h1 className={styles.detailName}>{bottom.name}</h1>
           <div className={styles.detailChips}>
             <span className={styles.typeChip}>{bottom.type}</span>
-            {bottom.legendary && <span className={styles.legendaryChip}>★ Legendary</span>}
+            {bottom.legendary && <span className={styles.legendaryChip}><UIcon name="star-fill" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Legendary</span>}
           </div>
           <p className={styles.detailChar}>{bottom.character}</p>
         </div>

@@ -20,8 +20,11 @@ import { useContext, useCallback } from 'react'
 import { VoiceContext, setVoicePageHint } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import { useIsPaid } from '../../context/AuthContext'
+import UIcon from '../ui/UIcon'
 
-export default function CompassAssistButton({ pageHint, disabled = false, label = '🧭 Assist' }) {
+const DEFAULT_LABEL = <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Assist</>
+
+export default function CompassAssistButton({ pageHint, disabled = false, label = DEFAULT_LABEL }) {
   const isPaid = useIsPaid()
   const voice = useContext(VoiceContext)
   // Voice/Compass is a paid, API-cost feature — hidden entirely for free users.

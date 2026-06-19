@@ -281,7 +281,7 @@ export default function TradeJournalTab({ settings }) {
               aria-haspopup="dialog"
               aria-expanded={filtersOpen}
             >
-              ☰ Filters ▾
+              <UIcon name="menu" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters ▾
               {activeCount > 0 && (
                 <span className={styles.activeBadge}>{activeCount}</span>
               )}
@@ -336,7 +336,7 @@ export default function TradeJournalTab({ settings }) {
               disabled={trades.length === 0}
               title={trades.length === 0 ? 'No trades to delete' : 'Delete all trades'}
             >
-              🗑 Delete All
+              <UIcon name="trash" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Delete All
             </button>
           )}
           {showShares && (
@@ -345,7 +345,7 @@ export default function TradeJournalTab({ settings }) {
               className={styles.ghostBtn}
               onClick={() => setImportOpen(true)}
             >
-              ⬆ Import CSV
+              <UIcon name="plus" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Import CSV
             </button>
           )}
           {showShares && (

@@ -13,6 +13,7 @@ import {
   fmtSignedR,
   todayET,
 } from '../../lib/calendar'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './WeekView.module.css'
 
 function isoWeekToDates(year, week) {
@@ -73,7 +74,7 @@ export default function WeekView({ year, week, days = [], mode = 'pct' }) {
                 <div className={styles.dowLabel}>{dows[i]}</div>
                 <div className={styles.dayNum}>{dayNum}</div>
                 {summary?.hasNotes && (
-                  <span className={styles.notesBadge} title="Has notes">📝</span>
+                  <span className={styles.notesBadge} title="Has notes"><UIcon name="edit" size={12} /></span>
                 )}
               </button>
               {summary?.tradeCount > 0 ? (

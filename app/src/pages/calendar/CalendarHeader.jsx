@@ -3,10 +3,11 @@ import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
 const AUDIENCE = [
-  ['mine', '★ My Stocks'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
+  ['mine', 'My Stocks', 'star-fill'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
   ['uct20', 'UCT20'], ['all', 'All ($300M+)'],
 ]
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
@@ -118,9 +119,11 @@ export default function CalendarHeader({
     )
   })
 
-  const audienceChips = AUDIENCE.map(([k, lbl]) => (
+  const audienceChips = AUDIENCE.map(([k, lbl, icon]) => (
     <span key={k} className={`${styles.chip} ${filters.audience === k ? styles.chipOn : ''}`}
-          onClick={() => set('audience', k)}>{lbl}</span>
+          onClick={() => set('audience', k)}>
+      {icon && <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />}{lbl}
+    </span>
   ))
 
   const capSelect = (
@@ -167,10 +170,10 @@ export default function CalendarHeader({
   const exportButtons = (
     <div className={styles.sheetRow}>
       <button className={styles.exportItem} onClick={download} disabled={downloading}>
-        {downloading ? 'Downloading…' : '⬇ Download .ics'}
+        {downloading ? 'Downloading…' : <><UIcon name="download" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Download .ics</>}
       </button>
       <button className={styles.exportItem} onClick={copyWebcal} disabled={copying}>
-        {copied ? '✓ Copied!' : copying ? 'Copying…' : '🔗 Copy webcal URL'}
+        {copied ? <><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Copied!</> : copying ? 'Copying…' : <><UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Copy webcal URL</>}
       </button>
     </div>
   )
@@ -226,14 +229,14 @@ export default function CalendarHeader({
       onClick={onClick}
       aria-label="Open calendar filters"
     >
-      ⚙ Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
+      <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
     </button>
   )
 
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
-        <span className={styles.ttl}>📅 Calendar</span>
+        <span className={styles.ttl}><UIcon name="calendar" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Calendar</span>
         <span className={styles.view}>
           {['Feed','Week','Month'].map(v => (
             <span key={v} className={view === v.toLowerCase() ? styles.viewOn : ''}
@@ -270,7 +273,7 @@ export default function CalendarHeader({
         )}
 
         <Link to="/calendar/mystocks" className={styles.hubLink} title="My Stocks Hub">
-          ⭐ Hub
+          <UIcon name="star-fill" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Hub
         </Link>
       </div>
 

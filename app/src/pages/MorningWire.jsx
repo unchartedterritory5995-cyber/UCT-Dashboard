@@ -10,6 +10,7 @@ import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
+import UIcon from '../components/ui/UIcon'
 import styles from './MorningWire.module.css'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
@@ -78,7 +79,7 @@ function OnTheTape() {
 
   return (
     <div className={styles.tapeBlock}>
-      <div className={styles.tapeLabel}>📰 ON THE TAPE</div>
+      <div className={styles.tapeLabel}><UIcon name="wire" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />ON THE TAPE</div>
       <div className={styles.tapeBody}>
         {tweets == null
           ? <SkeletonTileContent lines={5} />

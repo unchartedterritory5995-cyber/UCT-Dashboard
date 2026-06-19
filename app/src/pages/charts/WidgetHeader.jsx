@@ -1,3 +1,4 @@
+import UIcon from '../../components/ui/UIcon'
 import styles from './ChartsWorkspace.module.css'
 
 const COLORS = ['A', 'B', 'C', 'D']
@@ -26,7 +27,7 @@ export default function WidgetHeader({ label, color, onColorChange, onRemove }) 
         onClick={onRemove}
         aria-label="Close widget"
         title="Remove this widget"
-      >✕</button>
+      ><UIcon name="x" size={13} /></button>
     </div>
   )
 }

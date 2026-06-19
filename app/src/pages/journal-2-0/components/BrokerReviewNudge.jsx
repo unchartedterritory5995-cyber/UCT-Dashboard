@@ -6,6 +6,7 @@
  */
 import { useState } from 'react'
 import useSWR from 'swr'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './BrokerReviewNudge.module.css'
 
 const fetcher = (url) =>
@@ -23,7 +24,7 @@ export default function BrokerReviewNudge({ onReview }) {
 
   return (
     <div className={styles.nudge} role="status">
-      <span className={styles.icon} aria-hidden="true">📝</span>
+      <span className={styles.icon} aria-hidden="true"><UIcon name="edit" size={14} /></span>
       <span className={styles.text}>
         <strong>{total}</strong> broker-imported {total === 1 ? 'item needs' : 'items need'} a setup tag —
         add one to start journaling {total === 1 ? 'it' : 'them'}.
@@ -40,7 +41,7 @@ export default function BrokerReviewNudge({ onReview }) {
         aria-label="Dismiss"
         title="Dismiss"
       >
-        ✕
+        <UIcon name="x" size={13} />
       </button>
     </div>
   )

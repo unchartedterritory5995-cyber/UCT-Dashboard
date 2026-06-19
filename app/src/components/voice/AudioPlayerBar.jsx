@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVoice } from '../../context/VoiceContext'
 import { setProgress } from '../../utils/readAloudProgress'
+import UIcon from '../ui/UIcon'
 import styles from './AudioPlayerBar.module.css'
 
 const SPEEDS = [0.75, 1.0, 1.25, 1.5, 2.0]
@@ -230,7 +231,7 @@ export default function AudioPlayerBar() {
               aria-label="Back 15 seconds"
               title="Back 15 seconds"
             >
-              ⏪
+              <UIcon name="skipBack" size={16} />
             </button>
           )}
 
@@ -241,7 +242,7 @@ export default function AudioPlayerBar() {
             disabled={isLoading || isError}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
-            {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
+            {isLoading ? '…' : isPlaying ? <UIcon name="pause" size={16} /> : <UIcon name="play" size={16} />}
           </button>
 
           {isReadAloud && (
@@ -253,7 +254,7 @@ export default function AudioPlayerBar() {
               aria-label="Forward 15 seconds"
               title="Forward 15 seconds"
             >
-              ⏩
+              <UIcon name="skipForward" size={16} />
             </button>
           )}
 
@@ -311,7 +312,7 @@ export default function AudioPlayerBar() {
             onClick={voice.stop}
             aria-label="Stop"
           >
-            ✕
+            <UIcon name="x" size={16} />
           </button>
         </div>
       )}

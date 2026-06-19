@@ -1,5 +1,6 @@
 // app/src/pages/calendar/WeekView.jsx
 import CompanyLogo from '../../components/CompanyLogo'
+import UIcon from '../../components/ui/UIcon'
 import { applyFilters, sortEntries } from './filterLogic'
 import styles from './Calendar.module.css'
 
@@ -10,7 +11,7 @@ function WeekTimingGroup({ label, icon, hdClass, rows, onSelect }) {
   return (
     <div className={styles.wtcol}>
       <div className={`${styles.wgroupHd} ${hdClass}`}>
-        <span aria-hidden="true">{icon}</span> {label}
+        <span aria-hidden="true"><UIcon name={icon} size={13} /></span> {label}
       </div>
       {rows.length ? rows.map(e => (
         <div key={`${e.sym}-${e._timing}`} className={styles.wrow} onClick={() => onSelect(e, e._timing)}>
@@ -42,8 +43,8 @@ export default function WeekView({ weekDates, days, filters, onSelect }) {
               </div>
             ) : (
               <div className={styles.wtimings}>
-                <WeekTimingGroup label="BMO" icon="☀" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
-                <WeekTimingGroup label="AMC" icon="🌙" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
+                <WeekTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
+                <WeekTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
               </div>
             )}
           </div>

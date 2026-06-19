@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useContext } from 'react'
 import { VoiceContext } from '../../../context/VoiceContext'
+import UIcon from '../../../components/ui/UIcon'
 import { formatETFull } from '../../../utils/timeAgo'
 
 
@@ -72,7 +73,7 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
     return (
       <div style={cardStyle()}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          🧭 Compass is writing the post-mortem…
+          <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass is writing the post-mortem…
         </div>
       </div>
     )
@@ -86,7 +87,7 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
         gap: 10, marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ fontSize: 10, color: 'var(--ut-gold, #c9a84c)' }}>
-          🧭 Compass review
+          <UIcon name="compass" size={11} style={{ verticalAlign: '-2px', marginRight: 4 }} />Compass review
           {review.created_at && (
             <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
               · {formatETFull(review.created_at)}
@@ -96,10 +97,10 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
         <div style={{ display: 'flex', gap: 4 }}>
           <button type="button" aria-label="helpful"
             onClick={() => onFeedback && onFeedback('helpful')}
-            style={chipStyle(fb === 'helpful', '#22c55e')}>👍</button>
+            style={chipStyle(fb === 'helpful', '#22c55e')}><UIcon name="thumbsUp" size={13} /></button>
           <button type="button" aria-label="thumbs down"
             onClick={() => onFeedback && onFeedback('unhelpful')}
-            style={chipStyle(fb === 'unhelpful', '#ef4444')}>👎</button>
+            style={chipStyle(fb === 'unhelpful', '#ef4444')}><UIcon name="thumbsDown" size={13} /></button>
           <button type="button" onClick={() => onRegenerate && onRegenerate()} style={ghostBtn()}>Regen</button>
           <button type="button" onClick={() => onForget && onForget()} style={ghostBtn()}>Forget</button>
         </div>

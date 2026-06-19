@@ -14,6 +14,7 @@ import {
 } from '../lib/calendar'
 import { money } from '../../../lib/journal-2-0'
 import { formatETFull } from '../../../utils/timeAgo'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './ReportPage.module.css'
 
 const fetcher = (url) =>
@@ -76,7 +77,7 @@ export default function ReportPage() {
     <div className={styles.wrap}>
       <div className={styles.noPrint}>
         <button type="button" className={styles.printBtn} onClick={() => window.print()}>
-          🖨 Print / Save as PDF
+          <UIcon name="document" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Print / Save as PDF
         </button>
         <button type="button" className={styles.closeBtn} onClick={() => window.close()}>
           Close

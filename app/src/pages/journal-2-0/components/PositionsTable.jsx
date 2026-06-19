@@ -26,6 +26,7 @@ import {
   dateShort,
 } from '../../../lib/journal-2-0'
 import TickerPopup from '../../../components/TickerPopup'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './PositionsTable.module.css'
 
 export const POSITIONS_COLUMNS = [
@@ -137,7 +138,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
           return (
             <div className={styles.actionsCell}>
               <TickerPopup sym={position.underlying} as="button" className={styles.actionBtn}>
-                <span title="Open underlying chart">📈</span>
+                <span title="Open underlying chart"><UIcon name="equity" size={14} /></span>
               </TickerPopup>
               <button
                 type="button"
@@ -216,7 +217,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
               as="button"
               className={styles.actionBtn}
             >
-              <span title="Open full chart (right-click a bar to add)">📈</span>
+              <span title="Open full chart (right-click a bar to add)"><UIcon name="equity" size={14} /></span>
             </TickerPopup>
             <button
               type="button"

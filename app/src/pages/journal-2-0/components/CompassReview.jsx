@@ -12,6 +12,7 @@
  */
 
 import { useMemo } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import { formatETFull } from '../../../utils/timeAgo'
@@ -51,13 +52,13 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
             aria-label="helpful"
             onClick={() => onFeedback('helpful')}
             style={chipStyle(feedback === 'helpful', '#22c55e')}
-          >👍 Helpful</button>
+          ><UIcon name="thumbsUp" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Helpful</button>
           <button
             type="button"
             aria-label="thumbs down"
             onClick={() => onFeedback('unhelpful')}
             style={chipStyle(feedback === 'unhelpful', '#ef4444')}
-          >👎 Unhelpful</button>
+          ><UIcon name="thumbsDown" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Unhelpful</button>
           <button type="button" onClick={onRegenerate} style={ghostBtn()}>Regenerate</button>
           <button type="button" onClick={onForget} style={ghostBtn()}>Forget</button>
           <CompassAssistButton

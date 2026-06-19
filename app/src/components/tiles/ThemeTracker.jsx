@@ -5,6 +5,7 @@ import useRealtimePrices from '../../hooks/useRealtimePrices'
 import TileCard from '../TileCard'
 import TickerPopup from '../TickerPopup'
 import { SkeletonTileContent } from '../Skeleton'
+import UIcon from '../ui/UIcon'
 import styles from './ThemeTracker.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -45,7 +46,7 @@ function ThemeRow({ name, ticker, etf_name, pct, bar, holdings, intl_count, posi
       >
         <span className={styles.nameGroup}>
           <span className={styles.name}>{name}</span>
-          {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
+          {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={12} /></span>}
         </span>
         <div className={styles.barWrap}>
           <div

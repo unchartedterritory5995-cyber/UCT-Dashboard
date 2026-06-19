@@ -260,7 +260,7 @@ describe('MyStocksHub', () => {
 
   it('renders Sources ⚙ button', () => {
     renderHub()
-    expect(screen.getByText(/⚙ Sources/)).toBeTruthy()
+    expect(screen.getByText(/Sources/)).toBeTruthy()
   })
 
   it('panel role is present', () => {

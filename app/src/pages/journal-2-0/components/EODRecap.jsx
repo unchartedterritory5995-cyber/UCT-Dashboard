@@ -11,6 +11,7 @@
 import { useMemo } from 'react'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
+import UIcon from '../../../components/ui/UIcon'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) {
   const body = useMemo(() => renderMarkdown(recap?.body), [recap?.body])
@@ -48,12 +49,12 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
             type="button" aria-label="helpful"
             onClick={() => onFeedback('helpful')}
             style={chip(feedback === 'helpful', '#22c55e')}
-          >👍</button>
+          ><UIcon name="thumbsUp" size={11} /></button>
           <button
             type="button" aria-label="thumbs down"
             onClick={() => onFeedback('unhelpful')}
             style={chip(feedback === 'unhelpful', '#ef4444')}
-          >👎</button>
+          ><UIcon name="thumbsDown" size={11} /></button>
           <button type="button" onClick={onRegenerate} style={ghost()}>Regen</button>
           <button type="button" onClick={onForget} style={ghost()}>Forget</button>
         </div>
@@ -71,7 +72,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
             fontSize: 11,
           }}
         >
-          ⚠ Compass made unverified claims — review carefully.
+          <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />Compass made unverified claims — review carefully.
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>
             ({flags.length} flag{flags.length === 1 ? '' : 's'})
           </span>

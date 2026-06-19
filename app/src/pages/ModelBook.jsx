@@ -12,6 +12,7 @@ import Sheet from '../components/mobile/Sheet'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import SetupsView from './modelbook/SetupsView'
 import BottomsView from './modelbook/BottomsView'
+import UIcon from '../components/ui/UIcon'
 import styles from './ModelBook.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -581,10 +582,10 @@ function SetupDetails({ setup, isAdmin, onSave, onGenerate }) {
       {isAdmin && (
         <div className={styles.setupDescBtns}>
           {notes
-            ? <button className={styles.setupDescEditBtn} onClick={startEdit} disabled={generating}>✎ Edit</button>
+            ? <button className={styles.setupDescEditBtn} onClick={startEdit} disabled={generating}><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Edit</button>
             : <button className={styles.setupDescAdd} onClick={startEdit} disabled={generating}>+ Add details</button>}
           <button className={styles.setupDescGenBtn} onClick={generate} disabled={generating}>
-            {generating ? 'Generating…' : (notes ? '✨ Regenerate' : '✨ Generate')}
+            {generating ? 'Generating…' : (notes ? <><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Regenerate</> : <><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Generate</>)}
           </button>
         </div>
       )}
@@ -1276,23 +1277,23 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
         <div className={styles.headerTools}>
           {/* Annotate the focused setup (only when zoomed into one). */}
           {isAdmin && onSetupsTab && focusDate && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={() => startAnnotate('setup')} title="Draw annotations on this focused setup">✏️ Annotate Setup</button>
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('setup')} title="Draw annotations on this focused setup"><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Annotate Setup</button>
           )}
           {/* Annotate the stock's main price chart (saved per stock) — always
               available, exactly like Annotate Nasdaq but on the price pane. */}
           {isAdmin && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the stock's main chart (saved per stock)">✏️ Annotate Chart</button>
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('stock')} title="Draw annotations on the stock's main chart (saved per stock)"><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Annotate Chart</button>
           )}
           {/* Measure-mark the Nasdaq pane (GLOBAL — shown on every stock). */}
           {isAdmin && !annotateMode && (
-            <button className={styles.annotateBtn} onClick={() => startAnnotate('index')} title="Measure-mark Nasdaq corrections on the top pane (shared across every stock)">📐 Annotate Nasdaq</button>
+            <button className={styles.annotateBtn} onClick={() => startAnnotate('index')} title="Measure-mark Nasdaq corrections on the top pane (shared across every stock)"><UIcon name="ruler" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Annotate Nasdaq</button>
           )}
           {/* Upload historical OHLCV for a delisted stock the data providers dropped. */}
           {isAdmin && !annotateMode && (
             <>
               <button className={styles.annotateBtn} onClick={() => barsFileRef.current?.click()}
                 title="Upload a TradingView OHLCV CSV as this stock's chart data (for delisted tickers)">
-                📈 {stock.has_custom_bars ? 'Replace Data' : 'Upload Data'}
+                <UIcon name="equity" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{stock.has_custom_bars ? 'Replace Data' : 'Upload Data'}
               </button>
               {stock.has_custom_bars && (
                 <button className={styles.annotateCancel} onClick={clearBars} title="Remove uploaded data">Clear Data</button>
@@ -1528,7 +1529,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                                     className={styles.setupEditC}
                                     title="Edit catalyst"
                                     onClick={e => { e.stopPropagation(); setEditingCatalystId(c.id) }}
-                                  >✎</button>
+                                  ><UIcon name="edit" size={12} /></button>
                                   <button
                                     className={styles.setupDelC}
                                     title="Delete catalyst"
@@ -1575,7 +1576,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
                                 className={styles.setupEditC}
                                 title="Edit setup"
                                 onClick={e => { e.stopPropagation(); setEditingSetupId(s.id) }}
-                              >✎</button>
+                              ><UIcon name="edit" size={12} /></button>
                               <button
                                 className={styles.setupDelC}
                                 title="Delete setup"
@@ -2242,7 +2243,7 @@ export default function ModelBook() {
               className={styles.stockCtxItem}
               onClick={() => deleteStockFromBook(stockCtx.stock)}
             >
-              🗑 Delete {stockCtx.stock.symbol} from {year}
+              <UIcon name="trash" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Delete {stockCtx.stock.symbol} from {year}
             </button>
           </Sheet>
         ) : (
@@ -2264,7 +2265,7 @@ export default function ModelBook() {
                 className={styles.stockCtxItem}
                 onClick={() => deleteStockFromBook(stockCtx.stock)}
               >
-                🗑 Delete {stockCtx.stock.symbol} from {year}
+                <UIcon name="trash" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Delete {stockCtx.stock.symbol} from {year}
               </button>
             </div>
           </>

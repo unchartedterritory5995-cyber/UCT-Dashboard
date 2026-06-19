@@ -95,7 +95,7 @@ describe('CallRecapSection', () => {
       const mockSynth = { speak: vi.fn(), cancel: vi.fn() }
       Object.defineProperty(window, 'speechSynthesis', { value: mockSynth, configurable: true })
       render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-      expect(screen.getByText('🔊 Listen')).toBeTruthy()
+      expect(screen.getByText('Listen')).toBeTruthy()
     })
 
     it('does NOT show Listen button when speechSynthesis is unavailable', () => {
@@ -105,7 +105,7 @@ describe('CallRecapSection', () => {
         Object.defineProperty(window, 'speechSynthesis', { value: undefined, configurable: true })
       }
       render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-      expect(screen.queryByText('🔊 Listen')).toBeNull()
+      expect(screen.queryByText('Listen')).toBeNull()
     })
 
     it('calls speechSynthesis.speak when Listen is clicked', () => {
@@ -118,7 +118,7 @@ describe('CallRecapSection', () => {
         this.onerror = null
       })
       render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-      fireEvent.click(screen.getByText('🔊 Listen'))
+      fireEvent.click(screen.getByText('Listen'))
       expect(mockSpeak).toHaveBeenCalledOnce()
     })
   })
@@ -172,7 +172,7 @@ describe('CallRecapSection', () => {
     it('shows "REPLAY" label for recorded audio', () => {
       const audio = { stream_url: 'https://cdn.example.com/call.mp3', kind: 'recorded' }
       render(<CallRecapSection recap={FULL_RECAP} audio={audio} />)
-      expect(screen.getByText('▶ REPLAY')).toBeTruthy()
+      expect(screen.getByText('REPLAY')).toBeTruthy()
     })
 
     it('shows "LISTEN LIVE" label for live audio', () => {

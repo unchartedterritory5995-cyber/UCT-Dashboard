@@ -157,7 +157,7 @@ export default function TwitterAccountsPanel() {
                       {a.enabled ? 'disable' : 'enable'}
                     </button>
                     <button onClick={() => removeAccount(a.handle)} style={{ fontSize: 11 }}>
-                      ✕
+                      <UIcon name="x" size={11} />
                     </button>
                   </td>
                 </tr>

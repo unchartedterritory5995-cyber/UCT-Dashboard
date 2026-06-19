@@ -21,6 +21,7 @@ import TimelineView from './views/TimelineView'
 import RadarView from './views/RadarView'
 import ScoreboardView from './views/ScoreboardView'
 import EqualizerView from './views/EqualizerView'
+import UIcon from '../../components/ui/UIcon'
 
 export default function BreadthViews({ rows, onDrill }) {
   // Computed inside the component (not module top-level) to dodge the
@@ -126,7 +127,7 @@ export default function BreadthViews({ rows, onDrill }) {
           <div className={customizeStyles.anchor}>
             <button className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
                     onClick={() => setCustomizeOpen(o => !o)} title="Customize this view">
-              <span className={customizeStyles.triggerIcon}>⚙</span> {viewLabel}
+              <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={13} /></span> {viewLabel}
               {!views.isDefaultActive ? ` · ${views.activePreset}` : ''}
             </button>
             {customizeOpen && (

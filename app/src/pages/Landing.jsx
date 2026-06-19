@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import useInView from '../hooks/useIntersectionObserver'
+import UIcon from '../components/ui/UIcon'
 import { track } from '../utils/landingTrack'
 import styles from './Landing.module.css'
 
@@ -287,7 +288,7 @@ export default function Landing() {
       {/* ── Nav ── */}
       <nav className={styles.nav}>
         <div className={styles.navBrand}>
-          <span className={styles.navMark} aria-hidden="true">⊕</span>
+          <span className={styles.navMark} aria-hidden="true"><UIcon name="compass" size={18} /></span>
           UCT Intelligence
         </div>
         <div className={styles.navLinks}>
@@ -558,7 +559,7 @@ export default function Landing() {
         </div>
         <div className={styles.compassMock}>
           <div className={styles.compassHead}>
-            <span className={styles.compassMark} aria-hidden="true">⊕</span>
+            <span className={styles.compassMark} aria-hidden="true"><UIcon name="compass" size={18} /></span>
             <span className={styles.compassTitle}>Compass</span>
             <span className={styles.compassStatus}>● Active</span>
           </div>
@@ -827,17 +828,17 @@ export default function Landing() {
           </span>
           <span className={styles.trustDiv}>·</span>
           <span className={styles.trustItem}>
-            <span className={styles.trustGlyph} aria-hidden="true">⊕</span>
+            <span className={styles.trustGlyph} aria-hidden="true"><UIcon name="compass" size={13} /></span>
             AI synthesis by Anthropic Claude
           </span>
           <span className={styles.trustDiv}>·</span>
           <span className={styles.trustItem}>
-            <span className={styles.trustGlyph} aria-hidden="true">🔒</span>
+            <span className={styles.trustGlyph} aria-hidden="true"><UIcon name="lock" size={13} /></span>
             TLS secured · payments by Stripe
           </span>
           <span className={styles.trustDiv}>·</span>
           <span className={styles.trustItem}>
-            <span className={styles.trustGlyph} aria-hidden="true">✓</span>
+            <span className={styles.trustGlyph} aria-hidden="true"><UIcon name="check" size={13} /></span>
             Not investment advice
           </span>
         </div>
@@ -849,7 +850,7 @@ export default function Landing() {
       <footer ref={footerRef} className={styles.foot}>
         <div className={styles.footTop}>
           <div className={styles.footBrand}>
-            <span className={styles.footBrandMark} aria-hidden="true">⊕</span>
+            <span className={styles.footBrandMark} aria-hidden="true"><UIcon name="compass" size={18} /></span>
             UCT Intelligence
           </div>
           <div className={styles.footMid}>

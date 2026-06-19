@@ -1,10 +1,11 @@
 // app/src/components/ErrorState.jsx
+import UIcon from './ui/UIcon'
 import styles from './ErrorState.module.css'
 
 export default function ErrorState({ message = 'Something went wrong', onRetry, compact = false }) {
   return (
     <div className={compact ? styles.wrapper : styles.wrapperFull}>
-      <span className={styles.icon}>⚠</span>
+      <span className={styles.icon}><UIcon name="warning" size={24} /></span>
       <p className={styles.message}>{message}</p>
       {onRetry && (
         <button className={styles.retryBtn} onClick={onRetry}>

@@ -5,6 +5,7 @@
  */
 import { Fragment } from 'react'
 import { metricColor, resolveViewColors } from './breadthViewShared'
+import UIcon from '../../../components/ui/UIcon'
 import signalStyles from './signals.module.css'
 
 export default function TimelineView({ recentRows = [], metrics, onDrill, signalKey, notableKey, options = {} }) {
@@ -30,7 +31,7 @@ export default function TimelineView({ recentRows = [], metrics, onDrill, signal
                             letterSpacing: '.3px', color: isSignal ? '#c9a84c' : '#94a3b8',
                             display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
                             cursor: clickable ? 'pointer' : 'default' }}>
-                {isSignal ? '★ ' : ''}{m.label}
+                {isSignal ? <><UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} /></> : ''}{m.label}
               </div>
               {days.map((row, i) => (
                 <div key={i} data-testid={`cell-${m.key}-${i}`} title={`${m.label} · ${row.date}: ${m.getFmt(row)}`}

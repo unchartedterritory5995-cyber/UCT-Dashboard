@@ -18,7 +18,9 @@ describe('EqualizerView', () => {
   it('marks the signal column with a ★', () => {
     render(<EqualizerView currentRow={currentRow} metrics={metrics} normalize={() => 60}
                           signalKey="breadth_score" onDrill={() => {}} />)
-    expect(screen.getByText('★Health')).toBeInTheDocument()
+    const label = screen.getByText('Health')
+    expect(label).toBeInTheDocument()
+    expect(label.querySelector('svg')).toBeTruthy() // star-fill signal marker
   })
   it('clicking a drillable column calls onDrill', () => {
     const onDrill = vi.fn()

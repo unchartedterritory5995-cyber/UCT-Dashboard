@@ -13,6 +13,7 @@ import GoalProgress from '../components/accounts/GoalProgress'
 import Milestones from '../components/accounts/Milestones'
 import { colorHex } from '../lib/accountColors'
 import { money } from '../../../lib/journal-2-0'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './AccountsTab.module.css'
 
 export default function AccountsTab({ onNewAccount }) {
@@ -160,7 +161,7 @@ export default function AccountsTab({ onNewAccount }) {
           <li>
             <strong>Per-account settings</strong> — each account has its
             own size, stop style, breakeven range, and setups list.
-            Open settings (⚙ in header) while a single account is selected.
+            Open settings (<UIcon name="gear" size={13} style={{ verticalAlign: '-2px' }} /> in header) while a single account is selected.
           </li>
         </ol>
       </section>

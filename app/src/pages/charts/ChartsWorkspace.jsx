@@ -251,7 +251,7 @@ export default function ChartsWorkspace() {
     <WorkspaceContext.Provider value={workspaceValue}>
       <div className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          <span className={styles.workspaceTitle}>📈 Charts</span>
+          <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"

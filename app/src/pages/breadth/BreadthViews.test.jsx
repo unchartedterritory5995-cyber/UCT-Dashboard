@@ -21,6 +21,6 @@ describe('BreadthViews', () => {
     render(<BreadthViews rows={rows} onDrill={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Rings' }))
     expect(screen.queryByTestId('echart')).not.toBeInTheDocument()
-    expect(screen.getByText('Health')).toBeInTheDocument()
+    expect(screen.getAllByText('Health').length).toBeGreaterThan(0)
   })
 })

@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import CsvColumnMapper from './CsvColumnMapper'
 import {
@@ -219,7 +220,7 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                   style={{ display: 'none' }}
                 />
                 <div className={styles.dropInner}>
-                  <div className={styles.dropIcon}>📄</div>
+                  <div className={styles.dropIcon}><UIcon name="document" size={32} /></div>
                   <p>
                     <strong>Drop a CSV file here</strong> or click to browse.
                   </p>
@@ -246,14 +247,14 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                   className={styles.linkBtn}
                   onClick={downloadPreMatchedTemplate}
                 >
-                  ⬇ Pre-matched template
+                  <UIcon name="download" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Pre-matched template
                 </button>
                 <button
                   type="button"
                   className={styles.linkBtn}
                   onClick={downloadRawExecutionsTemplate}
                 >
-                  ⬇ Raw executions template
+                  <UIcon name="download" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Raw executions template
                 </button>
               </div>
             </>

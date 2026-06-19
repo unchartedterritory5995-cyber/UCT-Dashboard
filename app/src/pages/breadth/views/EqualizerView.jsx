@@ -5,6 +5,7 @@
  */
 import { metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 export default function EqualizerView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || !metrics?.length) return null
@@ -40,7 +41,7 @@ export default function EqualizerView({ currentRow, metrics, normalize, onDrill,
               <div style={{ font: '700 7px Instrument Sans, sans-serif', color: isSignal ? '#c9a84c' : '#94a3b8',
                             marginTop: 4, textTransform: 'uppercase', whiteSpace: 'nowrap',
                             maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {isSignal ? '★' : ''}{m.label}
+                {isSignal ? <><UIcon name="star-fill" size={7} style={{ verticalAlign: '-1px', marginRight: 2 }} /></> : ''}{m.label}
               </div>
             </div>
           )

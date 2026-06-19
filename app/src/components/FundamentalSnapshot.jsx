@@ -4,6 +4,7 @@
 // Reusable — used in the TickerPopup Fundamentals tab (free, everywhere) and at
 // the top of the research Overview. One request via useFundamentalSnapshot.
 import useFundamentalSnapshot from '../hooks/useFundamentalSnapshot'
+import UIcon from './ui/UIcon'
 import styles from './FundamentalSnapshot.module.css'
 
 function scoreColor(v) {
@@ -107,7 +108,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
         </div>
         <div className={styles.headChips}>
           {d.next_earnings && earnLabel(d.next_earnings) && (
-            <span className={styles.earnChip} title="Next earnings date">📅 {earnLabel(d.next_earnings)}</span>
+            <span className={styles.earnChip} title="Next earnings date"><UIcon name="calendar" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{earnLabel(d.next_earnings)}</span>
           )}
           {d.basis && (
             <span className={`${styles.basisPill} ${d.basis === 'percentile' ? styles.basisPct : styles.basisAbs}`}
@@ -205,7 +206,7 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
           {checkup.map((c, i) => (
             <div key={`${c.label}-${i}`} className={styles.checkRow}>
               <span className={styles.checkIcon} style={{ color: c.status === 'pass' ? '#3cb868' : c.status === 'fail' ? '#e74c3c' : 'var(--text-muted, #8a8f98)' }}>
-                {c.status === 'pass' ? '✓' : c.status === 'fail' ? '✕' : '–'}
+                {c.status === 'pass' ? <UIcon name="check" size={13} /> : c.status === 'fail' ? <UIcon name="x" size={13} /> : '–'}
               </span>
               <span className={styles.checkLbl}>{c.label}</span>
               <span className={styles.checkVal}>{c.value}</span>

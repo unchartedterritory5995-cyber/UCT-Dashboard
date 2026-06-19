@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import EarningsCard from './EarningsCard'
 import MacroBand from './MacroBand'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
 export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
@@ -16,10 +17,10 @@ export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
   return (
     <div className={styles.drawerBackdrop} onClick={onClose}>
       <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-        <div className={styles.drawerHd}>{day.label || ds}<button onClick={onClose}>✕</button></div>
+        <div className={styles.drawerHd}>{day.label || ds}<button onClick={onClose}><UIcon name="x" size={14} /></button></div>
         <MacroBand econ={day.econ} fed={day.fed} />
-        <DrawerTimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
-        <DrawerTimingSection label="After Close" icon="🌙" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
+        <DrawerTimingSection label="Before Open" icon="sparkle" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
+        <DrawerTimingSection label="After Close" icon="moon" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
       </div>
     </div>
   )
@@ -30,7 +31,7 @@ function DrawerTimingSection({ label, icon, hdClass, rows, onSelect }) {
   return (
     <div className={styles.timedGroup}>
       <div className={`${styles.timedHd} ${hdClass}`}>
-        <span aria-hidden="true">{icon}</span> {label}
+        <span aria-hidden="true"><UIcon name={icon} size={13} /></span> {label}
         <span className={styles.timedCount}>{rows.length}</span>
       </div>
       <div className={styles.cards}>

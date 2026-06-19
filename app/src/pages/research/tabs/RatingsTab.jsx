@@ -84,7 +84,7 @@ export default function RatingsTab({ sym }) {
           {checkup.map((c, i) => (
             <div key={`${c.label}-${i}`} className={styles.checkRow}>
               <span className={styles.checkIcon} style={{ color: checkColor(c.status) }}>
-                {c.status === 'pass' ? '✓' : c.status === 'fail' ? '✕' : '–'}
+                {c.status === 'pass' ? <UIcon name="check" size={13} /> : c.status === 'fail' ? <UIcon name="x" size={13} /> : '–'}
               </span>
               <span>{c.label}</span>
               <span className={styles.muted}>{c.value}</span>

@@ -10,6 +10,7 @@ import {
   toggleIndicatorAlert,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
+import UIcon from '../ui/UIcon'
 
 const INDICATORS = [
   { value: 'rsi', label: 'RSI' },
@@ -245,7 +246,7 @@ export default function IndicatorAlertPopover({ sym, onClose }) {
                   <div className={styles.alertSub}>
                     {trigAt && (
                       <>
-                        <span className={styles.trigCheck}>✓</span>
+                        <span className={styles.trigCheck}><UIcon name="check" size={13} /></span>
                         <span>Triggered {trigAt}</span>
                       </>
                     )}

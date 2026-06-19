@@ -4,6 +4,7 @@
  */
 
 import { useRef, useState } from 'react'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './DayAttachments.module.css'
 
 const MAX_ATTACHMENTS = 5
@@ -113,7 +114,7 @@ export default function DayAttachments({
                 </a>
               ) : (
                 <a href={a.url} target="_blank" rel="noreferrer" className={styles.linkChip}>
-                  <span className={styles.linkIcon}>🔗</span>
+                  <span className={styles.linkIcon}><UIcon name="link" size={14} /></span>
                   <span className={styles.linkText}>
                     {a.label || a.url}
                   </span>
@@ -175,7 +176,7 @@ export default function DayAttachments({
           onClick={() => fileInputRef.current?.click()}
           disabled={isFull || saving}
         >
-          📷 Upload image
+          <UIcon name="document" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Upload image
         </button>
         <span className={styles.hint}>PNG / JPG / GIF / WebP · max 5 MB</span>
       </div>

@@ -32,6 +32,7 @@ import PreTradeVerdictCard from './PreTradeVerdictCard'
 import useInterventions from '../hooks/useInterventions'
 import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
+import UIcon from '../../../components/ui/UIcon'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -463,7 +464,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
 
           {regimeMultActive && (
             <div className={bannerStyles.info} style={{ fontSize: 12 }}>
-              🎯 Regime is <strong>{currentRegime.toUpperCase()}</strong>.
+              <UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Regime is <strong>{currentRegime.toUpperCase()}</strong>.
               Default size scaled to <strong>{Math.round(regimeMult * 100)}%</strong>
               {regimeMult === 0 && ' — no size prefilled. Override by typing shares manually.'}
             </div>
@@ -522,7 +523,9 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
                   margin: '0 0 6px',
                 }}
               >
-                {verdictLoading ? '🧭 Compass is thinking…' : '🧭 Check with Compass'}
+                {verdictLoading
+                  ? <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass is thinking…</>
+                  : <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Check with Compass</>}
               </button>
             </>
           )}

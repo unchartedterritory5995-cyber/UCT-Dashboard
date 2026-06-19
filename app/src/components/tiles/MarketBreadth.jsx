@@ -3,6 +3,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import MARelationship from './MARelationship'
 import { SkeletonTileContent } from '../Skeleton'
+import UIcon from '../ui/UIcon'
 import styles from './MarketBreadth.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -28,7 +29,7 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
       <div className={styles.expScoreRow}>
         <span className={styles.expScore} style={{ color: value == null ? 'var(--text-muted)' : color }}>
           {value == null ? '—' : Math.round(value)}
-          {(bonus || isLeveraged) && value != null && <span className={styles.expBonus}>★</span>}
+          {(bonus || isLeveraged) && value != null && <span className={styles.expBonus}><UIcon name="star-fill" size={12} /></span>}
         </span>
         {delta != null && (
           <span className={styles.expDelta} style={{ color: delta >= 0 ? 'var(--gain)' : 'var(--loss)' }}>
@@ -87,7 +88,7 @@ export default function MarketBreadth({ data: propData }) {
       )}
 
       {expNote && <p className={styles.scoreNote}>{expNote}</p>}
-      {expGate && expReason && <p className={styles.gateNote}>⚠ {expReason}</p>}
+      {expGate && expReason && <p className={styles.gateNote}><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{expReason}</p>}
 
       <MARelationship maData={maData} />
     </TileCard>

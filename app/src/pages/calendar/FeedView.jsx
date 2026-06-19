@@ -7,6 +7,7 @@ import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
 import { useReactions, useDayMetrics } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay }) {
@@ -88,7 +89,7 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
 
       <TimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
         entries={bmoEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
-      <TimingSection label="After Close" icon="🌙" hdClass={styles.amcHd}
+      <TimingSection label="After Close" icon={<UIcon name="moon" size={14} />} hdClass={styles.amcHd}
         entries={amcEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
 
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}

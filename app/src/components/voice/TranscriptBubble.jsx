@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useVoice } from '../../context/VoiceContext'
+import UIcon from '../ui/UIcon'
 import styles from './TranscriptBubble.module.css'
 
 /**
@@ -77,7 +78,7 @@ function FeedbackButtons({ turnText, sessionId }) {
         aria-label="Good answer — thumbs up"
         onClick={() => submit('up')}
       >
-        <span aria-hidden="true">👍</span>
+        <span aria-hidden="true"><UIcon name="thumbsUp" size={14} /></span>
       </button>
       <button
         type="button"
@@ -86,7 +87,7 @@ function FeedbackButtons({ turnText, sessionId }) {
         aria-label="Bad answer — open correction input"
         onClick={() => { setShowInput(true); submit('down') }}
       >
-        <span aria-hidden="true">👎</span>
+        <span aria-hidden="true"><UIcon name="thumbsDown" size={14} /></span>
       </button>
     </div>
   )

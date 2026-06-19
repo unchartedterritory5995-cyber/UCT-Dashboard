@@ -11,6 +11,8 @@
  *   placeholder?: string — shown when `available` is empty
  */
 
+import UIcon from '../../../components/ui/UIcon'
+
 export default function TagChipPicker({ available, selected, onChange, placeholder }) {
   if (!available || available.length === 0) {
     return (
@@ -39,7 +41,7 @@ export default function TagChipPicker({ available, selected, onChange, placehold
               cursor: 'pointer',
             }}
           >
-            {active ? '✓ ' : ''}{t}
+            {active ? <UIcon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> : ''}{t}
           </button>
         )
       })}

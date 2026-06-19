@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './Admin.module.css'
+import UIcon from '../components/ui/UIcon'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 import { formatETDate } from '../utils/timeAgo'
 
@@ -432,7 +433,7 @@ function AdminTodoList() {
                 title={t.done ? 'Mark as not done' : 'Cross off'}
                 aria-label={t.done ? 'Mark as not done' : 'Cross off'}
               >
-                {t.done ? '✓' : ''}
+                {t.done ? <UIcon name="check" size={13} /> : ''}
               </button>
               <div className={styles.todoBody}>
                 <span className={styles.todoTask}>{t.task}</span>

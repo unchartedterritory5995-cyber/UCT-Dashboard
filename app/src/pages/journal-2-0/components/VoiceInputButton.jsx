@@ -16,6 +16,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useIsPaid } from '../../../context/AuthContext'
+import UIcon from '../../../components/ui/UIcon'
 
 function getSpeechRecognitionCtor() {
   if (typeof window === 'undefined' && typeof global === 'undefined') return null
@@ -204,7 +205,7 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
           cursor: 'not-allowed', opacity: 0.5,
         }}
       >
-        🎤
+        <UIcon name="mic" size={14} />
       </button>
     )
   }
@@ -227,8 +228,8 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
             boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
           }}
         >
-          <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>🎤 New:</strong>{' '}
-          speak instead of type. Tap the mic to dictate, or 🧭 to talk through it with Compass.
+          <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}><UIcon name="mic" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />New:</strong>{' '}
+          speak instead of type. Tap the mic to dictate, or <UIcon name="compass" size={11} style={{ verticalAlign: '-1px' }} /> to talk through it with Compass.
           <button
             type="button"
             aria-label="Dismiss tip"
@@ -240,7 +241,7 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
               fontSize: 13, lineHeight: 1, padding: 2,
             }}
           >
-            ✕
+            <UIcon name="x" size={13} />
           </button>
         </span>
       )}
@@ -265,7 +266,7 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
           opacity: uploading ? 0.6 : 1,
         }}
       >
-        {recording ? '🛑' : '🎤'}
+        {recording ? <UIcon name="noEntry" size={14} /> : <UIcon name="mic" size={14} />}
       </button>
       {showStatus && (
         <span style={{

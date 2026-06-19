@@ -136,7 +136,7 @@ export default function AccountSelector({ onNewAccount }) {
       >
         {isAll ? (
           <>
-            <span className={styles.allDot}>🌐</span>
+            <span className={styles.allDot}><UIcon name="globe" size={14} /></span>
             <span className={styles.name}>All Accounts</span>
           </>
         ) : (
@@ -176,7 +176,7 @@ export default function AccountSelector({ onNewAccount }) {
             className={`${styles.item} ${isAll ? styles.itemActive : ''}`}
             onClick={() => { setAccount(null); setOpen(false) }}
           >
-            <span className={styles.allDot}>🌐</span>
+            <span className={styles.allDot}><UIcon name="globe" size={14} /></span>
             <span className={styles.itemName}>All Accounts</span>
           </button>
           <div className={styles.sep} />

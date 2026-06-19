@@ -19,6 +19,7 @@ import { useContext } from 'react'
 import useSWR from 'swr'
 import { VoiceContext, setVoicePageHint } from '../context/VoiceContext'
 import useRealtimeSession from '../hooks/useRealtimeSession'
+import UIcon from '../components/ui/UIcon'
 import styles from './RiskDashboard.module.css'
 
 const fetcher = (url) =>
@@ -58,7 +59,7 @@ export default function RiskDashboard() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>🛡️ Risk Dashboard</h1>
+        <h1 className={styles.title}><UIcon name="shield" size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />Risk Dashboard</h1>
         <div className={styles.subtitle}>
           Position-sizing engine state. Compass's Risk Officer mandate uses
           this exact view to approve or refuse trades.
@@ -162,17 +163,17 @@ function AskCompassButtonInner({ reason, data }) {
     )
     connect('compass')
   }
-  const label = reason === 'heat-over-cap'
-    ? '🧭 Ask Compass why you’re hot'
-    : '🧭 Ask Compass about this sector concentration'
+  const labelText = reason === 'heat-over-cap'
+    ? 'Ask Compass why you’re hot'
+    : 'Ask Compass about this sector concentration'
   return (
     <button
       type="button"
       onClick={handleClick}
       className={styles.askCompassBtn}
-      aria-label={label}
+      aria-label={labelText}
     >
-      {label}
+      <UIcon name="compass" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />{labelText}
     </button>
   )
 }

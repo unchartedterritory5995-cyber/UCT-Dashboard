@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { formatETFull } from '../../utils/timeAgo'
+import UIcon from '../ui/UIcon'
 import styles from './VoiceSessionsPanel.module.css'
 
 /**
@@ -180,7 +181,7 @@ export default function VoiceSessionsPanel() {
                     {trace.feedback.map((f, i) => (
                       <li key={i} className={styles[`fb_${f.rating}`] || ''}>
                         <span className={styles.fbRating}>
-                          {f.rating === 'up' ? '👍' : '👎'}
+                          {f.rating === 'up' ? <UIcon name="thumbsUp" size={13} /> : <UIcon name="thumbsDown" size={13} />}
                         </span>
                         <span>{f.turn_text || f.correction_text || '—'}</span>
                       </li>

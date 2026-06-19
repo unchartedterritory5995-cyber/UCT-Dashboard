@@ -156,10 +156,10 @@ export default function PatternSidePanel({ detection, onClose }) {
   ]
 
   const ratingChoices = [
-    { value: 'great', label: 'Great', emoji: '👍' },
-    { value: 'good',  label: 'Good',  emoji: '👌' },
-    { value: 'miss',  label: 'Miss',  emoji: '❌' },
-    { value: 'wrong', label: 'Wrong', emoji: '⚠' },
+    { value: 'great', label: 'Great', emoji: 'thumbsUp' },
+    { value: 'good',  label: 'Good',  emoji: 'check' },
+    { value: 'miss',  label: 'Miss',  emoji: 'x' },
+    { value: 'wrong', label: 'Wrong', emoji: 'warning' },
   ]
 
   return (
@@ -351,7 +351,7 @@ export default function PatternSidePanel({ detection, onClose }) {
                 onClick={() => setRating(value)}
                 title={label}
               >
-                <span className={styles.feedbackEmoji}>{emoji}</span>
+                <span className={styles.feedbackEmoji}><UIcon name={emoji} size={16} /></span>
                 <span>{label}</span>
               </button>
             ))}

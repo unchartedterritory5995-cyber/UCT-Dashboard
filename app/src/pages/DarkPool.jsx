@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, Fragment } from "react";
 import TickerPopup from "../components/TickerPopup";
 import StockChart from "../components/StockChart";
+import UIcon from "../components/ui/UIcon";
 
 // ── Built-in CSV parser (no external dependencies) ───────────────────────────
 function parseCSVLine(line) {
@@ -588,7 +589,7 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
-        textTransform:"uppercase",marginBottom:8}}>🔥 Notable Activity</div>
+        textTransform:"uppercase",marginBottom:8}}><UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Activity</div>
 
       {/* Sortable column headers */}
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
@@ -1735,7 +1736,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
             {/* 1. Headline — plain English explanation of today's flow regime */}
             <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
               <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
-                <div style={{fontSize:13, fontWeight:700, color:C.amber}}>📋 What's Happening Today</div>
+                <div style={{fontSize:13, fontWeight:700, color:C.amber}}><UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />What's Happening Today</div>
                 <div style={{fontSize:9, color:C.tx3}}>{D.meta.dateRange || "Selected Period"}</div>
               </div>
               <div style={{fontSize:10, color:C.tx3, marginBottom:10, fontStyle:"italic"}}>
@@ -1762,7 +1763,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
             {notableStocks.length > 0 && (
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
                 <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2}}>
-                  <div style={{fontSize:13, fontWeight:700, color:C.tx}}>🎯 Notable Stocks ({notableStocks.length})</div>
+                  <div style={{fontSize:13, fontWeight:700, color:C.tx}}><UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Stocks ({notableStocks.length})</div>
                   <div style={{fontSize:9, color:C.tx3, fontStyle:"italic"}}>
                     bonds · treasuries · index ETFs filtered out
                   </div>
@@ -1793,7 +1794,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
             {hasAnySignal && (
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
                 <div style={{fontSize:13, fontWeight:700, color:C.tx, marginBottom:2}}>
-                  📊 Patterns Detected ({totalSignalCount} total)
+                  <UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Patterns Detected ({totalSignalCount} total)
                 </div>
                 <div style={{fontSize:10, color:C.tx3, marginBottom:6, fontStyle:"italic"}}>
                   Each pattern below describes a different way today's flow stood out. Click any group to see which stocks show that pattern.
@@ -2034,7 +2035,7 @@ function OptionsPane({mktcapData = {}}){
     <div>
       <div style={{marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700,color:C.amber,marginBottom:4}}>
-          ⭐ Alpha Gold <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.alpha.length} signals)</span>
+          <UIcon name="star-fill" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Alpha Gold <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.alpha.length} signals)</span>
         </div>
         <div style={{fontSize:12,color:C.tx3}}>
           Highest-conviction options signals from the source feed — top 10 most recent, deduped by ticker.
@@ -2948,7 +2949,7 @@ export default function DarkPool({embedded}){
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",
       minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
       flexDirection:"column",gap:12,padding:20}}>
-      <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
+      <div style={{fontSize:20,fontWeight:700}}><UIcon name="warning" size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />Failed to load data</div>
       <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{fetchDays === 0 ? "/api/darkpool/aggregated?all_data=true" : `/api/darkpool/aggregated?days=${fetchDays}`}</code></div>
       <div style={{fontSize:12,color:C.red,background:C.bg2,border:`1px solid ${C.red}44`,
         borderRadius:8,padding:"8px 16px",maxWidth:480,textAlign:"center"}}>
@@ -3102,11 +3103,11 @@ export default function DarkPool({embedded}){
             }}>
               {dateFrom && dateTo
                 ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
-                : "📅 Dates"}
+                : <><UIcon name="calendar" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />Dates</>}
             </button>
             {dateFrom && dateTo && (
               <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
-                style={{ background:"transparent", border:"none", color:C.tx3, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+                style={{ background:"transparent", border:"none", color:C.tx3, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}><UIcon name="x" size={12} /></button>
             )}
             <span style={{ fontSize:9, color:C.tx3 }}>
               {csvLoading ? "Loading..." : dateFrom && dateTo
@@ -3259,7 +3260,7 @@ export default function DarkPool({embedded}){
             fontWeight:600,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
             fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",transition:"all 0.15s",
             flexShrink:0}}>
-          🔍 Search
+          <UIcon name="search" size={12} style={{ verticalAlign: '-2px', marginRight: 5 }} />Search
         </button>
         </div>
       </div>

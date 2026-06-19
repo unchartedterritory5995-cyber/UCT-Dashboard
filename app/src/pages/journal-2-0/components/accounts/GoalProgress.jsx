@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
+import UIcon from '../../../../components/ui/UIcon'
 import { money, moneySigned } from '../../../../lib/journal-2-0'
 import styles from './GoalProgress.module.css'
 
@@ -67,7 +68,7 @@ export default function GoalProgress({ account }) {
   return (
     <section className={styles.section}>
       <div className={styles.header}>
-        <span className={styles.dot}>🎯</span>
+        <span className={styles.dot}><UIcon name="patterns" size={14} /></span>
         <h3 className={styles.title}>Goal Progress</h3>
         <span className={styles.acct}>{account?.name}</span>
       </div>
@@ -112,7 +113,7 @@ export default function GoalProgress({ account }) {
                       aria-label={`Edit ${p.label} target`}
                       title="Edit target"
                     >
-                      ✏
+                      <UIcon name="edit" size={13} />
                     </button>
                   </span>
                 )}

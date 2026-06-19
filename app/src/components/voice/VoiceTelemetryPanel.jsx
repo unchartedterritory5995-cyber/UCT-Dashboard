@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { formatETDate, formatETFull } from '../../utils/timeAgo'
+import UIcon from '../ui/UIcon'
 import styles from './VoiceTelemetryPanel.module.css'
 
 /**
@@ -153,7 +154,7 @@ export default function VoiceTelemetryPanel() {
       {patterns.length > 0 && (
         <div className={styles.patternBanner}>
           <div className={styles.patternHeader}>
-            ⚠ Pattern{patterns.length === 1 ? '' : 's'} detected — the assistant
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Pattern{patterns.length === 1 ? '' : 's'} detected — the assistant
             has been told to avoid these tools or ask first
           </div>
           <ul className={styles.patternList}>
@@ -209,8 +210,8 @@ export default function VoiceTelemetryPanel() {
               <tr>
                 <th>Variant</th>
                 <th>Sessions</th>
-                <th>👍</th>
-                <th>👎</th>
+                <th><UIcon name="thumbsUp" size={13} /></th>
+                <th><UIcon name="thumbsDown" size={13} /></th>
                 <th>Score</th>
               </tr>
             </thead>
@@ -355,7 +356,7 @@ export default function VoiceTelemetryPanel() {
           <ul className={styles.feedback}>
             {recentFeedback.map((f) => (
               <li key={f.id} className={f.rating === 'up' ? styles.fbUp : styles.fbDown}>
-                <span className={styles.fbRating}>{f.rating === 'up' ? '👍' : '👎'}</span>
+                <span className={styles.fbRating}>{f.rating === 'up' ? <UIcon name="thumbsUp" size={13} /> : <UIcon name="thumbsDown" size={13} />}</span>
                 <span className={styles.fbText}>{f.turn_text || f.correction_text || '—'}</span>
                 <span className={styles.fbTime}>
                   {f.created_at ? formatETDate(f.created_at) : ''}

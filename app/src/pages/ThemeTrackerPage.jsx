@@ -10,6 +10,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
+import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -69,7 +70,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
         <span className={styles.groupName}>
           <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
           {theme.name}
-          {isPortfolio && <span className={styles.portfolioBadge}>★</span>}
+          {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
         <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
@@ -373,14 +374,14 @@ export default function ThemeTrackerPage({ embedded = false }) {
                 <span className={styles.chartName}>{selectedName}</span>
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                    {flagToast === 'added' ? <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Flagged</> : <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Removed</>}
                   </span>
                 )}
                 <button
                   className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
+                ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.chartPeriodTabs}>
                   {[['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
                     <button

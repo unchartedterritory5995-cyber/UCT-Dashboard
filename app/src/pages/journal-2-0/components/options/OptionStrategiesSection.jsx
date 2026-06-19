@@ -16,6 +16,7 @@ import {
   classifyDebitCredit,
 } from '../../lib/optionCalcs'
 import { formatETDate } from '../../../../utils/timeAgo'
+import UIcon from '../../../../components/ui/UIcon'
 import StrategyIcon from './StrategyIcon'
 import styles from './OptionStrategiesSection.module.css'
 
@@ -345,7 +346,7 @@ function StrategyRow({
                   onClick={() => onDelete(strategy)}
                   title="Delete strategy"
                 >
-                  ✕
+                  <UIcon name="x" size={12} />
                 </button>
               )}
             </>

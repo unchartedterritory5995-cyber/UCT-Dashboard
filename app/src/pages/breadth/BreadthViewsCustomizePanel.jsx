@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import styles from './CustomizePanel.module.css'
+import UIcon from '../../components/ui/UIcon'
 import { DEFAULT_PRESET, validatePresetName } from './useBreadthViews'
 
 function groupMetrics(metrics) {
@@ -83,7 +84,7 @@ export default function BreadthViewsCustomizePanel({
     <div className={styles.panel} ref={panelRef} role="dialog" aria-label={`Customize ${viewLabel}`}>
       <div className={styles.header}>
         <h2 className={styles.title}>Customize {viewLabel}</h2>
-        <button className={styles.xBtn} onClick={onClose} aria-label="Close">✕</button>
+        <button className={styles.xBtn} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>
       </div>
 
       <div className={styles.presetRow}>

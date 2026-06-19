@@ -4,6 +4,7 @@ import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
 import VisionAttachButton from './VisionAttachButton'
+import UIcon from '../ui/UIcon'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -106,7 +107,7 @@ export default function FloatingOrb({ context = 'global' }) {
     } else if (status === 'error') {
       stateClass = styles.errored
       orbState = 'idle'
-      errorGlyph = '⚠'
+      errorGlyph = 'warning'
       label = `Error: ${voice.errorMessage || 'unknown'}`
     }
   }
@@ -216,7 +217,7 @@ export default function FloatingOrb({ context = 'global' }) {
         title={inTrainMode ? 'In Train Me mode — tap to exit' : label}
       >
         <CompassOrb state={orbState} />
-        {errorGlyph && <span className={styles.errorBadge}>{errorGlyph}</span>}
+        {errorGlyph && <span className={styles.errorBadge}><UIcon name={errorGlyph} size={12} /></span>}
       </button>
       {!inSession && (
         <button
@@ -226,7 +227,7 @@ export default function FloatingOrb({ context = 'global' }) {
           aria-label="Train Me — teach the assistant a preference"
           title="Train Me — teach me a preference or correction"
         >
-          🎓
+          <UIcon name="sparkle" size={16} />
         </button>
       )}
       {!inSession && <VisionAttachButton />}

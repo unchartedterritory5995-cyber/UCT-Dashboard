@@ -41,6 +41,7 @@ import ScreenshotPopover from './chart/ScreenshotPopover'
 import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
+import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBackfill'
 
 const NOOP = () => {}
@@ -1123,12 +1124,12 @@ export default function StockChart({
     const fmtPrice = (p) => (p >= 1 ? p.toFixed(2) : p.toFixed(4))
     const drawLineItem = hasPrice ? {
       id: 'draw-hline',
-      label: `➖ Draw line at $${fmtPrice(clickPrice)}`,
+      label: <><UIcon name="ruler" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{`Draw line at $${fmtPrice(clickPrice)}`}</>,
       onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || '#c9a84c', lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
     } : null
     const copyPriceItem = hasPrice ? {
       id: 'copy-price',
-      label: `📋 Copy $${fmtPrice(clickPrice)}`,
+      label: <><UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{`Copy $${fmtPrice(clickPrice)}`}</>,
       onSelect: () => { try { navigator.clipboard?.writeText(fmtPrice(clickPrice)) } catch {} },
     } : null
     const priceActions = hasPrice
@@ -1146,7 +1147,7 @@ export default function StockChart({
     }
     const IND_OPTS = [['rsi', 'RSI'], ['macd', 'MACD'], ['bb', 'Bollinger Bands'], ['vwap', 'VWAP'], ['stoch', 'Stochastic'], ['atr', 'ATR'], ['obv', 'OBV'], ['adx', 'ADX']]
     const indicatorsItem = {
-      id: 'indicators', label: '📊 Indicators', kind: 'submenu',
+      id: 'indicators', label: <><UIcon name="breadth" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Indicators</>, kind: 'submenu',
       submenu: IND_OPTS.map(([key, label]) => ({
         id: 'ind-' + key, label, kind: 'toggle', checked: !!cs.indicators?.[key]?.enabled,
         onSelect: () => setCs(`indicators.${key}.enabled`, !cs.indicators?.[key]?.enabled),
@@ -1159,7 +1160,7 @@ export default function StockChart({
     const volOverlayCur = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
     const enabledOsc = OSC_OPTS.filter(([key]) => !!cs.indicators?.[key]?.enabled)
     const volumeOverlayItem = (showVolumeProp === undefined && cs.volume?.visible && enabledOsc.length) ? {
-      id: 'voloverlay', label: '🔗 Overlay on volume', kind: 'submenu',
+      id: 'voloverlay', label: <><UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Overlay on volume</>, kind: 'submenu',
       submenu: enabledOsc.map(([key, label]) => ({
         id: 'vo-' + key, label, kind: 'toggle', checked: volOverlayCur.includes(key),
         onSelect: () => setCs('volumeOverlayIndicators', volOverlayCur.includes(key)
@@ -5204,7 +5205,7 @@ export default function StockChart({
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
-          ⏮ REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
+          <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
         </div>
       )}
       {liveUpdates && realtimeTfEligible && (
@@ -5216,7 +5217,7 @@ export default function StockChart({
             : 'Live feed connected'
           }
         >
-          {feed.state === 'live' ? '● LIVE' : feed.state === 'reconnecting' ? '⟳ RECONNECTING' : '⏸ STALE'}
+          {feed.state === 'live' ? '● LIVE' : feed.state === 'reconnecting' ? '⟳ RECONNECTING' : <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />STALE</>}
         </div>
       )}
       {correctionFlash && (

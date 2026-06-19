@@ -14,12 +14,13 @@
  */
 
 import { useEffect, useState } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './AlertBanner.module.css'
 
 const ICON_BY_TYPE = {
-  daily_loss: '🛑',
-  cooling_off: '⏳',
-  no_trade_window: '🕒',
+  daily_loss: 'noEntry',
+  cooling_off: 'clock',
+  no_trade_window: 'clock',
 }
 
 function fmtCountdown(unlockAt) {
@@ -52,14 +53,14 @@ export default function DisciplineLockBanner({ state, overrideArmed, onArmOverri
       className={styles.alert}
     >
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
-        🚫 Trade entry locked
+        <UIcon name="noEntry" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Trade entry locked
       </div>
       <ul style={{ margin: '4px 0 8px 18px', padding: 0 }}>
         {state.reasons.map((r, i) => {
           const countdown = fmtCountdown(r.unlockAt)
           return (
             <li key={`${r.type}-${i}`} style={{ marginBottom: 2 }}>
-              {ICON_BY_TYPE[r.type] || '⚠️'} {r.message}
+              <UIcon name={ICON_BY_TYPE[r.type] || 'warning'} size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{r.message}
               {countdown && (
                 <span style={{ opacity: 0.85 }}>{' '}— unlocks in {countdown}</span>
               )}

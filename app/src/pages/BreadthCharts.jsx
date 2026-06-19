@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
+import UIcon from '../components/ui/UIcon'
 import styles from './BreadthCharts.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -289,7 +290,7 @@ export default function BreadthCharts() {
                   className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
                   onClick={() => toggleExtremes(g.group)}
                 >
-                  ⚡ Notable Extremes
+                  <UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Extremes
                 </button>
               </div>
               {g.metrics.map(m => (

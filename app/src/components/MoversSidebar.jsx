@@ -7,6 +7,7 @@ import { timeAgo } from '../utils/timeAgo'
 import TickerPopup from './TickerPopup'
 import CompanyLogo from './CompanyLogo'
 import ErrorState from './ErrorState'
+import UIcon from './ui/UIcon'
 import { SkeletonTable } from './Skeleton'
 import styles from './MoversSidebar.module.css'
 import { prefetchBarOnIntent } from '../utils/prefetchBars'
@@ -88,7 +89,7 @@ function MoverSection({ label, items, positive, tweetCounts }) {
                     title={`${count} recent tweet${count > 1 ? 's' : ''}`}
                     onClick={() => setExpandedSym(isExpanded ? null : item.sym)}
                   >
-                    🐦
+                    <UIcon name="chat" size={13} />
                   </button>
                 )}
               </div>

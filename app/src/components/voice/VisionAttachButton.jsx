@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import UIcon from '../ui/UIcon'
 import styles from './VisionAttachButton.module.css'
 
 /**
@@ -122,7 +123,7 @@ export default function VisionAttachButton() {
         aria-label="Attach a chart screenshot for vision analysis (or paste from clipboard)"
         title="Attach chart for vision analysis · paste from clipboard supported"
       >
-        📎
+        <UIcon name="link" size={16} />
       </button>
       <input
         ref={fileRef}
