@@ -1,6 +1,7 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import UIcon from './ui/UIcon'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
@@ -114,7 +115,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               )}
               {flagToast && (
                 <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                  {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                  <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                 </span>
               )}
               <button
@@ -123,7 +124,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 title={isFlagged(sym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                 aria-label={isFlagged(sym) ? 'Remove from flagged list' : 'Add to flagged list'}
               >
-                {'⚑'} {isFlagged(sym) ? 'Flagged' : 'Flag'}
+                <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(sym) ? 'Flagged' : 'Flag'}
               </button>
               <button
                 className={styles.closeBtn}

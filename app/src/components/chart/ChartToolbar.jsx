@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImper
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker from './ColorPicker'
 import ComparisonPicker from './ComparisonPicker'
+import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import PatternToolbarButton from './PatternToolbarButton'
 import { formatETDate } from '../../utils/timeAgo'
@@ -892,7 +893,7 @@ function ChartToolbar({
             title={magnet ? 'Magnet: ON — snaps to candle O/H/L/C' : 'Magnet: OFF'}
             style={{ fontSize: '13px' }}
           >
-            🧲
+            <UIcon name="magnet" size={15} />
           </button>
         )}
 
@@ -1009,7 +1010,7 @@ function ChartToolbar({
             aria-label="Indicator alerts"
             disabled={!currentSym}
           >
-            <span style={{ fontSize: 13, lineHeight: 1 }}>🔔</span>
+            <UIcon name="bell" size={14} />
           </button>
           {alertPopoverOpen && currentSym && (
             <IndicatorAlertPopover
@@ -1162,11 +1163,11 @@ function ChartToolbar({
           className={styles.replayBtn}
           onClick={() => onReplayIndexChange?.(0)}
           title="Restart from beginning"
-        >⏮</button>
+        ><UIcon name="skipBack" size={14} /></button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(-10)} title="Back 10">«</button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(-1)} title="Back 1">‹</button>
         <button className={`${styles.replayBtn} ${styles.replayPlay}`} onClick={onReplayPlayPause}>
-          {replayPlaying ? '⏸' : '▶'}
+          {replayPlaying ? <UIcon name="pause" size={14} /> : <UIcon name="play" size={14} />}
         </button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(1)} title="Fwd 1">›</button>
         <button className={styles.replayBtn} onClick={() => onReplayStep?.(10)} title="Fwd 10">»</button>
@@ -1174,7 +1175,7 @@ function ChartToolbar({
           className={styles.replayBtn}
           onClick={() => onReplayIndexChange?.(Math.max(0, (replayTotal || 1) - 1))}
           title="Skip to end"
-        >⏭</button>
+        ><UIcon name="skipForward" size={14} /></button>
         {replayTotal > 1 && (
           <input
             type="range"
@@ -1196,7 +1197,7 @@ function ChartToolbar({
             >{s}×</button>
           ))}
         </div>
-        <button className={styles.replayExit} onClick={onReplayToggle}>✕ Exit</button>
+        <button className={styles.replayExit} onClick={onReplayToggle}><UIcon name="x" size={12} style={{verticalAlign:'-1px',marginRight:4}} />Exit</button>
       </div>
     )}
     </>

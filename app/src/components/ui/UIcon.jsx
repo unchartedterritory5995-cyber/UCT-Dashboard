@@ -242,6 +242,27 @@ const ICONS = {
   ),
   wave: <path d="M3 13c2-3 4-3 6 0s4 3 6 0 4-3 6 0M3 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0" />,
   factory: <path d="M4 20V10l5 3.5V10l5 3.5V10l5 3.5V20zM4 20h16" />,
+  copy: (
+    <>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15.5V5a1 1 0 0 1 1-1h9.5" />
+    </>
+  ),
+  magnet: (
+    <>
+      <path d="M6 3v9a6 6 0 0 0 12 0V3h-3.6v9a2.4 2.4 0 0 1-4.8 0V3z" />
+      <path d="M6 6.6h4.6M13.4 6.6H18" />
+    </>
+  ),
+  play: <path d="M7.5 5.2l10.5 6.8-10.5 6.8z" />,
+  pause: (
+    <>
+      <rect x="7" y="5" width="3.4" height="14" rx="1" />
+      <rect x="13.6" y="5" width="3.4" height="14" rx="1" />
+    </>
+  ),
+  skipBack: <path d="M18 6v12l-9-6zM7.5 6v12" />,
+  skipForward: <path d="M6 6v12l9-6zM16.5 6v12" />,
 }
 
 export const UICON_NAMES = Object.keys(ICONS)

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import UIcon from '../ui/UIcon';
 import styles from './ScreenshotPopover.module.css';
 
 
@@ -33,22 +34,22 @@ export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose
 
       <div className={styles.actions}>
         <button className={styles.action} onClick={handleDownload}>
-          <span className={styles.icon}>⬇</span>
+          <span className={styles.icon}><UIcon name="download" size={16} /></span>
           <span>Download PNG</span>
         </button>
         <button className={styles.action} onClick={handleCopy}>
-          <span className={styles.icon}>⎘</span>
+          <span className={styles.icon}><UIcon name="copy" size={16} /></span>
           <span>Copy to Clipboard</span>
         </button>
         <button className={styles.action} onClick={handleShare}>
-          <span className={styles.icon}>🔗</span>
+          <span className={styles.icon}><UIcon name="link" size={16} /></span>
           <span>Copy Share URL</span>
         </button>
       </div>
 
-      {status === 'copied' && <div className={styles.status}>Image copied ✓</div>}
-      {status === 'shared' && <div className={styles.status}>URL copied ✓</div>}
-      {status === 'downloaded' && <div className={styles.status}>Downloaded ✓</div>}
+      {status === 'copied' && <div className={styles.status}>Image copied <UIcon name="check" size={12} style={{ verticalAlign: '-1px' }} /></div>}
+      {status === 'shared' && <div className={styles.status}>URL copied <UIcon name="check" size={12} style={{ verticalAlign: '-1px' }} /></div>}
+      {status === 'downloaded' && <div className={styles.status}>Downloaded <UIcon name="check" size={12} style={{ verticalAlign: '-1px' }} /></div>}
       {status === 'copy-failed' && <div className={styles.statusError}>Clipboard unavailable</div>}
       {status === 'copying' && <div className={styles.status}>Working...</div>}
     </div>
