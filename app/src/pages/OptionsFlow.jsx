@@ -5459,7 +5459,15 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
-          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+          // Use all_directional (not clean_confirmed) so Bull/Bear totals match
+          // the Search tab. clean_confirmed is the strict methodology — only
+          // YELLOW/MAGENTA confirmed clusters — which excludes "dirty-dominant"
+          // trades (80%+ one direction, some opposing). Search was updated to
+          // use all_directional so the header doesn't read $0 for all-WHITE
+          // tickers like SERV. Standardizing Leaderboard here closes the gap
+          // between Search and Leaderboard (previously FRMI showed $3.0M bull
+          // here but $14.3M on Search for the same time window).
+          const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
           const [cPct, setCPct] = [convictionPct, setConvictionPct];
@@ -5501,12 +5509,15 @@ export default function OptionsFlowDashboard() {
             if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
           });
-          // Build broader contract totals from D.all_trades — used to overlay
-          // displayPrem/displayHits so the "Top Contract" column reflects TOTAL flow
-          // on the strike (matching Search Top Trades), while the directional values
-          // (used for sort/score) stay strict.
+          // Build broader contract totals from D.all_directional — same source
+          // as the Bull/Bear totals above so the Top Contract premium is always
+          // ≤ the ticker's total directional flow. Previously this used
+          // D.all_trades which included NEUT/dirty clusters, producing the
+          // mathematically impossible state where AXTI's Top Contract ($25.4M)
+          // exceeded its Bull total ($7.8M). Same dataset across columns = same
+          // denominator = no more surprises.
           const lbBroader = {};
-          (D.all_trades || []).forEach(t => {
+          (D.all_directional || []).forEach(t => {
             if (capFilter !== "All" && capBand(t.mktcap) !== capFilter) return;
             if (!dteF(t)) return;
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
@@ -5590,6 +5601,32 @@ export default function OptionsFlowDashboard() {
             const isExp = cExp === tk.sym;
             const displayPct = side==="bear" ? (100-tk.bullPct) : tk.bullPct;
             const pctColor = displayPct>=80 ? (side==="bear"?P.be:P.bu) : displayPct<=20 ? (side==="bear"?P.bu:P.be) : P.dm;
+
+            // ΔOI computation: liveOI − baselineOI (maxOI seen during the
+            // window). Positive = position growing (new contracts opened net),
+            // negative = position fading (closed net). Returns null when Live
+            // OI hasn't been fetched yet — the badge is silently omitted in
+            // that case, no UI noise. User triggers Live OI fetch via the
+            // "⚡ Fetch Live P/L" button on Search/expand panels; once cached,
+            // it's available everywhere via getPrice().
+            const computeDeltaOI = (c) => {
+              const px = getPrice(tk.sym, c.cp, c.K, c.exp);
+              const liveOI = px ? (px.oi || 0) : 0;
+              const baseOI = c.maxOI || 0;
+              if (liveOI === 0 || baseOI === 0) return null;
+              return liveOI - baseOI;
+            };
+            // Format ΔOI with sign + abbreviation (e.g., "+6.5k", "-2.3k", "+120")
+            const fmtDelta = (d) => {
+              const sign = d > 0 ? "+" : "";
+              if (Math.abs(d) >= 1000) return sign + (d/1000).toFixed(1) + "k";
+              return sign + d.toLocaleString();
+            };
+            // Color: meaningful growth (>100) green, meaningful decay (<-100)
+            // red. Smaller values are noise (rolling activity) and shown gray
+            // so subscribers focus on real position changes.
+            const deltaColor = (d) => d > 100 ? P.bu : d < -100 ? P.be : P.dm;
+
             return (
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
@@ -5617,6 +5654,16 @@ export default function OptionsFlowDashboard() {
                     <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
                     <span style={{ color:(tc_.displayHits||tc_.hits)>=10?P.ac:(tc_.displayHits||tc_.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.displayHits||tc_.hits}x</span>
                     {(tc_.displayPrem||tc_.prem)>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.displayPrem||tc_.prem)}</span>}
+                    {/* ΔOI badge — shows position growth/decay since the trade
+                        window. Only renders when Live OI has been fetched
+                        (getPrice returns a valid oi). Positive = position
+                        building, negative = profit-taking / closing. */}
+                    {(()=>{ const d = computeDeltaOI(tc_); return d !== null ? (
+                      <span style={{ color:deltaColor(d), fontSize:8, marginLeft:4, fontWeight:700, padding:"1px 4px", borderRadius:3, background:deltaColor(d)+"15", border:"1px solid "+deltaColor(d)+"33" }}
+                            title={d > 0 ? "Open interest grew by " + d.toLocaleString() + " contracts since these trades — position is being built" : d < 0 ? "Open interest fell by " + Math.abs(d).toLocaleString() + " contracts — position is being closed (profit-taking or fading)" : "Open interest unchanged"}>
+                        ΔOI {fmtDelta(d)}
+                      </span>
+                    ) : null; })()}
                   </span>)}
                 </td>
               </tr>
@@ -5627,6 +5674,7 @@ export default function OptionsFlowDashboard() {
                     {tk.topContracts.map((c,i) => {
                       const cSide = c.askPrem >= c.bidPrem ? "ask" : "bid";
                       const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
+                      const cDelta = computeDeltaOI(c);
                       return (
                         <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, textAlign:"center", cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
@@ -5638,6 +5686,16 @@ export default function OptionsFlowDashboard() {
                           <span style={{ color:(c.displayHits||c.hits)>=10?P.ac:(c.displayHits||c.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.displayHits||c.hits}x</span>
                           <span style={{ color:premC(c.displayPrem||c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.displayPrem||c.prem)}</span>
                           {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:8 }}>{c.volOI.toFixed(1)}x V/OI</span>}
+                          {/* ΔOI badge — same logic as the inline column above,
+                              but only renders when Live OI is cached. Subtle
+                              styling here since chip is already information-
+                              dense; user can hover for the explanatory tooltip. */}
+                          {cDelta !== null && (
+                            <span style={{ color:deltaColor(cDelta), fontSize:8, marginLeft:6, fontWeight:700 }}
+                                  title={cDelta > 0 ? "OI grew by " + cDelta.toLocaleString() + " — position building" : cDelta < 0 ? "OI fell by " + Math.abs(cDelta).toLocaleString() + " — position fading" : "OI unchanged"}>
+                              ΔOI {fmtDelta(cDelta)}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
