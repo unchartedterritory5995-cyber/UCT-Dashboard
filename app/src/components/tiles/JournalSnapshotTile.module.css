@@ -301,3 +301,63 @@
 .emptySecondary:hover {
   color: var(--ut-gold, #c9a84c);
 }
+
+/* ── Sample preview (not-yet-connected teaser) ────────────────────────── */
+.sampleBadge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.14);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sampleDim {
+  opacity: 0.5;
+  filter: saturate(0.85);
+  pointer-events: none;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, rgba(0, 0, 0, 0.35) 100%);
+  mask-image: linear-gradient(to bottom, #000 70%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+.previewCta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  background: rgba(201, 168, 76, 0.05);
+  border: 1px solid rgba(201, 168, 76, 0.22);
+  border-radius: 6px;
+}
+
+.previewCaption {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.previewCaption strong {
+  color: var(--text-bright);
+}
+
+.previewInline {
+  color: var(--ut-gold, #c9a84c);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.previewInline:hover {
+  text-decoration: underline;
+}

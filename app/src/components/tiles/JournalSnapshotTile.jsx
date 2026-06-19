@@ -41,6 +41,24 @@ const JOURNAL_LINK = '/journal?j2tab=positions'
 const MAX_ROWS = 6
 const BROKER_PERIOD = '3M'
 
+// Illustrative sample data for the not-yet-connected preview teaser. Clearly
+// labelled SAMPLE + dimmed so it's never mistaken for the user's real book.
+const SAMPLE_SERIES = [
+  13200, 13150, 13380, 13290, 13510, 13620, 13560, 13740, 13880, 13810,
+  14010, 14180, 14090, 14320, 14480, 14511.68, 14632.18,
+].map((value, i) => ({ value, estimated: false, date: `s${i}` }))
+const SAMPLE_VALUE = 14632.18
+const SAMPLE_TODAY = 120.50
+const SAMPLE_TODAY_PCT = 120.50 / 14511.68
+const SAMPLE_PERIOD = 1432.18
+const SAMPLE_PERIOD_PCT = 1432.18 / 13200
+const SAMPLE_ROWS = [
+  { key: 's-nvda', p: { symbol: 'NVDA', side: 'Long', shares: 30 }, price: 172.40, today: 612, todayPct: 1.2, open: 1240 },
+  { key: 's-amd', p: { symbol: 'AMD', side: 'Long', shares: 80 }, price: 164.10, today: 430, todayPct: 3.0, open: 640 },
+  { key: 's-aapl', p: { symbol: 'AAPL', side: 'Long', shares: 25 }, price: 232.00, today: -45, todayPct: -0.8, open: 180 },
+  { key: 's-tsla', p: { symbol: 'TSLA', side: 'Long', shares: 12 }, price: 410.00, today: 198, todayPct: 1.6, open: 96 },
+]
+
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
@@ -184,11 +202,16 @@ export default function JournalSnapshotTile() {
 
   const totalCount = positions.length + strategies.length
   const isLoading = (posLoading || optLoading) && totalCount === 0
+  const showSample = totalCount === 0 && !isLoading && !brokerConnected
 
   return (
     <TileCard
       title="📓 Journal · Positions"
-      badge={totalCount > 0 ? <span className={styles.openCue}>Open →</span> : null}
+      badge={
+        showSample
+          ? <span className={styles.sampleBadge}>SAMPLE</span>
+          : totalCount > 0 ? <span className={styles.openCue}>Open →</span> : null
+      }
     >
       <div className={styles.body}>
         {isLoading ? (
@@ -374,6 +397,8 @@ function OptionRow({ row }) {
 }
 
 function EmptyState({ connected }) {
+  // Broker connected but flat → simple synced message (their real account is
+  // just empty right now).
   if (connected) {
     return (
       <div className={styles.empty}>
@@ -389,21 +414,53 @@ function EmptyState({ connected }) {
       </div>
     )
   }
+  // Not connected → a teaser preview of the real widget with sample data.
+  return <SamplePreview />
+}
+
+/**
+ * Sample-portfolio teaser for users who haven't connected a broker. Renders the
+ * real widget shape with illustrative SAMPLE data (dimmed + aria-hidden) under a
+ * "Connect your brokerage" CTA, so people see what they'll unlock.
+ */
+function SamplePreview() {
+  const spark = buildSpark(SAMPLE_SERIES)
   return (
-    <div className={styles.empty}>
-      <div className={styles.emptyIcon} aria-hidden="true">📈</div>
-      <div className={styles.emptyTitle}>See your whole portfolio here</div>
-      <div className={styles.emptySub}>
-        Connect your brokerage to auto-import every trade, position &amp;
-        balance — or log trades yourself.
+    <div className={styles.preview}>
+      <div className={styles.sampleDim} aria-hidden="true">
+        <div className={styles.hero}>
+          <div className={styles.heroValue}>{money(SAMPLE_VALUE)}</div>
+          <div className={styles.perfRow}>
+            <PerfFigure label="Today" dollar={SAMPLE_TODAY} pct={SAMPLE_TODAY_PCT} />
+            <PerfFigure label={BROKER_PERIOD} dollar={SAMPLE_PERIOD} pct={SAMPLE_PERIOD_PCT} />
+          </div>
+          {spark && (
+            <svg className={styles.spark} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="jstSampleFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--gain, #22c55e)" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="var(--gain, #22c55e)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={spark.area} fill="url(#jstSampleFill)" />
+              <path d={spark.line} fill="none" stroke="var(--gain, #22c55e)" strokeWidth="2"
+                    vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          )}
+        </div>
+        <div className={styles.rows}>
+          {SAMPLE_ROWS.map((row) => <EquityRow key={row.key} row={row} />)}
+        </div>
       </div>
-      <div className={styles.emptyCtas}>
+
+      <div className={styles.previewCta}>
         <Link to="/settings" className={styles.emptyPrimary}>
-          🔗 Connect a brokerage
+          🔗 Connect your brokerage
         </Link>
-        <Link to={JOURNAL_LINK} className={styles.emptySecondary}>
-          Add manually →
-        </Link>
+        <div className={styles.previewCaption}>
+          See <strong>your</strong> real portfolio &amp; performance here — or{' '}
+          <Link to={JOURNAL_LINK} className={styles.previewInline}>log trades manually</Link>.
+        </div>
       </div>
     </div>
   )

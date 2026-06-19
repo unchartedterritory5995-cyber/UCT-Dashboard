@@ -50,15 +50,19 @@ test('positionTodayDollar derives today $ from live snapshot', () => {
   expect(positionTodayDollar(long, { price: 88 })).toBeNull()
 })
 
-test('empty state (no broker) onboards: connect a brokerage or add manually', () => {
+test('empty state (no broker) shows a SAMPLE portfolio teaser + connect CTA', () => {
   h.positions = { positions: [] }
   h.options = { strategies: [] }
   h.broker = { connected: false }
   renderWithProviders(<JournalSnapshotTile />)
-  expect(screen.getByText('See your whole portfolio here')).toBeInTheDocument()
-  const connect = screen.getByRole('link', { name: /connect a brokerage/i })
+  // SAMPLE badge + illustrative data render (dimmed teaser).
+  expect(screen.getByText('SAMPLE')).toBeInTheDocument()
+  expect(screen.getByText('$14,632.18')).toBeInTheDocument()
+  expect(screen.getByText('NVDA')).toBeInTheDocument()
+  // Connect CTA → Settings; "log trades manually" → journal.
+  const connect = screen.getByRole('link', { name: /connect your brokerage/i })
   expect(connect).toHaveAttribute('href', '/settings')
-  const manual = screen.getByRole('link', { name: /add manually/i })
+  const manual = screen.getByRole('link', { name: /log trades manually/i })
   expect(manual).toHaveAttribute('href', '/journal?j2tab=positions')
 })
 
