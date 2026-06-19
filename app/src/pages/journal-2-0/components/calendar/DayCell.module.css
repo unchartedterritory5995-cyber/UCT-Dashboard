@@ -94,7 +94,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .cell { padding: 4px 6px; min-height: 50px; }
   .day { font-size: 11px; }
   .tradeCount { display: none; }

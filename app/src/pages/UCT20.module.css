@@ -306,7 +306,7 @@
 @media (max-width: 640px) {
   .page { padding: 10px 8px; }
   .heading { font-size: 16px; }
-  .cardRow { gap: 6px; padding: 10px 2px; }
+  .cardRow { gap: 6px; padding: 13px 2px; min-height: var(--tap-min, 44px); box-sizing: border-box; }
   .rank { font-size: 10px; min-width: 22px; }
   .sym { font-size: 13px; }
   .cardRowRight { gap: 6px; }

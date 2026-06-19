@@ -121,3 +121,9 @@
   font-size: 13px;
   font-family: var(--font-sans);
 }
+
+/* Phone: toolbar buttons get a 44px tap target. */
+@media (max-width: 640px) {
+  .ghostBtn,
+  .primaryBtn { min-height: var(--tap-min, 44px); }
+}

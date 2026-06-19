@@ -152,3 +152,10 @@
   font-size: 11px;
   border-radius: 6px;
 }
+
+/* Phone: 16px input (no iOS zoom) + 44px tap targets. */
+@media (max-width: 640px) {
+  .input { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .addBtn { min-height: var(--tap-min, 44px); }
+  .removeBtn { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
+}

@@ -193,3 +193,27 @@
   color: var(--ut-gold, #c9a84c);
   font-weight: 600;
 }
+
+/* ─── Phone: enlarge tap targets ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Mover rows + tweet toggle */
+  .row { padding: 8px 0; }
+  .birdBtn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin-left: 2px;
+    opacity: 0.9;
+  }
+  /* "open on X" link inside the expanded tweet */
+  .tweetLink {
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

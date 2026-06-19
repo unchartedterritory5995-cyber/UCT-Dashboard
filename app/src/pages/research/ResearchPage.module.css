@@ -108,6 +108,29 @@
 .paywallCta:hover { filter: brightness(1.08); }
 
 @media (max-width: 640px) {
+  .page { padding: 14px 12px 80px; }
   .grid { grid-template-columns: 1fr; }
   .hdrPx { margin-left: 0; text-align: left; flex-basis: 100%; }
+  /* Tab strip → edge-to-edge horizontal scroller with 44px tap targets. */
+  .tabs {
+    gap: 7px;
+    margin: 12px -12px;
+    padding: 2px 12px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 0 auto;
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+  /* Rating badges: keep readable + scrollable rather than wrapping tightly. */
+  .ratings { gap: 6px; }
+  .rb { min-width: 58px; padding: 6px 9px; }
+  .paywall { padding: 20px 12px; }
+  .paywallCta { min-height: var(--tap-min); width: 100%; }
 }

@@ -1,0 +1,7 @@
+/* Phone-only touch overrides for the pending-action Confirm/Cancel buttons,
+ * which can trigger destructive Compass actions. The buttons are inline-styled;
+ * this only applies at ≤640px (desktop ≥1025px stays pixel-identical) and uses
+ * !important to win over the inline base styles. */
+@media (max-width: 640px) {
+  .actionBtn { min-height: var(--tap-min, 44px) !important; padding: 5px 18px !important; }
+}

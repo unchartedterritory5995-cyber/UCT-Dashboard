@@ -13,6 +13,7 @@ import ChatActionCard from './ChatActionCard'
 import VoiceInputButton from './VoiceInputButton'
 import { VoiceContext } from '../../../context/VoiceContext'
 import useRealtimeSession from '../../../hooks/useRealtimeSession'
+import styles from './CompassChat.module.css'
 
 const SUGGESTED_PROMPTS = [
   'How am I doing this week?',
@@ -303,6 +304,7 @@ export default function CompassChat({ accountId }) {
       <div style={{ marginTop: 8 }}>
         <textarea
           rows={2}
+          className={styles.composerInput}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
@@ -342,6 +344,7 @@ export default function CompassChat({ accountId }) {
           </div>
           <button
             type="button"
+            className={styles.sendBtn}
             onClick={() => onSubmit()}
             disabled={composerDisabled || !input.trim()}
             style={{

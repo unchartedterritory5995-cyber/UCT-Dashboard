@@ -9,6 +9,7 @@
  */
 
 import UIcon from '../../../components/ui/UIcon'
+import styles from './ChatActionCard.module.css'
 
 export default function ChatActionCard({ pendingAction, onConfirm, onCancel, disabled }) {
   if (!pendingAction) return null
@@ -47,6 +48,7 @@ export default function ChatActionCard({ pendingAction, onConfirm, onCancel, dis
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           type="button" disabled={disabled} onClick={onConfirm}
+          className={styles.actionBtn}
           style={{
             padding: '5px 14px', fontSize: 12, fontWeight: 600,
             background: elevated ? '#ef4444' : 'var(--ut-gold, #c9a84c)',
@@ -58,6 +60,7 @@ export default function ChatActionCard({ pendingAction, onConfirm, onCancel, dis
         </button>
         <button
           type="button" disabled={disabled} onClick={onCancel}
+          className={styles.actionBtn}
           style={{
             padding: '5px 14px', fontSize: 12, background: 'transparent',
             color: 'var(--text-muted)', border: '1px solid var(--border)',

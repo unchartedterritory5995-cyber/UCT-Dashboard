@@ -171,8 +171,11 @@
   border-radius: 6px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .linkRow {
     grid-template-columns: 1fr;
   }
+  .linkInput, .labelInput { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .addBtn, .uploadBtn { min-height: var(--tap-min, 44px); }
+  .removeBtn { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
 }

@@ -184,3 +184,19 @@
   font-size: 13px;
   font-family: var(--font-sans);
 }
+
+/* Phone: scroll the period strip instead of clipping; 44px tap targets. */
+@media (max-width: 640px) {
+  .periodPills {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .periodPills::-webkit-scrollbar { display: none; }
+  .periodPill { min-height: var(--tap-min, 44px); white-space: nowrap; }
+  .ghostBtn,
+  .primaryBtn,
+  .dangerBtn { min-height: var(--tap-min, 44px); }
+}

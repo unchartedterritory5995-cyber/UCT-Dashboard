@@ -60,6 +60,12 @@
   cursor: pointer;
   font-size: 16px;
 }
+/* Touch: no hover to surface Replace/Remove, so keep the overlay visible and
+ * give the buttons a 44px tap target. Desktop (≥1025px) unchanged. */
+@media (hover: none) {
+  .overlay { opacity: 1; }
+  .iconBtn { width: 44px; height: 44px; }
+}
 .dropHint {
   position: absolute;
   inset: 0;

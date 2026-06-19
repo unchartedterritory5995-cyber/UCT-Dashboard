@@ -738,7 +738,7 @@
 .aeUpsideNeg { color: var(--loss); }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .page { padding: 14px 12px 30px; max-width: 100%; }
   .titleRow { flex-wrap: wrap; gap: 8px; }
 }
@@ -810,6 +810,15 @@
 
   .analystTabCount {
     font-size: 10px;
+  }
+
+  /* "open on X" link in the tape — give it a real tap target */
+  .tweetLink {
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

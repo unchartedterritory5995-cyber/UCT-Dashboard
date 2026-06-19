@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react'
+import styles from './TraderProfileEditor.module.css'
 
 export default function TraderProfileEditor({
   profile, onSave, onClear, importSources, onImport,
@@ -88,6 +89,7 @@ export default function TraderProfileEditor({
       {editing ? (
         <textarea
           aria-label="Trader Profile"
+          className={styles.editArea}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           style={{
@@ -120,6 +122,7 @@ export default function TraderProfileEditor({
           </span>
           <select
             aria-label="Import profile from account"
+            className={styles.importSelect}
             value={importId}
             onChange={(e) => setImportId(e.target.value)}
             style={{

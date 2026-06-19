@@ -206,3 +206,12 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Phone: 16px account select (no iOS zoom) + 44px tap targets on the period
+ * pills and footer buttons. Desktop (≥1025px) unchanged. */
+@media (max-width: 640px) {
+  .select { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .pill { min-height: var(--tap-min, 44px); }
+  .ghost,
+  .primary { min-height: var(--tap-min, 44px); }
+}

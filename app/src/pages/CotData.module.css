@@ -257,3 +257,50 @@
   border-color: rgba(255, 255, 255, 0.3);
   color: var(--text-primary);
 }
+
+/* ── Bottom-sheet market list (touch) ────────────────────────────── */
+.sheetSearch {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 16px; /* prevent iOS focus-zoom */
+  outline: none;
+}
+.sheetSearch::placeholder { color: var(--text-muted); }
+.sheetItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.sheetItemActive { background: #3B82F6; }
+.sheetItemActive .dropdownSym,
+.sheetItemActive .dropdownName { color: white; }
+
+/* ── Phone layout ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .page { padding: 14px 12px 80px; }
+  .topBar { gap: 10px; }
+  .dropdownWrap { width: 100%; }
+  .dropdownBtn { width: 100%; min-width: 0; min-height: var(--tap-min); }
+  /* Lookback strip → horizontal scroller with 44px targets. */
+  .lookbackBtns {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .lookbackBtns::-webkit-scrollbar { display: none; }
+  .lookbackBtn { flex: 0 0 auto; min-height: var(--tap-min); }
+  .resetSizeBtn { flex: 0 0 auto; min-height: var(--tap-min); margin-left: 4px; }
+  /* Chart fills the viewport; resize handles are pointer-only and idle here. */
+  .chartWrap { padding: 12px; height: calc(100vh - 220px); }
+}

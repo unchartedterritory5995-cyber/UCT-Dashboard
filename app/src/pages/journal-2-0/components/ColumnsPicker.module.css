@@ -141,3 +141,18 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* Phone: keep the popover within the viewport and give the reorder arrows /
+ * rows real tap targets (the drag handle is unreliable on touch, so the
+ * up/down arrows are the primary reorder affordance). Desktop unchanged. */
+@media (max-width: 640px) {
+  .popover {
+    min-width: 0;
+    width: min(300px, calc(100vw - 24px));
+    max-height: 70dvh;
+  }
+  .row { padding: 8px; }
+  .moveBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+  .handle { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+  .resetBtn { min-height: var(--tap-min, 44px); }
+}

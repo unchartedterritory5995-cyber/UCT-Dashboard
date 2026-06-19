@@ -10,6 +10,8 @@ import {
 import { Chart } from 'react-chartjs-2'
 import styles from './CotData.module.css'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
+import Sheet from '../components/mobile/Sheet'
+import { useIsTouch } from '../hooks/useBreakpoint'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -126,6 +128,7 @@ export default function CotData() {
   const dropdownRef    = useRef(null)
   const chartWrapRef   = useRef(null)
   const resizeStateRef = useRef(null)
+  const isTouch        = useIsTouch()
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -220,6 +223,12 @@ export default function CotData() {
   function resetChartSize() {
     setChartSize(null)
     try { localStorage.removeItem(CHART_SIZE_KEY) } catch { /* ignore */ }
+  }
+
+  function pickSymbol(s) {
+    setSymbol(s)
+    setDropdownOpen(false)
+    setSearch('')
   }
 
   // Fetch COT data when symbol or weeks changes
@@ -415,7 +424,8 @@ export default function CotData() {
             <span className={styles.chevron}>{dropdownOpen ? '▲' : '▼'}</span>
           </button>
 
-          {dropdownOpen && (
+          {/* Desktop: anchored popover. Touch: bottom-sheet (below). */}
+          {dropdownOpen && !isTouch && (
             <div className={styles.dropdownMenu}>
               <input
                 className={styles.dropdownSearch}
@@ -432,7 +442,7 @@ export default function CotData() {
                       <div
                         key={s}
                         className={`${styles.dropdownItem} ${s === symbol ? styles.dropdownItemActive : ''}`}
-                        onClick={() => { setSymbol(s); setDropdownOpen(false); setSearch('') }}
+                        onClick={() => pickSymbol(s)}
                       >
                         <span className={styles.dropdownSym}>{s}</span>
                         <span className={styles.dropdownName}>{SYMBOL_NAMES[s] || ''}</span>
@@ -449,6 +459,43 @@ export default function CotData() {
             </div>
           )}
         </div>
+
+        {/* Touch: market picker as a bottom-sheet with 44px tap targets. */}
+        {isTouch && (
+          <Sheet
+            open={dropdownOpen}
+            onClose={() => { setDropdownOpen(false); setSearch('') }}
+            variant="bottom-sheet"
+            title="Select market"
+          >
+            <input
+              className={styles.sheetSearch}
+              placeholder="Search markets..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {Object.entries(filteredGroups).map(([grp, syms]) => (
+              <div key={grp}>
+                <div className={styles.dropdownGroup}>{grp}</div>
+                {syms.map(s => (
+                  <div
+                    key={s}
+                    className={`${styles.sheetItem} ${s === symbol ? styles.sheetItemActive : ''}`}
+                    onClick={() => pickSymbol(s)}
+                  >
+                    <span className={styles.dropdownSym}>{s}</span>
+                    <span className={styles.dropdownName}>{SYMBOL_NAMES[s] || ''}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            {Object.keys(filteredGroups).length === 0 && (
+              <div style={{ padding: '14px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                No markets match "{search}"
+              </div>
+            )}
+          </Sheet>
+        )}
 
         {/* Lookback buttons */}
         <div className={styles.lookbackBtns}>

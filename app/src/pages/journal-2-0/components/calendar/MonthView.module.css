@@ -25,12 +25,12 @@
   gap: 6px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1024px) {
   .grid > * { min-height: 64px; }
   .dowLabel { font-size: 9px; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .grid { gap: 3px; }
   .dowRow { gap: 3px; }
   .grid > * { min-height: 50px; }

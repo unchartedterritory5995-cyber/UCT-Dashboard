@@ -531,3 +531,33 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ── Phone (≤640px) ────────────────────────────────────────────────
+ * Fullscreen sheet, single-column fields, 16px inputs (no iOS zoom),
+ * horizontally-scrollable legs table, 44px tap targets. Shared by
+ * CloseOptionStrategyModal (imports this module). Desktop unchanged. */
+@media (max-width: 640px) {
+  .backdrop { padding: 0; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+  .grid2 { grid-template-columns: 1fr; }
+  .textInput,
+  .textarea,
+  .numberInputInner { font-size: 16px; }
+  .textInput,
+  .numberInputInner { min-height: var(--tap-min, 44px); }
+  /* Keep the 8-column legs editor usable by scrolling instead of crushing. */
+  .legsWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .legsTable { min-width: 560px; }
+  .legSelect,
+  .legInput { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .removeLegBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+  .ghostBtn,
+  .primaryBtn { min-height: var(--tap-min, 44px); }
+}

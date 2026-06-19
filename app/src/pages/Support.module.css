@@ -327,4 +327,18 @@
 @media (max-width: 640px) {
   .page { padding: 16px 12px 80px; }
   .msgBubble { max-width: 92%; }
+  /* 16px form fonts prevent iOS focus-zoom; comfortable touch padding. */
+  .formSelect,
+  .formInput,
+  .formTextarea,
+  .replyInput { font-size: 16px; padding: 12px; }
+  /* Generous tap targets on action controls. */
+  .newBtn,
+  .submitBtn,
+  .replyBtn,
+  .reopenBtn { min-height: var(--tap-min); }
+  .backLink { min-height: var(--tap-min); font-size: 13px; }
+  /* Reply composer stacks so the Send button gets a full-width tap target. */
+  .replyWrap { flex-direction: column; align-items: stretch; }
+  .replyBtn { width: 100%; }
 }

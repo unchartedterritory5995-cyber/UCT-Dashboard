@@ -149,3 +149,18 @@
   color: var(--loss);
   font-size: 13px;
 }
+
+/* Phone: 16px search (no iOS zoom); scroll the sort strip; 44px tap targets. */
+@media (max-width: 640px) {
+  .search { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .sortGroup { width: 100%; }
+  .sortPills {
+    flex: 1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .sortPills::-webkit-scrollbar { display: none; }
+  .sortPill { min-height: var(--tap-min, 44px); white-space: nowrap; }
+}

@@ -218,3 +218,8 @@
   font-size: 12px;
   font-style: italic;
 }
+
+/* Phone: give the template-download text links a real tap height. */
+@media (max-width: 640px) {
+  .linkBtn { min-height: var(--tap-min, 44px); }
+}

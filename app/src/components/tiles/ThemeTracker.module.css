@@ -137,7 +137,7 @@
 .chip:hover { border-color: var(--ut-green-bright); color: var(--ut-green-bright); }
 
 /* ─── Mobile: stack Leaders above Laggards ──────────────────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .cols {
     grid-template-columns: 1fr;
   }
@@ -151,7 +151,22 @@
 
 /* ─── Small mobile: bigger tap targets ─────────────────────────────────────── */
 @media (max-width: 640px) {
-  .tab { padding: 8px 10px; font-size: 10px; }
+  /* Period tabs — horizontal scroll strip so they never wrap/clip */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0 14px;
+    font-size: 11px;
+  }
   .row { padding: 8px 0; }
   .chip { padding: 5px 8px; font-size: 10px; }
   .colHd { font-size: 9px; }

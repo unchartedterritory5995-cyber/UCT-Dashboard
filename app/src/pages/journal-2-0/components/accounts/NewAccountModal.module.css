@@ -201,3 +201,15 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Phone: keep the modal off the screen edges, 16px inputs (no iOS zoom), and
+ * 44px tap targets. Shared with DeleteAccountModal (uses .select/.ghost/
+ * .primary). Desktop (≥1025px) unchanged. */
+@media (max-width: 640px) {
+  .backdrop { padding: 16px; }
+  .input,
+  .select,
+  .numberInput { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .ghost,
+  .primary { min-height: var(--tap-min, 44px); }
+}

@@ -1,0 +1,8 @@
+/* Phone-only touch overrides. The editor is inline-styled; these classes apply
+ * ONLY at ≤640px (desktop ≥1025px stays pixel-identical) and use !important to
+ * win over the inline base styles. 16px kills iOS focus-zoom on the profile
+ * textarea and the account-import select. */
+@media (max-width: 640px) {
+  .editArea { font-size: 16px !important; }
+  .importSelect { font-size: 16px !important; min-height: var(--tap-min, 44px) !important; }
+}

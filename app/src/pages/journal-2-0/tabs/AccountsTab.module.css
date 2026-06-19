@@ -175,7 +175,7 @@
   font-style: italic;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
   .row {
     grid-template-columns: 12px 1fr auto;
     grid-row-gap: 6px;
@@ -183,4 +183,6 @@
   .balance, .tradeCount, .actions {
     grid-column: 2 / -1;
   }
+  .smallBtn { min-height: var(--tap-min, 44px); }
+  .primary { min-height: var(--tap-min, 44px); }
 }

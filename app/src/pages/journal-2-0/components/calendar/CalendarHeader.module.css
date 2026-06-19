@@ -129,22 +129,19 @@
   color: var(--loss);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
   .totalsRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .controlsRow {
     flex-direction: column;
     align-items: stretch;
   }
   .modeGroup { margin-left: 0; }
-}
-
-@media (max-width: 480px) {
-  .totalsRow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .stat { padding: 8px 10px; }
   .statValue { font-size: 14px; }
-  .periodLabel { font-size: 16px; min-width: 0; }
+  .periodLabel { font-size: 16px; min-width: 0; flex: 1; }
+  /* 44px tap targets for view/mode pills and period-nav arrows. */
+  .pill { min-height: var(--tap-min, 44px); }
+  .navBtn { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
 }

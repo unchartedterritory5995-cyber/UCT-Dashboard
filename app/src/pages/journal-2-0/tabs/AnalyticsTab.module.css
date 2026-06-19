@@ -436,7 +436,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
   .kpiStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -452,8 +452,16 @@
     margin-left: 0;
     overflow-x: auto;
   }
+  /* Range presets scroll horizontally rather than wrapping; targets ≥44px. */
   .rangePills {
+    flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .rangePills::-webkit-scrollbar { display: none; }
+  .pill { min-height: var(--tap-min, 44px); }
+  .toggle { min-height: var(--tap-min, 44px); }
+  .miniPill { min-height: var(--tap-min, 44px); }
+  .dateInput { font-size: 16px; min-height: var(--tap-min, 44px); }
 }

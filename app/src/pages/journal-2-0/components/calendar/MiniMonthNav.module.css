@@ -98,3 +98,10 @@
   font-style: italic;
   text-align: center;
 }
+
+/* Phone: enlarge the cramped month-nav arrows and day cells for touch. */
+@media (max-width: 640px) {
+  .navBtn { width: var(--tap-min, 44px); height: var(--tap-min, 44px); font-size: 16px; }
+  .cell, .blank { height: 40px; }
+  .cell { font-size: 14px; }
+}

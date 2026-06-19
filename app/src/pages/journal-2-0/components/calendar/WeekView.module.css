@@ -100,10 +100,11 @@
   font-style: italic;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .row {
     grid-template-columns: repeat(7, minmax(100px, 1fr));
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .dayCard { min-height: 160px; }
 }

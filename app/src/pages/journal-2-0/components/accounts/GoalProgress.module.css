@@ -158,15 +158,22 @@
   font-style: italic;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1024px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .grid {
     grid-template-columns: 1fr;
   }
   .acct { font-size: 10px; }
+}
+
+/* Touch: the edit-target affordance is the only way to change a goal — give it
+ * a real tap target; bump the inline input above the iOS zoom threshold. */
+@media (hover: none) {
+  .editBtn { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
+  .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
 }

@@ -396,3 +396,11 @@
   font-family: var(--font-sans);
   letter-spacing: 0.3px;
 }
+
+/* Phone: enlarge the per-row Close / Mark-expired / Delete actions to a 44px
+ * tap height (the table already scrolls horizontally via .tableWrap). */
+@media (max-width: 640px) {
+  .miniBtn,
+  .miniBtnGold,
+  .miniBtnDanger { min-height: var(--tap-min, 44px); }
+}

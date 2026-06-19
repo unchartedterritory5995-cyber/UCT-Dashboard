@@ -456,3 +456,33 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ── Phone (≤640px) ────────────────────────────────────────────────
+ * Fullscreen sheet, 16px inputs (no iOS focus-zoom across this dense form),
+ * 44px tap targets on the unit toggles / add buttons / chip-remove. Desktop
+ * (≥1025px) unchanged. */
+@media (max-width: 640px) {
+  .backdrop { padding: 0; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+  .footer {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .numberInput,
+  .numberInputSmall,
+  .textInput,
+  .select { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .unitBtn { min-height: var(--tap-min, 44px); }
+  .addBtn { min-height: var(--tap-min, 44px); }
+  /* Widen the remove-× hit area without ballooning each chip's height. */
+  .chipClose { min-width: 32px; min-height: 32px; }
+  .ghostBtn,
+  .primaryBtn { min-height: var(--tap-min, 44px); }
+}

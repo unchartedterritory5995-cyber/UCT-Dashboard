@@ -60,8 +60,12 @@
   gap: 20px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
+  .page { padding: 16px 12px 80px; }
   .grid { grid-template-columns: 1fr; }
+  /* Tighter table cells so 4 columns fit a phone width without clipping. */
+  .th { padding: 8px 10px; }
+  .tickerCell, .priceCell, .pctGreen, .pctRed, .volCell { padding: 10px; }
 }
 
 .column {
