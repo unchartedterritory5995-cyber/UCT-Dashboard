@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import styles from './NavBar.module.css'
+import uctLogo from '../assets/uct-logo.png'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -46,7 +47,8 @@ export default function NavBar() {
 
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
-      <div className={styles.brand}>UCT</div>
+      <img className={styles.brand} src={uctLogo} alt="UCT" />
+
       <div className={styles.mainItems}>
         {NAV_ITEMS.filter(item => showAll || FREE_PAGES.includes(item.to)).map(item => (
           <NavLink
