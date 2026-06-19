@@ -26,6 +26,17 @@ def test_build_row_merges_all_groups(tmp_path, monkeypatch):
     assert "snapshot_date" in row and row["built_at"]
 
 
+def test_parse_cap_handles_formatted_strings():
+    import api.services.screener.snapshot_builder as b
+    assert b._parse_cap("$4.38T") == 4.38e12
+    assert b._parse_cap("$1.1B") == 1.1e9
+    assert b._parse_cap("$300M") == 3e8
+    assert b._parse_cap("1,234M") == 1234e6
+    assert b._parse_cap(2.5e9) == 2.5e9
+    assert b._parse_cap(None) is None
+    assert b._parse_cap("n/a") is None
+
+
 def test_build_row_survives_empty_bars(tmp_path, monkeypatch):
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
     import api.services.screener.snapshot_builder as b

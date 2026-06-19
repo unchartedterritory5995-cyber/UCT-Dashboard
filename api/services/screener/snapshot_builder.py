@@ -71,6 +71,27 @@ _FUND_MAP = {
 }
 
 
+_CAP_SUFFIX = {"T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3}
+
+
+def _parse_cap(v):
+    """get_fundamentals returns market_cap pre-formatted (e.g. '$4.38T'); the
+    screener needs a number for range filtering. Parse $/commas/suffix."""
+    if v is None or isinstance(v, (int, float)):
+        return v
+    s = str(v).strip().upper().replace("$", "").replace(",", "")
+    if not s:
+        return None
+    mult = 1.0
+    if s and s[-1] in _CAP_SUFFIX:
+        mult = _CAP_SUFFIX[s[-1]]
+        s = s[:-1]
+    try:
+        return float(s) * mult
+    except ValueError:
+        return None
+
+
 def _read_fundamentals(ticker):
     out = {}
     try:
@@ -80,8 +101,9 @@ def _read_fundamentals(ticker):
         return out
     for col, src in _FUND_MAP.items():
         v = f.get(src)
-        if v is not None:
-            out[col] = v
+        if v is None:
+            continue
+        out[col] = _parse_cap(v) if col == "market_cap" else v
     return out
 
 
