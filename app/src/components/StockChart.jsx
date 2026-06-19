@@ -2021,23 +2021,46 @@ export default function StockChart({
   // other chart) is untouched — the dedicated effect below applies/clears the
   // gold with a candle-only setData (no full re-render). highlightBarTime accepts
   // a single ISO/time value or an array of them.
-  const highlightTimeSet = useMemo(() => {
+  // Resolve each highlight date to the ACTUAL bar time present in the series.
+  // On daily/intraday the setup day equals a bar time exactly. On WEEKLY/MONTHLY
+  // the setup day falls INSIDE a multi-day bar (the provider anchors the bar at
+  // the period start, so the exact daily date is never a bar time) — resolve to
+  // the enclosing bar (largest bar time <= the date) so the setup candle still
+  // paints white. Without this, weekly/monthly examples lost the highlight.
+  const highlightResolved = useMemo(() => {
     if (highlightBarTime == null) return null
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
-    const s = new Set()
-    for (const t of arr) { if (t != null) s.add(adjustTime(t)) }
-    return s.size ? s : null
-  }, [highlightBarTime, adjustTime])
+    const times = ohlcData.map(d => d.time)
+    const exact = new Set(times)
+    const fuzzy = resolvedTf === 'W' || resolvedTf === 'M'
+    const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
+      ? a - b
+      : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
+    const out = []
+    for (const raw of arr) {
+      if (raw == null) continue
+      const target = adjustTime(raw)
+      if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
+      if (!fuzzy) continue
+      let best = null
+      for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
+      if (best != null) out.push({ time: best, orig: raw })
+    }
+    return out.length ? out : null
+  }, [highlightBarTime, adjustTime, ohlcData, resolvedTf])
+  const highlightTimeSet = useMemo(
+    () => highlightResolved ? new Set(highlightResolved.map(e => e.time)) : null,
+    [highlightResolved],
+  )
   // Reverse map: the chart-space (adjusted) time of each highlighted candle back
   // to the ORIGINAL date string passed in — so a click on a setup candle can be
   // resolved to the YYYY-MM-DD used to fetch that day's intraday bars.
   const highlightTimeMap = useMemo(() => {
-    if (highlightBarTime == null) return null
-    const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
+    if (!highlightResolved) return null
     const m = new Map()
-    for (const t of arr) { if (t != null) m.set(adjustTime(t), t) }
+    for (const e of highlightResolved) m.set(e.time, e.orig)
     return m.size ? m : null
-  }, [highlightBarTime, adjustTime])
+  }, [highlightResolved])
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
