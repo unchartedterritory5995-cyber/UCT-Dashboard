@@ -611,16 +611,19 @@ def register_screener_jobs(scheduler):
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
 
-    # Self-warm on first deploy: if the snapshot is empty, build a starter batch
-    # in the background so the page has data without waiting for 03:00 ET.
+    # Self-warm on deploy: if the snapshot is under-filled, build (up to
+    # SCREENER_SNAPSHOT_MAX_PER_RUN, default 4000) in the background so the page
+    # has the full universe without waiting for 03:00 ET. run_build picks the
+    # stalest tickers first, so this tops up an incomplete snapshot each boot
+    # until the universe is covered.
     try:
         from api.services.screener import snapshot_db
         snapshot_db.init_db()
-        if snapshot_db.count_rows() == 0:
+        warm_min = int(os.environ.get("SCREENER_SNAPSHOT_WARM_MIN", "3000"))
+        if snapshot_db.count_rows() < warm_min:
             import threading
-            threading.Thread(
-                target=lambda: snapshot_builder.run_build(max_tickers=800),
-                daemon=True, name="screener-warm").start()
+            threading.Thread(target=snapshot_builder.run_build,
+                             daemon=True, name="screener-warm").start()
     except Exception as e:
         print(f"[scheduler] screener self-warm skipped: {e}")
     return True
