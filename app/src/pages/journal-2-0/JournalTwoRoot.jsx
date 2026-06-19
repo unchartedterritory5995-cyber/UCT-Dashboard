@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import UIcon from '../../components/ui/UIcon'
 import { useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useIsPaid } from '../../context/AuthContext'
@@ -33,15 +34,15 @@ import { money } from '../../lib/journal-2-0'
 import styles from './JournalTwoRoot.module.css'
 
 const NESTED_TABS = [
-  { key: 'positions', label: '📊 Open Positions' },
-  { key: 'journal', label: '📒 Trade Journal' },
-  { key: 'calendar', label: '📅 Calendar' },
-  { key: 'accounts', label: '💼 Accounts' },
-  { key: 'analytics', label: '📈 Analytics' },
-  { key: 'notebook', label: '📓 Notebook' },
+  { key: 'positions', icon: 'breadth', label: 'Open Positions' },
+  { key: 'journal', icon: 'journal', label: 'Trade Journal' },
+  { key: 'calendar', icon: 'calendar', label: 'Calendar' },
+  { key: 'accounts', icon: 'dollar', label: 'Accounts' },
+  { key: 'analytics', icon: 'equity', label: 'Analytics' },
+  { key: 'notebook', icon: 'book', label: 'Notebook' },
   // Compass is an AI-cost feature — gated to paid plans (see paidOnly flag).
-  { key: 'compass', label: '🧭 Compass', paidOnly: true },
-  { key: 'community', label: '🌐 Community' },
+  { key: 'compass', icon: 'compass', label: 'Compass', paidOnly: true },
+  { key: 'community', icon: 'globe', label: 'Community' },
 ]
 
 export default function JournalTwoRoot() {
@@ -125,7 +126,7 @@ export default function JournalTwoRoot() {
             aria-label="Generate report"
             title="Generate Report (Ctrl/⌘+P after)"
           >
-            📄
+            <UIcon name="document" size={16} />
           </button>
           <button
             type="button"
@@ -135,7 +136,7 @@ export default function JournalTwoRoot() {
             aria-label="Open Portfolio Settings"
             title="Settings (current account)"
           >
-            <span className={styles.gearIcon} aria-hidden="true">⚙</span>
+            <span className={styles.gearIcon} aria-hidden="true"><UIcon name="gear" size={16} /></span>
           </button>
         </div>
       </div>
@@ -171,7 +172,7 @@ export default function JournalTwoRoot() {
             }`}
             onClick={() => setNestedTab(tab.key)}
           >
-            {tab.label}
+            <UIcon name={tab.icon} size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />{tab.label}
           </button>
         ))}
       </div>

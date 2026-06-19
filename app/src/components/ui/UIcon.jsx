@@ -263,6 +263,32 @@ const ICONS = {
   ),
   skipBack: <path d="M18 6v12l-9-6zM7.5 6v12" />,
   skipForward: <path d="M6 6v12l9-6zM16.5 6v12" />,
+  bolt: <path d="M13 2.5L5 13h5.2l-1.2 8.5L19 10.5h-5.3z" />,
+  volumeOff: (
+    <>
+      <path d="M4 9.5v5h3.5L13 19V5L7.5 9.5z" />
+      <path d="M16.5 9.5l5 5M21.5 9.5l-5 5" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M3.5 4.5h7.2l9 9-7.2 7.2-9-9z" />
+      <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
+  ruler: (
+    <>
+      <path d="M4 13.5l9.5-9.5 6 6-9.5 9.5z" />
+      <path d="M8 6l1.8 1.8M10.6 8.6l2.5 2.5M6.5 9.5l1.8 1.8" />
+    </>
+  ),
+  wrench: <path d="M14.6 6.3a4 4 0 0 0-5 5.1l-6 6 2.5 2.5 6-6a4 4 0 0 0 5.1-5l-2.6 2.6-2-2z" />,
+  noEntry: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M7 12h10" />
+    </>
+  ),
 }
 
 export const UICON_NAMES = Object.keys(ICONS)

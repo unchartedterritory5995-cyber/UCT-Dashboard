@@ -1,6 +1,7 @@
 // app/src/pages/Watchlists.jsx
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import useSWR from 'swr'
+import UIcon from '../components/ui/UIcon'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -474,7 +475,7 @@ export default function Watchlists({ embedded = false }) {
                 className={`${styles.wlActionBtn}${wl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => handleTogglePublic(wl)}
                 title={wl.is_public ? 'Make Private' : 'Share with community'}
-              >{wl.is_public ? '🔓' : '🔒'}</button>
+              >{wl.is_public ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
               <button
                 className={`${styles.wlActionBtn} ${styles.wlDeleteBtn}`}
                 onClick={() => handleDeleteList(wl.id)}
@@ -527,7 +528,7 @@ export default function Watchlists({ embedded = false }) {
                       className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
                       onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
                       title={isStarred ? 'Unstar' : 'Star'}
-                    >{isStarred ? '★' : '☆'}</button>
+                    >{isStarred ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
                     {getTag(item.sym) && (
                       <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(item.sym)]?.hex }} title={TAG_BY_KEY[getTag(item.sym)]?.label} />
                     )}
@@ -552,12 +553,12 @@ export default function Watchlists({ embedded = false }) {
                         className={`${styles.noteBtn}${expandedNote === item.id ? ' ' + styles.noteBtnActive : ''}`}
                         onClick={e => { e.stopPropagation(); toggleNote(item.id, item.notes) }}
                         title="Notes"
-                      >✎</button>
+                      ><UIcon name="edit" size={13} /></button>
                       <button
                         className={`${styles.alertBtn}${hasAlert(item.sym) ? ' ' + styles.alertBtnActive : ''}`}
                         onClick={e => { e.stopPropagation(); setAlertPopover({ sym: item.sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }}
                         title="Set price alert"
-                      >🔔</button>
+                      ><UIcon name="bell" size={13} /></button>
                       {isOwner && (
                         <button
                           className={styles.removeBtn}
@@ -619,7 +620,7 @@ export default function Watchlists({ embedded = false }) {
             <span
               className={styles.wlName}
               onContextMenu={e => handleContextMenu(e, 'flagged', true, [...flagged])}
-            >{flaggedName || `⚑ Flagged (${user?.display_name || 'You'})`}</span>
+            >{flaggedName || `Flagged (${user?.display_name || 'You'})`}</span>
           )}
           <span className={styles.wlCount}>{flagged.length}</span>
           {isShared && <span className={styles.pubBadge}>PUB</span>}
@@ -630,7 +631,7 @@ export default function Watchlists({ embedded = false }) {
                 className={`${styles.wlActionBtn}${isShared ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={toggleShare}
                 title={isShared ? 'Make Private' : 'Share with community'}
-              >{isShared ? '🔓' : '🔒'}</button>
+              >{isShared ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
             </div>
           )}
         </div>
@@ -657,7 +658,7 @@ export default function Watchlists({ embedded = false }) {
                     className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
                     onClick={e => { e.stopPropagation(); toggleStar('flagged', sym) }}
                     title={isStarred ? 'Unstar' : 'Star'}
-                  >{isStarred ? '★' : '☆'}</button>
+                  >{isStarred ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
                   {getTag(sym) && (
                     <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(sym)]?.hex }} title={TAG_BY_KEY[getTag(sym)]?.label} />
                   )}
@@ -713,7 +714,7 @@ export default function Watchlists({ embedded = false }) {
               <span className={styles.listMeta}>{(myLists?.length ?? 0) + 1} lists</span>
               <div className={styles.headerActions}>
                 <div className={styles.colToggleWrap}>
-                  <button className={styles.colToggleBtn} onClick={() => setShowPerfCols(!showPerfCols)} title="Toggle columns">⚙</button>
+                  <button className={styles.colToggleBtn} onClick={() => setShowPerfCols(!showPerfCols)} title="Toggle columns"><UIcon name="gear" size={14} /></button>
                   {showPerfCols && (
                     <div className={styles.colPopover}>
                       <div className={styles.presetRow}>
@@ -763,7 +764,7 @@ export default function Watchlists({ embedded = false }) {
                           className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}
                           onClick={() => toggleShareColor(tc.key)}
                           title={isColorShared(tc.key) ? 'Make Private' : 'Share with community'}
-                        >{isColorShared(tc.key) ? '🔓' : '🔒'}</button>
+                        >{isColorShared(tc.key) ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
                       </div>
                     </div>
                     {open && (
@@ -882,14 +883,14 @@ export default function Watchlists({ embedded = false }) {
                 <SymbolSearch sym={selectedSym} onSymbolChange={setSelectedSym} />
                 {flagToast && (
                   <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                    {flagToast === 'added' ? '⚑ Flagged' : '⚑ Removed'}
+                    <UIcon name="flag" size={12} style={{verticalAlign:'-1px',marginRight:3}} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                   </span>
                 )}
                 <button
                   className={`${styles.flagBtn}${isFlagged(selectedSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(selectedSym); toggleFlag(selectedSym); setFlagToast(willFlag ? 'added' : 'removed') }}
                   title={isFlagged(selectedSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                >⚑ {isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
+                ><UIcon name="flag" size={13} style={{verticalAlign:'-2px',marginRight:4}} />{isFlagged(selectedSym) ? 'Flagged' : 'Flag'}</button>
                 <div className={styles.chartPeriodTabs}>
                   {PERIODS.map(([p, label]) => (
                     <button
@@ -1039,7 +1040,7 @@ export default function Watchlists({ embedded = false }) {
             {ctxMenu.isOwner && (
               <button className={styles.ctxItem} onClick={() => {
                 if (ctxMenu.id === 'flagged') {
-                  setRenameValue(flaggedName || `⚑ Flagged (${user?.display_name || 'You'})`)
+                  setRenameValue(flaggedName || `Flagged (${user?.display_name || 'You'})`)
                 } else {
                   const wl = myLists?.find(w => w.id === ctxMenu.id)
                   setRenameValue(wl?.name || '')

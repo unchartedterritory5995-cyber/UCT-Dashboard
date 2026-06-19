@@ -7,22 +7,23 @@
  *   summary?: string   // optional 1-line summary for display
  */
 import { useState } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 
 const TOOL_ICONS = {
-  list_recent_trades: '🔍', get_aggregates: '📊', get_open_positions: '📈',
-  get_trader_profile: '👤', get_recent_recaps: '📜', get_account_settings: '⚙',
-  get_setup_stats: '🎯', find_arcs: '🌀',
-  analyze_time_of_day: '⏰', analyze_day_of_week: '📅',
-  analyze_hold_duration: '⏱', analyze_sequence: '🔁',
-  analyze_sizing_curve: '📏', analyze_correlation: '🔗', compare_setups: '⚖',
-  tag_trade: '🏷', set_weekly_focus: '🧭', mute_setup: '🔇', unmute_setup: '🔊',
-  set_a_plus_setups: '⭐', update_discipline_setting: '🛡',
-  schedule_paper_only_day: '📝',
+  list_recent_trades: 'search', get_aggregates: 'breadth', get_open_positions: 'equity',
+  get_trader_profile: 'user', get_recent_recaps: 'document', get_account_settings: 'gear',
+  get_setup_stats: 'patterns', find_arcs: 'refresh',
+  analyze_time_of_day: 'clock', analyze_day_of_week: 'calendar',
+  analyze_hold_duration: 'clock', analyze_sequence: 'refresh',
+  analyze_sizing_curve: 'ruler', analyze_correlation: 'link', compare_setups: 'scale',
+  tag_trade: 'tag', set_weekly_focus: 'compass', mute_setup: 'volumeOff', unmute_setup: 'volume',
+  set_a_plus_setups: 'star', update_discipline_setting: 'shield',
+  schedule_paper_only_day: 'edit',
 }
 
 export default function ChatToolChip({ toolCall, toolResult, summary }) {
   const [open, setOpen] = useState(false)
-  const icon = TOOL_ICONS[toolCall.name] || '🔧'
+  const icon = TOOL_ICONS[toolCall.name] || 'wrench'
   const label = summary || toolCall.name
   return (
     <div style={{ display: 'inline-block', margin: '4px 4px 4px 0' }}>
@@ -36,7 +37,7 @@ export default function ChatToolChip({ toolCall, toolResult, summary }) {
           color: 'var(--text-bright)', cursor: 'pointer',
         }}
       >
-        {icon} {label}
+        <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />{label}
       </button>
       {open && (
         <pre style={{

@@ -6,6 +6,7 @@
  * limit exhausted.
  */
 import { useState, useRef, useEffect, useMemo, useContext } from 'react'
+import UIcon from '../../../components/ui/UIcon'
 import useJ2CoachChat from '../hooks/useJ2CoachChat'
 import ChatMessage from './ChatMessage'
 import ChatActionCard from './ChatActionCard'
@@ -125,7 +126,7 @@ export default function CompassChat({ accountId }) {
         marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ut-gold, #c9a84c)' }}>
-          {isOnboarding ? '🧭 Onboarding interview' : '🧭 Talk to Compass'}
+          <><UIcon name="compass" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isOnboarding ? 'Onboarding interview' : 'Talk to Compass'}</>
         </div>
         <div style={{ position: 'relative' }}>
           <button
@@ -180,7 +181,7 @@ export default function CompassChat({ accountId }) {
                   color: 'var(--text-bright)', cursor: 'pointer',
                 }}
               >
-                {ttsEnabled ? '🔊 Speaking replies (click to mute)' : '🔇 Speak Compass replies'}
+                {ttsEnabled ? <><UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Speaking replies (click to mute)</> : <><UIcon name="volumeOff" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Speak Compass replies</>}
               </button>
               <button
                 type="button"
@@ -192,7 +193,7 @@ export default function CompassChat({ accountId }) {
                   color: 'var(--text-bright)', cursor: 'pointer',
                 }}
               >
-                {autoSubmitVoice ? '⚡ Voice auto-submits (click to disable)' : '📝 Voice fills input (click to auto-submit)'}
+                {autoSubmitVoice ? <><UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Voice auto-submits (click to disable)</> : <><UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Voice fills input (click to auto-submit)</>}
               </button>
             </div>
           )}
@@ -205,7 +206,7 @@ export default function CompassChat({ accountId }) {
       }}>
         {!hasContent && needsOnboarding && (
           <div style={{ textAlign: 'center', padding: '24px 8px', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 32, marginBottom: 6 }}>🧭</div>
+            <div style={{ fontSize: 32, marginBottom: 6 }}><UIcon name="compass" size={32} /></div>
             <div style={{ fontSize: 14, marginBottom: 4 }}>
               <strong style={{ color: 'var(--text-bright)' }}>Welcome to Compass.</strong>
             </div>
@@ -222,7 +223,7 @@ export default function CompassChat({ accountId }) {
                 border: 'none', borderRadius: 6, cursor: 'pointer',
               }}
             >
-              🧭 Start onboarding interview
+              <UIcon name="compass" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Start onboarding interview
             </button>
             <div style={{ marginTop: 12 }}>
               <button
@@ -241,7 +242,7 @@ export default function CompassChat({ accountId }) {
 
         {!hasContent && !needsOnboarding && (
           <div style={{ textAlign: 'center', padding: '24px 8px', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>🧭</div>
+            <div style={{ fontSize: 24, marginBottom: 6 }}><UIcon name="compass" size={24} /></div>
             <div style={{ fontSize: 13, marginBottom: 4 }}>
               <strong style={{ color: 'var(--text-bright)' }}>Compass is here.</strong>
             </div>
@@ -335,7 +336,7 @@ export default function CompassChat({ accountId }) {
             )}
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               {limitHit
-                ? '⛔ Daily limit reached'
+                ? 'Daily limit reached'
                 : `${status?.rate_limit_remaining ?? 200} left today`}
             </span>
           </div>
@@ -388,7 +389,7 @@ function TalkToCompassButton({ inVoiceSession, disabled }) {
         ? 'End voice conversation'
         : 'Start voice conversation with Compass'}
     >
-      {inVoiceSession ? '◉ End call' : '🧭 Talk'}
+      {inVoiceSession ? '◉ End call' : <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Talk</>}
     </button>
   )
 }
