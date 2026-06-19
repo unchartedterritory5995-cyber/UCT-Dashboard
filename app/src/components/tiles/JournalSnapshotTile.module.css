@@ -1,8 +1,14 @@
 /* This is a standalone tile (not in a fixed-height grid cell), so it must size
  * to its content. TileCard's default `height: 100%` would otherwise stretch it
- * to the full scrolling column height and leave a large empty gap below. */
+ * to the full scrolling column height and leave a large empty gap below.
+ * Also washes the WHOLE card (header strip + body, edge to edge) in gold over
+ * the surface, so the entire journal preview spot carries the brand. */
 .tileFit {
   height: auto !important;
+  background:
+    radial-gradient(115% 42% at 50% 0%, rgba(201, 168, 76, 0.15), transparent 62%),
+    linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.04)),
+    var(--bg-surface) !important;
 }
 
 .bodyLink {
@@ -28,18 +34,12 @@
   font-weight: 600;
 }
 
-/* Gold ambient wash across the ENTIRE section — a full-height gold tint plus a
- * stronger glow at the top. Shared by the CTA and the connected view so the
- * whole journal preview spot carries the brand, top to bottom. */
+/* The gold wash lives on the whole tile (.tileFit); body stays transparent. */
 .body {
   display: flex;
   flex-direction: column;
   gap: 11px;
-  padding: 12px 10px 10px;
-  border-radius: 9px;
-  background:
-    radial-gradient(115% 50% at 50% 0%, rgba(201, 168, 76, 0.16), transparent 62%),
-    linear-gradient(180deg, rgba(201, 168, 76, 0.075), rgba(201, 168, 76, 0.04));
+  padding: 2px;
 }
 
 .pos { color: var(--gain, #22c55e); }
