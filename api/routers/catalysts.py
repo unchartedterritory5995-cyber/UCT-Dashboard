@@ -9,7 +9,9 @@ import threading
 import time
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path
 
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.catalyst import engine, store
@@ -75,6 +77,27 @@ def catalysts_today(user=Depends(get_current_user)):
         "generated_at": rows[0]["thesis_at"] if rows else None,
         "rows": rows,
         "sector_contexts": sector_contexts,
+    }
+
+
+@router.get("/catalysts/today-internal")
+def catalysts_today_internal(authorization: Optional[str] = Header(None)):
+    """Server-to-server read of today's catalyst rows for the Morning Wire engine.
+
+    Same payload as /catalysts/today but authenticated with the PUSH_SECRET
+    bearer (mirrors /api/push) instead of a user session, so the wire can pull
+    catalyst-engine theses to enrich the anchor monologue.
+    """
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    md = _today()
+    rows = store.get_for_date(md, ranked_only=True)
+    return {
+        "market_date": md,
+        "generated_at": rows[0]["thesis_at"] if rows else None,
+        "rows": rows,
+        "sector_contexts": engine.get_sector_contexts(md),
     }
 
 
