@@ -143,13 +143,13 @@ export default function IntroAnimation() {
           <text className={styles.cardinal} x="50" y="-9" textAnchor="middle" dy=".35em">N</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="-9" y="50" textAnchor="middle" dy=".35em">E</text>
+          <text className={styles.cardinal} x="-9" y="50" textAnchor="middle" dy=".35em">W</text>
         </g>
         <g transform="rotate(90 50 50)">
           <text className={styles.cardinal} x="50" y="111" textAnchor="middle" dy=".35em">S</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="111" y="50" textAnchor="middle" dy=".35em">W</text>
+          <text className={styles.cardinal} x="111" y="50" textAnchor="middle" dy=".35em">E</text>
         </g>
         <g transform="rotate(90 50 50)">
           <text className={styles.degree} x="89" y="9" textAnchor="middle" dy=".35em">045°</text>
