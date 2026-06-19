@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
-import CustomScan from './CustomScan'
+import ScannerPro from './screener/ScannerPro'
 import { SkeletonTable } from '../components/Skeleton'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import UIcon from '../components/ui/UIcon'
@@ -11,9 +11,9 @@ import styles from './Screener.module.css'
 const fetcher = url => fetch(url).then(r => r.json())
 
 const PAGE_TABS = [
-  { key: 'scanner', label: 'Scanner' },
+  { key: 'scanner', label: 'Scanner' },          // full-market ScannerPro (default)
+  { key: 'board',   label: 'Candidate Board' },   // the 7 AM scanner candidate board
   { key: 'live',    label: 'Live Scan', icon: 'bolt' },
-  { key: 'custom',  label: 'Custom Scan' },
 ]
 
 // ── Trigger definitions (each returns an object or null) ─────────────────────
@@ -443,7 +443,7 @@ export default function Screener({ embedded = false }) {
     allCandidates.map(r => r.ticker).filter(Boolean),
     [allCandidates]
   )
-  const { prices } = useRealtimePrices(['scanner', 'live'].includes(pageTab) ? allTickers : [])
+  const { prices } = useRealtimePrices(['board', 'live'].includes(pageTab) ? allTickers : [])
 
   // Pre-warm Daily bars for the top candidates when scanner data arrives
   useEffect(() => {
@@ -451,11 +451,12 @@ export default function Screener({ embedded = false }) {
     prefetchBars(allTickers.slice(0, 30), 'D')
   }, [allTickers])
 
-  const containerCls = `${pageTab === 'custom' ? styles.containerFull : styles.container} ${embedded ? styles.pageEmbedded : ''}`.trim()
+  const fullBleed = pageTab === 'scanner'
+  const containerCls = `${fullBleed ? styles.containerFull : styles.container} ${embedded ? styles.pageEmbedded : ''}`.trim()
 
   return (
     <div className={containerCls}>
-      <div className={pageTab === 'custom' ? styles.headerFull : styles.header}>
+      <div className={fullBleed ? styles.headerFull : styles.header}>
         {!embedded && <h1 className={styles.heading}>Scanner Hub</h1>}
         <div className={styles.pageTabs}>
           {PAGE_TABS.map(t => (
@@ -470,12 +471,12 @@ export default function Screener({ embedded = false }) {
         </div>
       </div>
 
-      {error ? (
+      {pageTab === 'scanner' ? (
+        <ScannerPro embedded={embedded} />
+      ) : error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
       ) : !data ? (
         <SkeletonTable rows={8} cols={3} />
-      ) : pageTab === 'custom' ? (
-        <CustomScan allCandidates={allCandidates} />
       ) : pageTab === 'live' ? (
         <LiveScanTab allCandidates={allCandidates} prices={prices} />
       ) : (
