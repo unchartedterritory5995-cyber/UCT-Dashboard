@@ -28,11 +28,17 @@
   font-weight: 600;
 }
 
+/* Gold ambient wash across the whole section — shared by the CTA and the
+ * connected (hero + holdings) view, so both carry the brand. */
 .body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 2px;
+  gap: 11px;
+  padding: 12px 10px 10px;
+  border-radius: 9px;
+  background:
+    radial-gradient(125% 78% at 50% -6%, rgba(201, 168, 76, 0.13), transparent 56%),
+    linear-gradient(180deg, rgba(201, 168, 76, 0.045), rgba(201, 168, 76, 0) 42%);
 }
 
 .pos { color: var(--gain, #22c55e); }
@@ -43,19 +49,18 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px;
-  background: rgba(201, 168, 76, 0.05);
-  border-left: 3px solid var(--ut-gold, #c9a84c);
-  border-radius: 4px;
+  padding: 2px 4px 13px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.20);
 }
 
 .heroValue {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.05;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.04;
   color: var(--text-bright);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.6px;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 14px rgba(201, 168, 76, 0.12);
 }
 
 .perfRow {
@@ -72,9 +77,9 @@
 
 .perfLabel {
   font-size: 10px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: rgba(201, 168, 76, 0.72);
   font-weight: 700;
 }
 
@@ -116,7 +121,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 7px 4px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(201, 168, 76, 0.12);
 }
 
 .row:first-child {
@@ -216,7 +221,7 @@
   justify-content: space-between;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(201, 168, 76, 0.16);
 }
 
 .more {
@@ -403,19 +408,32 @@
 }
 
 .ctaTick {
+  position: relative;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
+/* soft gold halo behind each glyph — "lit", premium, no boxy chip */
+.ctaTick::before {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(214, 184, 94, 0.26), rgba(214, 184, 94, 0) 68%);
+  z-index: 0;
+}
+
 .ctaTick svg {
-  width: 19px;
-  height: 19px;
-  filter: drop-shadow(0 0 1.5px rgba(214, 184, 94, 0.35));
-  opacity: 0.92;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 0 2.5px rgba(214, 184, 94, 0.5));
 }
 
 .ctaButton {
