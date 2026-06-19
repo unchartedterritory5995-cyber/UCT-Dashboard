@@ -224,6 +224,29 @@
   display: none !important;
 }
 
+/* ── Anchor monologue — labeled spoken segments ──────────────── */
+.rundownWrap :global(.rd-monologue) {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.rundownWrap :global(.rd-seg) {
+  margin: 22px 0;
+  padding-left: 14px;
+  border-left: 2px solid rgba(201, 168, 76, 0.35);
+}
+.rundownWrap :global(.rd-seg-label) {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #c9a84c;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.rundownWrap :global(.rd-seg p) {
+  margin: 0 0 10px;
+}
+
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
   display: flex;
