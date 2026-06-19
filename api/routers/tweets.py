@@ -49,7 +49,7 @@ def tape(hours: int = Query(12, ge=1, le=72),
 
 
 @router.get("/feed")
-def feed(hours: int = Query(12, ge=1, le=72),
+def feed(hours: int = Query(12, ge=1, le=168),
          limit: int = Query(50, ge=1, le=200),
          official: bool = Query(False),
          user=Depends(get_current_user)):

@@ -18,8 +18,9 @@ function timeAgo(unixSec) {
 export default function PostsSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  // Wider window than the market tape — our own posts are lower-frequency.
-  const { data, isLoading } = useTweetFeed({ hours: 72, limit: 60, official: true })
+  // Wider window than the market tape — our own posts are lower-frequency
+  // (e.g. Bracco posts ~1×/3 days), so show a full week (== tweet retention).
+  const { data, isLoading } = useTweetFeed({ hours: 168, limit: 60, official: true })
   const posts = Array.isArray(data) ? data : []
 
   return (
