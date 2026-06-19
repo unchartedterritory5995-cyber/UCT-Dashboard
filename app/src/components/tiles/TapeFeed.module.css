@@ -1,0 +1,88 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0 8px 10px;
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid transparent;
+}
+.item:last-child { border-bottom: none; }
+.item:hover {
+  background: var(--bg-hover);
+  margin: 0 -14px;
+  padding-left: 12px;
+  padding-right: 14px;
+}
+.retweet { opacity: 0.78; }
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-bright);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Cashtag ($AAPL) */
+.cashtag {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ut-gold);
+  letter-spacing: 0.3px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.time {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.link {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.link:hover { color: var(--ut-gold); }
+
+/* NEW pulse dot */
+.newDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #27ae60;
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+.empty { color: var(--text-muted); font-size: 12px; }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .text { font-size: 13px; }
+  .time { font-size: 10px; }
+  .item:hover {
+    margin: 0;
+    padding-left: 10px;
+    padding-right: 0;
+  }
+}
