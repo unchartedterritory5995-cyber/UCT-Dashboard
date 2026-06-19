@@ -154,12 +154,12 @@ export default function BrokerConnectionsCard() {
   // ── Render states ──────────────────────────────────────────────────────────
 
   if (loading) {
-    return <TileCard title="🔗 Brokerage Connections"><div className={styles.muted}>Loading…</div></TileCard>
+    return <TileCard icon="link" title="Brokerage Connections"><div className={styles.muted}>Loading…</div></TileCard>
   }
 
   if (!isPaid) {
     return (
-      <TileCard title="🔗 Brokerage Connections">
+      <TileCard icon="link" title="Brokerage Connections">
         <div className={styles.section}>
           <p className={styles.lead}>
             Connect your brokerage and your trades, positions, and balances sync
@@ -176,7 +176,7 @@ export default function BrokerConnectionsCard() {
 
   if (status && status.snaptradeConfigured === false) {
     return (
-      <TileCard title="🔗 Brokerage Connections">
+      <TileCard icon="link" title="Brokerage Connections">
         <div className={styles.section}>
           <p className={styles.muted}>
             Brokerage sync isn’t available on this server yet. Check back soon.
@@ -190,7 +190,7 @@ export default function BrokerConnectionsCard() {
   const connected = !!status?.connected
 
   return (
-    <TileCard title="🔗 Brokerage Connections">
+    <TileCard icon="link" title="Brokerage Connections">
       <div className={styles.section}>
         {error && <div className={styles.error}>{error}</div>}
 

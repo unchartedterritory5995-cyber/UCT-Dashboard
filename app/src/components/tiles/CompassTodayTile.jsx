@@ -33,7 +33,7 @@ export default function CompassTodayTile() {
   )
 
   return (
-    <TileCard title="🧭 Compass · Today">
+    <TileCard icon="compass" title="Compass · Today">
       <CompassTodayBody insights={insights?.insights || []} />
     </TileCard>
   )

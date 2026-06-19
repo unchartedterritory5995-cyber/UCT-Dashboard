@@ -34,6 +34,11 @@
   text-transform: uppercase;
   color: var(--text-bright);
 }
+.titleIcon {
+  margin-right: 6px;
+  vertical-align: -3px;
+  color: var(--ut-gold, #c9a84c);
+}
 .badge {
   font-family: var(--font-sans);
   font-size: 8px;

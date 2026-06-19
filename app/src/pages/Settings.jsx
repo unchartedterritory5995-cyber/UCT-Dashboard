@@ -302,7 +302,7 @@ function VoicePanel() {
   }, [])
 
   if (!settings) {
-    return <TileCard title="🧭 Compass"><div style={{ opacity: 0.7 }}>Compass voice features require a paid plan.</div></TileCard>
+    return <TileCard icon="compass" title="Compass"><div style={{ opacity: 0.7 }}>Compass voice features require a paid plan.</div></TileCard>
   }
 
   const update = async (patch) => {
@@ -329,7 +329,7 @@ function VoicePanel() {
   const pct = capSec ? Math.min(100, Math.round((usedSec / capSec) * 100)) : 0
 
   return (
-    <TileCard title="🧭 Compass">
+    <TileCard icon="compass" title="Compass">
       <div className={styles.voiceRow}>
         <label className={styles.voiceLabel}>
           <input

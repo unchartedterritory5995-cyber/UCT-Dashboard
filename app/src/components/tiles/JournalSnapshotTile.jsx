@@ -188,7 +188,8 @@ export default function JournalSnapshotTile() {
 
   return (
     <TileCard
-      title="📓 Journal · Positions"
+      title="Journal · Positions"
+      icon="journal"
       className={styles.tileFit}
       badge={totalCount > 0 ? <span className={styles.openCue}>Open →</span> : null}
     >
