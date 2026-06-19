@@ -38,6 +38,7 @@ const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
+const EducationalVideos = lazy(() => import('./pages/EducationalVideos'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
@@ -183,6 +184,7 @@ export default function App() {
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />
                 <Route path="/setup-library" element={<SetupLibrary />} />
+                <Route path="/educational-videos" element={<EducationalVideos />} />
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />

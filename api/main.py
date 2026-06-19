@@ -73,6 +73,7 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import modelbook as modelbook_router
+from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
@@ -679,6 +680,16 @@ async def lifespan(app: FastAPI):
                              name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
+
+    # Initialize education.db schema unconditionally (same pattern as above).
+    # The Educational Videos page fires /api/education/videos on load; without a
+    # schema the read endpoint would 500 on "no such table".
+    try:
+        from api.services import education_service
+        education_service._init_db()
+        print("[startup] education.db initialized")
+    except Exception as e:
+        print(f"[startup] education init failed (non-fatal): {e}")
 
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
@@ -2190,6 +2201,7 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(modelbook_router.router)
+app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
 app.include_router(filings_router.router)
 app.include_router(research_router.router)

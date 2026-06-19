@@ -28,6 +28,7 @@ const ROUTE_TITLES = {
   '/post-market': 'Post Market',
   '/model-book': 'Model Book',
   '/setup-library': 'Setup Library',
+  '/educational-videos': 'Educational Videos',
   '/journal': 'Journal',
   '/support': 'Support',
   '/settings': 'Settings',
