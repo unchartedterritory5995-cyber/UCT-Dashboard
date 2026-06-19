@@ -32,13 +32,20 @@ def _signals_hash(ticker, setup, bars) -> str:
 
 def candidates_for(ticker, tf="D") -> list[dict]:
     bars = _read_bars(ticker, tf)
-    if not bars:
+    if not bars or len(bars) < 30:
         return []
+    # The pattern engine expects dict-shaped bars (the tuple form from get_bars
+    # is what the renderer + signal hash use).
+    bars_list = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in bars]
     try:
+        # Detectors self-register as a side effect of importing the patterns
+        # router; the registry is empty until then (CLAUDE.md). Same trick the
+        # universe scan uses.
+        from api.routers import patterns as _patterns  # noqa: F401
         from api.services.pattern_engine import detect_all
         from api.services.pattern_engine.primitives.context import build_context
-        ctx = build_context(bars, ticker)
-        raw = detect_all(bars, ctx, pattern_ids=FOCUSED_SETUPS) or []
+        ctx = build_context(bars_list, sym=ticker)
+        raw = detect_all(bars_list, ctx, pattern_ids=FOCUSED_SETUPS) or []
     except Exception as e:
         log.warning("[pv] candidates_for %s failed: %s", ticker, e)
         return []
