@@ -196,7 +196,7 @@
   fill: rgba(201,168,76,0.75);
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
-  font-size: 3.5px;
+  font-size: 4px;
 }
 
 /* ── Journey path with traveling ship ── */
@@ -604,8 +604,8 @@
 }
 @keyframes bearingSettle {
   0% { transform: translate(-50%, -50%) rotate(-90deg); }
-  35% { transform: translate(-50%, -50%) rotate(-87deg); }
-  65% { transform: translate(-50%, -50%) rotate(-92deg); }
+  35% { transform: translate(-50%, -50%) rotate(-88.5deg); }
+  65% { transform: translate(-50%, -50%) rotate(-91deg); }
   100% { transform: translate(-50%, -50%) rotate(-90deg); }
 }
 @keyframes bearingBurn { to { opacity: 0; transform: translate(-50%, -50%) rotate(-90deg) scale(1.3); } }
@@ -709,6 +709,7 @@
   .ecosystem { max-width: 96%; top: 78%; }
   .pill { font-size: 9px; padding: 5px 10px; letter-spacing: 1px; }
   .waxSeal { display: none; }
+  .bearingRing .degree { display: none; } /* tiny bearing numbers illegible on phones — drop them */
   .mapBearing { font-size: 9px; letter-spacing: 5px; }
   .mapVol { font-size: 11px; }
   .mapFrom, .mapTo { font-size: 10px; }
