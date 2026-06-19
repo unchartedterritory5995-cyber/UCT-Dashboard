@@ -391,34 +391,115 @@ function EmptyState({ connected }) {
       </div>
     )
   }
-  // Not connected → a call-to-action sell point.
+  // Not connected → a UCT-Intelligence-branded call-to-action.
   return <ConnectCta />
 }
 
+/* ── Custom UCT Intelligence iconography (no emoji) ──────────────────────── */
+
+/** The brand signature: a gold-embossed compass rose — UCT Intelligence's mark. */
+function CompassMark() {
+  return (
+    <svg className={styles.markSvg} viewBox="0 0 48 48" aria-hidden="true">
+      <defs>
+        <linearGradient id="uctMarkGold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#efd488" />
+          <stop offset="52%" stopColor="#c9a84c" />
+          <stop offset="100%" stopColor="#8a6f2c" />
+        </linearGradient>
+        <radialGradient id="uctMarkGlow" cx="50%" cy="42%" r="60%">
+          <stop offset="0%" stopColor="#c9a84c" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#c9a84c" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <circle cx="24" cy="24" r="23" fill="url(#uctMarkGlow)" />
+      <circle cx="24" cy="24" r="20.5" fill="none" stroke="url(#uctMarkGold)" strokeWidth="1.5" />
+      <circle cx="24" cy="24" r="15.5" fill="none" stroke="#c9a84c" strokeWidth="0.6" opacity="0.45" />
+      <g stroke="#c9a84c" strokeWidth="1.3" strokeLinecap="round">
+        <line x1="24" y1="4.5" x2="24" y2="8.5" />
+        <line x1="24" y1="39.5" x2="24" y2="43.5" />
+        <line x1="4.5" y1="24" x2="8.5" y2="24" />
+        <line x1="39.5" y1="24" x2="43.5" y2="24" />
+      </g>
+      {/* compass needle — embossed (bright N, dark S) */}
+      <polygon points="24,8.5 27.6,24 24,24" fill="#efd488" />
+      <polygon points="24,8.5 20.4,24 24,24" fill="#c9a84c" />
+      <polygon points="24,39.5 27.6,24 24,24" fill="#7d6526" />
+      <polygon points="24,39.5 20.4,24 24,24" fill="#5f4d1d" />
+      <circle cx="24" cy="24" r="2.4" fill="#13130f" stroke="url(#uctMarkGold)" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+const IconSync = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9a8 8 0 0 1 13.4-3.4L20 8" />
+    <path d="M20 3.5V8h-4.5" />
+    <path d="M20 15a8 8 0 0 1-13.4 3.4L4 16" />
+    <path d="M4 20.5V16h4.5" />
+  </svg>
+)
+
+const IconEquity = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3.5 20.5h17" />
+    <path d="M5 15l4-4 3.5 2.5L20 6" />
+    <path d="M16 6h4v4" />
+  </svg>
+)
+
+const IconCompass = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M15.6 8.4l-2 5.2-5.2 2 2-5.2z" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="0.9" fill="#13130f" stroke="none" />
+  </svg>
+)
+
+const IconLink = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.5 14.5l5-5" />
+    <path d="M11.5 6.5l1-1a3.8 3.8 0 0 1 5.4 5.4l-1 1" />
+    <path d="M12.5 17.5l-1 1a3.8 3.8 0 0 1-5.4-5.4l1-1" />
+  </svg>
+)
+
 /**
- * Call-to-action for users who haven't connected a broker yet. A sell point —
- * benefit bullets + a prominent Connect button — NOT a fake portfolio.
+ * UCT Intelligence connect CTA for users who haven't linked a broker yet.
+ * Brand-forward sell point — compass mark + benefit rows + Connect button.
+ * No fake portfolio data.
  */
 function ConnectCta() {
+  const points = [
+    { Icon: IconSync, text: 'Auto-imports every trade and open position' },
+    { Icon: IconEquity, text: 'Live balance, P&L, and equity curve' },
+    { Icon: IconCompass, text: 'Compass AI coaches your real trades' },
+  ]
   return (
     <div className={styles.cta}>
-      <div className={styles.ctaMark} aria-hidden="true">📈</div>
+      <div className={styles.ctaMark}><CompassMark /></div>
+      <div className={styles.ctaEyebrow}>UCT Intelligence</div>
       <div className={styles.ctaTitle}>See your whole portfolio, live</div>
       <div className={styles.ctaSub}>
-        Connect your brokerage once — every trade, position, balance &amp; your
-        performance sync into your journal automatically.
+        Connect your brokerage and UCT Intelligence imports every trade,
+        position, and balance — then Compass coaches you on your real performance.
       </div>
       <ul className={styles.ctaPoints}>
-        <li><span className={styles.ctaTick}>↻</span> Auto-imports every trade &amp; open position</li>
-        <li><span className={styles.ctaTick}>📊</span> Live balance, P&amp;L &amp; equity curve</li>
-        <li><span className={styles.ctaTick}>🧭</span> AI coaching on your real trades</li>
+        {points.map(({ Icon, text }) => (
+          <li key={text}>
+            <span className={styles.ctaTick}><Icon /></span>
+            {text}
+          </li>
+        ))}
       </ul>
       <Link to="/settings" className={styles.ctaButton}>
-        🔗 Connect your brokerage
+        <span className={styles.ctaButtonIcon}><IconLink /></span>
+        Connect your brokerage
       </Link>
       <div className={styles.ctaFoot}>
-        Read-only &amp; secure · <Link to={JOURNAL_LINK} className={styles.ctaInline}>or log trades manually</Link>
+        Read-only and secure · <Link to={JOURNAL_LINK} className={styles.ctaInline}>or log trades manually</Link>
       </div>
+      <div className={styles.ctaTagline}>Navigate the market, effectively.</div>
     </div>
   )
 }

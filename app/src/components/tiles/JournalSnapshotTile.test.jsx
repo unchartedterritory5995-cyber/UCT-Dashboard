@@ -56,6 +56,9 @@ test('empty state (no broker) is a connect call-to-action (no fake data)', () =>
   h.broker = { connected: false }
   renderWithProviders(<JournalSnapshotTile />)
   expect(screen.getByText(/see your whole portfolio, live/i)).toBeInTheDocument()
+  // UCT Intelligence brand — eyebrow + locked tagline.
+  expect(screen.getByText('UCT Intelligence')).toBeInTheDocument()
+  expect(screen.getByText(/navigate the market, effectively/i)).toBeInTheDocument()
   // Connect CTA → Settings; secondary "log trades manually" → journal.
   const connect = screen.getByRole('link', { name: /connect your brokerage/i })
   expect(connect).toHaveAttribute('href', '/settings')
