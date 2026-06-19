@@ -23,6 +23,13 @@
   display: flex;
   align-items: center;
   margin-bottom: 24px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+.brand:hover {
+  opacity: 0.9;
+  filter: brightness(1.12);
 }
 .brandLogo {
   width: 46px;

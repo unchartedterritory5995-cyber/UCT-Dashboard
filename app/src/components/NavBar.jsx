@@ -1,5 +1,5 @@
 // app/src/components/NavBar.jsx
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
@@ -47,13 +47,18 @@ export default function NavBar() {
 
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
-      <div className={styles.brand}>
+      <Link
+        to="/landing"
+        className={styles.brand}
+        title="UCT Intelligence — home"
+        aria-label="UCT Intelligence — go to landing page"
+      >
         <img className={styles.brandLogo} src={uctLogo} alt="UCT" />
         <span className={styles.brandName}>
           <span className={styles.brandNameTop}>UCT</span>
           <span className={styles.brandNameSub}>INTELLIGENCE</span>
         </span>
-      </div>
+      </Link>
 
       <div className={styles.mainItems}>
         {NAV_ITEMS.filter(item => showAll || FREE_PAGES.includes(item.to)).map(item => (

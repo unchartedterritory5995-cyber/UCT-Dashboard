@@ -147,6 +147,10 @@ export default function App() {
             <Routes>
             {/* Public routes — redirect to dashboard if already logged in */}
             <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
+            {/* Always-public marketing landing page — reachable from the
+                in-app logo even while logged in (unlike "/", which redirects
+                authenticated users to their home). */}
+            <Route path="/landing" element={<Landing />} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/subscribe" element={<Subscribe />} />

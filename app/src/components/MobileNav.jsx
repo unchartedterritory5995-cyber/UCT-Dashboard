@@ -1,6 +1,6 @@
 // app/src/components/MobileNav.jsx — Full-screen drawer nav for mobile
 import { useState, useEffect, useCallback } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
@@ -180,13 +180,18 @@ export default function MobileNav() {
               {user?.display_name || user?.email || ''}
             </span>
           </div>
-          <div className={styles.brandRow}>
+          <Link
+            to="/landing"
+            className={styles.brandRow}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+            aria-label="UCT Intelligence — go to landing page"
+          >
             <img className={styles.brandLogo} src={uctLogo} alt="" aria-hidden="true" />
             <div className={styles.brandText}>
               <span className={styles.brand}>UCT</span>
               <span className={styles.brandSub}>Intelligence Engine</span>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className={styles.drawerScroll}>
