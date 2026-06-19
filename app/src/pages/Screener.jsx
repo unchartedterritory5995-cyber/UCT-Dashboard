@@ -457,7 +457,7 @@ export default function Screener({ embedded = false }) {
   return (
     <div className={containerCls}>
       <div className={fullBleed ? styles.headerFull : styles.header}>
-        {!embedded && <h1 className={styles.heading}>Scanner Hub</h1>}
+        {!embedded && <h1 className={styles.heading}><UIcon name="screener" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Scanner Hub</h1>}
         <div className={styles.pageTabs}>
           {PAGE_TABS.map(t => (
             <button

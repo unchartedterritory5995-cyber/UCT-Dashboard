@@ -1,5 +1,6 @@
 // app/src/pages/UCT20.jsx
 import { useState, useMemo, useCallback } from 'react'
+import UIcon from '../components/ui/UIcon'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
@@ -303,7 +304,7 @@ export default function UCT20() {
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>UCT 20</h1>
+        <h1 className={styles.heading}><UIcon name="star" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />UCT 20</h1>
         <ReadAloudButton
           trackId="uct20-all-picks"
           label="UCT 20 picks"

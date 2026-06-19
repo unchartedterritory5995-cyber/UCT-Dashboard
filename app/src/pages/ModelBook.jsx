@@ -121,7 +121,7 @@ function ModelBookHub({ onPick }) {
                     fill="#e6c965" />
             </svg>
           </span>
-          <h1 className={styles.hubTitle}>MODEL BOOK</h1>
+          <h1 className={styles.hubTitle}><UIcon name="book" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />MODEL BOOK</h1>
           <p className={styles.hubTagline}>
             The greatest stocks in market history — studied, annotated, and ready to learn from.
           </p>

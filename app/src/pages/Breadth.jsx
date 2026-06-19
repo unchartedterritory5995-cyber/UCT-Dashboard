@@ -1216,7 +1216,7 @@ export default function Breadth() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>Breadth</h1>
+          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <div className={styles.overviewBody}>
@@ -1230,7 +1230,7 @@ export default function Breadth() {
     return (
       <div className={`${styles.page} ${styles.pageCot}`}>
         <div className={`${styles.header} ${styles.cotTabHeader}`}>
-          <h1 className={styles.heading}>Breadth</h1>
+          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <CotData />
@@ -1242,7 +1242,7 @@ export default function Breadth() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>Breadth</h1>
+          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <BreadthCharts />
@@ -1254,7 +1254,7 @@ export default function Breadth() {
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <h1 className={styles.heading}>Breadth</h1>
+          <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </div>
         <BreadthAnalogues />
@@ -1265,7 +1265,7 @@ export default function Breadth() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.heading}>Breadth</h1>
+        <h1 className={styles.heading}><UIcon name="breadth" size={20} style={{ verticalAlign: '-3px', marginRight: 8 }} />Breadth</h1>
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
           {rows.length > 0
