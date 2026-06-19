@@ -1412,6 +1412,43 @@ def remove_setup_example(example_id: int, _admin: dict = Depends(require_admin))
     return {"deleted": example_id}
 
 
+# ── Uploaded daily bars for a setup example (delisted/renamed/foreign ticker) ──
+# Mirrors the per-stock /stock/{id}/bars feature: admin uploads a TradingView
+# OHLCV CSV (parsed client-side) so an example whose ticker the providers no
+# longer carry still renders a chart.
+
+@router.get("/setup-example/{example_id}/bars")
+def get_setup_example_bars(example_id: int, _user: dict = Depends(get_current_user)):
+    import json
+    raw = svc.get_setup_example_bars(example_id)
+    bars = []
+    if raw:
+        try:
+            bars = json.loads(raw)
+        except (ValueError, TypeError):
+            bars = []
+    return {"example_id": example_id, "bars": bars}
+
+
+@router.put("/setup-example/{example_id}/bars")
+def edit_setup_example_bars(example_id: int, payload: BarsIn,
+                            _admin: dict = Depends(require_admin)):
+    """Admin: store uploaded daily OHLCV (parsed from a TradingView CSV
+    client-side). Validated, deduped, sorted, then stored."""
+    import json
+    clean = _clean_bars(payload.bars)
+    if not svc.set_setup_example_bars(example_id, json.dumps(clean)):
+        raise HTTPException(404, "Example not found")
+    return {"example_id": example_id, "count": len(clean),
+            "first": clean[0]["t"], "last": clean[-1]["t"]}
+
+
+@router.delete("/setup-example/{example_id}/bars")
+def remove_setup_example_bars(example_id: int, _admin: dict = Depends(require_admin)):
+    svc.delete_setup_example_bars(example_id)
+    return {"example_id": example_id, "cleared": True}
+
+
 def _invalidate_year_derived(stock_id: int) -> None:
     """After bars change: reset stored stats + AI catalysts (svc) AND drop the
     in-memory year-stats cache entry so the next /year-stats recomputes from the

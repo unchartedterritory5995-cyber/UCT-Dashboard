@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
 import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
 import { SETUP_PLAYBOOKS } from './setupPlaybooks'
+import { parseBarsCsv, resampleWeekly } from '../../utils/barsCsv'
 import styles from './SetupsView.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -494,6 +495,61 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     onChanged?.()
   }
 
+  // Uploaded historical bars (fetched only when present) — passed straight to
+  // StockChart as barsOverride, bypassing the data providers. Lets a delisted /
+  // renamed / foreign ticker (e.g. an old CGC the provider no longer carries)
+  // still render from an admin-supplied TradingView CSV.
+  const { data: customBarsData, mutate: mutateCustomBars } = useSWR(
+    ex.has_custom_bars ? `/api/modelbook/setup-example/${ex.id}/bars` : null,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const customBars = useMemo(
+    () => (Array.isArray(customBarsData?.bars) && customBarsData.bars.length ? customBarsData.bars : null),
+    [customBarsData],
+  )
+  // Daily as stored; resampled for the Weekly timeframe (matches Model Book).
+  const chartBars = useMemo(() => {
+    if (!customBars) return null
+    return (ex.timeframe || 'D') === 'W' ? resampleWeekly(customBars) : customBars
+  }, [customBars, ex.timeframe])
+  const barsFileRef = useRef(null)
+  const [barsMsg, setBarsMsg] = useState(null)
+
+  // Upload a TradingView (or broker) OHLCV CSV → parsed client-side → stored as
+  // this example's chart data.
+  async function onBarsFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBarsMsg('Parsing…')
+    try {
+      const bars = parseBarsCsv(await file.text())
+      if (!bars.length) { setBarsMsg('No valid rows found — expected time,open,high,low,close,Volume.'); return }
+      setBarsMsg(`Uploading ${bars.length} bars…`)
+      const res = await fetch(`/api/modelbook/setup-example/${ex.id}/bars`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bars }),
+      })
+      if (!res.ok) { setBarsMsg(`Upload failed: ${(await res.text()).slice(0, 140)}`); return }
+      const j = await res.json()
+      setBarsMsg(`✓ Uploaded ${j.count} bars (${j.first} → ${j.last}).`)
+      await onChanged?.()        // refetch examples → has_custom_bars true
+      await mutateCustomBars()   // pull the bars → chart swaps to them
+      setTimeout(() => setBarsMsg(null), 5000)
+    } catch (err) {
+      setBarsMsg('Error: ' + (err?.message || 'failed to read file'))
+    }
+  }
+  async function clearBars() {
+    if (!window.confirm('Remove the uploaded chart data for this example?')) return
+    await fetch(`/api/modelbook/setup-example/${ex.id}/bars`, { method: 'DELETE', credentials: 'include' })
+    setBarsMsg('Cleared.')
+    await onChanged?.()
+    await mutateCustomBars()
+    setTimeout(() => setBarsMsg(null), 3000)
+  }
+
   return (
     <div className={styles.exBlock}>
       <div className={styles.exBlockHead}>
@@ -540,10 +596,21 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
             <button className={styles.exTool} onClick={() => setEditing(v => !v)}>✎ Edit</button>
           )}
           {isAdmin && !annotating && (
+            <button className={styles.exTool} onClick={() => barsFileRef.current?.click()}
+              title="Upload a TradingView OHLCV CSV as this example's chart data (for delisted/renamed/foreign tickers)">
+              📈 {ex.has_custom_bars ? 'Replace Data' : 'Upload Data'}
+            </button>
+          )}
+          {isAdmin && !annotating && ex.has_custom_bars && (
+            <button className={styles.exTool} onClick={clearBars} title="Remove uploaded data">Clear Data</button>
+          )}
+          <input ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
+          {isAdmin && !annotating && (
             <button className={styles.exToolDanger} onClick={del} title="Delete this example">🗑</button>
           )}
         </span>
       </div>
+      {barsMsg && <div className={styles.exBarsMsg}>{barsMsg}</div>}
       {editing && (
         <ExampleForm
           setupName={ex.setup_name}
@@ -559,6 +626,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           height="100%"
           liveUpdates={false}
           showDrawingTools={false}
+          barsOverride={chartBars}
+          barsOverridePending={!!(ex.has_custom_bars && !chartBars)}
           entryDate={frame.start}
           exitDate={frame.end}
           exactDateRange

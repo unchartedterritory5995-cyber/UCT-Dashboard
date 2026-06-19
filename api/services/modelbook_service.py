@@ -128,6 +128,12 @@ CREATE TABLE IF NOT EXISTS modelbook_setup_examples (
 CREATE INDEX IF NOT EXISTS idx_mb_setup_examples_name
   ON modelbook_setup_examples(setup_name, sort_order, year);
 
+CREATE TABLE IF NOT EXISTS modelbook_setup_example_bars (
+  example_id INTEGER PRIMARY KEY REFERENCES modelbook_setup_examples(id) ON DELETE CASCADE,
+  bars_json  TEXT,                  -- uploaded daily OHLCV (JSON array [{t,o,h,l,c,v}]) for a delisted/renamed/foreign ticker; served to the chart instead of the (missing) provider data
+  updated_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS modelbook_year_recaps (
   year         INTEGER PRIMARY KEY, -- calendar year (1990..) — one AI market recap shown on year-tab hover
   headline     TEXT,                -- short characterization of the year (3-7 words)
@@ -566,7 +572,15 @@ def list_setup_examples(setup_name: str) -> list[dict]:
                ORDER BY sort_order, year DESC, id""",
             (str(setup_name),),
         ).fetchall()
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        with_bars = {
+            r["example_id"] for r in c.execute(
+                "SELECT example_id FROM modelbook_setup_example_bars WHERE bars_json IS NOT NULL"
+            ).fetchall()
+        }
+        for ex in out:
+            ex["has_custom_bars"] = ex["id"] in with_bars
+        return out
 
 
 def get_setup_example(example_id: int) -> Optional[dict]:
@@ -574,7 +588,15 @@ def get_setup_example(example_id: int) -> Optional[dict]:
         row = c.execute(
             "SELECT * FROM modelbook_setup_examples WHERE id = ?", (int(example_id),)
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        ex = dict(row)
+        bw = c.execute(
+            "SELECT 1 FROM modelbook_setup_example_bars WHERE example_id = ? AND bars_json IS NOT NULL",
+            (int(example_id),),
+        ).fetchone()
+        ex["has_custom_bars"] = bw is not None
+        return ex
 
 
 def create_setup_example(payload: dict) -> dict:
@@ -626,6 +648,48 @@ def delete_setup_example(example_id: int) -> bool:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             "DELETE FROM modelbook_setup_examples WHERE id = ?", (int(example_id),)
+        )
+        c.commit()
+        return cur.rowcount > 0
+
+
+# ── Uploaded daily bars for a setup example (delisted/renamed/foreign ticker) ──
+
+def get_setup_example_bars(example_id: int) -> Optional[str]:
+    """Uploaded daily OHLCV (JSON array string) for a setup example, or None."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT bars_json FROM modelbook_setup_example_bars WHERE example_id = ?",
+            (int(example_id),),
+        ).fetchone()
+    return row["bars_json"] if row and row["bars_json"] else None
+
+
+def set_setup_example_bars(example_id: int, bars_json: str) -> bool:
+    """Upsert uploaded bars for an example. False if the example is missing."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        exists = c.execute(
+            "SELECT 1 FROM modelbook_setup_examples WHERE id = ?", (int(example_id),)
+        ).fetchone()
+        if not exists:
+            return False
+        c.execute(
+            """INSERT INTO modelbook_setup_example_bars (example_id, bars_json, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(example_id) DO UPDATE SET
+                 bars_json  = excluded.bars_json,
+                 updated_at = excluded.updated_at""",
+            (int(example_id), bars_json, int(time.time())),
+        )
+        c.commit()
+    return True
+
+
+def delete_setup_example_bars(example_id: int) -> bool:
+    """Remove uploaded bars for an example. True if a row was deleted."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "DELETE FROM modelbook_setup_example_bars WHERE example_id = ?", (int(example_id),)
         )
         c.commit()
         return cur.rowcount > 0
