@@ -1,0 +1,74 @@
+/* Full-market screener — UCT dark/gold theme. Container-query friendly so the
+   page also works as a /charts workspace widget (.widgetBody is the CQ root). */
+
+.wrap { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 40px; }
+.embedded { padding: 0; height: 100%; overflow: hidden; }
+
+.controlBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.heading { font-size: 20px; font-weight: 700; color: var(--text, #e3e7ee); margin: 0 8px 0 0; }
+.statusLine { color: #8a93a5; font-size: 12px; margin-left: auto; }
+
+.filterToggle, .resetBtn, .csvBtn, .saveBtn, .linkBtn {
+  background: #171c25; border: 1px solid #2a3142; border-radius: 6px;
+  color: #c7ccd6; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  min-height: 32px;
+}
+.filterToggle:hover, .resetBtn:hover, .csvBtn:hover, .saveBtn:hover { border-color: #c9a84c; color: #c9a84c; }
+
+/* ── Filter panel ── */
+.filterPanel { background: #10141b; border: 1px solid #2a2f3a; border-radius: 8px; overflow: hidden; }
+.catTabs { display: flex; gap: 4px; padding: 8px 10px 0; background: #161a22; border-bottom: 1px solid #2a2f3a; flex-wrap: wrap; }
+.catTab { padding: 6px 12px; border-radius: 6px 6px 0 0; background: #10141b; border: 1px solid #2a2f3a; border-bottom: none; color: #8a93a5; cursor: pointer; font-size: 12px; min-height: 32px; }
+.catTabOn { background: #0e1116; color: #c9a84c; border-color: #c9a84c; }
+.catBadge { background: #c9a84c; color: #0e1116; border-radius: 8px; padding: 0 5px; font-size: 9px; margin-left: 6px; font-weight: 700; }
+.filterGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 11px 10px; }
+.filterCell { display: flex; flex-direction: column; gap: 3px; }
+.filterLabel { color: #6b7385; font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px; }
+.filterSelect { background: #171c25; border: 1px solid #2a3142; border-radius: 5px; padding: 6px 7px; color: #c7ccd6; font-size: 12px; min-height: 32px; }
+.filterSelectActive { border-color: #c9a84c; color: #c9a84c; }
+.customRange { display: flex; gap: 4px; margin-top: 4px; }
+.customRange input { background: #171c25; border: 1px solid #2a3142; border-radius: 5px; padding: 5px 6px; color: #c7ccd6; width: 100%; font-size: 12px; }
+
+/* ── Results ── */
+.resultsWrap { background: #0e1116; border: 1px solid #2a2f3a; border-radius: 8px; overflow: auto; flex: 1; min-height: 0; }
+.viewBar { display: flex; gap: 4px; padding: 8px 10px; background: #161a22; border-bottom: 1px solid #2a2f3a; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 1; }
+.viewTab { padding: 5px 11px; border-radius: 5px; background: #10141b; border: 1px solid #2a2f3a; color: #8a93a5; cursor: pointer; font-size: 12px; min-height: 30px; }
+.viewTabOn { background: #1c2230; border-color: #c9a84c; color: #c9a84c; }
+.resultMeta { color: #8a93a5; font-size: 12px; margin-left: auto; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table th { background: #141821; color: #7e8699; text-align: left; padding: 6px 9px; font-weight: 500; font-size: 10px; border-bottom: 1px solid #2a2f3a; white-space: nowrap; }
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { color: #c9a84c; }
+.table td { padding: 6px 9px; border-bottom: 1px solid #1b202a; color: #c7ccd6; white-space: nowrap; }
+.row:hover td { background: #141a24; }
+.symCell { color: #c9a84c; font-weight: 600; }
+.heatG { background: rgba(22, 100, 48, 0.5); color: #d6f5e0; }
+.heatG1 { background: rgba(74, 222, 128, 0.16); }
+.heatR { background: rgba(248, 113, 113, 0.16); }
+
+.empty { padding: 40px; text-align: center; color: #8a93a5; }
+
+/* ── Save bar ── */
+.saveBar { display: flex; gap: 8px; align-items: center; }
+.presetSelect { background: #171c25; border: 1px solid #2a3142; border-radius: 6px; color: #c7ccd6; padding: 6px 9px; font-size: 12px; min-height: 32px; }
+
+/* ── Charts gallery ── */
+.gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; }
+.galleryCard { background: #11151d; border: 1px solid #242b38; border-radius: 6px; padding: 8px; cursor: pointer; }
+.galleryCard:hover { border-color: #c9a84c; }
+.galleryHead { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
+.galleryChart { height: 120px; }
+.galleryPager { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px; color: #8a93a5; font-size: 12px; }
+.galleryPager button { background: #171c25; border: 1px solid #2a3142; border-radius: 6px; color: #c7ccd6; padding: 6px 12px; cursor: pointer; }
+.galleryPager button:disabled { opacity: .4; cursor: default; }
+
+@container (max-width: 760px) {
+  .filterGrid { grid-template-columns: repeat(2, 1fr); }
+  .gallery { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 12px; }
+  .filterGrid { grid-template-columns: 1fr 1fr; }
+  .gallery { grid-template-columns: 1fr; }
+}
