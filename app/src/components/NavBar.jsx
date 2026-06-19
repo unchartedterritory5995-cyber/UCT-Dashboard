@@ -73,7 +73,7 @@ export default function NavBar() {
             title={item.label}
             aria-label={item.label}
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
             <span className={styles.label}>{item.label}</span>
             {item.to === '/journal' && compassUnread > 0 && (
               <span className={styles.compassBadge}
@@ -97,7 +97,7 @@ export default function NavBar() {
             title="Admin"
             aria-label="Admin"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" gold /></span>
             <span className={styles.label}>Admin</span>
           </NavLink>
         )}
@@ -109,7 +109,7 @@ export default function NavBar() {
           title="Settings"
           aria-label="Settings"
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name="gear" /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
           <span className={styles.label}>Settings</span>
         </NavLink>
         <a
@@ -120,7 +120,7 @@ export default function NavBar() {
           title="UCT Website"
           aria-label="UCT Website"
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" gold /></span>
           <span className={styles.label}>Website</span>
         </a>
       </div>

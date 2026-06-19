@@ -314,12 +314,45 @@ const ICONS = {
 
 export const UICON_NAMES = Object.keys(ICONS)
 
-export default function UIcon({ name, size = 18, strokeWidth = 1.7, className, title, ...rest }) {
+let _gid = 0
+
+// Icons whose color carries MEANING — keep currentColor so they inherit
+// green/red/amber from their surface instead of going gold.
+const SEMANTIC = new Set(['check', 'x', 'warning', 'noEntry', 'thumbsUp', 'thumbsDown'])
+
+const prefersReduce = () =>
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * UIcon — branded UI icon.
+ *
+ * Default ("line") = currentColor stroke, so it inherits its surface's color
+ * (use for semantic icons: check=green, warning=red, etc.).
+ *
+ * Brand treatment (DEFAULT for non-semantic icons) = a metallic gold gradient
+ * with a slow shimmer sweep, a double gold glow, and a touch more weight — an
+ * embossed, premium UCT feel. Shimmer is dropped for prefers-reduced-motion.
+ *
+ * `gold` is undefined by default → gold UNLESS `name` is semantic. Pass
+ * `gold={false}` to force currentColor, or `gold` (true) to force gold.
+ */
+export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, className, title, style, ...rest }) {
   const glyph = ICONS[name]
   if (!glyph) {
     if (typeof console !== 'undefined') console.warn(`UIcon: unknown name "${name}"`)
     return null
   }
+  const useGold = gold === undefined ? !SEMANTIC.has(name) : gold
+  const gid = useGold ? `uig${(_gid = (_gid + 1) % 1e6)}` : null
+  const goldStyle = useGold
+    ? {
+        color: '#fbe6ad',
+        filter:
+          'drop-shadow(0 0 1px rgba(255,238,176,0.65)) drop-shadow(0 0 3.5px rgba(201,168,76,0.55))',
+      }
+    : null
   return (
     <svg
       className={className}
@@ -327,15 +360,37 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, className, t
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
+      stroke={useGold ? `url(#${gid})` : 'currentColor'}
+      strokeWidth={useGold ? Math.max(strokeWidth, 2) : strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden={title ? undefined : 'true'}
       role={title ? 'img' : undefined}
       focusable="false"
+      style={goldStyle ? { ...goldStyle, ...style } : style}
       {...rest}
     >
+      {useGold && (
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#b8923c" />
+            <stop offset="36%" stopColor="#eccd80" />
+            <stop offset="50%" stopColor="#fff4d6" />
+            <stop offset="64%" stopColor="#e0bd63" />
+            <stop offset="100%" stopColor="#9a7a2e" />
+            {!prefersReduce() && (
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                from="-0.75 0"
+                to="0.75 0"
+                dur="3.8s"
+                repeatCount="indefinite"
+              />
+            )}
+          </linearGradient>
+        </defs>
+      )}
       {title ? <title>{title}</title> : null}
       {glyph}
     </svg>
