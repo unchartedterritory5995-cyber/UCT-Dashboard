@@ -319,10 +319,6 @@ export const UICON_NAMES = Object.keys(ICONS)
 
 let _gid = 0
 
-// Icons whose color carries MEANING — keep currentColor so they inherit
-// green/red/amber from their surface instead of going gold.
-const SEMANTIC = new Set(['check', 'x', 'warning', 'noEntry', 'thumbsUp', 'thumbsDown'])
-
 const prefersReduce = () =>
   typeof window !== 'undefined'
   && typeof window.matchMedia === 'function'
@@ -338,8 +334,9 @@ const prefersReduce = () =>
  * with a slow shimmer sweep, a double gold glow, and a touch more weight — an
  * embossed, premium UCT feel. Shimmer is dropped for prefers-reduced-motion.
  *
- * `gold` is undefined by default → gold UNLESS `name` is semantic. Pass
- * `gold={false}` to force currentColor, or `gold` (true) to force gold.
+ * `gold` is undefined by default → ALL icons get the gold treatment. Pass
+ * `gold={false}` to force currentColor for a specific use (e.g. an icon whose
+ * color must stay semantic green/red on a given surface).
  */
 export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, className, title, style, ...rest }) {
   const glyph = ICONS[name]
@@ -347,7 +344,7 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, classN
     if (typeof console !== 'undefined') console.warn(`UIcon: unknown name "${name}"`)
     return null
   }
-  const useGold = gold === undefined ? !SEMANTIC.has(name) : gold
+  const useGold = gold === undefined ? true : gold
   const gid = useGold ? `uig${(_gid = (_gid + 1) % 1e6)}` : null
   const goldStyle = useGold
     ? {
