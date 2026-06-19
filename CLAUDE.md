@@ -201,7 +201,18 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
 
 ## Mobile Navigation
 
-Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
+Shown at ≤1024px (desktop uses the left `NavBar`). Two pieces, both in `Layout.jsx`:
+- **`MobileNav` top bar** — fixed header: menu button + page title + movers shortcut + `AlertBell`. The menu button does NOT open a drawer anymore; it calls `onMenu` → opens the same `MoreSheet` as the bottom bar.
+- **`MobileTabBar` (bottom)** — Home · Markets · Charts · Journal · **More**. Branded `UIcon` glyphs (never emoji). "More" + the top-bar menu button both open **`MoreSheet`** — the SINGLE comprehensive directory (sectioned Core/Markets/Trading/Help/Account, identity header, free/paid/admin gating, active-route highlight, Compass badge). The old side drawer was REMOVED (2026-06-19) so there's one menu, two triggers — don't reintroduce a second nav.
+
+### Floating buttons (FABs)
+The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedback "?" (`FeedbackWidget.jsx`, bottom-left) are `position:fixed` above the tab bar. Both **auto-hide on scroll-down** via `hooks/useHideOnScroll.js` and restore on scroll-up / near-top / ~1.4s idle. The orb stays put during a live call or drag; the feedback button stays put while its menu is open.
+
+### ⚠️ Mobile layout gotcha — `useMediaQuery`/`useIsTouch` is stale at first paint
+`hooks/useMediaQuery.js` seeds from `matchMedia(q).matches` at MOUNT and only updates on a media **`change`** event. In a fixed mobile context the viewport never changes, so a JS `useIsTouch()` read can render the desktop variant on a phone. **Use CSS `@media` queries for layout/positioning** (for inline-styled components add a CSS-module class + `!important` inside the query); reserve `useIsTouch()` for click-triggered conditional rendering (open a `Sheet` vs anchored popover on tap). Scroll listeners must use capture phase — the app scrolls the inner `.main` element, not `window` (`Layout.module.css`: `.shell` overflow:hidden, `.main` overflow-y:auto).
+
+### OptionsFlow mobile (partner-owned, ~7k lines, all inline styles)
+Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow`/`of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), `of-tip` (theme-help ⓘ, tap-toggled via a `data-pin` flag so the touch mouseenter→click ordering doesn't cancel it).
 
 ## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
 
