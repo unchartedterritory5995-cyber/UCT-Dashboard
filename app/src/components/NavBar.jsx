@@ -32,9 +32,9 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
 
 export default function NavBar() {
-  const { user, plan } = useAuth()
+  const { user, isPaid } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const showAll = plan === 'pro' || isAdmin
+  const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
 
   // P5-C unification: Compass unread count on the Journal nav link.
   // Polls /api/voice/insights/pending every 30s. Quietly silent when

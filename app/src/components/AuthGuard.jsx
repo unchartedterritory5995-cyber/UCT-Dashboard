@@ -47,7 +47,7 @@ function MaintenancePage() {
 }
 
 export default function AuthGuard() {
-  const { user, plan, loading } = useAuth()
+  const { user, isPaid, loading } = useAuth()
   const location = useLocation()
   const [maintenance, setMaintenance] = useState(false)
   const [maintenanceChecked, setMaintenanceChecked] = useState(false)
@@ -112,7 +112,8 @@ export default function AuthGuard() {
 
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
 
-  if (plan !== 'pro' && user.role !== 'admin' && !isFreePage) {
+  // isPaid = admin OR pro/premium/lifetime (single source of truth in AuthContext)
+  if (!isPaid && !isFreePage) {
     return <Navigate to={FREE_HOME} replace />
   }
 

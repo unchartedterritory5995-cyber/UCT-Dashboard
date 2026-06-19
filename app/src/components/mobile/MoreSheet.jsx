@@ -54,9 +54,9 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 export default function MoreSheet({ open, onClose }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { user, plan } = useAuth()
+  const { user, plan, isPaid } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const showAll = plan === 'pro' || isAdmin
+  const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
 
   const { data: pending } = useSWR(
     open && user ? '/api/voice/insights/pending' : null,
@@ -69,7 +69,9 @@ export default function MoreSheet({ open, onClose }) {
   const go = (to) => { onClose?.(); navigate(to) }
   const isActive = (to) => pathname === to || pathname.startsWith(`${to}/`)
 
-  const planLabel = isAdmin ? 'Admin' : plan === 'pro' ? 'Pro' : 'Free'
+  const planLabel = isAdmin ? 'Admin'
+    : isPaid ? (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Pro')
+    : 'Free'
 
   return (
     <Sheet open onClose={onClose} variant="bottom-sheet" title="Menu">
