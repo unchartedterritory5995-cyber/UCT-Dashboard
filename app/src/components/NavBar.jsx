@@ -4,7 +4,7 @@ import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import styles from './NavBar.module.css'
-import uctLogo from '../assets/uct-logo.png'
+import uctLogo from './intro/assets/compass-mark.png'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))

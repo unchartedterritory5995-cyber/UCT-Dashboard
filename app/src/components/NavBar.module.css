@@ -21,17 +21,15 @@
 }
 .brand {
   display: block;
-  width: 40px;
+  width: 38px;
   height: auto;
-  border-radius: 7px;
   margin-bottom: 24px;
   object-fit: contain;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
   transition: width 0.2s ease, margin-left 0.2s ease;
 }
 .nav:hover .brand {
-  width: 150px;
-  margin-left: 12px;
+  width: 52px;
+  margin-left: 2px;
 }
 .item {
   display: flex;
