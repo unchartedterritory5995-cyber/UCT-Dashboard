@@ -107,7 +107,10 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
             hero = _first_image(content, desc)
         excerpt = _strip_html(desc or content)[:280]
         out.append({
-            "id": guid,
+            # Key on the post URL (stable across RSS + archive paths) so the same
+            # post never gets two rows. (Was `guid` — Substack guid == link, but
+            # the archive path used the numeric id → cross-path duplicates.)
+            "id": link,
             "publication_id": publication_id,
             "title": title[:300],
             "excerpt": excerpt,
@@ -171,7 +174,8 @@ def parse_archive_items(items: list, publication_id=None) -> list[dict]:
         if isinstance(bylines, list) and bylines:
             author = (bylines[0] or {}).get("name")
         out.append({
-            "id": str(it.get("id") or url),
+            # Key on canonical_url (== RSS link) so RSS + archive agree → no dupes.
+            "id": url,
             "publication_id": publication_id,
             "title": title[:300],
             "excerpt": _strip_html(excerpt)[:280],
@@ -242,4 +246,9 @@ def poll_all() -> list[dict]:
     results = []
     for pub in desk_store.list_publications(enabled_only=True):
         results.append(poll_publication(pub))
+    # Self-heal: collapse any legacy duplicate rows (old guid/numeric-id keys).
+    try:
+        desk_store.dedupe_posts()
+    except Exception:
+        pass
     return results

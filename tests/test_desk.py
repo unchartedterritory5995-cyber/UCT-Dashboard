@@ -138,7 +138,7 @@ def test_parse_archive_items_maps_fields():
     posts = substack_poller.parse_archive_items(items, publication_id=7)
     assert len(posts) == 1
     p = posts[0]
-    assert p["id"] == "123"
+    assert p["id"] == "https://uct.substack.com/p/sunday-scans"  # keyed on URL (dedup-stable)
     assert p["publication_id"] == 7
     assert p["title"] == "Sunday Scans"
     assert p["url"] == "https://uct.substack.com/p/sunday-scans"
@@ -146,6 +146,27 @@ def test_parse_archive_items_maps_fields():
     assert p["author"] == "Patrick"
     assert p["excerpt"] == "Weekly map"  # HTML stripped
     assert p["published_at"] > 0
+
+
+def test_list_posts_dedupes_by_url(store):
+    # Same post stored under two ids (legacy guid + numeric) → one row on the page.
+    u = "https://uct.substack.com/p/dup"
+    store.upsert_post({"id": u, "title": "Dup (url id)", "url": u, "published_at": 2000})
+    store.upsert_post({"id": "999", "title": "Dup (numeric id)", "url": u, "published_at": 1000})
+    posts = store.list_posts()
+    assert len([p for p in posts if (p["url"] or "").rstrip("/") == u]) == 1
+
+
+def test_dedupe_posts_removes_physical_dupes(store):
+    u = "https://uct.substack.com/p/dup"
+    store.upsert_post({"id": u, "title": "keep-newer", "url": u, "published_at": 2000})
+    store.upsert_post({"id": "999", "title": "drop-older", "url": u + "/", "published_at": 1000})
+    removed = store.dedupe_posts()
+    assert removed == 1
+    rows = store.list_posts()
+    survivors = [p for p in rows if "dup" in (p["url"] or "")]
+    assert len(survivors) == 1
+    assert survivors[0]["title"] == "keep-newer"  # newest published_at kept
 
 
 def test_parse_archive_items_empty():

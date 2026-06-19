@@ -218,17 +218,47 @@ def upsert_post(post: dict) -> None:
 
 
 def list_posts(limit: int = 60) -> list[dict]:
-    """Newest-first posts joined with publication name."""
+    """Newest-first posts, deduped by URL. Read-time dedupe guarantees the page
+    never shows the same post twice even if legacy rows exist under two ids
+    (early RSS rows keyed by guid + archive rows keyed by numeric id)."""
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
             """SELECT p.*, pub.name AS publication_name
                FROM substack_posts p
                LEFT JOIN substack_publications pub ON pub.id = p.publication_id
-               ORDER BY p.published_at DESC
-               LIMIT ?""",
-            (int(limit),),
+               ORDER BY p.published_at DESC""",
         ).fetchall()
-        return [dict(r) for r in rows]
+        out, seen = [], set()
+        for r in rows:
+            d = dict(r)
+            key = (d.get("url") or "").strip().rstrip("/").lower() or d.get("id")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(d)
+            if len(out) >= int(limit):
+                break
+        return out
+
+
+def dedupe_posts() -> int:
+    """Physically remove duplicate post rows that share a URL, keeping the newest
+    by published_at (then lowest rowid). Returns rows deleted. Idempotent."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            """DELETE FROM substack_posts
+               WHERE rowid NOT IN (
+                 SELECT rowid FROM (
+                   SELECT rowid,
+                          ROW_NUMBER() OVER (
+                            PARTITION BY LOWER(RTRIM(url,'/'))
+                            ORDER BY published_at DESC, rowid ASC
+                          ) AS rn
+                   FROM substack_posts
+                 ) WHERE rn = 1
+               )""")
+        c.commit()
+        return cur.rowcount
 
 
 def delete_posts_for_publication(pub_id: int) -> int:
