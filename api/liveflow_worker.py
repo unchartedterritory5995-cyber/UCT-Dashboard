@@ -61,7 +61,7 @@ Image must be PNG/JPG/WebP (AVIF is unreliable in Discord embeds).
 UCT_LOGO_URL = os.getenv(
     "UCT_LOGO_URL",
     "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
-    "UCT-Dashboard/master/app/public/UCT_logo.jpg",
+    "UCT-Dashboard/master/app/public/UCT_logo_512.png",
 ).strip()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
