@@ -125,8 +125,11 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
 # and reliably carries cover_image + post_date, so we use it as the primary
 # source and keep RSS as a fallback.
 
-_ARCHIVE_PAGE = 50          # items per request (Substack honors up to ~50)
-_ARCHIVE_MAX = 600          # safety cap on total posts pulled per publication
+# Substack silently caps the archive `limit` at ~12 (asking for 50 returns a
+# short page; 100 errors). Request 12 and advance by the ACTUAL batch size so a
+# short page never ends pagination prematurely — only an empty page does.
+_ARCHIVE_PAGE = 12          # items per request (Substack's effective max)
+_ARCHIVE_MAX = 2000         # safety cap on total posts pulled per publication
 
 
 def _base_url(feed_url: str) -> str:
@@ -196,9 +199,10 @@ def fetch_archive(feed_url: str, publication_id=None, max_posts: int = _ARCHIVE_
         if not isinstance(batch, list) or not batch:
             break
         posts.extend(parse_archive_items(batch, publication_id=publication_id))
+        # Advance by the actual batch size (Substack may return fewer than asked).
+        offset += len(batch)
         if len(batch) < _ARCHIVE_PAGE:
-            break  # last page
-        offset += _ARCHIVE_PAGE
+            break  # final (partial) page — no more posts
     return posts
 
 
