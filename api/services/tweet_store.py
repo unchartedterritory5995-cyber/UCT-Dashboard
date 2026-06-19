@@ -7,10 +7,31 @@ from __future__ import annotations
 
 import contextlib
 import os
+import re
 import sqlite3
 import threading
 import time
 from typing import Iterable, Optional
+
+# Twitter image media URLs live on pbs.twimg.com/media/. Regex-scan the (possibly
+# truncated) raw_json string directly — robust to the 8KB cap + shape changes.
+_MEDIA_RE = re.compile(r'https://pbs\.twimg\.com/media/[A-Za-z0-9_\-]+(?:\.[A-Za-z]+)?(?:\?[^"\\\s]*)?')
+
+
+def _extract_media(raw_json: Optional[str], limit: int = 4) -> list[str]:
+    """Pull up to `limit` distinct image URLs out of a tweet's raw_json."""
+    if not raw_json:
+        return []
+    seen: list[str] = []
+    for m in _MEDIA_RE.findall(raw_json):
+        # Normalize Twitter media to a reasonable display size.
+        if "name=" not in m and "format=" not in m:
+            m = m + ("&" if "?" in m else "?") + "format=jpg&name=small"
+        if m not in seen:
+            seen.append(m)
+        if len(seen) >= limit:
+            break
+    return seen
 
 _DB_PATH = os.environ.get("TWEET_DB_PATH", "/data/tweets.db")
 _WRITE_LOCK = threading.Lock()  # serializes writes; reads stay lock-free under WAL
@@ -346,6 +367,7 @@ def feed(hours: int = 12, limit: int = 50, official_only: bool = False) -> list[
                 by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
             for t in tweets:
                 t["tickers"] = by_id.get(t["id"], [])
+                t["media"] = _extract_media(t.get("raw_json"))
         return tweets
 
 

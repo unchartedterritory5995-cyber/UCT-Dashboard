@@ -280,3 +280,36 @@ def test_feed_official_only_filters(tweets):
     official = tweets.feed(hours=24, limit=50, official_only=True)
     assert len(all_feed) == 2
     assert [t["author_handle"] for t in official] == ["UCTofficial"]
+
+
+def test_extract_media_from_raw_json():
+    raw = ('{"text":"chart","extendedEntities":{"media":[{"media_url_https":'
+           '"https://pbs.twimg.com/media/ABC123.jpg"},{"media_url_https":'
+           '"https://pbs.twimg.com/media/DEF456?format=png&name=large"}]}}')
+    media = tweet_store._extract_media(raw)
+    assert "https://pbs.twimg.com/media/ABC123.jpg?format=jpg&name=small" in media[0]
+    assert any("DEF456" in m for m in media)
+    assert len(media) == 2
+
+
+def test_extract_media_dedupes_and_caps():
+    url = "https://pbs.twimg.com/media/SAME.jpg"
+    raw = "{" + ",".join(f'"k{i}":"{url}"' for i in range(10)) + "}"
+    assert len(tweet_store._extract_media(raw)) == 1  # deduped
+
+
+def test_extract_media_none_and_no_media():
+    assert tweet_store._extract_media(None) == []
+    assert tweet_store._extract_media('{"text":"no images here"}') == []
+
+
+def test_feed_attaches_media(tweets):
+    import time
+    now = int(time.time())
+    tweets.add_account("UCTofficial")
+    tweets.set_account_official("UCTofficial", True)
+    tweets.upsert_tweet({"id": "9", "author_handle": "UCTofficial", "text": "with pic",
+                         "created_at": now, "url": "u9",
+                         "raw_json": '{"x":"https://pbs.twimg.com/media/PIC9.jpg"}'}, [])
+    feed = tweets.feed(hours=24, limit=10, official_only=True)
+    assert feed[0]["media"] and "PIC9" in feed[0]["media"][0]

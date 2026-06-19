@@ -65,6 +65,16 @@ export default function PostsSection() {
                 <span className={styles.postTime}>· {timeAgo(t.created_at)}</span>
               </div>
               <div className={styles.postText}>{t.text}</div>
+              {Array.isArray(t.media) && t.media.length > 0 && (
+                <div
+                  className={[styles.postMedia, t.media.length === 1 ? styles.postMediaSingle : '']
+                    .filter(Boolean).join(' ')}
+                >
+                  {t.media.map((src) => (
+                    <img key={src} className={styles.postMediaImg} src={src} alt="" loading="lazy" />
+                  ))}
+                </div>
+              )}
               {Array.isArray(t.tickers) && t.tickers.length > 0 && (
                 <div className={styles.postTickers}>
                   {t.tickers.map((sym) => <span key={sym} className={styles.postTicker}>${sym}</span>)}
