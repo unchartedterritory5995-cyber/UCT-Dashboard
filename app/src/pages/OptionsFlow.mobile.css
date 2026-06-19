@@ -8,7 +8,19 @@
  * with !important (the only way to beat inline styles). Desktop is untouched.
  *
  * Touch-points in OptionsFlow.jsx: the CSS import, className="of-mroot" on the
- * root div, and className="of-tabs" on the tab bar. Nothing else.
+ * root div, className="of-tabs" on the tab bar, and className-only hooks on a
+ * handful of filter/control rows:
+ *   .of-chiprow       — secondary control rows become single-row horizontal
+ *                       scroll strips with ≥44px tap targets (data-mode toggle,
+ *                       cap filter, conviction DTE/activity, tracker DTE+C/P,
+ *                       GEX DTE). Safe to clip-scroll (no absolute popovers).
+ *   .of-chiprow-seg   — extra hint for tightly-packed segmented controls.
+ *   .of-chiprow-wrap  — the date-filter row, which hosts an absolutely-
+ *                       positioned calendar popover: keep it wrapping (never
+ *                       overflow:auto, which would clip the popover) but give
+ *                       its buttons finger-sized tap height.
+ * All className additions sit on elements whose inline style={{}} is untouched.
+ * Nothing else in the JSX changes.
  */
 
 @media (max-width: 640px) {
@@ -55,4 +67,69 @@
 
   /* Dense data tables read at 9px on desktop; nudge up for thumbs. */
   .of-mroot table { font-size: 11px !important; }
+
+  /* Wide dense tables (8-16 cols) get crushed under 375px — let the table
+     itself scroll horizontally instead of squeezing columns. `display:block`
+     on the table makes overflow-x apply; momentum scroll + hidden bar. The
+     11px font above is preserved. */
+  .of-mroot table {
+    display: block !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100% !important;
+  }
+  .of-mroot table::-webkit-scrollbar { display: none; }
+
+  /* Clickable detail rows ("click any row for full detail") need a comfortable
+     thumb target — bump cell vertical padding so each row clears ~40px while
+     keeping the 11px body font. Applies to all in-root data tables. */
+  .of-mroot table td { padding-top: 9px !important; padding-bottom: 9px !important; }
+  .of-mroot table th { padding-top: 7px !important; padding-bottom: 7px !important; }
+
+  /* ── Secondary control rows → horizontal scroll strips ──────────────────
+     Each of these is a filter/chip row whose inline style we leave untouched;
+     on a phone we turn them into a single non-wrapping momentum-scroll strip so
+     the dense option of squeezing 5-7 chips into 375px (or wrapping to 3 rows)
+     is replaced by a swipeable strip with finger-sized targets. */
+  .of-mroot .of-chiprow {
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .of-mroot .of-chiprow::-webkit-scrollbar { display: none; }
+  /* Don't let chips/labels shrink — they should keep natural width and scroll. */
+  .of-mroot .of-chiprow > * { flex: 0 0 auto !important; }
+
+  /* Tap-height for the buttons inside every chip row (scroll strips + the
+     wrapping date row). 44px is the iOS/Android minimum comfortable target. */
+  .of-mroot .of-chiprow > button,
+  .of-mroot .of-chiprow-wrap > button {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Segmented controls (one rounded pill housing several buttons) — the inner
+     buttons carry the inline padding, so size them directly. */
+  .of-mroot .of-chiprow-seg > button {
+    min-height: var(--tap-min, 44px);
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Date-filter row: hosts an absolutely-positioned calendar popover, so it must
+     NOT become overflow:auto (that clips the popover). Keep it wrapping but make
+     its direct-child buttons finger-sized. The calendar popover itself (a nested
+     absolute div) is unaffected. */
+  .of-mroot .of-chiprow-wrap {
+    flex-wrap: wrap !important;
+  }
 }

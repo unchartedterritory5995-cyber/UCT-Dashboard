@@ -3217,7 +3217,7 @@ export default function OptionsFlowDashboard() {
 
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-          <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
+          <div className="of-chiprow of-chiprow-seg" style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) {
                 // Only reset flow data when switching between stocks ↔ index (csvFile changes)
@@ -3240,7 +3240,7 @@ export default function OptionsFlowDashboard() {
         {/* Date Filter — rolling windows + presets + calendar */}
         {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+            <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
                 { key:"Last1", label:"1d", days:1 },
                 { key:"Last5", label:"5d", days:5 },
@@ -3440,7 +3440,7 @@ export default function OptionsFlowDashboard() {
                   </button>
                 ))}
               </div>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div className="of-chiprow of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["0dte","0DTE"],["1dte","1DTE"],["2dte","2DTE"],["3dte","3DTE"],["week","Week"],["month","Month"],["all","All"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setGexDte(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
@@ -4226,7 +4226,7 @@ export default function OptionsFlowDashboard() {
           };
           return (
             <div style={{ marginBottom:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              <div className="of-chiprow" style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                 <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
                 {caps.map(c => {
                   const active = capFilter === c;
@@ -5714,7 +5714,7 @@ export default function OptionsFlowDashboard() {
           return (
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {/* Filter rows */}
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              <div className="of-chiprow" style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                 {/* DTE */}
                 {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
                   const active=convDte===d.k;
@@ -6108,7 +6108,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </Card>
             {/* Filters */}
-            <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <div className="of-chiprow" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setTfDteFilter(v)} style={{
