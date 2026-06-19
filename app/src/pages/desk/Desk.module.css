@@ -143,6 +143,35 @@
 
 /* ── Posts ── */
 .postList { display: flex; flex-direction: column; gap: var(--space-md); max-width: 720px; }
+
+/* Posts board — one column (feed) per official account */
+.postBoard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+.postColumn {
+  display: flex; flex-direction: column;
+  background: var(--bg-surface-2, rgba(255,255,255,0.02));
+  border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.postColHead {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 12px var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  text-decoration: none; position: sticky; top: 0; z-index: 1;
+}
+.postColHead:hover .postColName { color: var(--ut-gold); }
+.postColName { font-size: var(--text-base); color: var(--text-bright); font-weight: 800; }
+.postColHandle { font-size: var(--text-xs); color: var(--text-muted); }
+.postColFeed {
+  display: flex; flex-direction: column; gap: var(--space-sm);
+  padding: var(--space-md); max-height: 70vh; overflow-y: auto;
+}
+.postColFeed .postCard { background: var(--bg-base, rgba(0,0,0,0.18)); }
+
 .postCard {
   display: block; background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: 12px; padding: var(--space-md); text-decoration: none;
