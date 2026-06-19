@@ -610,6 +610,19 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+
+    # Self-warm on first deploy: if the snapshot is empty, build a starter batch
+    # in the background so the page has data without waiting for 03:00 ET.
+    try:
+        from api.services.screener import snapshot_db
+        snapshot_db.init_db()
+        if snapshot_db.count_rows() == 0:
+            import threading
+            threading.Thread(
+                target=lambda: snapshot_builder.run_build(max_tickers=800),
+                daemon=True, name="screener-warm").start()
+    except Exception as e:
+        print(f"[scheduler] screener self-warm skipped: {e}")
     return True
 
 

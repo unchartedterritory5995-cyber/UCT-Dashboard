@@ -8,7 +8,7 @@ from api.services.screener import (
     snapshot_db as scr_db,
     saved_screens as scr_saved,
 )
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 
 router = APIRouter()
 
@@ -80,6 +80,18 @@ def screener_scan(spec: ScanSpec, user=Depends(get_current_user)):
 @router.get("/api/screener/snapshot-status")
 def screener_snapshot_status(user=Depends(get_current_user)):
     return scr_db.status()
+
+
+@router.post("/api/screener/refresh")
+def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
+    """Admin: warm the snapshot now (background, capped) instead of waiting for
+    the 03:00 ET nightly. Returns immediately."""
+    import threading
+    from api.services.screener import snapshot_builder
+    threading.Thread(
+        target=lambda: snapshot_builder.run_build(max_tickers=max_tickers),
+        daemon=True, name="screener-refresh").start()
+    return {"started": True, "max_tickers": max_tickers}
 
 
 @router.get("/api/screener/saved-screens")

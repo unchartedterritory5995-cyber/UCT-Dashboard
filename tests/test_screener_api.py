@@ -65,6 +65,31 @@ def test_scan_rejects_bad_filter(tmp_path, monkeypatch):
     assert r.status_code == 400
 
 
+def test_refresh_requires_admin(tmp_path, monkeypatch):
+    _seed_screener(tmp_path, monkeypatch)
+    client = TestClient(app)
+    init_db()
+    _login(client)  # member, not admin
+    assert client.post("/api/screener/refresh").status_code == 403
+
+
+def test_refresh_admin_starts(tmp_path, monkeypatch):
+    _seed_screener(tmp_path, monkeypatch)
+    client = TestClient(app)
+    init_db()
+    uid = _login(client)
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE users SET role='admin' WHERE id=?", (uid,))
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.post("/api/screener/refresh?max_tickers=1")
+    assert r.status_code == 200
+    assert r.json()["started"] is True
+
+
 def test_saved_screens_roundtrip(tmp_path, monkeypatch):
     _seed_screener(tmp_path, monkeypatch)
     client = TestClient(app)
