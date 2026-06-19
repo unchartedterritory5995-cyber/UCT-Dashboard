@@ -1,0 +1,261 @@
+.tileLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.tileLink:hover {
+  transform: translateY(-1px);
+}
+
+.tileLink:focus-visible {
+  outline: 2px solid var(--ut-gold, #c9a84c);
+  outline-offset: 2px;
+}
+
+.openCue {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tileLink:hover .openCue {
+  color: var(--ut-gold, #c9a84c);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px;
+}
+
+.pos { color: var(--gain, #22c55e); }
+.neg { color: var(--loss, #ef4444); }
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(201, 168, 76, 0.05);
+  border-left: 3px solid var(--ut-gold, #c9a84c);
+  border-radius: 4px;
+}
+
+.heroValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text-bright);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.perfRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+}
+
+.perf {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.perfLabel {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.perfValue {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.perfPct {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.countLine {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ── Holdings rows ────────────────────────────────────────────────────── */
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 4px;
+  border-top: 1px solid var(--border);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.rowLeft {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.sym {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+
+.optLabel {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.sideChip {
+  font-size: 9px;
+  font-weight: 800;
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  flex: none;
+}
+
+.sideLong {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--gain, #22c55e);
+}
+
+.sideShort {
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--loss, #ef4444);
+}
+
+.rowMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
+  text-align: right;
+}
+
+.rowToday {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowPct {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.rowOpen {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowMutedDash {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.more {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.openJournal {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tileLink:hover .openJournal {
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* ── States ───────────────────────────────────────────────────────────── */
+.loading {
+  padding: 14px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}
+
+.emptyTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.emptySub {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.emptyCta {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+}

@@ -9,7 +9,7 @@ import ThemeTracker from '../components/tiles/ThemeTracker'
 import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import TapeFeed from '../components/tiles/TapeFeed'
-import CompassTodayTile from '../components/tiles/CompassTodayTile'
+import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
@@ -71,7 +71,7 @@ export default function Dashboard() {
             <FuturesStrip />
           </div>
           <IntradayPulse />
-          <CompassTodayTile />
+          <JournalSnapshotTile />
           <CatalystTable />
           <div className={styles.row2}>
             <MoversSidebar />
@@ -91,8 +91,8 @@ export default function Dashboard() {
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}
         <div className={styles.mobileOnly}>
           <PullToRefresh onRefresh={handleRefresh}>
-            {/* 1. Compass digest — "what's going on / what to do" */}
-            <CompassTodayTile />
+            {/* 1. Journal snapshot — open positions, balance & performance */}
+            <JournalSnapshotTile />
             {/* Morning Wire entry */}
             <Link to="/morning-wire" className={styles.mwLink}>
               <span>📰 Morning Wire — today's read &amp; top picks</span>
