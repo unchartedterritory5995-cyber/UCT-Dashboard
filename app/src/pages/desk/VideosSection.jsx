@@ -26,6 +26,8 @@ const CATEGORY_ORDER = [
   'Options & Flow',
   'Workshops & Fireside Chats',
   'Interviews',
+  'Post-Market Recaps',
+  'Live Sessions',
 ]
 const orderRank = (name) => {
   const i = CATEGORY_ORDER.indexOf(name)

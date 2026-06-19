@@ -168,15 +168,24 @@ def ensure_default_videos() -> None:
     video is never clobbered and re-runs on every boot never duplicate. On
     Railway this backfills the persistent /data/education.db on each deploy.
     Never raises."""
+    seeds: list[dict] = []
     try:
         from api.services.education_seed import SEED_VIDEOS
+        seeds.extend(SEED_VIDEOS)
     except Exception:
+        pass
+    try:  # channel uploads not in the workshop sheet
+        from api.services.education_channel_seed import SEED_VIDEOS_CHANNEL
+        seeds.extend(SEED_VIDEOS_CHANNEL)
+    except Exception:
+        pass
+    if not seeds:
         return
     try:
         have = existing_youtube_ids()
     except Exception:
         have = set()
-    for v in SEED_VIDEOS:
+    for v in seeds:
         yt = (v.get("youtube_id") or "").strip()
         if not yt or yt in have:
             continue

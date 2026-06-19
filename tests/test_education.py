@@ -117,7 +117,8 @@ def test_extract_youtube_id_invalid(raw):
 
 # ── Seed library (ensure_default_videos) ────────────────────────────────────────
 
-EXPECTED_CATEGORIES = {
+# Categories from the workshop sheet (education_seed.py).
+SHEET_CATEGORIES = {
     "Mindset & Psychology",
     "Market Analysis & Breadth",
     "Setups & Strategies",
@@ -128,6 +129,9 @@ EXPECTED_CATEGORIES = {
     "Workshops & Fireside Chats",
     "Interviews",
 }
+# Extra categories introduced by the channel uploads (education_channel_seed.py).
+CHANNEL_EXTRA_CATEGORIES = {"Post-Market Recaps", "Live Sessions"}
+EXPECTED_CATEGORIES = SHEET_CATEGORIES | CHANNEL_EXTRA_CATEGORIES
 
 
 def test_seed_module_is_well_formed():
@@ -137,6 +141,18 @@ def test_seed_module_is_well_formed():
     for v in SEED_VIDEOS:
         assert len(v["youtube_id"]) == 11
         assert v["title"].strip()
+        assert v["category"] in SHEET_CATEGORIES
+        assert v["youtube_id"] not in seen, f"duplicate {v['youtube_id']}"
+        seen.add(v["youtube_id"])
+
+
+def test_channel_seed_module_is_well_formed():
+    from api.services.education_channel_seed import SEED_VIDEOS_CHANNEL
+    assert len(SEED_VIDEOS_CHANNEL) >= 50
+    seen = set()
+    for v in SEED_VIDEOS_CHANNEL:
+        assert len(v["youtube_id"]) == 11
+        assert v["title"].strip()
         assert v["category"] in EXPECTED_CATEGORIES
         assert v["youtube_id"] not in seen, f"duplicate {v['youtube_id']}"
         seen.add(v["youtube_id"])
@@ -144,14 +160,16 @@ def test_seed_module_is_well_formed():
 
 def test_ensure_default_videos_seeds_and_is_idempotent(s):
     from api.services.education_seed import SEED_VIDEOS
+    from api.services.education_channel_seed import SEED_VIDEOS_CHANNEL
+    total = len({v["youtube_id"] for v in (*SEED_VIDEOS, *SEED_VIDEOS_CHANNEL)})
     s.ensure_default_videos()
     first = s.list_videos()
-    assert len(first) == len(SEED_VIDEOS)
+    assert len(first) == total
     assert set(s.list_categories()) == EXPECTED_CATEGORIES
 
     # Re-run on the next "boot" — never duplicates.
     s.ensure_default_videos()
-    assert len(s.list_videos()) == len(SEED_VIDEOS)
+    assert len(s.list_videos()) == total
 
 
 def test_ensure_default_videos_never_clobbers_admin_edits(s):
