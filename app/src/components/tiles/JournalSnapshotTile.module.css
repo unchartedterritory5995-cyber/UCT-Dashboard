@@ -388,31 +388,27 @@
 .ctaPoints li {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 11px;
   font-size: 12.5px;
   font-weight: 600;
+  letter-spacing: 0.2px;
   color: var(--text-bright);
 }
 
 .ctaTick {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
-  background: linear-gradient(145deg, rgba(214, 184, 94, 0.28), rgba(201, 168, 76, 0.05));
-  border: 1px solid rgba(201, 168, 76, 0.55);
-  box-shadow:
-    0 2px 10px rgba(201, 168, 76, 0.22),
-    inset 0 1px 0 rgba(255, 235, 170, 0.22);
 }
 
 .ctaTick svg {
-  width: 17px;
-  height: 17px;
-  filter: drop-shadow(0 0 3px rgba(214, 184, 94, 0.6));
+  width: 19px;
+  height: 19px;
+  filter: drop-shadow(0 0 1.5px rgba(214, 184, 94, 0.35));
+  opacity: 0.92;
 }
 
 .ctaButton {

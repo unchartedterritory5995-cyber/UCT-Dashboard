@@ -425,7 +425,7 @@ function IconDefs() {
 const G = 'url(#ctaIcoGold)'
 
 const IconSync = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M4 9a8 8 0 0 1 13.4-3.4L20 8" />
     <path d="M20 3.5V8h-4.5" />
     <path d="M20 15a8 8 0 0 1-13.4 3.4L4 16" />
@@ -434,7 +434,7 @@ const IconSync = () => (
 )
 
 const IconEquity = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3.5 20.5h17" />
     <path d="M5 15l4-4 3.5 2.5L20 6" />
     <path d="M16 6h4v4" />
@@ -442,10 +442,9 @@ const IconEquity = () => (
 )
 
 const IconCompass = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="9" />
-    <path d="M15.6 8.4l-2 5.2-5.2 2 2-5.2z" fill={G} stroke="none" />
-    <circle cx="12" cy="12" r="0.9" fill="#13130f" stroke="none" />
+    <path d="M15.6 8.4l-2 5.2-5.2 2 2-5.2z" />
   </svg>
 )
 
