@@ -1,16 +1,16 @@
-.tileLink {
+.bodyLink {
   display: block;
   text-decoration: none;
   color: inherit;
-  border-radius: 10px;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  border-radius: 8px;
+  transition: transform 120ms ease;
 }
 
-.tileLink:hover {
+.bodyLink:hover {
   transform: translateY(-1px);
 }
 
-.tileLink:focus-visible {
+.bodyLink:focus-visible {
   outline: 2px solid var(--ut-gold, #c9a84c);
   outline-offset: 2px;
 }
@@ -19,10 +19,6 @@
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 600;
-}
-
-.tileLink:hover .openCue {
-  color: var(--ut-gold, #c9a84c);
 }
 
 .body {
@@ -220,7 +216,7 @@
   font-weight: 700;
 }
 
-.tileLink:hover .openJournal {
+.bodyLink:hover .openJournal {
   color: var(--ut-gold, #c9a84c);
 }
 
@@ -234,28 +230,66 @@
 .empty {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 12px;
-  background: rgba(255, 255, 255, 0.02);
+  align-items: flex-start;
+  gap: 7px;
+  padding: 18px 16px;
+  background: rgba(201, 168, 76, 0.04);
   border: 1px dashed var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+.emptyIcon {
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 2px;
 }
 
 .emptyTitle {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-bright);
 }
 
 .emptySub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.55;
+  max-width: 42ch;
 }
 
-.emptyCta {
-  margin-top: 4px;
-  font-size: 11px;
+.emptyCtas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 6px;
+}
+
+.emptyPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
+  color: #000;
+  background: var(--ut-gold, #c9a84c);
+  border-radius: 5px;
+  transition: opacity 120ms ease;
+}
+
+.emptyPrimary:hover {
+  opacity: 0.9;
+}
+
+.emptySecondary {
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--text-muted);
+}
+
+.emptySecondary:hover {
   color: var(--ut-gold, #c9a84c);
 }

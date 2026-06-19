@@ -4,12 +4,13 @@ import { positionTodayDollar } from './JournalSnapshotTile'
 
 // Shared mutable state the mocks read from. vi.hoisted so it exists before the
 // vi.mock factories run.
-const h = vi.hoisted(() => ({ positions: null, options: null, prices: {} }))
+const h = vi.hoisted(() => ({ positions: null, options: null, prices: {}, broker: null }))
 
-// useSWR is keyed by URL — return positions vs options responses accordingly.
+// useSWR is keyed by URL — return positions / options / broker responses.
 vi.mock('swr', () => ({
   default: (key) => {
     const k = String(key)
+    if (k.includes('/broker')) return { data: h.broker, isLoading: false }
     if (k.includes('/positions')) return { data: h.positions, isLoading: false }
     if (k.includes('/options')) return { data: h.options, isLoading: false }
     return { data: undefined, isLoading: false, mutate: () => {} }
@@ -27,6 +28,7 @@ beforeEach(() => {
   h.positions = null
   h.options = null
   h.prices = {}
+  h.broker = null
 })
 
 test('positionTodayDollar derives today $ from live snapshot', () => {
@@ -41,12 +43,28 @@ test('positionTodayDollar derives today $ from live snapshot', () => {
   expect(positionTodayDollar(long, { price: 88 })).toBeNull()
 })
 
-test('empty state nudges to open the journal', () => {
+test('empty state (no broker) onboards: connect a brokerage or add manually', () => {
   h.positions = { positions: [] }
   h.options = { strategies: [] }
+  h.broker = { connected: false }
   renderWithProviders(<JournalSnapshotTile />)
-  expect(screen.getByText('No open positions yet')).toBeInTheDocument()
-  expect(screen.getByText(/open your journal/i)).toBeInTheDocument()
+  expect(screen.getByText('See your whole portfolio here')).toBeInTheDocument()
+  const connect = screen.getByRole('link', { name: /connect a brokerage/i })
+  expect(connect).toHaveAttribute('href', '/settings')
+  const manual = screen.getByRole('link', { name: /add manually/i })
+  expect(manual).toHaveAttribute('href', '/journal?j2tab=positions')
+})
+
+test('empty state (broker connected) shows the synced/flat message', () => {
+  h.positions = { positions: [] }
+  h.options = { strategies: [] }
+  h.broker = { connected: true, accounts: [] }
+  renderWithProviders(<JournalSnapshotTile />)
+  expect(screen.getByText(/all synced/i)).toBeInTheDocument()
+  // No "connect a brokerage" CTA for an already-connected user.
+  expect(screen.queryByText(/connect a brokerage/i)).toBeNull()
+  expect(screen.getByRole('link', { name: /open the journal/i }))
+    .toHaveAttribute('href', '/journal?j2tab=positions')
 })
 
 test('renders portfolio value + Today + Open P&L from open positions', () => {
@@ -89,9 +107,14 @@ test('includes open option strategies with broker value', () => {
   expect(screen.getByText('$650.00')).toBeInTheDocument()
 })
 
-test('whole tile links into the journal positions tab', () => {
-  h.positions = { positions: [] }
+test('populated tile links into the journal positions tab', () => {
+  h.positions = {
+    positions: [
+      { id: 'p1', symbol: 'NVDA', side: 'Long', shares: 100, entryPrice: 80, stopPrice: 70 },
+    ],
+  }
   h.options = { strategies: [] }
+  h.prices = { NVDA: { price: 88, change_pct: 10 } }
   renderWithProviders(<JournalSnapshotTile />)
   const link = screen.getByRole('link', { name: /open your trading journal/i })
   expect(link).toHaveAttribute('href', '/journal?j2tab=positions')

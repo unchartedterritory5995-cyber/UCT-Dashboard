@@ -80,6 +80,14 @@ export default function JournalSnapshotTile() {
   const positions = posData?.positions ?? []
   const strategies = optData?.strategies ?? []
 
+  // Broker status only matters for the empty state — fetch it only when the
+  // book is empty so users with positions don't pay an extra request.
+  const noOpenYet = positions.length === 0 && strategies.length === 0
+  const { data: brokerData } = useSWR(
+    noOpenYet ? '/api/j2/broker/status' : null, fetcher, SWR_OPTS,
+  )
+  const brokerConnected = !!brokerData?.connected
+
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { prices } = useLivePrices(symbols)
 
@@ -159,21 +167,17 @@ export default function JournalSnapshotTile() {
   const openPct = costBasis ? agg.unrealized / costBasis : null
 
   return (
-    <Link to={JOURNAL_LINK} className={styles.tileLink} aria-label="Open your trading journal">
-      <TileCard title="📓 Journal · Positions" badge={<span className={styles.openCue}>Open →</span>}>
-        <div className={styles.body}>
-          {isLoading ? (
-            <div className={styles.loading}>Loading positions…</div>
-          ) : totalCount === 0 ? (
-            <div className={styles.empty}>
-              <div className={styles.emptyTitle}>No open positions yet</div>
-              <div className={styles.emptySub}>
-                Track your trades, balance, and performance in the journal.
-              </div>
-              <span className={styles.emptyCta}>Open your journal →</span>
-            </div>
-          ) : (
-            <>
+    <TileCard
+      title="📓 Journal · Positions"
+      badge={totalCount > 0 ? <span className={styles.openCue}>Open →</span> : null}
+    >
+      <div className={styles.body}>
+        {isLoading ? (
+          <div className={styles.loading}>Loading positions…</div>
+        ) : totalCount === 0 ? (
+          <EmptyState connected={brokerConnected} />
+        ) : (
+          <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
               {/* Hero — portfolio value + performance */}
               <div className={styles.hero}>
                 <div className={styles.heroValue}>{money(agg.value)}</div>
@@ -212,11 +216,47 @@ export default function JournalSnapshotTile() {
                   : <span />}
                 <span className={styles.openJournal}>Open Journal →</span>
               </div>
-            </>
-          )}
+          </Link>
+        )}
+      </div>
+    </TileCard>
+  )
+}
+
+function EmptyState({ connected }) {
+  if (connected) {
+    // Broker linked but flat — don't tell them to connect again.
+    return (
+      <div className={styles.empty}>
+        <div className={styles.emptyIcon} aria-hidden="true">🧭</div>
+        <div className={styles.emptyTitle}>You&rsquo;re all synced</div>
+        <div className={styles.emptySub}>
+          No open positions right now. New trades import automatically and
+          show up here.
         </div>
-      </TileCard>
-    </Link>
+        <Link to={JOURNAL_LINK} className={styles.emptyPrimary}>
+          Open the journal →
+        </Link>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyIcon} aria-hidden="true">📈</div>
+      <div className={styles.emptyTitle}>See your whole portfolio here</div>
+      <div className={styles.emptySub}>
+        Connect your brokerage to auto-import every trade, position &amp;
+        balance — or log trades yourself.
+      </div>
+      <div className={styles.emptyCtas}>
+        <Link to="/settings" className={styles.emptyPrimary}>
+          🔗 Connect a brokerage
+        </Link>
+        <Link to={JOURNAL_LINK} className={styles.emptySecondary}>
+          Add manually →
+        </Link>
+      </div>
+    </div>
   )
 }
 
