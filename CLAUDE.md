@@ -33,6 +33,24 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Watchlists · Support
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
+## UI Icons — `UIcon` (NO emoji)
+
+**`app/src/components/ui/UIcon.jsx` is the single source of truth for all UI
+iconography.** `<UIcon name="..." size={18} />` renders an inline SVG from a
+~65-glyph registry. **Do NOT use generic/system emoji as decorative icons** —
+reach for a `UIcon` name (or add a new glyph to the registry).
+
+- **Gold-embossed by default:** every icon renders a toned-down metallic gold
+  gradient + slow shimmer (reduced-motion-gated) + soft glow. Pass `gold={false}`
+  to force `currentColor` on a specific surface (rare).
+- **`TileCard` has an `icon` prop** (a UIcon name) — use it for tile/section
+  headers; it keeps `title` a plain string so `aria-label` stays correct. Every
+  TileCard section + main page-title across the app carries an icon.
+- **SVG `<text>` caveat:** a `<UIcon>` (an `<svg>`) cannot nest inside an SVG
+  `<text>` element (e.g. RadarView/Treemap axis labels) — keep a `★`/`◆` text
+  marker there instead.
+- Sweep history + gotchas: user memory `feedback_no_generic_emoji`.
+
 ## Journal 2.0 — parallel rebuild (beta)
 
 A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 2.0 beta" (last sub-tab). **Additive only** — the existing Journal's code, data, and UI are unchanged. The two Journals share no code, no components, and no database tables.
@@ -148,9 +166,11 @@ Inert with these unset. `railway variables --set` STAGES → must `railway redep
 `j2_broker_users` (encrypted secret), `j2_broker_accounts` (1:1 → a `j2_accounts` row,
 `balance_source='broker'`), `j2_broker_activities` (raw ledger), `j2_broker_sync_log`,
 `j2_broker_dup_flags`, `j2_broker_equity_snapshots` (daily net-liq → equity curve).
-Plus alters: `source`/`external_id`/`entry_estimated` on positions/trades,
-`source`/`external_id`/`broker_current_value` on option_strategies, broker balance cols
-on accounts.
+Plus alters: `source`/`external_id`/`entry_estimated` (+ `broker_price` = current
+per-share mark, refreshed each `reconcile_positions` so equity rows show a real
+price/P&L after hours when the live feed is empty) on positions; `source`/`external_id`
+on trades; `source`/`external_id`/`broker_current_value` on option_strategies; broker
+balance cols on accounts.
 
 ### UI surfaces (all in Open Positions / Trade Journal)
 Connect/disconnect in **Settings → Brokerage Connections** (`BrokerConnectionsCard`).
