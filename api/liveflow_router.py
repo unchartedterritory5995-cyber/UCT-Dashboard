@@ -84,3 +84,102 @@ def update_user_blocklist(payload: UserBlocklistPayload):
     """
     new_list = liveflow_worker.set_user_blocklist(payload.tickers)
     return {"tickers": new_list, "count": len(new_list)}
+
+
+@router.post("/test-discord-post")
+async def test_discord_post():
+    """
+    Manually fire a test Discord post to verify the webhook + embed rendering
+    end-to-end. Synthesizes a realistic aggregate, runs it through the actual
+    _build_embed() helper, and pushes via the configured DISCORD_WEBHOOK_URL.
+
+    Use this when:
+      - Markets are closed and no real alerts will fire today
+      - You changed the logo, color scheme, or embed layout and want to confirm
+        Discord renders it correctly before market open
+      - You want to validate a new env var (UCT_LOGO_URL, webhook URL) without
+        waiting for a real alert to fire
+
+    The test embed includes "🧪 TEST" markers in the title and footer so it's
+    obviously not a real signal — won't confuse subscribers if the webhook is
+    pointed at production. Safe to call repeatedly.
+    """
+    import datetime as _dt
+    import httpx
+
+    if not liveflow_worker.DISCORD_WEBHOOK_URL:
+        return {
+            "ok": False,
+            "error": "DISCORD_WEBHOOK_URL not configured. Set env var first.",
+        }
+
+    # Synthesize an aggregate with the exact field shape _build_embed expects.
+    # Values picked to exercise every branch: $1.5M premium (medium tier), 2
+    # fires (multi-fire badge), proper OI for delta computation, OTM call
+    # (moneyness path), Alpha Gold tier (top priority). Real-looking data that
+    # subscribers won't mistake for a tradeable signal because of the markers.
+    now_ts = _dt.datetime.now(_dt.timezone.utc).timestamp()
+    test_agg = {
+        "ticker": "TEST",
+        "cp": "C",
+        "strike": 100.0,
+        "exp": "2026-07-17",
+        "dte": 28,
+        "total_premium": 1_500_000.0,
+        "max_premium": 1_500_000.0,
+        "total_size": 1500,
+        "max_size": 1500,
+        "fire_count": 2,
+        "best_alert_name": "UCT Test Alert",
+        "best_alert_priority": 1,
+        "alert_names_seen": {"UCT Test Alert"},
+        "first_fire_ts": _dt.datetime.fromtimestamp(now_ts, tz=_dt.timezone.utc).isoformat(),
+        "last_fire_ts": _dt.datetime.fromtimestamp(now_ts, tz=_dt.timezone.utc).isoformat(),
+        "prior_oi": 5000,
+        "spot": 99.50,
+        "moneyness_pct": -0.5,
+        "moneyness_label": "ATM",
+        "avg_fill": 12.50,
+        "discord_message_id": None,
+    }
+
+    # Build the embed using the production helper so any rendering bug surfaces
+    # here too — single source of truth for embed structure.
+    embed = liveflow_worker._build_embed(test_agg)
+
+    # Inject "TEST" markers so subscribers can tell this isn't a real signal.
+    # We modify the embed AFTER _build_embed so the helper's logic stays clean.
+    embed["title"] = "🧪 TEST · " + embed.get("title", "")
+    if "footer" in embed and isinstance(embed["footer"], dict):
+        embed["footer"]["text"] = (
+            "🧪 MANUAL TEST POST · " + embed["footer"].get("text", "")
+        )
+
+    payload = {"embeds": [embed]}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                liveflow_worker.DISCORD_WEBHOOK_URL + "?wait=true",
+                json=payload,
+            )
+            r.raise_for_status()
+            response_data = r.json()
+            return {
+                "ok": True,
+                "discord_message_id": response_data.get("id"),
+                "logo_url_used": liveflow_worker.UCT_LOGO_URL,
+                "webhook_status": r.status_code,
+                "embed_title": embed["title"],
+            }
+    except httpx.HTTPStatusError as e:
+        return {
+            "ok": False,
+            "error": f"Discord rejected post: HTTP {e.response.status_code}",
+            "response_body": e.response.text[:500],
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:300]}",
+        }
