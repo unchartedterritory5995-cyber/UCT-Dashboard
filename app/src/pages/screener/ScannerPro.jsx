@@ -7,16 +7,20 @@ import { FiltersSheet } from '../../components/mobile'
 import useScreenerMeta from './hooks/useScreenerMeta'
 import useScreenerScan from './hooks/useScreenerScan'
 import FilterPanel from './FilterPanel'
+import FilterChips from './FilterChips'
 import ResultsTable from './ResultsTable'
 import ChartsGallery from './ChartsGallery'
 import SaveScreenBar from './SaveScreenBar'
 import styles from './ScannerPro.module.css'
 
+const PAGE_SIZE = 100
+
 const specToFilters = spec =>
   Object.fromEntries((spec?.filters || []).map(({ key, ...rest }) => [key, rest]))
 
 // Full-market screener: server-side filtered against the nightly snapshot,
-// live prices overlay the visible rows for display only.
+// live prices overlay the visible rows for display only. Results paginate
+// (Load more) and accumulate client-side.
 export default function ScannerPro({ embedded = false }) {
   const { meta } = useScreenerMeta()
   const isPhone = useIsPhone()
@@ -27,19 +31,32 @@ export default function ScannerPro({ embedded = false }) {
   const [sort, setSort] = useState({ key: 'uct_composite', dir: 'desc' })
   const [showFilters, setShowFilters] = useState(!embedded)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [page, setPage] = useState(1)
 
-  const spec = useMemo(() => ({
-    filters: Object.entries(activeFilters)
-      .filter(([, v]) => v)
-      .map(([key, v]) => ({ key, ...v })),
-    sort, view, page: 1, page_size: 200,
+  const baseSpec = useMemo(() => ({
+    filters: Object.entries(activeFilters).filter(([, v]) => v).map(([key, v]) => ({ key, ...v })),
+    sort, view,
   }), [activeFilters, sort, view])
+  const baseKey = JSON.stringify(baseSpec)
 
+  // Any filter/sort/view change resets to the first page.
+  useEffect(() => { setPage(1) }, [baseKey])
+
+  const spec = useMemo(() => ({ ...baseSpec, page, page_size: PAGE_SIZE }), [baseSpec, page])
   const { result, isLoading } = useScreenerScan(spec)
 
-  const tickers = useMemo(() => (result?.rows ?? []).map(r => r.ticker), [result])
-  const { prices } = useRealtimePrices(tickers)
-  useEffect(() => { if (tickers.length) prefetchBars(tickers.slice(0, 30), 'D') }, [tickers])
+  // Accumulate pages: page 1 replaces, later pages append.
+  const [rows, setRows] = useState([])
+  const [total, setTotal] = useState(0)
+  useEffect(() => {
+    if (!result) return
+    setTotal(result.total)
+    setRows(prev => result.page === 1 ? result.rows : [...prev, ...result.rows])
+  }, [result])
+
+  const liveTickers = useMemo(() => rows.slice(0, 300).map(r => r.ticker), [rows])
+  const { prices } = useRealtimePrices(liveTickers)
+  useEffect(() => { if (rows.length) prefetchBars(rows.slice(0, 30).map(r => r.ticker), 'D') }, [rows])
 
   const onChange = (key, s) =>
     setActiveFilters(prev => {
@@ -58,7 +75,12 @@ export default function ScannerPro({ embedded = false }) {
   const reset = () => setActiveFilters({})
   const views = meta?.views ?? []
   const activeCount = Object.keys(activeFilters).length
-  const isEmpty = result && result.total === 0
+  const isEmpty = result && total === 0
+  const hasMore = rows.length < total
+  const onLoadMore = () => setPage(p => p + 1)
+  const displayResult = result && {
+    view_columns: result.view_columns, snapshot_date: result.snapshot_date, rows, total,
+  }
 
   const panel = meta && (
     <FilterPanel meta={meta} activeFilters={activeFilters} onChange={onChange}
@@ -79,9 +101,9 @@ export default function ScannerPro({ embedded = false }) {
           </button>
         )}
         <button type="button" className={styles.resetBtn} onClick={reset}>Reset</button>
-        <SaveScreenBar currentSpec={spec} onApply={applySpec} />
+        <SaveScreenBar currentSpec={baseSpec} onApply={applySpec} />
         <span className={styles.statusLine}>
-          {isLoading ? 'Scanning…' : `${result?.total ?? 0} matches`}
+          {isLoading && page === 1 ? 'Scanning…' : `${total.toLocaleString()} matches`}
           {result?.snapshot_date ? ` · snapshot ${result.snapshot_date}` : ''}
         </span>
       </div>
@@ -96,6 +118,9 @@ export default function ScannerPro({ embedded = false }) {
         </FiltersSheet>
       )}
 
+      <FilterChips meta={meta} activeFilters={activeFilters}
+        onRemove={key => onChange(key, null)} onClear={reset} />
+
       {isEmpty ? (
         <div className={styles.empty}>No stocks match the current filters</div>
       ) : view === 'charts' ? (
@@ -106,13 +131,21 @@ export default function ScannerPro({ embedded = false }) {
                 className={`${styles.viewTab} ${view === v.key ? styles.viewTabOn : ''}`}
                 onClick={() => setView(v.key)}>{v.label}</button>
             ))}
-            <span className={styles.resultMeta}>{result?.total ?? 0} results</span>
+            <span className={styles.resultMeta}>{rows.length.toLocaleString()} of {total.toLocaleString()}</span>
           </div>
-          <ChartsGallery rows={result?.rows ?? []} livePrices={prices} />
+          <ChartsGallery rows={rows} livePrices={prices} />
+          {hasMore && (
+            <div className={styles.loadMoreRow}>
+              <button type="button" className={styles.loadMoreBtn} onClick={onLoadMore}>
+                {isLoading ? 'Loading…' : `Load more (${rows.length.toLocaleString()} of ${total.toLocaleString()})`}
+              </button>
+            </div>
+          )}
         </div>
       ) : (
-        <ResultsTable result={result} view={view} setView={setView} views={views}
-          sort={sort} setSort={setSort} livePrices={prices} />
+        <ResultsTable result={displayResult} view={view} setView={setView} views={views}
+          sort={sort} setSort={setSort} livePrices={prices} spec={baseSpec}
+          hasMore={hasMore} onLoadMore={onLoadMore} isLoading={isLoading} />
       )}
     </div>
   )

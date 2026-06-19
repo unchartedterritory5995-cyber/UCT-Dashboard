@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import TickerPopup from '../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import { COLUMN_DEFS } from './columnDefs'
-import { toCsv, downloadCsv } from './exportCsv'
+import { toCsv, downloadCsv, fetchAllRows } from './exportCsv'
 import styles from './ScannerPro.module.css'
 
 // Sortable, view-swappable results table. Live prices overlay price/Chg cells
 // for display only (filtering remains on the snapshot). Ticker cell wraps the
-// existing TickerPopup (click → chart) + TickerActions (right-click).
-export default function ResultsTable({ result, view, setView, views, sort, setSort, livePrices }) {
+// existing TickerPopup (click → chart) + TickerActions (right-click). Results
+// paginate via Load more; CSV export pulls the FULL match set (not just shown).
+export default function ResultsTable({ result, view, setView, views, sort, setSort,
+                                       livePrices, spec, hasMore, onLoadMore, isLoading }) {
   const ta = useTickerActions()
+  const [exporting, setExporting] = useState(false)
   if (!result) return null
   const cols = result.view_columns || []
 
@@ -25,10 +29,25 @@ export default function ResultsTable({ result, view, setView, views, sort, setSo
     return row[key]
   }
 
-  const exportNow = () => {
-    const labels = Object.fromEntries(cols.map(c => [c, COLUMN_DEFS[c]?.label || c]))
-    downloadCsv(`screen_${result.snapshot_date || 'export'}.csv`, toCsv(result.rows, cols, labels))
+  // Export the FULL match set (pages through the scan), not just the loaded rows.
+  const exportNow = async () => {
+    setExporting(true)
+    try {
+      const labels = Object.fromEntries(cols.map(c => [c, COLUMN_DEFS[c]?.label || c]))
+      const all = await fetchAllRows(spec || {})
+      const exportCols = all.view_columns?.length ? all.view_columns : cols
+      downloadCsv(`screen_${result.snapshot_date || 'export'}.csv`, toCsv(all.rows, exportCols, labels))
+    } catch {
+      // fall back to the rows already on screen
+      const labels = Object.fromEntries(cols.map(c => [c, COLUMN_DEFS[c]?.label || c]))
+      downloadCsv(`screen_${result.snapshot_date || 'export'}.csv`, toCsv(result.rows, cols, labels))
+    } finally {
+      setExporting(false)
+    }
   }
+
+  const shown = result.rows.length
+  const total = result.total ?? shown
 
   return (
     <div className={styles.resultsWrap}>
@@ -39,9 +58,11 @@ export default function ResultsTable({ result, view, setView, views, sort, setSo
             onClick={() => setView(v.key)}>{v.label}</button>
         ))}
         <span className={styles.resultMeta}>
-          {result.total} results · snapshot {result.snapshot_date || '—'}
+          {shown.toLocaleString()} of {total.toLocaleString()} · snapshot {result.snapshot_date || '—'}
         </span>
-        <button type="button" className={styles.csvBtn} onClick={exportNow}>Export CSV</button>
+        <button type="button" className={styles.csvBtn} disabled={exporting} onClick={exportNow}>
+          {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
       <table className={styles.table}>
         <thead>
@@ -78,6 +99,13 @@ export default function ResultsTable({ result, view, setView, views, sort, setSo
           ))}
         </tbody>
       </table>
+      {hasMore && (
+        <div className={styles.loadMoreRow}>
+          <button type="button" className={styles.loadMoreBtn} onClick={onLoadMore} disabled={isLoading}>
+            {isLoading ? 'Loading…' : `Load more (${shown.toLocaleString()} of ${total.toLocaleString()})`}
+          </button>
+        </div>
+      )}
       {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
