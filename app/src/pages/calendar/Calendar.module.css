@@ -21,6 +21,9 @@
   --cal-green: var(--gain);
   --cal-red: var(--loss);
   --cal-blue: var(--info);
+  /* Uniform text size for everything inside the month grid (weekday header,
+     day number, BMO/AMC labels, icon, empty dash, +N overflow). */
+  --cal-month-fs: 11px;
 }
 
 /* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
@@ -515,6 +518,15 @@
   text-align: center;
 }
 
+/* Weekday header labels (Mon/Tue/…) — match the cell label tier for uniformity. */
+.scolLbl {
+  font-size: var(--cal-month-fs);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+}
+
 .mgrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -527,7 +539,7 @@
   border: 1px solid var(--cal-line);
   border-radius: 10px;
   padding: 7px 8px;
-  min-height: 104px;
+  min-height: 116px;
   cursor: pointer;
   transition: border-color 0.12s;
   display: flex;
@@ -547,7 +559,7 @@
 }
 
 .dn {
-  font-size: 10px;
+  font-size: var(--cal-month-fs);
   font-weight: 800;
   color: var(--cal-dim);
   margin-bottom: 4px;
@@ -568,7 +580,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--cal-muted);
@@ -576,7 +588,7 @@
 }
 
 .gbandIcon {
-  font-size: 9px;
+  font-size: var(--cal-month-fs);
   line-height: 1;
   filter: saturate(0.85);
 }
@@ -588,7 +600,7 @@
 }
 
 .gbandEmpty {
-  font-size: 11px;
+  font-size: var(--cal-month-fs);
   font-weight: 700;
   color: var(--cal-line2);
   line-height: 1;
@@ -608,7 +620,7 @@
 }
 
 .gmore {
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   color: var(--cal-muted);
   font-weight: 700;
   padding: 1px 3px;
