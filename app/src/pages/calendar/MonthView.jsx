@@ -46,7 +46,7 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 // Mirrors WeekView's WeekTimingGroup so the month grid reads exactly like the
 // week view: a BMO / AMC column with a gold/blue header and logo + ticker rows.
 
-const MONTH_MAX_PER_TIMING = 6   // keep cells from ballooning on heavy earnings days; click → drawer for the full list
+const MONTH_MAX_PER_TIMING = 5   // keep cells from ballooning on heavy earnings days; click → drawer for the full list
 
 function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
   const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
@@ -60,7 +60,7 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
         <>
           {shown.map(s => (
             <div key={s} className={styles.mrow}>
-              <CompanyLogo sym={s} size={40} />
+              <CompanyLogo sym={s} size={40} tile />
               <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
             </div>
           ))}
@@ -81,6 +81,7 @@ function MonthCell({ cell, onOpenDay }) {
         styles.gcell,
         cell.isToday  ? styles.gcellToday : '',
         !cell.inMonth ? styles.gcellOff   : '',
+        empty && cell.inMonth ? styles.gcellEmpty : '',
       ].join(' ')}
       onClick={() => cell.inMonth && onOpenDay(cell.ds)}
     >

@@ -552,10 +552,33 @@
 
 .gcellToday {
   border-color: rgba(201, 168, 76, 0.55);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.08), var(--cal-panel));
+}
+
+/* Filled gold "today" chip — instant where-am-I anchor in a dense month. */
+.gcellToday .dn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  background: var(--cal-gold);
+  color: #161616;
+  padding: 1px 9px;
+  border-radius: 999px;
+}
+
+.gcellToday .macroStar {
+  color: #161616;
 }
 
 .gcellOff {
   opacity: 0.35;
+}
+
+/* Empty in-month days recede (page bg instead of raised panel) so the eye goes
+   straight to days that actually have reporters. Date stays fully legible. */
+.gcellEmpty {
+  background: var(--cal-bg);
+  border-style: dashed;
 }
 
 .dn {
@@ -572,6 +595,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  align-content: start;
   flex: 1 1 0;
   min-height: 0;
 }
