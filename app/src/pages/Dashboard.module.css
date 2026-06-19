@@ -14,16 +14,6 @@
   gap: var(--space-md);
 }
 .row1 { width: 100%; }
-.compassRow {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--space-md);
-}
-
-@media (max-width: 900px) {
-  .compassRow { grid-template-columns: 1fr; }
-}
 .row2 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;

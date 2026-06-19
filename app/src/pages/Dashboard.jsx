@@ -10,7 +10,6 @@ import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import TapeFeed from '../components/tiles/TapeFeed'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
-import RegimeTile from '../components/tiles/RegimeTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
@@ -72,10 +71,7 @@ export default function Dashboard() {
             <FuturesStrip />
           </div>
           <IntradayPulse />
-          <div className={styles.compassRow}>
-            <CompassTodayTile />
-            <RegimeTile />
-          </div>
+          <CompassTodayTile />
           <CatalystTable />
           <div className={styles.row2}>
             <MoversSidebar />
