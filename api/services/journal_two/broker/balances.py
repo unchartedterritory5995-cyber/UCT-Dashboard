@@ -264,6 +264,9 @@ def reconcile_positions(
             side = "Long" if units > 0 else "Short"
             shares = round(abs(units) * 10000) / 10000
             avg_cost = _num(p.get("average_purchase_price"))
+            # Broker's current per-share mark (snapshot at sync time). Lets the UI
+            # show a real price + P&L after hours when the live tick feed is empty.
+            cur_price = _num(p.get("price"))
 
             fifo_match = fifo_by_key.get((symbol, side))
             if fifo_match is not None and abs(fifo_match["shares"] - shares) <= 1e-6:
@@ -312,16 +315,16 @@ def reconcile_positions(
                         original_shares, entry_price, stop_price, breakeven_stop,
                         raise_to_breakeven, setup, notes, context_at_entry,
                         created_at, updated_at, closed_at, account_id,
-                        source, external_id, entry_estimated
+                        source, external_id, entry_estimated, broker_price
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, '{}',
-                              ?, ?, NULL, ?, 'broker', ?, ?)
+                              ?, ?, NULL, ?, 'broker', ?, ?, ?)
                     """,
                     # stop_price column is NOT NULL; broker imports have no stop, so we
                     # store entry_price as a placeholder and the UI renders it as "—"
                     # for broker positions until the user sets a real stop.
                     (str(uuid.uuid4()), user_id, symbol, side, entry_date, shares,
                      shares, entry_price, entry_price, now, now, j2_account_id,
-                     ext, entry_estimated),
+                     ext, entry_estimated, cur_price),
                 )
             else:
                 # Update broker-owned facts only. Preserve user enrichments
@@ -339,9 +342,10 @@ def reconcile_positions(
                     # once the new fills have backfilled.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
-                        "entry_price = ?, entry_date = ?, entry_estimated = 0, updated_at = ? "
+                        "entry_price = ?, entry_date = ?, entry_estimated = 0, "
+                        "broker_price = ?, updated_at = ? "
                         "WHERE id = ?",
-                        (shares, shares, entry_price, entry_date, now, existing["id"]),
+                        (shares, shares, entry_price, entry_date, cur_price, now, existing["id"]),
                     )
                 elif shares_changed or existing["entry_estimated"] == 1:
                     # Either the share count actually changed (a real add/trim whose
@@ -353,16 +357,18 @@ def reconcile_positions(
                     # corrects it to the precise FIFO entry + real date.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
-                        "entry_price = ?, entry_estimated = 1, updated_at = ? WHERE id = ?",
-                        (shares, shares, entry_price, now, existing["id"]),
+                        "entry_price = ?, entry_estimated = 1, broker_price = ?, "
+                        "updated_at = ? WHERE id = ?",
+                        (shares, shares, entry_price, cur_price, now, existing["id"]),
                     )
                 else:
                     # Holding unchanged + existing basis is real; FIFO just can't
                     # reconstruct this sync (transient heal window). Keep the real
                     # basis — never downgrade an unchanged position to an estimate.
                     conn.execute(
-                        "UPDATE j2_positions SET shares = ?, updated_at = ? WHERE id = ?",
-                        (shares, now, existing["id"]),
+                        "UPDATE j2_positions SET shares = ?, broker_price = ?, "
+                        "updated_at = ? WHERE id = ?",
+                        (shares, cur_price, now, existing["id"]),
                     )
             upserted += 1
 

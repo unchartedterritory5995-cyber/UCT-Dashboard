@@ -53,6 +53,13 @@ def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
         # Broker-sync provenance (absent on legacy/manual pre-migration rows).
         "source": row["source"] if "source" in keys else None,
         "entryEstimated": bool(row["entry_estimated"]) if "entry_estimated" in keys else False,
+        # Broker's current per-share mark (broker accounts only); UI uses it as
+        # the per-row price/P&L fallback when the live tick feed is empty.
+        "brokerPrice": (
+            float(row["broker_price"])
+            if "broker_price" in keys and row["broker_price"] is not None
+            else None
+        ),
     }
 
 
@@ -72,7 +79,7 @@ def list_open_positions(
                 SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
-                       created_at, updated_at, closed_at
+                       created_at, updated_at, closed_at, broker_price
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
                  ORDER BY symbol ASC, entry_date DESC
@@ -85,7 +92,7 @@ def list_open_positions(
                 SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
-                       created_at, updated_at, closed_at
+                       created_at, updated_at, closed_at, broker_price
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL
                  ORDER BY symbol ASC, entry_date DESC
@@ -112,7 +119,7 @@ def get_position(
             SELECT id, user_id, symbol, side, entry_date, shares, original_shares,
                    entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                    setup, notes, context_at_entry, account_id,
-                   created_at, updated_at, closed_at
+                   created_at, updated_at, closed_at, broker_price
               FROM j2_positions
              WHERE id = ? AND user_id = ?
             """,

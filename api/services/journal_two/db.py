@@ -598,6 +598,10 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_positions ADD COLUMN source TEXT",
     "ALTER TABLE j2_positions ADD COLUMN external_id TEXT",
     "ALTER TABLE j2_positions ADD COLUMN entry_estimated INTEGER NOT NULL DEFAULT 0",
+    # Broker's current per-share mark, refreshed each sync via holdings-as-truth,
+    # so open equity rows can show a real price + P&L when the live tick feed is
+    # empty (after hours). Manual positions leave this NULL → fall back to live.
+    "ALTER TABLE j2_positions ADD COLUMN broker_price REAL",
     "ALTER TABLE j2_option_strategies ADD COLUMN source TEXT",
     "ALTER TABLE j2_option_strategies ADD COLUMN external_id TEXT",
     # Current option market value (broker mark x qty x 100), refreshed each sync

@@ -148,7 +148,9 @@ export default function JournalSnapshotTile() {
     return positions
       .map((p) => {
         const live = prices[p.symbol]
-        const price = live?.price ?? null
+        // Live tick price when available; else the broker's last-synced mark
+        // (broker accounts only) so rows show a real price + P&L after hours.
+        const price = live?.price ?? (Number.isFinite(p.brokerPrice) ? p.brokerPrice : null)
         const today = positionTodayDollar(p, live)
         const todayPct = live?.change_pct == null
           ? null

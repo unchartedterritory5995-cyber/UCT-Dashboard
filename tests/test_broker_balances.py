@@ -126,6 +126,21 @@ def test_carried_in_position_uses_cost_basis_estimated(env):
     assert r["source"] == "broker"
 
 
+def test_reconcile_captures_and_refreshes_broker_price(env):
+    """The broker's current per-share mark is stored + surfaced as brokerPrice,
+    and refreshed on re-sync — so equity rows show a real price after hours."""
+    from api.services.journal_two import positions as positions_service
+
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 175.0, 150.0)], [])
+    aapl = next(p for p in positions_service.list_open_positions("u1") if p["symbol"] == "AAPL")
+    assert aapl["brokerPrice"] == 175.0
+
+    # Re-sync with a new mark updates the stored broker price.
+    balances.reconcile_positions("u1", env["ba"], [_pos("AAPL", 10, 181.5, 150.0)], [])
+    aapl = next(p for p in positions_service.list_open_positions("u1") if p["symbol"] == "AAPL")
+    assert aapl["brokerPrice"] == 181.5
+
+
 def test_fifo_match_uses_real_entry(env):
     raw_pos = [_pos("AAPL", 10, 150, 100)]
     fifo = [{"symbol": "AAPL", "side": "Long", "shares": 10,
