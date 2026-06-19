@@ -11,6 +11,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -118,17 +119,117 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
     return out
 
 
+# ── Archive API (full history) ──────────────────────────────────────────────────
+# Substack's RSS /feed only returns the ~20 most recent posts. The archive API
+# (/api/v1/archive?sort=new&offset=N&limit=L) paginates the ENTIRE back-catalog
+# and reliably carries cover_image + post_date, so we use it as the primary
+# source and keep RSS as a fallback.
+
+_ARCHIVE_PAGE = 50          # items per request (Substack honors up to ~50)
+_ARCHIVE_MAX = 600          # safety cap on total posts pulled per publication
+
+
+def _base_url(feed_url: str) -> str:
+    """https://pub.substack.com/feed → https://pub.substack.com (scheme+host)."""
+    parts = urlsplit((feed_url or "").strip())
+    if not parts.scheme or not parts.netloc:
+        return ""
+    return urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+
+
+def _parse_iso8601(s: str) -> int:
+    """ISO8601 (e.g. '2026-06-14T16:30:47.892Z') → unix seconds. 0 on failure."""
+    if not s:
+        return 0
+    try:
+        txt = s.strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(txt)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return int(dt.timestamp())
+    except (TypeError, ValueError):
+        return 0
+
+
+def parse_archive_items(items: list, publication_id=None) -> list[dict]:
+    """Map Substack archive-API JSON objects → post dicts. Pure (no network)."""
+    out: list[dict] = []
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        url = (it.get("canonical_url") or "").strip()
+        title = (it.get("title") or "").strip()
+        if not url or not title:
+            continue
+        # Skip non-post types (podcasts/threads still welcome — keep newsletters + posts)
+        excerpt = (it.get("description") or it.get("subtitle") or "").strip()
+        author = None
+        bylines = it.get("publishedBylines") or it.get("publishedbylines")
+        if isinstance(bylines, list) and bylines:
+            author = (bylines[0] or {}).get("name")
+        out.append({
+            "id": str(it.get("id") or url),
+            "publication_id": publication_id,
+            "title": title[:300],
+            "excerpt": _strip_html(excerpt)[:280],
+            "url": url,
+            "hero_image": it.get("cover_image") or None,
+            "author": author,
+            "published_at": _parse_iso8601(it.get("post_date") or ""),
+        })
+    return out
+
+
+def fetch_archive(feed_url: str, publication_id=None, max_posts: int = _ARCHIVE_MAX) -> list[dict]:
+    """Paginate the Substack archive API for the full back-catalog. Returns post
+    dicts (may be empty). Raises on the first request so the caller can fall back."""
+    base = _base_url(feed_url)
+    if not base:
+        return []
+    posts: list[dict] = []
+    offset = 0
+    while offset < max_posts:
+        url = f"{base}/api/v1/archive?sort=new&offset={offset}&limit={_ARCHIVE_PAGE}"
+        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        batch = resp.json()
+        if not isinstance(batch, list) or not batch:
+            break
+        posts.extend(parse_archive_items(batch, publication_id=publication_id))
+        if len(batch) < _ARCHIVE_PAGE:
+            break  # last page
+        offset += _ARCHIVE_PAGE
+    return posts
+
+
 def poll_publication(pub: dict) -> dict:
-    """Fetch + parse + store one publication. Returns a summary dict. Never raises."""
+    """Fetch + parse + store one publication, full history. Returns a summary dict.
+    Never raises. Primary source = archive API (full back-catalog); falls back to
+    RSS (recent ~20) if the archive API is unavailable."""
+    name = pub.get("name")
+    # 1. Archive API — full history.
+    try:
+        posts = fetch_archive(pub["feed_url"], publication_id=pub["id"])
+        if posts:
+            for p in posts:
+                desk_store.upsert_post(p)
+            return {"publication": name, "stored": len(posts),
+                    "status": "ok", "source": "archive"}
+    except Exception as e:  # noqa: BLE001 — fall back to RSS
+        archive_err = str(e)[:200]
+    else:
+        archive_err = "archive returned no posts"
+    # 2. RSS fallback — recent posts only.
     try:
         resp = requests.get(pub["feed_url"], headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
         posts = parse_feed(resp.text, publication_id=pub["id"])
         for p in posts:
             desk_store.upsert_post(p)
-        return {"publication": pub["name"], "stored": len(posts), "status": "ok"}
+        return {"publication": name, "stored": len(posts),
+                "status": "ok", "source": "rss", "archive_note": archive_err}
     except Exception as e:  # noqa: BLE001 — best-effort per feed
-        return {"publication": pub.get("name"), "stored": 0, "status": "error",
+        return {"publication": name, "stored": 0, "status": "error",
                 "error": str(e)[:200]}
 
 

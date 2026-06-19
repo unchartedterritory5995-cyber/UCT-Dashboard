@@ -113,6 +113,46 @@ def test_parse_feed_bad_xml_returns_empty():
     assert substack_poller.parse_feed("not xml at all") == []
 
 
+# ── Substack archive API parsing (full history) ──────────────────────────────────
+
+def test_base_url_strips_feed():
+    assert substack_poller._base_url("https://uct.substack.com/feed") == "https://uct.substack.com"
+    assert substack_poller._base_url("https://uct.substack.com/") == "https://uct.substack.com"
+    assert substack_poller._base_url("not a url") == ""
+
+
+def test_parse_iso8601():
+    assert substack_poller._parse_iso8601("2026-06-14T16:30:47.892Z") > 0
+    assert substack_poller._parse_iso8601("") == 0
+    assert substack_poller._parse_iso8601("garbage") == 0
+
+
+def test_parse_archive_items_maps_fields():
+    items = [
+        {"id": 123, "title": "Sunday Scans", "canonical_url": "https://uct.substack.com/p/sunday-scans",
+         "cover_image": "https://img/hero.webp", "post_date": "2026-06-14T16:30:47.892Z",
+         "description": "<p>Weekly map</p>",
+         "publishedBylines": [{"name": "Patrick"}]},
+        {"title": "no url skipped", "canonical_url": ""},  # skipped
+    ]
+    posts = substack_poller.parse_archive_items(items, publication_id=7)
+    assert len(posts) == 1
+    p = posts[0]
+    assert p["id"] == "123"
+    assert p["publication_id"] == 7
+    assert p["title"] == "Sunday Scans"
+    assert p["url"] == "https://uct.substack.com/p/sunday-scans"
+    assert p["hero_image"] == "https://img/hero.webp"
+    assert p["author"] == "Patrick"
+    assert p["excerpt"] == "Weekly map"  # HTML stripped
+    assert p["published_at"] > 0
+
+
+def test_parse_archive_items_empty():
+    assert substack_poller.parse_archive_items([]) == []
+    assert substack_poller.parse_archive_items(None) == []
+
+
 def test_parse_feed_hero_falls_back_to_img_in_content():
     rss = """<?xml version="1.0"?><rss xmlns:content="http://purl.org/rss/1.0/modules/content/">
     <channel><item><title>T</title><link>https://x.com/p/t</link>

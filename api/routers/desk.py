@@ -97,8 +97,8 @@ class MemberPatch(BaseModel):
 # ── Articles (Substack) ──────────────────────────────────────────────────────────
 
 @router.get("/articles")
-def get_articles(limit: int = 60, _user: dict = Depends(require_paid)):
-    limit = max(1, min(int(limit), 200))
+def get_articles(limit: int = 500, _user: dict = Depends(require_paid)):
+    limit = max(1, min(int(limit), 1000))
     return {"articles": desk_store.list_posts(limit=limit)}
 
 
