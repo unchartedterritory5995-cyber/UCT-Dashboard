@@ -612,6 +612,62 @@ def register_screener_jobs(scheduler):
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
 
+
+def _resolve_active_set_for_patterns() -> list[str]:
+    """Active set for the vision judge: the curated leader_universe (same active
+    set the pattern scan prioritizes), falling back to the head of cap_universe.
+    Kept small + curated so the Opus judge never runs the full ~3,700 universe."""
+    tickers: list[str] = []
+    for fname in ("leader_universe.json", "cap_universe.json"):
+        path = os.path.join(os.path.dirname(__file__), "data", fname)
+        if not os.path.exists(path):
+            path = os.path.join("api", "data", fname)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        if isinstance(data, dict):
+            tickers = [t for t in data.get("tickers", []) if isinstance(t, str)]
+        elif isinstance(data, list):
+            tickers = [t for t in data if isinstance(t, str)]
+        if tickers:
+            break
+    # de-dup, preserve order
+    seen, out = set(), []
+    for t in tickers:
+        u = t.upper()
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
+
+
+def register_pattern_vision_jobs(scheduler):
+    """Register the hourly Opus-vision pattern judge over the active set.
+    Gated by PATTERN_VISION_ENABLED (default on). Capped per run by
+    PATTERN_VISION_MAX_PER_RUN. Returns True if registered."""
+    import os
+    if os.environ.get("PATTERN_VISION_ENABLED", "1") != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.pattern_vision import orchestrator as pv_orch
+
+    def _run():
+        try:
+            cap = int(os.environ.get("PATTERN_VISION_MAX_PER_RUN", "150"))
+            for t in _resolve_active_set_for_patterns()[:cap]:
+                pv_orch.judge_ticker(t)
+        except Exception as e:
+            print(f"[scheduler] pattern_vision job error: {e}")
+
+    scheduler.add_job(_run, trigger=CronTrigger(minute=0),
+                      id="pattern_vision_judge", max_instances=1,
+                      replace_existing=True)
+    return True
+
     # Self-warm on deploy: if the snapshot is under-filled, build (up to
     # SCREENER_SNAPSHOT_MAX_PER_RUN, default 4000) in the background so the page
     # has the full universe without waiting for 03:00 ET. run_build picks the
@@ -1679,6 +1735,19 @@ async def lifespan(app: FastAPI):
             register_screener_jobs(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
+
+        # ── Opus-vision pattern judge (spec 2026-06-19) ───────────────────
+        try:
+            if register_pattern_vision_jobs(_scheduler):
+                import os as _os
+                print(
+                    "[startup] pattern-vision: on model=claude-opus-4-8 "
+                    f"cost_hard_cap=${_os.environ.get('PATTERN_VISION_COST_HARD_CAP', '10.0')} "
+                    f"max_per_run={_os.environ.get('PATTERN_VISION_MAX_PER_RUN', '150')} "
+                    "active_set_only=on skip_if_stable=on confirmed_only=on"
+                )
+        except Exception as e:
+            print(f"[scheduler] pattern_vision job registration error: {e}")
 
         # ── Twitter News Ingestion (spec 2026-05-25) ──────────────────────
         # Burst windows (every 2 min) cover the high-value pre-market and
