@@ -35,6 +35,7 @@ import {
   computeDaysToExpiration,
   classifyDebitCredit,
 } from '../../pages/journal-2-0/lib/optionCalcs'
+import compassLogo from '../intro/assets/compass-mark.png'
 import styles from './JournalSnapshotTile.module.css'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
@@ -395,44 +396,36 @@ function EmptyState({ connected }) {
   return <ConnectCta />
 }
 
-/* ── Custom UCT Intelligence iconography (no emoji) ──────────────────────── */
+/* ── Brand mark + custom UCT Intelligence iconography (no emoji) ─────────── */
 
-/** The brand signature: a gold-embossed compass rose — UCT Intelligence's mark. */
+/** The brand signature: the UCT Intelligence compass + candlestick logo. */
 function CompassMark() {
   return (
-    <svg className={styles.markSvg} viewBox="0 0 48 48" aria-hidden="true">
+    <span className={styles.markHalo}>
+      <img src={compassLogo} className={styles.markImg} alt="" aria-hidden="true" />
+    </span>
+  )
+}
+
+/** One hidden defs block — gold gradient + glow shared by every benefit icon. */
+function IconDefs() {
+  return (
+    <svg width="0" height="0" className={styles.iconDefs} aria-hidden="true">
       <defs>
-        <linearGradient id="uctMarkGold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#efd488" />
-          <stop offset="52%" stopColor="#c9a84c" />
-          <stop offset="100%" stopColor="#8a6f2c" />
+        <linearGradient id="ctaIcoGold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f6e09a" />
+          <stop offset="50%" stopColor="#d9b85e" />
+          <stop offset="100%" stopColor="#a07d2f" />
         </linearGradient>
-        <radialGradient id="uctMarkGlow" cx="50%" cy="42%" r="60%">
-          <stop offset="0%" stopColor="#c9a84c" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#c9a84c" stopOpacity="0" />
-        </radialGradient>
       </defs>
-      <circle cx="24" cy="24" r="23" fill="url(#uctMarkGlow)" />
-      <circle cx="24" cy="24" r="20.5" fill="none" stroke="url(#uctMarkGold)" strokeWidth="1.5" />
-      <circle cx="24" cy="24" r="15.5" fill="none" stroke="#c9a84c" strokeWidth="0.6" opacity="0.45" />
-      <g stroke="#c9a84c" strokeWidth="1.3" strokeLinecap="round">
-        <line x1="24" y1="4.5" x2="24" y2="8.5" />
-        <line x1="24" y1="39.5" x2="24" y2="43.5" />
-        <line x1="4.5" y1="24" x2="8.5" y2="24" />
-        <line x1="39.5" y1="24" x2="43.5" y2="24" />
-      </g>
-      {/* compass needle — embossed (bright N, dark S) */}
-      <polygon points="24,8.5 27.6,24 24,24" fill="#efd488" />
-      <polygon points="24,8.5 20.4,24 24,24" fill="#c9a84c" />
-      <polygon points="24,39.5 27.6,24 24,24" fill="#7d6526" />
-      <polygon points="24,39.5 20.4,24 24,24" fill="#5f4d1d" />
-      <circle cx="24" cy="24" r="2.4" fill="#13130f" stroke="url(#uctMarkGold)" strokeWidth="1.2" />
     </svg>
   )
 }
 
+const G = 'url(#ctaIcoGold)'
+
 const IconSync = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M4 9a8 8 0 0 1 13.4-3.4L20 8" />
     <path d="M20 3.5V8h-4.5" />
     <path d="M20 15a8 8 0 0 1-13.4 3.4L4 16" />
@@ -441,7 +434,7 @@ const IconSync = () => (
 )
 
 const IconEquity = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3.5 20.5h17" />
     <path d="M5 15l4-4 3.5 2.5L20 6" />
     <path d="M16 6h4v4" />
@@ -449,9 +442,9 @@ const IconEquity = () => (
 )
 
 const IconCompass = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="9" />
-    <path d="M15.6 8.4l-2 5.2-5.2 2 2-5.2z" fill="currentColor" stroke="none" />
+    <path d="M15.6 8.4l-2 5.2-5.2 2 2-5.2z" fill={G} stroke="none" />
     <circle cx="12" cy="12" r="0.9" fill="#13130f" stroke="none" />
   </svg>
 )
@@ -477,6 +470,7 @@ function ConnectCta() {
   ]
   return (
     <div className={styles.cta}>
+      <IconDefs />
       <div className={styles.ctaMark}><CompassMark /></div>
       <div className={styles.ctaEyebrow}>UCT Intelligence</div>
       <div className={styles.ctaTitle}>See your whole portfolio, live</div>
