@@ -122,6 +122,26 @@ def test_parse_feed_hero_falls_back_to_img_in_content():
     assert posts[0]["hero_image"] == "https://x.com/in-content.png"
 
 
+def test_parse_feed_hero_from_enclosure():
+    # Substack puts the hero image in <enclosure> (type="image/jpeg" even for webp).
+    rss = """<?xml version="1.0"?><rss><channel><item>
+    <title>Weekly Map</title><link>https://uct.substack.com/p/weekly-map</link>
+    <enclosure url="https://substack-post-media.s3.amazonaws.com/public/images/hero_900x510.webp" length="0" type="image/jpeg"/>
+    </item></channel></rss>"""
+    posts = substack_poller.parse_feed(rss)
+    assert posts[0]["hero_image"] == "https://substack-post-media.s3.amazonaws.com/public/images/hero_900x510.webp"
+
+
+def test_parse_feed_enclosure_wins_over_img_in_body():
+    rss = """<?xml version="1.0"?><rss xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel><item><title>T</title><link>https://x.com/p/t</link>
+    <enclosure url="https://x.com/hero.webp" type="image/jpeg"/>
+    <content:encoded>&lt;img src="https://x.com/in-body.png"/&gt;</content:encoded>
+    </item></channel></rss>"""
+    posts = substack_poller.parse_feed(rss)
+    assert posts[0]["hero_image"] == "https://x.com/hero.webp"
+
+
 # ── Team members ─────────────────────────────────────────────────────────────────
 
 def test_team_crud(store):

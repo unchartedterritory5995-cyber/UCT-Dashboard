@@ -87,11 +87,21 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
         if ce is not None and ce.text:
             content = ce.text
         author = (item.findtext("dc:creator", namespaces=_NS) or "").strip() or None
-        # hero image: media:content/@url, then first <img> in content/description
+        # hero image, in priority order:
+        #   1. <enclosure url="..." type="image/*"/>  — Substack's canonical hero
+        #   2. <media:content url="..."/>             — other feeds
+        #   3. first <img> in content:encoded / description
         hero = None
-        mc = item.find("media:content", _NS)
-        if mc is not None and mc.get("url"):
-            hero = mc.get("url")
+        enc = item.find("enclosure")
+        if enc is not None and enc.get("url"):
+            etype = (enc.get("type") or "").lower()
+            # Substack tags hero enclosures type="image/jpeg" even for webp/png.
+            if etype.startswith("image") or "image" in etype or not etype:
+                hero = enc.get("url")
+        if not hero:
+            mc = item.find("media:content", _NS)
+            if mc is not None and mc.get("url"):
+                hero = mc.get("url")
         if not hero:
             hero = _first_image(content, desc)
         excerpt = _strip_html(desc or content)[:280]
