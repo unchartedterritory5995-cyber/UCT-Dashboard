@@ -1,10 +1,30 @@
 // app/src/pages/desk/PostsSection.jsx
 // The Desk → Posts: a board of the firm's OWN official Twitter/X accounts
 // (flagged is_official), one column/feed per person. Reuses the tweet pipeline.
+import { useMemo, useState } from 'react'
+import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import useTweetFeed from '../../hooks/useTweetFeed'
 import { PostIcon } from '../education/icons'
 import styles from './Desk.module.css'
+
+const teamFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+
+const handleOf = (url) => (url || '').replace(/\/+$/, '').split('/').pop().replace(/^@/, '').toLowerCase()
+
+// Round account avatar in the column header: prefers the firm's own Team photo
+// (same crisp avatars), falls back to the live X avatar, then a monogram.
+function PostAvatar({ src, name }) {
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) {
+    return <div className={styles.postColAvatarFallback} aria-hidden="true">
+      {(name || '?')[0].toUpperCase()}
+    </div>
+  }
+  return <img className={styles.postColAvatar} src={src} alt="" loading="lazy"
+              onError={() => setFailed(true)} />
+}
 
 function timeAgo(unixSec) {
   if (!unixSec) return ''
@@ -72,6 +92,21 @@ export default function PostsSection() {
   const posts = Array.isArray(data) ? data : []
   const columns = groupByAuthor(posts)
 
+  // Map each X handle → the firm's own Team avatar (when that account is a team
+  // member), so the Posts headers reuse the crisp photos instead of a monogram.
+  const { data: teamData } = useSWR('/api/desk/team', teamFetcher)
+  const avatarByHandle = useMemo(() => {
+    const m = new Map()
+    for (const mem of teamData?.team || []) {
+      const h = handleOf(mem.twitter_url)
+      if (h && mem.has_photo) m.set(h, `/api/desk/team/${mem.id}/photo`)
+    }
+    return m
+  }, [teamData])
+  const avatarFor = (handle) =>
+    avatarByHandle.get((handle || '').toLowerCase()) ||
+    (handle ? `https://unavatar.io/x/${handle}?fallback=false` : null)
+
   return (
     <div className={`${styles.section} ${styles.sectionWide}`}>
       <div className={styles.sectionHead}>
@@ -109,8 +144,11 @@ export default function PostsSection() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <span className={styles.postColName}>{col.name}</span>
-                <span className={styles.postColHandle}>@{col.handle}</span>
+                <PostAvatar src={avatarFor(col.handle)} name={col.name} />
+                <span className={styles.postColMeta}>
+                  <span className={styles.postColName}>{col.name}</span>
+                  <span className={styles.postColHandle}>@{col.handle}</span>
+                </span>
               </a>
               <div className={styles.postColFeed}>
                 {col.posts.map((t) => <PostCard key={t.id} t={t} />)}
