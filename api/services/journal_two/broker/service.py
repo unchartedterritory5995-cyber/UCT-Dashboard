@@ -68,9 +68,27 @@ async def connect(
         snap_uid, secret = reg["snaptrade_user_id"], reg["user_secret"]
         connections.save_broker_user(user_id, snap_uid, secret, record_consent=True)
 
-    uri = await snap.login_redirect_uri(
-        snap_uid, secret, custom_redirect=custom_redirect, reconnect=reconnect
-    )
+    try:
+        uri = await snap.login_redirect_uri(
+            snap_uid, secret, custom_redirect=custom_redirect, reconnect=reconnect
+        )
+    except snap.SnapUserSecretInvalid:
+        # The stored secret is no longer valid AT SnapTrade — happens on an
+        # API-key swap (test→production), secret rotation, or revocation. The
+        # ciphertext decrypts fine; it's just rejected by the partner. Re-register
+        # a fresh identity under the CURRENT key and retry, so the user never has
+        # to manually Disconnect first. Drop `reconnect` — the fresh user has no
+        # brokerage authorization to repair.
+        try:
+            await snap.delete_user(snap_uid)  # best-effort; clear any stale prior
+        except snap.SnapError:
+            pass
+        reg = await snap.register_user(user_id)
+        snap_uid, secret = reg["snaptrade_user_id"], reg["user_secret"]
+        connections.save_broker_user(user_id, snap_uid, secret, record_consent=True)
+        uri = await snap.login_redirect_uri(
+            snap_uid, secret, custom_redirect=custom_redirect
+        )
     return {"redirectUri": uri}
 
 

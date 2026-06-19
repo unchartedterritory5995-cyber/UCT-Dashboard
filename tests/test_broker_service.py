@@ -109,6 +109,33 @@ async def test_connect_reregisters_when_secret_undecryptable(env, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_connect_reregisters_when_secret_invalid_at_snaptrade(env):
+    """API-key swap (test→prod) / rotation: the stored secret DECRYPTS fine but
+    SnapTrade rejects it. Connect must transparently re-register under the
+    current key + retry — no manual Disconnect first."""
+    from api.services.journal_two.broker import service
+    await service.connect("u1")
+    assert env.register_calls == 1
+
+    # Next login: stale secret rejected once, then OK after the re-register.
+    calls = {"n": 0}
+    orig_login = env.authentication.login_snap_trade_user
+
+    def login(**kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise snap.SnapUserSecretInvalid("stale secret", status=401, code="1076")
+        return orig_login(**kw)
+
+    env.authentication.login_snap_trade_user = login
+
+    r = await service.connect("u1")
+    assert r["redirectUri"].startswith("https://app.snaptrade.com/")
+    assert env.register_calls == 2   # re-registered under the current key
+    assert env.delete_calls >= 1     # best-effort cleared the stale prior identity
+
+
+@pytest.mark.asyncio
 async def test_refresh_accounts_maps(env):
     from api.services.journal_two.broker import service, connections
     await service.connect("u1")
