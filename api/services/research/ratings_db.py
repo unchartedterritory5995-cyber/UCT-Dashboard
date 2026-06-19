@@ -137,6 +137,21 @@ def upsert_metrics(sym: str, metrics: dict) -> None:
         _logger.warning("ratings_db upsert failed for %s: %s", sym, exc)
 
 
+def get_ticker_metrics(sym: str) -> dict | None:
+    """One ticker's stored raw metric values + sector, or None. Read-only;
+    used by the screener snapshot builder to reuse the nightly ratings gather
+    instead of re-fetching fundamentals."""
+    cols = ", ".join(METRIC_COLUMNS)
+    try:
+        with _conn() as c:
+            r = c.execute(
+                f"SELECT {cols}, sector FROM ticker_metrics WHERE sym = ?",
+                (sym.upper(),)).fetchone()
+            return dict(r) if r else None
+    except Exception:
+        return None
+
+
 def get_fresh_syms(max_age_seconds: float) -> set[str]:
     """Symbols whose metrics were refreshed within max_age_seconds (skip set)."""
     cutoff = time.time() - max_age_seconds

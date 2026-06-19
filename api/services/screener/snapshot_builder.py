@@ -1,17 +1,21 @@
 """Nightly builder: one precomputed screener row per ticker.
 
 ``build_row`` is pure (takes already-column-keyed dicts) and unit-tested.
-The ``_read_*`` wrappers adapt existing services to snapshot column names:
-  - bars        -> ``bars_sqlite.get_bars`` (tuples -> dicts)
-  - fundamentals-> ``fundamentals.get_fundamentals`` (``*_pct`` percent units)
-  - ratings     -> ``research.ratings.get_ratings`` (composite + components.rs)
+The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
+  - bars     -> ``bars_sqlite.get_bars`` (tuples -> dicts); technicals/candles/patterns
+  - ratings  -> ``research_ratings.db`` stored metrics -> ``enrich.ratings_fields``
+                (eps/rev growth, peg, fwd P/E, margin, ROE, RS, accdis + computed
+                 uct_composite / rs_rank via the same percentile path as the
+                 research page)
+  - meta     -> ``ticker_meta`` cache (name/sector/industry)
+  - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
 """
 import datetime
 import logging
 import os
 import time
 
-from . import snapshot_db, candles, technicals, patterns
+from . import snapshot_db, candles, technicals, patterns, enrich
 
 log = logging.getLogger(__name__)
 
@@ -58,71 +62,42 @@ def _read_daily_bars(ticker):
     return out
 
 
-_FUND_MAP = {
-    "company": "name", "sector": "sector", "industry": "industry",
-    "market_cap": "market_cap", "pe_ttm": "pe_trailing", "pe_fwd": "pe_forward",
-    "peg": "peg", "ps": "ps", "pb": "pb",
-    "eps_growth": "earnings_growth_pct", "rev_growth": "revenue_growth_pct",
-    "op_margin": "operating_margin_pct", "gross_margin": "gross_margin_pct",
-    "net_margin": "profit_margin_pct", "roe": "roe_pct", "roa": "roa_pct",
-    "debt_to_equity": "debt_to_equity", "current_ratio": "current_ratio",
-    "beta": "beta", "dividend_yield": "dividend_yield_pct",
-    "inst_pct": "held_pct_institutions",
-}
-
-
-_CAP_SUFFIX = {"T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3}
-
-
-def _parse_cap(v):
-    """get_fundamentals returns market_cap pre-formatted (e.g. '$4.38T'); the
-    screener needs a number for range filtering. Parse $/commas/suffix."""
-    if v is None or isinstance(v, (int, float)):
-        return v
-    s = str(v).strip().upper().replace("$", "").replace(",", "")
-    if not s:
-        return None
-    mult = 1.0
-    if s and s[-1] in _CAP_SUFFIX:
-        mult = _CAP_SUFFIX[s[-1]]
-        s = s[:-1]
-    try:
-        return float(s) * mult
-    except ValueError:
-        return None
-
-
-def _read_fundamentals(ticker):
+def _read_fundamentals(ticker, price=None):
+    """Company name/sector/industry from the ticker_meta cache + market cap from
+    Massive (shares*price fallback). No yfinance."""
     out = {}
     try:
-        from api.services.fundamentals import get_fundamentals
-        f = get_fundamentals(ticker) or {}
+        from api.services.ticker_meta import get_ticker_meta
+        meta = get_ticker_meta(ticker) or {}
+        if meta.get("name"):
+            out["company"] = meta["name"]
+        if meta.get("industry"):
+            out["industry"] = meta["industry"]
+        if meta.get("sector"):
+            out["sector"] = meta["sector"]
     except Exception:
-        return out
-    for col, src in _FUND_MAP.items():
-        v = f.get(src)
-        if v is None:
-            continue
-        out[col] = _parse_cap(v) if col == "market_cap" else v
+        pass
+    try:
+        from api.services.massive import get_market_cap
+        mc = get_market_cap(ticker, price=price)
+        if mc is not None:
+            out["market_cap"] = mc
+    except Exception:
+        pass
     return out
 
 
 def _read_ratings(ticker):
-    out = {}
+    """Reuse the nightly-stored ratings metrics (research_ratings.db) — no
+    network. Returns column-keyed fundamentals + computed uct_composite/rs_rank."""
     try:
-        from api.services.research.ratings import get_ratings
-        r = get_ratings(ticker) or {}
+        from api.services.research import ratings_db
+        metrics = ratings_db.get_ticker_metrics(ticker)
     except Exception:
-        return out
-    if r.get("composite") is not None:
-        out["uct_composite"] = r["composite"]
-    comp = r.get("components") or {}
-    rs = comp.get("rs")
-    if isinstance(rs, (int, float)):
-        out["rs_rank"] = int(rs)
-    if comp.get("accdis") is not None:
-        out["accdis"] = comp["accdis"]
-    return out
+        metrics = None
+    if not metrics:
+        return {}
+    return enrich.ratings_fields(metrics, enrich.load_distributions())
 
 
 # ── orchestration ─────────────────────────────────────────────────────────────
@@ -167,7 +142,8 @@ def run_build(max_tickers=None) -> dict:
             if not bars:
                 skipped += 1
                 continue
-            row = build_row(t, bars, _read_ratings(t), _read_fundamentals(t))
+            price = bars[-1].get("c")
+            row = build_row(t, bars, _read_ratings(t), _read_fundamentals(t, price))
             batch.append(row)
             built += 1
             if len(batch) >= 200:

@@ -424,6 +424,40 @@ def get_ticker_snapshot(ticker: str) -> dict:
         return {}
 
 
+def get_ticker_details(ticker: str) -> dict:
+    """Polygon-style ticker reference (market_cap, shares, name, exchange).
+    Best-effort: returns {} if Massive doesn't serve the reference endpoint."""
+    try:
+        cli = _get_client()
+        url = f"{_REST_BASE}/v3/reference/tickers/{to_polygon_symbol(ticker)}"
+        j = cli._get(url) or {}
+        return j.get("results") or {}
+    except Exception:
+        return {}
+
+
+def get_market_cap(ticker: str, price: float | None = None):
+    """Market cap (float USD) from Massive ticker details, or None. Best-effort.
+    Prefers the ``market_cap`` field; falls back to shares_outstanding * price
+    (price from the caller's bars) when the field is absent."""
+    res = get_ticker_details(ticker)
+    if not res:
+        return None
+    mc = res.get("market_cap")
+    try:
+        if mc:
+            return float(mc)
+    except (TypeError, ValueError):
+        pass
+    shares = res.get("weighted_shares_outstanding") or res.get("share_class_shares_outstanding")
+    try:
+        if shares and price:
+            return float(shares) * float(price)
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def get_etf_snapshots(tickers: list[str]) -> dict[str, float]:
     """Return intraday % change for a list of ETF tickers via batch snapshot.
 
