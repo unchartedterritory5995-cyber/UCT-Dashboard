@@ -190,6 +190,8 @@ def ensure_default_accounts() -> int:
 # Desk's Posts section (separate from the market-news tape). Idempotent.
 OFFICIAL_ACCOUNTS = [
     ("TSDR_Trading", "TSDR Trading"),
+    ("Braczyy", "Bracco"),
+    ("1ChartMaster", "Elite Swing Traders"),
 ]
 
 
