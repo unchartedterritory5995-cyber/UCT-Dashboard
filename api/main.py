@@ -80,6 +80,7 @@ from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) — MERGE AS A UNIT with include_router + scheduler below
 from api.flow_router import flow_router
+from api.flow_summary import flow_summary_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
 from api.liveflow_router import router as liveflow_router
@@ -2178,6 +2179,7 @@ app.include_router(gex_router)
 app.include_router(dealer_positioning_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
+app.include_router(flow_summary_router)
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)

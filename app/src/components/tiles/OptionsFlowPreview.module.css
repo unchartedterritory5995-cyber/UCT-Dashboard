@@ -1,0 +1,144 @@
+/* OptionsFlowPreview — top-10 conviction board, two rows of five. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* Palette mirrors the Options Flow page (bull #3cb868 / bear #e74c3c /
+   gold #c9a84c) so the preview feels native when you click through. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #14160f;
+  border: 1px solid #2a2d22;
+  border-left: 3px solid #3a3d32;
+  text-decoration: none;
+  transition: background 0.14s, border-color 0.14s, transform 0.14s;
+  min-width: 0;
+}
+.card:hover {
+  background: #1b1e15;
+  transform: translateY(-1px);
+}
+.card.bull { border-left-color: #3cb868; }
+.card.bear { border-left-color: #e74c3c; }
+
+/* ── header row: rank · ticker · dir pill ── */
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rank {
+  font-size: 15px;
+  font-weight: 800;
+  color: #5c5749;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sym {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ece6d6;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.erTag {
+  font-size: 7px;
+  font-weight: 800;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.14);
+  padding: 1px 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.dirPill {
+  margin-left: auto;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.dirPill.bull { color: #3cb868; border: 1px solid rgba(60, 184, 104, 0.5); background: rgba(60, 184, 104, 0.1); }
+.dirPill.bear { color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.5); background: rgba(231, 76, 60, 0.1); }
+
+/* ── premium + bull% ── */
+.premRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.prem {
+  font-size: 17px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.prem.bull { color: #3cb868; }
+.prem.bear { color: #e74c3c; }
+.bullPct {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b6557;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── headline contract ── */
+.contract {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 26px;
+  padding-top: 2px;
+  border-top: 1px solid #23261c;
+}
+.contractLine {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 10px;
+  min-width: 0;
+}
+.call { color: #3cb868; font-weight: 800; }
+.put { color: #e74c3c; font-weight: 800; }
+.strike { color: #ece6d6; font-weight: 700; }
+.exp { color: #c9a84c; font-weight: 600; }
+.hits { color: #8a8470; font-weight: 800; margin-left: auto; }
+.tcPrem { color: #c9a84c; font-weight: 700; }
+.money { color: #6b6557; font-weight: 600; margin-left: auto; }
+
+/* ── header link + empty state ── */
+.viewAll {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.viewAll:hover { text-decoration: underline; }
+.empty {
+  display: block;
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b6557;
+  text-decoration: none;
+}
+.empty:hover { color: #c9a84c; }
+
+/* Narrow desktop fallback: keep it from squeezing into illegible slivers. */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

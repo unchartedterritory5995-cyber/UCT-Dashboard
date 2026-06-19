@@ -13,7 +13,7 @@ import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import RegimeTile from '../components/tiles/RegimeTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
-import TileCard from '../components/TileCard'
+import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
 import styles from './Dashboard.module.css'
 
 /* ── Mobile accordion section ────────────────────────────────────────────── */
@@ -88,12 +88,7 @@ export default function Dashboard() {
             <TapeFeed />
           </div>
           <div className={styles.row4}>
-            <TileCard title="Options Flow">
-              <div className={styles.comingSoon}>
-                <span className={styles.comingSoonIcon}>🔧</span>
-                <span className={styles.comingSoonLabel}>Coming Soon</span>
-              </div>
-            </TileCard>
+            <OptionsFlowPreview />
           </div>
         </div>
 
