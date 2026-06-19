@@ -185,3 +185,38 @@ def ensure_default_videos() -> None:
             have.add(yt)
         except Exception:
             continue
+    _migrate_seed_categories_once()
+
+
+# Renames applied once to already-seeded videos (the seed file itself carries the
+# new names, so only pre-existing prod rows need this). Each entry runs exactly
+# once via a flag file on the DB volume. Scoped to the seed's own youtube_ids and
+# only rows STILL in the old category, so an admin who recategorized a video is
+# never touched.
+_CATEGORY_RENAMES: dict[str, str] = {
+    "Guest Sessions & Interviews": "Interviews",
+}
+_CATEGORY_MIGRATION_VERSION = "v1_interviews"
+
+
+def _migrate_seed_categories_once() -> None:
+    flag = os.path.join(os.path.dirname(_DB_PATH) or ".",
+                        f".edu_cat_migrate_{_CATEGORY_MIGRATION_VERSION}")
+    try:
+        if os.path.exists(flag):
+            return
+        from api.services.education_seed import SEED_VIDEOS
+        seed_ids = [v["youtube_id"] for v in SEED_VIDEOS]
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            ph = ",".join("?" for _ in seed_ids)
+            for old, new in _CATEGORY_RENAMES.items():
+                c.execute(
+                    f"UPDATE edu_videos SET category = ?, updated_at = ? "
+                    f"WHERE category = ? AND youtube_id IN ({ph})",
+                    [new, int(time.time()), old, *seed_ids],
+                )
+            c.commit()
+        with open(flag, "w") as f:
+            f.write(_CATEGORY_MIGRATION_VERSION)
+    except Exception:
+        pass

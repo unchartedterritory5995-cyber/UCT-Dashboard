@@ -126,7 +126,7 @@ EXPECTED_CATEGORIES = {
     "Scanning, Watchlists & Stock Selection",
     "Options & Flow",
     "Workshops & Fireside Chats",
-    "Guest Sessions & Interviews",
+    "Interviews",
 }
 
 
@@ -167,3 +167,19 @@ def test_ensure_default_videos_never_clobbers_admin_edits(s):
     # And it didn't re-insert a duplicate of that youtube_id.
     same_yt = [x for x in s.list_videos() if x["youtube_id"] == v["youtube_id"]]
     assert len(same_yt) == 1
+
+
+def test_migrate_seed_categories_renames_old_name(s):
+    from api.services.education_seed import SEED_VIDEOS
+    seed_yt = SEED_VIDEOS[0]["youtube_id"]
+    # Simulate a prod row seeded under the OLD category name + an unrelated
+    # admin video that happens to share the old name (must NOT be touched).
+    s.create_video(_video(youtube_id=seed_yt, category="Guest Sessions & Interviews"))
+    s.create_video(_video(youtube_id="zzzZZZ12345", category="Guest Sessions & Interviews"))
+
+    s._migrate_seed_categories_once()
+
+    seed_row = [x for x in s.list_videos() if x["youtube_id"] == seed_yt][0]
+    admin_row = [x for x in s.list_videos() if x["youtube_id"] == "zzzZZZ12345"][0]
+    assert seed_row["category"] == "Interviews"            # seed video renamed
+    assert admin_row["category"] == "Guest Sessions & Interviews"  # non-seed untouched

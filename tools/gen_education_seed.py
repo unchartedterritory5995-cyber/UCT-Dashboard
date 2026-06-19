@@ -27,7 +27,7 @@ RISK = "Risk & Trade Management"
 SCAN = "Scanning, Watchlists & Stock Selection"
 FLOW = "Options & Flow"
 WORKSHOP = "Workshops & Fireside Chats"
-GUEST = "Guest Sessions & Interviews"
+GUEST = "Interviews"
 
 # 1-based row index (sheet order) -> category.
 CATEGORY_BY_INDEX: dict[int, str] = {

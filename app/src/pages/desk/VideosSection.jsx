@@ -25,7 +25,7 @@ const CATEGORY_ORDER = [
   'Scanning, Watchlists & Stock Selection',
   'Options & Flow',
   'Workshops & Fireside Chats',
-  'Guest Sessions & Interviews',
+  'Interviews',
 ]
 const orderRank = (name) => {
   const i = CATEGORY_ORDER.indexOf(name)
