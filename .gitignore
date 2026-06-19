@@ -27,3 +27,6 @@ tools/_local_backend.log
 # SnapTrade smoke-test state (contains a userSecret)
 tools/.snaptrade_smoke_state.json
 tools/.snaptrade_captures/
+
+# Local Python virtual environment (local dev only)
+.venv/
