@@ -4765,10 +4765,13 @@ export default function StockChart({
     const chart = chartRef.current
     if (!el || !chart || !bars || bars.length === 0) return
 
-    const handler = (e) => {
+    // Shared open-menu routine: invoked by desktop right-click (`contextmenu`)
+    // and by touch long-press. Reads the anchor from `clientX`/`clientY` so it
+    // works regardless of which input triggered it.
+    const openMenuAt = (clientX, clientY, e) => {
       const rect = el.getBoundingClientRect()
-      const px = e.clientX - rect.left
-      const py = e.clientY - rect.top
+      const px = clientX - rect.left
+      const py = clientY - rect.top
 
       // Prefer the currently-hovered bar (from crosshair tracking). Falls
       // back to coordinateToLogical if crosshair hasn't fired yet (edge
@@ -4784,7 +4787,7 @@ export default function StockChart({
       if (!closest) return
 
       // Only block the browser default menu once we know we have a bar.
-      e.preventDefault()
+      e?.preventDefault?.()
 
       // ── Resolve which region of the chart was clicked ──────────────────
       // Axis widths + pane heights come straight from the chart; band layout
@@ -4853,8 +4856,8 @@ export default function StockChart({
       if (onBarContextMenu) {
         onBarContextMenu({
           bar: closest,
-          clientX: e.clientX,
-          clientY: e.clientY,
+          clientX,
+          clientY,
           event: e,
           getScreenshotBlob,
           region,
@@ -4868,8 +4871,8 @@ export default function StockChart({
             sym,
             tf: resolvedTf,
             bar: closest,
-            clientX: e.clientX,
-            clientY: e.clientY,
+            clientX,
+            clientY,
             getScreenshotBlob,
             region,
             sections,
@@ -4879,8 +4882,48 @@ export default function StockChart({
         }))
       }
     }
-    el.addEventListener('contextmenu', handler)
-    return () => el.removeEventListener('contextmenu', handler)
+
+    // Desktop: native right-click fires immediately.
+    const onContextMenu = (e) => openMenuAt(e.clientX, e.clientY, e)
+
+    // Touch: long-press (≥450ms, no significant movement) opens the same menu.
+    // Skipped while a drawing/position tool is armed so a long-press never
+    // collides with placing/dragging a drawing. Mirrors useLongPress + the
+    // TickerActions long-press pattern.
+    let lpTimer = null
+    let lpStart = { x: 0, y: 0 }
+    const clearLp = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null } }
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse') return            // mouse uses native contextmenu
+      if (activeToolRef.current) return                // a drawing tool is armed — don't intercept
+      lpStart = { x: e.clientX, y: e.clientY }
+      const cx = e.clientX, cy = e.clientY
+      clearLp()
+      lpTimer = setTimeout(() => {
+        lpTimer = null
+        if (activeToolRef.current) return              // tool armed mid-press
+        try { navigator.vibrate?.(10) } catch { /* noop */ }
+        openMenuAt(cx, cy, null)
+      }, 450)
+    }
+    const onPointerMove = (e) => {
+      if (!lpTimer) return
+      if (Math.abs(e.clientX - lpStart.x) > 10 || Math.abs(e.clientY - lpStart.y) > 10) clearLp()
+    }
+
+    el.addEventListener('contextmenu', onContextMenu)
+    el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointermove', onPointerMove)
+    el.addEventListener('pointerup', clearLp)
+    el.addEventListener('pointercancel', clearLp)
+    return () => {
+      el.removeEventListener('contextmenu', onContextMenu)
+      el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointermove', onPointerMove)
+      el.removeEventListener('pointerup', clearLp)
+      el.removeEventListener('pointercancel', clearLp)
+      clearLp()
+    }
   }, [onBarContextMenu, bars, sym, resolvedTf, cs, showVolume, showVolumeProp, overlaysProp, resolvedOverlays, showDrawingTools, handleUpdateChartSettings, buildRegionSections])
 
   // ── News marker click handler ──

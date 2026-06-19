@@ -12,6 +12,8 @@ import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { useIsTouch } from '../hooks/useBreakpoint'
+import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 
@@ -193,12 +195,47 @@ export default function Watchlists({ embedded = false }) {
     setCtxMenu({ x, y, id, isOwner, symbols })
   }
 
+  // Touch long-press → open the same context menu (mouse uses native right-click).
+  // Returns props to spread onto a trigger element. `build(e)` should return the
+  // ctxMenu payload to set; reads clientX/clientY from the originating event.
+  const lpTimer = useRef(null)
+  const lpStart = useRef({ x: 0, y: 0 })
+  const lpFiredAt = useRef(0)
+  function longPressMenu(build) {
+    const clear = () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } }
+    return {
+      onPointerDown: (e) => {
+        if (e.pointerType === 'mouse') return
+        lpStart.current = { x: e.clientX, y: e.clientY }
+        clear()
+        lpTimer.current = setTimeout(() => {
+          try { navigator.vibrate?.(10) } catch { /* noop */ }
+          lpFiredAt.current = e.timeStamp || performance.now()
+          setCtxMenu(build({ clientX: e.clientX, clientY: e.clientY }))
+        }, 450)
+      },
+      onPointerMove: (e) => {
+        if (!lpTimer.current) return
+        if (Math.abs(e.clientX - lpStart.current.x) > 10 || Math.abs(e.clientY - lpStart.current.y) > 10) clear()
+      },
+      onPointerUp: clear,
+      onPointerCancel: clear,
+      // Swallow the click that follows a long-press so the row/name's own
+      // onClick (toggle list / select sym) doesn't also fire.
+      onClickCapture: (e) => {
+        const now = e.timeStamp || performance.now()
+        if (now - lpFiredAt.current < 600) { e.preventDefault(); e.stopPropagation() }
+      },
+    }
+  }
+
   function handleCopyList(symbols) {
     navigator.clipboard.writeText(symbols.join(', '))
     setCtxMenu(null)
   }
 
   const { user } = useAuth()
+  const isTouch = useIsTouch()
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
@@ -462,6 +499,7 @@ export default function Watchlists({ embedded = false }) {
             <span
               className={styles.wlName}
               onContextMenu={e => handleContextMenu(e, wl.id, isOwner, items.map(i => i.sym))}
+              {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: wl.id, isOwner, symbols: items.map(i => i.sym) }))}
             >{wl.name}</span>
           )}
           <span className={styles.wlCount}>{items.length}</span>
@@ -532,7 +570,11 @@ export default function Watchlists({ embedded = false }) {
                     {getTag(item.sym) && (
                       <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(item.sym)]?.hex }} title={TAG_BY_KEY[getTag(item.sym)]?.label} />
                     )}
-                    <span className={styles.rowSym} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) }}>{item.sym}</span>
+                    <span
+                      className={styles.rowSym}
+                      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) }}
+                      {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }))}
+                    >{item.sym}</span>
                     {item.notes && <span className={styles.noteIndicator} title="Has notes">...</span>}
                     <div className={styles.rowRight}>
                       {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -620,6 +662,7 @@ export default function Watchlists({ embedded = false }) {
             <span
               className={styles.wlName}
               onContextMenu={e => handleContextMenu(e, 'flagged', true, [...flagged])}
+              {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: 'flagged', isOwner: true, symbols: [...flagged] }))}
             >{flaggedName || `Flagged (${user?.display_name || 'You'})`}</span>
           )}
           <span className={styles.wlCount}>{flagged.length}</span>
@@ -1034,9 +1077,9 @@ export default function Watchlists({ embedded = false }) {
       )}
 
       {/* ── Context menu ── */}
-      {ctxMenu && (
-        <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
-          <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+      {ctxMenu && (() => {
+        const ctxBody = (
+          <>
             {ctxMenu.isOwner && (
               <button className={styles.ctxItem} onClick={() => {
                 if (ctxMenu.id === 'flagged') {
@@ -1090,9 +1133,24 @@ export default function Watchlists({ embedded = false }) {
                 </div>
               </div>
             )}
+          </>
+        )
+        // Touch → bottom sheet with big tap targets; desktop → anchored popover.
+        if (isTouch) {
+          return (
+            <Sheet open onClose={() => setCtxMenu(null)} variant="bottom-sheet" title={ctxMenu.sym || 'List'}>
+              <div className={styles.ctxSheetBody}>{ctxBody}</div>
+            </Sheet>
+          )
+        }
+        return (
+          <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
+            <div className={styles.ctxMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+              {ctxBody}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
     </div>
   )

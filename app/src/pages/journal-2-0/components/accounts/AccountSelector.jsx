@@ -4,16 +4,49 @@
  *
  * Click → dropdown of accounts (with color dots + balances) +
  * "All Accounts" + "+ New Account" link.
+ *
+ * Delete an account: long-press a row on touch, or right-click on desktop.
+ * Both open a ContextPopover (bottom-sheet on touch / anchored menu on
+ * desktop) with a 44px "Delete account" action that feeds the existing
+ * DeleteAccountModal confirmation flow.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
+import ContextPopover from '../../../../components/mobile/ContextPopover'
+import useLongPress from '../../../../components/mobile/useLongPress'
+import UIcon from '../../../../components/ui/UIcon'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2AccountComparison from '../../hooks/useJ2AccountComparison'
 import { colorHex } from '../../lib/accountColors'
 import { money } from '../../../../lib/journal-2-0'
 import DeleteAccountModal from './DeleteAccountModal'
 import styles from './AccountSelector.module.css'
+
+/* One account row in the dropdown. Long-press (touch) / right-click (desktop)
+ * both surface the delete affordance via onRequestDelete. */
+function AccountRow({ acc, active, onSelect, onRequestDelete }) {
+  const lp = useLongPress((e) => onRequestDelete(e, acc))
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      className={`${styles.item} ${active ? styles.itemActive : ''}`}
+      onClick={() => onSelect(acc.id)}
+      title="Long-press or right-click to delete"
+      {...lp}
+    >
+      <span
+        className={styles.dot}
+        style={{ background: colorHex(acc.color) }}
+        aria-hidden="true"
+      />
+      <span className={styles.itemName}>{acc.name}</span>
+      <span className={styles.itemBalance}>{money(acc.balance)}</span>
+    </button>
+  )
+}
 
 export default function AccountSelector({ onNewAccount }) {
   const { accountId, account, accounts, setAccount } = useJ2SelectedAccount()
@@ -35,9 +68,11 @@ export default function AccountSelector({ onNewAccount }) {
   useEffect(() => {
     if (!open) return
     const onDoc = (e) => {
+      // While the delete popover is open it owns dismissal (it portals outside
+      // wrapRef); don't let the dropdown's outside-click steal that click.
+      if (contextMenu) return
       if (!wrapRef.current?.contains(e.target)) {
         setOpen(false)
-        setContextMenu(null)
       }
     }
     const onKey = (e) => {
@@ -55,13 +90,14 @@ export default function AccountSelector({ onNewAccount }) {
   }, [open, contextMenu])
 
   const handleContextMenu = (e, acc) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const wrapRect = wrapRef.current?.getBoundingClientRect()
+    e.preventDefault?.()
+    e.stopPropagation?.()
+    // ContextPopover anchors in viewport coordinates (it clamps to the
+    // viewport on desktop and ignores the anchor on touch → bottom-sheet).
     setContextMenu({
       account: acc,
-      x: e.clientX - (wrapRect?.left ?? 0),
-      y: e.clientY - (wrapRect?.top ?? 0),
+      x: e.clientX ?? 0,
+      y: e.clientY ?? 0,
     })
   }
 
@@ -124,26 +160,13 @@ export default function AccountSelector({ onNewAccount }) {
       {open && (
         <div className={styles.menu} role="listbox">
           {accounts.map((a) => (
-            <button
+            <AccountRow
               key={a.id}
-              type="button"
-              role="option"
-              aria-selected={a.id === accountId}
-              className={`${styles.item} ${a.id === accountId ? styles.itemActive : ''}`}
-              onClick={() => { setAccount(a.id); setOpen(false) }}
-              onContextMenu={(e) => handleContextMenu(e, a)}
-              title="Right-click to delete"
-            >
-              <span
-                className={styles.dot}
-                style={{ background: colorHex(a.color) }}
-                aria-hidden="true"
-              />
-              <span className={styles.itemName}>{a.name}</span>
-              <span className={styles.itemBalance}>
-                {money(balanceFor(a))}
-              </span>
-            </button>
+              acc={{ ...a, balance: balanceFor(a) }}
+              active={a.id === accountId}
+              onSelect={(id) => { setAccount(id); setOpen(false) }}
+              onRequestDelete={handleContextMenu}
+            />
           ))}
           <div className={styles.sep} />
           <button
@@ -167,25 +190,25 @@ export default function AccountSelector({ onNewAccount }) {
         </div>
       )}
 
-      {contextMenu && (
-        <div
-          className={styles.contextMenu}
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          role="menu"
-        >
-          <div className={styles.contextMenuHeader}>
-            {contextMenu.account.name}
-          </div>
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.contextMenuItem}
-            onClick={() => tryDelete(contextMenu.account)}
-          >
-            🗑 Delete account
-          </button>
-        </div>
-      )}
+      <ContextPopover
+        open={!!contextMenu}
+        onClose={() => setContextMenu(null)}
+        anchor={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
+        title={contextMenu?.account?.name}
+        items={
+          contextMenu
+            ? [
+                {
+                  key: 'delete',
+                  label: 'Delete account',
+                  icon: <UIcon name="trash" size={18} />,
+                  danger: true,
+                  onClick: () => tryDelete(contextMenu.account),
+                },
+              ]
+            : []
+        }
+      />
 
       {deleteTarget && (
         <DeleteAccountModal

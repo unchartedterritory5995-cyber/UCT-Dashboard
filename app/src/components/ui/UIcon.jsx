@@ -40,6 +40,20 @@ const ICONS = {
     />
   ),
   breadth: <path d="M5 13.5v5.5M10 9.5v9.5M15 6v13M20 11v8" strokeWidth="2.1" />,
+  markets: (
+    <>
+      <path d="M3.5 20.5V4M3.5 20.5h17" />
+      <path d="M7 15l3.4-3.6 2.7 2 4.4-5.2" />
+      <path d="M15.4 8.2h2.4v2.4" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5.2" cy="12" r="1.7" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+      <circle cx="18.8" cy="12" r="1.7" fill="currentColor" stroke="none" />
+    </>
+  ),
   chart: (
     <>
       <rect x="4.5" y="8" width="5" height="8" rx="1" />

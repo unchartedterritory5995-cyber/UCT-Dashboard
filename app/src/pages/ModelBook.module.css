@@ -629,3 +629,31 @@
   .chartWrap { flex: none; height: 380px; min-height: 0; }
   .input { width: 100%; }
 }
+
+/* Stock card context-menu item (delete). Desktop hover + touch :active press
+   feedback via CSS so touch users get a proper pressed state. */
+.stockCtxItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.stockCtxItem:hover,
+.stockCtxItem:active {
+  background: rgba(255,107,107,0.12);
+}
+/* Touch bottom-sheet: larger tap target. */
+@media (max-width: 1024px) {
+  .stockCtxItem {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+  }
+}

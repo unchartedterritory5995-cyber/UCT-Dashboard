@@ -1,135 +1,69 @@
-// app/src/components/MobileNav.jsx — Full-screen drawer nav for mobile
-import { useState, useEffect, useCallback } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
-import useSWR from 'swr'
-import { useAuth } from '../context/AuthContext'
+// app/src/components/MobileNav.jsx — Mobile top bar (title + menu + movers + alerts)
+//
+// The full navigation directory lives in the unified MoreSheet (opened by both
+// this menu button and the bottom tab bar's "More"). This component is just the
+// fixed top header: a menu trigger, the current page title, a movers shortcut,
+// and the alert bell.
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import AlertBell from './AlertBell'
+import UIcon from './ui/UIcon'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import Sheet from './mobile/Sheet'
 import MoversSidebar from './MoversSidebar'
 import styles from './MobileNav.module.css'
-import uctLogo from './intro/assets/compass-mark.png'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
-
-const NAV_SECTIONS = [
-  {
-    label: 'Core',
-    items: [
-      { to: '/dashboard',    label: 'Dashboard',     icon: '\u229E' },
-      { to: '/morning-wire', label: 'Morning Wire',  icon: '\uD83D\uDCF0' },
-      { to: '/uct-20',       label: 'UCT 20',        icon: '\u2B50' },
-    ],
-  },
-  {
-    label: 'Analysis',
-    items: [
-      { to: '/breadth',        label: 'Breadth',        icon: '\uD83D\uDCF6' },
-      { to: '/charts',         label: 'Charts',         icon: '\uD83D\uDCC8' },
-      { to: '/calendar',       label: 'Calendar',       icon: '\uD83D\uDCC5' },
-      { to: '/screener',       label: 'Screener',       icon: '\u26A1' },
-      { to: '/patterns',       label: 'Patterns',       icon: '\uD83C\uDFAF' },
-    ],
-  },
-  {
-    label: 'Flow',
-    items: [
-      { to: '/options-flow', label: 'Options Flow', icon: '\uD83D\uDCCA' },
-    ],
-  },
-  {
-    label: 'Trading',
-    items: [
-      { to: '/post-market', label: 'Post Market', icon: '\uD83C\uDF19' },
-      { to: '/model-book',     label: 'Model Book',    icon: '\uD83D\uDCD6' },
-      { to: '/setup-library', label: 'Setup Library', icon: '\uD83D\uDCDA' },
-      { to: '/journal',       label: 'Journal',       icon: '\uD83D\uDCD3' },
-    ],
-  },
-  {
-    label: 'Social',
-    items: [
-      { to: '/support', label: 'Support', icon: '\uD83D\uDCAC' },
-    ],
-  },
-]
-
-const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
-
-const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
-
-// Flat lookup for page title
-const ALL_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
-
-// Routes outside NAV_SECTIONS (footer links, etc.)
-const EXTRA_ROUTES = {
-  '/settings': 'Settings',
-  '/website': 'Website',
-  '/admin': 'Admin',
+// Flat route → title map (longest-prefix wins for nested routes).
+const ROUTE_TITLES = {
+  '/dashboard': 'Dashboard',
+  '/morning-wire': 'Morning Wire',
+  '/uct-20': 'UCT 20',
+  '/breadth': 'Breadth',
+  '/charts': 'Charts',
+  '/calendar': 'Calendar',
+  '/screener': 'Screener',
+  '/patterns': 'Patterns',
+  '/options-flow': 'Options Flow',
+  '/dark-pool': 'Dark Pool',
+  '/post-market': 'Post Market',
+  '/model-book': 'Model Book',
+  '/setup-library': 'Setup Library',
+  '/journal': 'Journal',
   '/support': 'Support',
+  '/settings': 'Settings',
+  '/admin': 'Admin',
+  '/research': 'Research',
 }
 
-export default function MobileNav() {
-  const [open, setOpen] = useState(false)
+function titleFor(pathname) {
+  const match = Object.keys(ROUTE_TITLES)
+    .filter((p) => pathname === p || pathname.startsWith(`${p}/`))
+    .sort((a, b) => b.length - a.length)[0]
+  return match ? ROUTE_TITLES[match] : 'UCT'
+}
+
+export default function MobileNav({ onMenu }) {
   const [moversOpen, setMoversOpen] = useState(false)
   const location = useLocation()
   const keyboardOpen = useKeyboardVisible()
-  const { user, plan } = useAuth()
-  const isAdmin = user?.role === 'admin'
-  const showAll = plan === 'pro' || isAdmin
 
-  // P5-K: Compass unread count mirrors NavBar — visible on mobile too.
-  const { data: pending } = useSWR(
-    user ? '/api/voice/insights/pending' : null,
-    fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: true },
-  )
-  const compassUnread = pending?.insights?.length || 0
-
-  // Get current page title for header
-  const currentItem = ALL_ITEMS.find(i => location.pathname.startsWith(i.to))
-  const pageTitle = currentItem?.label
-    || EXTRA_ROUTES[location.pathname]
-    || 'UCT'
-
-  // Close drawer on route change
-  useEffect(() => {
-    setOpen(false)
-  }, [location.pathname])
-
-  // Lock body scroll when drawer open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [open])
-
-  // Close on escape
-  const handleKey = useCallback((e) => {
-    if (e.key === 'Escape') setOpen(false)
-  }, [])
-
-  useEffect(() => {
-    if (open) document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [open, handleKey])
+  const pageTitle = titleFor(location.pathname)
 
   return (
     <>
       {/* ── Fixed top header bar ── */}
-      <header className={styles.topBar} style={{ transform: keyboardOpen ? 'translateY(-100%)' : 'none', transition: 'transform 0.2s ease' }}>
+      <header
+        className={styles.topBar}
+        style={{ transform: keyboardOpen ? 'translateY(-100%)' : 'none', transition: 'transform 0.2s ease' }}
+      >
         <button
           className={styles.hamburger}
-          onClick={() => setOpen(o => !o)}
-          aria-label={open ? 'Close menu' : 'Open menu'}
+          onClick={() => onMenu?.()}
+          aria-label="Open menu"
         >
-          <div className={`${styles.hamburgerLine} ${open ? styles.hamburgerOpen1 : ''}`} />
-          <div className={`${styles.hamburgerLine} ${open ? styles.hamburgerOpen2 : ''}`} />
-          <div className={`${styles.hamburgerLine} ${open ? styles.hamburgerOpen3 : ''}`} />
+          <div className={styles.hamburgerLine} />
+          <div className={styles.hamburgerLine} />
+          <div className={styles.hamburgerLine} />
         </button>
         <span className={styles.pageTitle}>{pageTitle}</span>
         <div className={styles.topBarRight}>
@@ -138,7 +72,7 @@ export default function MobileNav() {
             onClick={() => setMoversOpen(true)}
             aria-label="Market movers"
           >
-            📈
+            <UIcon name="equity" size={20} />
           </button>
           <AlertBell />
         </div>
@@ -150,114 +84,6 @@ export default function MobileNav() {
           <MoversSidebar />
         </Sheet>
       )}
-
-      {/* ── Backdrop ── */}
-      {open && (
-        <div className={styles.backdrop} onClick={() => setOpen(false)} aria-hidden="true" />
-      )}
-
-      {/* ── Slide-out drawer ── */}
-      <nav className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`} role="navigation" aria-label="Main navigation">
-        <div className={styles.drawerHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <div className={styles.drawerAvatar}>
-              {user?.id ? (
-                <img
-                  src={`/api/auth/avatar/${user.id}`}
-                  alt=""
-                  className={styles.drawerAvatarImg}
-                  onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
-                />
-              ) : null}
-              <span
-                className={styles.drawerAvatarInitials}
-                style={user?.id ? { display: 'none' } : undefined}
-              >
-                {(user?.display_name || user?.email || '?')[0].toUpperCase()}
-              </span>
-            </div>
-            <span className={styles.drawerUserName}>
-              {user?.display_name || user?.email || ''}
-            </span>
-          </div>
-          <Link
-            to="/landing"
-            className={styles.brandRow}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-            aria-label="UCT Intelligence — go to landing page"
-          >
-            <img className={styles.brandLogo} src={uctLogo} alt="" aria-hidden="true" />
-            <div className={styles.brandText}>
-              <span className={styles.brand}>UCT</span>
-              <span className={styles.brandSub}>Intelligence Engine</span>
-            </div>
-          </Link>
-        </div>
-
-        <div className={styles.drawerScroll}>
-          {NAV_SECTIONS.map(section => {
-            const items = showAll ? section.items : section.items.filter(i => FREE_PAGES.includes(i.to))
-            if (items.length === 0) return null
-            return (
-            <div key={section.label} className={styles.section}>
-              <div className={styles.sectionLabel}>{section.label}</div>
-              {items.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [styles.drawerItem, isActive ? styles.drawerItemActive : ''].filter(Boolean).join(' ')
-                  }
-                >
-                  <span className={styles.drawerIcon}>{item.icon}</span>
-                  <span className={styles.drawerLabel}>{item.label}</span>
-                  {item.to === '/journal' && compassUnread > 0 && (
-                    <span className={styles.drawerCompassBadge}
-                          title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
-                      {compassUnread > 9 ? '9+' : compassUnread}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-            )
-          })}
-
-          {/* Bottom section */}
-          <div className={styles.drawerFooter}>
-            {isAdmin && (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) =>
-                  [styles.drawerItem, isActive ? styles.drawerItemActive : ''].filter(Boolean).join(' ')
-                }
-              >
-                <span className={styles.drawerIcon}>{'\uD83D\uDD12'}</span>
-                <span className={styles.drawerLabel}>Admin</span>
-              </NavLink>
-            )}
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                [styles.drawerItem, isActive ? styles.drawerItemActive : ''].filter(Boolean).join(' ')
-              }
-            >
-              <span className={styles.drawerIcon}>{'\u2699\uFE0F'}</span>
-              <span className={styles.drawerLabel}>Settings</span>
-            </NavLink>
-            <a
-              href={WEBSITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.drawerItem}
-            >
-              <span className={styles.drawerIcon}>{'\uD83C\uDF10'}</span>
-              <span className={styles.drawerLabel}>Website</span>
-              <span className={styles.externalArrow}>{'\u2197'}</span>
-            </a>
-          </div>
-        </div>
-      </nav>
     </>
   )
 }

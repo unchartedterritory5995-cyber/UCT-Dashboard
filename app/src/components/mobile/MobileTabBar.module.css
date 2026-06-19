@@ -26,7 +26,8 @@
   text-decoration: none;
 }
 .tab.active { color: var(--ut-gold); }
-.icon { font-size: 18px; line-height: 1; }
+.icon { display: flex; align-items: center; justify-content: center; line-height: 1; }
+.icon svg { display: block; }
 .label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
 
 /* Desktop keeps the left sidebar — hide the bottom bar. */

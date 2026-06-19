@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
+
+let mockPlan = 'pro'
+let mockRole = null
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, display_name: 'Pat', role: mockRole },
+    plan: mockPlan,
+  }),
+}))
+vi.mock('swr', () => ({ default: () => ({ data: null }) }))
+
 import MoreSheet from './MoreSheet'
 
 function renderSheet(props = {}) {
@@ -11,11 +22,32 @@ function renderSheet(props = {}) {
   )
 }
 
-test('renders secondary destinations', () => {
+beforeEach(() => { mockPlan = 'pro'; mockRole = null })
+
+test('renders the full directory for a paid user', () => {
   renderSheet()
-  ;['UCT 20', 'Model Book', 'Setup Library', 'Morning Wire', 'Settings'].forEach((label) =>
+  ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'Calendar',
+    'Screener', 'Patterns', 'Options Flow', 'Model Book', 'Setup Library',
+    'Journal', 'Settings', 'Website'].forEach((label) =>
     expect(screen.getByText(label)).toBeInTheDocument(),
   )
+})
+
+test('free users only see free pages + account', () => {
+  mockPlan = 'free'
+  renderSheet()
+  expect(screen.getByText('Breadth')).toBeInTheDocument()
+  expect(screen.getByText('Charts')).toBeInTheDocument()
+  expect(screen.getByText('Settings')).toBeInTheDocument()
+  // Paid-only destinations are hidden for free users
+  expect(screen.queryByText('Model Book')).toBeNull()
+  expect(screen.queryByText('UCT 20')).toBeNull()
+})
+
+test('admin sees the Admin link', () => {
+  mockRole = 'admin'
+  renderSheet()
+  expect(screen.getByText('Admin')).toBeInTheDocument()
 })
 
 test('clicking a link calls onClose', () => {

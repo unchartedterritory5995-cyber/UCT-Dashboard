@@ -134,43 +134,20 @@
   text-align: center;
 }
 
-.contextMenu {
-  position: absolute;
-  z-index: 200;
-  min-width: 180px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.5);
-}
+/* Delete affordance now lives in the shared <ContextPopover> (bottom-sheet on
+ * touch / anchored menu on desktop); the old absolutely-positioned context
+ * menu styles were removed with it. */
 
-.contextMenuHeader {
-  padding: 6px 10px 4px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
-}
-
-.contextMenuItem {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  background: transparent;
-  border: none;
-  border-radius: 5px;
-  color: var(--loss, #ef4444);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-}
-
-.contextMenuItem:hover {
-  background: rgba(239, 68, 68, 0.12);
+/* On touch, up-size the dropdown rows to a comfortable tap target so the
+ * long-press-to-delete flow has room and selection isn't cramped. */
+@media (max-width: 1024px) {
+  .item {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  .newBtn {
+    min-height: 44px;
+    font-size: 14px;
+  }
 }

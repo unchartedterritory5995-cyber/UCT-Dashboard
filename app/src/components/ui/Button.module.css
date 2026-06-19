@@ -27,6 +27,11 @@
 .md { padding: var(--control-pad-y) 18px; font-size: var(--control-font); }
 .sm { padding: 5px 12px; font-size: var(--text-sm); }
 
+/* Touch: enforce a comfortable minimum tap height on all buttons. */
+@media (pointer: coarse) {
+  .btn { min-height: var(--tap-min); }
+}
+
 /* ── variants ── */
 .primary {
   background: var(--ut-gold);

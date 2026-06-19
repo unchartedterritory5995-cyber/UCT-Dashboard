@@ -7,7 +7,8 @@ import IntradayDayPopover from '../components/IntradayDayPopover'
 import { prefetchBars, prefetchBarsToIDB } from '../utils/prefetchBars'
 import { parseBarsCsv, resampleWeekly } from '../utils/barsCsv'
 import { useAuth } from '../context/AuthContext'
-import { useIsPhone } from '../hooks/useBreakpoint'
+import { useIsPhone, useIsTouch } from '../hooks/useBreakpoint'
+import Sheet from '../components/mobile/Sheet'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import SetupsView from './modelbook/SetupsView'
 import BottomsView from './modelbook/BottomsView'
@@ -1770,6 +1771,7 @@ export default function ModelBook() {
   // Phone: the two-pane layout becomes a gallery ⇄ detail view-switch so each
   // pane gets the full viewport (tap a card → detail; "‹ Back" → gallery).
   const isPhone = useIsPhone()
+  const isTouch = useIsTouch()
   const [mobileView, setMobileView] = useState('gallery')
 
   function selectYear(y) {
@@ -1904,12 +1906,45 @@ export default function ModelBook() {
     mutateStocks()
   }
 
-  // Admin: right-click a gallery card → delete the stock from the Model Book.
+  // Admin: right-click (desktop) or long-press (touch) a gallery card → delete
+  // the stock from the Model Book.
   const [stockCtx, setStockCtx] = useState(null)  // { x, y, stock } | null
   function onStockContext(e, s) {
     if (!isAdmin) return
     e.preventDefault()
     setStockCtx({ x: e.clientX, y: e.clientY, stock: s })
+  }
+  // Touch long-press → open the same card menu (mouse uses native right-click).
+  const lpTimer = useRef(null)
+  const lpStart = useRef({ x: 0, y: 0 })
+  const lpFiredAt = useRef(0)
+  function stockLongPress(s) {
+    if (!isAdmin) return {}
+    const clear = () => { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null } }
+    return {
+      onPointerDown: (e) => {
+        if (e.pointerType === 'mouse') return
+        lpStart.current = { x: e.clientX, y: e.clientY }
+        clear()
+        lpTimer.current = setTimeout(() => {
+          try { navigator.vibrate?.(10) } catch { /* noop */ }
+          lpFiredAt.current = e.timeStamp || performance.now()
+          setStockCtx({ x: e.clientX, y: e.clientY, stock: s })
+        }, 450)
+      },
+      onPointerMove: (e) => {
+        if (!lpTimer.current) return
+        if (Math.abs(e.clientX - lpStart.current.x) > 10 || Math.abs(e.clientY - lpStart.current.y) > 10) clear()
+      },
+      onPointerUp: clear,
+      onPointerCancel: clear,
+      // Swallow the click that follows a long-press so the card's own onClick
+      // (select stock) doesn't also fire.
+      onClickCapture: (e) => {
+        const now = e.timeStamp || performance.now()
+        if (now - lpFiredAt.current < 600) { e.preventDefault(); e.stopPropagation() }
+      },
+    }
   }
   async function deleteStockFromBook(s) {
     setStockCtx(null)
@@ -2156,6 +2191,7 @@ export default function ModelBook() {
                 className={`${styles.stockCard} ${activeId === s.id ? styles.stockCardActive : ''}`}
                 onClick={() => { setSelectedId(s.id); if (isPhone) setMobileView('detail') }}
                 onContextMenu={(e) => onStockContext(e, s)}
+                {...stockLongPress(s)}
               >
                 <div className={styles.stockCardTop}>
                   <span className={styles.rankLogo}><CompanyLogo sym={s.symbol} size={28} round name={s.company} alt={s.data_symbol} /></span>
@@ -2198,36 +2234,41 @@ export default function ModelBook() {
         )}
       </div>
 
-      {/* Admin: right-click-a-card context menu (delete from the book). */}
+      {/* Admin: right-click (desktop) / long-press (touch) card menu — delete from the book. */}
       {stockCtx && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-            onClick={() => setStockCtx(null)}
-            onContextMenu={(e) => { e.preventDefault(); setStockCtx(null) }}
-          />
-          <div
-            style={{
-              position: 'fixed', top: stockCtx.y, left: stockCtx.x, zIndex: 1000,
-              background: '#1a1a1e', border: '1px solid #333', borderRadius: 6,
-              boxShadow: '0 6px 20px rgba(0,0,0,0.5)', padding: 4, minWidth: 190,
-              font: '13px "Instrument Sans", system-ui, sans-serif',
-            }}
-          >
+        isTouch ? (
+          <Sheet open onClose={() => setStockCtx(null)} variant="bottom-sheet" title={stockCtx.stock.symbol}>
             <button
+              className={styles.stockCtxItem}
               onClick={() => deleteStockFromBook(stockCtx.stock)}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px',
-                background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer',
-                borderRadius: 4, fontSize: 13,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,107,107,0.12)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
             >
               🗑 Delete {stockCtx.stock.symbol} from {year}
             </button>
-          </div>
-        </>
+          </Sheet>
+        ) : (
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+              onClick={() => setStockCtx(null)}
+              onContextMenu={(e) => { e.preventDefault(); setStockCtx(null) }}
+            />
+            <div
+              style={{
+                position: 'fixed', top: stockCtx.y, left: stockCtx.x, zIndex: 1000,
+                background: '#1a1a1e', border: '1px solid #333', borderRadius: 6,
+                boxShadow: '0 6px 20px rgba(0,0,0,0.5)', padding: 4, minWidth: 190,
+                font: '13px "Instrument Sans", system-ui, sans-serif',
+              }}
+            >
+              <button
+                className={styles.stockCtxItem}
+                onClick={() => deleteStockFromBook(stockCtx.stock)}
+              >
+                🗑 Delete {stockCtx.stock.symbol} from {year}
+              </button>
+            </div>
+          </>
+        )
       )}
     </div>
   )

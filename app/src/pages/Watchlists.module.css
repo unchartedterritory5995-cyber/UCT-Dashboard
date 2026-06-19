@@ -854,6 +854,34 @@
   background: rgba(248,113,113,0.12);
 }
 
+/* Context menu rendered inside a touch bottom-sheet — big tap targets. */
+.ctxSheetBody {
+  display: flex;
+  flex-direction: column;
+}
+.ctxSheetBody .ctxItem {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ctxSheetBody .ctxTagSection {
+  padding: 12px 4px 4px;
+}
+.ctxSheetBody .ctxTagLabel {
+  font-size: 12px;
+}
+.ctxSheetBody .tagSwatches {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ctxSheetBody .tagSwatch {
+  width: 36px;
+  height: 36px;
+}
+
 .renameInput {
   font-family: var(--font-mono);
   font-size: 12px;

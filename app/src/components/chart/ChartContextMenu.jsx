@@ -13,19 +13,28 @@
  * Selecting an item fires onSelect() then onClose() (close-on-select).
  * A 'submenu' item expands its child items inline (does not close).
  * Closes on outside click or Esc. Position clamped to the viewport.
+ *
+ * On touch / coarse-pointer devices (≤1024px) the same sections render inside
+ * a bottom-sheet (so the menu is reachable + tappable on phones/tablets);
+ * desktop keeps the anchored fixed popover unchanged.
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { useIsTouch } from '../../hooks/useBreakpoint'
+import Sheet from '../mobile/Sheet'
 import styles from './ChartContextMenu.module.css'
 
 export default function ChartContextMenu({ open, x, y, sections = [], onClose }) {
   const menuRef = useRef(null)
   const [expanded, setExpanded] = useState(null)  // id of the open submenu
+  const isTouch = useIsTouch()
 
   useEffect(() => { if (!open) setExpanded(null) }, [open])
 
   useEffect(() => {
-    if (!open) return
+    // Desktop popover dismisses on outside click / Esc. On touch the Sheet
+    // owns dismissal (backdrop + Esc), so skip this listener there.
+    if (!open || isTouch) return
     const onClick = (e) => {
       if (menuRef.current?.contains(e.target)) return
       onClose?.()
@@ -37,7 +46,7 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
       document.removeEventListener('mousedown', onClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose])
+  }, [open, onClose, isTouch])
 
   if (!open) return null
 
@@ -49,6 +58,17 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
     if (item.disabled) return
     item.onSelect?.()
     onClose?.()
+  }
+
+  const rows = renderSections({ visible, styles, expanded, setExpanded, select })
+
+  // Touch: bottom-sheet with full-width, ≥44px tap targets.
+  if (isTouch) {
+    return (
+      <Sheet open onClose={onClose} variant="bottom-sheet" ariaLabel="Chart actions">
+        <div className={styles.sheetMenu} role="menu">{rows}</div>
+      </Sheet>
+    )
   }
 
   // Estimate height so the clamp keeps the whole menu on-screen.
@@ -64,6 +84,15 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
       style={{ left: clampedX, top: clampedY }}
       role="menu"
     >
+      {rows}
+    </div>
+  )
+}
+
+// Section/item renderer shared by the desktop popover and the touch sheet.
+function renderSections({ visible, styles, expanded, setExpanded, select }) {
+  return (
+    <>
       {visible.map((section, si) => (
         <div key={section.id || si} className={styles.section}>
           {si > 0 && <div className={styles.separator} />}
@@ -136,6 +165,6 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
           })}
         </div>
       ))}
-    </div>
+    </>
   )
 }

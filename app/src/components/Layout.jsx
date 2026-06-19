@@ -74,8 +74,9 @@ export default function Layout({ children }) {
       <div className={styles.shell}>
         {/* Desktop sidebar — hidden at <=1024px via CSS */}
         <NavBar />
-        {/* Mobile header + drawer — shown at <=1024px via CSS */}
-        <MobileNav />
+        {/* Mobile top bar — shown at <=1024px via CSS. Its menu button opens
+            the same unified MoreSheet as the bottom tab bar's "More". */}
+        <MobileNav onMenu={() => setMoreOpen(true)} />
         <main className={styles.main}>
           {children ?? <Outlet />}
         </main>

@@ -123,3 +123,46 @@
   background: var(--border);
   margin: 4px 6px;
 }
+
+/* ── Touch bottom-sheet variant ──────────────────────────────────────────
+ * Reuses the same item/section/submenu markup but lays it out full-width
+ * with ≥44px tap targets. The Sheet provides the surface, scroll + dismiss. */
+.sheetMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+}
+
+.sheetMenu .item,
+.sheetMenu .itemPrimary {
+  min-height: 44px;
+  font-size: 15px;
+  padding: 11px 14px;
+  border-radius: 8px;
+}
+
+.sheetMenu .item:active {
+  background: var(--bg-hover);
+}
+
+.sheetMenu .sectionTitle {
+  padding: 10px 14px 4px;
+  font-size: 11px;
+}
+
+.sheetMenu .submenu {
+  margin: 1px 0 4px 14px;
+  padding-left: 8px;
+}
+
+.sheetMenu .check {
+  width: 16px;
+  flex-basis: 16px;
+}
+
+.sheetMenu .swatchDot {
+  width: 14px;
+  height: 14px;
+}

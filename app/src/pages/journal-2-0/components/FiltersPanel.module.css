@@ -169,3 +169,67 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ── Mobile bottom-sheet surface (≤1024px / coarse pointer) ──────────────────
+ * The filter content is rendered inside the shared <Sheet> on touch. Sheet owns
+ * the chrome (header, close, scroll, safe-area); here we only space the form and
+ * up-size controls so taps land cleanly and iOS doesn't focus-zoom inputs. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sheetBody .section {
+  gap: 10px;
+}
+
+.sheetBody .sectionTitle {
+  font-size: 12px;
+}
+
+/* ≥16px font kills iOS focus-zoom; ≥44px height = comfortable tap target. */
+.sheetBody .input {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.sheetBody .miniLabel {
+  font-size: 13px;
+}
+
+.sheetBody .checkRow {
+  font-size: 16px;
+  min-height: 44px;
+  gap: 12px;
+  padding: 6px 8px;
+}
+
+.sheetBody .checkRow input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.sheetBody .hint {
+  font-size: 14px;
+}
+
+.sheetClearAll {
+  width: 100%;
+  min-height: 44px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  color: var(--ut-gold);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheetClearAll:active {
+  background: var(--bg-surface);
+}
