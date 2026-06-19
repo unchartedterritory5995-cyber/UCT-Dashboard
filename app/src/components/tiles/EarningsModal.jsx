@@ -187,7 +187,7 @@ export default function EarningsModal({ row, label, onClose }) {
       <div className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="earnings-modal-title">
 
         <div className={styles.header}>
-          <CompanyLogo sym={row.sym} size={38} />
+          <CompanyLogo sym={row.sym} size={38} tile />
           <span className={styles.sym} id="earnings-modal-title">{row.sym}</span>
           <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
         </div>

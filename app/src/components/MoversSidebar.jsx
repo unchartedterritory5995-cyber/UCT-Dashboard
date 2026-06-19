@@ -74,7 +74,7 @@ function MoverSection({ label, items, positive, tweetCounts }) {
                 onFocus={() => prefetchBarOnIntent(item.sym, 'D')}
               >
                 <span className={styles.symWrap}>
-                  <CompanyLogo sym={item.sym} size={18} />
+                  <CompanyLogo sym={item.sym} size={18} tile />
                   <TickerPopup sym={item.sym}>
                     <span className={styles.sym}>{item.sym}</span>
                   </TickerPopup>
@@ -119,7 +119,7 @@ function TapeSection() {
             <div key={row.ticker} className={styles.rowGroup}>
               <div className={styles.row}>
                 <span className={styles.symWrap}>
-                  <CompanyLogo sym={row.ticker} size={18} />
+                  <CompanyLogo sym={row.ticker} size={18} tile />
                   <TickerPopup sym={row.ticker}>
                     <span className={styles.sym}>{row.ticker}</span>
                   </TickerPopup>

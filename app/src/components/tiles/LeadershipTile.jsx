@@ -57,7 +57,7 @@ export default function LeadershipTile() {
                 <span className={styles.rank}>#{i + 1}</span>
                 <div className={styles.body}>
                   <div className={styles.top} onClick={() => thesis && toggle(i)} style={thesis ? { cursor: 'pointer' } : undefined}>
-                    <CompanyLogo sym={sym} size={20} />
+                    <CompanyLogo sym={sym} size={20} tile />
                     <TickerPopup sym={sym}>
                       <span className={styles.sym}>{sym}</span>
                     </TickerPopup>

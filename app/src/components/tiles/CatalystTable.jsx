@@ -534,7 +534,7 @@ export default function CatalystTable() {
                   >
                     <td className={styles.colSym}>
                       <span className={styles.symCell}>
-                        <CompanyLogo sym={r.ticker} size={20} />
+                        <CompanyLogo sym={r.ticker} size={20} tile />
                         <TickerPopup sym={r.ticker}>
                           <span className={styles.ticker}>
                             {onMyList && <span className={styles.star} title="On your watchlist or flagged">★</span>}

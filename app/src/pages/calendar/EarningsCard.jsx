@@ -83,7 +83,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
       >
         {entry.mine && <span className={styles.star}>★</span>}
         <div className={styles.cardTop}>
-          <CompanyLogo sym={entry.sym} size={46} />
+          <CompanyLogo sym={entry.sym} size={46} tile />
           <div className={styles.cardHead}>
             <div className={styles.sym}>
               {entry.sym}
