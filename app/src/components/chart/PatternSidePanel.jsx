@@ -22,6 +22,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import UIcon from '../ui/UIcon'
 import styles from './PatternSidePanel.module.css'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

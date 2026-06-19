@@ -13,6 +13,8 @@
  * with no profile + no trades.
  */
 
+import UIcon from '../../../components/ui/UIcon'
+
 export default function CompassOverview({ overview, onScrollToProfile }) {
   if (!overview) return null
   const {

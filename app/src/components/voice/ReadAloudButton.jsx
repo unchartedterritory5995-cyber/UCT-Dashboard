@@ -1,5 +1,6 @@
 import useReadAloud from '../../hooks/useReadAloud'
 import { useIsPaid } from '../../context/AuthContext'
+import UIcon from '../ui/UIcon'
 import styles from './ReadAloudButton.module.css'
 
 /**
@@ -20,7 +21,7 @@ export default function ReadAloudButton({ trackId, label, textProvider, size = '
 
   const onClick = () => play({ trackId, label, textProvider })
 
-  const icon = playingNow ? '❚❚' : pausedHere ? '▶' : '🔊'
+  const icon = playingNow ? <UIcon name="pause" size={14} /> : pausedHere ? <UIcon name="play" size={14} /> : <UIcon name="volume" size={14} />
   const aria = playingNow ? 'Pause read-aloud' : pausedHere ? 'Resume read-aloud' : 'Read aloud'
 
   return (

@@ -5,6 +5,7 @@
 // Phase 5 Task 4: ships the toggle alone. Filter dropdown (category multi-select
 // + min-confidence slider) is a polish-pass deliverable.
 import styles from './ChartToolbar.module.css'
+import UIcon from '../ui/UIcon'
 
 export default function PatternToolbarButton({ active, onToggle }) {
   return (

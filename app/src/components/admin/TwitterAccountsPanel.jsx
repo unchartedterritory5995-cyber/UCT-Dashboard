@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import adminStyles from '../../pages/Admin.module.css'
+import UIcon from '../ui/UIcon'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
 

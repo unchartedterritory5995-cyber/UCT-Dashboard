@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { formatETDate, formatETFull } from '../../utils/timeAgo'
+import UIcon from '../ui/UIcon'
 import styles from './VoiceInsightsPanel.module.css'
 
 /**
@@ -12,15 +13,15 @@ import styles from './VoiceInsightsPanel.module.css'
  */
 
 const KIND_META = {
-  scanner_match: { emoji: '🎯', label: 'Scanner match', color: '#4ade80' },
-  watchlist_alert: { emoji: '⚑', label: 'Watchlist alert', color: '#fbbf24' },
-  regime_shift: { emoji: '🌐', label: 'Regime shift', color: '#a78bfa' },
-  drift_warning: { emoji: '⚠️', label: 'Drift warning', color: '#fca5a5' },
-  mistake_pattern: { emoji: '🔁', label: 'Recurring mistake', color: '#fca5a5' },
+  scanner_match: { emoji: 'patterns', label: 'Scanner match', color: '#4ade80' },
+  watchlist_alert: { emoji: 'flag', label: 'Watchlist alert', color: '#fbbf24' },
+  regime_shift: { emoji: 'globe', label: 'Regime shift', color: '#a78bfa' },
+  drift_warning: { emoji: 'warning', label: 'Drift warning', color: '#fca5a5' },
+  mistake_pattern: { emoji: 'refresh', label: 'Recurring mistake', color: '#fca5a5' },
 }
 
 function kindMeta(kind) {
-  return KIND_META[kind] || { emoji: '🔔', label: kind, color: '#999' }
+  return KIND_META[kind] || { emoji: 'bell', label: kind, color: '#999' }
 }
 
 export default function VoiceInsightsPanel() {

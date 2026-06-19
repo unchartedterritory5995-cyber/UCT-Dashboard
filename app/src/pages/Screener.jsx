@@ -5,6 +5,7 @@ import TickerPopup from '../components/TickerPopup'
 import CustomScan from './CustomScan'
 import { SkeletonTable } from '../components/Skeleton'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
+import UIcon from '../components/ui/UIcon'
 import styles from './Screener.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())

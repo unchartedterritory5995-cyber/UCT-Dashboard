@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import UIcon from '../../components/ui/UIcon'
 import styles from './CustomizePanel.module.css'
 import { DEFAULT_PRESET, validatePresetName } from './useBreadthCustomize'
 
@@ -125,7 +126,7 @@ export default function CustomizePanel({
     <div className={styles.panel} ref={panelRef} role="dialog" aria-label={title}>
       <div className={styles.header}>
         <h2 className={styles.title}>{title}</h2>
-        <button className={styles.xBtn} onClick={onClose} aria-label="Close">✕</button>
+        <button className={styles.xBtn} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>
       </div>
 
       <div className={styles.presetRow}>

@@ -1,5 +1,6 @@
 import useRatings from '../hooks/useRatings'
 import styles from '../ResearchPage.module.css'
+import UIcon from '../../../components/ui/UIcon'
 
 const NUM_COMPONENTS = [
   ['eps', 'EPS Strength'],

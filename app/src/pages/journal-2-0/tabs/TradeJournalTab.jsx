@@ -27,6 +27,7 @@ import DeleteAllModal from '../components/DeleteAllModal'
 import ImportCsvModal from '../components/ImportCsvModal'
 import Toast from '../components/Toast'
 import { summaryStats } from '../../../lib/journal-2-0'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
 
 const COLUMN_STORAGE_KEY = 'uct.j2.tradeJournal.columns'

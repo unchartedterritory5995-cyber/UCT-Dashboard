@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import UIcon from './ui/UIcon'
 
 const S = {
   btn: {
@@ -98,7 +99,7 @@ export default function FeedbackWidget() {
             onMouseLeave={() => setHovered(null)}
             onClick={() => setMode('feedback')}
           >
-            💬 Send Feedback
+            <UIcon name="chat" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send Feedback
           </div>
           <div
             style={{ ...S.menuItem, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
@@ -106,7 +107,7 @@ export default function FeedbackWidget() {
             onMouseLeave={() => setHovered(null)}
             onClick={() => { close(); navigate('/support') }}
           >
-            🎫 Support Ticket
+            <UIcon name="document" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Support Ticket
           </div>
         </div>
       )}
