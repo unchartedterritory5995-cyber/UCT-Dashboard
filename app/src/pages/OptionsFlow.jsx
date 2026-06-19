@@ -5811,7 +5811,55 @@ export default function OptionsFlowDashboard() {
                   <Card>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: P.ac, letterSpacing: 1 }}>FLOW PULSE</div>
-                      <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        {/* Fetch button — batches a Schwab call for every top
+                            contract on both bull and bear tables (top 25 each,
+                            deduped). Once cached, ΔOI badges populate on every
+                            row showing whether positions are still being built
+                            or are fading. Without this, ΔOI only shows for
+                            contracts the user already fetched on Search. */}
+                        {(() => {
+                          // Collect top-3 contracts from all visible rows so
+                          // expanded panels also benefit. Dedup by ticker+CP+
+                          // strike+exp since tickers may appear in both lists
+                          // (rare but possible with split direction). Top 3
+                          // gives ~150 contracts max which fits in ~8 batches.
+                          const seen = new Set();
+                          const contracts = [];
+                          [...bulls.slice(0, 25), ...bears.slice(0, 25)].forEach(tk => {
+                            (tk.topContracts || []).slice(0, 3).forEach(c => {
+                              const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
+                              if (!seen.has(k)) {
+                                seen.add(k);
+                                contracts.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp });
+                              }
+                            });
+                          });
+                          // Disabled when zero contracts (no data loaded yet)
+                          // or already fetching. Label includes count so user
+                          // knows the scope before clicking — important since
+                          // a full fetch takes ~5-10 seconds.
+                          return (
+                            <button
+                              onClick={() => fetchPrices(contracts)}
+                              disabled={fetchLoading || contracts.length === 0}
+                              style={{
+                                padding:"4px 12px", borderRadius:6,
+                                border: "1px solid " + (fetchLoading ? P.bd : P.sw),
+                                cursor: fetchLoading || !contracts.length ? "not-allowed" : "pointer",
+                                fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                background: fetchLoading ? P.bd : P.sw + "22",
+                                color: fetchLoading ? P.dm : P.sw,
+                                letterSpacing: 0.5,
+                              }}
+                              title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
+                            >
+                              {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${contracts.length})`}
+                            </button>
+                          );
+                        })()}
+                        <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
+                      </div>
                     </div>
                     {/* Bull/bear ratio bar with premiums */}
                     {grandTotal > 0 && (
