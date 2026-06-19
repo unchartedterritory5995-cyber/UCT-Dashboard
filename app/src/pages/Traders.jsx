@@ -14,7 +14,7 @@ export default function Traders() {
         ? (
           <div className={styles.grid}>
             {traders.map(trader => (
-              <TileCard key={trader.name} title={trader.name}>
+              <TileCard key={trader.name} icon="user" title={trader.name}>
                 <div className={styles.tickers}>
                   {trader.tickers.map(sym => (
                     <a

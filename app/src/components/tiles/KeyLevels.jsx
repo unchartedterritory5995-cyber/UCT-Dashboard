@@ -4,7 +4,7 @@ import styles from './KeyLevels.module.css'
 
 export default function KeyLevels() {
   return (
-    <TileCard title="Key Levels">
+    <TileCard icon="chart" title="Key Levels">
       <div className={styles.comingSoon}>
         <span className={styles.comingSoonText}>Coming Soon</span>
       </div>

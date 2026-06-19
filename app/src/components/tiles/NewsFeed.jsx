@@ -63,7 +63,7 @@ export default function NewsFeed({ data: propData }) {
   const data = propData !== undefined ? propData : fetched
 
   return (
-    <TileCard title="News">
+    <TileCard icon="wire" title="News">
       {error ? (
         <ErrorState compact message="Failed to load news" onRetry={() => mutate()} />
       ) : !data ? (

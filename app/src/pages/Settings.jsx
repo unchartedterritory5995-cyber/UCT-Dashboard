@@ -503,7 +503,7 @@ function ChartSettingsSection({ prefs, setPref }) {
   }, [setPref])
 
   return (
-    <TileCard title="Chart Settings">
+    <TileCard icon="chart" title="Chart Settings">
       <div className={styles.section}>
 
         {/* ── Preset Picker ── */}
@@ -772,7 +772,7 @@ function ReferralSection() {
   if (!referral) return null
 
   return (
-    <TileCard title="Referral Program">
+    <TileCard icon="link" title="Referral Program">
       <div className={styles.section}>
         <p className={styles.hint} style={{ marginBottom: 12 }}>
           Share your link and earn rewards when friends subscribe.
@@ -890,7 +890,7 @@ export default function Settings() {
       <div className={styles.grid}>
 
         {/* ── Profile ── */}
-        <TileCard title="Profile">
+        <TileCard icon="user" title="Profile">
           <div className={styles.section}>
             <AvatarUpload user={user} />
             <div className={styles.row}>
@@ -980,7 +980,7 @@ export default function Settings() {
         </TileCard>
 
         {/* ── Subscription & Billing ── */}
-        <TileCard title="Subscription & Billing">
+        <TileCard icon="dollar" title="Subscription & Billing">
           <div className={styles.section}>
             {plan === 'pro' || isComped ? (
               <>
@@ -1058,7 +1058,7 @@ export default function Settings() {
         <BrokerConnectionsCard />
 
         {/* ── Security ── */}
-        <TileCard title="Security">
+        <TileCard icon="lock" title="Security">
           <div className={styles.section}>
             {!changingPw ? (
               <button className={styles.btn} onClick={() => setChangingPw(true)}>
@@ -1103,7 +1103,7 @@ export default function Settings() {
         </TileCard>
 
         {/* ── Preferences ── */}
-        <TileCard title="Preferences">
+        <TileCard icon="gear" title="Preferences">
           <div className={styles.section}>
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
@@ -1152,7 +1152,7 @@ export default function Settings() {
         <ChartSettingsSection prefs={prefs} setPref={setPref} />
 
         {/* ── Notifications ── */}
-        <TileCard title="Notifications">
+        <TileCard icon="bell" title="Notifications">
           <div className={styles.section}>
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
@@ -1216,32 +1216,32 @@ export default function Settings() {
         <VoicePanel />
 
         {/* ── Voice Memory ── */}
-        <TileCard title="Voice Memory">
+        <TileCard icon="mic" title="Voice Memory">
           <VoiceMemoryPanel />
         </TileCard>
 
         {/* ── Voice Telemetry ── */}
-        <TileCard title="Voice Telemetry">
+        <TileCard icon="chart" title="Voice Telemetry">
           <VoiceTelemetryPanel />
         </TileCard>
 
         {/* ── Voice Session History ── */}
-        <TileCard title="Voice Session History">
+        <TileCard icon="clock" title="Voice Session History">
           <VoiceSessionsPanel />
         </TileCard>
 
         {/* ── Voice Documents ── */}
-        <TileCard title="Voice Documents">
+        <TileCard icon="document" title="Voice Documents">
           <VoiceDocumentsPanel />
         </TileCard>
 
         {/* ── Voice Proactive Insights ── */}
-        <TileCard title="Voice Insights Inbox">
+        <TileCard icon="sparkle" title="Voice Insights Inbox">
           <VoiceInsightsPanel />
         </TileCard>
 
         {/* ── Watchlist Digest ── */}
-        <TileCard title="Watchlist Digest">
+        <TileCard icon="document" title="Watchlist Digest">
           <div className={styles.section}>
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
@@ -1270,7 +1270,7 @@ export default function Settings() {
         </TileCard>
 
         {/* ── Color Tags ── */}
-        <TileCard title="Color Tags">
+        <TileCard icon="tag" title="Color Tags">
           <div className={styles.section}>
             <span className={styles.prefDesc} style={{ marginBottom: 12, display: 'block' }}>
               Customize tag names. Right-click any ticker to assign a color.
@@ -1296,7 +1296,7 @@ export default function Settings() {
         </TileCard>
 
         {/* ── Data & Privacy ── */}
-        <TileCard title="Data & Privacy">
+        <TileCard icon="shield" title="Data & Privacy">
           <div className={styles.section}>
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
@@ -1329,7 +1329,7 @@ export default function Settings() {
 
         {/* ── Disclaimers & Attributions ── */}
         {/* Seed of the future full per-user disclaimer page. Add new <div className={styles.legalBlock}> sections here as legal content grows. */}
-        <TileCard title="Disclaimers & Attributions">
+        <TileCard icon="document" title="Disclaimers & Attributions">
           <div className={styles.section}>
             <p className={styles.legalIntro}>
               UCT Intelligence (a product of Uncharted Territory) is a market
@@ -1389,7 +1389,7 @@ export default function Settings() {
         <ReferralSection />
 
         {/* ── Support ── */}
-        <TileCard title="Help & Support">
+        <TileCard icon="chat" title="Help & Support">
           <div className={styles.section}>
             <button className={styles.btn} onClick={() => navigate('/support')}>
               Open Support
@@ -1399,7 +1399,7 @@ export default function Settings() {
         </TileCard>
 
         {/* ── Session ── */}
-        <TileCard title="Session">
+        <TileCard icon="unlock" title="Session">
           <div className={styles.section}>
             <button className={styles.btnDanger} onClick={handleLogout}>
               Log Out

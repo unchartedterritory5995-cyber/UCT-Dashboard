@@ -16,10 +16,10 @@ export default function EpisodicPivots({ data: propData }) {
     : Array.isArray(raw?.stocks) ? raw.stocks : []
   const data = list.slice(0, 6)
 
-  if (raw === null) return <TileCard title="Episodic Pivots"><SkeletonTileContent lines={3} /></TileCard>
+  if (raw === null) return <TileCard icon="bolt" title="Episodic Pivots"><SkeletonTileContent lines={3} /></TileCard>
 
   return (
-    <TileCard title="Episodic Pivots">
+    <TileCard icon="bolt" title="Episodic Pivots">
       {data.length === 0 ? (
         <p className={styles.loading}>No data yet</p>
       ) : (
