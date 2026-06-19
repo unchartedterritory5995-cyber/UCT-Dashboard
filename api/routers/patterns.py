@@ -893,3 +893,11 @@ def patterns_vision_stats(user=Depends(require_admin)):
     pv_store.init_db()
     day = datetime.date.today().isoformat()
     return {"cost_today": pv_store.cost_today(day), "may_judge": pv_store.may_judge(day)}
+
+
+@router.get("/admin/eval")
+def patterns_eval(max_rows: int = 40, user=Depends(require_admin)):
+    """Admin: per-setup recall vs the Model Book. max_rows bounds Opus cost;
+    omit (pass a large value) to judge the full Model Book."""
+    from api.services.pattern_vision import eval as pv_eval
+    return pv_eval.evaluate(max_rows=max_rows)

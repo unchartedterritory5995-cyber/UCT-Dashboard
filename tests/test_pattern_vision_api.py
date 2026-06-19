@@ -85,3 +85,18 @@ def test_vision_stats_ok_for_admin(client, monkeypatch, tmp_path):
     r = client.get("/api/patterns/admin/vision-stats")
     assert r.status_code == 200
     assert "cost_today" in r.json() and "may_judge" in r.json()
+
+
+def test_eval_requires_admin(client):
+    _login(client, role="member")
+    assert client.get("/api/patterns/admin/eval").status_code == 403
+
+
+def test_eval_ok_for_admin(client, monkeypatch):
+    import api.services.pattern_vision.eval as pv_eval
+    monkeypatch.setattr(pv_eval, "evaluate",
+                        lambda **k: {"per_setup": {}, "false_positive_rate": None, "n": 0})
+    _login(client, role="admin")
+    r = client.get("/api/patterns/admin/eval?max_rows=5")
+    assert r.status_code == 200
+    assert r.json()["n"] == 0
