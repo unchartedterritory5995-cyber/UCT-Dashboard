@@ -144,6 +144,21 @@
   cursor: grabbing;
 }
 
+/* Auto-hide on scroll-down: slide out + fade so it never covers content. */
+.orbCluster {
+  transition: transform 0.28s var(--ease-out, ease), opacity 0.24s ease;
+}
+.orbCluster.hidden {
+  transform: translateY(calc(100% + 90px));
+  opacity: 0;
+  pointer-events: none;
+}
+.orbCluster.dragging { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .orbCluster { transition: opacity 0.001s; }
+  .orbCluster.hidden { transform: none; }
+}
+
 /* Touch shells (≤1024px): the bottom tab bar owns the bottom edge, so the
    default orb position must clear it instead of colliding with the nav. */
 @media (max-width: 1024px) {

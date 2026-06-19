@@ -1,3 +1,16 @@
+/* Auto-hide on scroll-down: slide away + fade so it never covers content.
+   (Inline styles set position only, so transform/opacity here win cleanly.) */
+.fab { transition: transform 0.28s ease, opacity 0.24s ease; }
+.fab.hidden {
+  transform: translateY(160%);
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab { transition: opacity 0.001s; }
+  .fab.hidden { transform: none; }
+}
+
 /* The button + panels are inline-styled (desktop: top-right). On touch shells
    the top bar owns the top-right corner, so dock the widget bottom-left above
    the tab bar (mirroring the voice orb on the right). !important is required to

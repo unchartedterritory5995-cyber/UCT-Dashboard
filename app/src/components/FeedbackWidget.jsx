@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
+import useHideOnScroll from '../hooks/useHideOnScroll'
 import fb from './FeedbackWidget.module.css'
 
 const S = {
@@ -66,8 +67,12 @@ export default function FeedbackWidget() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [hovered, setHovered] = useState(null)
+  const hiddenOnScroll = useHideOnScroll()
 
   if (!user || location.pathname.startsWith('/admin')) return null
+
+  // Tuck away while scrolling, but stay put while a menu/popup is open.
+  const tucked = hiddenOnScroll && !mode
 
   function close() { setMode(null); setSent(false); setMessage(''); setRating(0) }
 
@@ -149,7 +154,7 @@ export default function FeedbackWidget() {
 
       <button
         style={S.btn}
-        className={fb.fab}
+        className={`${fb.fab} ${tucked ? fb.hidden : ''}`}
         onClick={() => mode ? close() : setMode('menu')}
         title="Help & Feedback"
       >

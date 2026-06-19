@@ -5,6 +5,7 @@ import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
 import VisionAttachButton from './VisionAttachButton'
 import UIcon from '../ui/UIcon'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -61,6 +62,7 @@ export default function FloatingOrb({ context = 'global' }) {
   const dragRef = useRef({ active: false, captured: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
   const [pos, setPos] = useState(loadPos)
   const [dragging, setDragging] = useState(false)
+  const hiddenOnScroll = useHideOnScroll()
 
   useEffect(() => {
     function onResize() {
@@ -114,6 +116,8 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const inSession = voice.mode === 'c' && status !== 'idle' && status !== 'error'
   const inTrainMode = inSession && voice.sessionContext === 'train_me'
+  // Tuck the orb away while scrolling — but never during a live call or a drag.
+  const tucked = hiddenOnScroll && !inSession && !dragging
 
   const consumeDragClick = () => {
     if (dragRef.current.moved) {
@@ -202,7 +206,7 @@ export default function FloatingOrb({ context = 'global' }) {
   return (
     <div
       ref={clusterRef}
-      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''}`}
+      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? styles.hidden : ''}`}
       style={clusterStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
