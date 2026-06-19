@@ -233,6 +233,7 @@ function BottomDetail({ bottom, onBack }) {
             height="100%"
             liveUpdates={false}
             showDrawingTools={false}
+            hideJournalOverlay
             entryDate={bottom.frameStart}
             exitDate={bottom.frameEnd}
             exactDateRange

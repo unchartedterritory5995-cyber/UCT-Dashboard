@@ -222,6 +222,7 @@ export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anc
               barsOverride={bars}
               liveUpdates={false}
               showDrawingTools={false}
+              hideJournalOverlay
               showVolume
               volumeSeparatePane
               volumePaneHeightPct={22}

@@ -1321,6 +1321,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             height="100%"
             liveUpdates={false}
             showDrawingTools={false}
+            hideJournalOverlay
             entryDate={`${stock.year}-01-01`}
             exitDate={`${stock.year}-12-31`}
             exactDateRange
