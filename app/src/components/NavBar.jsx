@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
+import UIcon from './ui/UIcon'
 import styles from './NavBar.module.css'
 import uctLogo from './intro/assets/compass-mark.png'
 
@@ -10,20 +11,20 @@ const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 const NAV_ITEMS = [
-  { to: '/dashboard',    label: 'Dashboard',    icon: '⊞' },
-  { to: '/morning-wire', label: 'Morning Wire',  icon: '📰' },
-  { to: '/uct-20',       label: 'UCT 20',        icon: '⭐' },
-  { to: '/breadth',      label: 'Breadth',       icon: '📶' },
-  { to: '/charts',       label: 'Charts',        icon: '📈' },
-  { to: '/calendar',     label: 'Calendar',      icon: '📅' },
-  { to: '/screener',     label: 'Screener',      icon: '⚡' },
-  { to: '/patterns',     label: 'Patterns',      icon: '🎯' },
-  { to: '/options-flow', label: 'Options Flow',  icon: '📊' },
-  { to: '/post-market',  label: 'Post Market',   icon: '🌙' },
-  { to: '/model-book',   label: 'Model Book',    icon: '📖' },
-  { to: '/setup-library',label: 'Setup Library', icon: '📚' },
-  { to: '/journal',      label: 'Journal',       icon: '📓' },
-  { to: '/support',      label: 'Support',       icon: '💬' },
+  { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
+  { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
+  { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
+  { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
+  { to: '/charts',       label: 'Charts',        icon: 'chart' },
+  { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
+  { to: '/screener',     label: 'Screener',      icon: 'screener' },
+  { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },
+  { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
+  { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
+  { to: '/model-book',   label: 'Model Book',    icon: 'book' },
+  { to: '/setup-library',label: 'Setup Library', icon: 'library' },
+  { to: '/journal',      label: 'Journal',       icon: 'journal' },
+  { to: '/support',      label: 'Support',       icon: 'chat' },
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
@@ -71,7 +72,7 @@ export default function NavBar() {
             title={item.label}
             aria-label={item.label}
           >
-            <span className={styles.icon} aria-hidden="true">{item.icon}</span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} /></span>
             <span className={styles.label}>{item.label}</span>
             {item.to === '/journal' && compassUnread > 0 && (
               <span className={styles.compassBadge}
@@ -95,7 +96,7 @@ export default function NavBar() {
             title="Admin"
             aria-label="Admin"
           >
-            <span className={styles.icon} aria-hidden="true">{'\uD83D\uDD12'}</span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" /></span>
             <span className={styles.label}>Admin</span>
           </NavLink>
         )}
@@ -107,7 +108,7 @@ export default function NavBar() {
           title="Settings"
           aria-label="Settings"
         >
-          <span className={styles.icon} aria-hidden="true">⚙️</span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="gear" /></span>
           <span className={styles.label}>Settings</span>
         </NavLink>
         <a
@@ -118,7 +119,7 @@ export default function NavBar() {
           title="UCT Website"
           aria-label="UCT Website"
         >
-          <span className={styles.icon} aria-hidden="true">🌐</span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" /></span>
           <span className={styles.label}>Website</span>
         </a>
       </div>

@@ -114,7 +114,10 @@
   font-size: 16px;
   flex-shrink: 0;
   width: 24px;
-  text-align: center;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .label {
   opacity: 0;
