@@ -591,6 +591,28 @@ def _start_thread_burst_watch() -> None:
     threading.Thread(target=_loop, daemon=True, name="thread-burst-watch").start()
 
 
+def register_screener_jobs(scheduler):
+    """Register the nightly full-market screener snapshot build (03:00 ET, after
+    the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
+    Returns True if the job was registered."""
+    import os
+    if os.environ.get("SCREENER_SNAPSHOT_ENABLED", "1") != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.screener import snapshot_builder
+
+    def _run():
+        try:
+            snapshot_builder.run_build()
+        except Exception as e:
+            print(f"[scheduler] screener snapshot build error: {e}")
+
+    scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0),
+                      id="screener_snapshot_nightly", max_instances=1,
+                      replace_existing=True)
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -1615,6 +1637,12 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+
+        # ── Full-market screener nightly snapshot build (spec 2026-06-19) ──
+        try:
+            register_screener_jobs(_scheduler)
+        except Exception as e:
+            print(f"[scheduler] screener job registration error: {e}")
 
         # ── Twitter News Ingestion (spec 2026-05-25) ──────────────────────
         # Burst windows (every 2 min) cover the high-value pre-market and
