@@ -102,7 +102,7 @@ export default function OptionsFlowPreview({ embedded = false }) {
   )
 
   return (
-    <TileCard title="Options Flow" badge={data?.date || undefined} actions={viewAll}>
+    <TileCard icon="flow" title="Options Flow" badge={data?.date || undefined} actions={viewAll}>
       {body}
     </TileCard>
   )

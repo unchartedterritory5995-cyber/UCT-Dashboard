@@ -108,12 +108,12 @@ export default function CatalystFlow({ data: propData }) {
   }, [data])
   const { prices: livePrices } = useRealtimePrices(earningsTickers)
 
-  if (error) return <TileCard title="Earnings"><ErrorState compact message="Failed to load earnings" onRetry={() => mutate()} /></TileCard>
-  if (!data) return <TileCard title="Catalyst Flow"><SkeletonTable rows={5} cols={3} /></TileCard>
+  if (error) return <TileCard icon="dollar" title="Earnings"><ErrorState compact message="Failed to load earnings" onRetry={() => mutate()} /></TileCard>
+  if (!data) return <TileCard icon="dollar" title="Catalyst Flow"><SkeletonTable rows={5} cols={3} /></TileCard>
 
   return (
     <>
-      <TileCard title="Earnings">
+      <TileCard icon="dollar" title="Earnings">
         <div className={styles.scrollBody} ref={scrollBodyRef}>
           <EarningsTable
             rows={data.bmo}

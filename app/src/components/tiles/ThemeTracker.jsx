@@ -151,7 +151,7 @@ export default function ThemeTracker({ data: propData }) {
   const { prices: livePrices } = useRealtimePrices(expandedHoldings)
 
   return (
-    <TileCard title="Theme Tracker" badge={period}>
+    <TileCard icon="flow" title="Theme Tracker" badge={period}>
       <div className={styles.tabs}>
         {PERIODS.map(p => (
           <button

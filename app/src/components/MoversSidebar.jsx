@@ -121,7 +121,7 @@ export default function MoversSidebar({ data: propData }) {
   return (
     <div className={styles.tile}>
       <button className={styles.header} onClick={() => setOpen((o) => !o)}>
-        <span className={styles.title}>Movers at the Open</span>
+        <span className={styles.title}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Movers at the Open</span>
         <span className={styles.chevron}>{open ? '▾' : '▸'}</span>
       </button>
       {open && (

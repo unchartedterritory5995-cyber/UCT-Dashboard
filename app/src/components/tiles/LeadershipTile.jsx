@@ -32,7 +32,7 @@ export default function LeadershipTile() {
   }
 
   return (
-    <TileCard title="UCT 20">
+    <TileCard icon="star" title="UCT 20">
       {error ? (
         <ErrorState compact message="Failed to load leadership" onRetry={() => mutate()} />
       ) : !rows ? (

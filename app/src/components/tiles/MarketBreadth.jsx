@@ -58,7 +58,7 @@ export default function MarketBreadth({ data: propData }) {
   const data = propData !== undefined ? propData : fetched
 
   if (!data) {
-    return <TileCard title="UCT Exposure Rating"><SkeletonTileContent lines={3} /></TileCard>
+    return <TileCard icon="breadth" title="UCT Exposure Rating"><SkeletonTileContent lines={3} /></TileCard>
   }
 
   const phase = data.webster_phase ?? data.market_phase ?? ''
@@ -72,7 +72,7 @@ export default function MarketBreadth({ data: propData }) {
   const expBonus  = data.exposure?.bonus       ?? 0
 
   return (
-    <TileCard title="UCT Exposure Rating">
+    <TileCard icon="breadth" title="UCT Exposure Rating">
       <ExposureBar
         value={expScore}
         label="UCT EXPOSURE RATING"

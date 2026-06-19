@@ -38,7 +38,7 @@ export default function TapeFeed({ data: propData }) {
   const tweets = propData !== undefined ? propData : fetched
 
   return (
-    <TileCard title="News">
+    <TileCard icon="wire" title="News">
       {tweets == null ? (
         <SkeletonTileContent lines={5} />
       ) : tweets.length === 0 ? (

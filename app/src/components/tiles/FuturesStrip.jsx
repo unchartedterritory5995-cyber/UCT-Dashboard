@@ -1,6 +1,7 @@
 // app/src/components/tiles/FuturesStrip.jsx
 import { useMemo } from 'react'
 import useSWR from 'swr'
+import UIcon from '../ui/UIcon'
 import styles from './FuturesStrip.module.css'
 import TickerPopup from '../TickerPopup'
 
@@ -413,7 +414,7 @@ function QuoteOfTheDay() {
 
   return (
     <div className={styles.quotePanel}>
-      <div className={styles.quoteLabel}>Quote of the Day</div>
+      <div className={styles.quoteLabel}><UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 5 }} />Quote of the Day</div>
       <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
       <div className={styles.quoteAuthor}>— {quote.a}</div>
     </div>
