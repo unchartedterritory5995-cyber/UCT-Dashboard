@@ -6394,10 +6394,11 @@ export default function OptionsFlowDashboard() {
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
               <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", zIndex:10 }}>
-                <div style={{ position:"relative", display:"inline-block" }}
+                <div className="of-tip" style={{ position:"relative", display:"inline-block" }}
                   onMouseEnter={e=>e.currentTarget.querySelector('[data-tip]').style.display='block'}
-                  onMouseLeave={e=>e.currentTarget.querySelector('[data-tip]').style.display='none'}>
-                  <span style={{ fontSize:14, color:P.dm, cursor:"help", userSelect:"none" }}>ⓘ</span>
+                  onMouseLeave={e=>{ if(e.currentTarget.dataset.pin==='1') return; e.currentTarget.querySelector('[data-tip]').style.display='none'; }}
+                  onClick={e=>{ const w=e.currentTarget; const open=w.dataset.pin!=='1'; w.dataset.pin=open?'1':'0'; w.querySelector('[data-tip]').style.display=open?'block':'none'; }}>
+                  <span style={{ fontSize:14, color:P.dm, cursor:"pointer", userSelect:"none" }} role="button" tabIndex={0} aria-label="Show available themes and sectors">ⓘ</span>
                   <div data-tip="1" style={{ display:"none", position:"absolute", right:0, top:"100%", marginTop:8, width:320, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:12, zIndex:30, boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                     <div style={{ fontSize:9, fontWeight:800, color:P.ac, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Available Themes</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:10 }}>

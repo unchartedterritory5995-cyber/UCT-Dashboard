@@ -132,4 +132,23 @@
   .of-mroot .of-chiprow-wrap {
     flex-wrap: wrap !important;
   }
+
+  /* Theme/sector help (ⓘ next to the ticker search). Desktop reveals it on
+     hover; on touch the JSX adds an onClick toggle. Enlarge the ⓘ hit area,
+     clamp the panel to the viewport, and make the theme chips finger-sized so
+     the whole discover-a-theme flow works by tap. */
+  .of-mroot .of-tip {
+    padding: 8px !important;
+    margin: -8px !important;     /* grow the tap target without moving the icon */
+  }
+  .of-mroot [data-tip] {
+    width: min(320px, calc(100vw - 24px)) !important;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .of-mroot [data-tip] button {
+    min-height: 34px !important;
+    padding: 7px 11px !important;
+    font-size: 11px !important;
+  }
 }
