@@ -140,22 +140,22 @@ export default function IntroAnimation() {
           <line x1="28.5" y1="-2.4" x2="30" y2="3.5" />
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="50" y="-9" textAnchor="middle" transform="rotate(-90 50 -9)">N</text>
+          <text className={styles.cardinal} x="50" y="-9" textAnchor="middle" dy=".35em">N</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="-9" y="50" textAnchor="middle" transform="rotate(-90 -9 50)" dy=".35em">E</text>
+          <text className={styles.cardinal} x="-9" y="50" textAnchor="middle" dy=".35em">E</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="50" y="111" textAnchor="middle" transform="rotate(-90 50 111)" dy=".35em">S</text>
+          <text className={styles.cardinal} x="50" y="111" textAnchor="middle" dy=".35em">S</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.cardinal} x="111" y="50" textAnchor="middle" transform="rotate(-90 111 50)" dy=".35em">W</text>
+          <text className={styles.cardinal} x="111" y="50" textAnchor="middle" dy=".35em">W</text>
         </g>
         <g transform="rotate(90 50 50)">
-          <text className={styles.degree} x="89" y="9" textAnchor="middle" transform="rotate(-90 89 9)" dy=".35em">045°</text>
-          <text className={styles.degree} x="89" y="91" textAnchor="middle" transform="rotate(-90 89 91)" dy=".35em">135°</text>
-          <text className={styles.degree} x="11" y="91" textAnchor="middle" transform="rotate(-90 11 91)" dy=".35em">225°</text>
-          <text className={styles.degree} x="11" y="9" textAnchor="middle" transform="rotate(-90 11 9)" dy=".35em">315°</text>
+          <text className={styles.degree} x="89" y="9" textAnchor="middle" dy=".35em">045°</text>
+          <text className={styles.degree} x="89" y="91" textAnchor="middle" dy=".35em">135°</text>
+          <text className={styles.degree} x="11" y="91" textAnchor="middle" dy=".35em">225°</text>
+          <text className={styles.degree} x="11" y="9" textAnchor="middle" dy=".35em">315°</text>
         </g>
       </svg>
 
