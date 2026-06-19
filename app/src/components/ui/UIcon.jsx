@@ -348,9 +348,8 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, classN
   const gid = useGold ? `uig${(_gid = (_gid + 1) % 1e6)}` : null
   const goldStyle = useGold
     ? {
-        color: '#fbe6ad',
-        filter:
-          'drop-shadow(0 0 1px rgba(255,238,176,0.65)) drop-shadow(0 0 3.5px rgba(201,168,76,0.55))',
+        color: '#e6cd8a',
+        filter: 'drop-shadow(0 0 1.6px rgba(201,168,76,0.32))',
       }
     : null
   return (
@@ -361,7 +360,7 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, classN
       viewBox="0 0 24 24"
       fill="none"
       stroke={useGold ? `url(#${gid})` : 'currentColor'}
-      strokeWidth={useGold ? Math.max(strokeWidth, 2) : strokeWidth}
+      strokeWidth={useGold ? Math.max(strokeWidth, 1.85) : strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden={title ? undefined : 'true'}
@@ -373,18 +372,18 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, classN
       {useGold && (
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#b8923c" />
-            <stop offset="36%" stopColor="#eccd80" />
-            <stop offset="50%" stopColor="#fff4d6" />
-            <stop offset="64%" stopColor="#e0bd63" />
-            <stop offset="100%" stopColor="#9a7a2e" />
+            <stop offset="0%" stopColor="#a8823a" />
+            <stop offset="40%" stopColor="#d4b25a" />
+            <stop offset="50%" stopColor="#e8d18c" />
+            <stop offset="60%" stopColor="#cba954" />
+            <stop offset="100%" stopColor="#8f6f2c" />
             {!prefersReduce() && (
               <animateTransform
                 attributeName="gradientTransform"
                 type="translate"
-                from="-0.75 0"
-                to="0.75 0"
-                dur="3.8s"
+                from="-0.55 0"
+                to="0.55 0"
+                dur="6.5s"
                 repeatCount="indefinite"
               />
             )}
