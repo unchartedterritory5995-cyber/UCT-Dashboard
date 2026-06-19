@@ -96,11 +96,74 @@ def test_reorder_category(s):
     ("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
     ("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", "dQw4w9WgXcQ"),
     ("https://www.youtube.com/watch?list=PL123&v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+    # /live/ and bare /watch/ forms — used across the firm's workshop sheet
+    ("https://www.youtube.com/live/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+    ("https://youtube.com/live/dQw4w9WgXcQ?feature=share", "dQw4w9WgXcQ"),
+    ("https://m.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+    ("https://www.youtube.com/watch/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
 ])
 def test_extract_youtube_id_valid(raw, expected):
     assert extract_youtube_id(raw) == expected
 
 
-@pytest.mark.parametrize("raw", ["", "   ", "not a link", "https://example.com/video"])
+@pytest.mark.parametrize("raw", [
+    "", "   ", "not a link", "https://example.com/video",
+    "https://x.com/i/spaces/1OdKrXenggpJX",          # X Space — not embeddable
+    "https://drive.google.com/file/d/1uKkWclcj3QVrf0ZTm",  # Google Drive
+])
 def test_extract_youtube_id_invalid(raw):
     assert extract_youtube_id(raw) is None
+
+
+# ── Seed library (ensure_default_videos) ────────────────────────────────────────
+
+EXPECTED_CATEGORIES = {
+    "Mindset & Psychology",
+    "Market Analysis & Breadth",
+    "Setups & Strategies",
+    "Technical Analysis & Relative Strength",
+    "Risk & Trade Management",
+    "Scanning, Watchlists & Stock Selection",
+    "Options & Flow",
+    "Workshops & Fireside Chats",
+    "Guest Sessions & Interviews",
+}
+
+
+def test_seed_module_is_well_formed():
+    from api.services.education_seed import SEED_VIDEOS
+    assert len(SEED_VIDEOS) >= 130
+    seen = set()
+    for v in SEED_VIDEOS:
+        assert len(v["youtube_id"]) == 11
+        assert v["title"].strip()
+        assert v["category"] in EXPECTED_CATEGORIES
+        assert v["youtube_id"] not in seen, f"duplicate {v['youtube_id']}"
+        seen.add(v["youtube_id"])
+
+
+def test_ensure_default_videos_seeds_and_is_idempotent(s):
+    from api.services.education_seed import SEED_VIDEOS
+    s.ensure_default_videos()
+    first = s.list_videos()
+    assert len(first) == len(SEED_VIDEOS)
+    assert set(s.list_categories()) == EXPECTED_CATEGORIES
+
+    # Re-run on the next "boot" — never duplicates.
+    s.ensure_default_videos()
+    assert len(s.list_videos()) == len(SEED_VIDEOS)
+
+
+def test_ensure_default_videos_never_clobbers_admin_edits(s):
+    s.ensure_default_videos()
+    v = s.list_videos()[0]
+    s.update_video(v["id"], {"category": "My Custom Shelf", "title": "Admin Retitled"})
+
+    # A later boot must leave the admin's edit intact (matched by youtube_id).
+    s.ensure_default_videos()
+    again = s.get_video(v["id"])
+    assert again["category"] == "My Custom Shelf"
+    assert again["title"] == "Admin Retitled"
+    # And it didn't re-insert a duplicate of that youtube_id.
+    same_yt = [x for x in s.list_videos() if x["youtube_id"] == v["youtube_id"]]
+    assert len(same_yt) == 1

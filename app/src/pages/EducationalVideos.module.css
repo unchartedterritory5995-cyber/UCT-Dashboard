@@ -107,6 +107,45 @@
   text-align: center;
 }
 
+/* ── Category filter chips ── */
+.catBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 var(--space-xl);
+}
+.catChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  min-height: var(--tap-min);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.catChip:hover { color: var(--text-bright); border-color: var(--ut-gold, #c9a84c); }
+.catChipActive {
+  background: linear-gradient(135deg, rgba(230, 207, 134, 0.16), rgba(201, 168, 76, 0.1));
+  color: var(--text-bright);
+  border-color: var(--ut-gold, #c9a84c);
+  box-shadow: 0 0 12px var(--ut-gold-glow);
+}
+.catCount {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+.catChipActive .catCount { color: #c9a84c; opacity: 1; }
+
 /* ── Category sections ── */
 .section { margin-bottom: var(--space-2xl); }
 .sectionTitle {

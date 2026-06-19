@@ -53,6 +53,8 @@ _YT_URL_PATTERNS = (
     re.compile(r"(?:youtu\.be/)([A-Za-z0-9_-]{11})"),
     re.compile(r"(?:youtube\.com/embed/)([A-Za-z0-9_-]{11})"),
     re.compile(r"(?:youtube\.com/shorts/)([A-Za-z0-9_-]{11})"),
+    re.compile(r"(?:youtube\.com/live/)([A-Za-z0-9_-]{11})"),
+    re.compile(r"(?:youtube\.com/watch/)([A-Za-z0-9_-]{11})"),
     re.compile(r"(?:youtube-nocookie\.com/embed/)([A-Za-z0-9_-]{11})"),
 )
 

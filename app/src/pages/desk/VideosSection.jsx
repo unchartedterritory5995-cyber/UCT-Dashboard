@@ -14,33 +14,60 @@ const fetcher = (url) =>
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
+// Curated learning-path order for the firm's library sections. Categories not
+// listed here fall to the end, alphabetically (the API returns them A→Z).
+const CATEGORY_ORDER = [
+  'Mindset & Psychology',
+  'Market Analysis & Breadth',
+  'Setups & Strategies',
+  'Technical Analysis & Relative Strength',
+  'Risk & Trade Management',
+  'Scanning, Watchlists & Stock Selection',
+  'Options & Flow',
+  'Workshops & Fireside Chats',
+  'Guest Sessions & Interviews',
+]
+const orderRank = (name) => {
+  const i = CATEGORY_ORDER.indexOf(name)
+  return i === -1 ? CATEGORY_ORDER.length : i
+}
+
 export default function VideosSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
   const { data, error, isLoading, mutate } = useSWR('/api/education/videos', fetcher)
   const [query, setQuery] = useState('')
+  const [activeCat, setActiveCat] = useState(null) // null = All
   const [playing, setPlaying] = useState(null)
   const [editing, setEditing] = useState(null)
 
-  const categories = data?.categories || []
+  // Categories in curated learning-path order.
+  const categories = useMemo(() => {
+    const cats = data?.categories || []
+    return [...cats].sort(
+      (a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name),
+    )
+  }, [data])
   const total = data?.total ?? 0
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return categories
     return categories
+      .filter((c) => !activeCat || c.name === activeCat)
       .map((c) => ({
         ...c,
-        videos: c.videos.filter(
-          (v) =>
-            (v.title || '').toLowerCase().includes(q) ||
-            (v.description || '').toLowerCase().includes(q) ||
-            (c.name || '').toLowerCase().includes(q),
-        ),
+        videos: !q
+          ? c.videos
+          : c.videos.filter(
+              (v) =>
+                (v.title || '').toLowerCase().includes(q) ||
+                (v.description || '').toLowerCase().includes(q) ||
+                (c.name || '').toLowerCase().includes(q),
+            ),
       }))
       .filter((c) => c.videos.length > 0)
-  }, [categories, query])
+  }, [categories, query, activeCat])
 
   const handleDelete = useCallback(
     async (video) => {
@@ -94,6 +121,30 @@ export default function VideosSection() {
           )}
         </div>
       </div>
+
+      {!isLoading && total > 0 && categories.length > 1 && (
+        <div className={styles.catBar} role="tablist" aria-label="Filter videos by category">
+          <button
+            className={`${styles.catChip} ${!activeCat ? styles.catChipActive : ''}`}
+            onClick={() => setActiveCat(null)}
+            role="tab"
+            aria-selected={!activeCat}
+          >
+            All <span className={styles.catCount}>{total}</span>
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.name}
+              className={`${styles.catChip} ${activeCat === c.name ? styles.catChipActive : ''}`}
+              onClick={() => setActiveCat(activeCat === c.name ? null : c.name)}
+              role="tab"
+              aria-selected={activeCat === c.name}
+            >
+              {c.name} <span className={styles.catCount}>{c.videos.length}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading && <div className={styles.note}>Loading…</div>}
       {error && <div className={styles.note}>Couldn’t load videos. Try again shortly.</div>}

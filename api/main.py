@@ -809,6 +809,7 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import education_service
         education_service._init_db()
+        education_service.ensure_default_videos()  # firm workshop library (idempotent)
         print("[startup] education.db initialized")
     except Exception as e:
         print(f"[startup] education init failed (non-fatal): {e}")

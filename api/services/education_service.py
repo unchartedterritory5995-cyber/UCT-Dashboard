@@ -150,3 +150,38 @@ def reorder_category(category: str, ordered_ids: list[int]) -> None:
                 (i, int(time.time()), int(vid), category),
             )
         c.commit()
+
+
+# ── Seed (firm library) ─────────────────────────────────────────────────────────
+
+def existing_youtube_ids() -> set[str]:
+    """Set of youtube_ids already in the library."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute("SELECT youtube_id FROM edu_videos").fetchall()
+        return {r["youtube_id"] for r in rows}
+
+
+def ensure_default_videos() -> None:
+    """Idempotently seed the firm's workshop library from the curated roster
+    (api/services/education_seed.py → SEED_VIDEOS). Inserts only videos whose
+    youtube_id is not already present, so an admin who edits/recategorizes a
+    video is never clobbered and re-runs on every boot never duplicate. On
+    Railway this backfills the persistent /data/education.db on each deploy.
+    Never raises."""
+    try:
+        from api.services.education_seed import SEED_VIDEOS
+    except Exception:
+        return
+    try:
+        have = existing_youtube_ids()
+    except Exception:
+        have = set()
+    for v in SEED_VIDEOS:
+        yt = (v.get("youtube_id") or "").strip()
+        if not yt or yt in have:
+            continue
+        try:
+            create_video(v)
+            have.add(yt)
+        except Exception:
+            continue
