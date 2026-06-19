@@ -901,3 +901,76 @@ def patterns_eval(max_rows: int = 40, user=Depends(require_admin)):
     omit (pass a large value) to judge the full Model Book."""
     from api.services.pattern_vision import eval as pv_eval
     return pv_eval.evaluate(max_rows=max_rows)
+
+
+# ---- Phase 3: feedback loop + annotated teaching examples -----------------
+
+class VisionFeedbackBody(BaseModel):
+    ticker: str
+    tf: str = "D"
+    setup: str
+    asof_date: str
+    rating: str  # "up" | "down"
+    note: Optional[str] = None
+
+
+class ExemplarBody(BaseModel):
+    setup: str
+    image: str  # base64 PNG (data-URL prefix allowed)
+    ticker: Optional[str] = None
+    asof_date: Optional[str] = None
+    note: Optional[str] = None
+    drawings_json: Optional[str] = None
+
+
+@router.post("/feedback")
+def patterns_vision_feedback(body: VisionFeedbackBody, user=Depends(get_current_user)):
+    """Record a 👍/👎 + note on a vision verdict (any logged-in user)."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    fid = pv_store.record_feedback(body.ticker, body.tf, body.setup, body.asof_date,
+                                   body.rating, body.note, by_user=str(user.get("id")))
+    return {"ok": True, "feedback_id": fid}
+
+
+@router.get("/admin/review")
+def patterns_review(limit: int = 100, user=Depends(require_admin)):
+    """Admin: recent verdicts (confirmed AND rejected) + latest feedback, for review."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    return {"verdicts": pv_store.get_recent_verdicts(limit=limit)}
+
+
+@router.post("/exemplar")
+def patterns_add_exemplar(body: ExemplarBody, user=Depends(require_admin)):
+    """Admin: save a drawn annotated chart as a gold-standard example for a setup
+    (auto-used as a top reference by the judge)."""
+    import base64
+    from api.services.pattern_vision import store as pv_store
+    raw = body.image.split(",", 1)[1] if body.image.startswith("data:") else body.image
+    try:
+        png = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="image must be valid base64 PNG")
+    if not png:
+        raise HTTPException(status_code=400, detail="empty image")
+    pv_store.init_db()
+    eid = pv_store.add_exemplar(body.setup, png, ticker=body.ticker, asof_date=body.asof_date,
+                                note=body.note, drawings_json=body.drawings_json,
+                                by_user=str(user.get("id")))
+    return {"ok": True, "exemplar_id": eid}
+
+
+@router.get("/admin/exemplars")
+def patterns_list_exemplars(setup: Optional[str] = None, user=Depends(require_admin)):
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    return {"exemplars": pv_store.list_exemplars(setup)}
+
+
+@router.delete("/exemplar/{exemplar_id}")
+def patterns_delete_exemplar(exemplar_id: int, user=Depends(require_admin)):
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    pv_store.delete_exemplar(exemplar_id)
+    return {"ok": True}

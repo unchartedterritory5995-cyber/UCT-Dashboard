@@ -92,14 +92,13 @@ def _render_example(ex: dict, window: int) -> bytes:
     return chart_render.render_chart(sl, window=len(sl), key_level=ex.get("entry_price"))
 
 
-def example_pngs(setup: str, window: int = 140) -> list:
-    if not _enabled() or _n() == 0 or setup not in FOCUSED_SETUPS:
-        return []
+def _mb_pngs(setup: str, window: int, n: int) -> list:
+    """Model Book auto-rendered examples (cached)."""
     if setup in _PNG_CACHE:
         return _PNG_CACHE[setup]
     pngs = []
     for ex in _collect_examples().get(setup, []):
-        if len(pngs) >= _n():
+        if len(pngs) >= n:
             break
         try:
             png = _render_example(ex, window)
@@ -110,6 +109,24 @@ def example_pngs(setup: str, window: int = 140) -> list:
             pngs.append(png)
     _PNG_CACHE[setup] = pngs
     return pngs
+
+
+def example_pngs(setup: str, window: int = 140) -> list:
+    """Reference charts for the judge: user-drawn annotated exemplars FIRST (they
+    show the ideal lines), then Model Book auto-rendered examples, capped at N."""
+    if not _enabled() or _n() == 0 or setup not in FOCUSED_SETUPS:
+        return []
+    n = _n()
+    user = []
+    try:
+        from . import store
+        store.init_db()
+        user = store.exemplar_pngs(setup, limit=n)
+    except Exception as e:
+        log.debug("[pv-examples] user exemplars for %s unavailable: %s", setup, e)
+    if len(user) >= n:
+        return user[:n]
+    return (user + _mb_pngs(setup, window, n - len(user)))[:n]
 
 
 def reset_cache() -> None:

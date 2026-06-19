@@ -66,6 +66,26 @@ def test_grade_order_best_first(monkeypatch):
     assert coll[0]["grade"] == "A+"  # best grade sorted first
 
 
+def test_user_exemplars_come_first(monkeypatch, tmp_path):
+    monkeypatch.setenv("PATTERN_VISION_FEWSHOT_ENABLED", "1")
+    monkeypatch.setenv("PATTERN_VISION_FEWSHOT_N", "2")
+    monkeypatch.setenv("PATTERN_VISION_DB_PATH", str(tmp_path / "pv.db"))
+    import importlib
+    import api.services.pattern_vision.store as store
+    importlib.reload(store)
+    store.init_db()
+    store.add_exemplar("vcp", b"USERDRAWN", note="ideal")
+    # a Model Book example also exists, but the user-drawn one must win the first slot
+    calls = _wire(monkeypatch, [
+        {"setup_type": "VCP", "label_date": "2026-02-20", "timeframe": "D", "grade": "A+"},
+    ])
+    # _wire reloaded nothing of store; point ex's store import at our reloaded one
+    monkeypatch.setattr(ex, "_PNG_CACHE", {})
+    pngs = ex.example_pngs("vcp")
+    assert pngs[0] == b"USERDRAWN"  # user exemplar first
+    assert len(pngs) == 2  # filled to N with the Model Book render
+
+
 def test_label_date_before_history_skipped(monkeypatch):
     monkeypatch.setenv("PATTERN_VISION_FEWSHOT_ENABLED", "1")
     _wire(monkeypatch, [

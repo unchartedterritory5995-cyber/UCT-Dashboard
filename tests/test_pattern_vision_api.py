@@ -100,3 +100,59 @@ def test_eval_ok_for_admin(client, monkeypatch):
     r = client.get("/api/patterns/admin/eval?max_rows=5")
     assert r.status_code == 200
     assert r.json()["n"] == 0
+
+
+def test_feedback_requires_auth(client):
+    r = client.post("/api/patterns/feedback", json={
+        "ticker": "NVDA", "setup": "vcp", "asof_date": "2026-06-19", "rating": "up"})
+    assert r.status_code == 401
+
+
+def test_feedback_records(client, monkeypatch, tmp_path):
+    s = _seed_store(tmp_path, monkeypatch)
+    # seed a verdict so get_recent_verdicts surfaces the attached feedback
+    s.put_verdict({"ticker": "NVDA", "tf": "D", "setup": "vcp", "asof_date": "2026-06-19",
+                   "confirmed": 0, "vision_confidence": 40, "rationale": "weak",
+                   "signals_hash": "z", "judged_at": 1})
+    _login(client)
+    r = client.post("/api/patterns/feedback", json={
+        "ticker": "NVDA", "tf": "D", "setup": "vcp", "asof_date": "2026-06-19",
+        "rating": "down", "note": "handle too deep"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    recent = s.get_recent_verdicts(limit=10)
+    assert recent[0]["feedback"]["rating"] == "down"
+    assert recent[0]["feedback"]["note"] == "handle too deep"
+
+
+def test_review_requires_admin(client):
+    _login(client, role="member")
+    assert client.get("/api/patterns/admin/review").status_code == 403
+
+
+def test_exemplar_save_list_delete_admin(client, monkeypatch, tmp_path):
+    import base64
+    s = _seed_store(tmp_path, monkeypatch)
+    _login(client, role="admin")
+    img = "data:image/png;base64," + base64.b64encode(b"\x89PNGdrawn").decode()
+    r = client.post("/api/patterns/exemplar", json={
+        "setup": "vcp", "image": img, "ticker": "NVDA", "note": "ideal coil"})
+    assert r.status_code == 200
+    eid = r.json()["exemplar_id"]
+    assert s.exemplar_pngs("vcp") == [b"\x89PNGdrawn"]
+    lst = client.get("/api/patterns/admin/exemplars?setup=vcp")
+    assert lst.status_code == 200 and len(lst.json()["exemplars"]) == 1
+    d = client.delete(f"/api/patterns/exemplar/{eid}")
+    assert d.status_code == 200 and s.exemplar_pngs("vcp") == []
+
+
+def test_exemplar_bad_base64_400(client, monkeypatch, tmp_path):
+    _seed_store(tmp_path, monkeypatch)
+    _login(client, role="admin")
+    r = client.post("/api/patterns/exemplar", json={"setup": "vcp", "image": "%%%notb64%%%"})
+    assert r.status_code == 400
+
+
+def test_exemplar_requires_admin(client):
+    _login(client, role="member")
+    assert client.post("/api/patterns/exemplar",
+                       json={"setup": "vcp", "image": "x"}).status_code == 403
