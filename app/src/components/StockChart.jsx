@@ -45,6 +45,10 @@ import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBack
 
 const NOOP = () => {}
 
+// Stable empty Journal 2.0 overlay — used by curated book charts that opt out
+// of the viewer's personal trade markers/price lines (hideJournalOverlay).
+const EMPTY_J2 = { markers: [], priceLines: [] }
+
 // Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
@@ -581,6 +585,11 @@ export default function StockChart({
   // ── Override candle series priceFormat (e.g. integer-only axis labels) ──
   // Pass { type: 'price', precision: 0, minMove: 1 } to show "200" instead of "200.00"
   priceFormat = null,
+  // Curated book charts (Setup Library / Model Book examples) should show ONLY
+  // the admin-authored setup overlays — NOT the viewer's own Journal 2.0 trade
+  // markers/price lines, which would "randomly" appear on any ticker the viewer
+  // happens to have traded. Set true to suppress the personal journal overlay.
+  hideJournalOverlay = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -860,7 +869,10 @@ export default function StockChart({
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
-  const j2 = useJ2ChartMarkers(sym, resolvedTf)
+  const j2Raw = useJ2ChartMarkers(sym, resolvedTf)
+  // Curated book charts opt out of the viewer's personal Journal 2.0 overlay so
+  // their own BUY/SELL trade markers don't bleed onto setup examples.
+  const j2 = hideJournalOverlay ? EMPTY_J2 : j2Raw
   const mergedMarkers = useMemo(
     () => {
       const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers]
@@ -1816,6 +1828,29 @@ export default function StockChart({
     },
     [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd]
   )
+
+  // Curated book charts (exactDateRange) frame a specific historical window.
+  // For a REUSED ticker with a data gap (e.g. CGC: a different company's data
+  // through 2011, then real Canopy Growth from 2018 — NOTHING in between), a
+  // selected window that lands entirely in the gap has no bars to show. Rather
+  // than silently framing an unrelated era (the old fallback showed the last
+  // ~year of whatever bars survived the slice — i.e. the wrong company), detect
+  // the empty window and surface it so the date selection is never misrepresented.
+  const selectedRangeEmpty = useMemo(() => {
+    if (!exactDateRange || !entryDate || !bars || bars.length === 0) return false
+    const toMs = v => {
+      if (v == null) return NaN
+      if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
+      const s = String(v)
+      return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+    }
+    const lo = toMs(entryDate)
+    const hi = exitDate ? toMs(exitDate) : Infinity
+    return !bars.some(b => {
+      const t = toMs(b.t)
+      return t >= lo && t <= hi
+    })
+  }, [exactDateRange, entryDate, exitDate, bars])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -5150,10 +5185,20 @@ export default function StockChart({
           <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
         </div>
       )}
+      {!loading && !showFatalError && selectedRangeEmpty && (
+        <div className={styles.error}>
+          <span>No {sym} chart data for the selected dates.</span>
+          <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+            The data provider has no bars in this window (the ticker may have been
+            delisted, renamed, or not yet listed then). Pick a date range the ticker
+            actually traded.
+          </span>
+        </div>
+      )}
       <div
         ref={containerRef}
         className={styles.chart}
-        style={{ display: showFatalError ? 'none' : 'block' }}
+        style={{ display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block' }}
       />
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
           stay aligned with candles at any zoom/pan level. Updates every frame

@@ -582,6 +582,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
           priceLines={priceLines}
+          hideJournalOverlay
           annotations={annotating ? draft : (drawings.length ? drawings : null)}
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
