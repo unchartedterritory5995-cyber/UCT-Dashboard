@@ -57,6 +57,8 @@
   margin: 0 auto;
   width: 100%;
 }
+/* Posts: use the full page width (one column per X account stretches to fill). */
+.sectionWide { max-width: none; }
 .sectionHead {
   display: flex;
   align-items: flex-end;
@@ -144,10 +146,11 @@
 /* ── Posts ── */
 .postList { display: flex; flex-direction: column; gap: var(--space-md); max-width: 720px; }
 
-/* Posts board — one column (feed) per official account */
+/* Posts board — one column (feed) per official account, stretched to fill the
+   page width (auto-fit collapses empty tracks so 3 accounts = 3 wide columns). */
 .postBoard {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: var(--space-lg);
   align-items: start;
 }
@@ -164,17 +167,17 @@
   text-decoration: none; position: sticky; top: 0; z-index: 1;
 }
 .postColHead:hover .postColName { color: var(--ut-gold); }
-.postColName { font-size: var(--text-base); color: var(--text-bright); font-weight: 800; }
-.postColHandle { font-size: var(--text-xs); color: var(--text-muted); }
+.postColName { font-size: var(--text-xl); color: var(--text-bright); font-weight: 800; }
+.postColHandle { font-size: var(--text-sm); color: var(--text-muted); }
 .postColFeed {
-  display: flex; flex-direction: column; gap: var(--space-sm);
-  padding: var(--space-md); max-height: 70vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-md);
+  padding: var(--space-lg); max-height: 80vh; overflow-y: auto;
 }
 .postColFeed .postCard { background: var(--bg-base, rgba(0,0,0,0.18)); }
 
 .postCard {
   display: block; background: var(--bg-surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: var(--space-md); text-decoration: none;
+  border-radius: 12px; padding: var(--space-lg); text-decoration: none;
   transition: border-color 0.15s ease;
 }
 .postCard:hover { border-color: var(--border-accent); }
@@ -182,7 +185,7 @@
 .postAuthor { font-size: var(--text-base); color: var(--text-bright); font-weight: 700; }
 .postHandle { font-size: var(--text-sm); color: var(--text-muted); }
 .postTime { font-size: var(--text-sm); color: var(--text-muted); }
-.postText { font-size: var(--text-base); color: var(--text); line-height: 1.55; white-space: pre-wrap; }
+.postText { font-size: var(--text-lg); color: var(--text); line-height: 1.6; white-space: pre-wrap; }
 .postMedia {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   margin-top: 10px; border-radius: 10px; overflow: hidden;

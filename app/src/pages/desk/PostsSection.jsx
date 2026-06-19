@@ -73,7 +73,7 @@ export default function PostsSection() {
   const columns = groupByAuthor(posts)
 
   return (
-    <div className={styles.section}>
+    <div className={`${styles.section} ${styles.sectionWide}`}>
       <div className={styles.sectionHead}>
         <div className={styles.sectionHeadMain}>
           <span className={styles.sectionIcon} aria-hidden="true"><PostIcon /></span>
