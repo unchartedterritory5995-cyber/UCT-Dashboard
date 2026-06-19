@@ -202,6 +202,68 @@ def test_team_ordered_by_sort_order(store):
     assert [m["name"] for m in store.list_team()] == ["A", "B"]
 
 
+def test_team_strategy_fields_roundtrip(store):
+    m = store.create_member({
+        "name": "Bracco", "role": "Co-Founder", "years_trading": "6 Years",
+        "trading_style": "Hunts fat pitches\nSizes up aggressively",
+        "teaching_focus": "Pattern recognition\nWhen to size up",
+    })
+    got = store.get_member(m["id"])
+    assert got["years_trading"] == "6 Years"
+    assert "fat pitches" in got["trading_style"]
+    assert "Pattern recognition" in got["teaching_focus"]
+    upd = store.update_member(m["id"], {"trading_style": "Edited style"})
+    assert upd["trading_style"] == "Edited style"
+
+
+def test_ensure_default_team_seeds_roster(store):
+    store.ensure_default_team()
+    team = store.list_team()
+    names = {m["name"] for m in team}
+    assert len(team) == 18
+    assert "Bracco" in names and "Stef" in names
+    # Strategy content actually lands on the seeded rows.
+    bracco = next(m for m in team if m["name"] == "Bracco")
+    assert bracco["role"] == "Co-Founder"
+    assert "fat" in (bracco["trading_style"] or "").lower()
+    # Seeded in sheet order (TSDR the founder first).
+    assert team[0]["name"] == "TSDR"
+
+
+def test_ensure_default_team_idempotent_and_preserves_edits(store):
+    store.ensure_default_team()
+    bracco = next(m for m in store.list_team() if m["name"] == "Bracco")
+    store.update_member(bracco["id"], {"role": "Head Trader"})
+    store.ensure_default_team()  # second boot — must not duplicate or clobber
+    team = store.list_team()
+    assert len(team) == 18  # no duplicates
+    bracco2 = next(m for m in team if m["name"] == "Bracco")
+    assert bracco2["role"] == "Head Trader"  # admin edit preserved
+
+
+def test_team_alters_apply_to_legacy_db(monkeypatch):
+    """A pre-existing team_members table without the strategy columns gets them
+    ALTERed in on _init_db()."""
+    import contextlib as _cl
+    import tempfile as _tf
+    import os as _os
+    with _tf.TemporaryDirectory() as d:
+        path = _os.path.join(d, "desk.db")
+        monkeypatch.setattr(desk_store, "_DB_PATH", path)
+        # Build the OLD schema (no years_trading/trading_style/teaching_focus).
+        with _cl.closing(desk_store._connect()) as c:
+            c.execute("""CREATE TABLE team_members (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, role TEXT,
+              bio TEXT, has_photo INTEGER NOT NULL DEFAULT 0, twitter_url TEXT,
+              substack_url TEXT, email TEXT, link_url TEXT,
+              sort_order INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1,
+              created_at INTEGER NOT NULL, updated_at INTEGER)""")
+            c.commit()
+        desk_store._init_db()  # should ALTER in the 3 new columns, not crash
+        m = desk_store.create_member({"name": "X", "trading_style": "S"})
+        assert desk_store.get_member(m["id"])["trading_style"] == "S"
+
+
 # ── Tweets official filter ───────────────────────────────────────────────────────
 
 def test_feed_official_only_filters(tweets):

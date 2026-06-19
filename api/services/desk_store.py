@@ -47,25 +47,38 @@ CREATE INDEX IF NOT EXISTS idx_substack_posts_pub
   ON substack_posts(published_at DESC);
 
 CREATE TABLE IF NOT EXISTS team_members (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  name         TEXT    NOT NULL,
-  role         TEXT,
-  bio          TEXT,
-  has_photo    INTEGER NOT NULL DEFAULT 0,
-  twitter_url  TEXT,
-  substack_url TEXT,
-  email        TEXT,
-  link_url     TEXT,
-  sort_order   INTEGER NOT NULL DEFAULT 0,
-  enabled      INTEGER NOT NULL DEFAULT 1,
-  created_at   INTEGER NOT NULL,
-  updated_at   INTEGER
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT    NOT NULL,
+  role           TEXT,
+  bio            TEXT,
+  years_trading  TEXT,
+  trading_style  TEXT,
+  teaching_focus TEXT,
+  has_photo      INTEGER NOT NULL DEFAULT 0,
+  twitter_url    TEXT,
+  substack_url   TEXT,
+  email          TEXT,
+  link_url       TEXT,
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  enabled        INTEGER NOT NULL DEFAULT 1,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_team_order ON team_members(sort_order, id);
 """
 
+# Columns added after the original team_members schema shipped — ALTERed in on
+# existing DBs (each wrapped in try/except so a re-run / already-present column
+# is a no-op). Mirrors the j2 _PHASE_2_ALTERS idiom.
+_TEAM_ALTERS = (
+    "ALTER TABLE team_members ADD COLUMN years_trading TEXT",
+    "ALTER TABLE team_members ADD COLUMN trading_style TEXT",
+    "ALTER TABLE team_members ADD COLUMN teaching_focus TEXT",
+)
+
 _PUB_FIELDS = ("name", "feed_url", "enabled", "sort_order")
-_MEMBER_FIELDS = ("name", "role", "bio", "twitter_url", "substack_url", "email",
+_MEMBER_FIELDS = ("name", "role", "bio", "years_trading", "trading_style",
+                  "teaching_focus", "twitter_url", "substack_url", "email",
                   "link_url", "sort_order", "enabled")
 
 
@@ -83,6 +96,11 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        for stmt in _TEAM_ALTERS:
+            try:
+                c.execute(stmt)
+            except sqlite3.OperationalError:
+                pass  # column already exists (fresh schema or prior run)
         c.commit()
 
 
@@ -98,6 +116,28 @@ def ensure_default_publications() -> None:
     for name, feed_url in DEFAULT_PUBLICATIONS:
         try:
             create_publication(name, feed_url)
+        except Exception:
+            pass
+
+
+def ensure_default_team() -> None:
+    """Idempotently seed the firm's traders ("Meet the Team") from the curated
+    roster. Inserts only members whose name is not already present, so an admin
+    who edits/hides/reorders a member or uploads a photo is never clobbered, and
+    re-runs on every boot never duplicate. Never raises."""
+    try:
+        from api.services.desk_team_seed import SEED_MEMBERS
+    except Exception:
+        return
+    try:
+        existing = {(m.get("name") or "").strip().lower() for m in list_team()}
+    except Exception:
+        existing = set()
+    for member in SEED_MEMBERS:
+        if (member.get("name") or "").strip().lower() in existing:
+            continue
+        try:
+            create_member(member)
         except Exception:
             pass
 
@@ -226,9 +266,11 @@ def create_member(payload: dict) -> dict:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             """INSERT INTO team_members
-               (name, role, bio, twitter_url, substack_url, email, link_url,
+               (name, role, bio, years_trading, trading_style, teaching_focus,
+                twitter_url, substack_url, email, link_url,
                 sort_order, enabled, created_at, updated_at)
-               VALUES (:name, :role, :bio, :twitter_url, :substack_url, :email,
+               VALUES (:name, :role, :bio, :years_trading, :trading_style,
+                       :teaching_focus, :twitter_url, :substack_url, :email,
                        :link_url, :sort_order, :enabled, :created_at, :updated_at)""",
             data,
         )

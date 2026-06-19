@@ -1,6 +1,8 @@
 // app/src/pages/desk/TeamSection.jsx
-// The Desk → Team: "Meet the Team" admin-managed member cards (photo, name,
-// role, bio, links). Photos upload server-side (Pillow→WebP).
+// The Desk → Team: "Meet the Team" admin-managed member cards. A compact card
+// (photo, name, role, years trading, one-line style) opens a full profile sheet
+// with the trader's bio, trading style, and teaching focus. Photos upload
+// server-side (Pillow→WebP).
 import { useState, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
@@ -13,11 +15,27 @@ const fetcher = (url) =>
 
 const photoUrl = (m) => (m.has_photo ? `/api/desk/team/${m.id}/photo` : null)
 
+// Split the sheet's newline-separated style/focus text into clean bullet lines.
+const bullets = (text) =>
+  (text || '')
+    .split('\n')
+    .map((l) => l.replace(/^[•\-\s]+/, '').trim())
+    .filter(Boolean)
+
+// A short one-liner for the card: first sentence/line of the trading style.
+const tagline = (m) => {
+  const first = bullets(m.trading_style)[0] || ''
+  if (!first) return ''
+  const sentence = first.split(/(?<=[.!?])\s/)[0]
+  return sentence.length > 90 ? sentence.slice(0, 87).trimEnd() + '…' : sentence
+}
+
 export default function TeamSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { data, isLoading, mutate } = useSWR('/api/desk/team', fetcher)
   const [editing, setEditing] = useState(null)
+  const [viewing, setViewing] = useState(null)
 
   const team = (data?.team || []).filter((m) => isAdmin || m.enabled)
 
@@ -35,7 +53,7 @@ export default function TeamSection() {
           <div>
             <div className={styles.eyebrow}>UCT INTELLIGENCE</div>
             <h1 className={styles.sectionTitle}>Meet the Team</h1>
-            <div className={styles.sectionSub}>The people behind Uncharted Territory</div>
+            <div className={styles.sectionSub}>The traders behind Uncharted Territory</div>
           </div>
         </div>
         {isAdmin && (
@@ -66,32 +84,42 @@ export default function TeamSection() {
 
       {team.length > 0 && (
         <div className={styles.teamGrid}>
-          {team.map((m) => (
-            <article key={m.id} className={styles.teamCard}>
-              {photoUrl(m)
-                ? <img className={styles.teamPhoto} src={photoUrl(m)} alt={m.name} loading="lazy" />
-                : <div className={styles.teamPhotoFallback} aria-hidden="true">
-                    {(m.name || '?')[0].toUpperCase()}
-                  </div>}
-              <div className={styles.teamName}>{m.name}</div>
-              {m.role && <div className={styles.teamRole}>{m.role}</div>}
-              {m.bio && <div className={styles.teamBio}>{m.bio}</div>}
-              <div className={styles.teamLinks}>
-                {m.twitter_url && <a href={m.twitter_url} target="_blank" rel="noopener noreferrer">X</a>}
-                {m.substack_url && <a href={m.substack_url} target="_blank" rel="noopener noreferrer">Substack</a>}
-                {m.link_url && <a href={m.link_url} target="_blank" rel="noopener noreferrer">Link</a>}
-                {m.email && <a href={`mailto:${m.email}`}>Email</a>}
-              </div>
-              {isAdmin && (
-                <div className={styles.cardAdmin}>
-                  <button className={styles.adminLink} onClick={() => setEditing(m)}>Edit</button>
-                  <button className={styles.adminLinkDanger} onClick={() => handleDelete(m)}>Delete</button>
-                  {!m.enabled && <span className={styles.hiddenTag}>hidden</span>}
-                </div>
-              )}
-            </article>
-          ))}
+          {team.map((m) => {
+            const tag = tagline(m)
+            return (
+              <article
+                key={m.id}
+                className={styles.teamCard}
+                role="button"
+                tabIndex={0}
+                onClick={() => setViewing(m)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(m) } }}
+              >
+                {photoUrl(m)
+                  ? <img className={styles.teamPhoto} src={photoUrl(m)} alt={m.name} loading="lazy" />
+                  : <div className={styles.teamPhotoFallback} aria-hidden="true">
+                      {(m.name || '?')[0].toUpperCase()}
+                    </div>}
+                <div className={styles.teamName}>{m.name}</div>
+                {m.role && <div className={styles.teamRole}>{m.role}</div>}
+                {m.years_trading && <div className={styles.teamYears}>{m.years_trading} trading</div>}
+                {tag && <div className={styles.teamTagline}>“{tag}”</div>}
+                <span className={styles.teamMore}>View profile →</span>
+                {isAdmin && (
+                  <div className={styles.cardAdmin} onClick={(e) => e.stopPropagation()}>
+                    <button className={styles.adminLink} onClick={() => setEditing(m)}>Edit</button>
+                    <button className={styles.adminLinkDanger} onClick={() => handleDelete(m)}>Delete</button>
+                    {!m.enabled && <span className={styles.hiddenTag}>hidden</span>}
+                  </div>
+                )}
+              </article>
+            )
+          })}
         </div>
+      )}
+
+      {viewing && (
+        <MemberProfile member={viewing} onClose={() => setViewing(null)} />
       )}
 
       {editing && (
@@ -105,12 +133,69 @@ export default function TeamSection() {
   )
 }
 
+function MemberProfile({ member: m, onClose }) {
+  const style = bullets(m.trading_style)
+  const focus = bullets(m.teaching_focus)
+  return (
+    <Sheet open onClose={onClose} variant="auto" title="Trader profile">
+      <div className={styles.profile}>
+        <div className={styles.profileHead}>
+          {photoUrl(m)
+            ? <img className={styles.profilePhoto} src={photoUrl(m)} alt={m.name} />
+            : <div className={styles.profilePhotoFallback} aria-hidden="true">
+                {(m.name || '?')[0].toUpperCase()}
+              </div>}
+          <div className={styles.profileHeadText}>
+            <div className={styles.profileName}>{m.name}</div>
+            {m.role && <div className={styles.profileRole}>{m.role}</div>}
+            {m.years_trading && <div className={styles.profileYears}>{m.years_trading} trading</div>}
+            <div className={styles.profileLinks}>
+              {m.twitter_url && <a href={m.twitter_url} target="_blank" rel="noopener noreferrer">X</a>}
+              {m.substack_url && <a href={m.substack_url} target="_blank" rel="noopener noreferrer">Substack</a>}
+              {m.link_url && <a href={m.link_url} target="_blank" rel="noopener noreferrer">Link</a>}
+              {m.email && <a href={`mailto:${m.email}`}>Email</a>}
+            </div>
+          </div>
+        </div>
+
+        {m.bio && (
+          <section className={styles.profileBlock}>
+            <h3 className={styles.profileLabel}>Bio</h3>
+            <p className={styles.profileBio}>{m.bio}</p>
+          </section>
+        )}
+
+        {style.length > 0 && (
+          <section className={styles.profileBlock}>
+            <h3 className={styles.profileLabel}>Trading Style</h3>
+            <ul className={styles.profileList}>
+              {style.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          </section>
+        )}
+
+        {focus.length > 0 && (
+          <section className={styles.profileBlock}>
+            <h3 className={styles.profileLabel}>Teaching Focus</h3>
+            <ul className={styles.profileList}>
+              {focus.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          </section>
+        )}
+      </div>
+    </Sheet>
+  )
+}
+
 function MemberForm({ member, onClose, onSaved }) {
   const isNew = !member?.id
   const [form, setForm] = useState({
     name: member?.name || '',
     role: member?.role || '',
+    years_trading: member?.years_trading || '',
     bio: member?.bio || '',
+    trading_style: member?.trading_style || '',
+    teaching_focus: member?.teaching_focus || '',
     twitter_url: member?.twitter_url || '',
     substack_url: member?.substack_url || '',
     email: member?.email || '',
@@ -160,11 +245,24 @@ function MemberForm({ member, onClose, onSaved }) {
         <div className={styles.field}>
           <span className={styles.label}>Role / title</span>
           <input className={styles.input} value={form.role} onChange={set('role')}
-                 placeholder="Founder · Head Trader" />
+                 placeholder="Founder · Momentum Swing Trader" />
+        </div>
+        <div className={styles.field}>
+          <span className={styles.label}>Time trading</span>
+          <input className={styles.input} value={form.years_trading} onChange={set('years_trading')}
+                 placeholder="6 Years" />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Bio</span>
-          <textarea className={styles.textarea} value={form.bio} onChange={set('bio')} rows={3} />
+          <textarea className={styles.textarea} value={form.bio} onChange={set('bio')} rows={4} />
+        </div>
+        <div className={styles.field}>
+          <span className={styles.label}>Trading style <span className={styles.hint}>(one point per line)</span></span>
+          <textarea className={styles.textarea} value={form.trading_style} onChange={set('trading_style')} rows={5} />
+        </div>
+        <div className={styles.field}>
+          <span className={styles.label}>Teaching focus <span className={styles.hint}>(one point per line)</span></span>
+          <textarea className={styles.textarea} value={form.teaching_focus} onChange={set('teaching_focus')} rows={5} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Photo</span>

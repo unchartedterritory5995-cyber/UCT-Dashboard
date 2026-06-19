@@ -696,6 +696,7 @@ async def lifespan(app: FastAPI):
         from api.services import desk_store
         desk_store._init_db()
         desk_store.ensure_default_publications()  # firm's Substack feed
+        desk_store.ensure_default_team()          # firm's traders ("Meet the Team")
         print("[startup] desk.db initialized")
         # Fire an initial Substack poll in the background so Articles isn't empty
         # before the hourly job's first :07 run. Best-effort, never blocks boot.

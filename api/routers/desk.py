@@ -74,6 +74,9 @@ class MemberIn(BaseModel):
     name: str
     role: Optional[str] = None
     bio: Optional[str] = None
+    years_trading: Optional[str] = None
+    trading_style: Optional[str] = None
+    teaching_focus: Optional[str] = None
     twitter_url: Optional[str] = None
     substack_url: Optional[str] = None
     email: Optional[str] = None
@@ -86,6 +89,9 @@ class MemberPatch(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     bio: Optional[str] = None
+    years_trading: Optional[str] = None
+    trading_style: Optional[str] = None
+    teaching_focus: Optional[str] = None
     twitter_url: Optional[str] = None
     substack_url: Optional[str] = None
     email: Optional[str] = None
