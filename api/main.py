@@ -73,6 +73,7 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
+from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
@@ -773,6 +774,13 @@ async def lifespan(app: FastAPI):
         print("[startup] catalysts.db initialized")
     except Exception as e:
         print(f"[startup] catalyst_store init failed (non-fatal): {e}")
+
+    try:
+        from api.services import wire_feedback_store as _wf_store
+        _wf_store._init_db()
+        print("[startup] wire_feedback.db initialized")
+    except Exception as e:
+        print(f"[startup] wire_feedback_store init failed (non-fatal): {e}")
 
     # Initialize modelbook.db schema unconditionally (same pattern as above).
     # The Model Book page fires /api/modelbook/years on load; without a schema
@@ -2349,6 +2357,7 @@ app.include_router(admin_twitter_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
+app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
