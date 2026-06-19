@@ -189,6 +189,7 @@ export default function JournalSnapshotTile() {
   return (
     <TileCard
       title="📓 Journal · Positions"
+      className={styles.tileFit}
       badge={totalCount > 0 ? <span className={styles.openCue}>Open →</span> : null}
     >
       <div className={styles.body}>
@@ -407,15 +408,37 @@ function CompassMark() {
   )
 }
 
-/** One hidden defs block — gold gradient + glow shared by every benefit icon. */
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * One hidden defs block — a gold gradient with a bright band that slowly sweeps
+ * across (the brand's gold-shimmer language), shared by every benefit glyph so
+ * they shimmer in unison. Static for reduced-motion.
+ */
 function IconDefs() {
+  const reduce = prefersReducedMotion()
   return (
     <svg width="0" height="0" className={styles.iconDefs} aria-hidden="true">
       <defs>
-        <linearGradient id="ctaIcoGold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f6e09a" />
-          <stop offset="50%" stopColor="#d9b85e" />
-          <stop offset="100%" stopColor="#a07d2f" />
+        <linearGradient id="ctaIcoGold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#9c7a2e" />
+          <stop offset="42%" stopColor="#d6b85e" />
+          <stop offset="52%" stopColor="#fbe7b0" />
+          <stop offset="62%" stopColor="#d6b85e" />
+          <stop offset="100%" stopColor="#9c7a2e" />
+          {!reduce && (
+            <animateTransform
+              attributeName="gradientTransform"
+              type="translate"
+              from="-1 0"
+              to="1 0"
+              dur="3.4s"
+              repeatCount="indefinite"
+            />
+          )}
         </linearGradient>
       </defs>
     </svg>

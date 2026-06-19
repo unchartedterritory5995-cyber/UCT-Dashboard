@@ -1,3 +1,10 @@
+/* This is a standalone tile (not in a fixed-height grid cell), so it must size
+ * to its content. TileCard's default `height: 100%` would otherwise stretch it
+ * to the full scrolling column height and leave a large empty gap below. */
+.tileFit {
+  height: auto !important;
+}
+
 .bodyLink {
   display: block;
   text-decoration: none;
