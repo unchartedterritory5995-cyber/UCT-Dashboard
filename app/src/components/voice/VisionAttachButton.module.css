@@ -3,6 +3,10 @@
   display: inline-block;
 }
 
+@media (max-width: 1024px) {
+  .btn { width: 34px; height: 34px; }
+}
+
 .btn {
   width: 28px;
   height: 28px;
@@ -10,8 +14,9 @@
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(0, 0, 0, 0.4);
   color: #c9a84c;
-  font-size: 14px;
-  line-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   opacity: 0.7;
   transition: opacity 120ms, transform 120ms;

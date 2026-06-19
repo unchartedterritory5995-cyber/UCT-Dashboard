@@ -208,3 +208,26 @@
   padding: 40px 20px;
   text-align: center;
 }
+
+/* ── Phone — bump interactive controls to ≥44px tap targets ──────────────── */
+@media (max-width: 640px) {
+  .container { padding: 12px 12px 24px; }
+  .groupBtn,
+  .extremesBtn {
+    min-height: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  /* Larger hit area for the metric checkbox rows. */
+  .metricList { gap: 4px 16px; }
+  .metricItem {
+    min-height: 40px;
+    font-size: 13px;
+  }
+  .metricItem input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+  .dateLabel { min-height: 44px; }
+  .dateInput { height: 44px; }
+}

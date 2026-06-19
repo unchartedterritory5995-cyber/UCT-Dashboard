@@ -249,6 +249,23 @@
     padding: 5px 10px;
     gap: 6px;
   }
+  /* Primary page-tab strip (Scanner | Custom | Live) — scrollable, 44px tall
+     finger targets instead of cramped 21px inline buttons. */
+  .pageTabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .pageTabs::-webkit-scrollbar { display: none; }
+  .pageTab {
+    flex: 0 0 auto;
+    min-height: var(--tap-min, 44px);
+    padding: 0 16px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 /* ── Table ── */

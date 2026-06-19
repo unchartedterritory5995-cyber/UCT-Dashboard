@@ -1258,6 +1258,49 @@ tbody tr { cursor: pointer; }
     max-width: none;
     min-width: 720px;
   }
+  /* ── Touch-target sizing for DrillModal controls (≥44px on phone) ── */
+  .drillClose {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .copyBtn,
+  .drillViewBtn,
+  .drillFlagBtn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  /* Days pills — bump from ~30px to a comfortable tap height. */
+  .daysPill {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    padding: 0 12px;
+  }
+  /* Chart timeframe tabs — scroll as a strip rather than clip/overlap, ≥44px. */
+  .drillChartTabs {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .drillChartTabs::-webkit-scrollbar { display: none; }
+  .drillChartTab {
+    flex: 0 0 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    padding: 0 12px;
+  }
 }
 
 /* ── Historical Analogues ──────────────────────────────────────────────────── */

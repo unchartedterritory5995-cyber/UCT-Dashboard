@@ -227,7 +227,7 @@ export default function FloatingOrb({ context = 'global' }) {
           aria-label="Train Me — teach the assistant a preference"
           title="Train Me — teach me a preference or correction"
         >
-          <UIcon name="sparkle" size={16} />
+          <UIcon name="education" size={16} />
         </button>
       )}
       {!inSession && <VisionAttachButton />}

@@ -143,6 +143,16 @@
 .orbCluster.dragging {
   cursor: grabbing;
 }
+
+/* Touch shells (≤1024px): the bottom tab bar owns the bottom edge, so the
+   default orb position must clear it instead of colliding with the nav. */
+@media (max-width: 1024px) {
+  .orbCluster {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+  }
+  .trainBtn { width: 34px; height: 34px; }
+}
 .orbCluster.dragging .orb {
   transition: none;
   animation: none;
@@ -155,8 +165,9 @@
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(0, 0, 0, 0.4);
   color: #c9a84c;
-  font-size: 14px;
-  line-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   opacity: 0.7;
   transition: opacity 120ms, transform 120ms;

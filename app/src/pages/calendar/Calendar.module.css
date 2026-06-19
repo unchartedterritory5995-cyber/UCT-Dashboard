@@ -1329,8 +1329,35 @@
     gap: 8px;
   }
 
+  /* Feed/Week/Month toggle — finger-sized segments on phone (44px tall). */
   .view span {
-    padding: 5px 9px;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min, 44px);
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  /* Month nav arrows + ⚙ Filters + ⭐ Hub — all reach the 44px tap floor. */
+  .monthNavBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .filterBtn {
+    min-height: var(--tap-min, 44px);
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+  }
+  .hubLink {
+    min-height: var(--tap-min, 44px);
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
   }
 
   /* Month view: swap 5-col grid → scrollable agenda list on mobile */

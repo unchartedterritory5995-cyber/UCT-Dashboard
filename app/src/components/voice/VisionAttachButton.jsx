@@ -123,7 +123,7 @@ export default function VisionAttachButton() {
         aria-label="Attach a chart screenshot for vision analysis (or paste from clipboard)"
         title="Attach chart for vision analysis · paste from clipboard supported"
       >
-        <UIcon name="link" size={16} />
+        <UIcon name="paperclip" size={16} />
       </button>
       <input
         ref={fileRef}

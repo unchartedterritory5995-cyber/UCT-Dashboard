@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
+import fb from './FeedbackWidget.module.css'
 
 const S = {
   btn: {
@@ -92,28 +93,30 @@ export default function FeedbackWidget() {
       {mode && <div style={S.backdrop} onClick={close} />}
 
       {mode === 'menu' && (
-        <div style={S.menu}>
+        <div style={S.menu} className={fb.panel}>
           <div
             style={{ ...S.menuItem, background: hovered === 'feedback' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+            className={fb.menuItem}
             onMouseEnter={() => setHovered('feedback')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => setMode('feedback')}
           >
-            <UIcon name="chat" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send Feedback
+            <UIcon name="chat" size={15} /> Send Feedback
           </div>
           <div
             style={{ ...S.menuItem, borderBottom: 'none', background: hovered === 'ticket' ? 'rgba(255,255,255,0.05)' : 'transparent' }}
+            className={fb.menuItem}
             onMouseEnter={() => setHovered('ticket')}
             onMouseLeave={() => setHovered(null)}
             onClick={() => { close(); navigate('/support') }}
           >
-            <UIcon name="document" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Support Ticket
+            <UIcon name="document" size={15} /> Support Ticket
           </div>
         </div>
       )}
 
       {mode === 'feedback' && (
-        <div style={S.popup}>
+        <div style={S.popup} className={fb.panel}>
           {sent ? (
             <div style={S.success}>Thanks! We read every message.</div>
           ) : (
@@ -146,6 +149,7 @@ export default function FeedbackWidget() {
 
       <button
         style={S.btn}
+        className={fb.fab}
         onClick={() => mode ? close() : setMode('menu')}
         title="Help & Feedback"
       >

@@ -529,10 +529,29 @@
   .filterCell { gap: 8px; }
   .filterLabel { min-width: 92px; font-size: 11px; }
   .filterSelect { font-size: 16px; padding-top: 9px; padding-bottom: 9px; }
-  .filterTabRow { padding: 0 0 2px; flex-wrap: wrap; }
+  /* Filter-category tabs (Catalysts | Technical | …) — scroll horizontally
+     with 44px finger targets instead of wrapping into cramped 32px rows. */
+  .filterTabRow {
+    padding: 0 0 2px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filterTabRow::-webkit-scrollbar { display: none; }
+  .filterTab,
+  .resetBtn {
+    flex: 0 0 auto;
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
   .presetSelect,
   .select,
   .selectSmall,
   .tickerInput { font-size: 16px; padding-top: 8px; padding-bottom: 8px; }
   .filterToggle { padding: 8px 14px; }
+  /* Each result row is a full-width tap target (opens the Ticker Hub) — give
+     it a finger-friendly height. */
+  .row td { padding: 12px 8px; }
 }

@@ -314,3 +314,40 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* Phone — a 340px anchored dropdown overflows narrow viewports and its rows
+   are cramped. Render it as a near-full-width sheet with roomy tap targets. */
+@media (max-width: 640px) {
+  .panel {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 80vh;
+  }
+  .triggerBtn {
+    min-height: 44px;
+  }
+  .xBtn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .checkRow {
+    padding: 10px 6px;
+  }
+  .checkbox {
+    width: 18px;
+    height: 18px;
+  }
+  .smallBtn,
+  .ghostBtn,
+  .primaryBtn,
+  .presetSelect {
+    min-height: 44px;
+  }
+}

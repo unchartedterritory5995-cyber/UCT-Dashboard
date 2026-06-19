@@ -27,3 +27,15 @@
   background: rgba(201,168,76,0.16);
   color: var(--ut-gold, #c9a84c);
 }
+
+/* Phone — segmented toggle buttons get a ≥44px tap height. */
+@media (max-width: 640px) {
+  .btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 12px;
+  }
+}

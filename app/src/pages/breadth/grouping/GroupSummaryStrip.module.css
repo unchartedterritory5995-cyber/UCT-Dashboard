@@ -40,3 +40,21 @@
 }
 .up { font-size: 10px; color: #4ade80; }
 .dn { font-size: 10px; color: #f87171; }
+
+/* Phone — chips wrap into a tall block; scroll them as a single strip and
+   give each a comfortable tap height. */
+@media (max-width: 640px) {
+  .strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .lead { flex: 0 0 auto; }
+  .chip {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 12px;
+  }
+}
