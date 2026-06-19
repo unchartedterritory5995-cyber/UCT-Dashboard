@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
     label: 'Trading',
     items: [
       { to: '/model-book', label: 'Model Book', icon: 'book' },
-      { to: '/educational-videos', label: 'Educational Videos', icon: 'education' },
+      { to: '/desk', label: 'The Desk', icon: 'desk' },
       { to: '/journal', label: 'Journal', icon: 'journal' },
     ],
   },

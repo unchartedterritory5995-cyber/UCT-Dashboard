@@ -86,6 +86,15 @@ export default function TwitterAccountsPanel() {
     mutate()
   }
 
+  async function toggleOfficial(handle, isOfficial) {
+    await fetch(`/api/admin/twitter-accounts/${handle}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_official: isOfficial }),
+    })
+    mutate()
+  }
+
   async function removeAccount(handle) {
     if (!confirm(`Disable @${handle}?`)) return
     await fetch(`/api/admin/twitter-accounts/${handle}`, { method: 'DELETE' })
@@ -117,6 +126,7 @@ export default function TwitterAccountsPanel() {
           <thead>
             <tr>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Handle</th>
+              <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }} title="Show in The Desk → Posts">Official</th>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Status</th>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Last poll</th>
               <th style={{ textAlign: 'right', padding: '4px 8px', opacity: 0.7 }}>Tweets seen</th>
@@ -135,6 +145,19 @@ export default function TwitterAccountsPanel() {
                   }}
                 >
                   <td style={{ padding: '6px 8px' }}>@{a.handle}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <button
+                      onClick={() => toggleOfficial(a.handle, !a.is_official)}
+                      title="Official UCT account — surfaces in The Desk → Posts"
+                      style={{
+                        fontSize: 11,
+                        color: a.is_official ? '#c9a84c' : 'var(--text-muted)',
+                        fontWeight: a.is_official ? 700 : 400,
+                      }}
+                    >
+                      {a.is_official ? '★ official' : '☆ mark'}
+                    </button>
+                  </td>
                   <td style={{ padding: '6px 8px' }}>
                     <StatusPill status={ps.last_poll_status} />
                   </td>

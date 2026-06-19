@@ -1,0 +1,267 @@
+"""SQLite store for "The Desk" content hub — Substack publications/posts and
+Team members.
+
+DB path: /data/desk.db (web service Railway volume). Mirrors the modelbook /
+tweet_store conventions: WAL mode, _WRITE_LOCK on writes, contextlib.closing on
+every connection (Windows teardown requires explicit close).
+
+Three tables:
+  substack_publications — admin-configured Substack RSS feeds.
+  substack_posts        — posts pulled from those feeds (link-out cards).
+  team_members          — "Meet the Team" member cards.
+"""
+from __future__ import annotations
+
+import contextlib
+import os
+import sqlite3
+import threading
+import time
+from typing import Optional
+
+_DB_PATH = os.environ.get("DESK_DB_PATH", "/data/desk.db")
+_WRITE_LOCK = threading.Lock()
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS substack_publications (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT    NOT NULL,
+  feed_url    TEXT    NOT NULL UNIQUE,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  added_at    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS substack_posts (
+  id            TEXT PRIMARY KEY,           -- guid or url (dedupe key)
+  publication_id INTEGER REFERENCES substack_publications(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  excerpt       TEXT,
+  url           TEXT NOT NULL,
+  hero_image    TEXT,
+  author        TEXT,
+  published_at  INTEGER NOT NULL,           -- unix seconds
+  ingested_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_substack_posts_pub
+  ON substack_posts(published_at DESC);
+
+CREATE TABLE IF NOT EXISTS team_members (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  name         TEXT    NOT NULL,
+  role         TEXT,
+  bio          TEXT,
+  has_photo    INTEGER NOT NULL DEFAULT 0,
+  twitter_url  TEXT,
+  substack_url TEXT,
+  email        TEXT,
+  link_url     TEXT,
+  sort_order   INTEGER NOT NULL DEFAULT 0,
+  enabled      INTEGER NOT NULL DEFAULT 1,
+  created_at   INTEGER NOT NULL,
+  updated_at   INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_team_order ON team_members(sort_order, id);
+"""
+
+_PUB_FIELDS = ("name", "feed_url", "enabled", "sort_order")
+_MEMBER_FIELDS = ("name", "role", "bio", "twitter_url", "substack_url", "email",
+                  "link_url", "sort_order", "enabled")
+
+
+def _connect() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def _init_db() -> None:
+    parent = os.path.dirname(_DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with contextlib.closing(_connect()) as c:
+        c.executescript(_SCHEMA)
+        c.commit()
+
+
+# The firm's own Substack, seeded idempotently on startup (admin can edit/remove).
+DEFAULT_PUBLICATIONS = [
+    ("Uncharted Territory", "https://unchartedterritoryy.substack.com/feed"),
+]
+
+
+def ensure_default_publications() -> None:
+    """Idempotently seed the firm's Substack feed(s). create_publication upserts
+    on feed_url, so an admin who renames/edits one is not clobbered. Never raises."""
+    for name, feed_url in DEFAULT_PUBLICATIONS:
+        try:
+            create_publication(name, feed_url)
+        except Exception:
+            pass
+
+
+# ── Substack publications ───────────────────────────────────────────────────────
+
+def list_publications(enabled_only: bool = False) -> list[dict]:
+    sql = "SELECT * FROM substack_publications"
+    if enabled_only:
+        sql += " WHERE enabled=1"
+    sql += " ORDER BY sort_order ASC, name ASC"
+    with contextlib.closing(_connect()) as c:
+        return [dict(r) for r in c.execute(sql).fetchall()]
+
+
+def create_publication(name: str, feed_url: str, sort_order: int = 0) -> dict:
+    name = (name or "").strip()
+    feed_url = (feed_url or "").strip()
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO substack_publications (name, feed_url, enabled, sort_order, added_at)
+               VALUES (?, ?, 1, ?, ?)
+               ON CONFLICT(feed_url) DO UPDATE SET name=excluded.name, enabled=1""",
+            (name, feed_url, sort_order, int(time.time())),
+        )
+        c.commit()
+        row = c.execute("SELECT * FROM substack_publications WHERE feed_url=?",
+                        (feed_url,)).fetchone()
+        return dict(row)
+
+
+def update_publication(pub_id: int, payload: dict) -> Optional[dict]:
+    fields = {f: payload[f] for f in _PUB_FIELDS if f in payload}
+    if not fields:
+        return get_publication(pub_id)
+    set_clause = ", ".join(f"{k}=:{k}" for k in fields)
+    fields["id"] = int(pub_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(f"UPDATE substack_publications SET {set_clause} WHERE id=:id", fields)
+        c.commit()
+        if cur.rowcount == 0:
+            return None
+    return get_publication(pub_id)
+
+
+def get_publication(pub_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM substack_publications WHERE id=?", (int(pub_id),)).fetchone()
+        return dict(row) if row else None
+
+
+def delete_publication(pub_id: int) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM substack_publications WHERE id=?", (int(pub_id),))
+        c.commit()
+        return cur.rowcount > 0
+
+
+# ── Substack posts ──────────────────────────────────────────────────────────────
+
+def upsert_post(post: dict) -> None:
+    """Insert a post (idempotent on id = guid/url). Updates title/excerpt/hero in
+    case the publisher edited the post."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO substack_posts
+               (id, publication_id, title, excerpt, url, hero_image, author,
+                published_at, ingested_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                 title=excluded.title, excerpt=excluded.excerpt, hero_image=excluded.hero_image""",
+            (post["id"], post.get("publication_id"), post["title"], post.get("excerpt"),
+             post["url"], post.get("hero_image"), post.get("author"),
+             int(post["published_at"]), now),
+        )
+        c.commit()
+
+
+def list_posts(limit: int = 60) -> list[dict]:
+    """Newest-first posts joined with publication name."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT p.*, pub.name AS publication_name
+               FROM substack_posts p
+               LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+               ORDER BY p.published_at DESC
+               LIMIT ?""",
+            (int(limit),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_posts_for_publication(pub_id: int) -> int:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM substack_posts WHERE publication_id=?", (int(pub_id),))
+        c.commit()
+        return cur.rowcount
+
+
+# ── Team members ────────────────────────────────────────────────────────────────
+
+def list_team(enabled_only: bool = False) -> list[dict]:
+    sql = "SELECT * FROM team_members"
+    if enabled_only:
+        sql += " WHERE enabled=1"
+    sql += " ORDER BY sort_order ASC, id ASC"
+    with contextlib.closing(_connect()) as c:
+        return [dict(r) for r in c.execute(sql).fetchall()]
+
+
+def get_member(member_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM team_members WHERE id=?", (int(member_id),)).fetchone()
+        return dict(row) if row else None
+
+
+def create_member(payload: dict) -> dict:
+    now = int(time.time())
+    data = {f: payload.get(f) for f in _MEMBER_FIELDS}
+    data["name"] = (data.get("name") or "").strip()
+    data["sort_order"] = data.get("sort_order") or 0
+    data["enabled"] = 1 if data.get("enabled", 1) else 0
+    data["created_at"] = now
+    data["updated_at"] = now
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            """INSERT INTO team_members
+               (name, role, bio, twitter_url, substack_url, email, link_url,
+                sort_order, enabled, created_at, updated_at)
+               VALUES (:name, :role, :bio, :twitter_url, :substack_url, :email,
+                       :link_url, :sort_order, :enabled, :created_at, :updated_at)""",
+            data,
+        )
+        c.commit()
+        return get_member(cur.lastrowid)
+
+
+def update_member(member_id: int, payload: dict) -> Optional[dict]:
+    fields = {f: payload[f] for f in _MEMBER_FIELDS if f in payload}
+    if "enabled" in fields:
+        fields["enabled"] = 1 if fields["enabled"] else 0
+    if not fields:
+        return get_member(member_id)
+    fields["updated_at"] = int(time.time())
+    set_clause = ", ".join(f"{k}=:{k}" for k in fields)
+    fields["id"] = int(member_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(f"UPDATE team_members SET {set_clause} WHERE id=:id", fields)
+        c.commit()
+        if cur.rowcount == 0:
+            return None
+    return get_member(member_id)
+
+
+def set_member_photo(member_id: int, has_photo: bool) -> None:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE team_members SET has_photo=?, updated_at=? WHERE id=?",
+                  (1 if has_photo else 0, int(time.time()), int(member_id)))
+        c.commit()
+
+
+def delete_member(member_id: int) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM team_members WHERE id=?", (int(member_id),))
+        c.commit()
+        return cur.rowcount > 0

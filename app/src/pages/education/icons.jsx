@@ -75,3 +75,38 @@ export function SearchIcon({ size = 14 }) {
     </svg>
   )
 }
+
+// Article / newsletter — the Substack section mark.
+export function ArticleIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <GoldDefs id="edu-article" />
+      <rect x="4" y="3.5" width="16" height="17" rx="2" stroke="url(#edu-article)" strokeWidth="1.6" />
+      <path d="M7.5 8h9M7.5 11.5h9M7.5 15h5.5" stroke="url(#edu-article)" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+// Post / chat bubble — the Twitter "Posts" section mark.
+export function PostIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <GoldDefs id="edu-post" />
+      <path d="M20.5 11.2a7.4 7.4 0 0 1-10.7 6.6L4.5 19l1.3-4.8A7.4 7.4 0 1 1 20.5 11.2z"
+            stroke="url(#edu-post)" strokeWidth="1.6" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+// Team — two figures.
+export function TeamIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <GoldDefs id="edu-team" />
+      <circle cx="9" cy="8" r="3.2" stroke="url(#edu-team)" strokeWidth="1.6" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke="url(#edu-team)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M16 5.4a3.2 3.2 0 0 1 0 5.2M17.5 19a5.5 5.5 0 0 0-3-4.9"
+            stroke="url(#edu-team)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}

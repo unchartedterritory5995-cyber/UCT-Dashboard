@@ -110,6 +110,13 @@ const ICONS = {
       <path d="M21.5 8.5v5" />
     </>
   ),
+  desk: (
+    <>
+      <rect x="3" y="4" width="18" height="12" rx="1.8" />
+      <path d="M7 9.5h6M7 12h4" />
+      <path d="M8 20h8M12 16v4" />
+    </>
+  ),
   chat: <path d="M21 11.4a7.6 7.6 0 0 1-11 6.8L4.5 19.8l1.6-4.9A7.6 7.6 0 1 1 21 11.4z" />,
   shield: (
     <>

@@ -70,6 +70,7 @@ from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
+from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import modelbook as modelbook_router
@@ -684,9 +685,27 @@ async def lifespan(app: FastAPI):
         from api.services import tweet_store
         tweet_store._init_db()
         tweet_store.ensure_default_accounts()
+        tweet_store.ensure_official_accounts()  # firm's own accounts → Desk Posts
         print("[startup] tweets.db initialized")
     except Exception as e:
         print(f"[startup] tweet_store init failed (non-fatal): {e}")
+
+    # Initialize desk.db schema unconditionally (The Desk hub — Substack
+    # articles + Team members). Tiny + idempotent; the Desk reads 500 without it.
+    try:
+        from api.services import desk_store
+        desk_store._init_db()
+        desk_store.ensure_default_publications()  # firm's Substack feed
+        print("[startup] desk.db initialized")
+        # Fire an initial Substack poll in the background so Articles isn't empty
+        # before the hourly job's first :07 run. Best-effort, never blocks boot.
+        if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
+            import threading as _desk_threading
+            from api.services.substack_poller import poll_all as _substack_poll_once
+            _desk_threading.Thread(target=_substack_poll_once, daemon=True,
+                                   name="substack-initial-poll").start()
+    except Exception as e:
+        print(f"[startup] desk_store init failed (non-fatal): {e}")
 
     # Initialize catalysts.db schema unconditionally (same pattern as tweets.db).
     # Frontend tile fires /api/catalysts/today on every page load; without
@@ -1686,6 +1705,15 @@ async def lifespan(app: FastAPI):
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
+        # ── The Desk → Substack articles poller ───────────────────────────────
+        # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
+        # gated ON by default; set SUBSTACK_ENABLED=0 to disable.
+        if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
+            from api.services.substack_poller import poll_all as _substack_poll
+            _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7"),
+                               id="substack_poll_hourly", max_instances=1, replace_existing=True)
+            print("[scheduler] substack poll job registered")
+
         # ── Morning Catalyst Engine (spec 2026-05-25) ─────────────────────
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
         # mirroring the user's actual trading workflow. Everything outside
@@ -2242,6 +2270,7 @@ app.include_router(bullflow_mcp_probe_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
+app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(modelbook_router.router)

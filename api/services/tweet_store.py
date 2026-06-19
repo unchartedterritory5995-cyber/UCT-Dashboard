@@ -80,6 +80,14 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        # Forward-compat: flag for "official" UCT accounts surfaced in The Desk's
+        # Posts section (vs. the market-news tape). SQLite has no IF NOT EXISTS on
+        # columns — try + swallow duplicate-column.
+        try:
+            c.execute("ALTER TABLE twitter_accounts ADD COLUMN is_official INTEGER DEFAULT 0")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         c.commit()
 
 
@@ -157,6 +165,24 @@ def ensure_default_accounts() -> int:
     return n
 
 
+# The firm's OWN accounts — seeded + flagged is_official so they surface in The
+# Desk's Posts section (separate from the market-news tape). Idempotent.
+OFFICIAL_ACCOUNTS = [
+    ("TSDR_Trading", "TSDR Trading"),
+]
+
+
+def ensure_official_accounts() -> None:
+    """Idempotently seed + flag the firm's own accounts as official. add_account
+    is INSERT OR IGNORE (won't clobber edits); then mark official. Never raises."""
+    for handle, display in OFFICIAL_ACCOUNTS:
+        try:
+            add_account(handle, display_name=display, notes="official-seed")
+            set_account_official(handle, True)
+        except Exception:
+            pass
+
+
 def add_account(handle: str, display_name: Optional[str] = None,
                 added_by_user_id: Optional[int] = None, notes: Optional[str] = None) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
@@ -179,6 +205,14 @@ def set_account_enabled(handle: str, enabled: bool) -> None:
 def update_account_notes(handle: str, notes: str) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("UPDATE twitter_accounts SET notes=? WHERE handle=?", (notes, handle))
+        c.commit()
+
+
+def set_account_official(handle: str, official: bool) -> None:
+    """Flag/unflag an account as an official UCT account (Desk → Posts section)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE twitter_accounts SET is_official=? WHERE handle=?",
+                  (1 if official else 0, handle))
         c.commit()
 
 
@@ -270,21 +304,34 @@ def tape(hours: int = 12, limit: int = 15) -> list[dict]:
         return result
 
 
-def feed(hours: int = 12, limit: int = 50) -> list[dict]:
+def feed(hours: int = 12, limit: int = 50, official_only: bool = False) -> list[dict]:
     """Raw tweets in the window, newest first, each with its joined tickers.
 
     Unlike ``tape`` (which groups by ticker), this returns a chronological
-    stream suitable for a live "read the morning tape" feed.
+    stream suitable for a live "read the morning tape" feed. When
+    ``official_only`` is set, restricts to authors flagged is_official=1
+    (case-insensitive handle match) — powers The Desk's Posts section.
     """
     since = int(time.time()) - hours * 3600
     with contextlib.closing(_connect()) as c:
-        rows = c.execute(
-            """SELECT * FROM tweets
-               WHERE created_at >= ?
-               ORDER BY created_at DESC
-               LIMIT ?""",
-            (since, limit),
-        ).fetchall()
+        if official_only:
+            rows = c.execute(
+                """SELECT t.* FROM tweets t
+                   JOIN twitter_accounts a
+                     ON LOWER(a.handle) = LOWER(t.author_handle)
+                   WHERE t.created_at >= ? AND a.is_official = 1
+                   ORDER BY t.created_at DESC
+                   LIMIT ?""",
+                (since, limit),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                """SELECT * FROM tweets
+                   WHERE created_at >= ?
+                   ORDER BY created_at DESC
+                   LIMIT ?""",
+                (since, limit),
+            ).fetchall()
         tweets = [dict(r) for r in rows]
         if tweets:
             ids = [t["id"] for t in tweets]
