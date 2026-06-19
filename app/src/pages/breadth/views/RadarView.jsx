@@ -4,6 +4,7 @@
  * a spiky dent. Signal of the Day axis label is gold ★; notable is amber.
  */
 import { resolveViewColors } from './breadthViewShared'
+import UIcon from '../../../components/ui/UIcon'
 
 export default function RadarView({ currentRow, metrics, normalize, onDrill, signalKey, notableKey, options = {} }) {
   if (!currentRow || (metrics?.length ?? 0) < 3) {
@@ -73,7 +74,7 @@ export default function RadarView({ currentRow, metrics, normalize, onDrill, sig
                   fontSize="8" fontWeight="700" fontFamily="Instrument Sans, sans-serif"
                   style={{ cursor: clickable ? 'pointer' : 'default' }}
                   onClick={clickable ? () => onDrill(m) : undefined}>
-              {isSignal ? '★ ' : ''}{m.label}
+              {isSignal ? <UIcon name="star-fill" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} /> : null}{m.label}
             </text>
           )
         })}

@@ -11,6 +11,7 @@
  */
 
 import { useState, useId, useEffect, useMemo, useCallback } from 'react'
+import UIcon from '../../../../components/ui/UIcon'
 import StrategyIcon from './StrategyIcon'
 import {
   STRATEGY_TEMPLATES,
@@ -492,7 +493,7 @@ function LegsEditor({ legs, onChange, onAdd, onRemove, strategyType }) {
                   disabled={legs.length <= 1}
                   aria-label={`Remove leg ${i + 1}`}
                 >
-                  ✕
+                  <UIcon name="x" size={13} />
                 </button>
               </td>
             </tr>

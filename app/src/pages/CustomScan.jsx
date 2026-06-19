@@ -709,7 +709,7 @@ export default function CustomScan({ allCandidates }) {
                         {c.vr != null ? c.vr.toFixed(1) + '×' : '—'}
                       </td>
                       <td className={c.a50 === true ? styles.numGreen : c.a50 === false ? styles.numMuted : ''}>
-                        {c.a50 === true ? '✓' : c.a50 === false ? '✗' : '—'}
+                        {c.a50 === true ? <UIcon name="check" size={12} /> : c.a50 === false ? <UIcon name="x" size={12} /> : '—'}
                       </td>
                       <td className={styles.scoreCell}>
                         {c.candle_score != null
