@@ -2,29 +2,27 @@
  * JournalSnapshotTile — Robinhood-style portfolio snapshot on the Dashboard.
  *
  * Replaces the old Compass · Today tile. Shows the user's Journal 2.0 open
- * book at a glance:
- *   - Hero: live portfolio value of open EQUITY positions (mark-to-market)
- *   - Today's $ / % change + Open P&L ($ / % vs cost basis)
- *   - A short list of open positions (equity live + options) with performance
- *   - Whole tile click-throughs into /journal?j2tab=positions
+ * book at a glance and click-throughs into /journal?j2tab=positions.
  *
- * Zero new backend — reuses the J2 positions/options endpoints, the shared
- * live-price store, and the journal-2-0 calc/format helpers. The two fetches
- * are intentionally UNSCOPED (all accounts) so the dashboard always shows the
- * whole book regardless of the Journal's selected account.
+ * Two hero variants, picked by account type:
+ *   - BROKER accounts → authoritative net-liq balance + Today/period P&L +
+ *     an equity sparkline, all from the broker performance engine
+ *     (account.brokerTotalEquity + /api/j2/broker/performance). This is the
+ *     same source the Open Positions tab's BrokerAccountHero uses, so the
+ *     number is always populated and never collapses to $0.00 when the live
+ *     price feed lags or the market is closed.
+ *   - MANUAL accounts → live mark-to-market of open equity positions
+ *     (portfolioAggregates over useLivePrices) + Today + Open P&L.
  *
- * Honesty rules (see spec 2026-06-18):
- *   - Equity drives the hero (true mark-to-market via live prices).
- *   - Options have no live option quotes in-app; broker-imported strategies may
- *     carry `broker_current_value` (shown), manual strategies show cost basis
- *     with a greyed P&L. A missing mark never fabricates a value.
- *   - A symbol missing a live price is skipped from sums and shown as "—".
+ * Plus a short open-positions list (equity + options) and an onboarding empty
+ * state. Zero new backend — reuses existing J2 endpoints + helpers.
  */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import useLivePrices from '../../hooks/useLivePrices'
+import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
 import {
   portfolioAggregates,
   positionPnlDollar,
@@ -41,6 +39,7 @@ import styles from './JournalSnapshotTile.module.css'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
 const MAX_ROWS = 6
+const BROKER_PERIOD = '3M'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -63,8 +62,27 @@ export function positionTodayDollar(p, live) {
   if (!Number.isFinite(price) || !Number.isFinite(pct)) return null
   const prevClose = price / (1 + pct / 100)
   if (!Number.isFinite(prevClose)) return null
-  const sign = p.side === 'Short' ? -1 : 1
-  return (price - prevClose) * p.shares * sign
+  const sgn = p.side === 'Short' ? -1 : 1
+  return (price - prevClose) * p.shares * sgn
+}
+
+/** Build a static sparkline path (viewBox 0..100) from a broker equity series. */
+export function buildSpark(series) {
+  const pts = (series || []).filter((p) => Number.isFinite(p?.value))
+  if (pts.length < 2) return null
+  const ys = pts.map((p) => p.value)
+  const min = Math.min(...ys)
+  const max = Math.max(...ys)
+  const span = max - min || 1
+  const n = pts.length
+  const coords = pts.map((p, i) => ({
+    x: (i / (n - 1)) * 100,
+    y: 100 - ((p.value - min) / span) * 100,
+  }))
+  const line = coords.map((c, i) => `${i ? 'L' : 'M'}${c.x.toFixed(2)} ${c.y.toFixed(2)}`).join(' ')
+  const area = `${line} L100 100 L0 100 Z`
+  const up = pts[n - 1].value >= pts[0].value
+  return { line, area, up }
 }
 
 const sign = (n) => (n > 0 ? styles.pos : n < 0 ? styles.neg : '')
@@ -76,9 +94,19 @@ export default function JournalSnapshotTile() {
   const { data: optData, isLoading: optLoading } = useSWR(
     '/api/j2/options?status=open', fetcher, SWR_OPTS,
   )
+  const { data: acctData } = useSWR('/api/j2/accounts', fetcher, SWR_OPTS)
 
   const positions = posData?.positions ?? []
   const strategies = optData?.strategies ?? []
+  const accounts = acctData?.accounts ?? []
+
+  // Broker portfolio performance (real net-liq + equity curve), aggregated
+  // across all connected brokers. Empty/ignored for manual-only users.
+  const { data: perf } = useJ2BrokerPerformance(null, BROKER_PERIOD, { portfolio: true })
+  const brokerAccounts = accounts.filter(
+    (a) => a.balanceSource === 'broker' && a.brokerTotalEquity != null,
+  )
+  const hasBroker = brokerAccounts.length > 0 || (perf?.brokerCount ?? 0) > 0
 
   // Broker status only matters for the empty state — fetch it only when the
   // book is empty so users with positions don't pay an extra request.
@@ -86,7 +114,7 @@ export default function JournalSnapshotTile() {
   const { data: brokerData } = useSWR(
     noOpenYet ? '/api/j2/broker/status' : null, fetcher, SWR_OPTS,
   )
-  const brokerConnected = !!brokerData?.connected
+  const brokerConnected = !!brokerData?.connected || hasBroker
 
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { prices } = useLivePrices(symbols)
@@ -97,23 +125,20 @@ export default function JournalSnapshotTile() {
     ),
     [prices],
   )
-
   const agg = useMemo(
     () => portfolioAggregates(positions, priceMap, 0),
     [positions, priceMap],
   )
-
-  // Σ today's $ across positions that have a complete live snapshot.
-  const todayDollar = useMemo(() => {
-    let sum = 0
+  const manualToday = useMemo(() => {
+    let s = 0
     let any = false
     for (const p of positions) {
       const t = positionTodayDollar(p, prices[p.symbol])
       if (t == null) continue
-      sum += t
+      s += t
       any = true
     }
-    return any ? sum : null
+    return any ? s : null
   }, [positions, prices])
 
   // Equity rows, richest mover first.
@@ -160,12 +185,6 @@ export default function JournalSnapshotTile() {
   const totalCount = positions.length + strategies.length
   const isLoading = (posLoading || optLoading) && totalCount === 0
 
-  // % bases: today vs prior-close value; open vs cost basis.
-  const prevValue = todayDollar == null ? null : agg.value - todayDollar
-  const todayPct = prevValue ? todayDollar / prevValue : null
-  const costBasis = agg.value - agg.unrealized
-  const openPct = costBasis ? agg.unrealized / costBasis : null
-
   return (
     <TileCard
       title="📓 Journal · Positions"
@@ -178,44 +197,24 @@ export default function JournalSnapshotTile() {
           <EmptyState connected={brokerConnected} />
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
-              {/* Hero — portfolio value + performance */}
-              <div className={styles.hero}>
-                <div className={styles.heroValue}>{money(agg.value)}</div>
-                <div className={styles.perfRow}>
-                  <PerfFigure
-                    label="Today"
-                    dollar={todayDollar}
-                    pct={todayPct}
-                  />
-                  <PerfFigure
-                    label="Open P&L"
-                    dollar={agg.unrealized}
-                    pct={openPct}
-                  />
-                </div>
-                <div className={styles.countLine}>
-                  {positions.length} {positions.length === 1 ? 'position' : 'positions'}
-                  {strategies.length > 0 && (
-                    <> · {strategies.length} {strategies.length === 1 ? 'option' : 'options'}</>
-                  )}
-                </div>
-              </div>
+            {hasBroker
+              ? <BrokerHero perf={perf} brokerAccounts={brokerAccounts} positions={positions} strategies={strategies} />
+              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
-              {/* Holdings */}
-              <div className={styles.rows}>
-                {visibleRows.map((row) =>
-                  row.kind === 'equity'
-                    ? <EquityRow key={row.key} row={row} />
-                    : <OptionRow key={row.key} row={row} />,
-                )}
-              </div>
+            <div className={styles.rows}>
+              {visibleRows.map((row) =>
+                row.kind === 'equity'
+                  ? <EquityRow key={row.key} row={row} />
+                  : <OptionRow key={row.key} row={row} />,
+              )}
+            </div>
 
-              <div className={styles.footer}>
-                {moreCount > 0
-                  ? <span className={styles.more}>+ {moreCount} more</span>
-                  : <span />}
-                <span className={styles.openJournal}>Open Journal →</span>
-              </div>
+            <div className={styles.footer}>
+              {moreCount > 0
+                ? <span className={styles.more}>+ {moreCount} more</span>
+                : <span />}
+              <span className={styles.openJournal}>Open Journal →</span>
+            </div>
           </Link>
         )}
       </div>
@@ -223,39 +222,89 @@ export default function JournalSnapshotTile() {
   )
 }
 
-function EmptyState({ connected }) {
-  if (connected) {
-    // Broker linked but flat — don't tell them to connect again.
-    return (
-      <div className={styles.empty}>
-        <div className={styles.emptyIcon} aria-hidden="true">🧭</div>
-        <div className={styles.emptyTitle}>You&rsquo;re all synced</div>
-        <div className={styles.emptySub}>
-          No open positions right now. New trades import automatically and
-          show up here.
-        </div>
-        <Link to={JOURNAL_LINK} className={styles.emptyPrimary}>
-          Open the journal →
-        </Link>
-      </div>
-    )
-  }
+function CountLine({ positions, strategies, suffix }) {
   return (
-    <div className={styles.empty}>
-      <div className={styles.emptyIcon} aria-hidden="true">📈</div>
-      <div className={styles.emptyTitle}>See your whole portfolio here</div>
-      <div className={styles.emptySub}>
-        Connect your brokerage to auto-import every trade, position &amp;
-        balance — or log trades yourself.
+    <div className={styles.countLine}>
+      {positions.length} {positions.length === 1 ? 'position' : 'positions'}
+      {strategies.length > 0 && (
+        <> · {strategies.length} {strategies.length === 1 ? 'option' : 'options'}</>
+      )}
+      {suffix}
+    </div>
+  )
+}
+
+/** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
+function BrokerHero({ perf, brokerAccounts, positions, strategies }) {
+  const series = perf?.equitySeries || []
+  const sumEquity = brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0)
+  const value = perf?.endEquity ?? (sumEquity || null)
+
+  // Today = change across the last two REAL (non-estimated) snapshots.
+  const real = series.filter((p) => !p.estimated)
+  let todayChange = null
+  let todayPct = null
+  if (real.length >= 2) {
+    const prev = real[real.length - 2].value
+    todayChange = real[real.length - 1].value - prev
+    todayPct = prev ? todayChange / Math.abs(prev) : null
+  }
+  const periodPnl = perf?.dollarPnl
+  const periodPct = perf?.timeWeighted
+  const spark = buildSpark(series)
+  const sparkColor = spark && !spark.up ? 'var(--loss, #ef4444)' : 'var(--gain, #22c55e)'
+
+  return (
+    <div className={styles.hero}>
+      <div className={styles.heroValue}>{money(value)}</div>
+      <div className={styles.perfRow}>
+        {todayChange != null && <PerfFigure label="Today" dollar={todayChange} pct={todayPct} />}
+        {periodPnl != null && <PerfFigure label={BROKER_PERIOD} dollar={periodPnl} pct={periodPct} />}
       </div>
-      <div className={styles.emptyCtas}>
-        <Link to="/settings" className={styles.emptyPrimary}>
-          🔗 Connect a brokerage
-        </Link>
-        <Link to={JOURNAL_LINK} className={styles.emptySecondary}>
-          Add manually →
-        </Link>
+      {spark && (
+        <svg
+          className={styles.spark}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="jstSparkFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={sparkColor} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={sparkColor} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={spark.area} fill="url(#jstSparkFill)" />
+          <path
+            d={spark.line}
+            fill="none"
+            stroke={sparkColor}
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+      <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
+    </div>
+  )
+}
+
+/** Manual hero — live mark-to-market of open equity positions. */
+function ManualHero({ agg, today, positions, strategies }) {
+  const prevValue = today == null ? null : agg.value - today
+  const todayPct = prevValue ? today / prevValue : null
+  const costBasis = agg.value - agg.unrealized
+  const openPct = costBasis ? agg.unrealized / costBasis : null
+  return (
+    <div className={styles.hero}>
+      <div className={styles.heroValue}>{money(agg.value)}</div>
+      <div className={styles.perfRow}>
+        <PerfFigure label="Today" dollar={today} pct={todayPct} />
+        <PerfFigure label="Open P&L" dollar={agg.unrealized} pct={openPct} />
       </div>
+      <CountLine positions={positions} strategies={strategies} />
     </div>
   )
 }
@@ -319,6 +368,42 @@ function OptionRow({ row }) {
         {brokerVal == null
           ? <span className={styles.rowMutedDash}>—</span>
           : <span className={styles.rowToday}>{money(brokerVal)}</span>}
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ connected }) {
+  if (connected) {
+    return (
+      <div className={styles.empty}>
+        <div className={styles.emptyIcon} aria-hidden="true">🧭</div>
+        <div className={styles.emptyTitle}>You&rsquo;re all synced</div>
+        <div className={styles.emptySub}>
+          No open positions right now. New trades import automatically and
+          show up here.
+        </div>
+        <Link to={JOURNAL_LINK} className={styles.emptyPrimary}>
+          Open the journal →
+        </Link>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyIcon} aria-hidden="true">📈</div>
+      <div className={styles.emptyTitle}>See your whole portfolio here</div>
+      <div className={styles.emptySub}>
+        Connect your brokerage to auto-import every trade, position &amp;
+        balance — or log trades yourself.
+      </div>
+      <div className={styles.emptyCtas}>
+        <Link to="/settings" className={styles.emptyPrimary}>
+          🔗 Connect a brokerage
+        </Link>
+        <Link to={JOURNAL_LINK} className={styles.emptySecondary}>
+          Add manually →
+        </Link>
       </div>
     </div>
   )

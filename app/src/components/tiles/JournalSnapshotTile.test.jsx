@@ -4,13 +4,18 @@ import { positionTodayDollar } from './JournalSnapshotTile'
 
 // Shared mutable state the mocks read from. vi.hoisted so it exists before the
 // vi.mock factories run.
-const h = vi.hoisted(() => ({ positions: null, options: null, prices: {}, broker: null }))
+const h = vi.hoisted(() => ({
+  positions: null, options: null, prices: {}, broker: null, accounts: null, perf: null,
+}))
 
-// useSWR is keyed by URL — return positions / options / broker responses.
+// useSWR is keyed by URL — return the matching slice. Order matters:
+// /broker/performance before the generic /broker (status) check.
 vi.mock('swr', () => ({
   default: (key) => {
     const k = String(key)
+    if (k.includes('/broker/performance')) return { data: h.perf, isLoading: false }
     if (k.includes('/broker')) return { data: h.broker, isLoading: false }
+    if (k.includes('/accounts')) return { data: h.accounts, isLoading: false }
     if (k.includes('/positions')) return { data: h.positions, isLoading: false }
     if (k.includes('/options')) return { data: h.options, isLoading: false }
     return { data: undefined, isLoading: false, mutate: () => {} }
@@ -29,6 +34,8 @@ beforeEach(() => {
   h.options = null
   h.prices = {}
   h.broker = null
+  h.accounts = null
+  h.perf = null
 })
 
 test('positionTodayDollar derives today $ from live snapshot', () => {
@@ -84,6 +91,38 @@ test('renders portfolio value + Today + Open P&L from open positions', () => {
   // Today and Open P&L both = +$800.00 (appear in hero + row).
   expect(screen.getAllByText(/\+\$800\.00/).length).toBeGreaterThan(0)
   expect(screen.getByText('1 position')).toBeInTheDocument()
+})
+
+test('broker account: hero uses real net-liq balance, never $0.00 when live feed is empty', () => {
+  // A broker-synced account with positions but NO live prices (after-hours):
+  // the old live-recompute collapsed to $0.00 — the broker net-liq must win.
+  h.positions = {
+    positions: [
+      { id: 'p1', symbol: 'SPY', side: 'Long', shares: 1.0165, entryPrice: 740, stopPrice: 700 },
+    ],
+  }
+  h.options = { strategies: [] }
+  h.accounts = { accounts: [{ id: 'a1', balanceSource: 'broker', brokerTotalEquity: 14632.18 }] }
+  h.perf = {
+    endEquity: 14632.18,
+    dollarPnl: 120.5,
+    timeWeighted: 0.008,
+    brokerCount: 1,
+    equitySeries: [
+      { date: '2026-06-17', value: 14400.0, estimated: false },
+      { date: '2026-06-18', value: 14511.68, estimated: false },
+      { date: '2026-06-19', value: 14632.18, estimated: false },
+    ],
+  }
+  h.prices = {} // live feed empty
+
+  renderWithProviders(<JournalSnapshotTile />)
+
+  expect(screen.getByText('$14,632.18')).toBeInTheDocument()
+  expect(screen.queryByText('$0.00')).toBeNull()
+  // Today = 14632.18 − 14511.68 = +$120.50 (last two real snapshots).
+  expect(screen.getAllByText(/\+\$120\.50/).length).toBeGreaterThan(0)
+  expect(screen.getByText(/synced/)).toBeInTheDocument()
 })
 
 test('includes open option strategies with broker value', () => {

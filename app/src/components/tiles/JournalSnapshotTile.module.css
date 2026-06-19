@@ -89,6 +89,14 @@
   font-weight: 600;
 }
 
+.spark {
+  width: 100%;
+  height: 40px;
+  display: block;
+  margin: 2px 0 4px;
+  overflow: visible;
+}
+
 /* ── Holdings rows ────────────────────────────────────────────────────── */
 .rows {
   display: flex;
