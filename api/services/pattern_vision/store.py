@@ -3,6 +3,7 @@
 Own DB (`/data/pattern_vision.db`) so the existing pattern_detections store is
 untouched. Stores one verdict per (ticker, tf, setup, asof_date) + a cost log.
 """
+import json
 import os
 import sqlite3
 import threading
@@ -13,6 +14,7 @@ _WRITE_LOCK = threading.Lock()
 VERDICT_COLUMNS = [
     "ticker", "tf", "setup", "asof_date", "confirmed", "vision_confidence",
     "rationale", "key_level", "raw_confidence", "model", "signals_hash", "judged_at",
+    "checks",  # JSON: [{"criterion": str, "passed": bool}, ...]
 ]
 
 
@@ -40,12 +42,17 @@ def init_db() -> None:
             ticker TEXT, tf TEXT, setup TEXT, asof_date TEXT,
             confirmed INTEGER, vision_confidence REAL, rationale TEXT, key_level REAL,
             raw_confidence REAL, model TEXT, signals_hash TEXT, judged_at INTEGER,
+            checks TEXT,
             PRIMARY KEY (ticker, tf, setup, asof_date))""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_pv_conf "
                   "ON pattern_verdicts(ticker, tf, confirmed)")
         c.execute("""CREATE TABLE IF NOT EXISTS vision_cost_log (
             day TEXT, ticker TEXT, model TEXT, in_tok INTEGER, out_tok INTEGER,
             cost_usd REAL, logged_at INTEGER)""")
+        # Migrate the already-shipped prod table (added the `checks` column).
+        cols = {r[1] for r in c.execute("PRAGMA table_info(pattern_verdicts)").fetchall()}
+        if "checks" not in cols:
+            c.execute("ALTER TABLE pattern_verdicts ADD COLUMN checks TEXT")
         c.commit()
 
 
@@ -57,18 +64,31 @@ def put_verdict(v: dict) -> None:
         c.commit()
 
 
+def _decode(row) -> dict:
+    d = dict(row)
+    raw = d.get("checks")
+    if isinstance(raw, str) and raw:
+        try:
+            d["checks"] = json.loads(raw)
+        except (ValueError, TypeError):
+            d["checks"] = []
+    elif raw is None:
+        d["checks"] = []
+    return d
+
+
 def get_verdict(ticker, tf, setup, asof_date) -> dict | None:
     with connect() as c:
         r = c.execute("SELECT * FROM pattern_verdicts WHERE ticker=? AND tf=? AND setup=? "
                       "AND asof_date=?", (ticker.upper(), tf, setup, asof_date)).fetchone()
-        return dict(r) if r else None
+        return _decode(r) if r else None
 
 
 def get_confirmed(ticker, tf="D") -> list[dict]:
     with connect() as c:
         rows = c.execute("SELECT * FROM pattern_verdicts WHERE ticker=? AND tf=? AND confirmed=1 "
                          "ORDER BY judged_at DESC", (ticker.upper(), tf)).fetchall()
-        return [dict(r) for r in rows]
+        return [_decode(r) for r in rows]
 
 
 def cost_today(day: str) -> float:
