@@ -58,7 +58,7 @@ function FlowCard({ item }) {
   )
 }
 
-export default function OptionsFlowPreview() {
+export default function OptionsFlowPreview({ embedded = false }) {
   const { data, error, mutate } = useMobileSWR('/api/flow/top-conviction', fetcher, {
     refreshInterval: 60000,
     marketHoursOnly: true,
@@ -66,27 +66,44 @@ export default function OptionsFlowPreview() {
 
   const items = Array.isArray(data?.items) ? data.items : []
 
+  const body = error ? (
+    <ErrorState compact message="Failed to load options flow" onRetry={() => mutate()} />
+  ) : !data ? (
+    <SkeletonTable rows={2} cols={5} />
+  ) : items.length === 0 ? (
+    <Link to="/options-flow" className={styles.empty}>
+      No conviction flow yet today — open the full board →
+    </Link>
+  ) : (
+    <div className={styles.grid}>
+      {items.map((it) => (
+        <FlowCard key={it.sym} item={it} />
+      ))}
+    </div>
+  )
+
+  // Embedded (mobile MobileSection) — no TileCard chrome; the section supplies
+  // the header. Adds a full-width tap-through footer.
+  if (embedded) {
+    return (
+      <div className={styles.embedded}>
+        {body}
+        {items.length > 0 && (
+          <Link to="/options-flow" className={styles.viewAllFoot}>
+            View all options flow →
+          </Link>
+        )}
+      </div>
+    )
+  }
+
   const viewAll = (
     <Link to="/options-flow" className={styles.viewAll}>View all →</Link>
   )
 
   return (
     <TileCard title="Options Flow" badge={data?.date || undefined} actions={viewAll}>
-      {error ? (
-        <ErrorState compact message="Failed to load options flow" onRetry={() => mutate()} />
-      ) : !data ? (
-        <SkeletonTable rows={2} cols={5} />
-      ) : items.length === 0 ? (
-        <Link to="/options-flow" className={styles.empty}>
-          No conviction flow yet today — open the full board →
-        </Link>
-      ) : (
-        <div className={styles.grid}>
-          {items.map((it) => (
-            <FlowCard key={it.sym} item={it} />
-          ))}
-        </div>
-      )}
+      {body}
     </TileCard>
   )
 }

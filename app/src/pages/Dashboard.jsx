@@ -156,6 +156,15 @@ export default function Dashboard() {
             >
               <TapeFeed />
             </MobileSection>
+            <MobileSection
+              icon="📊"
+              title="Options Flow"
+              subtitle="Top conviction flow today"
+              expanded={openSection === 'optflow'}
+              onToggle={() => toggle('optflow')}
+            >
+              <OptionsFlowPreview embedded />
+            </MobileSection>
           </PullToRefresh>
         </div>
 

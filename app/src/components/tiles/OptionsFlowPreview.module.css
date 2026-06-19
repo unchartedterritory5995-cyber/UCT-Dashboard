@@ -142,3 +142,62 @@
 @media (max-width: 1100px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ── Embedded (mobile MobileSection) wrapper ── */
+.embedded { display: flex; flex-direction: column; gap: 8px; }
+.viewAllFoot {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c9a84c;
+  text-decoration: none;
+  padding: 8px;
+  min-height: var(--tap-min, 44px);
+  box-sizing: border-box;
+}
+.viewAllFoot:active { opacity: 0.7; }
+
+/* ── Phone (≤640): single column, each card reflows into the screenshot's
+   horizontal row — [rank · ticker · dir] … [premium / bull%] … [contract]. ── */
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; gap: 7px; }
+
+  .card {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 13px;
+    border-left-width: 4px;
+    min-height: var(--tap-min, 44px);
+  }
+  .card:hover { transform: none; }            /* no hover lift on touch */
+
+  /* zone 1 — rank · ticker · dir pill (left, grows to push the rest right) */
+  .cardTop { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  .cardTop .dirPill { margin-left: 6px; }     /* sit by the ticker, not far right */
+  .rank { font-size: 17px; }
+  .sym { font-size: 15px; }
+
+  /* zone 2 — premium over bull% (right-aligned block) */
+  .premRow {
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+  }
+  .prem { font-size: 18px; }
+
+  /* zone 3 — headline contract (far right) */
+  .contract {
+    flex: 0 0 auto;
+    min-width: 104px;
+    border-top: none;
+    padding-top: 0;
+    align-items: flex-end;
+  }
+  .contractLine { justify-content: flex-end; }
+  .contractLine .hits,
+  .contractLine .money { margin-left: 6px; }  /* tighten — no auto-push in the narrow zone */
+}
