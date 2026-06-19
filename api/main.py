@@ -1782,7 +1782,13 @@ async def lifespan(app: FastAPI):
             from api.services.substack_poller import poll_all as _substack_poll
             _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7"),
                                id="substack_poll_hourly", max_instances=1, replace_existing=True)
-            print("[scheduler] substack poll job registered")
+            # Sunday-afternoon burst: posts usually drop ~2 PM ET on Sundays, so
+            # poll every 10 min 1–5 PM ET that day → a fresh article lands within
+            # minutes (the hourly job above stays the off-schedule safety net).
+            _scheduler.add_job(_substack_poll,
+                               trigger=CronTrigger(day_of_week="sun", hour="13-17", minute="*/10"),
+                               id="substack_poll_sunday_burst", max_instances=1, replace_existing=True)
+            print("[scheduler] substack poll job registered (hourly + Sunday burst)")
 
         # ── Morning Catalyst Engine (spec 2026-05-25) ─────────────────────
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
