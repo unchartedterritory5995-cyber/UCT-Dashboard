@@ -47,7 +47,13 @@ export default function NavBar() {
 
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
-      <img className={styles.brand} src={uctLogo} alt="UCT" />
+      <div className={styles.brand}>
+        <img className={styles.brandLogo} src={uctLogo} alt="UCT" />
+        <span className={styles.brandName}>
+          <span className={styles.brandNameTop}>UCT</span>
+          <span className={styles.brandNameSub}>INTELLIGENCE</span>
+        </span>
+      </div>
 
       <div className={styles.mainItems}>
         {NAV_ITEMS.filter(item => showAll || FREE_PAGES.includes(item.to)).map(item => (
