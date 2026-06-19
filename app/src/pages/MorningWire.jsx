@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
@@ -123,6 +123,36 @@ export default function MorningWire() {
     containerRef: rundownRef,
     trackId: `morning-wire-${rundown?.date || 'today'}`,
   })
+
+  // Per-segment 👍/👎 feedback: inject controls into each injected rd-seg label,
+  // one delegated click handler posts the vote (best-effort).
+  useEffect(() => {
+    const root = rundownRef.current
+    if (!root || !rundown?.html) return
+    root.querySelectorAll('section.rd-seg[data-seg] > .rd-seg-label').forEach((label) => {
+      if (label.querySelector('[data-fb-vote]')) return
+      label.insertAdjacentHTML('beforeend',
+        '<span class="rd-fb">' +
+        '<button data-fb-vote="up" aria-label="thumbs up">👍</button>' +
+        '<button data-fb-vote="down" aria-label="thumbs down">👎</button></span>')
+    })
+    const onClick = async (e) => {
+      const btn = e.target.closest('[data-fb-vote]')
+      if (!btn) return
+      const seg = btn.closest('section.rd-seg')?.dataset.seg || 'overall'
+      btn.parentElement.querySelectorAll('[data-fb-vote]').forEach((b) => b.classList.remove('rd-fb-on'))
+      btn.classList.add('rd-fb-on')
+      try {
+        await fetch('/api/wire-feedback', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ market_date: rundown.date, segment_key: seg, verdict: btn.dataset.fbVote }),
+        })
+      } catch { /* best-effort */ }
+    }
+    root.addEventListener('click', onClick)
+    return () => root.removeEventListener('click', onClick)
+  }, [rundown?.html, rundown?.date])
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),

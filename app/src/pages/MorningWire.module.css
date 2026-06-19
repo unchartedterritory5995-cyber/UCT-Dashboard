@@ -896,3 +896,12 @@
   color: var(--ut-gold, #c9a84c);
   font-weight: 600;
 }
+
+/* ── Per-segment feedback thumbs (injected into rd-seg labels) ── */
+:global(.rd-fb) { float: right; display: inline-flex; gap: 6px; }
+:global(.rd-fb button) {
+  background: none; border: none; cursor: pointer; opacity: 0.35;
+  font-size: 12px; line-height: 1; padding: 0 2px; transition: opacity .15s;
+}
+:global(.rd-fb button:hover) { opacity: 0.8; }
+:global(.rd-fb button.rd-fb-on) { opacity: 1; }
