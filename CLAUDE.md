@@ -111,6 +111,74 @@ Whisper-backed push-to-talk dictation + Compass voice conversation are paired on
 - **First-run hint (2026-05-15):** one-time discoverability popover in `VoiceInputButton`. Single localStorage flag `voice.dictation.hintSeen` gates it across ALL surfaces (not per-surface). Dismissed by ✕ button OR first voice use. `VoiceInputButton.test.jsx` `beforeEach` defaults the flag to seen so behavioral tests are unaffected; 4 hint tests opt out explicitly.
 - **Tests**: backend 8 tests in `tests/test_voice_router.py` (auth, paid-gate, happy path, empty audio, usage tracking, cap exceeded, cleanup applied, cleanup skipped by default) + 3 in `test_voice_openai.py` (cleanup happy/empty/error-passthrough). Frontend 4 in `CompassAssistButton.test.jsx` + 6 in `VoiceInputButton.test.jsx` (Whisper path, fallback, cleanup param). All 51 backend voice + 547 frontend tests pass.
 
+## Journal 2.0 — Broker Sync (SnapTrade) — LIVE in production (2026-06-16→18)
+
+Connect a brokerage once → J2 auto-imports every trade, open position, balance, and
+option, no manual entry. **Read-only, premium-gated, multi-user, idempotent.** Provider =
+**SnapTrade** (30+ US brokers). Live on production credentials; mirrors the broker account.
+Full session detail: user memory `project_broker_sync_2026_06_15.md`.
+
+### Architecture
+- All under `api/services/journal_two/broker/` + router `api/routers/broker_sync.py`
+  (`/api/j2/broker/*`). Runs **web-side** (auth.db is web-local).
+- SnapTrade isolated in `snaptrade_client.py` (sync SDK via `asyncio.to_thread` +
+  global token-bucket limiter + structured errors `SnapNotConfigured`/`SnapAuthError`/
+  `SnapUserSecretInvalid`/`SnapRateLimited`/`SnapTransient`). userSecrets encrypted at
+  rest via `api/services/crypto_box.py` (Fernet, key-id prefixed).
+- Pipeline (`sync.py` → `reconstruct.py`/`option_reconstruct.py` over the raw
+  `j2_broker_activities` ledger): fetch activities (full backfill or incremental from
+  cursor) → store deduped → FIFO reconstruct (`fifo.reconstruct_trades(allow_shorts=True)`)
+  → **holdings-as-truth** reconcile (`balances.reconcile_positions` for equities,
+  `option_reconstruct.reconcile_option_holdings` for options) → write balances + daily
+  equity snapshot.
+
+### Key files
+- BE: `broker/{snaptrade_client,snaptrade_adapter,service,sync,reconstruct,option_reconstruct,balances,balance_resolver,connections,activities_store,dedup,rate_limit}.py`, `routers/broker_sync.py`, `services/crypto_box.py`
+- FE: `pages/journal-2-0/components/{BrokerConnectionsCard (Settings),PositionsTable,BrokerEquityCurve,BrokerReviewNudge,BrokerSyncStatus}.jsx` + `tabs/{OpenPositionsTab,TradeJournalTab}.jsx` (options merged into both tables)
+- Diagnostics (manual, gitignored state): `tools/snaptrade_{smoke_test,shape_audit,j2_e2e}.py`
+
+### Env vars (Railway web pod; production)
+`SNAPTRADE_CLIENT_ID` (`UNCHARTED-TERRITORY-REAQG`) · `SNAPTRADE_CONSUMER_KEY` ·
+`BROKER_ENCRYPTION_KEY` (Fernet — PERMANENT, backed up) · `SNAPTRADE_WEBHOOK_SECRET` ·
+`BROKER_SYNC_ENABLED=1` (scheduler: 20-min incremental + 2:30am ET nightly reconcile).
+Inert with these unset. `railway variables --set` STAGES → must `railway redeploy
+--service web --yes` to apply.
+
+### Schema (j2_broker_* tables in db.py)
+`j2_broker_users` (encrypted secret), `j2_broker_accounts` (1:1 → a `j2_accounts` row,
+`balance_source='broker'`), `j2_broker_activities` (raw ledger), `j2_broker_sync_log`,
+`j2_broker_dup_flags`, `j2_broker_equity_snapshots` (daily net-liq → equity curve).
+Plus alters: `source`/`external_id`/`entry_estimated` on positions/trades,
+`source`/`external_id`/`broker_current_value` on option_strategies, broker balance cols
+on accounts.
+
+### UI surfaces (all in Open Positions / Trade Journal)
+Connect/disconnect in **Settings → Brokerage Connections** (`BrokerConnectionsCard`).
+Open Positions tab leads with: sync-freshness line, real **equity curve** (from net-liq
+snapshots), "needs a setup" nudge; **options render as rows in the same table as shares**
+(`CRWV Oct 16 $110C` · `LONG CALL` · Current/P&L from broker mark). Trade Journal: closed
+options merged into the closed-trades table likewise. Compass already coaches imported
+trades (`imported:true` flag + `coach_prompts.py` rule).
+
+### LOCKED invariants — do NOT regress
+- **MERGE AS A UNIT:** `from api.routers import broker_sync` + `include_router` + scheduler
+  block in `main.py` must all be present together. **After EVERY master merge, verify
+  `grep -c broker_sync api/main.py` ≥ 7 BEFORE pushing** — a concurrent/partner commit
+  silently dropped this once → router unmounted → `POST /connect` hit the SPA catch-all →
+  **405 Method Not Allowed** (the tell: `GET /connect` → 200 HTML).
+- **Mirror the broker EXACTLY** — never filter/curate/suppress imported trades or positions
+  (`feedback_broker_mirror_fidelity`; the "dust filter" was rejected).
+- **Holdings-as-truth** for open positions AND open options (broker's current holdings win;
+  quantity corrected to broker truth when activity reconstruction diverges).
+- **Idempotent** reconstruction (stable `external_id` fingerprint → re-sync = 0 dupes);
+  per-account `asyncio.Lock`.
+- **SnapTrade option units quirk:** holding `price` is PER-SHARE but `average_purchase_price`
+  is PER-CONTRACT (premium×100) — normalized to per-share in `_holding_contract`.
+- **`connect` auto-recovers** from a secret invalid-at-SnapTrade (key swap / rotation):
+  re-registers under the current key + retries (no manual Disconnect).
+- `j2_positions.stop_price`/`entry_date` are NOT NULL → broker imports store placeholders;
+  the UI renders "—"/"est." (don't show a fake stop / today's date).
+
 ## Mobile Navigation
 
 Hamburger + slide-out drawer (hidden on desktop). Fixed header with page title + AlertBell. Body scroll locked when drawer open. User avatar + name in drawer header.
