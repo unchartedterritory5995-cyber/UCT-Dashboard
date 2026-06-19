@@ -5,7 +5,7 @@ test('renders nav sidebar with free-tier links by default', () => {
   // Free tier (default, no paid plan) shows ONLY the four FREE_PAGES:
   // Breadth, Charts, Options Flow, Journal. Everything else (Dashboard,
   // Morning Wire, UCT 20, Calendar, Screener, Patterns, Post Market, Model
-  // Book, Setup Library, Support) is paid-only and hidden from the nav.
+  // Book, Support) is paid-only and hidden from the nav.
   renderWithProviders(<NavBar />)
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /breadth/i })).toBeInTheDocument()

@@ -22,7 +22,6 @@ const NAV_ITEMS = [
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
-  { to: '/setup-library',label: 'Setup Library', icon: 'library' },
   { to: '/educational-videos', label: 'Educational Videos', icon: 'education' },
   { to: '/journal',      label: 'Journal',       icon: 'journal' },
   { to: '/support',      label: 'Support',       icon: 'chat' },

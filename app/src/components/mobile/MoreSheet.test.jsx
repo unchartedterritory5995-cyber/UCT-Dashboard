@@ -27,7 +27,7 @@ beforeEach(() => { mockPlan = 'pro'; mockRole = null })
 test('renders the full directory for a paid user', () => {
   renderSheet()
   ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'Calendar',
-    'Screener', 'Patterns', 'Options Flow', 'Model Book', 'Setup Library',
+    'Screener', 'Patterns', 'Options Flow', 'Model Book',
     'Journal', 'Settings', 'Website'].forEach((label) =>
     expect(screen.getByText(label)).toBeInTheDocument(),
   )
