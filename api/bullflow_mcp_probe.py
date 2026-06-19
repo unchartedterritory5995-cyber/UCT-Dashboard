@@ -815,13 +815,39 @@ async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
 
     # Phase 3: Aggregate replay + gate. Mirrors _update_aggregate in worker
     # but uses a LOCAL aggregates dict so we don't touch live state.
+    #
+    # Critical: this also mirrors the live worker's DEDUP behavior. When the
+    # same trade gets caught by 2-3 overlapping UCT alert tiers (e.g. Alpha
+    # Gold + Leaps + Bearish Leaps all matching the same INTC LEAPS put),
+    # Bullflow sends N webhook events for ONE trade. Without dedup, the
+    # simulator would count that trade N times — inflating premium, fire
+    # count, and conviction grade.
+    #
+    # Dedup logic: alerts with identical (ticker, cp, strike, exp, premium)
+    # within DEDUP_WINDOW_SEC are the same trade. The first occurrence is
+    # counted; subsequent duplicates still register their alert tier (so
+    # multi-alert confluence credit is preserved) but don't re-add premium
+    # or increment fire count.
+    DEDUP_WINDOW_SEC = 60
+    _trade_seen: dict = {}  # (ticker,cp,strike,exp,premium) → first_seen_unix_ts
     aggregates: dict = {}
     posted_contracts = set()  # contracts with a simulated Discord post
 
     would_post = []
     would_edit = []
     gated = []
+    dedup_skipped = 0    # phantom duplicates dropped — for transparency in stats
     grade_dist = {"A+": 0, "A": 0, "B": 0, "C": 0, "D": 0}
+
+    def _parse_ts(ts_str):
+        """Parse ISO timestamp to UNIX seconds. Returns 0 on failure."""
+        if not ts_str:
+            return 0
+        try:
+            from datetime import datetime as _dt
+            return _dt.fromisoformat(str(ts_str).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0
 
     for a in sorted_alerts:
         ticker = a.get("ticker") or ""
@@ -830,11 +856,45 @@ async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
         exp = a.get("exp") or ""
         key = (ticker, cp, strike, exp)
 
-        # Update / create aggregate in local dict
         premium = float(a.get("alertPremium") or 0)
         size = a.get("tradeSize") or 0
         name = a.get("alertName") or ""
         priority = _alert_priority(a)
+
+        # DEDUP CHECK: same trade caught by multiple alert tiers within 60s
+        # window. Only the first occurrence contributes premium/size/fire_count.
+        # Subsequent duplicates still credit their alert_names_seen so multi-
+        # alert confluence ("3 tiers caught this") shows up in conviction.
+        trade_key = (ticker, cp, strike, exp, round(premium, 2))
+        this_ts = _parse_ts(a.get("timestamp"))
+        first_seen = _trade_seen.get(trade_key)
+        is_duplicate = (
+            first_seen is not None
+            and this_ts > 0
+            and (this_ts - first_seen) <= DEDUP_WINDOW_SEC
+        )
+
+        if is_duplicate:
+            # Duplicate: don't add premium/size/fires. But credit the alert
+            # tier and promote best_alert if higher priority — these signals
+            # are still meaningful (multi-tier match = stronger confluence).
+            dedup_skipped += 1
+            if key in aggregates:
+                agg = aggregates[key]
+                if name:
+                    agg["alert_names_seen"].add(name)
+                if priority < agg["best_alert_priority"]:
+                    agg["best_alert_name"] = name
+                    agg["best_alert_priority"] = priority
+            # Skip categorization — duplicates don't generate post/edit/gate
+            # events. The contract's already in one of those buckets from
+            # its first occurrence.
+            continue
+
+        # First occurrence of this trade: record in dedup cache and proceed
+        _trade_seen[trade_key] = this_ts
+
+        # Update / create aggregate in local dict
         if key not in aggregates:
             aggregates[key] = {
                 "ticker": ticker, "cp": cp, "strike": strike, "exp": exp,
@@ -925,6 +985,7 @@ async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
             "discord_actions": discord_actions,
             "reduction_vs_raw_pct": round(reduction, 1),
             "unique_contracts_posted": len(posted_contracts),
+            "dedup_skipped": dedup_skipped,  # phantom duplicates filtered
             "min_grade": min_grade,
         },
     }
