@@ -21,7 +21,7 @@ def test_list_pattern_types():
 def test_get_detections_for_symbol_no_data():
     """No detections in DB → empty list, 200 OK."""
     init_db()
-    r = client.get("/api/patterns/NOSYM_XYZ?tf=D")
+    r = client.get("/api/patterns/NOSYM_XYZ?tf=D&confirmed_only=false")
     assert r.status_code == 200
     assert r.json()["detections"] == []
 
@@ -52,7 +52,7 @@ def test_get_detections_returns_stored():
         "detected_at": 1700100100, "last_seen_at": 1700100100,
     }
     memory.store_detection(d)
-    r = client.get("/api/patterns/ZZZZ?tf=D")
+    r = client.get("/api/patterns/ZZZZ?tf=D&confirmed_only=false")
     assert r.status_code == 200
     body = r.json()
     found = [x for x in body["detections"] if x["id"] == "test-router-det-1"]
@@ -62,7 +62,7 @@ def test_get_detections_returns_stored():
 def test_min_conf_filter():
     """Detections below min_conf are excluded."""
     init_db()
-    r = client.get("/api/patterns/ZZZZ?tf=D&min_conf=95")
+    r = client.get("/api/patterns/ZZZZ?tf=D&min_conf=95&confirmed_only=false")
     assert r.status_code == 200
     body = r.json()
     found = [x for x in body["detections"] if x["id"] == "test-router-det-1"]
