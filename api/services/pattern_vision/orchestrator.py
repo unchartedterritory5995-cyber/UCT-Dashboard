@@ -34,7 +34,7 @@ def _example_pngs(setup: str) -> list:
     Wired to the Model Book examples module; returns [] when unavailable/disabled."""
     try:
         from . import modelbook_examples
-        return modelbook_examples.example_pngs(setup)
+        return modelbook_examples.example_pngs(setup, window=_window_for(setup))
     except Exception as e:
         log.debug("[pv] examples for %s unavailable: %s", setup, e)
         return []
