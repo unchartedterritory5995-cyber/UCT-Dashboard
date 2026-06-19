@@ -86,12 +86,16 @@ def update_user_blocklist(payload: UserBlocklistPayload):
     return {"tickers": new_list, "count": len(new_list)}
 
 
-@router.post("/test-discord-post")
+@router.api_route("/test-discord-post", methods=["GET", "POST"])
 async def test_discord_post():
     """
     Manually fire a test Discord post to verify the webhook + embed rendering
     end-to-end. Synthesizes a realistic aggregate, runs it through the actual
     _build_embed() helper, and pushes via the configured DISCORD_WEBHOOK_URL.
+
+    Accepts both GET and POST so it can be fired from a browser address bar
+    (GET) for convenience, or via fetch/curl (POST) for scripting. Either
+    method has the same effect — fires exactly one test post and returns JSON.
 
     Use this when:
       - Markets are closed and no real alerts will fire today
