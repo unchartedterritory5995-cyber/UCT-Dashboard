@@ -13,6 +13,7 @@ import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
+import UIcon from '../components/ui/UIcon'
 import styles from './Dashboard.module.css'
 
 /* ── Mobile accordion section ────────────────────────────────────────────── */
@@ -95,7 +96,7 @@ export default function Dashboard() {
             <JournalSnapshotTile />
             {/* Morning Wire entry */}
             <Link to="/morning-wire" className={styles.mwLink}>
-              <span>📰 Morning Wire — today's read &amp; top picks</span>
+              <span><UIcon name="wire" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} /> Morning Wire — today's read &amp; top picks</span>
               <span aria-hidden="true">→</span>
             </Link>
             {/* 2. Breadth snapshot — always visible */}
@@ -104,7 +105,7 @@ export default function Dashboard() {
             <CatalystTable />
             {/* 4. Movers */}
             <MobileSection
-              icon="🚀"
+              icon={<UIcon name="equity" />}
               title="Movers at the Open"
               subtitle="Top gappers & drillers"
               expanded={openSection === 'movers'}
@@ -117,7 +118,7 @@ export default function Dashboard() {
             <IntradayPulse />
             {/* 6. The rest — collapsible */}
             <MobileSection
-              icon="🎯"
+              icon={<UIcon name="flow" />}
               title="Theme Tracker"
               subtitle="Sector & theme performance"
               expanded={openSection === 'themes'}
@@ -126,7 +127,7 @@ export default function Dashboard() {
               <ThemeTracker />
             </MobileSection>
             <MobileSection
-              icon="💰"
+              icon={<UIcon name="dollar" />}
               title="Earnings"
               subtitle="BMO & AMC catalyst flow"
               expanded={openSection === 'earnings'}
@@ -135,7 +136,7 @@ export default function Dashboard() {
               <CatalystFlow />
             </MobileSection>
             <MobileSection
-              icon="⭐"
+              icon={<UIcon name="star" />}
               title="UCT 20"
               subtitle="Leadership portfolio"
               expanded={openSection === 'leadership'}
@@ -144,7 +145,7 @@ export default function Dashboard() {
               <LeadershipTile />
             </MobileSection>
             <MobileSection
-              icon="📰"
+              icon={<UIcon name="wire" />}
               title="News"
               subtitle="Live market tweets — on the tape"
               expanded={openSection === 'news'}
@@ -153,7 +154,7 @@ export default function Dashboard() {
               <TapeFeed />
             </MobileSection>
             <MobileSection
-              icon="📊"
+              icon={<UIcon name="flow" />}
               title="Options Flow"
               subtitle="Top conviction flow today"
               expanded={openSection === 'optflow'}

@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
+import UIcon from '../ui/UIcon'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -65,9 +66,9 @@ function GradeBadge({ grade }) {
 }
 
 const TYPE_ICONS = {
-  'M&A': '🤝', 'FDA': '💊', 'Analyst': '📈', 'Contract': '📝', 'Guidance': '🎯',
-  'Product': '🚀', 'Legal': '⚖️', 'Insider': '👤', 'Index': '🧩', 'Offering': '💵',
-  'Earnings': '📊', 'Momentum': '🌊', 'Sector-wide': '🏭',
+  'M&A': 'link', 'FDA': 'pill', 'Analyst': 'equity', 'Contract': 'document', 'Guidance': 'patterns',
+  'Product': 'rocket', 'Legal': 'scale', 'Insider': 'user', 'Index': 'flow', 'Offering': 'dollar',
+  'Earnings': 'breadth', 'Momentum': 'wave', 'Sector-wide': 'factory',
 }
 
 function TypeChip({ type }) {
@@ -75,7 +76,7 @@ function TypeChip({ type }) {
   const icon = TYPE_ICONS[type]
   return (
     <span className={styles.typeChip} title="Catalyst type">
-      {icon ? `${icon} ` : ''}{type}
+      {icon ? <UIcon name={icon} size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} /> : null}{type}
     </span>
   )
 }
@@ -88,13 +89,13 @@ function FeedbackButtons({ ticker, marketDate, verdict, onVote }) {
         className={`${styles.fbBtn} ${verdict === 'good' ? styles.fbGoodActive : ''}`}
         title="Good catalyst — show more like this"
         onClick={() => onVote(ticker, marketDate, 'good')}
-      >👍</button>
+      ><UIcon name="thumbsUp" size={14} /></button>
       <button
         type="button"
         className={`${styles.fbBtn} ${verdict === 'bad' ? styles.fbBadActive : ''}`}
         title="Lame / not a real catalyst — learn to exclude these"
         onClick={() => onVote(ticker, marketDate, 'bad')}
-      >👎</button>
+      ><UIcon name="thumbsDown" size={14} /></button>
     </span>
   )
 }
@@ -160,7 +161,7 @@ function ExplainTickerWidget() {
         onClick={() => setOpen(o => !o)}
         title="Why isn't a ticker on the list?"
       >
-        🔎 {open ? 'Close lookup' : 'Why isn\'t X on the list?'}
+        <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{open ? 'Close lookup' : 'Why isn\'t X on the list?'}
       </button>
       {open && (
         <div className={styles.explainPanel}>
@@ -241,7 +242,7 @@ function CitationsPopover({ sources }) {
         <span className={styles.citationsPop}>
           <span className={styles.citationsHeader}>
             Sources ({sources.length})
-            <button type="button" className={styles.citationsClose} onClick={() => setOpen(false)}>✕</button>
+            <button type="button" className={styles.citationsClose} onClick={() => setOpen(false)}><UIcon name="x" size={14} /></button>
           </span>
           {sources.slice(0, 8).map((url, i) => (
             <a key={i} href={url} target="_blank" rel="noreferrer" className={styles.citationLink}>
@@ -397,13 +398,13 @@ export default function CatalystTable() {
   return (
     <div className={styles.tile}>
       <div className={styles.header}>
-        <span className={styles.title}>🎯 STOCK CATALYSTS</span>
+        <span className={styles.title}><UIcon name="patterns" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />STOCK CATALYSTS</span>
         <span className={styles.meta}>
           <span
             className={`${styles.updated} ${isStale ? styles.stale : ''}`}
             title={isStale ? 'Data looks stale for a trading day — a refresh should be running' : undefined}
           >
-            {updatedText}{isStale ? ' ⚠ stale' : ''}
+            {updatedText}{isStale ? ' · stale' : ''}
           </span>
           {allRows.length > 0 && (
             <ReadAloudButton
@@ -419,7 +420,7 @@ export default function CatalystTable() {
                 return `Today's stock catalysts. ${parts.join(' ')}`
               }}
             >
-              🔊 Listen
+              <UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Listen
             </ReadAloudButton>
           )}
           <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
@@ -452,7 +453,7 @@ export default function CatalystTable() {
         <div className={styles.sectorBanners}>
           {sectorContexts.map((sc, i) => (
             <div key={i} className={styles.sectorBanner}>
-              <span className={styles.sectorBadge}>📊 {sc.sector} · {sc.ticker_count} catalysts</span>
+              <span className={styles.sectorBadge}><UIcon name="breadth" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />{sc.sector} · {sc.ticker_count} catalysts</span>
               <span className={styles.sectorSummary}>{sc.summary}</span>
               {sc.source_urls && sc.source_urls.length > 0 && (
                 <CitationsPopover sources={sc.source_urls} />
@@ -479,7 +480,7 @@ export default function CatalystTable() {
             onClick={() => setAOnly(v => !v)}
             title="Show only A-grade (highest-conviction) catalysts"
           >
-            ★ A only
+            <UIcon name="star-fill" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />A only
           </button>
           {!showingAll && (
             <button
@@ -537,7 +538,7 @@ export default function CatalystTable() {
                         <CompanyLogo sym={r.ticker} size={20} tile />
                         <TickerPopup sym={r.ticker}>
                           <span className={styles.ticker}>
-                            {onMyList && <span className={styles.star} title="On your watchlist or flagged">★</span>}
+                            {onMyList && <span className={styles.star} title="On your watchlist or flagged"><UIcon name="star-fill" size={12} /></span>}
                             {r.ticker}
                           </span>
                         </TickerPopup>

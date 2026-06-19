@@ -4,17 +4,18 @@ import useSWR from 'swr'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
 import { timeAgoShort as timeAgo } from '../utils/timeAgo'
+import UIcon from './ui/UIcon'
 import styles from './AlertBell.module.css'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
 
 const TYPE_ICONS = {
-  regime_change: '🔄',
-  stop_hit: '🛑',
-  scanner_match: '⚡',
-  ep_resolved: '✅',
-  exposure_shift: '📊',
-  price_alert: '🔔',
+  regime_change: 'refresh',
+  stop_hit: 'warning',
+  scanner_match: 'screener',
+  ep_resolved: 'check',
+  exposure_shift: 'breadth',
+  price_alert: 'bell',
 }
 
 const SEV_CLASS = {
@@ -96,7 +97,7 @@ export default function AlertBell() {
   return (
     <div className={styles.wrap} ref={ref}>
       <button className={styles.bell} onClick={handleBellClick} title="Alerts" aria-label="Notifications">
-        <span className={styles.bellIcon}>🔔</span>
+        <span className={styles.bellIcon}><UIcon name="bell" size={18} /></span>
         {unreadCount > 0 && <span className={styles.badge} aria-live="polite">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
@@ -120,7 +121,7 @@ export default function AlertBell() {
                 className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''}`}
                 onClick={() => !a.read && markRead(a.id)}
               >
-                <span className={styles.itemIcon}>{TYPE_ICONS[a.type] || '📢'}</span>
+                <span className={styles.itemIcon}><UIcon name={TYPE_ICONS[a.type] || 'bell'} size={16} /></span>
                 <div className={styles.itemBody}>
                   <div className={styles.itemTitle}>{a.title}</div>
                   <div className={styles.itemMsg}>{a.message}</div>
