@@ -195,3 +195,28 @@ def test_reconstruct_caches_per_account_and_invalidates(monkeypatch):
     he.reconstruct_daily_equity("u1", "acc", today="2026-01-09")       # recomputes
     assert calls["n"] == 2
     he._RECON_CACHE.clear()
+
+
+# ── Split-correct valuation: current-basis shares need ADJUSTED prices ────────
+
+
+def test_default_price_fn_requests_adjusted_prices_for_stocks(monkeypatch):
+    """SnapTrade activity share-counts reconcile to current (post-split) holdings,
+    so historical shares are in current basis. Valuing them against UNADJUSTED
+    prices is off by the split factor (the spike/negative bug). Stocks must be
+    marked with adjusted=True so split-adjusted shares × split-adjusted prices =
+    correct market value (splits cancel)."""
+    from api.services import massive
+    calls = []
+
+    def fake_agg(symbol, frm, to, *, adjusted=False, map_symbol=True):
+        calls.append({"symbol": symbol, "adjusted": adjusted, "map_symbol": map_symbol})
+        return [{"t": 0, "c": 10.0}]
+
+    monkeypatch.setattr(massive, "get_daily_agg", fake_agg)
+    pf = he._default_price_fn()
+    pf._bounds["AAPL"] = ("2026-01-01", "2026-01-02")
+    pf("stock", "AAPL", "1970-01-01")
+    stock_calls = [c for c in calls if c["symbol"] == "AAPL"]
+    assert stock_calls, "expected a daily-agg fetch for the stock"
+    assert stock_calls[0]["adjusted"] is True, "stocks must be valued with adjusted prices"

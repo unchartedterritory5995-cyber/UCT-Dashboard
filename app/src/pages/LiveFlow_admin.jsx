@@ -2,24 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 /**
- * LiveFlow — subscriber-facing
+ * LiveFlow — admin view
  *
- * Polls /api/live/alerts/recent every 5s. Renders alerts that passed the
- * backend's Filter Engine v1 (premium >= $250K, not in blocklist, no
- * Grenade). Backend forwards high-conviction alerts to Discord; those
- * rows show a 🔔 badge.
+ * Same data path as the subscriber LiveFlow.jsx, but exposes backend
+ * internals: filter config banner, full counter stats (rx/shown/drop/
+ * forwarded), PHASE B label, ADMIN pill, and a JSON-debug toggle that
+ * dumps the latest 5 raw alerts for inspection.
  *
- * Display:
- *   - Tier-grouped sections (Mega → Whale → A → LEAPS → Unusual → Algo)
- *   - Colored left border per row indicates tier at a glance
- *   - Multi-select filter chips at top, state persists in localStorage
- *   - Click a tier header to collapse that group
+ * Filter rules live in api/liveflow_worker.py (TABLE_FILTER + scoring
+ * tables). Edit there + redeploy to tune. The banner echoes active
+ * config so you don't need to dive into code to remember what's active.
  *
- * Tier is derived from alertName: "UCT Mega Whale Bull" → mega, etc.
- * Non-UCT alerts (Bullflow's native algo stream) → algo group.
- *
- * Subscriber version is leaner than admin: no filter-config banner, no
- * drop/forwarded counts, no PHASE B labeling.
+ * Phase C would: editable filter UI, SQLite persistence, migration to
+ * the dedicated `worker` Railway service.
  */
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -27,10 +22,10 @@ const P = {
   bg: "#0e0f0d",
   cd: "#161714",
   bd: "#2a2926",
-  ac: "#c9a84c",   // amber accent
-  bl: "#5b9bd5",   // blue
-  bu: "#3cb868",   // calls/green
-  be: "#e74c3c",   // puts/red
+  ac: "#c9a84c",
+  bl: "#5b9bd5",
+  bu: "#3cb868",
+  be: "#e74c3c",
   wh: "#e8e6df",
   dm: "#a8a290",
   mt: "#6a6660",
@@ -38,33 +33,40 @@ const P = {
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_ROWS = 200;
-// 2026-06-17 v3: bumped v2→v3 because tier structure expanded from 3 tiers
-// (bullish/bearish/algo) to 6 (alpha/bullish/bearish/leaps/unusual/algo).
-// Old v2 filter state references non-existent tier keys.
-const LS_KEY = "uct_liveflow_filters_v3";
+// Use a separate LS key from the subscriber view so admin can experiment
+// with chip state without disrupting the subscriber's saved preferences
+// in the same browser profile.
+const LS_KEY = "uct_liveflow_admin_filters_v1";
 
 // ─── Backtest helpers ─────────────────────────────────────────────────────────
-// Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
+// Backtest mode is triggered by ?backtest=YYYY-MM-DD in the URL. When active:
 //   - Data source switches to /api/admin/bullflow/backtest?date=...
 //   - Polling is disabled (one-shot fetch)
-//   - Header shows a backtest pill + date picker stays visible
-//   - Bullflow MCP caps the sample at 100 alerts; we surface that in the banner
+//   - Header shows a backtest banner with date + capped warning
+//   - Date picker in header changes the URL param and re-fetches
+//
+// Bullflow MCP caps backtest samples at 100 alerts. If we hit that ceiling,
+// we surface a warning in the header so the user knows the day had more flow
+// than is visible.
 
 function formatDateForInput(d) {
+  // YYYY-MM-DD in local timezone — what <input type="date"> expects.
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Most recent weekday — Bullflow only has data for market days. Doesn't
-// account for holidays; user can pick another date if a Monday was closed.
+// Most recent weekday — Bullflow only has data for market days, so a Saturday
+// or Sunday picker default would 404. This walks back from today to the most
+// recent Mon-Fri. Doesn't account for market holidays (user can pick another date).
 function mostRecentMarketDay() {
   const d = new Date();
   while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
   return formatDateForInput(d);
 }
 
+// 30 days back from today, used as the date picker's min attribute.
 function thirtyDaysAgo() {
   const d = new Date();
   d.setDate(d.getDate() - 30);
@@ -79,107 +81,29 @@ function isValidBacktestDate(s) {
 }
 
 // ─── Tier metadata + derivation ───────────────────────────────────────────────
-// 2026-06-17 v3: Six tiers in priority cascade. Special tiers (Alpha Gold,
-// LEAPS, Unusual) are checked first by name, then direction (Bullish/Bearish)
-// catches everything else by cp. Each row lives in exactly ONE tier.
-//
-// Display order: Alpha pinned at top (rare, high-conviction). Bullish/Bearish
-// next (the bread-and-butter directional flow). LEAPS and Unusual below
-// (specialized signals worth their own sections). Algo last as fallback.
 const TIER_META = {
-  alpha:   { label: "Alpha Gold", color: "#c9a84c", bg: "#c9a84c14" },
-  bullish: { label: "Bullish",    color: "#3CB868", bg: "#3CB86814" },
-  bearish: { label: "Bearish",    color: "#E74C3C", bg: "#E74C3C14" },
+  mega:    { label: "Mega Whale", color: "#e74c3c", bg: "#e74c3c14" },
+  whale:   { label: "Whale",      color: "#c9a84c", bg: "#c9a84c14" },
+  a:       { label: "A-tier",     color: "#5b9bd5", bg: "#5b9bd514" },
   leaps:   { label: "LEAPS",      color: "#a892e0", bg: "#a892e014" },
   unusual: { label: "Unusual",    color: "#1d9e75", bg: "#1d9e7514" },
   algo:    { label: "Algo",       color: "#888780", bg: "#88878014" },
 };
-const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
+const TIER_ORDER = ["mega", "whale", "a", "leaps", "unusual", "algo"];
 
-// Tiers that mix calls and puts (rows can be either direction). In these
-// sections, row text is tinted green/red based on cp so direction is visible
-// at a glance without scanning the C/P column. Bullish/Bearish tiers don't
-// need this — their direction is self-evident from the tier itself.
-const MIXED_DIRECTION_TIERS = new Set(["alpha", "leaps", "unusual", "algo"]);
-
-// Map alert → tier key via priority cascade (first match wins). Special tiers
-// take precedence over direction tiers — e.g. a bullish LEAPS trade lands in
-// the LEAPS section, not the Bullish section.
-function deriveTier(alert) {
-  const name = (alert?.alertName || "").toLowerCase();
-  if (name.includes("alpha gold")) return "alpha";
-  if (name.includes("leaps")) return "leaps";
-  if (name.includes("unusual") || name.includes("vol>oi")) return "unusual";
-  const cp = alert?.cp;
-  if (cp === "C") return "bullish";
-  if (cp === "P") return "bearish";
+function deriveTier(alertName) {
+  if (!alertName) return "algo";
+  const n = alertName.toLowerCase();
+  if (n.startsWith("uct mega whale")) return "mega";
+  if (n.startsWith("uct whale")) return "whale";
+  if (n.startsWith("uct a ")) return "a";
+  if (n.startsWith("uct leaps")) return "leaps";
+  if (n.startsWith("uct unusual")) return "unusual";
   return "algo";
 }
 
-// Within a tier, sub-priority controls row order. With the v3 structure, only
-// the Bullish and Bearish tiers benefit from sub-sorting:
-//   1 = Size (UCT Size Bulls/Bears — large premium)
-//   2 = Regular (everything else)
-// Alpha/LEAPS/Unusual are their own tiers now, so no sub-priority needed there.
-function deriveSubPriority(alertName) {
-  const n = (alertName || "").toLowerCase();
-  if (n.includes("size")) return 1;
-  return 2;
-}
-
-// Display label for the sub-priority badge that appears next to alert names.
-// Only Size gets a badge — Regular is the unmarked default.
-function subPriorityLabel(p) {
-  if (p === 1) return "SIZE";
-  return "";
-}
-
-// ─── Trade-level dedup ────────────────────────────────────────────────────────
-// Custom alert brackets can overlap, so a single trade can fire multiple
-// alerts in the same instant (e.g. NVDA $2.10M matched A Mid + A Large +
-// A Mega simultaneously on 2026-06-17 because Bullflow's marketCap filter
-// wasn't actually rejecting matches — see diagnostic). Collapse those into
-// one display row. The first occurrence wins; additional matched names
-// accumulate in _matchedNames for the "+N" badge in the Alert Name column.
-
-function tradeKey(a) {
-  return [
-    a.ticker || "",
-    a.cp || "",
-    a.strike ?? "",
-    a.exp || "",
-    a.alertPremium ?? "",
-    a.timestamp || "",
-  ].join("|");
-}
-
-function dedupAlerts(alerts) {
-  const seen = new Map();
-  for (const a of alerts) {
-    const k = tradeKey(a);
-    if (!seen.has(k)) {
-      // Clone so we don't mutate cached refs from the polling buffer
-      seen.set(k, { ...a, _matchedNames: a.alertName ? [a.alertName] : [] });
-    } else {
-      const existing = seen.get(k);
-      if (a.alertName && !existing._matchedNames.includes(a.alertName)) {
-        existing._matchedNames.push(a.alertName);
-        // If this match is higher-priority than the current primary name,
-        // promote it. E.g. trade matched both "UCT Bullish" (regular=3) AND
-        // "UCT Size Bulls" (size=2) — primary should be Size since that's
-        // the conviction-bearing fact. The +N badge still shows the rest.
-        if (deriveSubPriority(a.alertName) < deriveSubPriority(existing.alertName)) {
-          existing.alertName = a.alertName;
-        }
-      }
-    }
-  }
-  return Array.from(seen.values());
-}
-
-// ─── Filter state helpers (localStorage-backed) ───────────────────────────────
+// ─── Filter state helpers ─────────────────────────────────────────────────────
 function defaultFilters() {
-  // All chips on by default — user sees everything until they opt out.
   const f = {};
   for (const t of TIER_ORDER) f[t] = true;
   return f;
@@ -190,7 +114,7 @@ function loadFilters() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return defaultFilters();
     const parsed = JSON.parse(raw);
-    return { ...defaultFilters(), ...parsed };  // forward-compat if tiers added
+    return { ...defaultFilters(), ...parsed };
   } catch {
     return defaultFilters();
   }
@@ -313,147 +237,8 @@ function FilterChips({ filters, setFilters, counts }) {
   );
 }
 
-// ─── User blocklist panel (admin-only) ────────────────────────────────────────
-// Inline panel below the chip row that lets the admin manage a custom ticker
-// exclusion list. Reads current state from /api/live/user-blocklist on mount,
-// PUTs the full replacement list on Save. Tickers are uppercased server-side
-// and persisted to disk so the list survives worker restarts.
-function UserBlocklistPanel({ visible, onSaved }) {
-  const [tickers, setTickers] = useState([]);
-  const [draftText, setDraftText] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
-
-  // Initial load. Refresh quietly any time the panel becomes visible (no-op
-  // if visible was always true).
-  useEffect(() => {
-    if (!visible) return;
-    fetch("/api/live/user-blocklist")
-      .then(r => r.json())
-      .then(d => {
-        setTickers(d.tickers || []);
-        setDraftText((d.tickers || []).join(", "));
-      })
-      .catch(() => setStatus("load failed"));
-  }, [visible]);
-
-  if (!visible) return null;
-
-  // Parse the comma/space/newline-separated draft into a clean list. Used both
-  // for "did anything change?" check and for the save payload.
-  const parseDraft = (s) => Array.from(new Set(
-    (s || "")
-      .split(/[\s,]+/)
-      .map(t => t.trim().toUpperCase())
-      .filter(Boolean)
-  )).sort();
-
-  const draftParsed = parseDraft(draftText);
-  const isDirty = JSON.stringify(draftParsed) !== JSON.stringify(tickers);
-
-  const save = async () => {
-    setSaving(true);
-    setStatus("");
-    try {
-      const r = await fetch("/api/live/user-blocklist", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tickers: draftParsed }),
-      });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      setTickers(d.tickers || []);
-      setDraftText((d.tickers || []).join(", "));
-      setStatus("saved · " + (d.count || 0) + " tickers");
-      setTimeout(() => setStatus(""), 3000);
-      // Signal parent to re-fetch alert data so the visible buffer reflects
-      // the new blocklist immediately (otherwise the page shows stale rows
-      // with excluded tickers until next poll cycle or backtest re-trigger).
-      if (typeof onSaved === "function") onSaved();
-    } catch (e) {
-      setStatus("save failed: " + (e?.message || e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div style={{
-      padding: "6px 20px",
-      borderBottom: "1px solid " + P.bd,
-      background: P.bg,
-      fontSize: 11,
-      fontFamily: "ui-monospace, monospace",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span
-          onClick={() => setExpanded(!expanded)}
-          style={{
-            cursor: "pointer", color: P.dm, fontWeight: 700,
-            letterSpacing: 0.5, textTransform: "uppercase", fontSize: 9,
-            userSelect: "none",
-          }}>
-          {expanded ? "▼" : "▶"} EXCLUDE TICKERS
-        </span>
-        <span style={{ color: P.mt, fontSize: 10 }}>
-          {tickers.length === 0 ? "(none)" : tickers.length + " active"}
-        </span>
-        {!expanded && tickers.length > 0 && (
-          <span style={{ color: P.dm, fontSize: 10, overflow: "hidden",
-                         textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {tickers.join(", ")}
-          </span>
-        )}
-        {status && (
-          <span style={{
-            marginLeft: "auto", fontSize: 10,
-            color: status.startsWith("saved") ? P.bu : P.be,
-          }}>{status}</span>
-        )}
-      </div>
-      {expanded && (
-        <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <textarea
-            value={draftText}
-            onChange={e => setDraftText(e.target.value)}
-            placeholder="SPCX, RKLB, ABCD ..."
-            rows={2}
-            style={{
-              flex: 1, padding: "6px 8px",
-              background: P.bg, color: P.wh,
-              border: "1px solid " + P.bd, borderRadius: 4,
-              fontFamily: "inherit", fontSize: 11,
-              resize: "vertical",
-            }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button
-              onClick={save}
-              disabled={saving || !isDirty}
-              style={{
-                padding: "6px 12px", fontSize: 10, fontWeight: 700,
-                letterSpacing: 0.5,
-                background: isDirty ? P.bl : "transparent",
-                color: isDirty ? P.wh : P.dm,
-                border: "1px solid " + (isDirty ? P.bl : P.bd),
-                borderRadius: 3, cursor: saving || !isDirty ? "default" : "pointer",
-                fontFamily: "inherit",
-              }}>
-              {saving ? "..." : "SAVE"}
-            </button>
-            <span style={{ fontSize: 9, color: P.mt, textAlign: "center" }}>
-              {draftParsed.length} parsed
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, tierColor, directionTinted }) {
+function AlertRow({ alert, isNew, tierColor }) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
@@ -461,25 +246,14 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
   const score = alert.convictionScore;
   const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
 
-  // In mixed-direction tier sections (Alpha Gold, LEAPS, Unusual, Algo) we
-  // tint the row's primary text by direction so a bullish vs bearish trade
-  // is recognizable at a glance without scanning the C/P column. The C/P
-  // pill, type pill, score, and bell stay as-is since they have their own
-  // semantic colors that shouldn't be overridden.
-  const primaryTextColor = directionTinted ? cpColor : P.wh;
-  const accentTextColor = directionTinted ? cpColor : P.ac;
-
   return (
     <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
-      {/* First cell carries the tier-colored left border */}
       <td style={{
         padding: "8px 10px", color: P.dm, fontSize: 10,
         fontFamily: "ui-monospace, monospace",
         borderLeft: tierColor ? "3px solid " + tierColor : "none",
-      }}>
-        {fmtTime(alert.timestamp)}
-      </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13 }}>
+      }}>{fmtTime(alert.timestamp)}</td>
+      <td style={{ padding: "8px 10px", fontWeight: 800, color: P.wh, fontSize: 13 }}>
         {alert.ticker || "—"}
       </td>
       <td style={{ padding: "8px 10px", fontWeight: 800, fontSize: 11 }}>
@@ -488,15 +262,15 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
           background: cpColor + "20", color: cpColor,
         }}>{alert.cp || "—"}</span>
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 700, color: primaryTextColor, fontSize: 12 }}>
+      <td style={{ padding: "8px 10px", fontWeight: 700, color: P.wh, fontSize: 12 }}>
         {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
       </td>
-      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
+      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.exp || "—"}</td>
       <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10 }}>
         {alert.dte != null ? alert.dte + "d" : "—"}
       </td>
       <td style={{
-        padding: "8px 10px", fontWeight: 800, color: accentTextColor, fontSize: 12,
+        padding: "8px 10px", fontWeight: 800, color: P.ac, fontSize: 12,
         fontFamily: "ui-monospace, monospace",
       }}>{fmtPremium(alert.alertPremium)}</td>
       <td style={{
@@ -511,80 +285,7 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
           background: typeColor + "18", color: typeColor,
         }}>{(alert.alertType || "?").toUpperCase()}</span>
       </td>
-      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>
-        {(() => {
-          const sp = deriveSubPriority(alert.alertName);
-          const spLabel = subPriorityLabel(sp);
-          if (!spLabel) return null;
-          // SIZE badge — the only sub-priority indicator left in v3. Alpha,
-          // LEAPS, and Unusual are now full tiers with their own sections,
-          // so they don't need inline badges.
-          const spColor = "#d8c878";
-          return (
-            <span style={{
-              marginRight: 6, fontSize: 8, padding: "1px 5px", borderRadius: 3,
-              background: spColor + "22", color: spColor, fontWeight: 800,
-              fontFamily: "ui-monospace, monospace", letterSpacing: 0.5,
-              verticalAlign: "1px",
-            }}>{spLabel}</span>
-          );
-        })()}
-        {alert.alertName || "—"}
-        {alert._matchedNames && alert._matchedNames.length > 1 && (
-          <span
-            title={"Also matched: " + alert._matchedNames.slice(1).join(", ")}
-            style={{
-              marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 8,
-              background: P.dm + "20", color: P.dm, cursor: "help",
-              fontWeight: 700, fontFamily: "ui-monospace, monospace",
-              verticalAlign: "1px",
-            }}>
-            +{alert._matchedNames.length - 1}
-          </span>
-        )}
-        {/* Repeat-fire badge: shown when this contract has fired >1 distinct
-            trades in the rolling window. Tooltip explains the count. Coloring
-            ramps with intensity — amber for casual (2-4x), red for heavy (5x+)
-            which usually signals OpEx noise or concentrated conviction. */}
-        {alert.contractRepeatCount > 1 && (() => {
-          const c = alert.contractRepeatCount;
-          const heavy = c >= 5;
-          return (
-            <span
-              title={"This contract has fired " + c + " distinct trades today"}
-              style={{
-                marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
-                background: (heavy ? P.be : P.ac) + "22",
-                color:      (heavy ? P.be : P.ac),
-                fontWeight: 800, fontFamily: "ui-monospace, monospace",
-                letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
-              }}>
-              🔁 {c}x
-            </span>
-          );
-        })()}
-        {/* OI Exceeded badge: this single trade traded more contracts than
-            existed in open interest before today. Strong signal of
-            institutional positioning, not retail churn. Tooltip shows the
-            trade size, prior OI, and ratio for context. */}
-        {alert.oiExceeded && alert.volumeOIRatio && (
-          <span
-            title={
-              "Volume " + (alert.tradeSize || "?") +
-              " exceeded OI " + (alert.priorOI || "?") +
-              " (ratio " + alert.volumeOIRatio.toFixed(2) + "x)" +
-              (alert.oiSnapshotDate ? " — OI from " + alert.oiSnapshotDate : "")
-            }
-            style={{
-              marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
-              background: P.bu + "22", color: P.bu,
-              fontWeight: 800, fontFamily: "ui-monospace, monospace",
-              letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
-            }}>
-            🚀 OI BREAK
-          </span>
-        )}
-      </td>
+      <td style={{ padding: "8px 10px", color: P.wh, fontSize: 11 }}>{alert.alertName || "—"}</td>
       <td style={{
         padding: "8px 10px", fontSize: 11, fontWeight: 800,
         fontFamily: "ui-monospace, monospace",
@@ -602,14 +303,10 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
   );
 }
 
-// ─── Tier section: collapsible header + tier rows ─────────────────────────────
+// ─── Tier section ─────────────────────────────────────────────────────────────
 function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
   if (alerts.length === 0) return null;
   const meta = TIER_META[tier];
-  // In mixed-direction tiers (Alpha/LEAPS/Unusual/Algo) we direction-tint rows.
-  // In Bullish/Bearish the tier itself signals direction so per-row tint would
-  // be redundant noise.
-  const directionTinted = MIXED_DIRECTION_TIERS.has(tier);
   return (
     <>
       <tr style={{
@@ -635,25 +332,26 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
           alert={a}
           isNew={newIds.has(a.id)}
           tierColor={meta.color}
-          directionTinted={directionTinted}
         />
       ))}
     </>
   );
 }
 
-// ─── Simulation Panel (admin backtest only) ───────────────────────────────────
+// ─── Simulation Panel ─────────────────────────────────────────────────────────
 // Renders the output of the backtest endpoint's simulate=full mode. Three views:
 //   - posts: contracts that would have triggered a fresh Discord message
 //   - edits: subsequent fires that would have updated an existing message
 //   - gated: alerts silenced by the conviction threshold
-// Stats row up top, grade distribution chips, then the tabbed list.
+// Stats row up top, grade distribution bars below, then the tabbed list.
 function SimulationPanel({ simulation, view, setView }) {
   const s = simulation.stats || {};
   const dist = simulation.grade_distribution || {};
+  // Hard-code grade order so display is consistent regardless of map order
   const GRADES = ["A+", "A", "B", "C", "D"];
   const distTotal = GRADES.reduce((sum, g) => sum + (dist[g] || 0), 0) || 1;
 
+  // Color per grade — green for top, fading through to gray for D
   const GRADE_COLOR = {
     "A+": P.gn,
     "A": P.gn + "cc",
@@ -672,7 +370,7 @@ function SimulationPanel({ simulation, view, setView }) {
       borderBottom: "1px solid " + P.gn + "30",
       background: P.gn + "08",
     }}>
-      {/* Stats row */}
+      {/* Stats row — primary numbers from the simulation */}
       <div style={{
         padding: "12px 20px", display: "flex", gap: 22,
         alignItems: "center", flexWrap: "wrap",
@@ -686,6 +384,8 @@ function SimulationPanel({ simulation, view, setView }) {
           MIN_DISCORD_GRADE={" "}
           <strong style={{ color: P.wh }}>{s.min_grade || "—"}</strong>
         </span>
+
+        {/* Big numbers */}
         <span style={{ fontSize: 12 }}>
           <strong style={{ color: P.gn, fontSize: 16 }}>{s.posts ?? 0}</strong>
           <span style={{ color: P.dm, marginLeft: 4 }}>posts</span>
@@ -705,6 +405,8 @@ function SimulationPanel({ simulation, view, setView }) {
           <strong style={{ color: P.gn }}>−{s.reduction_vs_raw_pct ?? 0}%</strong>
           <span style={{ color: P.dm, marginLeft: 4 }}>vs raw</span>
         </span>
+
+        {/* Grade distribution chips */}
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {GRADES.map((g) => {
             const c = dist[g] || 0;
@@ -724,7 +426,7 @@ function SimulationPanel({ simulation, view, setView }) {
         </span>
       </div>
 
-      {/* Tab strip */}
+      {/* Tab strip — switch between posts/edits/gated lists */}
       <div style={{
         padding: "0 20px", display: "flex", gap: 4,
         borderBottom: "1px solid " + P.bd + "30",
@@ -755,9 +457,10 @@ function SimulationPanel({ simulation, view, setView }) {
         ))}
       </div>
 
-      {/* Tabbed list */}
+      {/* Tabbed list — chronological. Each row shows ticker, contract, key
+          stats, and conviction grade. Compact monospace for scannability. */}
       <div style={{
-        maxHeight: 360, overflowY: "auto",
+        maxHeight: 320, overflowY: "auto",
         fontFamily: "ui-monospace, monospace", fontSize: 11,
       }}>
         {listLen === 0 ? (
@@ -774,7 +477,7 @@ function SimulationPanel({ simulation, view, setView }) {
   );
 }
 
-// Compact row for simulation list. Highlights premium, fires, and grade.
+// Compact row for the simulation list. Highlights premium, fires, and grade.
 function SimRow({ row, view }) {
   const t = row.ticker || "?";
   const cp = row.cp || "";
@@ -785,6 +488,8 @@ function SimRow({ row, view }) {
   const grade = row.conviction_grade || "—";
   const alertName = (row.alertName || "").replace(/\s+\+\d+ more$/, "");
 
+  // Try to display the timestamp as HH:MM ET (timestamps come in ISO with TZ
+  // offset). Fall back to raw if parsing fails.
   let timeStr = "?";
   try {
     const d = new Date(row.timestamp);
@@ -805,7 +510,9 @@ function SimRow({ row, view }) {
       alignItems: "center", borderBottom: "1px solid " + P.bd + "20",
     }}>
       <span style={{ color: P.dm, minWidth: 50 }}>{timeStr}</span>
-      <span style={{ color: P.wh, fontWeight: 700, minWidth: 60 }}>{t}</span>
+      <span style={{
+        color: P.wh, fontWeight: 700, minWidth: 60,
+      }}>{t}</span>
       <span style={{
         color: cp === "C" ? P.gn : P.rd, minWidth: 40, fontWeight: 600,
       }}>{cp === "C" ? "CALL" : cp === "P" ? "PUT " : cp}</span>
@@ -831,56 +538,42 @@ function SimRow({ row, view }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function LiveFlow() {
+export default function LiveFlowAdmin() {
   const [searchParams, setSearchParams] = useSearchParams();
   const backtestDate = searchParams.get("backtest");
-  // Admin gate — backtest UI is only visible if ?admin=1 is in the URL.
-  // Frontend-only gate while we tune; subscribers won't see the date picker
-  // or the BACKTEST pill even if they somehow land on a ?backtest=... URL.
-  // For real auth, add server-side check on /api/admin/bullflow/backtest.
-  const isAdmin = searchParams.get("admin") === "1";
-  const isBacktest = isAdmin && isValidBacktestDate(backtestDate);
+  const isBacktest = isValidBacktestDate(backtestDate);
 
-  // Helper: when changing URL params, preserve the admin flag so the admin
-  // user stays in admin mode across date picks and × live exits.
-  const updateParams = (mutator) => {
-    const next = new URLSearchParams(searchParams);
-    mutator(next);
-    setSearchParams(next);
-  };
+  // ─── Simulation mode (admin backtest only) ─────────────────────────────
+  // URL params drive simulation so links are bookmarkable. When `simulate=full`,
+  // the backtest endpoint runs the full pipeline (enrich → aggregate → gate)
+  // and returns a `simulation` block alongside raw alerts. min_grade and
+  // exclude_etf are passthrough params for tuning.
+  const simulateMode = isBacktest && searchParams.get("simulate") === "full";
+  const simMinGrade = (searchParams.get("min_grade") || "B").toUpperCase();
+  const simExcludeETF = searchParams.get("exclude_etf") === "true";
 
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
-  const [simulation, setSimulation] = useState(null);   // simulation block from backtest
-  const [simView, setSimView] = useState("posts");      // "posts" | "edits" | "gated"
+  const [simulation, setSimulation] = useState(null);  // simulation block from backtest
+  const [simView, setSimView] = useState("posts");     // "posts" | "edits" | "gated"
   const [uploadedFile, setUploadedFile] = useState(null);  // JSON file for JSON-mode backtest
   const [uploadError, setUploadError] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filters, setFilters] = useState(loadFilters);
   const [collapsedTiers, setCollapsedTiers] = useState({});
+  const [showDebug, setShowDebug] = useState(false);
   const [backtestLoading, setBacktestLoading] = useState(false);
-  // Bump this to force the data-fetch effect to re-run (e.g. after the user
-  // saves a new ticker blocklist — both live polling and backtest re-fetch).
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
-  // ─── Simulation mode (admin + backtest only) ─────────────────────────────
-  // URL params drive simulation so links are bookmarkable. When `simulate=full`,
-  // the backtest endpoint runs the full pipeline (enrich → aggregate → gate)
-  // and returns a `simulation` block. min_grade + exclude_etf are passthrough.
-  const simulateMode = isBacktest && searchParams.get("simulate") === "full";
-  const simMinGrade = (searchParams.get("min_grade") || "B").toUpperCase();
-  const simExcludeETF = searchParams.get("exclude_etf") === "true";
-
-  // 1Hz tick keeps relTime labels fresh without re-polling.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Data fetch — branches on isBacktest. Live = polling loop, Backtest = one-shot.
+  // Data fetch — branches on isBacktest. Live mode = polling loop; backtest =
+  // one-shot fetch keyed on the date query param.
   useEffect(() => {
     let abort = null;
     let timer = null;
@@ -889,8 +582,9 @@ export default function LiveFlow() {
     async function fetchBacktestFromJSON() {
       // JSON-sourced backtest. Uploaded file POST'd to a separate endpoint
       // that parses Discord embeds and runs the same simulator. Re-fired
-      // whenever simulation params change so user can tune thresholds
-      // without re-uploading.
+      // whenever simulation params change so the user can tune thresholds
+      // without re-uploading. Browser keeps the File object alive in state
+      // until they refresh or pick another.
       setBacktestLoading(true);
       setAlerts([]);
       setStatus(null);
@@ -900,10 +594,12 @@ export default function LiveFlow() {
         abort = new AbortController();
         const fd = new FormData();
         fd.append("file", uploadedFile);
-        const qparams = new URLSearchParams({ min_grade: simMinGrade });
-        if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
+        const params = new URLSearchParams({
+          min_grade: simMinGrade,
+        });
+        if (simExcludeETF) params.set("exclude_etf_flow", "true");
         const r = await fetch(
-          `/api/admin/bullflow/backtest-from-json?${qparams.toString()}`,
+          `/api/admin/bullflow/backtest-from-json?${params.toString()}`,
           { method: "POST", body: fd, signal: abort.signal }
         );
         if (!r.ok) {
@@ -935,30 +631,32 @@ export default function LiveFlow() {
         abort = new AbortController();
         // Build URL with simulation params when requested. Backtest endpoint
         // defaults to simulate=off so adding the param explicitly is needed
-        // to trigger the full pipeline run.
-        const qparams = new URLSearchParams({
+        // to trigger the full pipeline run. min_grade and exclude_etf_flow
+        // are forwarded as tuning knobs.
+        const params = new URLSearchParams({
           date: backtestDate,
           max_alerts: "500",
         });
         if (simulateMode) {
-          qparams.set("simulate", "full");
-          qparams.set("min_grade", simMinGrade);
-          if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
+          params.set("simulate", "full");
+          params.set("min_grade", simMinGrade);
+          if (simExcludeETF) params.set("exclude_etf_flow", "true");
         }
-        const url = `/api/admin/bullflow/backtest?${qparams.toString()}`;
+        const url = `/api/admin/bullflow/backtest?${params.toString()}`;
         const r = await fetch(url, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         if (cancelled) return;
         if (d.error) throw new Error(d.error);
         const incoming = d.alerts || [];
-        // No flash detection in backtest mode — historical data, not live arrivals
+        // No flash detection in backtest mode — all rows are "new" from user's POV
         newIdsRef.current = new Set();
         lastIdRef.current = incoming[0]?.id || null;
         setAlerts(incoming);
         setStatus(d.status);
-        // simulation may be null (simulate=off) or contain the full block.
-        // Surface simulator-side errors inline without breaking the alert list.
+        // simulation may be null (when simulate=off) or contain the full block.
+        // Surface any simulator-side error inline so user knows it failed
+        // without breaking the regular alert list display.
         setSimulation(d.simulation || null);
       } catch (e) {
         if (e?.name === "AbortError") return;
@@ -996,7 +694,7 @@ export default function LiveFlow() {
     }
 
     if (isBacktest && uploadedFile) {
-      // JSON-sourced backtest takes precedence over MCP when file is loaded.
+      // JSON-sourced backtest takes precedence over MCP when a file is loaded.
       // Conviction simulation auto-enabled in this mode since the whole point
       // of uploading is to see the simulator output.
       fetchBacktestFromJSON();
@@ -1010,26 +708,11 @@ export default function LiveFlow() {
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile]);
+  }, [isBacktest, backtestDate, simulateMode, simMinGrade, simExcludeETF, uploadedFile]);
 
-  // Dedup first: collapse alerts that fired multiple custom-alert rules for the
-  // same trade. Then group by tier (direction from cp), then sort within each
-  // tier by sub-priority so Alpha Gold pins to top, Leaps drops to bottom.
-  const dedupedAlerts = dedupAlerts(alerts);
   const byTier = {};
   for (const t of TIER_ORDER) byTier[t] = [];
-  for (const a of dedupedAlerts) byTier[deriveTier(a)].push(a);
-
-  // Sort each tier's alerts: sub-priority ascending (1 first), ties broken by
-  // arrival order (timestamp descending — newest within the same priority on top).
-  for (const t of TIER_ORDER) {
-    byTier[t].sort((a, b) => {
-      const dp = deriveSubPriority(a.alertName) - deriveSubPriority(b.alertName);
-      if (dp !== 0) return dp;
-      return (b.timestamp || 0) - (a.timestamp || 0);
-    });
-  }
-
+  for (const a of alerts) byTier[deriveTier(a.alertName)].push(a);
   const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
   const visibleTotal = TIER_ORDER.reduce(
     (sum, t) => filters[t] ? sum + byTier[t].length : sum, 0
@@ -1048,7 +731,7 @@ export default function LiveFlow() {
         }
       `}</style>
 
-      {/* Header — subscriber view, no PHASE B labeling */}
+      {/* Header — admin view with PHASE B label + ADMIN pill */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "14px 20px", borderBottom: "1px solid " + P.bd,
@@ -1064,61 +747,72 @@ export default function LiveFlow() {
             <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>
               LIVE FLOW
             </span>
-            {isBacktest && (
+            <span style={{
+              fontSize: 9, padding: "2px 6px", borderRadius: 3,
+              background: P.be + "20", color: P.be, fontWeight: 800,
+              letterSpacing: 0.5,
+            }}>ADMIN</span>
+            {isBacktest ? (
               <span style={{
                 fontSize: 9, padding: "2px 6px", borderRadius: 3,
                 background: P.bl + "20", color: P.bl, fontWeight: 800,
                 letterSpacing: 0.5,
               }}>BACKTEST · {backtestDate}</span>
+            ) : (
+              <span style={{ fontSize: 9, color: P.mt, letterSpacing: 0.5 }}>
+                PHASE B · FILTER ENGINE v1 · DISCORD FORWARDING ACTIVE
+              </span>
             )}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Backtest controls — admin-gated. Only visible when ?admin=1 is in URL */}
-          {isAdmin && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "4px 8px", borderRadius: 4,
-              border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
-              background: isBacktest ? P.bl + "10" : "transparent",
-            }}>
-              <span style={{
-                fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
-                letterSpacing: 0.5, textTransform: "uppercase",
-              }}>{isBacktest ? "replay" : "backtest"}</span>
-              <input
-                type="date"
-                value={isBacktest ? backtestDate : mostRecentMarketDay()}
-                min={thirtyDaysAgo()}
-                max={formatDateForInput(new Date())}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (isValidBacktestDate(v)) {
-                    updateParams(p => p.set("backtest", v));
-                  }
+          {/* Backtest controls — date picker + exit-to-live button */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "4px 8px", borderRadius: 4,
+            border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
+            background: isBacktest ? P.bl + "10" : "transparent",
+          }}>
+            <span style={{
+              fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: "uppercase",
+            }}>{isBacktest ? "replay" : "backtest"}</span>
+            <input
+              type="date"
+              value={isBacktest ? backtestDate : mostRecentMarketDay()}
+              min={thirtyDaysAgo()}
+              max={formatDateForInput(new Date())}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (isValidBacktestDate(v)) {
+                  setSearchParams({ backtest: v });
+                }
+              }}
+              style={{
+                fontSize: 10, padding: "2px 4px",
+                background: P.bg, color: P.wh,
+                border: "1px solid " + P.bd, borderRadius: 3,
+                fontFamily: "ui-monospace, monospace",
+                colorScheme: "dark",  // makes the native date picker render in dark mode
+              }}
+            />
+            {isBacktest && (
+              <button
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("backtest");
+                  setSearchParams(next);
                 }}
+                title="Exit backtest, return to live"
                 style={{
-                  fontSize: 10, padding: "2px 4px",
-                  background: P.bg, color: P.wh,
+                  fontSize: 9, padding: "2px 6px", fontWeight: 700,
+                  letterSpacing: 0.5,
+                  background: "transparent", color: P.dm,
                   border: "1px solid " + P.bd, borderRadius: 3,
-                  fontFamily: "ui-monospace, monospace",
-                  colorScheme: "dark",
-                }}
-              />
-              {isBacktest && (
-                <button
-                  onClick={() => updateParams(p => p.delete("backtest"))}
-                  title="Exit backtest, return to live"
-                  style={{
-                    fontSize: 9, padding: "2px 6px", fontWeight: 700,
-                    letterSpacing: 0.5,
-                    background: "transparent", color: P.dm,
-                    border: "1px solid " + P.bd, borderRadius: 3,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>× live</button>
-              )}
-            </div>
-          )}
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>× live</button>
+            )}
+          </div>
           <StatusPill status={status} />
           {status && (
             <div style={{
@@ -1126,30 +820,38 @@ export default function LiveFlow() {
               fontFamily: "ui-monospace, monospace",
               display: "flex", gap: 10,
             }}>
-              <span title="Alerts in current view">
-                shown <strong style={{ color: P.wh }}>{visibleTotal}</strong>
+              <span title="Total received from Bullflow (pre-filter)">
+                rx <strong style={{ color: P.wh }}>{status.total_alerts_received}</strong>
               </span>
-              <span title="Forwarded to Discord">
+              <span title="Passed table filter, visible in table">
+                shown <strong style={{ color: P.wh }}>{status.total_alerts_shown ?? 0}</strong>
+              </span>
+              <span title="Filtered out (below $250K, blocklist, or grenade)">
+                drop <strong style={{ color: P.dm }}>{status.total_alerts_dropped ?? 0}</strong>
+              </span>
+              <span title="Forwarded to Discord (conviction >= 2.0)">
                 🔔 <strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
               </span>
               <span style={{ color: P.mt }}>· last {relTime(status.last_event_at)}</span>
             </div>
           )}
+          <button onClick={() => setShowDebug(d => !d)} style={{
+            padding: "4px 10px", fontSize: 9, fontWeight: 700,
+            letterSpacing: 0.5, textTransform: "uppercase",
+            color: showDebug ? P.ac : P.dm,
+            background: showDebug ? P.ac + "18" : "transparent",
+            border: "1px solid " + (showDebug ? P.ac + "60" : P.bd),
+            borderRadius: 4, cursor: "pointer", fontFamily: "inherit",
+          }}>{showDebug ? "Hide" : "Show"} JSON</button>
         </div>
       </div>
 
       {/* Filter chips */}
       <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
 
-      {/* Admin: user-managed ticker exclusion list */}
-      <UserBlocklistPanel
-        visible={isAdmin}
-        onSaved={() => setRefreshTrigger(x => x + 1)}
-      />
-
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        {/* Backtest banner — only when in backtest mode (admin gated) */}
+        {/* Backtest banner — only shown when in backtest mode */}
         {isBacktest && (
           <div style={{
             padding: "10px 20px", borderBottom: "1px solid " + P.bl + "30",
@@ -1160,15 +862,15 @@ export default function LiveFlow() {
             <span style={{
               fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
               textTransform: "uppercase",
-            }}>backtest</span>
+            }}>backtest dry-run</span>
             <span style={{ color: P.dm }}>
-              Replaying <strong style={{ color: P.wh }}>{backtestDate}</strong>
+              Replaying <strong style={{ color: P.wh }}>{backtestDate}</strong> against saved custom alerts
               {backtestLoading && " · loading…"}
             </span>
 
             {/* Simulation controls — opt-in via "simulate" toggle. When on,
                 threshold + ETF-exclusion controls become editable. */}
-            <span style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 12, flexWrap: "wrap" }}>
+            <span style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 12 }}>
               <button
                 onClick={() => {
                   const next = new URLSearchParams(searchParams);
@@ -1196,8 +898,8 @@ export default function LiveFlow() {
               </button>
 
               {/* JSON upload — sidesteps Bullflow MCP using a Discord export.
-                  When a file is loaded, simulation auto-runs and the UI shows
-                  what the gate would do for that day's alerts. */}
+                  When a file is loaded, the simulation auto-runs and the UI
+                  shows what the gate would do for that day's alerts. */}
               <label
                 style={{
                   padding: "3px 10px", fontSize: 10, borderRadius: 4,
@@ -1207,7 +909,7 @@ export default function LiveFlow() {
                   cursor: "pointer", letterSpacing: 0.5,
                   textTransform: "uppercase", fontWeight: 700,
                 }}
-                title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts"
+                title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts (bypasses Bullflow MCP)"
               >
                 {uploadedFile ? `✓ ${uploadedFile.name.slice(0, 18)}…` : "upload json"}
                 <input
@@ -1217,7 +919,7 @@ export default function LiveFlow() {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
-                    if (f.size > 50 * 1024 * 1024) {
+                    if (f.size > 50 * 1024 * 1024) {  // 50 MB hard cap, prevents accidents
                       setUploadError("File too large (>50MB)");
                       return;
                     }
@@ -1246,7 +948,7 @@ export default function LiveFlow() {
                     border: "1px solid " + P.bd, background: "transparent",
                     color: P.dm, cursor: "pointer",
                   }}
-                  title="Clear uploaded file"
+                  title="Clear uploaded file and return to MCP-sourced backtest"
                 >
                   ×
                 </button>
@@ -1298,19 +1000,20 @@ export default function LiveFlow() {
 
             {status?.backtest_capped && (
               <span style={{ color: "#FFB300", marginLeft: "auto" }}>
-                ⚠ capped at 500 alerts — day had more flow than shown
+                ⚠ capped at 500 alerts (Bullflow MCP limit) — day had more flow than visible
               </span>
             )}
             {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && !simulateMode && (
               <span style={{ color: P.dm, marginLeft: "auto" }}>
-                {alerts.length} alert{alerts.length !== 1 ? "s" : ""} returned
+                {alerts.length} alert{alerts.length !== 1 ? "s" : ""} returned · no Discord forwarding
               </span>
             )}
           </div>
         )}
 
-        {/* Simulation results panel — appears when sim is active and backend
-            returned a simulation block. Shows stats + grade distribution + tabs. */}
+        {/* Simulation results panel — appears below banner when sim is active
+            and the backend returned a simulation block. Shows stats + grade
+            distribution + tab buttons to switch between posts/edits/gated. */}
         {isBacktest && simulateMode && simulation && !simulation.error && (
           <SimulationPanel
             simulation={simulation}
@@ -1337,6 +1040,54 @@ export default function LiveFlow() {
           </div>
         )}
 
+        {/* Filter config banner — admin only */}
+        {status?.filter_config && (
+          <div style={{
+            padding: "8px 20px", borderBottom: "1px solid " + P.bd + "40",
+            background: P.cd + "80", fontSize: 10, color: P.dm,
+            display: "flex", gap: 14, alignItems: "center",
+            fontFamily: "ui-monospace, monospace",
+          }}>
+            <span style={{
+              color: P.mt, letterSpacing: 0.5,
+              textTransform: "uppercase", fontSize: 9,
+            }}>backend filter</span>
+            <span>premium ≥ <strong style={{ color: P.wh }}>
+              ${(status.filter_config.premium_min / 1000).toFixed(0)}K
+            </strong></span>
+            <span>· blocklist: <strong style={{ color: P.wh }}>
+              {(status.filter_config.ticker_blocklist || []).join(", ") || "none"}
+            </strong></span>
+            <span>· skip: <strong style={{ color: P.wh }}>
+              {(status.filter_config.alertname_block_substrings || []).join(", ") || "none"}
+            </strong></span>
+            <span style={{ marginLeft: "auto" }}>discord ≥ <strong style={{ color: P.bu }}>
+              {status.filter_config.discord_threshold}
+            </strong> conviction</span>
+            {!status.discord_configured && (
+              <span style={{ color: "#FFB300" }}>⚠ webhook not configured</span>
+            )}
+          </div>
+        )}
+
+        {/* Debug JSON panel */}
+        {showDebug && (
+          <div style={{
+            padding: "10px 20px", borderBottom: "1px solid " + P.bd + "40",
+            background: P.bg, fontSize: 10, color: P.dm,
+            fontFamily: "ui-monospace, monospace",
+            maxHeight: 240, overflow: "auto",
+          }}>
+            <div style={{
+              fontSize: 9, color: P.mt, letterSpacing: 0.5,
+              textTransform: "uppercase", marginBottom: 6,
+            }}>raw payload — latest 5 alerts</div>
+            <pre style={{ margin: 0, fontSize: 10, color: P.wh, lineHeight: 1.4 }}>
+              {JSON.stringify(alerts.slice(0, 5), null, 2)}
+            </pre>
+          </div>
+        )}
+
         {error && (
           <div style={{
             padding: "10px 20px", background: P.be + "18",
@@ -1351,7 +1102,7 @@ export default function LiveFlow() {
             borderBottom: "1px solid " + P.be + "40",
             color: P.be, fontSize: 11,
           }}>
-            <strong>Disconnected:</strong> {status.last_error}
+            <strong>Backend reports disconnected:</strong> {status.last_error}
             <span style={{ color: P.dm, marginLeft: 8 }}>
               · reconnect attempts: {status.reconnect_count}
             </span>
@@ -1373,8 +1124,8 @@ export default function LiveFlow() {
               {isBacktest
                 ? (backtestLoading
                     ? "Bullflow sample replay can take up to 2 minutes."
-                    : "Either the market was quiet or it was a non-trading day.")
-                : "Quiet stretches are normal — flow fires on unusual activity only."}
+                    : "Either the market was quiet that day or it was a non-trading day.")
+                : "Bullflow algo alerts fire on unusual activity. Quiet stretches are normal."}
             </div>
             {!isBacktest && status?.started_at && (
               <div style={{
@@ -1393,7 +1144,7 @@ export default function LiveFlow() {
               All tiers filtered out
             </div>
             <div style={{ fontSize: 10, color: P.mt }}>
-              {dedupedAlerts.length} alert{dedupedAlerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
+              {alerts.length} alert{alerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
             </div>
           </div>
         ) : (
@@ -1442,11 +1193,11 @@ export default function LiveFlow() {
       }}>
         <div>
           {isBacktest
-            ? `backtest · ${backtestDate} · one-shot`
-            : `polling every ${POLL_INTERVAL_MS / 1000}s · buffer ${MAX_ROWS}`}
+            ? `backtest /api/admin/bullflow/backtest?date=${backtestDate} · one-shot · no polling`
+            : `polling /api/live/alerts/recent every ${POLL_INTERVAL_MS / 1000}s · buffer max ${MAX_ROWS}`}
         </div>
         <div>
-          {visibleTotal > 0 && "showing " + visibleTotal + " · "}
+          {visibleTotal > 0 && "showing " + visibleTotal + " of " + alerts.length + " · "}
           updated {relTime(new Date(now).toISOString())}
         </div>
       </div>

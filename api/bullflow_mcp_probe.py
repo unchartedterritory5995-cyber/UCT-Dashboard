@@ -19,7 +19,7 @@ to subscribers.
 """
 import os
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, UploadFile, File
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/api/admin/bullflow", tags=["bullflow-mcp-probe"])
@@ -522,6 +522,23 @@ async def backtest_replay(
         description="Replay speed multiplier (higher = faster sample)"),
     timeout_seconds: int = Query(120, ge=5, le=120,
         description="Max seconds to wait for the sample"),
+    simulate: str = Query("off",
+        description="Simulation mode. 'off' = raw filtered alerts only (default, "
+                    "backward compat). 'full' = also run alerts through the live "
+                    "worker's pipeline (OI lookup, Schwab spot moneyness, "
+                    "aggregation, conviction grading) and return what would have "
+                    "posted to Discord vs been gated. Use this to test threshold "
+                    "tuning against historical data."),
+    min_grade: str = Query("B",
+        description="Conviction threshold for the simulation gate when "
+                    "simulate=full. One of: A+, A, B, C, D. D effectively "
+                    "disables the gate (everything posts). Default B matches "
+                    "the live worker's default."),
+    exclude_etf_flow: bool = Query(False,
+        description="When simulate=full, exclude UCT ETF Flow alerts from the "
+                    "simulation. Useful for evaluating single-name flow in "
+                    "isolation since ETF Flow tends to dominate volume but "
+                    "lives better in its own Discord channel."),
 ):
     """
     Run Bullflow's backtest replay for `date` against saved custom alerts.
@@ -622,6 +639,28 @@ async def backtest_replay(
     # Sort newest-first so the LiveFlow UI's "most recent at top" expectation holds.
     normalized.sort(key=lambda a: str(a.get("timestamp") or ""), reverse=True)
 
+    # If the caller asked for full pipeline simulation, run it against the
+    # filtered alerts. This applies enrichment (OI + moneyness) and the same
+    # conviction gate that the live worker uses, returning what would have
+    # posted to Discord vs been silenced. Computed pre-status so we can echo
+    # post counts into the status block for the frontend to display.
+    simulation_result = None
+    if simulate.lower() == "full":
+        # Optionally exclude ETF Flow before simulating (single-name lens)
+        if exclude_etf_flow:
+            sim_input = [a for a in normalized
+                         if "ETF Flow" not in (a.get("alertName") or "")]
+        else:
+            sim_input = normalized
+        try:
+            simulation_result = await _simulate_pipeline(sim_input, min_grade=min_grade)
+        except Exception as e:
+            # Don't let a simulator bug break the regular backtest response —
+            # surface the error in the response but keep the raw alerts visible.
+            simulation_result = {
+                "error": f"{type(e).__name__}: {str(e)[:300]}",
+            }
+
     # Build a status block matching /api/live/alerts/recent's shape so the
     # frontend StatusPill/counter code doesn't need to branch.
     status = {
@@ -653,4 +692,529 @@ async def backtest_replay(
         "max_alerts": max_alerts,
         "speed": speed,
         "capped": len(real_alerts) >= max_alerts,
+        "simulation": simulation_result,
+    }
+
+
+# ─── Full-pipeline simulator ─────────────────────────────────────────────────
+#
+# The endpoint above shows raw filtered alerts — useful but misses what the
+# LIVE worker actually does: enrichment, aggregation, conviction grading, and
+# the conviction gate that decides what reaches Discord. This simulator runs
+# alerts through the SAME logic the live worker uses, so we can ask "what would
+# Discord have looked like on date X if we applied threshold Y today?"
+#
+# Three enrichment phases mirror the worker exactly:
+#   1) OI snapshot lookup (sync SQLite) — for the OI BREAK signal.
+#   2) Schwab spot price (async, batched, cached per-ticker) — for moneyness.
+#   3) Aggregate replay — same _update_aggregate logic used in live, but with
+#      a private aggregates dict so we don't touch the real worker state.
+#
+# Then the gate is applied: for each alert in time order, decide whether it
+# would have POSTED (first fire above threshold), EDITED (subsequent fire of
+# an already-posted contract), or been GATED (below threshold, no existing
+# post). The categorized output lets the admin UI show side-by-side what
+# would and would not have made it through.
+
+async def _simulate_pipeline(alerts: list, min_grade: str = "B") -> dict:
+    """
+    Replay a list of normalized alerts through the live worker's pipeline:
+    enrichment → aggregation → conviction → gate.
+
+    Returns a dict with:
+      would_post:  alerts that would have triggered a fresh Discord post
+      would_edit:  alerts that would have updated an existing Discord post
+      gated:       alerts silenced by the conviction gate
+      grade_distribution: counts by letter grade
+      stats:       summary numbers (totals, reduction vs raw)
+
+    Pure simulation — does NOT post anything, does NOT mutate live aggregates.
+    Safe to call repeatedly with different thresholds.
+    """
+    # Import inside function so this module doesn't fail to load if the
+    # worker has a transient issue (defensive — the probe is also used to
+    # create production alerts and shouldn't be coupled to worker health).
+    from api.liveflow_worker import (
+        _lookup_prior_oi,
+        _get_cached_spot,
+        _calc_moneyness,
+        _alert_priority,
+        _compute_conviction,
+        _grade_level,
+    )
+
+    if not alerts:
+        return {
+            "would_post": [], "would_edit": [], "gated": [],
+            "grade_distribution": {},
+            "stats": {
+                "total_alerts": 0, "posts": 0, "edits": 0, "gated_count": 0,
+                "discord_actions": 0, "reduction_vs_raw_pct": 0,
+                "min_grade": min_grade,
+            },
+        }
+
+    min_level = _grade_level(min_grade)
+
+    # Sort by timestamp ascending so aggregation replays in correct order.
+    # Some timestamps may be None (init/heartbeat sentinels already filtered
+    # out, but defensive sort handles edge cases gracefully).
+    sorted_alerts = sorted(alerts, key=lambda a: str(a.get("timestamp") or ""))
+
+    # Phase 1: OI snapshot enrichment (sync, fast). Add priorOI, volumeOIRatio,
+    # oiExceeded fields to each alert in place so aggregation sees them.
+    for a in sorted_alerts:
+        premium = float(a.get("alertPremium") or 0)
+        fill = float(a.get("averageFillPrice") or 0)
+        trade_size = round(premium / (fill * 100)) if fill > 0 else None
+        a["tradeSize"] = trade_size
+        snap = _lookup_prior_oi(
+            a.get("ticker"), a.get("cp"),
+            a.get("strike"), a.get("exp"),
+        )
+        if snap and trade_size and snap[0] > 0:
+            oi, snap_date = snap
+            ratio = round(trade_size / oi, 2)
+            a["priorOI"] = oi
+            a["oiSnapshotDate"] = snap_date
+            a["volumeOIRatio"] = ratio
+            a["oiExceeded"] = ratio > 1.0
+        else:
+            a["priorOI"] = snap[0] if snap else None
+            a["volumeOIRatio"] = None
+            a["oiExceeded"] = False
+
+    # Phase 2: Moneyness enrichment (async, expensive but cached per-ticker).
+    # Use existing _get_cached_spot which already has 2-min TTL. Concurrent
+    # lookups via asyncio.gather over UNIQUE tickers minimize Schwab API hits.
+    import asyncio
+    unique_tickers = list({
+        a.get("ticker") for a in sorted_alerts
+        if a.get("ticker") and not a["ticker"].startswith("$") and "." not in a["ticker"]
+    })
+    spot_results = await asyncio.gather(
+        *(_get_cached_spot(t) for t in unique_tickers),
+        return_exceptions=True,
+    )
+    spot_map = {}
+    for ticker, result in zip(unique_tickers, spot_results):
+        if isinstance(result, (int, float)) and result:
+            spot_map[ticker] = float(result)
+
+    for a in sorted_alerts:
+        spot = spot_map.get(a.get("ticker"))
+        if spot:
+            a["spot"] = round(spot, 2)
+            pct, label = _calc_moneyness(spot, a.get("strike"), a.get("cp"))
+            a["moneynessPct"] = round(pct, 1) if pct is not None else None
+            a["moneynessLabel"] = label
+        else:
+            a["spot"] = None
+            a["moneynessPct"] = None
+            a["moneynessLabel"] = None
+
+    # Phase 3: Aggregate replay + gate. Mirrors _update_aggregate in worker
+    # but uses a LOCAL aggregates dict so we don't touch live state.
+    #
+    # Critical: this also mirrors the live worker's DEDUP behavior. When the
+    # same trade gets caught by 2-3 overlapping UCT alert tiers (e.g. Alpha
+    # Gold + Leaps + Bearish Leaps all matching the same INTC LEAPS put),
+    # Bullflow sends N webhook events for ONE trade. Without dedup, the
+    # simulator would count that trade N times — inflating premium, fire
+    # count, and conviction grade.
+    #
+    # Dedup logic: alerts with identical (ticker, cp, strike, exp, premium)
+    # within DEDUP_WINDOW_SEC are the same trade. The first occurrence is
+    # counted; subsequent duplicates still register their alert tier (so
+    # multi-alert confluence credit is preserved) but don't re-add premium
+    # or increment fire count.
+    DEDUP_WINDOW_SEC = 60
+    _trade_seen: dict = {}  # (ticker,cp,strike,exp,premium) → first_seen_unix_ts
+    aggregates: dict = {}
+    posted_contracts = set()  # contracts with a simulated Discord post
+
+    would_post = []
+    would_edit = []
+    gated = []
+    dedup_skipped = 0    # phantom duplicates dropped — for transparency in stats
+    grade_dist = {"A+": 0, "A": 0, "B": 0, "C": 0, "D": 0}
+
+    def _parse_ts(ts_str):
+        """Parse ISO timestamp to UNIX seconds. Returns 0 on failure."""
+        if not ts_str:
+            return 0
+        try:
+            from datetime import datetime as _dt
+            return _dt.fromisoformat(str(ts_str).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0
+
+    for a in sorted_alerts:
+        ticker = a.get("ticker") or ""
+        cp = a.get("cp") or ""
+        strike = a.get("strike")
+        exp = a.get("exp") or ""
+        key = (ticker, cp, strike, exp)
+
+        premium = float(a.get("alertPremium") or 0)
+        size = a.get("tradeSize") or 0
+        name = a.get("alertName") or ""
+        priority = _alert_priority(a)
+
+        # DEDUP CHECK: same trade caught by multiple alert tiers within 60s
+        # window. Only the first occurrence contributes premium/size/fire_count.
+        # Subsequent duplicates still credit their alert_names_seen so multi-
+        # alert confluence ("3 tiers caught this") shows up in conviction.
+        trade_key = (ticker, cp, strike, exp, round(premium, 2))
+        this_ts = _parse_ts(a.get("timestamp"))
+        first_seen = _trade_seen.get(trade_key)
+        is_duplicate = (
+            first_seen is not None
+            and this_ts > 0
+            and (this_ts - first_seen) <= DEDUP_WINDOW_SEC
+        )
+
+        if is_duplicate:
+            # Duplicate: don't add premium/size/fires. But credit the alert
+            # tier and promote best_alert if higher priority — these signals
+            # are still meaningful (multi-tier match = stronger confluence).
+            dedup_skipped += 1
+            if key in aggregates:
+                agg = aggregates[key]
+                if name:
+                    agg["alert_names_seen"].add(name)
+                if priority < agg["best_alert_priority"]:
+                    agg["best_alert_name"] = name
+                    agg["best_alert_priority"] = priority
+            # Skip categorization — duplicates don't generate post/edit/gate
+            # events. The contract's already in one of those buckets from
+            # its first occurrence.
+            continue
+
+        # First occurrence of this trade: record in dedup cache and proceed
+        _trade_seen[trade_key] = this_ts
+
+        # Update / create aggregate in local dict
+        if key not in aggregates:
+            aggregates[key] = {
+                "ticker": ticker, "cp": cp, "strike": strike, "exp": exp,
+                "total_premium": premium,
+                "max_premium": premium,
+                "total_size": size,
+                "max_size": size,
+                "fire_count": 1,
+                "best_alert_name": name,
+                "best_alert_priority": priority,
+                "alert_names_seen": {name} if name else set(),
+                "first_fire_ts": a.get("timestamp"),
+                "last_fire_ts": a.get("timestamp"),
+                "prior_oi": a.get("priorOI"),
+                "spot": a.get("spot"),
+                "moneyness_pct": a.get("moneynessPct"),
+                "moneyness_label": a.get("moneynessLabel"),
+            }
+        else:
+            agg = aggregates[key]
+            agg["total_premium"] += premium
+            agg["max_premium"] = max(agg["max_premium"], premium)
+            agg["total_size"] = (agg["total_size"] or 0) + size
+            agg["max_size"] = max(agg["max_size"] or 0, size)
+            agg["fire_count"] += 1
+            agg["last_fire_ts"] = a.get("timestamp")
+            if name:
+                agg["alert_names_seen"].add(name)
+            if priority < agg["best_alert_priority"]:
+                agg["best_alert_name"] = name
+                agg["best_alert_priority"] = priority
+            if agg["prior_oi"] is None and a.get("priorOI") is not None:
+                agg["prior_oi"] = a.get("priorOI")
+            if a.get("spot") is not None:
+                agg["spot"] = a.get("spot")
+                agg["moneyness_pct"] = a.get("moneynessPct")
+                agg["moneyness_label"] = a.get("moneynessLabel")
+
+        agg = aggregates[key]
+        score, grade = _compute_conviction(agg)
+
+        # Categorize: post (new + above threshold), edit (already posted),
+        # gate (new + below threshold).
+        snapshot = {
+            **{k: a.get(k) for k in (
+                "id", "alertName", "alertType", "alertPremium", "ticker",
+                "cp", "strike", "exp", "dte", "timestamp",
+            )},
+            "agg_total_premium": agg["total_premium"],
+            "agg_fire_count": agg["fire_count"],
+            "agg_total_size": agg["total_size"],
+            "conviction_score": score,
+            "conviction_grade": grade,
+            "spot": agg.get("spot"),
+            "moneynessLabel": agg.get("moneyness_label"),
+            "priorOI": agg.get("prior_oi"),
+            "oiExceeded": a.get("oiExceeded"),
+        }
+
+        if key in posted_contracts:
+            would_edit.append(snapshot)
+        elif _grade_level(grade) >= min_level:
+            posted_contracts.add(key)
+            would_post.append(snapshot)
+            grade_dist[grade] = grade_dist.get(grade, 0) + 1
+        else:
+            gated.append(snapshot)
+            # Count gated grades too so user sees the full distribution
+            grade_dist[grade] = grade_dist.get(grade, 0) + 1
+
+    total = len(sorted_alerts)
+    posts = len(would_post)
+    edits = len(would_edit)
+    gated_count = len(gated)
+    discord_actions = posts + edits
+    reduction = (1 - discord_actions / total) * 100 if total > 0 else 0
+
+    return {
+        "would_post": would_post,
+        "would_edit": would_edit,
+        "gated": gated,
+        "grade_distribution": grade_dist,
+        "stats": {
+            "total_alerts": total,
+            "posts": posts,
+            "edits": edits,
+            "gated_count": gated_count,
+            "discord_actions": discord_actions,
+            "reduction_vs_raw_pct": round(reduction, 1),
+            "unique_contracts_posted": len(posted_contracts),
+            "dedup_skipped": dedup_skipped,  # phantom duplicates filtered
+            "min_grade": min_grade,
+        },
+    }
+
+
+# ─── JSON-sourced backtest (Discord export → simulator) ────────────────────────
+#
+# Bullflow's MCP replay API has been silently returning empty results for recent
+# dates (no error, just zero alerts) — a reliability problem we don't control.
+# Fortunately, every alert that posted to Discord is captured in DiscordChatExporter
+# JSON exports, with full embed structure intact. This endpoint accepts that JSON
+# directly and runs it through the same simulation pipeline.
+#
+# Workflow for the user:
+#   1. Export the #uct-live-flow channel via DiscordChatExporter (JSON format)
+#   2. Upload the file via /api/admin/bullflow/backtest-from-json
+#   3. Get the same simulation block as the MCP backtest endpoint
+#
+# This is reliable because Discord stores embeds durably — neither Bullflow gaps
+# nor worker restarts can affect what's already been posted.
+#
+# Caveat: only contains alerts that PASSED the live gate. To get a complete
+# historical picture, run with MIN_DISCORD_GRADE=D in production for a few days
+# (everything posts), export, then experiment with tighter thresholds offline.
+
+_BOT_NAMES = {"UCTOptionsAlert", "UCT Options Alert"}
+
+
+def _parse_discord_embed_alert(embed: dict, message_ts: str) -> dict | None:
+    """
+    Reconstruct an alert payload from a Discord embed posted by the live worker.
+    Returns None if the embed doesn't match the expected UCT alert shape (e.g.
+    Watchlist summaries, test posts, malformed embeds).
+
+    The output shape matches what _simulate_pipeline expects: ticker, cp, strike,
+    exp, alertPremium, alertName, alertType, averageFillPrice, timestamp.
+    """
+    title = (embed.get("title") or "").strip()
+    if not title or "TEST" in title:
+        return None
+
+    # Strip legacy "🚨 LIVE · " prefix; current format omits it.
+    title = title.replace("\U0001f6a8 LIVE · ", "").replace("\U0001f6a8 LIVE ", "").strip()
+
+    # Current format: "TICKER $STRIKE CALL/PUT EXP: MM-DD-YYYY (X% LABEL)"
+    # Older format:   "TICKER C/P $STRIKE YYYY-MM-DD ..."
+    parsed = None
+    m = re.match(r"^([A-Z0-9$.]+)\s+\$([\d.]+)\s+(CALL|PUT)\s+EXP:\s+(\S+)", title)
+    if m:
+        parsed = {
+            "ticker": m.group(1),
+            "strike": float(m.group(2)),
+            "cp": m.group(3)[0],   # CALL/PUT → C/P (matches worker internal repr)
+            "exp": m.group(4),
+        }
+    else:
+        m = re.match(r"^([A-Z0-9$.]+)\s+([CP])\s+\$([\d.]+)\s+(\S+)", title)
+        if m:
+            parsed = {
+                "ticker": m.group(1),
+                "strike": float(m.group(3)),
+                "cp": m.group(2),
+                "exp": m.group(4),
+            }
+    if not parsed:
+        return None
+
+    # Extract embed fields by name. DiscordChatExporter uses "isInline" not
+    # "inline", but the field structure is otherwise identical to Discord's.
+    fields = {(f.get("name") or "").strip(): (f.get("value") or "").strip()
+              for f in embed.get("fields", [])}
+
+    def parse_premium(s):
+        """'$1.27M', '$917K' → float dollars."""
+        if not s:
+            return 0.0
+        s = s.replace("$", "").replace(",", "").strip().strip("*")
+        try:
+            if s.endswith("M"): return float(s[:-1]) * 1e6
+            if s.endswith("K"): return float(s[:-1]) * 1e3
+            if s.endswith("B"): return float(s[:-1]) * 1e9
+            return float(s)
+        except (ValueError, IndexError):
+            return 0.0
+
+    def parse_int(s):
+        if not s or s == "—":
+            return None
+        try:
+            return int(s.replace(",", ""))
+        except (ValueError, IndexError):
+            return None
+
+    def parse_fill(s):
+        """'$13.50' → 13.50"""
+        if not s:
+            return None
+        try:
+            return float(s.replace("$", "").replace(",", "").strip())
+        except ValueError:
+            return None
+
+    premium = parse_premium(fields.get("Total Premium") or fields.get("Premium"))
+    alert_name = fields.get("Alert", "")
+    # Strip "+N more" suffix; some embeds show multiple alert tiers caught the
+    # same trade. We just want the primary one for re-running the pipeline.
+    alert_name = re.sub(r"\s+\+\d+ more", "", alert_name).strip()
+    fill = parse_fill(fields.get("Avg Fill") or fields.get("Latest Fill"))
+
+    return {
+        "id": embed.get("_id"),  # may be None
+        "alertName": alert_name,
+        "alertType": "custom",   # Discord embeds don't carry the original type
+        "alertPremium": premium,
+        "averageFillPrice": fill,
+        "ticker": parsed["ticker"],
+        "cp": parsed["cp"],
+        "strike": parsed["strike"],
+        "exp": parsed["exp"],
+        "dte": None,
+        "timestamp": message_ts,
+        # Keep a few enrichment hints if present in the embed — these are not
+        # used by the simulator (which re-derives them) but useful for debug.
+        "_embed_volume": parse_int(fields.get("Volume")),
+        "_embed_oi": parse_int(fields.get("OI")),
+        "_embed_grade": fields.get("Conviction"),
+    }
+
+
+def _parse_discord_export(data: dict) -> list[dict]:
+    """
+    Walk a DiscordChatExporter JSON dump and extract alert-shaped dicts from
+    every UCTOptionsAlert bot post that has a parseable embed. Watchlist
+    summaries and other non-alert embeds are silently skipped.
+    """
+    alerts: list[dict] = []
+    messages = data.get("messages") or []
+    for msg in messages:
+        author = (msg.get("author") or {}).get("name", "")
+        if author not in _BOT_NAMES:
+            continue
+        ts = msg.get("timestamp") or ""
+        for embed in (msg.get("embeds") or []):
+            a = _parse_discord_embed_alert(embed, ts)
+            if a:
+                alerts.append(a)
+    return alerts
+
+
+@router.post("/backtest-from-json")
+async def backtest_from_json(
+    file: UploadFile = File(..., description="DiscordChatExporter JSON export"),
+    min_grade: str = Query("B", description="Conviction gate threshold"),
+    exclude_etf_flow: bool = Query(False, description="Strip UCT ETF Flow"),
+):
+    """
+    Run the simulation pipeline against alerts reconstructed from a Discord
+    channel export. Independent of Bullflow MCP — purely file-driven, which
+    makes it reliable even when upstream APIs misbehave.
+
+    Returns the same response shape as the MCP backtest endpoint so the
+    frontend can reuse all its existing rendering code without branching.
+    """
+    import json as _json
+    try:
+        raw = await file.read()
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as e:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"Invalid JSON: {e}"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"File read failed: {type(e).__name__}: {e}"},
+        )
+
+    alerts = _parse_discord_export(data)
+    if not alerts:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "No alerts parsed from JSON. Expected DiscordChatExporter "
+                         "format with UCTOptionsAlert bot embeds.",
+                "messages_in_file": len(data.get("messages", [])),
+            },
+        )
+
+    # Apply ETF filter pre-simulation so the gate doesn't see those alerts.
+    if exclude_etf_flow:
+        alerts = [a for a in alerts if "ETF Flow" not in (a.get("alertName") or "")]
+
+    # Run the same simulator the MCP endpoint uses. This applies enrichment
+    # (OI lookup + Schwab spot for moneyness), aggregation, conviction grading,
+    # and the gate. Output shape identical to the MCP backtest endpoint.
+    try:
+        simulation = await _simulate_pipeline(alerts, min_grade=min_grade)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Simulator failed: {type(e).__name__}: {str(e)[:300]}"},
+        )
+
+    # Extract date range from the file for the response header
+    date_range = data.get("dateRange") or {}
+    date_from = (date_range.get("after") or "")[:10]
+    date_to = (date_range.get("before") or "")[:10]
+
+    return {
+        "mode": "backtest_json",
+        "source": "discord_export",
+        "filename": file.filename,
+        "date_from": date_from,
+        "date_to": date_to,
+        "alerts": alerts,
+        "status": {
+            "connected": True,
+            "last_event_at": alerts[-1]["timestamp"] if alerts else None,
+            "total_alerts_received": len(alerts),
+            "total_alerts_shown": len(alerts),
+            "total_alerts_dropped": 0,
+            "total_alerts_forwarded": 0,
+            "last_error": None,
+            "reconnect_count": 0,
+            "started_at": None,
+            "mode": "backtest_json",
+            "backtest_date": date_to or date_from,
+            "backtest_capped": False,
+        },
+        "simulation": simulation,
     }

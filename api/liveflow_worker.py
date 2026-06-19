@@ -26,12 +26,36 @@ import json
 import logging
 import os
 import re
+import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+# Eastern Time zone — used for displaying market timestamps to subscribers.
+# Railway runs UTC by default, so naive datetime.fromtimestamp() returns UTC
+# (not local market time). Use this with fromtimestamp(ts, tz=ET) to convert.
+# Handles DST automatically (EDT vs EST).
+ET = ZoneInfo("America/New_York")
+
+# Discord embed branding — small icon shown next to "UCT Live Flow" label at
+# top of every embed. Must be a publicly accessible image URL (PNG/JPG/WebP;
+# AVIF unreliable in Discord). Override via env var for easy swap without code.
+#
+# WARNING: Discord CDN URLs (cdn.discordapp.com) include signed query params
+# (ex=, is=, hm=) that EXPIRE in 24-48 hours. For production stability, host
+# the logo somewhere permanent (GitHub raw, your own static site, etc.) and
+# set UCT_LOGO_URL env var to that URL.
+UCT_LOGO_URL = os.getenv(
+    "UCT_LOGO_URL",
+    "https://cdn.discordapp.com/attachments/843673571113173022/1517245954074345584/"
+    "https3A2F2Fassets-2-prod.whop.com2Fpublic2Fuploads2F2024-03-112F"
+    "user_890280_8c38e7b6-501d-40d4-8029-f2db1429372b.png"
+    "?ex=6a3594e8&is=6a344368&hm=a7c0514577bea935bdd81872ba553826f236962df3b7a60e5dfb79eb43460b7b&",
+).strip()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 BULLFLOW_API_KEY = os.getenv("BULLFLOW_API_KEY", "").strip()
@@ -157,6 +181,521 @@ def set_user_blocklist(tickers):
 # Load on module import so the worker has the blocklist available immediately.
 _load_user_blocklist()
 
+# ─── Dedup engine ────────────────────────────────────────────────────────────
+# Bullflow fires one event per matching alert, so a single trade often arrives
+# 2-3 times (e.g. matches both UCT Bullish and UCT Vol>OI, plus their native
+# "Sizable Sweep" algo alert). This dedup engine collapses those to a single
+# Discord post + a single table row, while preserving legitimately distinct
+# trades on the same contract (different premium / fill price).
+#
+# Dedup behavior:
+# - Same contract (ticker+cp+strike+exp) + same premium + same fill price
+#   within DEDUP_WINDOW_SEC → considered duplicates of the same trade.
+# - Highest-priority alert wins. Lower-priority duplicates are dropped from
+#   the buffer entirely.
+# - Priority: UCT Alpha Gold > Size > directional Bullish/Bearish > LEAPS >
+#   Unusual/Vol>OI > everything else > ALGO (Bullflow's native alerts).
+# - Discord forwarding uses a small delay (DISCORD_FORWARD_DELAY_SEC) so when
+#   a UCT alert arrives after an ALGO alert for the same trade, the UCT wins
+#   and Discord shows only the UCT post.
+
+DEDUP_WINDOW_SEC = 60               # how long to remember a dedup key
+DISCORD_FORWARD_DELAY_SEC = 2.0     # how long to wait before posting to Discord
+
+# ─── Conviction-based Discord gate ───────────────────────────────────────────
+# To prevent bombarding the channel with low-signal alerts, we only POST to
+# Discord when the aggregate conviction grade reaches a minimum threshold.
+# Alerts below threshold are still buffered + aggregated (so a trade that gains
+# conviction over multiple fires gets surfaced when it crosses the threshold),
+# but they never produce a Discord notification on their own.
+#
+# Behavior:
+#   - First fire on a contract: gate by current conviction grade.
+#       grade < MIN_DISCORD_GRADE → silently aggregate, no post.
+#       grade >= MIN_DISCORD_GRADE → post fresh, store message_id.
+#   - Subsequent fires: always PATCH the existing message (no re-gating).
+#     A trade that was already posted should keep its message thread alive
+#     even if subsequent fires don't add new conviction.
+#
+# Env var: MIN_DISCORD_GRADE = "A+" | "A" | "B" | "C" | "D"  (default "B")
+# Setting to "D" effectively disables the gate (every aggregate gets posted).
+MIN_DISCORD_GRADE = os.getenv("MIN_DISCORD_GRADE", "B").strip().upper()
+
+
+def _grade_level(grade_str: str) -> int:
+    """Map a conviction grade string to numeric level for comparison.
+    Strips any trailing emoji (e.g. 'A+ 🚀' → 4)."""
+    g = (grade_str or "D").strip()
+    if g.startswith("A+"): return 4
+    if g.startswith("A"):  return 3
+    if g.startswith("B"):  return 2
+    if g.startswith("C"):  return 1
+    return 0  # D, unknown, or empty
+
+
+MIN_DISCORD_GRADE_LEVEL = _grade_level(MIN_DISCORD_GRADE)
+
+# Maps dedup_key tuple -> {"alert_id", "priority", "first_seen", "alert_obj"}
+_dedup_cache: dict = {}
+
+# ─── Repeat counter (per-contract aggregation) ───────────────────────────────
+# Tracks how many DISTINCT trades have fired on a given contract within a
+# rolling window. Separate from _dedup_cache (which collapses identical trades
+# — same premium + fill). This one only counts NEW trades, so today's MU
+# 1000P 6/26 firing 8 times at different premiums shows up as "8x" while a
+# single trade reported by both UCT Bullish AND Sizable Sweep stays as "1x".
+#
+# Display use: frontend shows "🔁 Nx" badge on the alert row when count > 1.
+# Inspired by BlackBox's "Repeater Alert" and Tradytics' "Orders Today" UX.
+REPEAT_WINDOW_SEC = 12 * 3600        # 12hr — covers full trading day + ext hours
+_contract_repeats: dict = {}         # contract_key -> {count, first_seen, first_alert_id}
+
+
+def _make_contract_key(alert: dict) -> tuple:
+    """
+    Contract key for repeat counter. INTENTIONALLY excludes premium and fill,
+    so we count distinct trades ON the same contract (different prices).
+    """
+    return (
+        (alert.get("ticker") or "").upper(),
+        alert.get("cp") or "",
+        alert.get("strike"),
+        alert.get("exp") or "",
+    )
+
+
+def _prune_repeat_cache():
+    """Drop repeat entries older than REPEAT_WINDOW_SEC. Lazy cleanup on read."""
+    cutoff = time.time() - REPEAT_WINDOW_SEC
+    expired = [k for k, v in _contract_repeats.items() if v["first_seen"] < cutoff]
+    for k in expired:
+        del _contract_repeats[k]
+
+
+def _track_repeat(alert: dict) -> int:
+    """
+    Increment the repeat count for this alert's contract. Returns the new
+    count (1 if first fire on contract today, 2 if second distinct trade…).
+    Called only on accepted alerts — identical-trade duplicates and superseded
+    alerts intentionally don't bump the count because they're the same trade.
+    """
+    _prune_repeat_cache()
+    key = _make_contract_key(alert)
+    entry = _contract_repeats.get(key)
+    if not entry:
+        _contract_repeats[key] = {
+            "count": 1,
+            "first_seen": time.time(),
+            "first_alert_id": alert.get("id"),
+        }
+        return 1
+    entry["count"] += 1
+    return entry["count"]
+
+
+# ─── Contract aggregation for Discord ─────────────────────────────────────────
+# When multiple distinct trades fire on the same contract (e.g. today's MU
+# 1000P firing 8 times), we want ONE evolving Discord post — not 8 separate
+# messages. This cache holds per-contract running totals; the Discord forwarder
+# creates a post on the first fire and EDITS it on subsequent fires via the
+# webhook PATCH endpoint.
+#
+# Reset behavior: keyed by (contract_key, YYYY-MM-DD). New trading day starts
+# a fresh aggregate even if the worker has been up for >24 hours. In-memory
+# only — if worker restarts mid-day, the next fire on a contract creates a
+# new Discord post (mild duplication, acceptable trade-off).
+
+_contract_aggregates: dict = {}  # contract_key -> {date, ...fields, message_id, ...}
+
+
+def _aggregate_key(alert: dict, today_iso: str) -> tuple:
+    return (_make_contract_key(alert), today_iso)
+
+
+def _update_aggregate(alert: dict) -> dict:
+    """
+    Update the running aggregate for this alert's contract. Returns the
+    current aggregate dict (a live reference, mutated each call).
+
+    Always call this AFTER _track_repeat and _enrich_with_oi so that the
+    aggregate has access to enriched fields. Called on accept only.
+    """
+    today_iso = datetime.now().date().isoformat()
+    key = _aggregate_key(alert, today_iso)
+
+    premium = float(alert.get("alertPremium") or 0)
+    fill = alert.get("averageFillPrice")
+    size = alert.get("tradeSize") or 0
+    name = (alert.get("alertName") or "").strip()
+    ts = alert.get("timestamp") or time.time()
+
+    agg = _contract_aggregates.get(key)
+    if not agg:
+        # First fire on this contract today — initialize from current alert.
+        agg = {
+            "contract_key": key[0],
+            "date": today_iso,
+            "ticker": alert.get("ticker"),
+            "cp": alert.get("cp"),
+            "strike": alert.get("strike"),
+            "exp": alert.get("exp"),
+            "dte": alert.get("dte"),
+            "alert_type": alert.get("alertType"),
+            "total_premium": premium,
+            "max_premium": premium,
+            "total_size": size,
+            "max_size": size,
+            "fire_count": 1,
+            "first_fire_ts": ts,
+            "last_fire_ts": ts,
+            "first_fill_price": fill,
+            "last_fill_price": fill,
+            # The "best" alert name seen so far (lowest priority number wins).
+            # On first fire it's just whatever fired. As more arrive with
+            # higher-priority names, we promote.
+            "best_alert_name": name,
+            "best_alert_priority": _alert_priority(alert),
+            # Set of all distinct alert names seen — surfaced in Discord
+            # embed as "UCT Bearish + 2 others" or similar.
+            "alert_names_seen": {name} if name else set(),
+            # OI snapshot — captured once on first fire (assumes OI doesn't
+            # change intraday; safe since snapshots reflect prior-day close).
+            "prior_oi": alert.get("priorOI"),
+            "oi_snapshot_date": alert.get("oiSnapshotDate"),
+            # Spot price + moneyness — updated on every fire so the title
+            # reflects the most recent price (price drifts intraday, even
+            # 2-3% can flip a contract between ITM/OTM categorization).
+            "spot": alert.get("spot"),
+            "moneyness_pct": alert.get("moneynessPct"),
+            "moneyness_label": alert.get("moneynessLabel"),
+            # Discord message handle (set after first successful POST).
+            "discord_message_id": None,
+            "discord_webhook_base": None,  # the URL we POSTed to, for PATCH
+        }
+        _contract_aggregates[key] = agg
+        return agg
+
+    # Subsequent fire — update running totals.
+    agg["total_premium"] += premium
+    agg["max_premium"] = max(agg["max_premium"], premium)
+    agg["total_size"] = (agg["total_size"] or 0) + size
+    agg["max_size"] = max(agg["max_size"] or 0, size)
+    agg["fire_count"] += 1
+    agg["last_fire_ts"] = ts
+    agg["last_fill_price"] = fill
+    if name:
+        agg["alert_names_seen"].add(name)
+    # Promote best alert name if this one has higher priority (lower number).
+    new_pri = _alert_priority(alert)
+    if new_pri < agg["best_alert_priority"]:
+        agg["best_alert_name"] = name
+        agg["best_alert_priority"] = new_pri
+    # Backfill OI if we didn't have it on first fire and the new alert did
+    # — covers cases where the snapshot cron caught up mid-day.
+    if agg["prior_oi"] is None and alert.get("priorOI") is not None:
+        agg["prior_oi"] = alert.get("priorOI")
+        agg["oi_snapshot_date"] = alert.get("oiSnapshotDate")
+    # Always refresh moneyness — spot price changes through the day, so the
+    # latest fire has the most accurate ITM/OTM picture.
+    if alert.get("spot") is not None:
+        agg["spot"] = alert.get("spot")
+        agg["moneyness_pct"] = alert.get("moneynessPct")
+        agg["moneyness_label"] = alert.get("moneynessLabel")
+    return agg
+
+
+def _prune_aggregates():
+    """Drop yesterday's aggregates so the cache doesn't grow unbounded."""
+    today_iso = datetime.now().date().isoformat()
+    expired = [k for k, v in _contract_aggregates.items() if v.get("date") != today_iso]
+    for k in expired:
+        del _contract_aggregates[k]
+
+
+# ─── OI snapshot lookup ──────────────────────────────────────────────────────
+# Wires Bullflow live alerts to our daily Schwab OI snapshot data captured by
+# api/oi_snapshots.py. The snapshot cron runs at 5:30 UTC = 1:30 AM ET daily,
+# so by 9:30 ET market open we have today's snapshot reflecting yesterday's
+# closing OI. Each incoming alert is enriched with:
+#   - tradeSize:        contracts traded (derived: premium / fill / 100)
+#   - priorOI:          most recent snapshot OI for this contract
+#   - oiSnapshotDate:   when that OI was captured (sanity check)
+#   - volumeOIRatio:    tradeSize / priorOI — anything > 1.0 means a single
+#                       trade exceeded all prior open interest (institutional)
+#   - oiExceeded:       True if volumeOIRatio > 1.0
+#
+# Caching: per-contract result cached for the day. MU 1000P firing 8 times
+# hits SQLite once. Cache invalidates at midnight when the day key rolls.
+#
+# Failure mode: any error → fields set to None/False, alert still flows. The
+# OI badge just doesn't render. Worker keeps running.
+
+_OI_LOOKUP_MAX_DAYS_BACK = 5     # walk back this many days to find a snapshot
+_oi_cache: dict = {}             # cache_key -> (oi, snap_date_iso) | None
+_oi_cache_date: str = ""         # YYYY-MM-DD — invalidates when day changes
+
+
+def _exp_iso_to_mdy(exp_iso: str) -> str:
+    """Convert ISO '2026-06-26' → BBS 'M/D/YYYY' format used in snapshot keys."""
+    if not exp_iso or "-" not in exp_iso:
+        return ""
+    parts = exp_iso.split("-")
+    if len(parts) != 3:
+        return ""
+    try:
+        return f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
+    except (ValueError, IndexError):
+        return ""
+
+
+def _lookup_prior_oi(ticker, cp, strike, exp_iso):
+    """
+    Look up the most recent OI snapshot for a contract. Returns (oi, snap_date)
+    tuple or None. Walks back up to _OI_LOOKUP_MAX_DAYS_BACK days to handle
+    weekends/holidays/skipped cron runs.
+
+    Cached per-contract for the calendar day to avoid hammering SQLite when
+    the same contract fires many alerts (e.g. today's MU 1000P 6/26).
+    """
+    global _oi_cache, _oi_cache_date
+
+    today_iso = datetime.now().date().isoformat()
+    if _oi_cache_date != today_iso:
+        _oi_cache.clear()
+        _oi_cache_date = today_iso
+
+    cache_key = f"{ticker}|{cp}|{strike}|{exp_iso}"
+    if cache_key in _oi_cache:
+        return _oi_cache[cache_key]
+
+    result = None
+    try:
+        # Lazy import: keeps liveflow_worker bootable even if oi_snapshots
+        # has import issues on Railway (e.g. flow.db not mounted yet).
+        from api import oi_snapshots
+
+        exp_mdy = _exp_iso_to_mdy(exp_iso or "")
+        if exp_mdy and ticker and cp and strike is not None:
+            key = oi_snapshots.make_key(ticker, cp, strike, exp_mdy)
+            today = datetime.now().date()
+            for delta in range(_OI_LOOKUP_MAX_DAYS_BACK + 1):
+                snap_date_iso = (today - timedelta(days=delta)).isoformat()
+                snap = oi_snapshots.get_snapshot(key, snap_date_iso)
+                if snap is not None:
+                    # snap = (oi, source) — only need OI here
+                    result = (snap[0], snap_date_iso)
+                    break
+    except Exception as e:
+        log.debug("[liveflow] OI lookup failed for %s: %s", cache_key, e)
+
+    _oi_cache[cache_key] = result
+    return result
+
+
+def _enrich_with_oi(alert: dict):
+    """
+    Mutates `alert` in-place adding OI enrichment fields. Always sets all four
+    fields (None / False on miss) so the frontend can render conditionally
+    without null-checking each individually.
+    """
+    premium = float(alert.get("alertPremium") or 0)
+    fill = float(alert.get("averageFillPrice") or 0)
+    trade_size = round(premium / (fill * 100)) if fill > 0 else None
+    alert["tradeSize"] = trade_size
+
+    snap = _lookup_prior_oi(
+        alert.get("ticker"), alert.get("cp"),
+        alert.get("strike"), alert.get("exp"),
+    )
+    if snap and trade_size and snap[0] > 0:
+        oi, snap_date = snap
+        ratio = round(trade_size / oi, 2)
+        alert["priorOI"] = oi
+        alert["oiSnapshotDate"] = snap_date
+        alert["volumeOIRatio"] = ratio
+        alert["oiExceeded"] = ratio > 1.0
+    else:
+        # Either no snapshot, no fill price, or OI is 0. Set defaults so
+        # frontend has stable shape and doesn't render a misleading badge.
+        alert["priorOI"] = snap[0] if snap else None
+        alert["oiSnapshotDate"] = snap[1] if snap else None
+        alert["volumeOIRatio"] = None
+        alert["oiExceeded"] = False
+
+
+# ─── Spot price + moneyness enrichment ───────────────────────────────────────
+# Bullflow's streaming payload doesn't include spot price, but we need it to
+# compute how deep ITM/OTM a contract is — a key signal for distinguishing
+# high-delta directional bets (deep ITM) from lottery plays (far OTM).
+#
+# Strategy: call Schwab's equity quote endpoint, cache results per-symbol with
+# a 2-minute TTL. Same MU ticker firing 8 times in 2 hours hits Schwab once.
+# Moneyness recomputed per alert though (price drifts intraday).
+#
+# Failure mode: any error → fields set to None, alert still flows. Title
+# format gracefully omits the moneyness suffix when data isn't available.
+
+SPOT_CACHE_TTL_SEC = 120          # 2 min — spot rarely moves 1%+ in that window
+_spot_cache: dict = {}            # symbol → (price, cached_at_ts)
+
+
+async def _get_cached_spot(symbol):
+    """Fetch spot price for an equity, using a short-TTL cache. Returns
+    float price or None. Safe to call concurrently — last write wins on
+    cache update which is fine since values are functionally equivalent."""
+    if not symbol:
+        return None
+    # Skip indexes / unusual symbols that Schwab's equity endpoint won't quote.
+    if symbol.startswith("$") or "." in symbol:
+        return None
+
+    now = time.time()
+    cached = _spot_cache.get(symbol)
+    if cached and (now - cached[1]) < SPOT_CACHE_TTL_SEC:
+        return cached[0]
+
+    try:
+        from api import schwab_service
+        price = await schwab_service.get_equity_quote(symbol)
+        if price:
+            _spot_cache[symbol] = (price, now)
+            return price
+    except Exception as e:
+        log.debug("[liveflow] spot lookup failed for %s: %s", symbol, e)
+    return None
+
+
+def _calc_moneyness(spot, strike, cp):
+    """
+    Returns (pct, label) tuple. Sign convention: positive % = ITM, negative = OTM.
+    Calls: ITM when spot > strike. Puts: ITM when spot < strike.
+    Within ±1% → ATM (no meaningful direction); avoids spurious "+0.3% ITM" noise.
+    """
+    if not spot or not strike or strike <= 0:
+        return (None, None)
+    spot_f = float(spot)
+    strike_f = float(strike)
+    if cp == "C":
+        pct = (spot_f - strike_f) / strike_f * 100
+    elif cp == "P":
+        pct = (strike_f - spot_f) / strike_f * 100
+    else:
+        return (None, None)
+    if abs(pct) < 1.0:
+        return (pct, "ATM")
+    return (pct, "ITM" if pct > 0 else "OTM")
+
+
+async def _enrich_with_moneyness(alert: dict):
+    """
+    Adds spot, moneynessPct, moneynessLabel fields to the alert. Async because
+    Schwab quote lookup is async. Always sets the three fields (None on miss).
+    """
+    spot = await _get_cached_spot(alert.get("ticker"))
+    if not spot:
+        alert["spot"] = None
+        alert["moneynessPct"] = None
+        alert["moneynessLabel"] = None
+        return
+    alert["spot"] = round(spot, 2)
+    pct, label = _calc_moneyness(spot, alert.get("strike"), alert.get("cp"))
+    alert["moneynessPct"] = round(pct, 1) if pct is not None else None
+    alert["moneynessLabel"] = label
+
+
+def _make_dedup_key(alert: dict) -> tuple:
+    """
+    Per user spec (2026-06-18): dedup on ticker + cp + strike + exp + premium
+    + avgFill. Including premium AND fill ensures legitimately different trades
+    on the same contract (DRAM 80C 9/18 at $575K @ $12.20 vs $595K @ $12.25)
+    stay as separate alerts, while genuine same-trade duplicates collapse.
+    Premium rounded to nearest dollar, fill rounded to 2dp to absorb minor
+    float drift between Bullflow's algo + custom alert paths.
+    """
+    return (
+        (alert.get("ticker") or "").upper(),
+        alert.get("cp") or "",
+        alert.get("strike"),
+        alert.get("exp") or "",
+        round(float(alert.get("alertPremium") or 0)),
+        round(float(alert.get("averageFillPrice") or 0), 2),
+    )
+
+
+def _alert_priority(alert: dict) -> int:
+    """
+    LOWER number = HIGHER priority (wins over higher numbers in dedup).
+    Aligned with the tier ordering in LiveFlow.jsx so the table and Discord
+    show the same conviction signal subscribers expect.
+    """
+    name = (alert.get("alertName") or "").strip()
+    alert_type = (alert.get("alertType") or "").lower()
+    # Bullflow's native alerts (Sizable Sweep, etc.) lose to any UCT alert.
+    if alert_type == "algo":
+        return 100
+    if "Alpha Gold" in name:
+        return 1
+    if "Size" in name:                  # UCT Size Bulls / UCT Size Bears
+        return 2
+    if "Bullish" in name or "Bearish" in name:
+        # LEAPS variants come slightly behind regular directional since users
+        # generally weight short-term flow heavier than long-dated.
+        return 4 if "Leaps" in name else 3
+    if "Leaps" in name:                 # neutral "UCT Leaps" (no direction)
+        return 5
+    if "Unusual" in name or "Vol>OI" in name:
+        return 6
+    if "ETF Flow" in name:
+        # ETF Flow is a category tier (broad market positioning on SPX/SPXW/
+        # GLD/SMH/etc), not a conviction tier. Priority 6 = same level as
+        # Unusual/Vol>OI so it doesn't outrank single-name Alpha Gold signals
+        # but stays above any unrecognized UCT alert.
+        return 6
+    return 90  # Unknown UCT alert — still beats ALGO
+
+
+def _prune_dedup_cache():
+    """Drop dedup entries older than DEDUP_WINDOW_SEC to bound memory."""
+    cutoff = time.time() - DEDUP_WINDOW_SEC
+    expired = [k for k, v in _dedup_cache.items() if v["first_seen"] < cutoff]
+    for k in expired:
+        del _dedup_cache[k]
+
+
+def _dedup_check(alert: dict) -> tuple:
+    """
+    Returns one of:
+      ("accept", None)         — first time seeing this trade; add + forward
+      ("supersede", old_id)    — new alert beats existing; mark old superseded
+      ("drop", reason_str)     — new alert loses to existing; ignore entirely
+    """
+    _prune_dedup_cache()
+    key = _make_dedup_key(alert)
+    new_priority = _alert_priority(alert)
+    existing = _dedup_cache.get(key)
+
+    if not existing:
+        _dedup_cache[key] = {
+            "alert_id": alert.get("id"),
+            "priority": new_priority,
+            "first_seen": time.time(),
+        }
+        return ("accept", None)
+
+    if new_priority < existing["priority"]:
+        old_id = existing["alert_id"]
+        _dedup_cache[key] = {
+            "alert_id": alert.get("id"),
+            "priority": new_priority,
+            # Keep original timestamp so the dedup window doesn't extend
+            # indefinitely as supersedes happen.
+            "first_seen": existing["first_seen"],
+        }
+        return ("supersede", old_id)
+
+    return ("drop", f"dupe_of:{existing['alert_id']}:p{existing['priority']}")
+
+
 # ─── Conviction scoring — REMOVED 2026-06-17 ─────────────────────────────────
 # Previously this module computed per-alert conviction scores using substring
 # matching against alertName plus premium tiers, then gated Discord forwarding
@@ -183,6 +722,7 @@ _status = {
     "total_alerts_shown": 0,       # passed table filter
     "total_alerts_dropped": 0,     # failed table filter
     "total_alerts_forwarded": 0,   # passed Discord threshold
+    "total_alerts_grade_gated": 0, # below MIN_DISCORD_GRADE — silently aggregated
     "last_error": None,
     "last_discord_error": None,
     "started_at": None,
@@ -193,9 +733,9 @@ _status = {
         "premium_min": TABLE_FILTER["premium_min"],
         "ticker_blocklist": sorted(TABLE_FILTER["ticker_blocklist"]),
         "alertname_block_substrings": list(TABLE_FILTER["alertname_block_substrings"]),
-        # Conviction threshold removed 2026-06-17 — Bullflow's per-alert filters
-        # are the conviction signal now. Every alert that passes TABLE_FILTER
-        # forwards to Discord.
+        # Conviction grade gate for Discord (2026-06-18) — only post B+ by default.
+        # Tunable via MIN_DISCORD_GRADE env var.
+        "discord_min_grade": MIN_DISCORD_GRADE,
         "discord_threshold": None,
         # Per-alert ticker exclusions (e.g. mega-caps blocked on Unusual scans).
         "per_alert_blocklists": {
@@ -265,69 +805,422 @@ def _passes_table_filter(alert_name, premium, ticker):
 
 
 # ─── Discord forwarder ───────────────────────────────────────────────────────
-async def _post_to_discord(client, alert):
+def _compute_conviction(agg: dict) -> tuple:
     """
-    Posts a rich embed to the configured Discord webhook. Color-codes by C/P.
-    Failures are swallowed and logged — never block the SSE consumer.
+    Composite conviction score from aggregate state. Returns (score_0_to_10,
+    letter_grade). Inputs use what we already track — no new lookups needed.
 
-    Mirrors the embed structure used by discord_watchlist.py: title with the
-    most important fact (ticker + C/P + strike + exp), fields with context.
+    Weights (0-12 total, capped at 10):
+      Premium tier:       0-3     (whale > big > medium > standard > small)
+      OI Break:           0-2     (size > priorOI = institutional positioning)
+      Repeat count:       0-2     (5x+ sustained > mild > none)
+      Best alert tier:    0-3     (Alpha Gold heavily weighted)
+      Moneyness:          0-1     (near-strike > deep OTM)
+      Multi-alert match:  0-1     (2+ tiers fired same trade = overlap)
+
+    Calibrated against real cards from 2026-06-18 session: AVGO Alpha Gold
+    $1.27M near-ATM lands at B; DDOG Alpha Gold $3.22M deep ITM at A+;
+    MU multi-fire $22M at A+; small lottery stays at D.
     """
-    if not DISCORD_WEBHOOK_URL:
-        return
-    cp = alert.get("cp") or "?"
-    ticker = alert.get("ticker") or "?"
-    strike = alert.get("strike")
-    exp = alert.get("exp") or "?"
-    dte = alert.get("dte")
-    premium = alert.get("alertPremium") or 0
-    avg_fill = alert.get("averageFillPrice")
-    name = alert.get("alertName") or "Alert"
-    score = alert.get("convictionScore")
-    score_str = f"{score:.1f}" if score is not None else "—"
+    score = 0.0
 
+    # Premium tier (0-3): wider band so $1M Alpha Gold gets meaningful credit
+    total_prem = agg.get("total_premium") or 0
+    if total_prem >= 5_000_000:
+        score += 3.0
+    elif total_prem >= 2_000_000:
+        score += 2.5
+    elif total_prem >= 1_000_000:
+        score += 2.0
+    elif total_prem >= 500_000:
+        score += 1.5
+    else:
+        score += 0.75
+
+    # OI Break (0-2): full points when single trade exceeded prior OI;
+    # scaled by ratio magnitude (10x+ = massive accumulation vs noise).
+    total_size = agg.get("total_size") or 0
+    prior_oi = agg.get("prior_oi") or 0
+    if prior_oi > 0 and total_size > prior_oi:
+        ratio = total_size / prior_oi
+        if ratio >= 5.0:
+            score += 2.0
+        elif ratio >= 2.0:
+            score += 1.5
+        else:
+            score += 1.0
+
+    # Repeat count (0-2): more fires = more sustained conviction.
+    fire_count = agg.get("fire_count") or 1
+    if fire_count >= 5:
+        score += 2.0
+    elif fire_count >= 3:
+        score += 1.5
+    elif fire_count >= 2:
+        score += 1.0
+
+    # Best alert tier (0-3): Alpha Gold is the rarest catch and deserves
+    # significant weight. Calibration: a clean Alpha Gold + $1M+ premium
+    # should land at B minimum (subscribers expect Alpha Gold = strong signal).
+    best_pri = agg.get("best_alert_priority") or 99
+    if best_pri == 1:        # Alpha Gold
+        score += 3.0
+    elif best_pri == 2:      # Size Bulls/Bears
+        score += 2.0
+    elif best_pri == 3:      # Bullish/Bearish
+        score += 1.25
+    elif best_pri == 4:      # LEAPS directional
+        score += 1.0
+    elif best_pri == 5:      # Leaps neutral
+        score += 0.75
+    else:                    # Unusual / Vol>OI / unknown
+        score += 0.5
+
+    # Moneyness (0-1): near-strike = high delta directional; far OTM = lottery.
+    # OTM stored as positive magnitude per recent change — use abs() to be safe.
+    money_pct = agg.get("moneyness_pct")
+    money_label = agg.get("moneyness_label")
+    if money_label == "ITM":
+        if money_pct and 5 <= money_pct <= 30:
+            score += 1.0   # sweet spot for directional bets
+        else:
+            score += 0.75
+    elif money_label == "ATM":
+        score += 0.75
+    elif money_label == "OTM" and money_pct is not None:
+        ap = abs(money_pct)
+        if ap <= 5:
+            score += 0.6   # near-the-money OTM still meaningful
+        elif ap <= 15:
+            score += 0.3   # moderate OTM
+        # deep OTM (>15%) = lottery; no bonus
+
+    # Multi-alert match (0-1): 2+ UCT tiers catching the same trade is real
+    # confirmation that multiple conviction criteria agreed.
+    names_seen = agg.get("alert_names_seen") or set()
+    if len(names_seen) >= 3:
+        score += 1.0
+    elif len(names_seen) == 2:
+        score += 0.6
+
+    # Map to letter grade. Calibrated so A+ requires multi-criteria excellence
+    # (rare — maybe 1-2% of daily alerts); B is the "respectable single signal"
+    # baseline; D filters out sub-million lottery noise.
+    score = min(score, 10.0)
+    if score >= 8.5:
+        grade = "A+ 🚀"
+    elif score >= 7.0:
+        grade = "A"
+    elif score >= 5.5:
+        grade = "B"
+    elif score >= 3.5:
+        grade = "C"
+    else:
+        grade = "D"
+
+    return (round(score, 1), grade)
+
+
+def _derive_direction(agg: dict) -> str:
+    """
+    Return 'Bullish' / 'Bearish' / 'Neutral' label for the embed.
+
+    Most cases are trivial (call = bullish, put = bearish). For mixed-direction
+    alert tiers (Alpha Gold, Vol>OI, Unusual) where alertName doesn't carry
+    direction, we still classify by C/P since the buyer of a call is
+    directionally bullish on the underlying regardless of which alert fired.
+    """
+    cp = (agg.get("cp") or "").upper()
+    if cp == "C":
+        return "Bullish"
+    if cp == "P":
+        return "Bearish"
+    return "Neutral"
+
+
+def _build_embed(agg: dict) -> dict:
+    """
+    Build the Discord embed dict from an aggregate. Same builder used for
+    both POST (initial) and PATCH (update) so the layout is consistent —
+    only differences are the running totals that change between calls.
+    """
+    cp = agg.get("cp") or "?"
+    ticker = agg.get("ticker") or "?"
+    strike = agg.get("strike")
+    exp = agg.get("exp") or "?"
+    dte = agg.get("dte")
+    fire_count = agg.get("fire_count") or 1
+    total_prem = agg.get("total_premium") or 0
+    max_prem = agg.get("max_premium") or 0
+    total_size = agg.get("total_size") or 0
+    last_fill = agg.get("last_fill_price")
+    prior_oi = agg.get("prior_oi")
+    best_name = agg.get("best_alert_name") or "Alert"
+    names_seen = agg.get("alert_names_seen") or set()
+
+    # Color by direction (calls=green, puts=red, fallback amber).
     color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xc9a84c)
     strike_str = f"${strike:g}" if strike is not None else "?"
     dte_str = f"{dte}d" if dte is not None else "?"
-    if premium >= 1_000_000:
-        prem_str = f"${premium/1_000_000:.2f}M"
+
+    def _fmt_money(n):
+        if n >= 1_000_000:
+            return f"${n/1_000_000:.2f}M"
+        return f"${n/1_000:.0f}K"
+
+    total_prem_str = _fmt_money(total_prem)
+    max_prem_str = _fmt_money(max_prem)
+    fill_str = f"${last_fill:.2f}" if last_fill is not None else "?"
+
+    # Vol/OI computed over the TOTAL (aggregated) volume vs prior OI — much
+    # more meaningful than per-trade ratio when a contract fires many times.
+    vol_oi_ratio = None
+    oi_exceeded = False
+    if prior_oi and prior_oi > 0 and total_size:
+        vol_oi_ratio = round(total_size / prior_oi, 2)
+        oi_exceeded = vol_oi_ratio > 1.0
+
+    # Badge line in description. Shown above the data fields.
+    badges = []
+    if oi_exceeded and vol_oi_ratio:
+        badges.append(f"🚀 **OI BREAK** {vol_oi_ratio:.1f}x")
+    if fire_count > 1:
+        badges.append(f"🔁 **{fire_count}x** today")
+
+    # Core fields. Same 3-per-row layout as before via inline=True.
+    fields = [
+        {"name": "Total Premium" if fire_count > 1 else "Premium",
+         "value": total_prem_str, "inline": True},
+        {"name": "Largest" if fire_count > 1 else "Avg Fill",
+         "value": max_prem_str if fire_count > 1 else fill_str, "inline": True},
+        {"name": "DTE", "value": dte_str, "inline": True},
+    ]
+    # Enrichment row — only show when data is available so we don't render
+    # rows of "—" placeholders.
+    # Naming convention (Tradytics/BlackBox style):
+    #   - "Volume" = cumulative contracts traded across UCT-alerted trades
+    #     on this contract today. On a single-fire alert this equals the
+    #     one trade's size; on multi-fire it's the running sum.
+    #   - "OI" = prior open interest (yesterday's close) from our snapshot.
+    #   - "Vol/OI" = Volume / OI, the standard unusual-activity ratio.
+    if total_size:
+        fields.append({"name": "Volume", "value": f"{total_size:,}", "inline": True})
+    if prior_oi is not None:
+        fields.append({"name": "OI", "value": f"{prior_oi:,}", "inline": True})
+    if vol_oi_ratio is not None:
+        fields.append({"name": "Vol/OI", "value": f"{vol_oi_ratio:.2f}x", "inline": True})
+
+    # For multi-fire aggregates, show fill price + time range so user can see
+    # how the trade pattern evolved.
+    if fire_count > 1:
+        fields.append({"name": "Latest Fill", "value": fill_str, "inline": True})
+        first_ts = agg.get("first_fire_ts")
+        last_ts = agg.get("last_fire_ts")
+        if first_ts and last_ts:
+            # Convert UNIX timestamp to Eastern time (market hours). Worker
+            # runs on Railway in UTC; without explicit conversion fromtimestamp
+            # returns the server's local time which displays as UTC labeled "ET".
+            # %-I = hour without leading zero (Linux); %p = AM/PM.
+            first_t = datetime.fromtimestamp(first_ts, tz=ET).strftime("%-I:%M %p")
+            last_t = datetime.fromtimestamp(last_ts, tz=ET).strftime("%-I:%M %p")
+            fields.append({"name": "Active From", "value": f"{first_t} → {last_t} ET", "inline": True})
+
+    # Spot price — sits next to the trade data so subscribers can sanity-check
+    # the strike against current underlying. The moneyness % itself lives in
+    # the title (next to ticker/strike) where direction is most relevant.
+    spot = agg.get("spot")
+    if spot is not None:
+        fields.append({"name": "Spot", "value": f"${spot:,.2f}", "inline": True})
+
+    # Direction — explicit Bullish/Bearish label so subscribers don't have to
+    # infer from C/P + alert name. Calls = Bullish, Puts = Bearish (the trader
+    # buying the option is directionally betting that way regardless of which
+    # UCT alert tier caught it).
+    direction = _derive_direction(agg)
+    if direction != "Neutral":
+        fields.append({"name": "Direction", "value": direction, "inline": True})
+
+    # Conviction — composite grade from premium tier, OI break, repeat count,
+    # alert tier, moneyness, and multi-alert overlap. Hidden for D-grade
+    # signals (don't want to discourage subscribers from acting on weak setups
+    # by labeling them — let them decide; we only surface a grade when there's
+    # real signal to communicate).
+    conv_score, conv_grade = _compute_conviction(agg)
+    if conv_grade != "D":
+        fields.append({"name": "Conviction", "value": conv_grade, "inline": True})
+
+    # Alert label: show the best (highest-priority) name; if multiple distinct
+    # names fired, add a "+N more" suffix so subscribers see the diversity.
+    # Type field removed — source is already conveyed via the embed footer.
+    extras = len(names_seen) - 1
+    alert_label = best_name
+    if extras > 0:
+        alert_label = f"{best_name}  +{extras} more"
+    fields.append({"name": "Alert", "value": alert_label, "inline": True})
+
+    # Title: ticker + strike + CALL/PUT + exp (US date), with moneyness suffix
+    # when available.
+    # Format examples:
+    #   "MSTR $110 CALL 07-17-2026 (1% OTM)"
+    #   "MU $1000 PUT 06-26-2026 (13% ITM)"
+    #   "ARM $130 CALL 08-15-2026 (ATM)"
+    # No moneyness suffix when spot lookup failed (graceful degradation).
+    # Magnitude only — the label already conveys direction. Matches Tradytics/
+    # BlackBox convention.
+    moneyness_pct = agg.get("moneyness_pct")
+    moneyness_label = agg.get("moneyness_label")
+    # Expand C/P to full words for clarity (calls/puts more readable than 1-letter)
+    cp_label = "CALL" if cp == "C" else ("PUT" if cp == "P" else cp)
+    # Convert exp ISO 'YYYY-MM-DD' → US 'MM-DD-YYYY' format. Bullflow's stream
+    # gives us ISO; subscribers are US-based and parse MM-DD-YYYY faster.
+    exp_us = exp
+    if exp and "-" in exp:
+        parts = exp.split("-")
+        if len(parts) == 3:
+            try:
+                exp_us = f"{int(parts[1]):02d}-{int(parts[2]):02d}-{int(parts[0])}"
+            except (ValueError, IndexError):
+                pass  # leave as-is on malformed input
+    title_base = f"{ticker} {strike_str} {cp_label} EXP: {exp_us}"
+    if moneyness_label == "ATM":
+        title = f"{title_base} (ATM)"
+    elif moneyness_label in ("ITM", "OTM") and moneyness_pct is not None:
+        title = f"{title_base} ({abs(moneyness_pct):.0f}% {moneyness_label})"
     else:
-        prem_str = f"${premium/1_000:.0f}K"
-    avg_fill_str = f"${avg_fill:.2f}" if avg_fill is not None else "?"
+        title = title_base
 
     embed = {
-        "title": f"🚨 LIVE · {ticker} {cp} {strike_str} {exp}",
+        "title": title,
         "color": color,
-        "fields": [
-            {"name": "Premium",    "value": prem_str,       "inline": True},
-            {"name": "Avg Fill",   "value": avg_fill_str,   "inline": True},
-            {"name": "DTE",        "value": dte_str,        "inline": True},
-            {"name": "Alert",      "value": name,           "inline": True},
-            {"name": "Conviction", "value": score_str, "inline": True},
-            {"name": "Type",       "value": (alert.get("alertType") or "?").upper(), "inline": True},
-        ],
-        "footer": {"text": "via Bullflow · UCT Live Flow"},
-        "timestamp": alert.get("ingestedAt"),
+        "fields": fields,
     }
+    # Top-of-card branding: small logo + "UCT Live Flow" label. Replaces the
+    # plain text footer for a more polished look. If UCT_LOGO_URL is unset or
+    # the image fails to load, Discord still shows the "name" text alone.
+    if UCT_LOGO_URL:
+        embed["author"] = {
+            "name": "UCT Live Flow",
+            "icon_url": UCT_LOGO_URL,
+        }
+    else:
+        # Fallback: no logo, just keep the text label at the bottom as before.
+        embed["footer"] = {"text": "via UCT Live Flow"}
+    if badges:
+        embed["description"] = " · ".join(badges)
+    return embed
+
+
+def _discord_post_url() -> str:
+    """Return the webhook URL with ?wait=true so Discord returns the message
+    object (including id) on POST — needed for later PATCH calls."""
+    base = DISCORD_WEBHOOK_URL.rstrip("?&/")
+    # If user's env var already has query params, append wait=true; else add ?
+    if "?" in base:
+        return base + "&wait=true"
+    return base + "?wait=true"
+
+
+def _discord_patch_url(message_id: str) -> str:
+    """Build the PATCH URL: {webhook}/messages/{message_id}. Strips any
+    query string (?wait=true belongs only on POST)."""
+    base = DISCORD_WEBHOOK_URL.split("?", 1)[0].rstrip("/")
+    return f"{base}/messages/{message_id}"
+
+
+async def _post_to_discord(client, alert):
+    """
+    Aggregate-aware Discord forwarder with conviction-grade gating.
+
+    - First fire on a contract today → check conviction grade. Below
+      MIN_DISCORD_GRADE: silently aggregate, no post. At/above: POST new
+      message, store message_id.
+    - Subsequent fires → PATCH the existing message with updated aggregate
+      (no re-gating — once a message is alive we keep it updated).
+    - PATCH failure (deleted message, rate limit) → fall back to POST.
+
+    Failures swallowed and logged; never blocks the SSE consumer.
+    """
+    if not DISCORD_WEBHOOK_URL:
+        return
+
+    _prune_aggregates()
+    agg = _update_aggregate(alert)
+
+    # Compute conviction first — needed for the gate decision and for the embed.
+    _, grade = _compute_conviction(agg)
+    message_id = agg.get("discord_message_id")
+
+    # GATE: only applies to FIRST posts. If we already have a message_id, we
+    # always edit it regardless of current grade (preserves the message thread
+    # in subscribers' channels — a trade that earned its way in stays in).
+    if not message_id and _grade_level(grade) < MIN_DISCORD_GRADE_LEVEL:
+        _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
+        log.debug(
+            "[liveflow] grade %s below min %s — silent aggregate for %s %s $%s %s",
+            grade, MIN_DISCORD_GRADE,
+            agg.get("ticker"), agg.get("cp"), agg.get("strike"), agg.get("exp"),
+        )
+        return
+
+    embed = _build_embed(agg)
     payload = {"embeds": [embed]}
+
+    if message_id:
+        # Edit the existing post in place.
+        url = _discord_patch_url(message_id)
+        try:
+            r = await client.patch(url, json=payload, timeout=10.0)
+            if 200 <= r.status_code < 300:
+                _status["last_discord_error"] = None
+                return
+            # Discord returns 404 if the message was manually deleted.
+            # Fall through to POST a fresh one so the aggregate continues
+            # to be visible to subscribers.
+            body = (await r.aread())[:200]
+            log.warning("[liveflow] discord PATCH %s HTTP %s: %r — re-POSTing",
+                        message_id, r.status_code, body)
+            agg["discord_message_id"] = None  # invalidate so we POST
+        except Exception as e:
+            log.warning("[liveflow] discord PATCH error: %s — re-POSTing", e)
+            agg["discord_message_id"] = None
+
+    # POST (first fire OR after PATCH failure). Use ?wait=true so Discord
+    # returns the message object including its id.
+    url = _discord_post_url()
     try:
-        r = await client.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10.0)
+        r = await client.post(url, json=payload, timeout=10.0)
         if r.status_code >= 400:
             body = (await r.aread())[:200]
-            log.warning("[liveflow] discord post HTTP %s: %r", r.status_code, body)
+            log.warning("[liveflow] discord POST HTTP %s: %r", r.status_code, body)
             _status["last_discord_error"] = f"HTTP {r.status_code}: {body!r}"
             return
+        # Parse out the message_id so we can PATCH on future fires.
+        try:
+            body_json = r.json()
+            agg["discord_message_id"] = str(body_json.get("id") or "")
+        except Exception:
+            # If the response isn't JSON (shouldn't happen with ?wait=true),
+            # we still posted successfully — just can't edit later. Subsequent
+            # fires will POST again, producing duplicate messages. Acceptable
+            # degraded behavior.
+            agg["discord_message_id"] = None
         _status["total_alerts_forwarded"] += 1
         _status["last_discord_error"] = None
     except Exception as e:
-        log.warning("[liveflow] discord post error: %s", e)
+        log.warning("[liveflow] discord POST error: %s", e)
         _status["last_discord_error"] = f"{type(e).__name__}: {str(e)[:200]}"
 
 
 # ─── Public accessors (used by router) ───────────────────────────────────────
 def get_recent_alerts(limit=200):
+    """
+    Return the most recent alerts in reverse chronological order. Alerts that
+    were superseded by higher-priority duplicates are filtered out so the
+    frontend never renders them — see _dedup_check + _ingest_alert.
+    """
     limit = max(1, min(int(limit or 200), MAX_BUFFER))
-    return list(reversed(_alerts))[:limit]
+    visible = [a for a in _alerts if not a.get("_superseded")]
+    return list(reversed(visible))[:limit]
 
 
 def get_status():
@@ -369,8 +1262,9 @@ async def _consume_stream(client, discord_client):
 
 async def _ingest_alert(msg, discord_client):
     """
-    Decode → filter → buffer → maybe-forward. Always increment received counter
-    even on filter failure, so the UI shows true throughput vs filter selectivity.
+    Decode → filter → dedup → buffer → maybe-forward. Always increment received
+    counter even on filter/dedup failure, so the UI shows true throughput vs
+    filter selectivity.
     """
     data = msg.get("data") or {}
     symbol = data.get("symbol", "") or ""
@@ -387,11 +1281,6 @@ async def _ingest_alert(msg, discord_client):
         _status["total_alerts_dropped"] += 1
         # Don't buffer — drop counter is enough for status visibility.
         return
-
-    # Every alert that passes TABLE_FILTER is forwarded to Discord. The trade
-    # already satisfied every conviction criterion baked into its Bullflow
-    # alert filter — there's no further scoring to apply here.
-    forwarded = True
 
     enriched = {
         "id": msg.get("id"),
@@ -410,19 +1299,83 @@ async def _ingest_alert(msg, discord_client):
         "latency": data.get("latency"),
         "deliveryLatency": data.get("deliveryLatency"),
         "ingestedAt": _status["last_event_at"],
-        # Phase B additions:
-        # convictionScore is None — scoring layer removed 2026-06-17. Field
-        # preserved so frontend rendering code doesn't break; revive with
-        # real value if/when we reintroduce a scoring concept.
+        # Conviction score deprecated — see note above the filter engine block.
         "convictionScore": None,
-        "forwardedToDiscord": forwarded,
+        # Will be flipped to True if the delayed Discord forward actually fires.
+        "forwardedToDiscord": False,
+        # Set to True if a later, higher-priority alert supersedes this one.
+        "_superseded": False,
     }
+
+    # Run dedup check AFTER building the enriched object so we have a stable
+    # alert_id reference to compare against.
+    action, payload = _dedup_check(enriched)
+
+    if action == "drop":
+        # Same trade already represented in the buffer by a higher-priority
+        # alert. Don't add, don't forward.
+        _status["total_alerts_dropped"] += 1
+        return
+
+    if action == "supersede":
+        # New alert beats an existing one. Mark the older entry hidden so the
+        # table/Discord re-checks pick the winner. Walk recent buffer entries
+        # only (most supersedes happen within seconds; deep walk is wasted work).
+        old_id = payload
+        for a in reversed(_alerts):
+            if a.get("id") == old_id:
+                a["_superseded"] = True
+                # Inherit the old alert's contract repeat count so the new
+                # winner shows the same "Nx" badge — this is the same trade
+                # being relabeled by a higher-priority alert, not a new fire.
+                enriched["contractRepeatCount"] = a.get("contractRepeatCount", 1)
+                break
+    else:
+        # action == "accept": this is a NEW distinct trade on this contract.
+        # Increment per-contract counter and attach the badge value.
+        enriched["contractRepeatCount"] = _track_repeat(enriched)
+
+    # Enrich with OI data (trade size, prior OI, vol/OI ratio, exceeded flag).
+    # Done after dedup so we don't waste SQLite reads on dropped alerts. The
+    # cache means repeat fires on the same contract only hit the DB once/day.
+    _enrich_with_oi(enriched)
+
+    # Enrich with spot price + moneyness (how deep ITM/OTM). Async because
+    # Schwab quote lookup is async, but cached per-ticker for 2 min so the
+    # network cost is one call per unique ticker every 2 min.
+    await _enrich_with_moneyness(enriched)
+
     _alerts.append(enriched)
     _status["total_alerts_shown"] += 1
 
-    if forwarded:
-        # Fire-and-forget — never block SSE consumer waiting on Discord
-        asyncio.create_task(_post_to_discord(discord_client, enriched))
+    # Delayed forward: gives a brief window for a higher-priority alert to
+    # arrive and supersede this one. The forward task re-checks the dedup
+    # cache before posting, so superseded alerts never reach Discord.
+    asyncio.create_task(_delayed_discord_forward(discord_client, enriched))
+
+
+async def _delayed_discord_forward(discord_client, alert: dict):
+    """
+    Wait DISCORD_FORWARD_DELAY_SEC, then post to Discord only if this alert
+    is still the dedup winner for its contract key. If a higher-priority
+    alert superseded it during the delay, this is a no-op.
+    """
+    await asyncio.sleep(DISCORD_FORWARD_DELAY_SEC)
+    if alert.get("_superseded"):
+        return
+    key = _make_dedup_key(alert)
+    winner = _dedup_cache.get(key)
+    # If the dedup cache no longer points to this alert, it was superseded
+    # (or the cache rotated out due to a >60s gap, in which case forwarding
+    # would be stale anyway).
+    if not winner or winner.get("alert_id") != alert.get("id"):
+        return
+    alert["forwardedToDiscord"] = True
+    try:
+        await _post_to_discord(discord_client, alert)
+    except Exception as e:
+        log.warning("[liveflow] delayed discord forward failed: %s", e)
+
 
 
 # ─── Forever loop with exponential-backoff reconnect ─────────────────────────

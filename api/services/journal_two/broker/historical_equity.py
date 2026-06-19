@@ -248,7 +248,15 @@ def _weekday_range(start_iso: str, end_iso: str) -> list[str]:
 
 def _default_price_fn():
     """Memoized Massive-backed daily-close lookup. One fetch per symbol, indexed
-    by ISO date. `_bounds[symbol] = (start, end)` should be set before use."""
+    by ISO date. `_bounds[symbol] = (start, end)` should be set before use.
+
+    Stocks are fetched with adjusted=True: SnapTrade's activity share-counts
+    reconcile to the CURRENT (post-split) holding, so historical shares are in
+    current basis — they must be valued against split-adjusted prices so a split
+    cancels (current-basis shares × adjusted price = correct market value).
+    Valuing current-basis shares against raw/unadjusted prices is off by the
+    split factor and produced the historical spikes/negatives. Options are not
+    split-adjusted, so they stay point-in-time (adjusted=False)."""
     from api.services import massive
     cache: dict[str, dict[str, float]] = {}
     bounds: dict[str, tuple[str, str]] = {}
@@ -257,7 +265,8 @@ def _default_price_fn():
         if symbol not in cache:
             start, end = bounds.get(symbol, (d, d))
             bars = massive.get_daily_agg(symbol, start, end,
-                                         adjusted=False, map_symbol=(kind == "stock"))
+                                         adjusted=(kind == "stock"),
+                                         map_symbol=(kind == "stock"))
             series: dict[str, float] = {}
             for b in bars:
                 iso = date.fromtimestamp(b["t"] / 1000).isoformat()
