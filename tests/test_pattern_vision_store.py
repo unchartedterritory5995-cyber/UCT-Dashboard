@@ -59,3 +59,14 @@ def test_exemplar_roundtrip_and_delete(tmp_path, monkeypatch):
     assert "png" not in meta[0]  # blob excluded from listing
     s.delete_exemplar(eid)
     assert s.exemplar_pngs("vcp") == []
+
+
+def test_feedback_source_and_list(tmp_path, monkeypatch):
+    s = _fresh(tmp_path, monkeypatch)
+    s.record_feedback("NVDA", "D", "vcp", "2026-06-19", "up", source="chart")
+    s.record_feedback("AAPL", "D", "scan:pullback", "2026-06-19", "down",
+                      note="extended", source="scanner")
+    scanner = s.list_feedback(source="scanner")
+    assert len(scanner) == 1 and scanner[0]["ticker"] == "AAPL"
+    assert scanner[0]["source"] == "scanner" and scanner[0]["note"] == "extended"
+    assert len(s.list_feedback()) == 2  # both, unfiltered

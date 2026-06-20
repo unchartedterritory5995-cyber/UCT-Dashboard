@@ -124,6 +124,23 @@ def test_feedback_records(client, monkeypatch, tmp_path):
     assert recent[0]["feedback"]["note"] == "handle too deep"
 
 
+def test_feedback_inline_source_no_date(client, monkeypatch, tmp_path):
+    s = _seed_store(tmp_path, monkeypatch)
+    _login(client)
+    # inline thumbs: no asof_date, carries a source — must default the date and store source
+    r = client.post("/api/patterns/feedback", json={
+        "ticker": "AAPL", "setup": "scan:pullback", "rating": "down",
+        "note": "extended", "source": "scanner"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    log = s.list_feedback(source="scanner")
+    assert len(log) == 1 and log[0]["asof_date"]  # date auto-filled
+
+
+def test_feedback_list_requires_admin(client):
+    _login(client, role="member")
+    assert client.get("/api/patterns/admin/feedback").status_code == 403
+
+
 def test_review_requires_admin(client):
     _login(client, role="member")
     assert client.get("/api/patterns/admin/review").status_code == 403

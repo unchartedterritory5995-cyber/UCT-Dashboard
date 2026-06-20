@@ -57,9 +57,12 @@ def init_db() -> None:
         c.execute("""CREATE TABLE IF NOT EXISTS pattern_feedback (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ticker TEXT, tf TEXT, setup TEXT, asof_date TEXT,
-            rating TEXT, note TEXT, by_user TEXT, created_at INTEGER)""")
+            rating TEXT, note TEXT, by_user TEXT, created_at INTEGER, source TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_pf_key "
                   "ON pattern_feedback(ticker, tf, setup, asof_date)")
+        pf_cols = {r[1] for r in c.execute("PRAGMA table_info(pattern_feedback)").fetchall()}
+        if "source" not in pf_cols:
+            c.execute("ALTER TABLE pattern_feedback ADD COLUMN source TEXT")
         c.execute("""CREATE TABLE IF NOT EXISTS pattern_exemplars (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             setup TEXT, ticker TEXT, asof_date TEXT, png BLOB,
@@ -143,14 +146,27 @@ def get_recent_verdicts(limit: int = 100) -> list[dict]:
         return out
 
 
-def record_feedback(ticker, tf, setup, asof_date, rating, note=None, by_user=None) -> int:
+def record_feedback(ticker, tf, setup, asof_date, rating, note=None, by_user=None,
+                    source=None) -> int:
     with _WRITE_LOCK, connect() as c:
         cur = c.execute(
-            "INSERT INTO pattern_feedback (ticker,tf,setup,asof_date,rating,note,by_user,created_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
-            (ticker.upper(), tf, setup, asof_date, rating, note, by_user, int(time.time())))
+            "INSERT INTO pattern_feedback (ticker,tf,setup,asof_date,rating,note,by_user,created_at,source) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (ticker.upper(), tf, setup, asof_date, rating, note, by_user, int(time.time()), source))
         c.commit()
         return cur.lastrowid
+
+
+def list_feedback(source=None, limit=200) -> list[dict]:
+    q = "SELECT * FROM pattern_feedback"
+    args = []
+    if source:
+        q += " WHERE source=?"
+        args.append(source)
+    q += " ORDER BY created_at DESC LIMIT ?"
+    args.append(int(limit))
+    with connect() as c:
+        return [dict(r) for r in c.execute(q, args).fetchall()]
 
 
 def add_exemplar(setup, png, *, ticker=None, asof_date=None, note=None,

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import TickerPopup from '../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
+import PatternFeedbackChip from '../../components/PatternFeedbackChip'
 import { COLUMN_DEFS } from './columnDefs'
 import { toCsv, downloadCsv, fetchAllRows } from './exportCsv'
 import styles from './ScannerPro.module.css'
@@ -90,6 +91,8 @@ export default function ResultsTable({ result, view, setView, views, sort, setSo
                       <span {...ta.longPressProps(row.ticker)}>
                         <TickerPopup sym={row.ticker}>{row.ticker}</TickerPopup>
                       </span>
+                      <PatternFeedbackChip ticker={row.ticker}
+                        setup={`scan:${view || 'screener'}`} source="scanner" compact />
                     </td>
                   )
                 }

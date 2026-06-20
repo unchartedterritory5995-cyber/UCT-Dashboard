@@ -14,9 +14,11 @@ const fetcher = (url) =>
   })
 
 export function usePatternDetections(sym, tf, enabled = true, minConf = 50) {
+  // confirmed_only=false: the on-chart overlay needs the full rule-engine detection
+  // geometry to draw shapes. The confirmed-vision surface lives on /confirmed/{sym}.
   const key =
     enabled && sym && tf
-      ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}`
+      ? `/api/patterns/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&min_conf=${minConf}&confirmed_only=false`
       : null
 
   const { data, error, isLoading } = useSWR(key, fetcher, {

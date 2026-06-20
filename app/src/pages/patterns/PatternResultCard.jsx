@@ -1,4 +1,5 @@
 import TickerPopup from '../../components/TickerPopup'
+import PatternFeedbackChip from '../../components/PatternFeedbackChip'
 import styles from './PatternResultCard.module.css'
 
 const fmtPrice = (v) => (typeof v === 'number' && Number.isFinite(v)) ? `$${v.toFixed(2)}` : '—'
@@ -135,6 +136,10 @@ function CardTrigger({ detection, onClick, className: _ignoredClass, children: _
       <div className={styles.cardFooter}>
         <span className={styles.status}>{d.status}</span>
         <span className={styles.timeAgo}>{timeSince(d.detected_at)}</span>
+      </div>
+      <div className={styles.feedbackRow}>
+        <PatternFeedbackChip ticker={d.sym} tf={d.tf}
+          setup={d.pattern_id} source="pattern-scan" compact />
       </div>
     </div>
   )

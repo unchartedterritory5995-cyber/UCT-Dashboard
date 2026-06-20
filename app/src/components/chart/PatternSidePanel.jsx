@@ -104,18 +104,22 @@ export default function PatternSidePanel({ detection, onClose }) {
   }, [detection, onClose])
 
   const submitFeedback = useCallback(async () => {
-    if (!detection?.id || !rating) return
+    if (!rating || !detection?.pattern_id) return
     setSubmitting(true)
     setSubmitStatus(null)
     try {
-      const res = await fetch(`/api/patterns/${encodeURIComponent(detection.id)}/feedback`, {
+      // Route chart feedback into the vision learning loop (source="chart").
+      const res = await fetch('/api/patterns/feedback', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ticker: detection.sym,
+          tf: detection.tf || 'D',
+          setup: detection.pattern_id,
           rating,
-          user_id: user?.id ? String(user.id) : 'anonymous',
           note: note.trim() || null,
+          source: 'chart',
         }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -126,7 +130,7 @@ export default function PatternSidePanel({ detection, onClose }) {
     } finally {
       setSubmitting(false)
     }
-  }, [detection?.id, rating, note, user?.id])
+  }, [detection?.pattern_id, detection?.sym, detection?.tf, rating, note])
 
   if (!detection) return null
 

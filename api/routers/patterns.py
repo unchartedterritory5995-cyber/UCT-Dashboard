@@ -909,9 +909,10 @@ class VisionFeedbackBody(BaseModel):
     ticker: str
     tf: str = "D"
     setup: str
-    asof_date: str
+    asof_date: Optional[str] = None  # defaults to today (inline thumbs from any surface)
     rating: str  # "up" | "down"
     note: Optional[str] = None
+    source: Optional[str] = None  # "chart" | "pattern-scan" | "scanner" | None (review page)
 
 
 class ExemplarBody(BaseModel):
@@ -925,12 +926,25 @@ class ExemplarBody(BaseModel):
 
 @router.post("/feedback")
 def patterns_vision_feedback(body: VisionFeedbackBody, user=Depends(get_current_user)):
-    """Record a 👍/👎 + note on a vision verdict (any logged-in user)."""
+    """Record a 👍/👎 + note on a pattern/scanner item (any logged-in user).
+    Inline thumbs from chart/scan/scanner pass a `source`; the review page omits it."""
+    import datetime
     from api.services.pattern_vision import store as pv_store
     pv_store.init_db()
-    fid = pv_store.record_feedback(body.ticker, body.tf, body.setup, body.asof_date,
-                                   body.rating, body.note, by_user=str(user.get("id")))
+    asof = body.asof_date or datetime.date.today().isoformat()
+    fid = pv_store.record_feedback(body.ticker, body.tf, body.setup, asof,
+                                   body.rating, body.note, by_user=str(user.get("id")),
+                                   source=body.source)
     return {"ok": True, "feedback_id": fid}
+
+
+@router.get("/admin/feedback")
+def patterns_feedback_list(source: Optional[str] = None, limit: int = 200,
+                           user=Depends(require_admin)):
+    """Admin: raw feedback log (optionally filtered by source, e.g. 'scanner')."""
+    from api.services.pattern_vision import store as pv_store
+    pv_store.init_db()
+    return {"feedback": pv_store.list_feedback(source=source, limit=limit)}
 
 
 @router.get("/admin/review")

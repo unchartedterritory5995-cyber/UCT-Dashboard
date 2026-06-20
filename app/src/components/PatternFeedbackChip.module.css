@@ -1,0 +1,23 @@
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-muted, #706b5e);
+}
+.compact { gap: 2px; }
+.btn {
+  background: transparent; border: 1px solid var(--border, #2e3127); border-radius: 6px;
+  padding: 1px 5px; cursor: pointer; line-height: 1.4; min-height: 24px;
+}
+.btn:hover { background: var(--bg-hover, #2a2d24); }
+.upOn { border-color: var(--gain, #3cb868); background: var(--gain-bg, rgba(60,184,104,.16)); }
+.downOn { border-color: var(--loss, #e74c3c); background: var(--loss-bg, rgba(231,76,60,.16)); }
+.link {
+  background: transparent; border: none; color: var(--ut-gold, #c9a84c);
+  cursor: pointer; font-size: 11px; padding: 1px 3px; text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+.ok { color: var(--gain, #3cb868); }
+.note {
+  background: var(--bg, #0e0f0d); color: var(--text-bright, #e0dac8);
+  border: 1px solid var(--border, #2e3127); border-radius: 6px;
+  padding: 2px 6px; font-size: 11px; width: 140px; min-height: 24px;
+}

@@ -1,3 +1,9 @@
+.feedbackRow {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .card {
   background: #15161a;
   border: 1px solid #2a2723;
