@@ -70,7 +70,7 @@ _COLUMNS = [
 
 _CREATE_SQL = f"""
 CREATE TABLE IF NOT EXISTS live_alerts (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
     date_iso TEXT NOT NULL,
     alert_type TEXT,
@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS live_alerts (
     gate_passed INTEGER,
     forwarded_to_discord INTEGER DEFAULT 0,
     discord_message_id TEXT,
-    source TEXT DEFAULT 'live'
+    source TEXT DEFAULT 'live',
+    PRIMARY KEY (id, date_iso)
 );
 """
 
@@ -129,7 +130,14 @@ def _conn():
 
 
 def init_db() -> None:
-    """Create table + indexes if missing. Idempotent; safe to call repeatedly."""
+    """Create table + indexes if missing. Idempotent; safe to call repeatedly.
+
+    Auto-migrates the old single-PK schema (id PRIMARY KEY) to the new
+    composite-PK schema (id, date_iso PRIMARY KEY). Migration is necessary
+    because Bullflow's alert IDs are per-day sequential numbers (1, 2, 3...)
+    that collide across days under the old schema. Existing rows are
+    preserved — each one has a unique (id, date_iso) combination since the
+    old schema enforced id uniqueness."""
     global _initialized
     if _initialized:
         return
@@ -138,6 +146,48 @@ def init_db() -> None:
             # WAL mode = concurrent readers don't block the writer. Persists
             # across connections once set on the DB file.
             c.execute("PRAGMA journal_mode=WAL;")
+
+            # Detect schema version. If a table exists but uses the old
+            # single-PK shape (id is PRIMARY KEY by itself), migrate it.
+            row = c.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='live_alerts'"
+            ).fetchone()
+            if row is not None:
+                existing_schema = (row["sql"] or "")
+                # The new schema declares "PRIMARY KEY (id, date_iso)" as a
+                # table constraint. The old schema declared "id TEXT PRIMARY KEY"
+                # inline on the column. Migrate if we don't see the composite form.
+                needs_migration = "PRIMARY KEY (id, date_iso)" not in existing_schema
+                if needs_migration:
+                    log.warning(
+                        "[live_alerts_db] migrating to composite PK — "
+                        "fixes cross-day ID collisions (e.g. backfilling "
+                        "multiple days, daily-resetting live IDs)"
+                    )
+                    c.execute("ALTER TABLE live_alerts RENAME TO live_alerts_v1_backup;")
+                    c.execute(_CREATE_SQL)
+                    cols = ", ".join(_COLUMNS)
+                    # INSERT OR IGNORE for safety, though no collisions expected
+                    # since the old PK enforced id uniqueness across the whole
+                    # table (only one row per id).
+                    c.execute(
+                        f"INSERT OR IGNORE INTO live_alerts ({cols}) "
+                        f"SELECT {cols} FROM live_alerts_v1_backup;"
+                    )
+                    migrated = c.execute(
+                        "SELECT COUNT(*) AS n FROM live_alerts"
+                    ).fetchone()["n"]
+                    c.execute("DROP TABLE live_alerts_v1_backup;")
+                    for sql in _INDEX_SQL:
+                        c.execute(sql)
+                    log.info(
+                        "[live_alerts_db] migration complete — %d rows preserved",
+                        migrated,
+                    )
+                    _initialized = True
+                    return
+
+            # Fresh init (no existing table) or already on new schema
             c.execute(_CREATE_SQL)
             for sql in _INDEX_SQL:
                 c.execute(sql)
