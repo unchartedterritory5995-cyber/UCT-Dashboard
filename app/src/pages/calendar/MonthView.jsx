@@ -44,31 +44,32 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 }
 
 // ── MonthGrid cell ─────────────────────────────────────────────────────────
-// Mirrors WeekView's WeekTimingGroup so the month grid reads exactly like the
-// week view: a BMO / AMC column with a gold/blue header and logo + ticker rows.
+// A month cell is ~1/5 the page width, so it can't carry the week view's big
+// logo+ticker rows. Instead each timing band keeps the week's gold/blue header
+// but renders a compact wrapped grid of small logo tiles (click → day drawer
+// for the full list). This stays tidy even on heavy earnings days.
 
-const MONTH_MAX_PER_TIMING = 5   // keep cells from ballooning on heavy earnings days; click → drawer for the full list
+const MONTH_MAX_PER_TIMING = 8   // compact logo tiles; overflow collapses to "+N"
 
 function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
   const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
   const overflow = syms.length - MONTH_MAX_PER_TIMING
   return (
-    <div className={styles.wtcol}>
-      <div className={`${styles.wgroupHd} ${hdClass}`}>
-        <UIcon name={icon} size={13} aria-hidden="true" /> {label}
+    <div className={styles.mband}>
+      <div className={`${styles.mbandHd} ${hdClass}`}>
+        <UIcon name={icon} size={12} aria-hidden="true" /> {label}
       </div>
       {shown.length ? (
-        <>
+        <div className={styles.mlogos}>
           {shown.map(s => (
-            <div key={s} className={styles.mrow}>
-              <CompanyLogo sym={s} size={40} tile />
-              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
-            </div>
+            <span key={s} className={mineSyms.has(s) ? styles.mineTile : undefined} title={s}>
+              <CompanyLogo sym={s} size={22} tile />
+            </span>
           ))}
-          {overflow > 0 && <div className={styles.mmore}>+{overflow} more</div>}
-        </>
+          {overflow > 0 && <span className={styles.mmoreChip}>+{overflow}</span>}
+        </div>
       ) : (
-        <div className={styles.wtcolEmpty}>—</div>
+        <div className={styles.mbandEmpty}>—</div>
       )}
     </div>
   )
