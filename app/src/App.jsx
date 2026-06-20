@@ -34,6 +34,7 @@ const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
+const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
@@ -167,6 +168,8 @@ export default function App() {
             <Route element={<AuthGuard />}>
               {/* LiveFlow has its own full-page layout — no sidebar/nav wrapper */}
               <Route path="/live-flow" element={<LiveFlow />} />
+              {/* AlertTester is admin-only tooling — full-page layout, no sidebar */}
+              <Route path="/alert-tester" element={<AlertTester />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
