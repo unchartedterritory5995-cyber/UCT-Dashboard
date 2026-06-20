@@ -131,7 +131,10 @@ SHEET_CATEGORIES = {
 }
 # Extra categories introduced by the channel uploads (education_channel_seed.py).
 CHANNEL_EXTRA_CATEGORIES = {"Post-Market Recaps", "Live Sessions"}
-EXPECTED_CATEGORIES = SHEET_CATEGORIES | CHANNEL_EXTRA_CATEGORIES
+# Categories from the workbook's other two tabs (education_extra_seed.py):
+# "Interviews" already lives in SHEET_CATEGORIES; "The Mental Game" is new.
+EXTRA_TAB_CATEGORIES = {"Interviews", "The Mental Game"}
+EXPECTED_CATEGORIES = SHEET_CATEGORIES | CHANNEL_EXTRA_CATEGORIES | EXTRA_TAB_CATEGORIES
 
 
 def test_seed_module_is_well_formed():
@@ -158,10 +161,27 @@ def test_channel_seed_module_is_well_formed():
         seen.add(v["youtube_id"])
 
 
+def test_extra_seed_module_is_well_formed():
+    from api.services.education_extra_seed import SEED_VIDEOS_EXTRA
+    assert len(SEED_VIDEOS_EXTRA) >= 50
+    cats = set()
+    seen = set()
+    for v in SEED_VIDEOS_EXTRA:
+        assert len(v["youtube_id"]) == 11
+        assert v["title"].strip()
+        assert v["category"] in EXTRA_TAB_CATEGORIES
+        assert v["youtube_id"] not in seen, f"duplicate {v['youtube_id']}"
+        seen.add(v["youtube_id"])
+        cats.add(v["category"])
+    # both tabs represented
+    assert cats == EXTRA_TAB_CATEGORIES
+
+
 def test_ensure_default_videos_seeds_and_is_idempotent(s):
     from api.services.education_seed import SEED_VIDEOS
     from api.services.education_channel_seed import SEED_VIDEOS_CHANNEL
-    total = len({v["youtube_id"] for v in (*SEED_VIDEOS, *SEED_VIDEOS_CHANNEL)})
+    from api.services.education_extra_seed import SEED_VIDEOS_EXTRA
+    total = len({v["youtube_id"] for v in (*SEED_VIDEOS, *SEED_VIDEOS_CHANNEL, *SEED_VIDEOS_EXTRA)})
     s.ensure_default_videos()
     first = s.list_videos()
     assert len(first) == total

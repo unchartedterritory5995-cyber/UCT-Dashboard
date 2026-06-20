@@ -20,6 +20,7 @@ const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 // listed here fall to the end, alphabetically (the API returns them A→Z).
 const CATEGORY_ORDER = [
   'Mindset & Psychology',
+  'The Mental Game',
   'Market Analysis & Breadth',
   'Setups & Strategies',
   'Technical Analysis & Relative Strength',

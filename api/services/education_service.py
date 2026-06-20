@@ -179,6 +179,11 @@ def ensure_default_videos() -> None:
         seeds.extend(SEED_VIDEOS_CHANNEL)
     except Exception:
         pass
+    try:  # "Interviews" + "Mental Game" tabs of the workbook
+        from api.services.education_extra_seed import SEED_VIDEOS_EXTRA
+        seeds.extend(SEED_VIDEOS_EXTRA)
+    except Exception:
+        pass
     if not seeds:
         return
     try:
