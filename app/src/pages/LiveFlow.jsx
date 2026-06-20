@@ -1562,16 +1562,33 @@ export default function LiveFlow() {
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
               {isBacktest
                 ? (backtestLoading ? "Running backtest replay…" : "No alerts for " + backtestDate)
-                : (status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…")}
+                : isHistory
+                  ? (backtestLoading ? "Loading historical alerts…" : "No alerts captured for this range")
+                  : (status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…")}
             </div>
-            <div style={{ fontSize: 10, color: P.mt }}>
+            <div style={{ fontSize: 10, color: P.mt, maxWidth: 520, textAlign: "center", lineHeight: 1.5 }}>
               {isBacktest
                 ? (backtestLoading
                     ? "Bullflow sample replay can take up to 2 minutes."
                     : "Either the market was quiet or it was a non-trading day.")
-                : "Quiet stretches are normal — flow fires on unusual activity only."}
+                : isHistory
+                  ? (backtestLoading
+                      ? "Querying the SQLite alert archive."
+                      : <>
+                          Historical persistence started on the day the feature shipped — earlier dates are empty by default.
+                          {isAdmin && (
+                            <>
+                              {" "}Admin: seed this range via{" "}
+                              <code style={{ color: P.ac, fontFamily: "ui-monospace, monospace", fontSize: 10 }}>
+                                /api/admin/bullflow/backfill?date_from={historyFrom}{historyFrom !== historyTo ? `&date_to=${historyTo}` : ""}
+                              </code>
+                              {" "}(Bullflow caps at ~100 alerts/day).
+                            </>
+                          )}
+                        </>)
+                  : "Quiet stretches are normal — flow fires on unusual activity only."}
             </div>
-            {!isBacktest && status?.started_at && (
+            {!isBacktest && !isHistory && status?.started_at && (
               <div style={{
                 fontSize: 9, color: P.mt, marginTop: 8,
                 fontFamily: "ui-monospace, monospace",
