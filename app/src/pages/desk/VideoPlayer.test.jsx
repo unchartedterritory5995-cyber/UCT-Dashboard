@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import VideoPlayer from './VideoPlayer'
+import { __reset } from './videoProgress'
 
 // Pretend the IFrame API is ready immediately.
 vi.mock('./useYouTubeApi', () => ({ useYouTubeApi: () => true }))
@@ -9,6 +10,7 @@ let lastPlayer
 let lastOnStateChange
 
 beforeEach(() => {
+  __reset()
   lastPlayer = null
   lastOnStateChange = null
   // Minimal YT.Player stub: capture the state-change handler + loadVideoById.
@@ -42,7 +44,10 @@ describe('VideoPlayer', () => {
   it('switches videos in-place when an Up Next item is clicked (no off-site nav)', () => {
     render(<VideoPlayer list={LIST} startIndex={0} onClose={() => {}} />)
     fireEvent.click(screen.getByText('Second Video'))
-    expect(lastPlayer.loadVideoById).toHaveBeenCalledWith('bbbbbbbbbbb')
+    expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({
+      videoId: 'bbbbbbbbbbb',
+      startSeconds: 0,
+    })
   })
 
   it('shows a "Next up" card when a video ends instead of YouTube’s end screen', () => {

@@ -2,12 +2,13 @@
 // The Educational Videos library — now the "Videos" section of The Desk hub.
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useSyncExternalStore } from 'react'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoPlayer from './VideoPlayer'
+import { subscribe, getSnapshot } from './videoProgress'
 import styles from '../EducationalVideos.module.css'
 
 const fetcher = (url) =>
@@ -44,6 +45,7 @@ export default function VideosSection() {
   const [activeCat, setActiveCat] = useState(null) // null = All
   const [playing, setPlaying] = useState(null)
   const [editing, setEditing] = useState(null)
+  const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   // Categories in curated learning-path order.
   const categories = useMemo(() => {
@@ -53,6 +55,21 @@ export default function VideosSection() {
     )
   }, [data])
   const total = data?.total ?? 0
+
+  // "Continue watching": started-but-unfinished videos, newest first. Each opens
+  // the player inside its own category so the Up Next rail keeps working.
+  const continueWatching = useMemo(() => {
+    const items = []
+    for (const cat of categories) {
+      cat.videos.forEach((v, i) => {
+        const e = progress[v.youtube_id]
+        if (e && !e.done && e.t >= 8) {
+          items.push({ video: v, list: cat.videos, index: i, at: e.at || 0, pct: e.d ? Math.min(100, Math.round((e.t / e.d) * 100)) : 0 })
+        }
+      })
+    }
+    return items.sort((a, b) => b.at - a.at).slice(0, 8)
+  }, [categories, progress])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -125,6 +142,30 @@ export default function VideosSection() {
         </div>
       </div>
 
+      {!isLoading && continueWatching.length > 0 && (
+        <div className={styles.continueRow}>
+          <div className={styles.continueHead}>Continue watching</div>
+          <div className={styles.upNextRail}>
+            {continueWatching.map((cw) => (
+              <button
+                key={cw.video.youtube_id}
+                className={styles.upNextItem}
+                onClick={() => setPlaying({ list: cw.list, index: cw.index })}
+              >
+                <span className={styles.upNextThumbWrap}>
+                  <img className={styles.upNextThumb} src={thumb(cw.video.youtube_id)} alt="" loading="lazy" />
+                  <span className={styles.upNextPlay} aria-hidden="true"><PlayIcon /></span>
+                  <span className={styles.progressBar}>
+                    <span className={styles.progressFill} style={{ width: `${cw.pct}%` }} />
+                  </span>
+                </span>
+                <span className={styles.upNextTitle}>{cw.video.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!isLoading && total > 0 && categories.length > 1 && (
         <div className={styles.catBar} role="tablist" aria-label="Filter videos by category">
           <button
@@ -174,6 +215,17 @@ export default function VideosSection() {
                   <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
                   <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
                   {v.duration && <span className={styles.duration}>{v.duration}</span>}
+                  {progress[v.youtube_id]?.done && (
+                    <span className={styles.watchedBadge} aria-label="Watched">✓ Watched</span>
+                  )}
+                  {!progress[v.youtube_id]?.done && progress[v.youtube_id]?.t >= 8 && progress[v.youtube_id]?.d > 0 && (
+                    <span className={styles.progressBar}>
+                      <span
+                        className={styles.progressFill}
+                        style={{ width: `${Math.min(100, Math.round((progress[v.youtube_id].t / progress[v.youtube_id].d) * 100))}%` }}
+                      />
+                    </span>
+                  )}
                 </button>
                 <div className={styles.cardBody}>
                   <div className={styles.cardTitle}>{v.title}</div>

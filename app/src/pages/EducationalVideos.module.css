@@ -358,6 +358,42 @@
   min-height: var(--tap-min);
 }
 
+/* ── Watch progress + "Continue watching" ── */
+.continueRow { margin: 0 0 var(--space-xl); }
+.continueHead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: var(--space-sm);
+}
+.watchedBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(8, 9, 8, 0.82);
+  color: #6ee7a8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+.progressBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.progressFill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+}
+
 /* ── "Up next" rail ── */
 .upNext { margin-top: var(--space-lg); }
 .upNextHead {
