@@ -2989,13 +2989,16 @@ export default function OptionsFlowDashboard() {
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
-            <button key={m} onClick={()=>{ if(dataMode!==m) {
-              const wasFlow = dataMode === "stocks" || dataMode === "index";
-              const toFlow = m === "stocks" || m === "index";
-              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
-              setDataMode(m);
-            } }} style={{
+          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
+            <button key={m} onClick={()=>{
+              if (m === "liveflow") { window.location.href = "/live-flow"; return; }
+              if(dataMode!==m) {
+                const wasFlow = dataMode === "stocks" || dataMode === "index";
+                const toFlow = m === "stocks" || m === "index";
+                if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
+                setDataMode(m);
+              }
+            }} style={{
               padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
               background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
@@ -3218,22 +3221,34 @@ export default function OptionsFlowDashboard() {
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
-              <button key={m} onClick={()=>{ if(dataMode!==m) {
-                // Only reset flow data when switching between stocks ↔ index (csvFile changes)
-                // Switching to/from darkpool or gex preserves cached parsedRows+D for instant return
-                const wasFlow = dataMode === "stocks" || dataMode === "index";
-                const toFlow = m === "stocks" || m === "index";
-                if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
-                setDataMode(m);
-              } }} style={{
-                padding:"8px 28px", borderRadius:6, border:(m==="gex"||m==="darkpool")?(dataMode===m?"1px solid "+(m==="darkpool"?"#6ba3be":"#c9a84c"):"1px solid "+(m==="darkpool"?"#6ba3be55":"#c9a84c55")):"none", cursor:"pointer",
-                fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
-                background:dataMode===m?(m==="gex"?"#c9a84c33":m==="darkpool"?"#6ba3be33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.wh):(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.mt),
-                boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
-                transition:"all 0.15s"
-              }}>{label}</button>
-            ))}
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
+              // Live Flow navigates to a separate page; other modes switch dataMode in place.
+              const isLive = m === "liveflow";
+              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
+              const hasAccent = accent !== null;
+              return (
+                <button key={m} onClick={()=>{
+                  if (isLive) { window.location.href = "/live-flow"; return; }
+                  if(dataMode!==m) {
+                    // Only reset flow data when switching between stocks ↔ index (csvFile changes)
+                    // Switching to/from darkpool or gex preserves cached parsedRows+D for instant return
+                    const wasFlow = dataMode === "stocks" || dataMode === "index";
+                    const toFlow = m === "stocks" || m === "index";
+                    if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
+                    setDataMode(m);
+                  }
+                }} style={{
+                  padding:"8px 28px", borderRadius:6,
+                  border: hasAccent ? "1px solid "+(dataMode===m ? accent : accent+"55") : "none",
+                  cursor:"pointer",
+                  fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
+                  background: dataMode===m ? (hasAccent ? accent+"33" : P.cd) : "transparent",
+                  color: dataMode===m ? (hasAccent ? accent : P.wh) : (hasAccent ? accent : P.mt),
+                  boxShadow: dataMode===m ? "0 2px 8px rgba(0,0,0,0.3)" : "none",
+                  transition:"all 0.15s"
+                }}>{label}</button>
+              );
+            })}
           </div>
         </div>
 
