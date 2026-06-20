@@ -61,8 +61,17 @@ function PostCard({ t }) {
   )
 }
 
+// Fixed left-to-right column order (by X handle, lowercased). Accounts not listed
+// fall after these, ordered by who posted most recently.
+const COLUMN_ORDER = ['tsdr_trading', 'braczyy', '1chartmaster']
+const columnRank = (handle) => {
+  const i = COLUMN_ORDER.indexOf((handle || '').toLowerCase())
+  return i === -1 ? COLUMN_ORDER.length : i
+}
+
 // Group the flat official feed into one bucket per author, preserving the
-// newest-first order within each, and order columns by who posted most recently.
+// newest-first order within each, then order columns by the fixed priority above
+// (TSDR → Bracco → 1ChartMaster), with any others by most-recent post.
 function groupByAuthor(posts) {
   const byHandle = new Map()
   for (const t of posts) {
@@ -79,7 +88,11 @@ function groupByAuthor(posts) {
     col.posts.push(t)
     if ((t.created_at || 0) > col.latest) col.latest = t.created_at || 0
   }
-  return [...byHandle.values()].sort((a, b) => (b.latest || 0) - (a.latest || 0))
+  return [...byHandle.values()].sort((a, b) => {
+    const ra = columnRank(a.handle), rb = columnRank(b.handle)
+    if (ra !== rb) return ra - rb
+    return (b.latest || 0) - (a.latest || 0)
+  })
 }
 
 export default function PostsSection() {
