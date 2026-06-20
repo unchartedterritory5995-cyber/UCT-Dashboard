@@ -1,1456 +1,254 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import UIcon from "../components/ui/UIcon";
+"""
+Live Flow Router — Phase A
 
-/**
- * LiveFlow — subscriber-facing
- *
- * Polls /api/live/alerts/recent every 5s. Renders alerts that passed the
- * backend's Filter Engine v1 (premium >= $250K, not in blocklist, no
- * Grenade). Backend forwards high-conviction alerts to Discord; those
- * rows show a 🔔 badge.
- *
- * Display:
- *   - Tier-grouped sections (Mega → Whale → A → LEAPS → Unusual → Algo)
- *   - Colored left border per row indicates tier at a glance
- *   - Multi-select filter chips at top, state persists in localStorage
- *   - Click a tier header to collapse that group
- *
- * Tier is derived from alertName: "UCT Mega Whale Bull" → mega, etc.
- * Non-UCT alerts (Bullflow's native algo stream) → algo group.
- *
- * Subscriber version is leaner than admin: no filter-config banner, no
- * drop/forwarded counts, no PHASE B labeling.
- */
+Exposes the in-memory alert buffer to the frontend via a single polling
+endpoint. The Live tab in src/pages/LiveFlow.jsx hits this every 5 seconds.
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-const P = {
-  bg: "#0e0f0d",
-  cd: "#161714",
-  bd: "#2a2926",
-  ac: "#c9a84c",   // amber accent
-  bl: "#5b9bd5",   // blue
-  bu: "#3cb868",   // calls/green
-  be: "#e74c3c",   // puts/red
-  wh: "#e8e6df",
-  dm: "#a8a290",
-  mt: "#6a6660",
-};
+Phase B will add SQLite-backed history endpoints, filter config CRUD, and
+Discord forwarding stats.
+"""
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
-const POLL_INTERVAL_MS = 5000;
-const MAX_ROWS = 200;
-// 2026-06-17 v3: bumped v2→v3 because tier structure expanded from 3 tiers
-// (bullish/bearish/algo) to 6 (alpha/bullish/bearish/leaps/unusual/algo).
-// Old v2 filter state references non-existent tier keys.
-const LS_KEY = "uct_liveflow_filters_v3";
+import re
 
-// ─── Backtest helpers ─────────────────────────────────────────────────────────
-// Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
-//   - Data source switches to /api/admin/bullflow/backtest?date=...
-//   - Polling is disabled (one-shot fetch)
-//   - Header shows a backtest pill + date picker stays visible
-//   - Bullflow MCP caps the sample at 100 alerts; we surface that in the banner
+from api import liveflow_worker
 
-function formatDateForInput(d) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+router = APIRouter(prefix="/api/live", tags=["live-flow"])
 
-// Most recent weekday — Bullflow only has data for market days. Doesn't
-// account for holidays; user can pick another date if a Monday was closed.
-function mostRecentMarketDay() {
-  const d = new Date();
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
-  return formatDateForInput(d);
-}
 
-function thirtyDaysAgo() {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return formatDateForInput(d);
-}
+class UserBlocklistPayload(BaseModel):
+    """Body shape for PUT /user-blocklist. Accepts a list of ticker strings."""
+    tickers: list[str] = []
 
-function isValidBacktestDate(s) {
-  if (!s || typeof s !== "string") return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(s + "T00:00:00");
-  return !Number.isNaN(d.getTime());
-}
 
-// ─── Tier metadata + derivation ───────────────────────────────────────────────
-// 2026-06-17 v3: Six tiers in priority cascade. Special tiers (Alpha Gold,
-// LEAPS, Unusual) are checked first by name, then direction (Bullish/Bearish)
-// catches everything else by cp. Each row lives in exactly ONE tier.
-//
-// Display order: Alpha pinned at top (rare, high-conviction). Bullish/Bearish
-// next (the bread-and-butter directional flow). LEAPS and Unusual below
-// (specialized signals worth their own sections). Algo last as fallback.
-const TIER_META = {
-  alpha:   { label: "Alpha Gold", color: "#c9a84c", bg: "#c9a84c14" },
-  bullish: { label: "Bullish",    color: "#3CB868", bg: "#3CB86814" },
-  bearish: { label: "Bearish",    color: "#E74C3C", bg: "#E74C3C14" },
-  leaps:   { label: "LEAPS",      color: "#a892e0", bg: "#a892e014" },
-  unusual: { label: "Unusual",    color: "#1d9e75", bg: "#1d9e7514" },
-  algo:    { label: "Algo",       color: "#888780", bg: "#88878014" },
-};
-const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
+@router.get("/alerts/recent")
+def recent_alerts(limit: int = Query(default=200, ge=1, le=1000)):
+    """
+    Returns the most recent buffered alerts plus connection status.
 
-// Tiers that mix calls and puts (rows can be either direction). In these
-// sections, row text is tinted green/red based on cp so direction is visible
-// at a glance without scanning the C/P column. Bullish/Bearish tiers don't
-// need this — their direction is self-evident from the tier itself.
-const MIXED_DIRECTION_TIERS = new Set(["alpha", "leaps", "unusual", "algo"]);
-
-// Map alert → tier key via priority cascade (first match wins). Special tiers
-// take precedence over direction tiers — e.g. a bullish LEAPS trade lands in
-// the LEAPS section, not the Bullish section.
-function deriveTier(alert) {
-  const name = (alert?.alertName || "").toLowerCase();
-  if (name.includes("alpha gold")) return "alpha";
-  if (name.includes("leaps")) return "leaps";
-  if (name.includes("unusual") || name.includes("vol>oi")) return "unusual";
-  const cp = alert?.cp;
-  if (cp === "C") return "bullish";
-  if (cp === "P") return "bearish";
-  return "algo";
-}
-
-// Within a tier, sub-priority controls row order. With the v3 structure, only
-// the Bullish and Bearish tiers benefit from sub-sorting:
-//   1 = Size (UCT Size Bulls/Bears — large premium)
-//   2 = Regular (everything else)
-// Alpha/LEAPS/Unusual are their own tiers now, so no sub-priority needed there.
-function deriveSubPriority(alertName) {
-  const n = (alertName || "").toLowerCase();
-  if (n.includes("size")) return 1;
-  return 2;
-}
-
-// Display label for the sub-priority badge that appears next to alert names.
-// Only Size gets a badge — Regular is the unmarked default.
-function subPriorityLabel(p) {
-  if (p === 1) return "SIZE";
-  return "";
-}
-
-// ─── Trade-level dedup ────────────────────────────────────────────────────────
-// Custom alert brackets can overlap, so a single trade can fire multiple
-// alerts in the same instant (e.g. NVDA $2.10M matched A Mid + A Large +
-// A Mega simultaneously on 2026-06-17 because Bullflow's marketCap filter
-// wasn't actually rejecting matches — see diagnostic). Collapse those into
-// one display row. The first occurrence wins; additional matched names
-// accumulate in _matchedNames for the "+N" badge in the Alert Name column.
-
-function tradeKey(a) {
-  return [
-    a.ticker || "",
-    a.cp || "",
-    a.strike ?? "",
-    a.exp || "",
-    a.alertPremium ?? "",
-    a.timestamp || "",
-  ].join("|");
-}
-
-function dedupAlerts(alerts) {
-  const seen = new Map();
-  for (const a of alerts) {
-    const k = tradeKey(a);
-    if (!seen.has(k)) {
-      // Clone so we don't mutate cached refs from the polling buffer
-      seen.set(k, { ...a, _matchedNames: a.alertName ? [a.alertName] : [] });
-    } else {
-      const existing = seen.get(k);
-      if (a.alertName && !existing._matchedNames.includes(a.alertName)) {
-        existing._matchedNames.push(a.alertName);
-        // If this match is higher-priority than the current primary name,
-        // promote it. E.g. trade matched both "UCT Bullish" (regular=3) AND
-        // "UCT Size Bulls" (size=2) — primary should be Size since that's
-        // the conviction-bearing fact. The +N badge still shows the rest.
-        if (deriveSubPriority(a.alertName) < deriveSubPriority(existing.alertName)) {
-          existing.alertName = a.alertName;
-        }
+    Response shape:
+      {
+        "status": {
+          "connected": bool,
+          "last_event_at": ISO timestamp str | null,
+          "total_alerts_received": int,
+          "last_error": str | null,
+          "started_at": ISO timestamp str | null,
+          "reconnect_count": int
+        },
+        "alerts": [
+          {
+            "id": "1MPDp-Qm6_urgent",
+            "alertType": "algo" | "custom",
+            "alertName": "Urgent Repeater",
+            "symbol": "O:AMD251205P00205000",     # raw OCC
+            "ticker": "AMD", "cp": "P", "strike": 205.0,
+            "exp": "2025-12-05", "dte": -190,    # parsed from OCC
+            "alertPremium": 16965.0,
+            "averageFillPrice": 1.31,
+            "timestamp": 1764708086.0,           # Bullflow trade time (Unix)
+            "receivedAt": 1764708086.751,        # Bullflow ingest time
+            "latency": 0.842,
+            "deliveryLatency": 0.091,
+            "ingestedAt": "2026-06-16T15:42:13.001+00:00"  # our buffer time
+          },
+          …
+        ]
       }
+    """
+    return {
+        "status": liveflow_worker.get_status(),
+        "alerts": liveflow_worker.get_recent_alerts(limit=limit),
     }
-  }
-  return Array.from(seen.values());
-}
 
-// ─── Filter state helpers (localStorage-backed) ───────────────────────────────
-function defaultFilters() {
-  // All chips on by default — user sees everything until they opt out.
-  const f = {};
-  for (const t of TIER_ORDER) f[t] = true;
-  return f;
-}
 
-function loadFilters() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return defaultFilters();
-    const parsed = JSON.parse(raw);
-    return { ...defaultFilters(), ...parsed };  // forward-compat if tiers added
-  } catch {
-    return defaultFilters();
-  }
-}
+# ─── Historical alert query (Phase 1: forward-only persistence) ─────────────
+# Frontend uses this when the user picks a date range that includes any past
+# date. Today-only ranges should keep hitting /alerts/recent for live polling.
 
-function saveFilters(filters) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(filters)); } catch {}
-}
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
-function fmtPremium(n) {
-  if (!n && n !== 0) return "—";
-  if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(2) + "M";
-  if (n >= 1_000) return "$" + (n / 1_000).toFixed(0) + "K";
-  return "$" + Math.round(n);
-}
 
-function fmtTime(unix_or_iso) {
-  if (!unix_or_iso) return "—";
-  const d = typeof unix_or_iso === "number"
-    ? new Date(unix_or_iso * 1000)
-    : new Date(unix_or_iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleTimeString("en-US", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  });
-}
+@router.get("/alerts/history")
+def history_alerts(
+    date_from: str = Query(..., description="ISO date YYYY-MM-DD (inclusive)"),
+    date_to:   str = Query(..., description="ISO date YYYY-MM-DD (inclusive)"),
+    limit:     int = Query(default=2000, ge=1, le=10000),
+    tickers:   str = Query(default="", description="Comma-separated ticker whitelist; empty = all"),
+):
+    """
+    Returns persisted alerts whose ingest date is in [date_from, date_to].
+    Same row shape as /alerts/recent so the frontend can render with one code
+    path. Newest-first, capped at `limit`.
 
-function relTime(iso) {
-  if (!iso) return "—";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (sec < 60) return sec + "s ago";
-  if (sec < 3600) return Math.floor(sec / 60) + "m ago";
-  return Math.floor(sec / 3600) + "h ago";
-}
+    Includes per-date counts so the UI can show which days actually have data
+    (useful when persistence has gaps from before this feature shipped or
+    from periods when the worker was down).
 
-// ─── Connection status pill ───────────────────────────────────────────────────
-function StatusPill({ status }) {
-  const connected = status?.connected;
-  const err = status?.last_error;
-  const lastEventAt = status?.last_event_at;
-  const stale = connected && lastEventAt
-    && (Date.now() - new Date(lastEventAt).getTime()) > 90_000;
-
-  let color, label;
-  if (err) { color = P.be; label = "Error"; }
-  else if (!connected) { color = P.be; label = "Disconnected"; }
-  else if (stale) { color = "#FFB300"; label = "Stale"; }
-  else { color = P.bu; label = "Connected"; }
-
-  return (
-    <div style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "4px 10px", borderRadius: 5,
-      background: color + "18", border: "1px solid " + color + "60",
-      fontSize: 10, fontWeight: 700, color, letterSpacing: 0.5,
-    }}>
-      <span style={{
-        width: 7, height: 7, borderRadius: "50%", background: color,
-        boxShadow: connected && !err ? `0 0 6px ${color}` : "none",
-      }} />
-      {label}
-    </div>
-  );
-}
-
-// ─── Filter chip row ──────────────────────────────────────────────────────────
-function FilterChips({ filters, setFilters, counts }) {
-  const toggle = (tier) => {
-    const next = { ...filters, [tier]: !filters[tier] };
-    setFilters(next);
-    saveFilters(next);
-  };
-  const reset = () => {
-    const f = defaultFilters();
-    setFilters(f);
-    saveFilters(f);
-  };
-  const allOn = TIER_ORDER.every(t => filters[t]);
-
-  return (
-    <div style={{
-      display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 20px",
-      borderBottom: "1px solid " + P.bd + "80",
-      background: P.cd + "60", alignItems: "center",
-    }}>
-      <span style={{
-        fontSize: 9, color: P.mt, letterSpacing: 0.5,
-        textTransform: "uppercase", marginRight: 4,
-      }}>show</span>
-      {TIER_ORDER.map(tier => {
-        const meta = TIER_META[tier];
-        const active = filters[tier];
-        const count = counts[tier] || 0;
-        return (
-          <button key={tier} onClick={() => toggle(tier)} style={{
-            padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
-            border: "1px solid " + (active ? meta.color + "80" : P.bd),
-            background: active ? meta.bg : "transparent",
-            color: active ? meta.color : P.dm,
-            cursor: "pointer", letterSpacing: 0.3,
-            transition: "all 0.15s ease",
-            fontFamily: "inherit",
-          }}>
-            {meta.label}
-            <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 500 }}>{count}</span>
-          </button>
-        );
-      })}
-      <button onClick={reset} disabled={allOn} style={{
-        marginLeft: "auto", padding: "4px 10px", fontSize: 9,
-        color: allOn ? P.mt : P.dm,
-        background: "transparent", border: "1px solid " + P.bd, borderRadius: 12,
-        cursor: allOn ? "default" : "pointer", letterSpacing: 0.3,
-        opacity: allOn ? 0.4 : 1, fontFamily: "inherit",
-      }}>reset</button>
-    </div>
-  );
-}
-
-// ─── User blocklist panel (admin-only) ────────────────────────────────────────
-// Inline panel below the chip row that lets the admin manage a custom ticker
-// exclusion list. Reads current state from /api/live/user-blocklist on mount,
-// PUTs the full replacement list on Save. Tickers are uppercased server-side
-// and persisted to disk so the list survives worker restarts.
-function UserBlocklistPanel({ visible, onSaved }) {
-  const [tickers, setTickers] = useState([]);
-  const [draftText, setDraftText] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
-
-  // Initial load. Refresh quietly any time the panel becomes visible (no-op
-  // if visible was always true).
-  useEffect(() => {
-    if (!visible) return;
-    fetch("/api/live/user-blocklist")
-      .then(r => r.json())
-      .then(d => {
-        setTickers(d.tickers || []);
-        setDraftText((d.tickers || []).join(", "));
-      })
-      .catch(() => setStatus("load failed"));
-  }, [visible]);
-
-  if (!visible) return null;
-
-  // Parse the comma/space/newline-separated draft into a clean list. Used both
-  // for "did anything change?" check and for the save payload.
-  const parseDraft = (s) => Array.from(new Set(
-    (s || "")
-      .split(/[\s,]+/)
-      .map(t => t.trim().toUpperCase())
-      .filter(Boolean)
-  )).sort();
-
-  const draftParsed = parseDraft(draftText);
-  const isDirty = JSON.stringify(draftParsed) !== JSON.stringify(tickers);
-
-  const save = async () => {
-    setSaving(true);
-    setStatus("");
-    try {
-      const r = await fetch("/api/live/user-blocklist", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tickers: draftParsed }),
-      });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      setTickers(d.tickers || []);
-      setDraftText((d.tickers || []).join(", "));
-      setStatus("saved · " + (d.count || 0) + " tickers");
-      setTimeout(() => setStatus(""), 3000);
-      // Signal parent to re-fetch alert data so the visible buffer reflects
-      // the new blocklist immediately (otherwise the page shows stale rows
-      // with excluded tickers until next poll cycle or backtest re-trigger).
-      if (typeof onSaved === "function") onSaved();
-    } catch (e) {
-      setStatus("save failed: " + (e?.message || e));
-    } finally {
-      setSaving(false);
+    Phase 1 caveat: only alerts ingested AFTER persistence shipped will appear
+    here. Phase 2 will add Discord JSON backfill via the existing backtest
+    infrastructure to fill in prior days.
+    """
+    from api import live_alerts_db
+    if not _DATE_RE.match(date_from) or not _DATE_RE.match(date_to):
+        return {"error": "date_from and date_to must be YYYY-MM-DD",
+                "alerts": [], "counts": {}}
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    ticker_list = [t for t in (tickers or "").split(",") if t.strip()] if tickers else None
+    alerts = live_alerts_db.query_alerts(
+        date_from=date_from, date_to=date_to,
+        limit=limit, tickers=ticker_list,
+    )
+    counts = live_alerts_db.count_by_date(date_from, date_to)
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "limit": limit,
+        "returned": len(alerts),
+        "counts": counts,
+        "alerts": alerts,
     }
-  };
 
-  return (
-    <div style={{
-      padding: "6px 20px",
-      borderBottom: "1px solid " + P.bd,
-      background: P.bg,
-      fontSize: 11,
-      fontFamily: "ui-monospace, monospace",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span
-          onClick={() => setExpanded(!expanded)}
-          style={{
-            cursor: "pointer", color: P.dm, fontWeight: 700,
-            letterSpacing: 0.5, textTransform: "uppercase", fontSize: 9,
-            userSelect: "none",
-          }}>
-          {expanded ? "▼" : "▶"} EXCLUDE TICKERS
-        </span>
-        <span style={{ color: P.mt, fontSize: 10 }}>
-          {tickers.length === 0 ? "(none)" : tickers.length + " active"}
-        </span>
-        {!expanded && tickers.length > 0 && (
-          <span style={{ color: P.dm, fontSize: 10, overflow: "hidden",
-                         textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {tickers.join(", ")}
-          </span>
-        )}
-        {status && (
-          <span style={{
-            marginLeft: "auto", fontSize: 10,
-            color: status.startsWith("saved") ? P.bu : P.be,
-          }}>{status}</span>
-        )}
-      </div>
-      {expanded && (
-        <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <textarea
-            value={draftText}
-            onChange={e => setDraftText(e.target.value)}
-            placeholder="SPCX, RKLB, ABCD ..."
-            rows={2}
-            style={{
-              flex: 1, padding: "6px 8px",
-              background: P.bg, color: P.wh,
-              border: "1px solid " + P.bd, borderRadius: 4,
-              fontFamily: "inherit", fontSize: 11,
-              resize: "vertical",
-            }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button
-              onClick={save}
-              disabled={saving || !isDirty}
-              style={{
-                padding: "6px 12px", fontSize: 10, fontWeight: 700,
-                letterSpacing: 0.5,
-                background: isDirty ? P.bl : "transparent",
-                color: isDirty ? P.wh : P.dm,
-                border: "1px solid " + (isDirty ? P.bl : P.bd),
-                borderRadius: 3, cursor: saving || !isDirty ? "default" : "pointer",
-                fontFamily: "inherit",
-              }}>
-              {saving ? "..." : "SAVE"}
-            </button>
-            <span style={{ fontSize: 9, color: P.mt, textAlign: "center" }}>
-              {draftParsed.length} parsed
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-// ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, tierColor, directionTinted }) {
-  const isCall = alert.cp === "C";
-  const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
-  const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
-  const forwarded = alert.forwardedToDiscord;
-  const score = alert.convictionScore;
-  const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
+# ─── User-managed ticker blocklist ─────────────────────────────────────────
+# These endpoints let the admin manage a custom ticker exclusion list from
+# the LiveFlow UI. Tickers in this list are dropped from BOTH live and
+# backtest flows (same _passes_table_filter check applies to both).
+# Persisted to /data/liveflow_user_blocklist.json on the Railway volume.
 
-  // In mixed-direction tier sections (Alpha Gold, LEAPS, Unusual, Algo) we
-  // tint the row's primary text by direction so a bullish vs bearish trade
-  // is recognizable at a glance without scanning the C/P column. The C/P
-  // pill, type pill, score, and bell stay as-is since they have their own
-  // semantic colors that shouldn't be overridden.
-  const primaryTextColor = directionTinted ? cpColor : P.wh;
-  const accentTextColor = directionTinted ? cpColor : P.ac;
 
-  return (
-    <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
-      {/* First cell carries the tier-colored left border */}
-      <td style={{
-        padding: "8px 10px", color: P.dm, fontSize: 10,
-        fontFamily: "ui-monospace, monospace",
-        borderLeft: tierColor ? "3px solid " + tierColor : "none",
-      }}>
-        {fmtTime(alert.timestamp)}
-      </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13 }}>
-        {alert.ticker || "—"}
-      </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, fontSize: 11 }}>
-        <span style={{
-          padding: "2px 8px", borderRadius: 4,
-          background: cpColor + "20", color: cpColor,
-        }}>{alert.cp || "—"}</span>
-      </td>
-      <td style={{ padding: "8px 10px", fontWeight: 700, color: primaryTextColor, fontSize: 12 }}>
-        {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
-      </td>
-      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
-      <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10 }}>
-        {alert.dte != null ? alert.dte + "d" : "—"}
-      </td>
-      <td style={{
-        padding: "8px 10px", fontWeight: 800, color: accentTextColor, fontSize: 12,
-        fontFamily: "ui-monospace, monospace",
-      }}>{fmtPremium(alert.alertPremium)}</td>
-      <td style={{
-        padding: "8px 10px", color: P.dm, fontSize: 11,
-        fontFamily: "ui-monospace, monospace",
-      }}>
-        {alert.averageFillPrice != null ? "$" + Number(alert.averageFillPrice).toFixed(2) : "—"}
-      </td>
-      <td style={{ padding: "8px 10px", fontSize: 9, fontWeight: 700 }}>
-        <span style={{
-          padding: "2px 7px", borderRadius: 3, letterSpacing: 0.5,
-          background: typeColor + "18", color: typeColor,
-        }}>{(alert.alertType || "?").toUpperCase()}</span>
-      </td>
-      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>
-        {(() => {
-          const sp = deriveSubPriority(alert.alertName);
-          const spLabel = subPriorityLabel(sp);
-          if (!spLabel) return null;
-          // SIZE badge — the only sub-priority indicator left in v3. Alpha,
-          // LEAPS, and Unusual are now full tiers with their own sections,
-          // so they don't need inline badges.
-          const spColor = "#d8c878";
-          return (
-            <span style={{
-              marginRight: 6, fontSize: 8, padding: "1px 5px", borderRadius: 3,
-              background: spColor + "22", color: spColor, fontWeight: 800,
-              fontFamily: "ui-monospace, monospace", letterSpacing: 0.5,
-              verticalAlign: "1px",
-            }}>{spLabel}</span>
-          );
-        })()}
-        {alert.alertName || "—"}
-        {alert._matchedNames && alert._matchedNames.length > 1 && (
-          <span
-            title={"Also matched: " + alert._matchedNames.slice(1).join(", ")}
-            style={{
-              marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 8,
-              background: P.dm + "20", color: P.dm, cursor: "help",
-              fontWeight: 700, fontFamily: "ui-monospace, monospace",
-              verticalAlign: "1px",
-            }}>
-            +{alert._matchedNames.length - 1}
-          </span>
-        )}
-        {/* Repeat-fire badge: shown when this contract has fired >1 distinct
-            trades in the rolling window. Tooltip explains the count. Coloring
-            ramps with intensity — amber for casual (2-4x), red for heavy (5x+)
-            which usually signals OpEx noise or concentrated conviction. */}
-        {alert.contractRepeatCount > 1 && (() => {
-          const c = alert.contractRepeatCount;
-          const heavy = c >= 5;
-          return (
-            <span
-              title={"This contract has fired " + c + " distinct trades today"}
-              style={{
-                marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
-                background: (heavy ? P.be : P.ac) + "22",
-                color:      (heavy ? P.be : P.ac),
-                fontWeight: 800, fontFamily: "ui-monospace, monospace",
-                letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
-              }}>
-              <UIcon name="refresh" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />{c}x
-            </span>
-          );
-        })()}
-        {/* OI Exceeded badge: this single trade traded more contracts than
-            existed in open interest before today. Strong signal of
-            institutional positioning, not retail churn. Tooltip shows the
-            trade size, prior OI, and ratio for context. */}
-        {alert.oiExceeded && alert.volumeOIRatio && (
-          <span
-            title={
-              "Volume " + (alert.tradeSize || "?") +
-              " exceeded OI " + (alert.priorOI || "?") +
-              " (ratio " + alert.volumeOIRatio.toFixed(2) + "x)" +
-              (alert.oiSnapshotDate ? " — OI from " + alert.oiSnapshotDate : "")
+@router.get("/user-blocklist")
+def get_user_blocklist():
+    """Return the current user-managed ticker exclusion list (uppercase, sorted)."""
+    tickers = liveflow_worker.get_user_blocklist()
+    return {"tickers": tickers, "count": len(tickers)}
+
+
+@router.put("/user-blocklist")
+def update_user_blocklist(payload: UserBlocklistPayload):
+    """
+    Replace the user-managed blocklist with the provided ticker list.
+    Tickers are uppercased and trimmed; empties dropped. Persists to disk.
+    Returns the cleaned, sorted list.
+    """
+    new_list = liveflow_worker.set_user_blocklist(payload.tickers)
+    return {"tickers": new_list, "count": len(new_list)}
+
+
+@router.api_route("/test-discord-post", methods=["GET", "POST"])
+async def test_discord_post():
+    """
+    Manually fire a test Discord post to verify the webhook + embed rendering
+    end-to-end. Synthesizes a realistic aggregate, runs it through the actual
+    _build_embed() helper, and pushes via the configured DISCORD_WEBHOOK_URL.
+
+    Accepts both GET and POST so it can be fired from a browser address bar
+    (GET) for convenience, or via fetch/curl (POST) for scripting. Either
+    method has the same effect — fires exactly one test post and returns JSON.
+
+    Use this when:
+      - Markets are closed and no real alerts will fire today
+      - You changed the logo, color scheme, or embed layout and want to confirm
+        Discord renders it correctly before market open
+      - You want to validate a new env var (UCT_LOGO_URL, webhook URL) without
+        waiting for a real alert to fire
+
+    The test embed includes "🧪 TEST" markers in the title and footer so it's
+    obviously not a real signal — won't confuse subscribers if the webhook is
+    pointed at production. Safe to call repeatedly.
+    """
+    import datetime as _dt
+    import traceback
+    import httpx
+
+    if not liveflow_worker.DISCORD_WEBHOOK_URL:
+        return {
+            "ok": False,
+            "error": "DISCORD_WEBHOOK_URL not configured. Set env var first.",
+        }
+
+    # Wrap everything in try/except so future bugs surface as JSON instead of
+    # generic "Internal Server Error" — much easier to debug from a browser.
+    try:
+        # Synthesize an aggregate with the exact field shape _build_embed expects.
+        # Field names and types must match the worker's internal aggregate dict
+        # EXACTLY — wrong field name → KeyError, wrong type (e.g. ISO string vs
+        # UNIX timestamp) → TypeError inside datetime.fromtimestamp().
+        #
+        # Values picked to exercise every branch: $1.5M premium (medium tier), 2
+        # fires (multi-fire badge), proper OI for delta computation, OTM call
+        # (moneyness path), Alpha Gold tier (top priority). Real-looking data that
+        # subscribers won't mistake for a tradeable signal because of the markers.
+        now_ts = _dt.datetime.now(_dt.timezone.utc).timestamp()
+        test_agg = {
+            "ticker": "TEST",
+            "cp": "C",
+            "strike": 100.0,
+            "exp": "2026-07-17",
+            "dte": 28,
+            "total_premium": 1_500_000.0,
+            "max_premium": 1_500_000.0,
+            "total_size": 1500,
+            "max_size": 1500,
+            "fire_count": 2,
+            "best_alert_name": "UCT Test Alert",
+            "best_alert_priority": 1,
+            "alert_names_seen": {"UCT Test Alert"},
+            # first_fire_ts / last_fire_ts are UNIX timestamps (floats), NOT ISO
+            # strings — the embed builder passes them to datetime.fromtimestamp().
+            # Spread by 5 minutes to show as a small time range in the embed.
+            "first_fire_ts": now_ts - 300,
+            "last_fire_ts": now_ts,
+            "prior_oi": 5000,
+            "spot": 99.50,
+            "moneyness_pct": -0.5,
+            "moneyness_label": "ATM",
+            # Worker uses "last_fill_price" (not "avg_fill") — match exactly.
+            "last_fill_price": 12.50,
+            "discord_message_id": None,
+        }
+
+        # Build the embed using the production helper so any rendering bug surfaces
+        # here too — single source of truth for embed structure.
+        embed = liveflow_worker._build_embed(test_agg)
+
+        # Inject "TEST" markers so subscribers can tell this isn't a real signal.
+        # We modify the embed AFTER _build_embed so the helper's logic stays clean.
+        embed["title"] = "🧪 TEST · " + embed.get("title", "")
+        if "footer" in embed and isinstance(embed["footer"], dict):
+            embed["footer"]["text"] = (
+                "🧪 MANUAL TEST POST · " + embed["footer"].get("text", "")
+            )
+
+        payload = {"embeds": [embed]}
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                liveflow_worker.DISCORD_WEBHOOK_URL + "?wait=true",
+                json=payload,
+            )
+            r.raise_for_status()
+            response_data = r.json()
+            return {
+                "ok": True,
+                "discord_message_id": response_data.get("id"),
+                "logo_url_used": liveflow_worker.UCT_LOGO_URL,
+                "webhook_status": r.status_code,
+                "embed_title": embed["title"],
             }
-            style={{
-              marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
-              background: P.bu + "22", color: P.bu,
-              fontWeight: 800, fontFamily: "ui-monospace, monospace",
-              letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
-            }}>
-            <UIcon name="rocket" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />OI BREAK
-          </span>
-        )}
-      </td>
-      <td style={{
-        padding: "8px 10px", fontSize: 11, fontWeight: 800,
-        fontFamily: "ui-monospace, monospace",
-        color: score >= 2.0 ? P.bu : score >= 1.0 ? P.ac : P.dm, textAlign: "right",
-      }}>{score != null ? score.toFixed(1) : "—"}</td>
-      <td style={{ padding: "8px 10px", textAlign: "center" }}>
-        {forwarded ? (
-          <span title="Forwarded to Discord"
-            style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}><UIcon name="bell" size={11} /></span>
-        ) : (
-          <span style={{ color: P.mt, fontSize: 11 }}>·</span>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-// ─── Tier section: collapsible header + tier rows ─────────────────────────────
-function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
-  if (alerts.length === 0) return null;
-  const meta = TIER_META[tier];
-  // In mixed-direction tiers (Alpha/LEAPS/Unusual/Algo) we direction-tint rows.
-  // In Bullish/Bearish the tier itself signals direction so per-row tint would
-  // be redundant noise.
-  const directionTinted = MIXED_DIRECTION_TIERS.has(tier);
-  return (
-    <>
-      <tr style={{
-        background: meta.bg,
-        borderTop: "1px solid " + P.bd,
-        borderBottom: "1px solid " + meta.color + "30",
-      }}>
-        <td colSpan={12} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-            textTransform: "uppercase", color: meta.color,
-          }}>
-            <span style={{ fontSize: 9 }}>{collapsed ? "▶" : "▼"}</span>
-            <span>{meta.label}</span>
-            <span style={{ color: P.dm, fontWeight: 500 }}>{alerts.length}</span>
-          </div>
-        </td>
-      </tr>
-      {!collapsed && alerts.map(a => (
-        <AlertRow
-          key={a.id || (a.symbol + ":" + a.timestamp)}
-          alert={a}
-          isNew={newIds.has(a.id)}
-          tierColor={meta.color}
-          directionTinted={directionTinted}
-        />
-      ))}
-    </>
-  );
-}
-
-// ─── Simulation Panel (admin backtest only) ───────────────────────────────────
-// Renders the output of the backtest endpoint's simulate=full mode. Three views:
-//   - posts: contracts that would have triggered a fresh Discord message
-//   - edits: subsequent fires that would have updated an existing message
-//   - gated: alerts silenced by the conviction threshold
-// Stats row up top, grade distribution chips, then the tabbed list.
-function SimulationPanel({ simulation, view, setView }) {
-  const s = simulation.stats || {};
-  const dist = simulation.grade_distribution || {};
-  const GRADES = ["A+", "A", "B", "C", "D"];
-  const distTotal = GRADES.reduce((sum, g) => sum + (dist[g] || 0), 0) || 1;
-
-  const GRADE_COLOR = {
-    "A+": P.gn,
-    "A": P.gn + "cc",
-    "B": P.bl,
-    "C": "#9aa3a8",
-    "D": P.dm,
-  };
-
-  const list = view === "posts" ? simulation.would_post :
-               view === "edits" ? simulation.would_edit :
-               simulation.gated;
-  const listLen = (list || []).length;
-
-  return (
-    <div style={{
-      borderBottom: "1px solid " + P.gn + "30",
-      background: P.gn + "08",
-    }}>
-      {/* Stats row */}
-      <div style={{
-        padding: "12px 20px", display: "flex", gap: 22,
-        alignItems: "center", flexWrap: "wrap",
-        fontFamily: "ui-monospace, monospace",
-      }}>
-        <span style={{
-          fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
-          textTransform: "uppercase", color: P.gn,
-        }}>simulated gate</span>
-        <span style={{ fontSize: 12, color: P.dm }}>
-          MIN_DISCORD_GRADE={" "}
-          <strong style={{ color: P.wh }}>{s.min_grade || "—"}</strong>
-        </span>
-        <span style={{ fontSize: 12 }}>
-          <strong style={{ color: P.gn, fontSize: 16 }}>{s.posts ?? 0}</strong>
-          <span style={{ color: P.dm, marginLeft: 4 }}>posts</span>
-        </span>
-        <span style={{ fontSize: 12 }}>
-          <strong style={{ color: P.bl, fontSize: 16 }}>{s.edits ?? 0}</strong>
-          <span style={{ color: P.dm, marginLeft: 4 }}>edits</span>
-        </span>
-        <span style={{ fontSize: 12 }}>
-          <strong style={{ color: P.dm, fontSize: 16 }}>{s.gated_count ?? 0}</strong>
-          <span style={{ color: P.dm, marginLeft: 4 }}>gated</span>
-        </span>
-        <span style={{
-          fontSize: 12, marginLeft: 8, padding: "3px 8px",
-          background: P.gn + "20", borderRadius: 4,
-        }}>
-          <strong style={{ color: P.gn }}>−{s.reduction_vs_raw_pct ?? 0}%</strong>
-          <span style={{ color: P.dm, marginLeft: 4 }}>vs raw</span>
-        </span>
-        <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {GRADES.map((g) => {
-            const c = dist[g] || 0;
-            if (!c) return null;
-            const pct = Math.round(100 * c / distTotal);
-            return (
-              <span key={g} style={{
-                fontSize: 10, padding: "2px 6px", borderRadius: 3,
-                background: GRADE_COLOR[g] + "25",
-                color: GRADE_COLOR[g],
-                fontWeight: 700,
-              }}>
-                {g}: {c} ({pct}%)
-              </span>
-            );
-          })}
-        </span>
-      </div>
-
-      {/* Tab strip */}
-      <div style={{
-        padding: "0 20px", display: "flex", gap: 4,
-        borderBottom: "1px solid " + P.bd + "30",
-      }}>
-        {[
-          ["posts", "would post", s.posts ?? 0, P.gn],
-          ["edits", "would edit", s.edits ?? 0, P.bl],
-          ["gated", "gated", s.gated_count ?? 0, P.dm],
-        ].map(([k, label, count, color]) => (
-          <button
-            key={k}
-            onClick={() => setView(k)}
-            style={{
-              padding: "8px 14px", border: "none",
-              borderBottom: "2px solid " + (view === k ? color : "transparent"),
-              background: "transparent",
-              color: view === k ? P.wh : P.dm,
-              cursor: "pointer", fontSize: 11,
-              fontFamily: "ui-monospace, monospace",
-              textTransform: "uppercase", letterSpacing: 0.5,
-            }}
-          >
-            {label}{" "}
-            <span style={{ color: view === k ? color : P.dm }}>
-              ({count})
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Tabbed list */}
-      <div style={{
-        maxHeight: 360, overflowY: "auto",
-        fontFamily: "ui-monospace, monospace", fontSize: 11,
-      }}>
-        {listLen === 0 ? (
-          <div style={{ padding: 20, color: P.dm, fontSize: 11 }}>
-            No alerts in this view.
-          </div>
-        ) : (
-          (list || []).map((r, i) => (
-            <SimRow key={i} row={r} view={view} />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Compact row for simulation list. Highlights premium, fires, and grade.
-function SimRow({ row, view }) {
-  const t = row.ticker || "?";
-  const cp = row.cp || "";
-  const strike = row.strike;
-  const exp = row.exp || "";
-  const prem = row.agg_total_premium || row.alertPremium || 0;
-  const fires = row.agg_fire_count || 1;
-  const grade = row.conviction_grade || "—";
-  const alertName = (row.alertName || "").replace(/\s+\+\d+ more$/, "");
-
-  let timeStr = "?";
-  try {
-    const d = new Date(row.timestamp);
-    timeStr = d.toLocaleTimeString("en-US", {
-      hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/New_York",
-    });
-  } catch {}
-
-  const gradeColor =
-    grade.startsWith("A+") ? P.gn :
-    grade.startsWith("A")  ? P.gn + "cc" :
-    grade.startsWith("B")  ? P.bl :
-    grade.startsWith("C")  ? "#9aa3a8" : P.dm;
-
-  return (
-    <div style={{
-      padding: "6px 20px", display: "flex", gap: 14,
-      alignItems: "center", borderBottom: "1px solid " + P.bd + "20",
-    }}>
-      <span style={{ color: P.dm, minWidth: 50 }}>{timeStr}</span>
-      <span style={{ color: P.wh, fontWeight: 700, minWidth: 60 }}>{t}</span>
-      <span style={{
-        color: cp === "C" ? P.gn : P.rd, minWidth: 40, fontWeight: 600,
-      }}>{cp === "C" ? "CALL" : cp === "P" ? "PUT " : cp}</span>
-      <span style={{ color: P.wh, minWidth: 70 }}>${strike}</span>
-      <span style={{ color: P.dm, minWidth: 95 }}>{exp}</span>
-      <span style={{ color: P.wh, minWidth: 75 }}>
-        {fmtPremium(prem)}
-      </span>
-      {fires > 1 && (
-        <span style={{
-          color: "#FFB300", fontWeight: 700, minWidth: 30,
-        }}><UIcon name="refresh" size={11} style={{ verticalAlign: '-2px', marginRight: 3 }} />{fires}x</span>
-      )}
-      <span style={{
-        marginLeft: "auto", color: gradeColor,
-        fontWeight: 800, fontSize: 12,
-      }}>{grade}</span>
-      <span style={{ color: P.dm, minWidth: 150, fontSize: 10 }}>
-        {alertName}
-      </span>
-    </div>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
-export default function LiveFlow() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const backtestDate = searchParams.get("backtest");
-  // Admin gate — backtest UI is only visible if ?admin=1 is in the URL.
-  // Frontend-only gate while we tune; subscribers won't see the date picker
-  // or the BACKTEST pill even if they somehow land on a ?backtest=... URL.
-  // For real auth, add server-side check on /api/admin/bullflow/backtest.
-  const isAdmin = searchParams.get("admin") === "1";
-  const isBacktest = isAdmin && isValidBacktestDate(backtestDate);
-
-  // Helper: when changing URL params, preserve the admin flag so the admin
-  // user stays in admin mode across date picks and × live exits.
-  const updateParams = (mutator) => {
-    const next = new URLSearchParams(searchParams);
-    mutator(next);
-    setSearchParams(next);
-  };
-
-  const [alerts, setAlerts] = useState([]);
-  const [status, setStatus] = useState(null);
-  const [simulation, setSimulation] = useState(null);   // simulation block from backtest
-  const [simView, setSimView] = useState("posts");      // "posts" | "edits" | "gated"
-  const [uploadedFile, setUploadedFile] = useState(null);  // JSON file for JSON-mode backtest
-  const [uploadError, setUploadError] = useState(null);
-  const [error, setError] = useState(null);
-  const [now, setNow] = useState(Date.now());
-  const [filters, setFilters] = useState(loadFilters);
-  const [collapsedTiers, setCollapsedTiers] = useState({});
-  const [backtestLoading, setBacktestLoading] = useState(false);
-  // Bump this to force the data-fetch effect to re-run (e.g. after the user
-  // saves a new ticker blocklist — both live polling and backtest re-fetch).
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const lastIdRef = useRef(null);
-  const newIdsRef = useRef(new Set());
-
-  // ─── Simulation mode (admin + backtest only) ─────────────────────────────
-  // URL params drive simulation so links are bookmarkable. When `simulate=full`,
-  // the backtest endpoint runs the full pipeline (enrich → aggregate → gate)
-  // and returns a `simulation` block. min_grade + exclude_etf are passthrough.
-  const simulateMode = isBacktest && searchParams.get("simulate") === "full";
-  const simMinGrade = (searchParams.get("min_grade") || "B").toUpperCase();
-  const simExcludeETF = searchParams.get("exclude_etf") === "true";
-
-  // 1Hz tick keeps relTime labels fresh without re-polling.
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Data fetch — branches on isBacktest. Live = polling loop, Backtest = one-shot.
-  useEffect(() => {
-    let abort = null;
-    let timer = null;
-    let cancelled = false;
-
-    async function fetchBacktestFromJSON() {
-      // JSON-sourced backtest. Uploaded file POST'd to a separate endpoint
-      // that parses Discord embeds and runs the same simulator. Re-fired
-      // whenever simulation params change so user can tune thresholds
-      // without re-uploading.
-      setBacktestLoading(true);
-      setAlerts([]);
-      setStatus(null);
-      setSimulation(null);
-      setError(null);
-      try {
-        abort = new AbortController();
-        const fd = new FormData();
-        fd.append("file", uploadedFile);
-        const qparams = new URLSearchParams({ min_grade: simMinGrade });
-        if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
-        const r = await fetch(
-          `/api/admin/bullflow/backtest-from-json?${qparams.toString()}`,
-          { method: "POST", body: fd, signal: abort.signal }
-        );
-        if (!r.ok) {
-          const errBody = await r.json().catch(() => ({}));
-          throw new Error(errBody.error || `HTTP ${r.status}`);
+    except httpx.HTTPStatusError as e:
+        return {
+            "ok": False,
+            "error": f"Discord rejected post: HTTP {e.response.status_code}",
+            "response_body": e.response.text[:500],
         }
-        const d = await r.json();
-        if (cancelled) return;
-        newIdsRef.current = new Set();
-        lastIdRef.current = (d.alerts || [])[0]?.id || null;
-        setAlerts(d.alerts || []);
-        setStatus(d.status);
-        setSimulation(d.simulation || null);
-      } catch (e) {
-        if (e?.name === "AbortError") return;
-        if (!cancelled) setError(e?.message || String(e));
-      } finally {
-        if (!cancelled) setBacktestLoading(false);
-      }
-    }
-
-    async function fetchBacktest() {
-      setBacktestLoading(true);
-      setAlerts([]);
-      setStatus(null);
-      setSimulation(null);
-      setError(null);
-      try {
-        abort = new AbortController();
-        // Build URL with simulation params when requested. Backtest endpoint
-        // defaults to simulate=off so adding the param explicitly is needed
-        // to trigger the full pipeline run.
-        const qparams = new URLSearchParams({
-          date: backtestDate,
-          max_alerts: "500",
-        });
-        if (simulateMode) {
-          qparams.set("simulate", "full");
-          qparams.set("min_grade", simMinGrade);
-          if (simExcludeETF) qparams.set("exclude_etf_flow", "true");
+    except Exception as e:
+        # Catch-all — surfaces exceptions as JSON instead of generic 500.
+        # Traceback truncated to last 1500 chars to fit in a browser response.
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:300]}",
+            "traceback": traceback.format_exc()[-1500:],
         }
-        const url = `/api/admin/bullflow/backtest?${qparams.toString()}`;
-        const r = await fetch(url, { signal: abort.signal });
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        if (cancelled) return;
-        if (d.error) throw new Error(d.error);
-        const incoming = d.alerts || [];
-        // No flash detection in backtest mode — historical data, not live arrivals
-        newIdsRef.current = new Set();
-        lastIdRef.current = incoming[0]?.id || null;
-        setAlerts(incoming);
-        setStatus(d.status);
-        // simulation may be null (simulate=off) or contain the full block.
-        // Surface simulator-side errors inline without breaking the alert list.
-        setSimulation(d.simulation || null);
-      } catch (e) {
-        if (e?.name === "AbortError") return;
-        if (!cancelled) setError(e?.message || String(e));
-      } finally {
-        if (!cancelled) setBacktestLoading(false);
-      }
-    }
-
-    async function poll() {
-      try {
-        abort = new AbortController();
-        const r = await fetch(`/api/live/alerts/recent?limit=${MAX_ROWS}`, { signal: abort.signal });
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        if (cancelled) return;
-        const incoming = d.alerts || [];
-        const newIds = new Set();
-        for (const a of incoming) {
-          if (!lastIdRef.current) break;
-          if (a.id === lastIdRef.current) break;
-          newIds.add(a.id);
-        }
-        if (incoming[0]) lastIdRef.current = incoming[0].id;
-        newIdsRef.current = newIds;
-        setAlerts(incoming);
-        setStatus(d.status);
-        setError(null);
-      } catch (e) {
-        if (e?.name === "AbortError") return;
-        if (!cancelled) setError(e?.message || String(e));
-      } finally {
-        if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS);
-      }
-    }
-
-    if (isBacktest && uploadedFile) {
-      // JSON-sourced backtest takes precedence over MCP when file is loaded.
-      // Conviction simulation auto-enabled in this mode since the whole point
-      // of uploading is to see the simulator output.
-      fetchBacktestFromJSON();
-    } else if (isBacktest) {
-      fetchBacktest();
-    } else {
-      poll();
-    }
-    return () => {
-      cancelled = true;
-      if (abort) abort.abort();
-      if (timer) clearTimeout(timer);
-    };
-  }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile]);
-
-  // Dedup first: collapse alerts that fired multiple custom-alert rules for the
-  // same trade. Then group by tier (direction from cp), then sort within each
-  // tier by sub-priority so Alpha Gold pins to top, Leaps drops to bottom.
-  const dedupedAlerts = dedupAlerts(alerts);
-  const byTier = {};
-  for (const t of TIER_ORDER) byTier[t] = [];
-  for (const a of dedupedAlerts) byTier[deriveTier(a)].push(a);
-
-  // Sort each tier's alerts: sub-priority ascending (1 first), ties broken by
-  // arrival order (timestamp descending — newest within the same priority on top).
-  for (const t of TIER_ORDER) {
-    byTier[t].sort((a, b) => {
-      const dp = deriveSubPriority(a.alertName) - deriveSubPriority(b.alertName);
-      if (dp !== 0) return dp;
-      return (b.timestamp || 0) - (a.timestamp || 0);
-    });
-  }
-
-  const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
-  const visibleTotal = TIER_ORDER.reduce(
-    (sum, t) => filters[t] ? sum + byTier[t].length : sum, 0
-  );
-
-  return (
-    <div style={{
-      minHeight: "100vh", background: P.bg, color: P.wh,
-      fontFamily: "Inter, system-ui, sans-serif",
-      display: "flex", flexDirection: "column",
-    }}>
-      <style>{`
-        @keyframes uct-flash {
-          0%   { background: ${P.ac}22; }
-          100% { background: transparent; }
-        }
-      `}</style>
-
-      {/* Header — subscriber view, no PHASE B labeling */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 20px", borderBottom: "1px solid " + P.bd,
-        background: P.cd, flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link to="/dashboard" style={{
-            color: P.dm, fontSize: 11, textDecoration: "none",
-            display: "inline-flex", alignItems: "center", gap: 4,
-          }}>← Dashboard</Link>
-          <div style={{ height: 16, width: 1, background: P.bd }} />
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 900, color: P.ac, letterSpacing: 0.5 }}>
-              LIVE FLOW
-            </span>
-            {isBacktest && (
-              <span style={{
-                fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                background: P.bl + "20", color: P.bl, fontWeight: 800,
-                letterSpacing: 0.5,
-              }}>BACKTEST · {backtestDate}</span>
-            )}
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Backtest controls — admin-gated. Only visible when ?admin=1 is in URL */}
-          {isAdmin && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "4px 8px", borderRadius: 4,
-              border: "1px solid " + (isBacktest ? P.bl + "60" : P.bd),
-              background: isBacktest ? P.bl + "10" : "transparent",
-            }}>
-              <span style={{
-                fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
-                letterSpacing: 0.5, textTransform: "uppercase",
-              }}>{isBacktest ? "replay" : "backtest"}</span>
-              <input
-                type="date"
-                value={isBacktest ? backtestDate : mostRecentMarketDay()}
-                min={thirtyDaysAgo()}
-                max={formatDateForInput(new Date())}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (isValidBacktestDate(v)) {
-                    updateParams(p => p.set("backtest", v));
-                  }
-                }}
-                style={{
-                  fontSize: 10, padding: "2px 4px",
-                  background: P.bg, color: P.wh,
-                  border: "1px solid " + P.bd, borderRadius: 3,
-                  fontFamily: "ui-monospace, monospace",
-                  colorScheme: "dark",
-                }}
-              />
-              {isBacktest && (
-                <button
-                  onClick={() => updateParams(p => p.delete("backtest"))}
-                  title="Exit backtest, return to live"
-                  style={{
-                    fontSize: 9, padding: "2px 6px", fontWeight: 700,
-                    letterSpacing: 0.5,
-                    background: "transparent", color: P.dm,
-                    border: "1px solid " + P.bd, borderRadius: 3,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>× live</button>
-              )}
-            </div>
-          )}
-          <StatusPill status={status} />
-          {status && (
-            <div style={{
-              fontSize: 10, color: P.dm,
-              fontFamily: "ui-monospace, monospace",
-              display: "flex", gap: 10,
-            }}>
-              <span title="Alerts in current view">
-                shown <strong style={{ color: P.wh }}>{visibleTotal}</strong>
-              </span>
-              <span title="Forwarded to Discord">
-                <UIcon name="bell" size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} /><strong style={{ color: P.bu }}>{status.total_alerts_forwarded ?? 0}</strong>
-              </span>
-              <span style={{ color: P.mt }}>· last {relTime(status.last_event_at)}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Filter chips */}
-      <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
-
-      {/* Admin: user-managed ticker exclusion list */}
-      <UserBlocklistPanel
-        visible={isAdmin}
-        onSaved={() => setRefreshTrigger(x => x + 1)}
-      />
-
-      {/* Body */}
-      <div style={{ flex: 1, overflow: "auto" }}>
-        {/* Backtest banner — only when in backtest mode (admin gated) */}
-        {isBacktest && (
-          <div style={{
-            padding: "10px 20px", borderBottom: "1px solid " + P.bl + "30",
-            background: P.bl + "10", fontSize: 11, color: P.bl,
-            display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap",
-            fontFamily: "ui-monospace, monospace",
-          }}>
-            <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
-              textTransform: "uppercase",
-            }}>backtest</span>
-            <span style={{ color: P.dm }}>
-              Replaying <strong style={{ color: P.wh }}>{backtestDate}</strong>
-              {backtestLoading && " · loading…"}
-            </span>
-
-            {/* Simulation controls — opt-in via "simulate" toggle. When on,
-                threshold + ETF-exclusion controls become editable. */}
-            <span style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 12, flexWrap: "wrap" }}>
-              <button
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  if (simulateMode) {
-                    next.delete("simulate");
-                    next.delete("min_grade");
-                    next.delete("exclude_etf");
-                  } else {
-                    next.set("simulate", "full");
-                    next.set("min_grade", "B");
-                  }
-                  setSearchParams(next);
-                }}
-                style={{
-                  padding: "3px 10px", fontSize: 10, borderRadius: 4,
-                  border: "1px solid " + (simulateMode ? P.gn : P.bd),
-                  background: simulateMode ? P.gn + "20" : "transparent",
-                  color: simulateMode ? P.gn : P.dm,
-                  cursor: "pointer", letterSpacing: 0.5,
-                  textTransform: "uppercase", fontWeight: 700,
-                }}
-                title="Run the full live pipeline (enrich → aggregate → conviction → gate) to see what would have posted to Discord"
-              >
-                {simulateMode ? <><UIcon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />simulate gate</> : "simulate gate"}
-              </button>
-
-              {/* JSON upload — sidesteps Bullflow MCP using a Discord export.
-                  When a file is loaded, simulation auto-runs and the UI shows
-                  what the gate would do for that day's alerts. */}
-              <label
-                style={{
-                  padding: "3px 10px", fontSize: 10, borderRadius: 4,
-                  border: "1px solid " + (uploadedFile ? P.gn : P.bd),
-                  background: uploadedFile ? P.gn + "20" : "transparent",
-                  color: uploadedFile ? P.gn : P.dm,
-                  cursor: "pointer", letterSpacing: 0.5,
-                  textTransform: "uppercase", fontWeight: 700,
-                }}
-                title="Upload a DiscordChatExporter JSON of your live-flow channel to backtest against captured Discord posts"
-              >
-                {uploadedFile ? <><UIcon name="check" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />{`${uploadedFile.name.slice(0, 18)}…`}</> : "upload json"}
-                <input
-                  type="file"
-                  accept="application/json,.json"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    if (f.size > 50 * 1024 * 1024) {
-                      setUploadError("File too large (>50MB)");
-                      return;
-                    }
-                    setUploadError(null);
-                    setUploadedFile(f);
-                    // Auto-enable simulate mode on upload — viewing raw alerts
-                    // without the simulation defeats the purpose of uploading.
-                    const next = new URLSearchParams(searchParams);
-                    if (!next.get("simulate")) {
-                      next.set("simulate", "full");
-                      next.set("min_grade", "B");
-                      setSearchParams(next);
-                    }
-                  }}
-                />
-              </label>
-
-              {uploadedFile && (
-                <button
-                  onClick={() => {
-                    setUploadedFile(null);
-                    setUploadError(null);
-                  }}
-                  style={{
-                    padding: "3px 8px", fontSize: 10, borderRadius: 4,
-                    border: "1px solid " + P.bd, background: "transparent",
-                    color: P.dm, cursor: "pointer",
-                  }}
-                  title="Clear uploaded file"
-                >
-                  ×
-                </button>
-              )}
-
-              {simulateMode && (
-                <>
-                  <label style={{ color: P.dm, fontSize: 10 }}>min grade:</label>
-                  <select
-                    value={simMinGrade}
-                    onChange={(e) => {
-                      const next = new URLSearchParams(searchParams);
-                      next.set("min_grade", e.target.value);
-                      setSearchParams(next);
-                    }}
-                    style={{
-                      padding: "2px 6px", fontSize: 10, borderRadius: 3,
-                      background: P.cd, color: P.wh,
-                      border: "1px solid " + P.bd, cursor: "pointer",
-                    }}
-                  >
-                    {["A+", "A", "B", "C", "D"].map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-
-                  <label
-                    style={{
-                      color: simExcludeETF ? P.wh : P.dm, fontSize: 10,
-                      display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={simExcludeETF}
-                      onChange={(e) => {
-                        const next = new URLSearchParams(searchParams);
-                        if (e.target.checked) next.set("exclude_etf", "true");
-                        else next.delete("exclude_etf");
-                        setSearchParams(next);
-                      }}
-                      style={{ accentColor: P.gn, cursor: "pointer" }}
-                    />
-                    exclude ETF Flow
-                  </label>
-                </>
-              )}
-            </span>
-
-            {status?.backtest_capped && (
-              <span style={{ color: "#FFB300", marginLeft: "auto" }}>
-                <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />capped at 500 alerts — day had more flow than shown
-              </span>
-            )}
-            {!backtestLoading && !status?.backtest_capped && alerts.length > 0 && !simulateMode && (
-              <span style={{ color: P.dm, marginLeft: "auto" }}>
-                {alerts.length} alert{alerts.length !== 1 ? "s" : ""} returned
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Simulation results panel — appears when sim is active and backend
-            returned a simulation block. Shows stats + grade distribution + tabs. */}
-        {isBacktest && simulateMode && simulation && !simulation.error && (
-          <SimulationPanel
-            simulation={simulation}
-            view={simView}
-            setView={setSimView}
-          />
-        )}
-        {isBacktest && simulateMode && simulation?.error && (
-          <div style={{
-            padding: "12px 20px", background: P.rd + "20",
-            borderBottom: "1px solid " + P.rd + "40", color: P.rd,
-            fontSize: 12, fontFamily: "ui-monospace, monospace",
-          }}>
-            simulation failed: {simulation.error}
-          </div>
-        )}
-        {uploadError && (
-          <div style={{
-            padding: "12px 20px", background: P.rd + "20",
-            borderBottom: "1px solid " + P.rd + "40", color: P.rd,
-            fontSize: 12, fontFamily: "ui-monospace, monospace",
-          }}>
-            upload error: {uploadError}
-          </div>
-        )}
-
-        {error && (
-          <div style={{
-            padding: "10px 20px", background: P.be + "18",
-            borderBottom: "1px solid " + P.be + "60",
-            color: P.be, fontSize: 11,
-          }}>Polling error: {error}</div>
-        )}
-
-        {status && !status.connected && status.last_error && (
-          <div style={{
-            padding: "12px 20px", background: P.be + "10",
-            borderBottom: "1px solid " + P.be + "40",
-            color: P.be, fontSize: 11,
-          }}>
-            <strong>Disconnected:</strong> {status.last_error}
-            <span style={{ color: P.dm, marginLeft: 8 }}>
-              · reconnect attempts: {status.reconnect_count}
-            </span>
-          </div>
-        )}
-
-        {alerts.length === 0 ? (
-          <div style={{
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            padding: "60px 20px", color: P.dm, gap: 8,
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
-              {isBacktest
-                ? (backtestLoading ? "Running backtest replay…" : "No alerts for " + backtestDate)
-                : (status?.connected ? "Connected, waiting for alerts…" : "Connecting to stream…")}
-            </div>
-            <div style={{ fontSize: 10, color: P.mt }}>
-              {isBacktest
-                ? (backtestLoading
-                    ? "Bullflow sample replay can take up to 2 minutes."
-                    : "Either the market was quiet or it was a non-trading day.")
-                : "Quiet stretches are normal — flow fires on unusual activity only."}
-            </div>
-            {!isBacktest && status?.started_at && (
-              <div style={{
-                fontSize: 9, color: P.mt, marginTop: 8,
-                fontFamily: "ui-monospace, monospace",
-              }}>worker started {relTime(status.started_at)}</div>
-            )}
-          </div>
-        ) : visibleTotal === 0 ? (
-          <div style={{
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            padding: "60px 20px", color: P.dm, gap: 8,
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
-              All tiers filtered out
-            </div>
-            <div style={{ fontSize: 10, color: P.mt }}>
-              {dedupedAlerts.length} alert{dedupedAlerts.length !== 1 ? "s" : ""} hidden by chip filters above. Click chips to show.
-            </div>
-          </div>
-        ) : (
-          <table style={{
-            width: "100%", borderCollapse: "collapse",
-            fontFamily: "Inter, system-ui, sans-serif",
-          }}>
-            <thead style={{ position: "sticky", top: 0, background: P.cd, zIndex: 1 }}>
-              <tr style={{ borderBottom: "1px solid " + P.bd }}>
-                {[
-                  ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
-                  ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
-                  ["Type", 9], ["Alert Name", 11], ["Score", 11], ["🔔", 11],
-                ].map(([label]) => (
-                  <th key={label} style={{
-                    padding: "8px 10px",
-                    textAlign: label === "Score" ? "right" : (label === "🔔" ? "center" : "left"),
-                    color: P.dm, fontSize: 9, fontWeight: 700,
-                    letterSpacing: 0.5, textTransform: "uppercase",
-                  }}>{label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIER_ORDER.map(tier => filters[tier] && (
-                <TierSection
-                  key={tier}
-                  tier={tier}
-                  alerts={byTier[tier]}
-                  newIds={newIdsRef.current}
-                  collapsed={!!collapsedTiers[tier]}
-                  onToggle={() => setCollapsedTiers(c => ({ ...c, [tier]: !c[tier] }))}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div style={{
-        padding: "8px 20px", borderTop: "1px solid " + P.bd,
-        background: P.cd, fontSize: 9, color: P.mt,
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        fontFamily: "ui-monospace, monospace", flexShrink: 0,
-      }}>
-        <div>
-          {isBacktest
-            ? `backtest · ${backtestDate} · one-shot`
-            : `polling every ${POLL_INTERVAL_MS / 1000}s · buffer ${MAX_ROWS}`}
-        </div>
-        <div>
-          {visibleTotal > 0 && "showing " + visibleTotal + " · "}
-          updated {relTime(new Date(now).toISOString())}
-        </div>
-      </div>
-    </div>
-  );
-}
