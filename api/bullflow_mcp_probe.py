@@ -1251,8 +1251,10 @@ async def backfill_from_bullflow(
     date_from: str = Query(..., description="Start date YYYY-MM-DD (inclusive)"),
     date_to:   str = Query(None,
         description="End date YYYY-MM-DD (inclusive). Defaults to date_from for a single-day backfill. Max range: 7 days."),
-    max_alerts_per_day: int = Query(300, ge=1, le=500,
-        description="Max alerts to request from Bullflow per day. Bullflow's MCP server-side cap (~100) usually wins."),
+    max_alerts_per_day: int = Query(100, ge=1, le=100,
+        description="Max alerts to request from Bullflow per day. Bullflow's MCP "
+                    "bullflow_backtesting_replay_sample tool enforces a hard "
+                    "maximum of 100 server-side — exceeding it returns empty."),
     speed: float = Query(300, gt=0, le=1000,
         description="Replay speed multiplier passed to Bullflow MCP."),
     delay_seconds: float = Query(1.0, ge=0, le=10,
@@ -1335,9 +1337,15 @@ async def backfill_from_bullflow(
             # MCP call + SSE envelope parsing + init/heartbeat filtering +
             # OCC normalization + table-filter application. Call it directly
             # as a Python coroutine with simulate="off" so we get raw alerts.
+            #
+            # HARD CLAMP at 100 — Bullflow MCP's bullflow_backtesting_replay_sample
+            # enforces this server-side. Exceeding it silently returns empty
+            # (no error, just no alerts), which previously caused this entire
+            # endpoint to look broken.
+            day_max = min(int(max_alerts_per_day), 100)
             replay = await backtest_replay(
                 date=d_iso,
-                max_alerts=max_alerts_per_day,
+                max_alerts=day_max,
                 speed=speed,
                 timeout_seconds=120,
                 simulate="off",
