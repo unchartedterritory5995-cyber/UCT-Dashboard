@@ -1218,3 +1218,232 @@ async def backtest_from_json(
         },
         "simulation": simulation,
     }
+
+
+# ─── BACKFILL ─────────────────────────────────────────────────────────────────
+# Pull historical alerts from Bullflow MCP and persist them to the live_alerts
+# SQLite table. Used to seed history for dates before live persistence shipped,
+# or to fill gaps when the worker was down.
+#
+# Source tag: rows inserted here are tagged source="bullflow_replay" so the
+# frontend can flag them as incomplete samples. Bullflow's
+# bullflow_backtesting_replay_sample tool caps at ~100 alerts per day server-
+# side — a busy day with 500+ alerts will be drastically under-represented
+# after backfill. INSERT OR IGNORE in the DB layer handles dedup against any
+# rows already captured live.
+
+from datetime import date as _date, timedelta as _timedelta
+import asyncio as _asyncio
+
+
+def _iso_to_date(s: str) -> _date | None:
+    """Parse YYYY-MM-DD; return None on malformed input."""
+    if not s or not isinstance(s, str):
+        return None
+    try:
+        return _date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+@router.get("/backfill")
+async def backfill_from_bullflow(
+    date_from: str = Query(..., description="Start date YYYY-MM-DD (inclusive)"),
+    date_to:   str = Query(None,
+        description="End date YYYY-MM-DD (inclusive). Defaults to date_from for a single-day backfill. Max range: 7 days."),
+    max_alerts_per_day: int = Query(300, ge=1, le=500,
+        description="Max alerts to request from Bullflow per day. Bullflow's MCP server-side cap (~100) usually wins."),
+    speed: float = Query(300, gt=0, le=1000,
+        description="Replay speed multiplier passed to Bullflow MCP."),
+    delay_seconds: float = Query(1.0, ge=0, le=10,
+        description="Pause between days to avoid Bullflow rate limits."),
+):
+    """
+    Backfill historical alerts from Bullflow's replay tool into the
+    live_alerts SQLite table. Rows tagged source='bullflow_replay'.
+
+    Designed to be fired from the browser address bar by an admin:
+      /api/admin/bullflow/backfill?date_from=2026-06-13&date_to=2026-06-19
+
+    Returns per-day counts and an overall summary. Re-running over the same
+    range is safe — INSERT OR IGNORE drops collisions, so partial gaps fill
+    in cleanly without duplicating already-captured rows.
+
+    Caveats:
+      - bullflow_backtesting_replay_sample is a SAMPLE; server-side cap ~100/day
+      - Backfilled rows have NULL for grade, gate_passed, OI/spot enrichment,
+        and discord_message_id since the live pipeline wasn't running at the time
+      - source='bullflow_replay' on every inserted row so the frontend can
+        warn about incomplete coverage
+    """
+    from api import live_alerts_db
+
+    d_from = _iso_to_date(date_from)
+    d_to   = _iso_to_date(date_to) if date_to else d_from
+    if d_from is None or d_to is None:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "date_from / date_to must be YYYY-MM-DD"},
+        )
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    span = (d_to - d_from).days + 1
+    if span > 7:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": f"Range too large ({span} days). Max 7 per call — "
+                         "split into multiple requests to stay under Bullflow "
+                         "rate limits and timeouts.",
+                "hint": "Each day's MCP replay can take up to 2 minutes; "
+                        "longer ranges should be paginated.",
+            },
+        )
+
+    # Ensure the table exists before we start inserting. The worker calls this
+    # at boot too, but admin-initiated backfill might run on a service where
+    # the worker isn't active (e.g. web service if /data is shared).
+    live_alerts_db.init_db()
+
+    per_day = []
+    totals = {
+        "dates_requested":     span,
+        "dates_completed":     0,
+        "dates_with_errors":   0,
+        "alerts_returned":     0,  # raw count from Bullflow (post table-filter)
+        "alerts_inserted":     0,  # rows actually written (new)
+        "alerts_skipped":      0,  # collided with existing id (INSERT OR IGNORE)
+        "alerts_no_id":        0,  # dropped because alert had no id field
+    }
+    errors = []
+
+    d = d_from
+    while d <= d_to:
+        d_iso = d.isoformat()
+        day_summary = {
+            "date":      d_iso,
+            "returned":  0,
+            "inserted":  0,
+            "skipped":   0,
+            "no_id":     0,
+            "capped":    False,
+            "error":     None,
+        }
+
+        try:
+            # Reuse the existing backtest_replay handler — it already does
+            # MCP call + SSE envelope parsing + init/heartbeat filtering +
+            # OCC normalization + table-filter application. Call it directly
+            # as a Python coroutine with simulate="off" so we get raw alerts.
+            replay = await backtest_replay(
+                date=d_iso,
+                max_alerts=max_alerts_per_day,
+                speed=speed,
+                timeout_seconds=120,
+                simulate="off",
+                min_grade="B",          # ignored when simulate="off"
+                exclude_etf_flow=False, # ignored when simulate="off"
+            )
+        except Exception as e:
+            day_summary["error"] = f"{type(e).__name__}: {str(e)[:300]}"
+            errors.append({"date": d_iso, "error": day_summary["error"]})
+            totals["dates_with_errors"] += 1
+            per_day.append(day_summary)
+            d += _timedelta(days=1)
+            if d <= d_to and delay_seconds > 0:
+                await _asyncio.sleep(delay_seconds)
+            continue
+
+        # The handler may return an error dict (e.g. MCP timeout) rather
+        # than raise. Surface it the same way.
+        if isinstance(replay, dict) and replay.get("error"):
+            day_summary["error"] = replay["error"]
+            errors.append({"date": d_iso, "error": day_summary["error"]})
+            totals["dates_with_errors"] += 1
+            per_day.append(day_summary)
+            d += _timedelta(days=1)
+            if d <= d_to and delay_seconds > 0:
+                await _asyncio.sleep(delay_seconds)
+            continue
+
+        alerts_for_day = replay.get("alerts") or []
+        day_summary["returned"] = len(alerts_for_day)
+        day_summary["capped"]   = bool(replay.get("capped"))
+        totals["alerts_returned"] += len(alerts_for_day)
+
+        # Insert with source='bullflow_replay'. Need to set ingestedAt to
+        # the historical date so the date_iso column reflects when the
+        # alert actually fired, not when it was backfilled. Use the alert's
+        # own timestamp if present; fall back to the date's market-open ET.
+        for alert in alerts_for_day:
+            if not alert.get("id"):
+                day_summary["no_id"] += 1
+                totals["alerts_no_id"] += 1
+                continue
+
+            # If the alert has a unix timestamp from Bullflow, render it as
+            # an ISO string so _alert_to_row's date_iso derivation picks the
+            # historical date. Otherwise stamp 09:30 ET of the backfill date
+            # so the row still lands in the right day bucket.
+            ts = alert.get("timestamp")
+            if ts is not None:
+                try:
+                    ingested = datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
+                except (TypeError, ValueError, OSError):
+                    ingested = f"{d_iso}T13:30:00+00:00"  # 9:30 ET ≈ 13:30 UTC (EST)
+            else:
+                ingested = f"{d_iso}T13:30:00+00:00"
+            alert["ingestedAt"] = ingested
+
+            # Pre-insert id check so we can count skips vs new inserts
+            # accurately (INSERT OR IGNORE is silent on collision). One SELECT
+            # per row is fine at this volume; backfill is admin-initiated and
+            # rate-limited to ≤7 days × ~100 rows = ~700 SELECTs per call.
+            existed = False
+            try:
+                with live_alerts_db._conn() as c:
+                    existed = c.execute(
+                        "SELECT 1 FROM live_alerts WHERE id = ? LIMIT 1",
+                        (alert["id"],),
+                    ).fetchone() is not None
+            except Exception:
+                existed = False
+
+            try:
+                live_alerts_db.insert_alert(alert, source="bullflow_replay")
+                if existed:
+                    day_summary["skipped"]  += 1
+                    totals["alerts_skipped"] += 1
+                else:
+                    day_summary["inserted"] += 1
+                    totals["alerts_inserted"] += 1
+            except Exception as e:
+                # Don't abort the whole backfill on a single bad row —
+                # log and continue.
+                day_summary.setdefault("row_errors", []).append({
+                    "id": alert.get("id"),
+                    "error": f"{type(e).__name__}: {str(e)[:200]}",
+                })
+
+        totals["dates_completed"] += 1
+        per_day.append(day_summary)
+
+        d += _timedelta(days=1)
+        if d <= d_to and delay_seconds > 0:
+            await _asyncio.sleep(delay_seconds)
+
+    return {
+        "mode": "backfill",
+        "date_from": date_from,
+        "date_to":   d_to.isoformat(),
+        "max_alerts_per_day": max_alerts_per_day,
+        "summary": totals,
+        "errors":  errors,
+        "per_day": per_day,
+        "notes": [
+            "Rows inserted with source='bullflow_replay'.",
+            "Bullflow replay returns a SAMPLE; capped=True days have more alerts than were captured.",
+            "Backfilled rows have NULL grade/gate_passed/OI/spot/discord_message_id — the live pipeline wasn't running historically.",
+            "Re-run is safe: INSERT OR IGNORE drops collisions cleanly.",
+        ],
+    }
