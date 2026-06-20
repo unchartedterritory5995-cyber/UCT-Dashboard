@@ -3217,7 +3217,7 @@ export default function OptionsFlowDashboard() {
 
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-          <div className="of-chiprow of-chiprow-seg" style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
+          <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
               <button key={m} onClick={()=>{ if(dataMode!==m) {
                 // Only reset flow data when switching between stocks ↔ index (csvFile changes)
@@ -3240,7 +3240,7 @@ export default function OptionsFlowDashboard() {
         {/* Date Filter — rolling windows + presets + calendar */}
         {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
                 { key:"Last1", label:"1d", days:1 },
                 { key:"Last5", label:"5d", days:5 },
@@ -3440,7 +3440,7 @@ export default function OptionsFlowDashboard() {
                   </button>
                 ))}
               </div>
-              <div className="of-chiprow of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["0dte","0DTE"],["1dte","1DTE"],["2dte","2DTE"],["3dte","3DTE"],["week","Week"],["month","Month"],["all","All"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setGexDte(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
@@ -4226,7 +4226,7 @@ export default function OptionsFlowDashboard() {
           };
           return (
             <div style={{ marginBottom:10 }}>
-              <div className="of-chiprow" style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                 <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
                 {caps.map(c => {
                   const active = capFilter === c;
@@ -5467,7 +5467,22 @@ export default function OptionsFlowDashboard() {
           // tickers like SERV. Standardizing Leaderboard here closes the gap
           // between Search and Leaderboard (previously FRMI showed $3.0M bull
           // here but $14.3M on Search for the same time window).
-          const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t => capBand(t.mktcap)===capFilter);
+          //
+          // Mid-Small filter also includes "Unknown" mktcap tickers. capBand
+          // returns "Unknown" when mktcap is missing/0 in our data — almost
+          // always small/mid-cap names (mega and large are universally tracked
+          // in market data feeds). Without this, high-flow names like KEEL
+          // silently vanish from every cap filter except "All" just because
+          // their mktcap field is null. The fallback lookup at wlCapCheck
+          // (line 1891) handles individual ticker resolution; this filter
+          // handles bulk leaderboard inclusion.
+          const matchesLBCap = (t) => {
+            if (capFilter === "All") return true;
+            const cap = capBand(t.mktcap);
+            if (cap === capFilter) return true;
+            return capFilter === "Mid-Small" && cap === "Unknown";
+          };
+          const cc = (D.all_directional||[]).filter(matchesLBCap);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
           const [cPct, setCPct] = [convictionPct, setConvictionPct];
@@ -5518,7 +5533,11 @@ export default function OptionsFlowDashboard() {
           // denominator = no more surprises.
           const lbBroader = {};
           (D.all_directional || []).forEach(t => {
-            if (capFilter !== "All" && capBand(t.mktcap) !== capFilter) return;
+            // Use the same matchesLBCap helper as the bull/bear totals above
+            // so the Top Contract column's data source matches exactly.
+            // Without this, Unknown-mktcap tickers (like KEEL) would have
+            // their bull/bear shown but their Top Contract premium missing.
+            if (!matchesLBCap(t)) return;
             if (!dteF(t)) return;
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!lbBroader[k]) lbBroader[k] = {prem:0, hits:0};
@@ -5714,7 +5733,7 @@ export default function OptionsFlowDashboard() {
           return (
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {/* Filter rows */}
-              <div className="of-chiprow" style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                 {/* DTE */}
                 {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
                   const active=convDte===d.k;
@@ -6108,7 +6127,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </Card>
             {/* Filters */}
-            <div className="of-chiprow" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setTfDteFilter(v)} style={{
@@ -6394,11 +6413,10 @@ export default function OptionsFlowDashboard() {
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
               <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", zIndex:10 }}>
-                <div className="of-tip" style={{ position:"relative", display:"inline-block" }}
+                <div style={{ position:"relative", display:"inline-block" }}
                   onMouseEnter={e=>e.currentTarget.querySelector('[data-tip]').style.display='block'}
-                  onMouseLeave={e=>{ if(e.currentTarget.dataset.pin==='1') return; e.currentTarget.querySelector('[data-tip]').style.display='none'; }}
-                  onClick={e=>{ const w=e.currentTarget; const open=w.dataset.pin!=='1'; w.dataset.pin=open?'1':'0'; w.querySelector('[data-tip]').style.display=open?'block':'none'; }}>
-                  <span style={{ fontSize:14, color:P.dm, cursor:"pointer", userSelect:"none" }} role="button" tabIndex={0} aria-label="Show available themes and sectors">ⓘ</span>
+                  onMouseLeave={e=>e.currentTarget.querySelector('[data-tip]').style.display='none'}>
+                  <span style={{ fontSize:14, color:P.dm, cursor:"help", userSelect:"none" }}>ⓘ</span>
                   <div data-tip="1" style={{ display:"none", position:"absolute", right:0, top:"100%", marginTop:8, width:320, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:12, zIndex:30, boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
                     <div style={{ fontSize:9, fontWeight:800, color:P.ac, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Available Themes</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:10 }}>
