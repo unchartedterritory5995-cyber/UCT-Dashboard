@@ -14,6 +14,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Bracco (Trendspider Interview)',
         "description": 'X: @Braczyy',
         "category": 'Interviews',
+        "duration": '1:01:36',
         "sort_order": 0,
     },
     {
@@ -21,6 +22,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Bracco (Trading Camp Pod Interview)',
         "description": 'X: @Braczyy',
         "category": 'Interviews',
+        "duration": '1:00:20',
         "sort_order": 1,
     },
     {
@@ -28,6 +30,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'TSDR (100 Uhmillion Interview)',
         "description": 'X: @TSDR_Trading',
         "category": 'Interviews',
+        "duration": '1:33:11',
         "sort_order": 2,
     },
     {
@@ -35,6 +38,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'TSDR (AdexTrades Interview)',
         "description": 'X: @TSDR_Trading',
         "category": 'Interviews',
+        "duration": '1:33:28',
         "sort_order": 3,
     },
     {
@@ -42,6 +46,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'The Perceptive Trader',
         "description": 'X: @PerspectivTrader\nYouTube: Sara | Trading Performance Coach\ntheperceptivetrader',
         "category": 'Interviews',
+        "duration": '1:00:26',
         "sort_order": 4,
     },
     {
@@ -49,6 +54,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Jared Tendler',
         "description": 'X: @jaredtendler\nAuthor of The Mental Game of Trading',
         "category": 'Interviews',
+        "duration": '1:13:06',
         "sort_order": 5,
     },
     {
@@ -56,6 +62,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Oliver Kell',
         "description": 'X: @OliverKell_\nKelltrading.com\nWith TraderLion\n2020 USIC Champion',
         "category": 'Interviews',
+        "duration": '1:06:53',
         "sort_order": 6,
     },
     {
@@ -63,6 +70,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Jmoney Stonks',
         "description": 'X: @Jmoneystonks',
         "category": 'Interviews',
+        "duration": '1:25:41',
         "sort_order": 7,
     },
     {
@@ -70,6 +78,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Ariel',
         "description": 'X: @RealSimpleAriel',
         "category": 'Interviews',
+        "duration": '1:08:16',
         "sort_order": 8,
     },
     {
@@ -77,6 +86,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Sean Trades',
         "description": 'X: @SRxTrades',
         "category": 'Interviews',
+        "duration": '1:00:21',
         "sort_order": 9,
     },
     {
@@ -84,6 +94,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Nick Drendel',
         "description": 'X: @NickDrendel',
         "category": 'Interviews',
+        "duration": '1:08:44',
         "sort_order": 10,
     },
     {
@@ -91,6 +102,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'J-Money',
         "description": 'X: @jmoneystonks',
         "category": 'Interviews',
+        "duration": '1:10:57',
         "sort_order": 11,
     },
     {
@@ -98,6 +110,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Bracco (2024 Review)',
         "description": 'X: @braczyy',
         "category": 'Interviews',
+        "duration": '2:05:31',
         "sort_order": 12,
     },
     {
@@ -105,6 +118,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Scotland',
         "description": 'X: @Scot1andT',
         "category": 'Interviews',
+        "duration": '1:08:30',
         "sort_order": 13,
     },
     {
@@ -112,6 +126,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Nick Schmidt',
         "description": 'X: @NickSchmidt_\nCo-found of Trader Lion',
         "category": 'Interviews',
+        "duration": '1:24:44',
         "sort_order": 14,
     },
     {
@@ -119,6 +134,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Elite Swing Trader',
         "description": 'X: @1ChartMaster',
         "category": 'Interviews',
+        "duration": '50:13',
         "sort_order": 15,
     },
     {
@@ -126,6 +142,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Christian Flanders',
         "description": 'X: CFlanders7\n2024 2nd Place USIC',
         "category": 'Interviews',
+        "duration": '1:09:22',
         "sort_order": 16,
     },
     {
@@ -133,6 +150,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Oliver Kell',
         "description": 'X: @OliverKell_\n2020 USIC Champion',
         "category": 'Interviews',
+        "duration": '1:34:10',
         "sort_order": 17,
     },
     {
@@ -140,6 +158,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'TSDR',
         "description": 'X: @TSDR_Trading',
         "category": 'Interviews',
+        "duration": '2:26:09',
         "sort_order": 18,
     },
     {
@@ -147,6 +166,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Manrav',
         "description": 'X: @manrav',
         "category": 'Interviews',
+        "duration": '1:49:33',
         "sort_order": 19,
     },
     {
@@ -154,6 +174,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'AnAnd',
         "description": 'X: @anandragn',
         "category": 'Interviews',
+        "duration": '1:21:38',
         "sort_order": 20,
     },
     {
@@ -161,6 +182,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Hamid Shojaee',
         "description": 'X: @hamids\nFounder of Savvy Trader',
         "category": 'Interviews',
+        "duration": '1:16:02',
         "sort_order": 21,
     },
     {
@@ -168,6 +190,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Special Guest Interview with Ross Haber (Co-found of Trader Lion and Mentee of William O’Neil)',
         "description": 'X: @RossHaber_',
         "category": 'Interviews',
+        "duration": '1:46:24',
         "sort_order": 22,
     },
     {
@@ -175,6 +198,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Special Guest Interview with Connor Bates',
         "description": 'X: @ConnorJBates_',
         "category": 'Interviews',
+        "duration": '1:23:03',
         "sort_order": 23,
     },
     {
@@ -182,6 +206,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Special Guest Interview with People Wish',
         "description": 'X: @peoplewish',
         "category": 'Interviews',
+        "duration": '2:54:02',
         "sort_order": 24,
     },
     {
@@ -189,6 +214,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Special Guest Interview with Clement Ang',
         "description": 'X: @Clement_Ang17',
         "category": 'Interviews',
+        "duration": '1:14:37',
         "sort_order": 25,
     },
     {
@@ -196,6 +222,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Special Guest Interview with Ameet Rai (Co-founder of Trader Lion)',
         "description": 'X: @AmeetRai',
         "category": 'Interviews',
+        "duration": '1:47:59',
         "sort_order": 26,
     },
     {
@@ -203,6 +230,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 2/21/23',
         "description": "Greg, TSDR, and Armon discuss current mental challenges and positives of trading the markets\nEmphasizes the importance of patience, perseverance, and community support in trading.\nStresses having a passion and curiosity for trading beyond just money.\nHighlights the need for humility, objectivity, and letting go of ego to succeed.\nDiscusses managing emotions, avoiding overconfidence, and taking breaks to maintain mental clarity.\nReinforces that trading is a continuous learning process and not a destination.\nEncourages embracing mistakes as learning opportunities and being open about failures.\nUnderlines the significance of simplicity, discipline, and consistency in trading strategies.\nAdvocates for studying successful traders, personalizing strategies, and trusting one's unique style.\nWarns against external doubts, distractions, and the high failure rate in trading.\nPromotes self-awareness through journaling and reflection on psychological triggers and insecurities.\nConnects risk management to life, emphasizing acceptance of uncertainty and the importance of preparation.\nReminds that progress requires effort, effort that should be focused and maximized.\nUrges traders to pass on knowledge, help others, and cultivate a community of growth.\nConcludes with the importance of living without regret, working hard, and making the most of opportunities",
         "category": 'The Mental Game',
+        "duration": '40:58',
         "sort_order": 0,
     },
     {
@@ -210,6 +238,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 3/21/23',
         "description": 'Greg emphasizes the importance of trading only when the daily chart provides an edge, such as clear trend direction.\nWaiting for confirmation signals like candle holds and pattern formations before entering trades.\nThe value of reviewing trades regularly, both daily and monthly, to identify patterns and improve decision-making.\nThe significance of mental discipline, including avoiding emotional reactions, not considering unrealized gains as personal, and managing frustration.\nThe benefits of accountability partners and community support for consistent trading improvement.\nRecognizing the importance of patience, proper risk management, and strategic planning rather than forcing trades.\nEncouragement to keep trading simple, focus on high-probability setups, and learn from mistakes to increase success over time.',
         "category": 'The Mental Game',
+        "duration": '1:01:08',
         "sort_order": 1,
     },
     {
@@ -217,6 +246,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 3/28/23',
         "description": 'Greg and TSDR emphasizes the importance of mental health and self-awareness in trading and life.\nEncourages addressing issues that cause anxiety to shift from surviving to thriving.\nHighlights life principles like patience, resilience, and the significance of tough times passing.\nIntroduces Buddhist concepts such as the Four Noble Truths and the Eightfold Path for proper living and trading.\nStresses the importance of living consciously, with purpose, and practicing mindfulness.\nDiscusses recent trading experiences, focusing on patience, risk management, and avoiding overtrading.\nAdvocates for accountability, self-awareness, and managing emotions during market challenges.\nReinforces the value of proper risk management and maintaining a balanced mindset.\nEmphasizes objectivity, being open to being wrong, and adapting to market conditions.\nEncourages consistent review, backtesting strategies, and learning from mistakes.\nReminds traders that success involves both protecting capital and honing their edge.\nUrges patience, discipline, and focus to thrive in fluctuating market environments.',
         "category": 'The Mental Game',
+        "duration": '1:04:38',
         "sort_order": 2,
     },
     {
@@ -224,6 +254,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game (4/4/23)',
         "description": 'Greg explains the importance of letting probabilities work for you.\nHe gives an example of coin flipping mentioned in Tom Hougaard\'s book "Best Loser Wins" demonstrating that the outcome of 1 instance is random, but the outcome of 100 is a pattern\nEmphasis on the importance to be able to sit with yourself and your emotion to recognize mental game errors in trading.\nYour competition is with nobody other than the person you were yesterday\nTSDR explains the significance of mindset, emotion and self talk. If your self talk is negative, you will see negative results in your trading.\nImagine what makes up a great coach in anything. Make you inner voice that coach you would want in your corner\nSurround yourself with those who are successful and striving to become better\nGreg explains the idea of "First Principle Thinking" and encourages members to do some research on the subject',
         "category": 'The Mental Game',
+        "duration": '44:03',
         "sort_order": 3,
     },
     {
@@ -231,6 +262,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 4/24/23',
         "description": 'Greg emphasizes the importance of prioritizing sleep for mental and physical health, citing scientific evidence on sleep deprivation and daylight savings impacts.\nAdvocates protecting inner peace by managing input from social media, environment, and toxic interactions, using a Buddha story to illustrate rejecting negativity.\nHighlights the significance of resilience, perspective, and self-awareness in trading and life, emphasizing that losses are part of the learning process.\nDiscusses the value of continuous self-review, journaling trades, and incremental improvement (1% daily, weekly, monthly) to achieve long-term growth.\nStresses the power of mindset, inner monologue, and discipline, encouraging conscious self-talk, positive reinforcement, and strict routines.\nAcknowledges that losses and failures are inevitable, viewing them as tuition and lessons that prepare for future success.\nEncourages controlling expectations, understanding that true control comes from within, and advises adopting a disciplined, objective approach to trading.\nEmphasizes the importance of emotional intelligence, self-compassion, and viewing oneself as an observer rather than the voice of chaos.\nRecommends systematic review of trades, market conditions, and watchlists to identify patterns, improve decision-making, and develop expertise.\nConcludes that consistent effort, discipline, and self-awareness are key to long-term success in trading and personal growth.',
         "category": 'The Mental Game',
+        "duration": '1:30:16',
         "sort_order": 4,
     },
     {
@@ -238,6 +270,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 5/2/23',
         "description": "Community Support: You're not alone; many others have faced and overcome similar challenges.\nMental Discipline: Maintain focus, discipline, and a positive mindset; avoid negative self-talk.\nConsistency and Patience: Success in trading takes time, often years; avoid rushing to scale up prematurely.\nLearning from Failures: Use mistakes as growth opportunities; analyze and improve incrementally.\nInner Voice and Self-Talk: Control your narrative; speak positively to yourself to build resilience.\nManaging External Noise: Ignore uninformed opinions; focus on your path and progress.\nEmotional Resilience: Expect ups and downs; stay grounded and compare your progress only to your past self.\nFocused Skill Development: Break down trading into small, manageable steps; master each to build confidence.\nVisualization and Self-Image: Envision your future successful self; act accordingly today.\nContinuous Growth: Embrace struggles as part of the journey; reflect on lessons learned.\nConfidence Building: Trust your market intuition through repetition and experience.\nSmall Details Matter: Pay attention to small aspects of trading; they are crucial for success.\nStay Grounded and Humble: Recognize progress, but remain diligent and hungry to improve.\nLong-Term Perspective: Trading success is a gradual process, requiring persistence and dedication.\nPersonal Responsibility: Only you can limit your growth; external opinions are often misinformed.\nKeep Learning: Stay curious, keep practicing, and don't let temporary setbacks define your journey.",
         "category": 'The Mental Game',
+        "duration": '1:19:03',
         "sort_order": 5,
     },
     {
@@ -245,6 +278,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 5/9/23',
         "description": 'Father Greg discusses the psychological aspects of trading, emphasizing the importance of community, accountability, and self-awareness. Key points include managing emotional states during trading streaks, maintaining humility, and understanding that both green and red streaks are part of the process. It highlights the value of having accountability partners for objective feedback, controlling dopamine-driven impulses, and staying grounded through routine reviews of trades. The conversation encourages traders to accept losses as normal, avoid overconfidence, and focus on consistent, disciplined actions to improve performance over time.',
         "category": 'The Mental Game',
+        "duration": '1:08:37',
         "sort_order": 6,
     },
     {
@@ -252,6 +286,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 5/23/23',
         "description": 'Greg emphasizes the importance of showing up and consistent effort in trading success.\nHighlights that initial losses are normal and part of the learning process.\nUses a golf analogy to illustrate that setbacks can lead to great results.\nStresses that the greatest trading opportunities often come after poor trades.\nEncourages focusing on the next trade without pressure for immediate success.\nBelieves that true understanding and confidence come from habitual review and journaling.\nAdvocates for simplicity in trading strategies and knowing your plan thoroughly.\nAdvises adapting to changing market conditions and continuously learning.\nHighlights the importance of controlling emotions, managing losses, and building confidence.\nQuotes the Rocky movie on resilience, emphasizing persistence through failures.\nDiscusses how to deal with losses, emphasizing exposure to the market to build tolerance.\nUnderlines that confidence is built over time through actions and consistency.\nAdvises traders to avoid reacting emotionally, especially when not in the right mental state.\nRecommends not trading when mentally unprepared to prevent poor decisions.\nRecognizes that traders often know how to succeed but struggle with emotional discipline.\nEncourages self-awareness, discipline, and patience as keys to long-term success.',
         "category": 'The Mental Game',
+        "duration": '1:03:10',
         "sort_order": 7,
     },
     {
@@ -259,6 +294,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 5/30/23',
         "description": 'The session is a motivational and educational discussion about trading, emotions, and mindset.\nEmphasizes the importance of emotional stability and self-awareness in trading success.\nEncourages listening to and controlling the inner voice, avoiding negative self-talk.\nHighlights the significance of patience, discipline, and following rules.\nDiscusses the importance of proper risk management, position sizing, and trade execution.\nEncourages traders to learn from mistakes, accept losses, and focus on consistency.\nStresses that trading is about extracting value from opportunities, not constant trading.\nShares personal experiences and lessons about trading discipline, mental state, and strategies.\nIntroduces concepts like survivorship bias and how past experiences influence current perceptions.\nAdvises traders to analyze whether mistakes are emotional or strategic and adjust accordingly.\nPromotes the idea of transparency, learning from failures, and growing together as a community.\nReinforces that success comes through persistence, self-control, and continuous learning.',
         "category": 'The Mental Game',
+        "duration": '1:17:38',
         "sort_order": 8,
     },
     {
@@ -266,6 +302,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 6/6/23',
         "description": 'Emphasized the importance of confidence, routine, and mental health in trading success.\nEncouraged persistence, self-awareness, and focusing on personal progress rather than outward comparisons.\nHighlighted the significance of routines, meditation, and mindfulness to maintain mental stability.\nStressed that trading is more mentally demanding than many professions, requiring discipline akin to athletes.\nAdvised traders to trade only when mentally prepared and to avoid impulsive decisions based on emotions.\nDiscussed the value of routines that minimize decision fatigue and enhance mental reserves.\nShared personal experiences of developing focus and calmness, especially in market open moments.\nEmphasized the importance of managing emotions, especially after losses, to prevent tilt and maintain confidence.\nReinforced that consistent effort, patience, and self-improvement are key to long-term trading success.\nAdvocated for meditation as a tool to organize thoughts, reduce stress, and improve mental clarity.\nConcluded with encouragement to treat trading professionally, with routines and mental discipline, similar to elite athletes.',
         "category": 'The Mental Game',
+        "duration": '1:03:15',
         "sort_order": 9,
     },
     {
@@ -273,6 +310,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 6/13/23',
         "description": 'Market conditions are challenging; experience helps in adapting to shifts.\nLet go of expectations to achieve true acceptance and understanding of oneself.\nFocus on living in the present rather than future anxieties.\nDream big and set goals that scare you, understanding that progress is rooted in present actions.\nAcceptance of current circumstances is crucial for growth; life is not always logical.\nTraders must understand and conceptualize different logics without being limited by their own.\nTrading involves uncertainty; success comes from managing risk and stacking odds in your favor.\nShared experiences and learning from others are valuable for growth.\nCultivate objectivity, review trades, backtest strategies, and learn from mistakes.\nDevelop confidence through diligent data collection and pattern recognition.\nFocus on controlling variables and tweaking one aspect at a time for improvement.\nConstantly review and analyze to understand what works and why.\nEmbrace failures and setbacks as opportunities to learn and grow.\nOwnership of mistakes and accountability are key to progress.\nStay committed, patient, and open-minded, and seek community support for continuous improvement.',
         "category": 'The Mental Game',
+        "duration": '1:47:35',
         "sort_order": 10,
     },
     {
@@ -280,6 +318,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 6/21/23',
         "description": 'Emphasizes the importance of emotional awareness and self-understanding for traders\nHighlights that trading involves psychological challenges rooted in past trauma and insecurities\nDiscusses the significance of recognizing triggers and reactions to improve trading decisions\nStresses that success depends on consistent review, honesty, and proper risk management\nAdvocates for embracing mistakes as learning opportunities, not as failures\nWarns against stubbornness and cognitive dissonance that hinder growth\nEncourages creating structured rules and non-negotiables to maintain discipline\nAdvises avoiding entertaining thoughts of breaking rules to protect confidence and consistency\nEmphasizes the role of positive subconscious reinforcement and belief in success\nRecommends daily trade review and actionable solutions for continuous improvement\nExplains that losses are part of the process and should be viewed as lessons\nUrges managing expectations and not becoming overconfident after wins or overly discouraged after losses\nHighlights that trading is a game of probabilities, and losses are inevitable\nPromotes patience, discipline, and sticking to well-defined setups and rules\nUses analogies like baseball to illustrate the importance of persistence and selective opportunities',
         "category": 'The Mental Game',
+        "duration": '1:03:08',
         "sort_order": 11,
     },
     {
@@ -287,6 +326,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 6/27/23',
         "description": "Emphasizes the importance of mental resilience, confidence, and self-awareness in trading.\nEncourages studying successful traders and adopting healthy mindsets like humility and objectivity.\nHighlights that losses are part of growth; mistakes are essential for improvement.\nAdvises controlling emotions, letting go of past mistakes, and practicing patience.\nStresses responsible trading, taking full accountability, and trusting one's own ideas.\nPromotes community sharing, learning from others’ experiences, and being kind.\nSuggests that self-awareness and responsibility are key to progress.\nRecommends continuous effort, discipline, and staying prepared for opportunities.\nUrges traders to develop their intuition and scrutinize price action.\nHighlights the importance of a healthy relationship with oneself for mental clarity.\nReinforces that success depends on individual effort and attitude, not external validation.\nEncourages honest reflection, gratitude, and support within trading communities.\nReminds traders that they are ultimately in control of their journey and outcomes.",
         "category": 'The Mental Game',
+        "duration": '1:04:26',
         "sort_order": 12,
     },
     {
@@ -294,6 +334,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 7/11/23',
         "description": "This episode emphasizes the importance of self-awareness, emotional regulation, and self-discovery in trading success. It highlights that trading is a reflection of one's inner state, requiring humility, vulnerability, and a commitment to personal growth. Key points include the necessity of reviewing trades and journaling emotions to understand triggers, managing expectations about time and success, and developing confidence through discipline and consistency. The journey of trading is framed as a process of continuous self-improvement, where understanding and controlling emotions, building a supportive inner voice, and embracing failure as part of growth are essential for long-term success.",
         "category": 'The Mental Game',
+        "duration": '1:11:10',
         "sort_order": 13,
     },
     {
@@ -301,6 +342,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 8/8/23',
         "description": 'Focus on identifying and eliminating one recurring trading mistake at a time with a detailed plan.\nTreat trading like maintaining an engine; fix issues step by step and with care.\nConcentrate on one problem at a time to improve overall performance and emotional resilience.\nUnderstand and manage emotional triggers to prevent impulsive reactions.\nBe honest with yourself about trauma and emotional responses affecting trading.\nRecognize the importance of patience, planning, and controlling emotions to achieve success.\nEmbrace uncertainty, take calculated risks, and avoid overtrading.\nUse backtesting regularly to build confidence and understand market behavior.\nDevelop a clear trading plan, listen to the charts, and trust your structure and momentum.\nProper position sizing and risk management are essential, especially for beginners.\nLearn from mistakes, review trades, and continually adapt strategies.\nMaintain a long-term perspective, focusing on skill development and consistency.\nThink of yourself as a business, prioritize longevity, discipline, and continuous improvement.',
         "category": 'The Mental Game',
+        "duration": '53:39',
         "sort_order": 14,
     },
     {
@@ -308,6 +350,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 8/15/23',
         "description": 'Understanding that trading is an emotional journey as much as a technical one.\nMaintaining emotional neutrality and perspective, focusing on probabilities.\nAccepting feelings but not trading based on them, staying humble.\nLearning from lows and mistakes, viewing struggles as growth opportunities.\nCelebrating small progress and journaling to track development.\nBuilding self-trust and trusting intuition over wishful thinking.\nThe significance of meditation and breathing techniques to enhance mental clarity and control.\nManaging FOMO by sticking to a trading plan and asking critical questions.\nRecognizing the signs of burnout and the importance of breaks, rest, and balance.\nThe role of discipline, preparation, and routine in success.\nThe importance of vulnerability, humility, and community support for growth.\nEncouragement to share passions, learn from failures, and continually improve.',
         "category": 'The Mental Game',
+        "duration": '51:02',
         "sort_order": 15,
     },
     {
@@ -315,6 +358,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 8/22/23',
         "description": "Importance of sharing emotional experiences and personal growth within the trading community\nReflection on completing over a year of dedicated trading and self-development\nEmphasis on having intentional routines for progress, such as journaling and review\nSelf-awareness as a critical trait for successful trading and personal growth\nUnderstanding the difference between IQ and EQ, and the importance of emotional intelligence\nThe significance of knowing oneself to manage market emotions and reactions effectively\nThe role of authenticity, vulnerability, and embracing failures as part of growth\nRecognizing that success in trading is a reflection of self-knowledge and emotional mastery\nThe necessity of consistent effort, humility, and learning from mistakes\nTrading as a journey of self-discovery, patience, and developing a system with an edge\nThe impact of childhood, environment, and emotional backgrounds on trading progress\nThe importance of being present, grounded, and mindful during trading, especially in emotional moments\nStrategies for managing tilt, frustration, and emotional triggers, including grounding techniques and taking breaks\nThe value of detailed backtesting and understanding one's trading system\nThe analogy of trading to baseball, emphasizing patience and waiting for the perfect opportunity\nThe need to admit ignorance and seek knowledge without fear of failure\nRecognizing physical and emotional signs of tilt and stress, and managing them proactively\nThe importance of focus, routine, and mental clarity for consistent trading success\nPersonal stories illustrating the effects of emotional reactions and the importance of discipline and routine",
         "category": 'The Mental Game',
+        "duration": '1:11:48',
         "sort_order": 16,
     },
     {
@@ -322,6 +366,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 8/30/23',
         "description": 'The episode introduces the importance of emotional awareness and self-control in trading.\nEmphasizes the need to question oneself and improve self-awareness to succeed.\nHighlights that our perception of ourselves is based on past experiences and self-interpretation.\nEncourages positive self-talk and being supportive of oneself.\nStresses the value of consistency, intentional effort, and learning from mistakes.\nRecognizes the struggle in trading and celebrates perseverance.\nAdvocates for authenticity and resisting societal conformity.\nWarns about external influences and the importance of self-validation.\nDiscusses trading conviction, confidence, and the necessity to listen to one\'s own plan.\nExplores how thoughts become habitual and reinforce mental patterns.\nAdvises on expanding perspective through new thoughts, reading, and learning.\nDescribes the process of growth via new actions, behaviors, and experiences.\nEmphasizes leaving mental "boxes" to see opportunities outside biased views.\nExplains the importance of recognizing biases such as anchoring, recency bias, and loss aversion.\nHighlights the significance of understanding and managing biases to avoid blind spots.\nAdvises maintaining discipline, managing expectations, and controlling emotional reactions.\nReinforces that change requires discipline and that poor decisions are often emotional.\nUrges traders to develop strong mental discipline to avoid self-sabotage and improve consistency.',
         "category": 'The Mental Game',
+        "duration": '1:00:48',
         "sort_order": 17,
     },
     {
@@ -329,6 +374,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 9/5/23',
         "description": 'Reflect on past trading mistakes to improve current strategies.\nUse inner dialogue positively; recognize and manage your inner voice.\nBe intentional with small daily efforts, following the 1% principle.\nAccept that trying too hard can hinder progress; let go of the need for approval.\nUnderstand and embrace your unique strengths and limitations.\nDevelop comfort with uncertainty, recognizing that trading success relies on probabilistic thinking.\nReview and analyze your trades regularly to identify patterns and areas for improvement.\nManage expectations by focusing on progress rather than fixed timelines.\nRecognize that losses are part of growth; accept and learn from them.\nCultivate self-accountability and take responsibility for your results.\nUse visualization to reinforce positive beliefs and prepare mentally.\nAdjust beliefs about risk, understanding that calculated risks are necessary.\nBe aware of and challenge limiting beliefs that impact confidence.\nUnderstand that success depends on disciplined decision-making, not just effort.\nRecognize the importance of patience and waiting for optimal setups.\nMaintain a flexible mindset and stay open to new information and methods.\nUse visualization and affirmations to build confidence and reduce emotional reactivity.\nFocus on mastering your reactions and maintaining a balanced emotional state.\nAccept that trading is a journey with continuous learning and adaptation.',
         "category": 'The Mental Game',
+        "duration": '1:00:27',
         "sort_order": 18,
     },
     {
@@ -336,6 +382,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 9/12/23',
         "description": "The importance of self-reflection, growth, and community support in trading.\nRecognizing loneliness in trading and leveraging community for collaboration and perspective.\nEmphasizing the value of intentional actions, habits, and mindset over outcomes.\nThe significance of staying prepared for opportunities and maintaining a probabilistic mindset.\nCultivating faith in oneself, managing fear, and aligning core beliefs with reality.\nDeveloping positive habits through small, consistent actions and habit stacking.\nThe concept of keystone habits that trigger broader positive changes.\nDesigning the environment to promote productive habits and reduce distractions.\nTracking and measuring habits to identify what works and what doesn't.\nOvercoming procrastination by simplifying tasks and starting with minimal effort.\nEmbracing failure as part of the learning process and staying resilient.\nThe importance of humility, asking questions, and continuous learning.\nRecognizing that success in trading and life is a journey of unlearning and becoming.\nThe power of belief, persistence, and taking one step at a time.\nFinal encouragement to adopt a success mindset and trust in oneself.",
         "category": 'The Mental Game',
+        "duration": '57:23',
         "sort_order": 19,
     },
     {
@@ -343,6 +390,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 9/20/23',
         "description": "Learning from past experiences and reviewing notes or journals to improve trading skills.\nUnderstanding market cycles and adapting strategies without losing core principles.\nThe significance of consistency and relinquishing expectations to avoid tilt and emotional reactions.\nEmbracing vulnerability as a strength for growth, innovation, and change.\nRecognizing perfectionism and healthy striving versus destructive perfectionism that hampers performance.\nPracticing patience, waiting for the right opportunities, and managing risk through proper trade execution.\nManaging tilt by recognizing emotional triggers, documenting thoughts, and using techniques like breathing or stepping away.\nBuilding confidence by doing what you say you'll do and visualizing long-term success.\nThe value of community sharing, learning from others, and spreading knowledge.\nStaying cautious around high-impact events like FOMC and avoiding impulsive trades during such times.",
         "category": 'The Mental Game',
+        "duration": '57:02',
         "sort_order": 20,
     },
     {
@@ -350,6 +398,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 10/3/23',
         "description": 'This episode is a deep reflection on emotional resilience, self-awareness, and the discipline required to thrive in trading. The speaker emphasizes the importance of reviewing your own journey, detaching from external opinions, and building confidence through consistent execution. It’s a call to finish the year strong by focusing on what you can control, identifying emotional triggers, and reinforcing discipline both on and off the screen.',
         "category": 'The Mental Game',
+        "duration": '52:44',
         "sort_order": 21,
     },
     {
@@ -357,6 +406,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 10/10/23',
         "description": 'Emphasize the importance of self-awareness, emotional regulation, and introspection in trading.\nSuccess in trading is rooted in accountability, following plans, and trusting oneself.\nDevelop confidence through experience, intuition, and proper risk management.\nRecognize and manage emotions such as FOMO, fear, and frustration; practice letting go.\nUse techniques like taking breaks, acknowledging feelings, and avoiding resistance to emotions.\nView trading as a business requiring discipline, planning, and time management.\nRegularly review and backtest to identify patterns, improve strategies, and build confidence.\nUnderstand probabilities and accept losses as part of trading; maintain a long-term perspective.\nAvoid strategy hopping; stick to simple, well-understood strategies aligned with personality.\nAdjust strategies based on market conditions without overcorrecting.\nFocus on continuous learning, self-improvement, and accountability.\nPlan to eliminate one recurring mistake or variable contributing to losses.\nUtilize community support and personalized coaching to develop actionable plans.',
         "category": 'The Mental Game',
+        "duration": '59:35',
         "sort_order": 22,
     },
     {
@@ -364,6 +414,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 11/15/23',
         "description": 'The speech emphasizes the importance of mental discipline, self-awareness, perseverance, and community support in trading. It highlights that trading success is rooted in psychological resilience, continuous learning, and patience rather than just technical skills. Key themes include the necessity of embracing failures as part of growth, maintaining kindness towards oneself, avoiding comparison, and understanding that progress takes time. The speaker encourages traders to focus on their "why," stay consistent, and trust the process, emphasizing that pressure and challenges are opportunities for growth. Building habits, controlling emotions, and fostering a supportive community are crucial for long-term success.',
         "category": 'The Mental Game',
+        "duration": '53:49',
         "sort_order": 23,
     },
     {
@@ -371,6 +422,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 11/23/23',
         "description": "Emphasizes the importance of following a plan and the simplicity of successful trading techniques.\nHighlights that emotional challenges and discomfort are essential for developing a successful trading mindset.\nDiscusses the mental and emotional demands of trading, including questioning sanity and dealing with loneliness.\nStresses the value of consistency, discipline, and not delaying happiness or self-recognition.\nEncourages embracing mistakes, learning from losses, and maintaining confidence through proper risk management.\nAdvocates for thorough preparation, review, and backtesting to build confidence and pattern recognition.\nSuggests that experience and repetition turn setups into second nature, reducing hesitation.\nEmphasizes the importance of being open to new experiences and other traders' perspectives to improve adaptability.\nHighlights the significance of understanding emotional responses, triggers, and past scars to enhance emotional intelligence.\nRecommends self-forgiveness and introspection to manage reactions like revenge trading.",
         "category": 'The Mental Game',
+        "duration": '56:32',
         "sort_order": 24,
     },
     {
@@ -378,6 +430,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 12/5/23',
         "description": 'The session emphasizes the importance of mental discipline, emotional awareness, and consistency in trading. It encourages traders to be intentional, reflect on their actions, and learn from mistakes to improve over time. Key points include managing emotions, staying even-keeled during wins and losses, following a trading plan, and continuously learning and adapting. Building accountability, sharing knowledge, and maintaining passion for trading are also highlighted as crucial for success. The overall message is that successful trading relies on inner self-awareness, discipline, and persistent effort.',
         "category": 'The Mental Game',
+        "duration": '47:42',
         "sort_order": 25,
     },
     {
@@ -385,6 +438,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 12/19/23',
         "description": 'This episode reflects on the importance of self-awareness, emotional regulation, and disciplined strategies in trading, emphasizing that success depends on mastering oneself rather than others. Key points include the significance of honesty with oneself, the role of psychological warfare, the value of consistency, and the necessity of having a clear plan and confluence in trades. It encourages traders to develop habits of reflection, set realistic expectations, and focus on their own growth rather than external influences or quick results. The episode also highlights the importance of patience, humility, and the ongoing process of learning from mistakes to achieve long-term success in trading and life.',
         "category": 'The Mental Game',
+        "duration": '1:15:32',
         "sort_order": 26,
     },
     {
@@ -392,6 +446,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 1/2/24',
         "description": 'Overcoming personal challenges builds confidence and can inspire others.\nStudy historical price patterns of stocks to recognize recurring market behaviors.\nSuccess in trading requires consistent preparation, learning from past patterns, and understanding market psychology.\nSelf-awareness and deep questioning of emotions are crucial for personal and trading growth.\nOvercoming oneself involves examining ego, understanding emotional triggers, and improving self-discipline.\nSet clear, specific trading goals and create detailed plans to achieve them.\nRecognize that trading success is a process of continuous effort, humility, and learning from mistakes.\nFocus on mastering trading strategies, respecting market structure, and controlling emotional responses.\nPersonal growth and trading success depend on persistent effort, self-awareness, and aligning actions with goals.\nThe upcoming year can be transformational if one is willing to work hard, learn from mistakes, and stay dedicated.',
         "category": 'The Mental Game',
+        "duration": '39:51',
         "sort_order": 27,
     },
     {
@@ -399,6 +454,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 1/9/24',
         "description": 'Avoid the "new year, new me" fallacy; change should happen now, not at a specific date.\nSet clear, specific goals with actionable steps and understand what you are striving to leave behind.\nCreate simple, manageable plans with deadlines and track small progress to build momentum.\nRecognize the importance of preparation and routine, similar to athletes\' pregame rituals, to prime your mind and body.\nUse a scientific approach to trading by controlling variables and understanding price action cycles.\nStudy historical price movements and market reactions to improve timing and decision-making.\nDevelop patience and discipline, understanding when not to trade to avoid unnecessary losses.\nCultivate a passion and deeper purpose beyond money, such as providing for loved ones and personal growth.\nFollow a strict schedule and stick to your plan regardless of motivation fluctuations; discipline is key.\nAccept failures as learning opportunities; continuously analyze mistakes to improve.\nBuild confidence through small successful trades and understanding market cycles.\nSurround yourself with a community of disciplined traders for support and accountability.\nCommit to following your trading plan for at least one day per week to build consistency.\nFocus on controlling only what you can—your entries, exits, and position sizes—and trust the process.\nUse community resources and support to stay motivated and learn from others\' experiences.',
         "category": 'The Mental Game',
+        "duration": '50:56',
         "sort_order": 28,
     },
     {
@@ -406,6 +462,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 1/23/24',
         "description": 'Most people overestimate their self-awareness; only 10-15% are truly self-aware.\nGrowth begins with recognizing and owning your contributions and mistakes in trading moments.\nDeveloping habits, patience, and proper risk management is crucial.\nSuccess in trading is a gradual process, akin to eating an elephant one bite at a time.\nThe importance of preparation, repetition, and reflection to improve technical skills and psychological resilience.\nAccepting that not every day or setup is tradable and understanding market conditions.\nBuilding confidence through ownership of past actions and maintaining discipline.\nRecognizing that trading is scalable, and persistence over years can lead to significant achievement.\nEmphasizes that self-belief, ownership, and disciplined routines are foundational to becoming a successful trader.',
         "category": 'The Mental Game',
+        "duration": '48:59',
         "sort_order": 29,
     },
     {
@@ -413,6 +470,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 1/29/24',
         "description": 'Importance of understanding and managing triggers through self-awareness rather than external validation\nReflection on whether 2024 is similar to 2023 and the need for intentional change\nSuccess and progress require consistent effort, planning, and intentional actions\nBeing intentional involves having a plan, executing it, and understanding what influences results\nMany market participants lack a plan; successful traders study experienced individuals and develop habits\nSuccess is a daily choice and habit, not luck\nThe importance of self-awareness, reflection, and gratitude in personal growth and trading\nEmbracing challenges and suffering as part of the process of mastery and success\nRecognizing the influence of emotions and the importance of emotional discipline\nSelf-discovery involves understanding past reactions and choosing how to respond moving forward\nLife and trading are about deliberate suffering and effort for future benefits\nSuccess is individual and unique, rooted in authenticity and acting according to personal strengths\nFollow your own plan, avoid blindly following others, and trust in your data and edge\nConsistency, discipline, and intentionality are key to long-term success\nUse setbacks and failures as learning opportunities and stay committed to growth\nThe value of preparation, focus, and having a clear purpose in trading and life\nEmphasizing that life’s difficulties can be managed through deliberate suffering and effort\nThe importance of community, sharing insights, and continuous learning\nEnd with encouragement to be intentional, plan ahead, and pursue greatness daily',
         "category": 'The Mental Game',
+        "duration": '54:47',
         "sort_order": 30,
     },
     {
@@ -420,6 +478,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 2/13/24',
         "description": 'Successful consulting firms value vulnerability and group progress through mental openness.\nEmphasizes the importance of learning from mistakes, failing, and trying again.\nUses Kobe Bryant’s story to illustrate self-love, resilience, and the importance of internal encouragement.\nHighlights that only you truly understand your struggles and that failure is part of success.\nSuccess involves patience, relinquishing the need for immediate results, and understanding that time is linked to suffering.\nEncourages not delaying happiness or setting arbitrary goals for achievement.\nStresses that talent alone is insufficient in trading; discipline, work ethic, and self-awareness are crucial.\nBuilding self-awareness and consistency takes time and effort.\nConsistency in trading is about habitual actions, similar to training a dog—repetition and trust in your system.\nConfidence in your trading system reduces fear and emotional reactions.\nRegular review and analysis of trades deepen market understanding.\nRecognizes that experienced traders focus on high-quality opportunities and avoid overtrading.\nPreparation, understanding market conditions, and knowing when not to trade are vital.\nSuccess in trading is about making deliberate decisions, managing emotions, and having a long-term perspective.\nTaking breaks and recognizing when to step back is essential for maintaining peak performance.\nDeveloping a disciplined approach involves patience, strategic pauses, and continuous self-improvement.\nEnd with a call to action: focus on one small improvement daily to become a better trader.',
         "category": 'The Mental Game',
+        "duration": '43:24',
         "sort_order": 31,
     },
     {
@@ -427,6 +486,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Mental Game 2/27/24',
         "description": 'Father Gred emphasizes that trading success is rooted in emotional discipline, patience, and self-awareness. He encourages traders to embrace discomfort, avoid impulsive decisions, and wait for high-probability setups. Mastery comes from knowing when to act—and when to do nothing at all.\nSuccess lies beyond discomfort\nDelayed gratification is essential\nLet price guide your trades\nMental preservation matters\nPatience is the ultimate edge',
         "category": 'The Mental Game',
+        "duration": '49:53',
         "sort_order": 32,
     },
     {
@@ -434,6 +494,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'The Mental Game Season 1, Episode 1 in Uncharted Territory Train Your Mind to Treat Trading Like a Business and How to Make a Business Plan',
         "description": "This session is a powerful blueprint for treating trading as a disciplined business. The speaker emphasizes that success begins with self-awareness, emotional resilience, and structured routines. He walks through how to build a personal trading business plan—from mission statements to risk analysis—while stressing the importance of reducing randomness, embracing vulnerability, and creating habits that support long-term growth.\n2:19 You Are the Edge\nMarkets can't be changed, but your mindset can\nFocus on how you perform within the market\n3:00 Trading as a Business\nStructure efforts into repeatable steps\nDiscipline becomes easy when built into habits\n5:04 Vulnerability Is Strength\nAccepting emotional risk is key to growth\nLosses are part of the journey—embrace them\n11:00 Eliminate Randomness\nRandom trades kill consistency\nConsistent actions lead to consistent results\n19:40 Build Your Business Plan\nDefine your mission, strategy, and structure\nTreat trading like a company with clear goals\n43:02 Routine & Schedule = Stability\nStructure reduces anxiety and improves focus\nPlan weekly intentions to avoid guilt and burnout\n47:09 Sell-Side Rules & Emotional Discipline\nLet the chart guide your trims and exits\nTrust builds through market experience and review",
         "category": 'The Mental Game',
+        "duration": '59:07',
         "sort_order": 33,
     },
     {
@@ -441,6 +502,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'The Mental Game Season 1, Episode 2 The Power of Planning & Understanding Emotional Regulation "Don\'t Let Anger Fuel the Fire"',
         "description": "This episode is a deep and emotionally intelligent dive into the psychology of trading, with a focus on emotional regulation, self-awareness, and habit formation. The speaker explores how anger, broken expectations, and unconscious triggers can sabotage performance—and how mindfulness, journaling, and intentional planning can help traders regain control. The core message: success in trading starts with regulating your emotional responses and building disciplined habits both on and off the screen.\n1:02 Planning as Emotional Armor\nA solid plan helps neutralize emotional volatility\nUse Q2 as a fresh start to build success-oriented habits\n4:01 Emotional Intelligence Is Trainable\nAwareness and mindfulness cultivate emotional control\nReading subtle cues helps navigate market psychology\n7:15 Understanding Price Action Emotionally\nPrice moves reflect groupthink and emotional reactions\nLearn to interpret sweeps, liquidity grabs, and overextensions\n10:10 Emotional Regulation Framework\nThree components: initiating, inhibiting, and modulating actions\nAwareness is key—regulate what you can identify\n22:01 Anger = Broken Expectation\nAnger disrupts frontal lobe function and blinds decision-making\nLearn to sit with emotions and ask “why” repeatedly\n33:09 Mindfulness as a Trading Tool\nStay present to reduce anxiety and impulsive reactions\nAwareness of physical cues (e.g. tension, posture) helps prevent emotional spirals\n46:00 Revenge Trading & Acceptance\nMistakes don't justify immediate re-entry\nAccept losses without emotional retaliation\n47:01 Journaling for Feedback Loops\nTrack emotional triggers and reactions\nMicro-awareness leads to macro improvement\n50:27 Off-Screen Habits Reflect On-Screen Discipline\nYou won't become disciplined at the desk if you aren't off it\nBuild habits that align with your trading identity",
         "category": 'The Mental Game',
+        "duration": '1:00:21',
         "sort_order": 34,
     },
     {
@@ -448,6 +510,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'The Mental Game Season 1, Episode 3 Find Your Happiness: Success Is Something You Attract Not Something You Pursue',
         "description": "This episode is a raw and reflective deep dive into the emotional and psychological layers of trading. The speaker challenges traders to confront their self-image, own their mistakes, and embrace discomfort as a catalyst for growth. He emphasizes that success is built through intentional habits, honest self-review, and the courage to remain a student of the game. The message is clear: progress begins when you stop avoiding the truth and start owning your journey.\n1:16 Self-Awareness & Tough Markets\nTraders often blame themselves for not knowing what they don't know\nEven in poor conditions, growth is possible through reflection\n3:04 Happiness & Identity\nTrue happiness comes from self-discovery, not external validation\nEmbrace the process and the person you're becoming\n6:04 Intentional Habits Drive Change\nSuccess is something you attract by becoming the kind of person success sticks to\nInternal change precedes external results\n11:11 Struggle Is the Gift\nDiscomfort builds resilience and shapes identity\nThose who embrace struggle advance effortlessly\n25:01 Journaling & Trade Review\nReviewing trades reveals patterns and blind spots\nSelf-awareness through journaling leads to actionable improvement\n31:00 Ownership & Accountability\nProgress stalls when traders avoid responsibility\nOwning your role in setbacks brings emotional relief and clarity\n45:00 Compounding Efforts Over Flashy Wins\nSociety praises big wins but ignores consistent small gains\nTrue success is built through steady, intentional effort\n56:00 Hard Questions for Growth\nWhat drives your decisions?\nCan you handle being wrong?\nAre you working hard enough for an elite career field?",
         "category": 'The Mental Game',
+        "duration": '1:00:30',
         "sort_order": 35,
     },
     {
@@ -455,6 +518,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": "The Mental Game Season 1, Episode 4 Reflecting On How Far You've Grown",
         "description": "This episode is a powerful reflection on trading psychology, emphasizing the importance of self-awareness, emotional regulation, and long-term discipline. The speaker urges traders to stop chasing instant results and instead build scalable systems, embrace discomfort, and cultivate a growth mindset. The core message: your reaction to adversity defines your trajectory, and success is built through compounding intentional actions—not quick wins.\n2:19 Equity Curve as Feedback\nUse your performance chart to gauge market conditions\nTreat dips as signals to shift into risk-off mode\n3:01 Pause to Acknowledge Progress\nReflect on how far you've come in your trading journey\nDon't let imaginary timelines distort your sense of growth\n5:03 Success Is a Garden\nGrowth takes time, care, and resilience\nEven setbacks can add unique value—like smoke in wine\n10:10 Delayed Gratification & Compounding\nTrue progress comes from consistent, disciplined effort\nAvoid chasing emotional feedback from every trade\n16:00 Scalability Starts Today\nBuild systems that work for small and large accounts\nPrepare like the trader you want to be in 5–10 years\n22:00 Trading Psychology & Emotional Discipline\nSuccess requires rational decision-making under uncertainty\nA growth mindset embraces failure as feedback\n26:00 Self-Confidence = Kept Promises\nConfidence comes from doing what you say you’ll do\nPreparation and emotional control are key to execution\n48:00 The Power of Doing Nothing\nWaiting for ideal setups is a skill\nMost money is made by those who act only when conditions align",
         "category": 'The Mental Game',
+        "duration": '54:15',
         "sort_order": 36,
     },
     {
@@ -462,6 +526,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'The Mental Game Season 1, Episode 5 Hesitation and Edge: Identifying the Reasons Behind the Results',
         "description": "This episode is a deep dive into hesitation, analysis paralysis, and cultivating your personal trading edge. The speaker explores how subconscious fears, emotional triggers, and cluttered decision-making can sabotage execution—even when you're fully prepared. He emphasizes the importance of self-awareness, quick decision-making, and journaling to build trust in your intuition. The core message: consistent action and reflection sharpen your edge, and your edge is what makes your strategy work.\n3:28 Hesitation & Analysis Paralysis\nHesitation often stems from subconscious fear or past scars\nToo many choices can overwhelm and stall action\nThe irrational mind gets stuck in future hypotheticals or past regrets\n6:08 Confidence & Execution\nHesitation correlates with confidence\nActing without trust leads to poor outcomes\nBigger size amplifies unresolved emotional triggers\n10:14 Slimming Down Watchlists\nFOMO clutters perception of opportunity\nFocused setups yield better results than scattered attention\n16:09 Emotional Logic vs. Rational Planning\nAsk: “Am I following the plan I made yesterday?”\nAvoid revenge trades triggered by emotional reactions\n20:26 Training Quick Decision-Making\nPractice small, insignificant choices to build decisiveness\nCreate habits that reinforce trust in your gut\n24:05 Cultivating Your Edge\nYour edge is what makes your strategy work—not just the strategy itself\nIdentify what comes naturally to you (focus, emotional intelligence, risk tolerance)\n32:00 Temporal Edge & Strategy Fit\nKnow when your strategy works best in specific market conditions\nAvoid strategy hopping—adapt your execution to the cycle\n36:00 Write Down Your Edge\nStart journaling what makes you unique as a trader\nData collection on yourself leads to sharper execution",
         "category": 'The Mental Game',
+        "duration": '39:19',
         "sort_order": 37,
     },
     {
@@ -469,6 +534,7 @@ SEED_VIDEOS_EXTRA: list[dict] = [
         "title": 'Fireside Chat with CregwithaG. Bracco recaps his RKLB trade.',
         "description": "This session is a powerful reflection on trading psychology, emphasizing self-awareness, emotional regulation, and the importance of building a disciplined system. The speaker challenges traders to confront their ego, stop chasing outcomes, and focus on process-driven growth. He explores how humility, planning, and capital preservation are essential to long-term success—and how your biggest obstacle is often yourself.\n0:02 Delusion as a Catalyst for Belief\nSuccess often starts with irrational self-belief\nOthers won't believe until you prove it—keep going\n2:25 You Already Know What to Do\nMost traders are aware of what’s holding them back\nDiscipline—not knowledge—is the missing link\n4:54 Humility Enables Growth\nAdmit what you don't know to accelerate learning\nEgo blocks progress; curiosity unlocks it\n11:01 Stop Comparing, Start Studying Yourself\nYour journey is unique—others’ paths don’t define yours\nTrue growth comes from analyzing your own actions\n13:01 Plan vs. Action Gap\nMost mistakes stem from not following your own plan\nConfidence erodes when you break promises to yourself\n16:00 Emotional Triggers & Trade Review\nIdentify what triggers poor decisions\nJournaling helps isolate patterns and solutions\n26:00 Capital & Mental Preservation\nProtect your capital to stay in the game\nMental clarity is key—don’t trade when conditions aren’t favorable\n36:15 Be a Person of Action\nGoals aren’t enough—daily effort compounds\nChampions do daily what others do occasionally\n48:10 Bracco's RKLB trade review",
         "category": 'The Mental Game',
+        "duration": '1:05:19',
         "sort_order": 38,
     },
 ]

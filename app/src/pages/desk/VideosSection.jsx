@@ -9,6 +9,7 @@ import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoPlayer from './VideoPlayer'
 import { subscribe, getSnapshot } from './videoProgress'
+import { LEARNING_PATHS } from './learningPaths'
 import styles from '../EducationalVideos.module.css'
 
 const fetcher = (url) =>
@@ -71,6 +72,15 @@ export default function VideosSection() {
     }
     return items.sort((a, b) => b.at - a.at).slice(0, 8)
   }, [categories, progress])
+
+  // Resolve curated learning paths against the loaded library (skip unknown ids).
+  const paths = useMemo(() => {
+    const byId = {}
+    for (const cat of categories) for (const v of cat.videos) byId[v.youtube_id] = v
+    return LEARNING_PATHS
+      .map((p) => ({ ...p, videos: p.steps.map((id) => byId[id]).filter(Boolean) }))
+      .filter((p) => p.videos.length >= 2)
+  }, [categories])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -142,6 +152,28 @@ export default function VideosSection() {
           )}
         </div>
       </div>
+
+      {!isLoading && !activeCat && !query.trim() && paths.length > 0 && (
+        <div className={styles.pathsRow}>
+          <div className={styles.continueHead}>Learning paths</div>
+          <div className={styles.pathsGrid}>
+            {paths.map((p) => (
+              <button
+                key={p.id}
+                className={styles.pathCard}
+                onClick={() => setPlaying({ list: p.videos, index: 0 })}
+              >
+                <div className={styles.pathName}>{p.name}</div>
+                <div className={styles.pathBlurb}>{p.blurb}</div>
+                <div className={styles.pathMeta}>
+                  <span className={styles.pathPlay} aria-hidden="true"><PlayIcon /></span>
+                  Start path · {p.videos.length} videos
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!isLoading && continueWatching.length > 0 && (
         <div className={styles.continueRow}>

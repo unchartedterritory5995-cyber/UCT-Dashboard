@@ -358,6 +358,51 @@
   min-height: var(--tap-min);
 }
 
+/* ── Learning paths ── */
+.pathsRow { margin: 0 0 var(--space-xl); }
+.pathsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+.pathCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  padding: var(--space-lg);
+  border-radius: 12px;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(230, 207, 134, 0.08), rgba(201, 168, 76, 0.04));
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.pathCard:hover {
+  border-color: var(--ut-gold, #c9a84c);
+  box-shadow: 0 0 16px var(--ut-gold-glow);
+}
+.pathName {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.pathBlurb {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.pathMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #c9a84c;
+}
+.pathPlay { display: inline-flex; }
+.pathPlay svg { width: 16px; height: 16px; }
+
 /* ── Watch progress + "Continue watching" ── */
 .continueRow { margin: 0 0 var(--space-xl); }
 .continueHead {

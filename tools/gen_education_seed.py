@@ -183,6 +183,7 @@ def _emit(videos, total_rows, skipped, by_cat):
         lines.append(f"        \"title\": {_py(v['title'])},")
         lines.append(f"        \"description\": {_py(v['description'])},")
         lines.append(f"        \"category\": {_py(v['category'])},")
+        lines.append(f"        \"duration\": {_py(v.get('duration', ''))},")
         lines.append(f"        \"sort_order\": {v['sort_order']},")
         lines.append("    },")
     lines.append("]")

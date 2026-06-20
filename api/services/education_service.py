@@ -200,6 +200,44 @@ def ensure_default_videos() -> None:
         except Exception:
             continue
     _migrate_seed_categories_once()
+    _backfill_seed_meta_once(seeds)
+
+
+# One-shot backfill of duration (+ blank description) onto already-seeded rows
+# from the seed lists (which now carry both). Only fills EMPTY fields, so an
+# admin edit is never clobbered. Flag-gated → runs once per version.
+_META_BACKFILL_VERSION = "v1_durations"
+
+
+def _backfill_seed_meta_once(seeds: list[dict]) -> None:
+    flag = os.path.join(os.path.dirname(_DB_PATH) or ".",
+                        f".edu_meta_backfill_{_META_BACKFILL_VERSION}")
+    try:
+        if os.path.exists(flag):
+            return
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            now = int(time.time())
+            for v in seeds:
+                yt = (v.get("youtube_id") or "").strip()
+                dur = (v.get("duration") or "").strip()
+                desc = (v.get("description") or "").strip()
+                if dur:
+                    c.execute(
+                        "UPDATE edu_videos SET duration = ?, updated_at = ? "
+                        "WHERE youtube_id = ? AND (duration IS NULL OR duration = '')",
+                        (dur, now, yt),
+                    )
+                if desc:
+                    c.execute(
+                        "UPDATE edu_videos SET description = ?, updated_at = ? "
+                        "WHERE youtube_id = ? AND (description IS NULL OR description = '')",
+                        (desc, now, yt),
+                    )
+            c.commit()
+        with open(flag, "w") as f:
+            f.write(_META_BACKFILL_VERSION)
+    except Exception:
+        pass
 
 
 # Renames applied once to already-seeded videos (the seed file itself carries the
