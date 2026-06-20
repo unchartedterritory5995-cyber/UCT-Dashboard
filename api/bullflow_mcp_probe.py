@@ -1403,16 +1403,16 @@ async def backfill_from_bullflow(
                 ingested = f"{d_iso}T13:30:00+00:00"
             alert["ingestedAt"] = ingested
 
-            # Pre-insert id check so we can count skips vs new inserts
-            # accurately (INSERT OR IGNORE is silent on collision). One SELECT
-            # per row is fine at this volume; backfill is admin-initiated and
-            # rate-limited to ≤7 days × ~100 rows = ~700 SELECTs per call.
+            # Pre-insert check against the composite (id, date_iso) primary key
+            # so the skip vs. insert counter is accurate. Bullflow's backtest
+            # IDs reset per-day (1, 2, 3...), so the same id on different
+            # dates is a NEW row, not a duplicate.
             existed = False
             try:
                 with live_alerts_db._conn() as c:
                     existed = c.execute(
-                        "SELECT 1 FROM live_alerts WHERE id = ? LIMIT 1",
-                        (alert["id"],),
+                        "SELECT 1 FROM live_alerts WHERE id = ? AND date_iso = ? LIMIT 1",
+                        (alert["id"], d_iso),
                     ).fetchone() is not None
             except Exception:
                 existed = False
