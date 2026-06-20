@@ -589,13 +589,14 @@
   margin-bottom: 12px;
 }
 
-/* ── Month cell content — keeps the week view's gold/blue BMO·AMC headers but
-   renders compact wrapped logo tiles (no per-row ticker text) so a narrow month
-   cell stays tidy. BMO band stacks above AMC band, each using the full width. ── */
+/* ── Month cell content — reads like the week view (gold/blue BMO·AMC headers
+   + logo + ticker-name rows) but scaled down for a narrow month cell. Bands
+   stack (BMO above AMC), each full-width — NOT side-by-side (that halved each
+   band and clipped the logo+ticker). Capped per band so cells stay bounded. ── */
 .mtimings {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
   flex: 1 1 0;
   min-height: 0;
 }
@@ -603,7 +604,7 @@
 .mband {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -616,28 +617,48 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
-.mlogos {
+/* Scaled-down mirror of the week view's .wrow */
+.mrow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
   align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s, transform 0.12s;
 }
 
-/* Mine-set highlight — gold ring hugging the rounded logo tile. */
-.mineTile {
-  display: inline-flex;
-  border-radius: 28%;
-  box-shadow: 0 0 0 1.5px var(--cal-gold);
+.mrow:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
 }
 
-.mmoreChip {
-  font-size: var(--cal-month-fs);
+.mrow > span:first-child {
+  transition: transform 0.14s ease;
+}
+
+.mrow:hover > span:first-child {
+  transform: scale(1.09);
+}
+
+.mt {
+  font-size: 13px;
   font-weight: 700;
+  color: var(--cal-txt);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mmore {
+  font-size: var(--cal-month-fs);
   color: var(--cal-muted);
-  align-self: center;
-  padding: 0 2px;
+  font-weight: 700;
+  padding: 2px 4px 0 40px;
 }
 
 .mbandEmpty {
@@ -645,6 +666,7 @@
   font-weight: 700;
   color: var(--cal-line2);
   line-height: 1;
+  padding-left: 4px;
 }
 
 .mempty {
