@@ -88,6 +88,7 @@ from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
 from api.liveflow_router import router as liveflow_router
 from api.bullflow_mcp_probe import router as bullflow_mcp_probe_router
+from api.alert_tester import router as alert_tester_router
 from api.darkpool_router import router as darkpool_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
@@ -2352,6 +2353,7 @@ app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
 app.include_router(bullflow_mcp_probe_router)
+app.include_router(alert_tester_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
