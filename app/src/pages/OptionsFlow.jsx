@@ -2991,7 +2991,7 @@ export default function OptionsFlowDashboard() {
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
           {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
             <button key={m} onClick={()=>{
-              if (m === "liveflow") { window.location.href = "/live-flow"; return; }
+              if (m === "liveflow") { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
               if(dataMode!==m) {
                 const wasFlow = dataMode === "stocks" || dataMode === "index";
                 const toFlow = m === "stocks" || m === "index";
@@ -3228,7 +3228,7 @@ export default function OptionsFlowDashboard() {
               const hasAccent = accent !== null;
               return (
                 <button key={m} onClick={()=>{
-                  if (isLive) { window.location.href = "/live-flow"; return; }
+                  if (isLive) { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
                   if(dataMode!==m) {
                     // Only reset flow data when switching between stocks ↔ index (csvFile changes)
                     // Switching to/from darkpool or gex preserves cached parsedRows+D for instant return
