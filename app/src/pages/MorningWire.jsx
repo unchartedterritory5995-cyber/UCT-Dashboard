@@ -5,7 +5,6 @@ import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
-import useHandsFreeMorningWire from '../hooks/useHandsFreeMorningWire'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
@@ -114,8 +113,9 @@ export default function MorningWire() {
   const { mutate } = useSWRConfig()
   const { data: rundown }  = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
 
-  // P5-E: hands-free auto-read of today's rundown when proactive_speak is ON
-  useHandsFreeMorningWire({ rundownHtml: rundown?.html })
+  // Morning Wire is MANUAL-only: no auto-read on page open. (The hands-free
+  // hook is intentionally NOT invoked here — decoupled from proactive_speak so
+  // proactive voice still works elsewhere, e.g. the EOD recap.)
 
   // Follow-along: highlight + scroll to the briefing block being read aloud.
   const rundownRef = useRef(null)
