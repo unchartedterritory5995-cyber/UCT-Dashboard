@@ -150,7 +150,7 @@
    page width (auto-fit collapses empty tracks so 3 accounts = 3 wide columns). */
 .postBoard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 520px));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 520px));
   justify-content: center;
   gap: var(--space-lg);
   align-items: start;
@@ -195,7 +195,7 @@
 .postAuthor { font-size: var(--text-base); color: var(--text-bright); font-weight: 700; }
 .postHandle { font-size: var(--text-sm); color: var(--text-muted); }
 .postTime { font-size: var(--text-sm); color: var(--text-muted); }
-.postText { font-size: var(--text-lg); color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+.postText { font-size: var(--text-xl); color: var(--text); line-height: 1.6; white-space: pre-wrap; }
 .postMedia {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   margin-top: 10px; border-radius: 10px; overflow: hidden;
@@ -308,7 +308,23 @@
 
 @media (max-width: 640px) {
   .section { padding: var(--space-md); }
-  .tabBar { padding: 8px var(--space-md); }
+  .tabBar { padding: 8px var(--space-md); gap: 6px; }
   .cardGrid { grid-template-columns: 1fr; }
-  .teamGrid { grid-template-columns: 1fr 1fr; }
+  .teamGrid { grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+  .sectionTitle { font-size: 20px; }
+  .sectionIcon { width: 40px; height: 40px; }
+
+  /* Posts: one full-width column; the page scrolls (no nested 80vh feed scroll),
+     and the per-account header doesn't stick. Fixes the 380px-min overflow. */
+  .postBoard { grid-template-columns: 1fr; }
+  .postColFeed { max-height: none; padding: var(--space-md); gap: var(--space-sm); }
+  .postColHead { position: static; padding: 10px var(--space-md); }
+  .postColAvatar, .postColAvatarFallback { width: 40px; height: 40px; }
+  .postColName { font-size: var(--text-lg); }
+  .postCard { padding: var(--space-md); }
+  .postMediaImg { max-height: 260px; }
+
+  /* Team: tighter cards so two fit cleanly on a phone */
+  .teamCard { padding: var(--space-md); }
+  .teamPhoto, .teamPhotoFallback { width: 76px; height: 76px; }
 }
