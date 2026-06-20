@@ -201,12 +201,19 @@ def _alert_to_row(alert: dict) -> dict:
 
 # ─── Write operations ────────────────────────────────────────────────────────
 
-def insert_alert(alert: dict) -> None:
+def insert_alert(alert: dict, source: str = "live") -> None:
     """Insert a freshly-enriched alert. INSERT OR IGNORE on duplicate id so
     a retry doesn't break the worker. Failures are logged but not raised —
-    persistence loss is acceptable vs. blocking the live pipeline."""
+    persistence loss is acceptable vs. blocking the live pipeline.
+
+    `source` tags the row's provenance — 'live' for real-time SSE captures
+    (default), 'bullflow_replay' for backfills via the MCP replay tool,
+    'discord_backfill' for Discord JSON imports (Phase 2). The frontend can
+    use this to flag historical samples that may be incomplete (e.g.
+    Bullflow replay caps at ~100 alerts/day vs. ~500 actual)."""
     init_db()
     row = _alert_to_row(alert)
+    row["source"] = source
     if not row.get("id"):
         log.warning("[live_alerts_db] skipping insert — alert has no id: %r",
                     {k: row.get(k) for k in ("ticker", "alert_name", "ingested_at")})
