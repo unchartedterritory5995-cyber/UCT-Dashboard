@@ -1,14 +1,17 @@
-// Per-device watch-progress for The Desk → Videos (localStorage, no backend).
-// Powers "Continue watching", resume-on-reopen, ✓ watched checkmarks, and the
-// per-card progress bar. Keyed by youtube_id.
+// Watch-progress for The Desk → Videos. localStorage is the instant cache + the
+// offline fallback; it write-syncs to the backend (`/api/education/progress`) so
+// progress follows the user across devices. Powers "Continue watching",
+// resume-on-reopen, ✓ watched checkmarks, and the per-card progress bar.
 //
 // Shape: { [youtube_id]: { t: secondsWatched, d: durationSeconds, at: epochMs, done: bool } }
 const KEY = 'desk_video_progress'
 const DONE_RATIO = 0.92 // ≥92% watched ⇒ counts as finished
 const MIN_RESUME = 8 // don't bother resuming a video watched <8s
+const SYNC_DEBOUNCE = 2500 // ms; coalesce rapid position updates per video
 
 let cache = null
 let listeners = new Set()
+let syncTimers = {} // youtube_id → debounce timer (write-behind to backend)
 
 function read() {
   try {
@@ -33,6 +36,30 @@ function commit(next) {
   listeners.forEach((cb) => cb())
 }
 
+// Write-behind to the backend (debounced per video). Best-effort: unauth (402)
+// or offline just leaves the localStorage copy in place.
+function queueSync(youtubeId, immediate = false) {
+  if (typeof fetch === 'undefined') return
+  clearTimeout(syncTimers[youtubeId])
+  const send = () => {
+    const e = ensureCache()[youtubeId]
+    if (!e) return
+    fetch('/api/education/progress', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        youtube_id: youtubeId,
+        position: e.t || 0,
+        duration: e.d || 0,
+        done: !!e.done,
+      }),
+    }).catch(() => {})
+  }
+  if (immediate) send()
+  else syncTimers[youtubeId] = setTimeout(send, SYNC_DEBOUNCE)
+}
+
 // ── Writes ──────────────────────────────────────────────────────────────────
 export function recordProgress(youtubeId, t, d) {
   if (!youtubeId) return
@@ -44,12 +71,14 @@ export function recordProgress(youtubeId, t, d) {
     ...ensureCache(),
     [youtubeId]: { t: secs, d: dur, at: Date.now(), done },
   })
+  queueSync(youtubeId)
 }
 
 export function markWatched(youtubeId) {
   if (!youtubeId) return
   const prev = ensureCache()[youtubeId] || {}
   commit({ ...ensureCache(), [youtubeId]: { ...prev, done: true, at: Date.now() } })
+  queueSync(youtubeId, true) // flush completion right away
 }
 
 export function clearProgress(youtubeId) {
@@ -100,9 +129,37 @@ export function getSnapshot() {
   return ensureCache()
 }
 
+// Pull cross-device progress from the backend once on load and merge it in
+// (newest `at`/updated_at wins per video). Best-effort; no-ops if unauth/offline.
+export async function hydrateFromServer() {
+  if (typeof fetch === 'undefined') return
+  let rows
+  try {
+    const r = await fetch('/api/education/progress', { credentials: 'include' })
+    if (!r.ok) return
+    rows = (await r.json())?.progress
+  } catch {
+    return
+  }
+  if (!Array.isArray(rows) || !rows.length) return
+  const next = { ...ensureCache() }
+  let changed = false
+  for (const s of rows) {
+    if (!s?.youtube_id) continue
+    const local = next[s.youtube_id]
+    if (!local || (s.at || 0) > (local.at || 0)) {
+      next[s.youtube_id] = { t: s.t || 0, d: s.d || 0, at: s.at || 0, done: !!s.done }
+      changed = true
+    }
+  }
+  if (changed) commit(next) // merged from server — don't echo back via queueSync
+}
+
 // Test helper.
 export function __reset() {
   cache = null
   listeners = new Set()
+  Object.values(syncTimers).forEach(clearTimeout)
+  syncTimers = {}
   try { localStorage.removeItem(KEY) } catch { /* ignore */ }
 }

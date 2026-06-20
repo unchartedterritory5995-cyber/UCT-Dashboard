@@ -161,3 +161,40 @@ def remove_video(video_id: int, _admin: dict = Depends(require_admin)):
 def reorder(body: ReorderIn, _admin: dict = Depends(require_admin)):
     svc.reorder_category(body.category, body.ordered_ids)
     return {"ok": True}
+
+
+# ── Watch progress (cross-device; any paid user) ────────────────────────────────
+
+class ProgressIn(BaseModel):
+    youtube_id: str
+    position: int            # seconds watched
+    duration: Optional[int] = 0
+    done: Optional[bool] = False
+
+
+@router.get("/progress")
+def get_progress(user: dict = Depends(require_paid)):
+    """The current user's watch progress across all videos (for resume / Continue
+    Watching / ✓ checkmarks). Shape mirrors the client store."""
+    rows = svc.get_user_progress(user["id"])
+    return {
+        "progress": [
+            {
+                "youtube_id": r["youtube_id"],
+                "t": r["position"],
+                "d": r["duration"],
+                "done": bool(r["done"]),
+                "at": r["updated_at"] * 1000,  # ms, to match client timestamps
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.post("/progress")
+def post_progress(body: ProgressIn, user: dict = Depends(require_paid)):
+    svc.upsert_progress(
+        user["id"], body.youtube_id, body.position,
+        duration=body.duration or 0, done=bool(body.done),
+    )
+    return {"ok": True}

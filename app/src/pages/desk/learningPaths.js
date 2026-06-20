@@ -44,4 +44,40 @@ export const LEARNING_PATHS = [
       'tAN_xicKtF8', // Premarket Preparation — Framing the Scenarios for the Day
     ],
   },
+  {
+    id: 'setups-playbook',
+    name: 'The Setups Playbook',
+    blurb: 'Work through the core setups — red-to-green, breakouts, gaps, parabolic shorts, failed breakdowns, ranges.',
+    steps: [
+      'vLcswAwW-sQ', // Using the Red to Green Setup
+      'VICdrmMhMm0', // Characteristics of a Breakout/Breakdown
+      'Nx36iNg22KQ', // Trading Gap Ups
+      'Dh-yGrZrfwQ', // The Parabolic Short Setup: Walkthrough
+      '9o0dwGrdQj8', // Failed Breakdown Setup
+      'xYWEDyTRPuc', // Range Trading Workshop
+    ],
+  },
+  {
+    id: 'options-flow',
+    name: 'Options & Flow',
+    blurb: 'From credit spreads to reading the options flow and using puts as a hedge.',
+    steps: [
+      'Afp0-lewKJM', // Credit Spreads Simple
+      'C8v7bsrfZL8', // Trading Earnings and The IV Flush
+      'by2AS0tEvII', // Options Flow Workshop: How to Read the Flow
+      'OKhv2WpNQ8E', // Options Strategy Workshop: Using Puts as a Hedge
+    ],
+  },
+  {
+    id: 'mental-game-s1',
+    name: 'The Mental Game — Season 1',
+    blurb: 'The firm’s psychology series in order — playbooks, finding your happy place, hesitation, and more.',
+    steps: [
+      'bocNEzFgUcg', // S1E1
+      'VlJWAQmmi38', // S1E2 — The Power of Playbooks
+      '_qLCngpJpig', // S1E3 — Find Your Happiness
+      'IAUbzlbW_KU', // S1E4 — Reflecting On How…
+      '_n33394a3EE', // S1E5 — Hesitation and Execution
+    ],
+  },
 ]

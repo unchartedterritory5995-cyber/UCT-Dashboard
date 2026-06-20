@@ -221,3 +221,31 @@ def test_migrate_seed_categories_renames_old_name(s):
     admin_row = [x for x in s.list_videos() if x["youtube_id"] == "zzzZZZ12345"][0]
     assert seed_row["category"] == "Interviews"            # seed video renamed
     assert admin_row["category"] == "Guest Sessions & Interviews"  # non-seed untouched
+
+
+# ── Watch progress (cross-device) ────────────────────────────────────────────
+
+def test_progress_upsert_and_get(s):
+    s.upsert_progress("u1", "vid1111aaaa", 30, duration=120)
+    rows = s.get_user_progress("u1")
+    assert len(rows) == 1
+    assert rows[0]["youtube_id"] == "vid1111aaaa"
+    assert rows[0]["position"] == 30
+    assert rows[0]["duration"] == 120
+    assert rows[0]["done"] == 0
+
+
+def test_progress_done_is_sticky_and_duration_monotonic(s):
+    s.upsert_progress("u1", "vidX", 110, duration=120, done=True)
+    s.upsert_progress("u1", "vidX", 5, duration=0, done=False)  # rewatch start, stale dur
+    row = s.get_user_progress("u1")[0]
+    assert row["position"] == 5          # latest position wins
+    assert row["duration"] == 120        # duration never shrinks
+    assert row["done"] == 1              # done stays sticky
+
+
+def test_progress_is_per_user(s):
+    s.upsert_progress("u1", "vidA", 10, duration=100)
+    s.upsert_progress("u2", "vidA", 50, duration=100)
+    assert s.get_user_progress("u1")[0]["position"] == 10
+    assert s.get_user_progress("u2")[0]["position"] == 50

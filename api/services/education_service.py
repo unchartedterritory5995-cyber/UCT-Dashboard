@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS edu_videos (
 );
 CREATE INDEX IF NOT EXISTS idx_edu_videos_cat
   ON edu_videos(category, sort_order, id);
+
+CREATE TABLE IF NOT EXISTS edu_video_progress (
+  user_id     TEXT    NOT NULL,
+  youtube_id  TEXT    NOT NULL,
+  position    INTEGER NOT NULL DEFAULT 0,   -- seconds watched
+  duration    INTEGER NOT NULL DEFAULT 0,   -- total seconds
+  done        INTEGER NOT NULL DEFAULT 0,   -- 1 once finished (sticky)
+  updated_at  INTEGER NOT NULL,
+  PRIMARY KEY (user_id, youtube_id)
+);
 """
 
 # Fields a client may set (id, created_at, updated_at managed here).
@@ -149,6 +159,44 @@ def reorder_category(category: str, ordered_ids: list[int]) -> None:
                 "UPDATE edu_videos SET sort_order = ?, updated_at = ? WHERE id = ? AND category = ?",
                 (i, int(time.time()), int(vid), category),
             )
+        c.commit()
+
+
+# ── Watch progress (cross-device, per user) ─────────────────────────────────────
+
+def get_user_progress(user_id: str) -> list[dict]:
+    """Every progress row for a user: youtube_id, position, duration, done, updated_at."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT youtube_id, position, duration, done, updated_at "
+            "FROM edu_video_progress WHERE user_id = ?",
+            (str(user_id),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def upsert_progress(user_id: str, youtube_id: str, position: int,
+                    duration: int = 0, done: bool = False) -> None:
+    """Record a user's position in a video. `done` is sticky and duration grows
+    monotonically (so a stale 0 never wipes a known length)."""
+    yt = (youtube_id or "").strip()
+    if not user_id or not yt:
+        return
+    pos = max(0, int(position or 0))
+    dur = max(0, int(duration or 0))
+    dn = 1 if done else 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO edu_video_progress
+                 (user_id, youtube_id, position, duration, done, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(user_id, youtube_id) DO UPDATE SET
+                 position   = excluded.position,
+                 duration   = MAX(edu_video_progress.duration, excluded.duration),
+                 done       = MAX(edu_video_progress.done, excluded.done),
+                 updated_at = excluded.updated_at""",
+            (str(user_id), yt, pos, dur, dn, int(time.time())),
+        )
         c.commit()
 
 

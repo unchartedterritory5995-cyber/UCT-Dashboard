@@ -2,13 +2,13 @@
 // The Educational Videos library — now the "Videos" section of The Desk hub.
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
-import { useState, useMemo, useCallback, useSyncExternalStore } from 'react'
+import { useState, useMemo, useCallback, useEffect, useSyncExternalStore } from 'react'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoPlayer from './VideoPlayer'
-import { subscribe, getSnapshot } from './videoProgress'
+import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import styles from '../EducationalVideos.module.css'
 
@@ -48,6 +48,9 @@ export default function VideosSection() {
   const [playing, setPlaying] = useState(null)
   const [editing, setEditing] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+
+  // Pull cross-device watch progress once on mount (merges into the local store).
+  useEffect(() => { hydrateFromServer() }, [])
 
   // Categories in curated learning-path order.
   const categories = useMemo(() => {

@@ -62,3 +62,35 @@ describe('videoProgress', () => {
     expect(resumeSeconds('persist')).toBe(42)
   })
 })
+
+describe('videoProgress backend sync', () => {
+  it('hydrateFromServer merges newer server entries into the store', async () => {
+    const { hydrateFromServer, getEntry } = await import('./videoProgress')
+    recordProgress('local-old', 20, 100) // local at = now
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        progress: [
+          { youtube_id: 'local-old', t: 80, d: 100, done: false, at: Date.now() + 10000 }, // newer → wins
+          { youtube_id: 'server-only', t: 30, d: 100, done: false, at: 1000 },
+        ],
+      }),
+    }))
+    await hydrateFromServer()
+    expect(getEntry('local-old').t).toBe(80) // server newer → overrode local
+    expect(getEntry('server-only').t).toBe(30) // pulled fresh from server
+  })
+
+  it('recordProgress POSTs to the backend (debounced)', async () => {
+    vi.useFakeTimers()
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+    recordProgress('vidP', 12, 100)
+    expect(globalThis.fetch).not.toHaveBeenCalled() // debounced, not immediate
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/education/progress',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    vi.useRealTimers()
+  })
+})
