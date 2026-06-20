@@ -6671,10 +6671,11 @@ export default function OptionsFlowDashboard() {
                           if(t.D==="BULL") bull+=t.P; if(t.D==="BEAR") bear+=t.P; n++;
                           if(t.Ty==="SWP") hasSwp=true; if(t.Ty==="BLK") hasBlk=true;
                           const ck=t.CP+"|"+t.K+"|"+t.E;
-                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0,prices:[]};
+                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0,prices:[],maxOI:0};
                           const c=contracts[ck]; c.hits++; c.prem+=t.P;
                           if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
                           if(t.price>0) c.prices.push(t.price);
+                          if(t.OI>c.maxOI) c.maxOI=t.OI;
                         });
                         const total=bull+bear; const bullPct=total>0?Math.round(bull/total*100):50;
                         const sorted=Object.values(contracts).sort((a,b)=>b.prem-a.prem);
@@ -6826,13 +6827,30 @@ export default function OptionsFlowDashboard() {
                         </div>
                       );
                     })()}
+                    {/* Fetch Live OI & P/L for every visible top contract */}
+                    {batchResults.filter(r=>r.found && r.topContract).length > 0 && (
+                      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+                        <button onClick={()=>{
+                          const all = [];
+                          batchResults.forEach(r => {
+                            if (r.found && r.topContract) all.push({ sym:r.sym, cp:r.topContract.cp, strike:r.topContract.K, exp:r.topContract.exp });
+                          });
+                          if (all.length) fetchPrices(all);
+                        }} disabled={fetchLoading}
+                          title="Fetch live OI and P/L for every Top Contract in this batch."
+                          style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
+                            fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                          {fetchLoading?"Fetching…":"⚡ Fetch Live OI & P/L (all rows)"}
+                        </button>
+                      </div>
+                    )}
                     <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                       <colgroup>
-                        <col style={{ width:"11%" }}/><col style={{ width:"8%" }}/><col style={{ width:"13%" }}/><col style={{ width:"13%" }}/>
-                        <col style={{ width:"11%" }}/><col style={{ width:"15%" }}/><col style={{ width:"29%" }}/>
+                        <col style={{ width:"9%" }}/><col style={{ width:"7%" }}/><col style={{ width:"11%" }}/><col style={{ width:"11%" }}/>
+                        <col style={{ width:"9%" }}/><col style={{ width:"12%" }}/><col style={{ width:"22%" }}/><col style={{ width:"9%" }}/><col style={{ width:"10%" }}/>
                       </colgroup>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""]].map(([h,sk])=>{
+                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""],["Live OI",""],["P/L%",""]].map(([h,sk])=>{
                           const sortable = !!sk;
                           const active = batchSort===sk;
                           const arrow = active ? (batchSortDir==="desc"?" ▼":" ▲") : "";
@@ -6841,7 +6859,8 @@ export default function OptionsFlowDashboard() {
                             else { setBatchSort(sk); setBatchSortDir(sk==="ticker"?"asc":"desc"); }
                           }:undefined}
                             style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:9, fontWeight:active?800:600,
-                              cursor:sortable?"pointer":"default", userSelect:"none" }}>
+                              cursor:sortable?"pointer":"default", userSelect:"none" }}
+                            title={h==="Live OI"?"Current OI from Schwab vs the max OI seen in the flow window. Green=position growing, red=fading. Click ⚡ Fetch above to populate.":h==="P/L%"?"Median entry from flow trades → current mark. Click ⚡ Fetch above to populate.":undefined}>
                             {h}{arrow}
                           </th>;
                         })}
@@ -6860,7 +6879,7 @@ export default function OptionsFlowDashboard() {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh, textAlign:"center" }}>{r.sym}</td>
-                              <td colSpan={6} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                              <td colSpan={8} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
                             </tr>
                           );
                           const dirC = r.dir==="BULL"?P.bu:P.be;
@@ -6868,6 +6887,21 @@ export default function OptionsFlowDashboard() {
                           const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
                           let tcC = P.dm;
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
+                          // Live OI + P/L computation. Both depend on priceCache being
+                          // populated via the ⚡ Fetch button above. Until then, cells show "—".
+                          const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
+                          const liveOI = px ? (px.oi || 0) : 0;
+                          const baseOI = tc ? (tc.maxOI || 0) : 0;
+                          const oiDelta = (liveOI > 0 && baseOI > 0) ? liveOI - baseOI : null;
+                          const now = px ? (px.mark || px.last || px.mid || 0) : 0;
+                          const entry = tc ? (tc.entry || 0) : 0;
+                          const pnl = (now > 0 && entry > 0) ? (now-entry)/entry*100 : null;
+                          const fmtDeltaOI = (d) => {
+                            const sign = d > 0 ? "+" : "";
+                            if (Math.abs(d) >= 1000) return sign + (d/1000).toFixed(1) + "k";
+                            return sign + d.toLocaleString();
+                          };
+                          const deltaColor = (d) => d > 100 ? P.bu : d < -100 ? P.be : P.dm;
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
@@ -6908,6 +6942,35 @@ export default function OptionsFlowDashboard() {
                                   <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
                                   {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
+                              </td>
+                              {/* Live OI cell — current OI with delta vs flow-window max. */}
+                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
+                                  onClick={e=>e.stopPropagation()}>
+                                {liveOI > 0 ? (
+                                  <span>
+                                    <span style={{ color:P.wh, fontWeight:700 }}>{liveOI.toLocaleString()}</span>
+                                    {oiDelta !== null && (
+                                      <span style={{ color:deltaColor(oiDelta), fontWeight:800, marginLeft:4, fontSize:8 }}
+                                            title={`Was ${baseOI.toLocaleString()} during flow window`}>
+                                        {fmtDeltaOI(oiDelta)}
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span style={{ color:P.dm }}>—</span>
+                                )}
+                              </td>
+                              {/* P/L% cell — median entry from flow trades vs current mark. */}
+                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
+                                  onClick={e=>e.stopPropagation()}>
+                                {pnl !== null ? (
+                                  <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800 }}
+                                        title={`Entry $${entry.toFixed(2)} → Now $${now.toFixed(2)}`}>
+                                    {pnl>=0?"+":""}{pnl.toFixed(1)}%
+                                  </span>
+                                ) : (
+                                  <span style={{ color:P.dm }}>—</span>
+                                )}
                               </td>
                             </tr>
                           );
