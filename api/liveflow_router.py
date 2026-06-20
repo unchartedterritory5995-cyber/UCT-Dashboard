@@ -10,6 +10,8 @@ Discord forwarding stats.
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+import re
+
 from api import liveflow_worker
 
 router = APIRouter(prefix="/api/live", tags=["live-flow"])
@@ -58,6 +60,55 @@ def recent_alerts(limit: int = Query(default=200, ge=1, le=1000)):
     return {
         "status": liveflow_worker.get_status(),
         "alerts": liveflow_worker.get_recent_alerts(limit=limit),
+    }
+
+
+# ─── Historical alert query (Phase 1: forward-only persistence) ─────────────
+# Frontend uses this when the user picks a date range that includes any past
+# date. Today-only ranges should keep hitting /alerts/recent for live polling.
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@router.get("/alerts/history")
+def history_alerts(
+    date_from: str = Query(..., description="ISO date YYYY-MM-DD (inclusive)"),
+    date_to:   str = Query(..., description="ISO date YYYY-MM-DD (inclusive)"),
+    limit:     int = Query(default=2000, ge=1, le=10000),
+    tickers:   str = Query(default="", description="Comma-separated ticker whitelist; empty = all"),
+):
+    """
+    Returns persisted alerts whose ingest date is in [date_from, date_to].
+    Same row shape as /alerts/recent so the frontend can render with one code
+    path. Newest-first, capped at `limit`.
+
+    Includes per-date counts so the UI can show which days actually have data
+    (useful when persistence has gaps from before this feature shipped or
+    from periods when the worker was down).
+
+    Phase 1 caveat: only alerts ingested AFTER persistence shipped will appear
+    here. Phase 2 will add Discord JSON backfill via the existing backtest
+    infrastructure to fill in prior days.
+    """
+    from api import live_alerts_db
+    if not _DATE_RE.match(date_from) or not _DATE_RE.match(date_to):
+        return {"error": "date_from and date_to must be YYYY-MM-DD",
+                "alerts": [], "counts": {}}
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    ticker_list = [t for t in (tickers or "").split(",") if t.strip()] if tickers else None
+    alerts = live_alerts_db.query_alerts(
+        date_from=date_from, date_to=date_to,
+        limit=limit, tickers=ticker_list,
+    )
+    counts = live_alerts_db.count_by_date(date_from, date_to)
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "limit": limit,
+        "returned": len(alerts),
+        "counts": counts,
+        "alerts": alerts,
     }
 
 
