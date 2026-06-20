@@ -7,6 +7,7 @@ import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
+import VideoPlayer from './VideoPlayer'
 import styles from '../EducationalVideos.module.css'
 
 const fetcher = (url) =>
@@ -163,11 +164,11 @@ export default function VideosSection() {
         <section key={cat.name} className={styles.section}>
           <h2 className={styles.sectionTitle}>{cat.name}</h2>
           <div className={styles.grid}>
-            {cat.videos.map((v) => (
+            {cat.videos.map((v, vi) => (
               <article key={v.id} className={styles.card}>
                 <button
                   className={styles.thumbBtn}
-                  onClick={() => setPlaying(v)}
+                  onClick={() => setPlaying({ list: cat.videos, index: vi })}
                   aria-label={`Play ${v.title}`}
                 >
                   <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
@@ -193,21 +194,11 @@ export default function VideosSection() {
       ))}
 
       {playing && (
-        <Sheet open onClose={() => setPlaying(null)} variant="auto" title={playing.title}>
-          <div className={styles.playerWrap}>
-            <div className={styles.playerFrame}>
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${playing.youtube_id}?rel=0&autoplay=1`}
-                title={playing.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-            {playing.description && (
-              <p className={styles.playerDesc}>{playing.description}</p>
-            )}
-          </div>
-        </Sheet>
+        <VideoPlayer
+          list={playing.list}
+          startIndex={playing.index}
+          onClose={() => setPlaying(null)}
+        />
       )}
 
       {editing && (
