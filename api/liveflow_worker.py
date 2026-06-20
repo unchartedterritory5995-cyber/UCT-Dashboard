@@ -33,6 +33,11 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+# Lazy import in functions where needed for live_alerts persistence. Top-level
+# import here is safe because live_alerts_db gracefully handles a missing
+# /data mount on Railway (init_db retries silently).
+from api import live_alerts_db
+
 log = logging.getLogger(__name__)
 
 # Eastern Time zone — used for displaying market timestamps to subscribers.
@@ -1109,6 +1114,12 @@ def _build_embed(agg: dict) -> dict:
             "name": "UCT Live Flow",
             "icon_url": UCT_LOGO_URL,
         }
+        # Thumbnail: renders the logo at ~80x80 on the right side of the embed.
+        # Much more prominent than the author icon (~24x24) — gives the brand
+        # real visual presence without dominating the alert data. Reuses the
+        # same URL since GitHub raw caches well and adding a second URL would
+        # double-fetch unnecessarily.
+        embed["thumbnail"] = {"url": UCT_LOGO_URL}
     else:
         # Fallback: no logo, just keep the text label at the bottom as before.
         embed["footer"] = {"text": "via UCT Live Flow"}
@@ -1157,6 +1168,16 @@ async def _post_to_discord(client, alert):
     _, grade = _compute_conviction(agg)
     message_id = agg.get("discord_message_id")
 
+    # Persist the conviction grade to the live_alerts row (every alert that
+    # reaches this point gets one, even if gated). Stamp on the alert dict
+    # too so the in-memory buffer carries the same info.
+    alert["grade"] = grade
+    try:
+        live_alerts_db.update_alert_state(alert.get("id"), grade=grade)
+    except Exception as e:
+        log.debug("[liveflow] grade persist failed for id=%s: %s",
+                  alert.get("id"), e)
+
     # GATE: only applies to FIRST posts. If we already have a message_id, we
     # always edit it regardless of current grade (preserves the message thread
     # in subscribers' channels — a trade that earned its way in stays in).
@@ -1167,7 +1188,21 @@ async def _post_to_discord(client, alert):
             grade, MIN_DISCORD_GRADE,
             agg.get("ticker"), agg.get("cp"), agg.get("strike"), agg.get("exp"),
         )
+        alert["gatePassed"] = False
+        try:
+            live_alerts_db.update_alert_state(alert.get("id"), gate_passed=0)
+        except Exception as e:
+            log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
+                      alert.get("id"), e)
         return
+
+    # Past the gate. Stamp the alert + DB so history view sees this clearly.
+    alert["gatePassed"] = True
+    try:
+        live_alerts_db.update_alert_state(alert.get("id"), gate_passed=1)
+    except Exception as e:
+        log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
+                  alert.get("id"), e)
 
     embed = _build_embed(agg)
     payload = {"embeds": [embed]}
@@ -1213,6 +1248,17 @@ async def _post_to_discord(client, alert):
             agg["discord_message_id"] = None
         _status["total_alerts_forwarded"] += 1
         _status["last_discord_error"] = None
+        # Persist the message_id + forwarded flag so history view shows which
+        # alert kicked off this Discord thread.
+        try:
+            live_alerts_db.update_alert_state(
+                alert.get("id"),
+                forwarded_to_discord=1,
+                discord_message_id=agg.get("discord_message_id") or None,
+            )
+        except Exception as e:
+            log.debug("[liveflow] discord state persist failed for id=%s: %s",
+                      alert.get("id"), e)
     except Exception as e:
         log.warning("[liveflow] discord POST error: %s", e)
         _status["last_discord_error"] = f"{type(e).__name__}: {str(e)[:200]}"
@@ -1337,6 +1383,12 @@ async def _ingest_alert(msg, discord_client):
                 # being relabeled by a higher-priority alert, not a new fire.
                 enriched["contractRepeatCount"] = a.get("contractRepeatCount", 1)
                 break
+        # Persist supersede on the old row so historical view shows the same
+        # state subscribers saw. Best-effort; logs but doesn't raise.
+        try:
+            live_alerts_db.update_alert_state(old_id, superseded=1)
+        except Exception as e:
+            log.debug("[liveflow] supersede DB update failed for %s: %s", old_id, e)
     else:
         # action == "accept": this is a NEW distinct trade on this contract.
         # Increment per-contract counter and attach the badge value.
@@ -1354,6 +1406,16 @@ async def _ingest_alert(msg, discord_client):
 
     _alerts.append(enriched)
     _status["total_alerts_shown"] += 1
+
+    # Persist the enriched alert to SQLite for the history endpoint. Discord
+    # state columns (grade, gate_passed, forwarded_to_discord, discord_message_id)
+    # are filled in later by _post_to_discord via update_alert_state. Best-effort;
+    # never blocks the live pipeline if /data isn't mounted yet.
+    try:
+        live_alerts_db.insert_alert(enriched)
+    except Exception as e:
+        log.debug("[liveflow] persistence insert failed for id=%s: %s",
+                  enriched.get("id"), e)
 
     # Delayed forward: gives a brief window for a higher-priority alert to
     # arrive and supersede this one. The forward task re-checks the dedup
@@ -1394,6 +1456,14 @@ async def run_forever():
     if not DISCORD_WEBHOOK_URL:
         log.warning("[liveflow] no Discord webhook configured (DISCORD_LIVE_FLOW_WEBHOOK_URL "
                     "or DISCORD_WEBHOOK_URL) — alerts will buffer but won't forward")
+
+    # Initialize the alert-history table on the Railway volume. Idempotent;
+    # safe across deploys. Failures are logged but non-fatal — the worker
+    # still runs, just without persistence until /data is available.
+    try:
+        live_alerts_db.init_db()
+    except Exception as e:
+        log.warning("[liveflow] live_alerts_db.init_db failed at startup: %s", e)
 
     backoff = RECONNECT_MIN_SEC
     # Two separate clients — sse client has timeout=None for long-lived streaming;
