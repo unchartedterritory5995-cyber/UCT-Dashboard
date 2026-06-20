@@ -1964,6 +1964,21 @@ export default function Admin() {
             </div>
           </div>
           <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>Pattern Review (AI Judge)</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/pattern-review"
+                className={styles.syncBtn}
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open Pattern Review
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Vision-judge verdicts · 👍/👎 · draw the ideal → teaches the AI
+              </span>
+            </div>
+          </div>
+          <div className={styles.healthItem}>
             <span className={styles.healthLabel}>Chart Health</span>
             <div className={styles.healthSyncRow}>
               <a
