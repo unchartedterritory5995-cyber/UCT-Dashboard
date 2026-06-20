@@ -125,14 +125,14 @@ export const SETUP_CATALOG = [
     family: 'Gaps & Catalysts',
     direction: 'long',
     essence: 'A neglected stock gaps up powerfully on a major catalyst, on massive volume — day one of a sustained new trend.',
-    candles: [0.4, -0.3, 0.5, -0.6, 0.4, -0.4, 0.3, [14, 2, 0.5], 3.5, [2.5, 0, 0.3]],
+    candles: [0.4, -0.3, 0.5, -0.6, 0.4, -0.4, 0.3, [14, 2, 0.3, 4], 3.5, [2.5, 0, 0.3]],
   },
   {
     name: 'Delayed Episodic Pivot',
     family: 'Gaps & Catalysts',
     direction: 'long',
     essence: 'The catalyst gap that digests sideways for days first — the delayed breakout is the entry the crowd misses.',
-    candles: [-0.4, 0.5, -0.5, 0.4, [10, 1.5, 0.5], -1.2, 0.8, -0.6, 0.5, [7.5, 0, 0, 1]],
+    candles: [-0.4, 0.5, -0.5, 0.4, [10, 1.5, 0.3, 4], -1.2, 0.8, -0.6, 0.5, [7.5, 0, 0, 1]],
     pivot: { idx: 4, side: 'h' },
   },
   {
