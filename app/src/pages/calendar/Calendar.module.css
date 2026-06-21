@@ -590,13 +590,15 @@
 }
 
 /* ── Month cell content — reads like the week view (gold/blue BMO·AMC headers
-   + logo + ticker-name rows) but scaled down for a narrow month cell. Bands
-   stack (BMO above AMC), each full-width — NOT side-by-side (that halved each
-   band and clipped the logo+ticker). Capped per band so cells stay bounded. ── */
+   + uniform logo tiles + ticker names). Bands stack (BMO above AMC), each
+   full-width — NOT side-by-side (that halved each band and clipped). Logos are
+   40px so every tile is an identical, prominent white square (the uniform unit),
+   which reads as consistent sizing despite varying logo shapes. Capped per band
+   so cells stay bounded; "+N more" + day-drawer for the rest. ── */
 .mtimings {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1 1 0;
   min-height: 0;
 }
@@ -604,7 +606,7 @@
 .mband {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -617,17 +619,17 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
-/* Scaled-down mirror of the week view's .wrow */
+/* Scaled mirror of the week view's .wrow */
 .mrow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 4px;
+  gap: 10px;
+  padding: 4px 5px;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 9px;
   transition: background 0.12s, transform 0.12s;
 }
 
@@ -645,7 +647,7 @@
 }
 
 .mt {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--cal-txt);
   flex: 1;
@@ -658,7 +660,7 @@
   font-size: var(--cal-month-fs);
   color: var(--cal-muted);
   font-weight: 700;
-  padding: 2px 4px 0 40px;
+  padding: 3px 5px 0 55px;
 }
 
 .mbandEmpty {
@@ -666,7 +668,7 @@
   font-weight: 700;
   color: var(--cal-line2);
   line-height: 1;
-  padding-left: 4px;
+  padding-left: 5px;
 }
 
 .mempty {
