@@ -639,6 +639,36 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
       </td>
       <td style={{ padding: "8px 10px", textAlign: "center" }}>
         {(() => {
+          // REPLAY-GATES TOGGLE [BLOCK 4] — TEMPORARY: when replay mode is
+          // active, the backend stamps _replayedWouldForward on each alert.
+          // Show the replayed result instead of the live forwarded state so
+          // the user can see "would post" predictions for historical days.
+          // Remove this if-block when going live (existing logic below stays).
+          if (alert._replayedWouldForward !== undefined) {
+            if (alert._replayedWouldForward === 1) {
+              const ft = alert._replayedFollowThroughCount;
+              return (
+                <span title={`Would forward to Discord under current gates · ${ft}× fires in window`}
+                  style={{
+                    fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                    background: "#10b98122", color: "#10b981",
+                    fontWeight: 800, letterSpacing: 0.3,
+                    border: "1px solid #10b98155",
+                  }}>✓ FWD</span>
+              );
+            }
+            return (
+              <span title={`Blocked: ${alert._replayedGateReason || "unknown"}`}
+                style={{
+                  fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                  background: "#ef444411", color: "#ef4444",
+                  fontWeight: 700, letterSpacing: 0.3,
+                  border: "1px solid #ef444433",
+                  opacity: 0.85,
+                }}>⊘ BLK</span>
+            );
+          }
+          // — original live/non-replay rendering below —
           // Three states for the bell column:
           //   - forwarded → 🔔 in green (Discord post happened)
           //   - gate_passed=false → dim "⊘" (alert below conviction threshold)
@@ -910,6 +940,25 @@ export default function LiveFlow() {
   const historyTo   = searchParams.get("to");
   const isHistory   = !isBacktest && isHistoryActive(historyFrom, historyTo);
 
+  // REPLAY-GATES TOGGLE [BLOCK 1] — TEMPORARY testing toggle
+  // Reads ?replay_gates=1 from URL on mount, syncs back when user toggles.
+  // When ON in history mode, the backend replays historical alerts through
+  // the current ALERT_CONVICTION_GATES config to show what WOULD post under
+  // today's gating rules. Useful for tuning gate values against real data.
+  // Remove this block + 3 others tagged REPLAY-GATES TOGGLE when going live.
+  const [replayGates, setReplayGates] = useState(
+    searchParams.get("replay_gates") === "1"
+  );
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (replayGates) next.set("replay_gates", "1");
+    else next.delete("replay_gates");
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayGates]);
+
   // Helper: when changing URL params, preserve the admin flag so the admin
   // user stays in admin mode across date picks and × live exits.
   const updateParams = (mutator) => {
@@ -1080,6 +1129,10 @@ export default function LiveFlow() {
           date_to: historyTo,
           limit: "2000",
         });
+        // REPLAY-GATES TOGGLE [BLOCK 2] — TEMPORARY: when toggle is on, ask
+        // the backend to replay each alert through ALERT_CONVICTION_GATES and
+        // stamp _replayedWouldForward / _replayedGateReason on each row.
+        if (replayGates) qparams.set("replay_gates", "1");
         const r = await fetch(`/api/live/alerts/history?${qparams.toString()}`, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -1126,7 +1179,7 @@ export default function LiveFlow() {
       if (abort) abort.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile, isHistory, historyFrom, historyTo]);
+  }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile, isHistory, historyFrom, historyTo, replayGates]);
 
   // Dedup first: collapse alerts that fired multiple custom-alert rules for the
   // same trade. Then group by tier (direction from cp), then sort within each
@@ -1266,6 +1319,27 @@ export default function LiveFlow() {
                     border: "1px solid " + P.bd, borderRadius: 3,
                     cursor: "pointer", fontFamily: "inherit",
                   }}>× live</button>
+              )}
+              {/* REPLAY-GATES TOGGLE [BLOCK 3] — TEMPORARY testing button.
+                  Only visible in history mode. Toggles replay of historical
+                  alerts through current ALERT_CONVICTION_GATES — shows what
+                  WOULD post under today's gates. Remove when going live. */}
+              {isHistory && (
+                <button
+                  onClick={() => setReplayGates(v => !v)}
+                  title={replayGates
+                    ? "Showing 'would post' under current gates. Click to see raw historical view."
+                    : "Apply current ALERT_CONVICTION_GATES to historical alerts (shows what WOULD have posted under today's filters)."
+                  }
+                  style={{
+                    fontSize: 9, padding: "2px 6px", fontWeight: 700,
+                    letterSpacing: 0.5, textTransform: "uppercase",
+                    background: replayGates ? P.ac + "22" : "transparent",
+                    color: replayGates ? P.ac : P.dm,
+                    border: "1px solid " + (replayGates ? P.ac + "80" : P.bd),
+                    borderRadius: 3,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}>{replayGates ? "⚙ gates on" : "gates off"}</button>
               )}
             </div>
           )}
