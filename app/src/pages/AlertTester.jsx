@@ -127,7 +127,9 @@ export default function AlertTester() {
   const [cfg, setCfg] = useState({ ...DEFAULT_CFG, alertName: "UCT Alpha Gold" });
   const [minDiscordGrade, setMinDiscordGrade] = useState("B");
   const [dedupSec, setDedupSec] = useState(60);
-  const [repeatSec, setRepeatSec] = useState(300);
+  const [repeatSec, setRepeatSec] = useState(600);
+  const [maxPerTicker, setMaxPerTicker] = useState(0);
+  const [minRepeatFires, setMinRepeatFires] = useState(0);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -190,6 +192,8 @@ export default function AlertTester() {
       fd.append("min_discord_grade", minDiscordGrade);
       fd.append("dedup_window_sec", String(dedupSec));
       fd.append("repeat_window_sec", String(repeatSec));
+      fd.append("max_alerts_per_ticker", String(maxPerTicker));
+      fd.append("min_repeat_fires", String(minRepeatFires));
       const r = await fetch("/api/admin/alert-tester/simulate", { method:"POST", body: fd });
       if (!r.ok) {
         const txt = await r.text();
@@ -374,7 +378,7 @@ export default function AlertTester() {
 
       {/* Step 4: UCT pipeline settings */}
       <Card title="4 · UCT pipeline settings (post-Bullflow)">
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, marginBottom:10 }}>
           <label style={{ display:"flex", flexDirection:"column", gap:4 }}>
             <span style={{ fontSize:9, color:P.dim, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Min Discord Grade</span>
             <select value={minDiscordGrade} onChange={e=>setMinDiscordGrade(e.target.value)}
@@ -388,7 +392,13 @@ export default function AlertTester() {
             <span style={{ fontSize:8, color:P.dim }}>Determines which graded alerts get pushed to Discord</span>
           </label>
           <NumField label="Dedup window (sec)" value={dedupSec} onChange={setDedupSec} hint="Same contract within window keeps only highest premium"/>
-          <NumField label="Repeat-fires window (sec)" value={repeatSec} onChange={setRepeatSec} hint="Window for counting multi-fires on same contract for grade boost"/>
+          <NumField label="Repeat-fires window (sec)" value={repeatSec} onChange={setRepeatSec} hint="Window for counting multi-fires on same contract. 600s = 10 min."/>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10 }}>
+          <NumField label="Min repeat fires ('2X' filter)" value={minRepeatFires} onChange={setMinRepeatFires}
+            hint={minRepeatFires<=1?"0 or 1 = off. Set to 2 for institutional follow-through (only emit when a contract had ≥2 large hits in window)":`Only emit alerts on contracts with ≥${minRepeatFires} fires in repeat window`}/>
+          <NumField label="Max alerts per ticker" value={maxPerTicker} onChange={setMaxPerTicker}
+            hint={maxPerTicker===0?"0 = unlimited. Set to 1 for 'one alert per ticker'":`${maxPerTicker} alert(s) max per ticker · highest grade wins`}/>
         </div>
       </Card>
 
@@ -405,18 +415,28 @@ export default function AlertTester() {
         <>
           {/* Pipeline funnel */}
           <Card title="Results · pipeline funnel">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(6, 1fr)", gap:8 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(8, 1fr)", gap:4 }}>
               {[
-                ["CSV Rows", results.stages["1_csv_parsed"], P.dim],
-                ["Bullflow Match", results.stages["2_bullflow_matched"], P.mt],
-                ["Normalized", results.stages["3_normalized"], P.mt],
-                ["After Dedup", results.stages["4_after_dedup"], P.text],
+                ["CSV", results.stages["1_csv_parsed"], P.dim],
+                ["Bullflow", results.stages["2_bullflow_matched"], P.mt],
+                ["Norm", results.stages["3_normalized"], P.mt],
+                ["Dedup", results.stages["4_after_dedup"], P.text],
                 ["Graded", results.stages["5_graded"], P.ye],
+                [
+                  results.min_repeat_fires > 1 ? `≥${results.min_repeat_fires}× Fires` : "2X (off)",
+                  results.stages["5a_after_repeat_filter"] ?? results.stages["5_graded"],
+                  results.min_repeat_fires > 1 ? P.ac : P.dim,
+                ],
+                [
+                  results.max_alerts_per_ticker > 0 ? `≤${results.max_alerts_per_ticker}/Tkr` : "Tkr Cap (off)",
+                  results.stages["5b_after_ticker_cap"] ?? results.stages["5_graded"],
+                  results.max_alerts_per_ticker > 0 ? P.ac : P.dim,
+                ],
                 ["→ DISCORD", results.stages["6_would_post_to_discord"], P.bu],
               ].map(([l, n, c]) => (
-                <div key={l} style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:6, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:9, color:P.dim, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:0.5 }}>{l}</div>
-                  <div style={{ fontSize:20, fontWeight:900, color:c }}>{n.toLocaleString()}</div>
+                <div key={l} style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:6, padding:8, textAlign:"center" }}>
+                  <div style={{ fontSize:8, color:P.dim, fontWeight:700, marginBottom:3, textTransform:"uppercase", letterSpacing:0.3 }}>{l}</div>
+                  <div style={{ fontSize:16, fontWeight:900, color:c }}>{n.toLocaleString()}</div>
                 </div>
               ))}
             </div>
@@ -486,6 +506,7 @@ export default function AlertTester() {
                   <th style={{ padding:"4px 6px", textAlign:"right" }}>Premium</th>
                   <th style={{ padding:"4px 6px" }}>Type</th>
                   <th style={{ padding:"4px 6px" }}>Side</th>
+                  <th style={{ padding:"4px 6px", textAlign:"center" }}>Fires</th>
                   <th style={{ padding:"4px 6px", textAlign:"center" }}>Grade</th>
                   <th style={{ padding:"4px 6px", textAlign:"right" }}>Score</th>
                 </tr>
@@ -502,6 +523,9 @@ export default function AlertTester() {
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.ac, fontWeight:700 }}>{fmt$(a.premium)}</td>
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.trade_type}</td>
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.side}</td>
+                    <td style={{ padding:"3px 6px", textAlign:"center", color: (a.repeat_fires||1)>=2 ? P.ac : P.dim, fontWeight: (a.repeat_fires||1)>=2 ? 800 : 600 }}>
+                      {(a.repeat_fires||1)>=2 ? `${a.repeat_fires}×` : "—"}
+                    </td>
                     <td style={{ padding:"3px 6px", textAlign:"center", color:GRADE_COLOR[a.grade], fontWeight:800 }}>{a.grade}</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.text }}>{a.grade_score}</td>
                   </tr>
@@ -538,6 +562,41 @@ export default function AlertTester() {
               </table>
             )}
           </Card>
+
+          {/* Ticker-dropped (collapsible, only if ticker cap is active) */}
+          {results.max_alerts_per_ticker > 0 && results.ticker_dropped_sample && results.ticker_dropped_sample.length > 0 && (
+            <Card title={`✗ Dropped by ticker cap (max ${results.max_alerts_per_ticker}/ticker) · ${results.ticker_dropped_sample.length} sample of ${results.ticker_cap_dropped}`}>
+              <table style={{ width:"100%", fontSize:9, borderCollapse:"collapse", fontFamily:"ui-monospace,monospace" }}>
+                <thead>
+                  <tr style={{ borderBottom:"1px solid "+P.bd, color:P.dim, textAlign:"left" }}>
+                    <th style={{ padding:"4px 6px" }}>Time</th><th style={{ padding:"4px 6px" }}>Ticker</th><th style={{ padding:"4px 6px" }}>C/P</th>
+                    <th style={{ padding:"4px 6px", textAlign:"right" }}>Strike</th><th style={{ padding:"4px 6px" }}>Exp</th>
+                    <th style={{ padding:"4px 6px", textAlign:"right" }}>Premium</th>
+                    <th style={{ padding:"4px 6px", textAlign:"center" }}>Grade</th>
+                    <th style={{ padding:"4px 6px", textAlign:"right" }}>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.ticker_dropped_sample.map(a => (
+                    <tr key={a.id} style={{ borderBottom:"1px solid "+P.bd+"22", opacity:0.6 }}>
+                      <td style={{ padding:"3px 6px", color:P.dim }}>{a.time}</td>
+                      <td style={{ padding:"3px 6px", color:P.text, fontWeight:800 }}>{a.ticker}</td>
+                      <td style={{ padding:"3px 6px", color: a.cp==="C"?P.bu:P.be, fontWeight:800 }}>{a.cp}</td>
+                      <td style={{ padding:"3px 6px", textAlign:"right" }}>${a.strike}</td>
+                      <td style={{ padding:"3px 6px", color:P.dim }}>{a.exp}</td>
+                      <td style={{ padding:"3px 6px", textAlign:"right", color:P.ac }}>{fmt$(a.premium)}</td>
+                      <td style={{ padding:"3px 6px", textAlign:"center", color:GRADE_COLOR[a.grade], fontWeight:800 }}>{a.grade}</td>
+                      <td style={{ padding:"3px 6px", textAlign:"right", color:P.text }}>{a.grade_score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ fontSize:9, color:P.dim, marginTop:8 }}>
+                These alerts were valid (passed Bullflow filter + grading) but lost the per-ticker contest.
+                The simulator ranks by grade_score, with premium as tiebreaker.
+              </div>
+            </Card>
+          )}
 
           {/* Drop reasons (diagnostic) */}
           <Card title="Drop reasons (Bullflow filter diagnostics)"
