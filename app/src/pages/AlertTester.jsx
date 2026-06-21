@@ -228,12 +228,26 @@ export default function AlertTester() {
   // days where MCP backfill was incomplete. Sends ALL liveConfigs (not just
   // the selected alert) so the entire day's UCT alert pipeline gets captured.
   // Idempotent: re-running on the same date silently skips duplicate IDs.
+  //
+  // FALLBACK: if Load Live Configs failed (returns 0), backfill the current
+  // edited config only. User can repeat for each of the 10 alerts manually.
   async function backfillToSqlite() {
     if (!csvFile) { setError("Upload a Bullflow CSV first."); return; }
-    if (!liveConfigs || liveConfigs.length === 0) {
-      setError("Click 'Load Live Configs' first — backfill needs all 10 alert configs.");
+
+    // Decide which configs to send. Three cases:
+    //   A) liveConfigs loaded all 10 → send them all (one-click full backfill)
+    //   B) liveConfigs empty → send just the current edited cfg (single-alert)
+    //   C) cfg.alertName missing → bail
+    const useFullList = liveConfigs && liveConfigs.length > 0;
+    const configsToSend = useFullList
+      ? liveConfigs
+      : [{ ...cfg, alertName: cfg.alertName || selectedAlert }];
+
+    if (!configsToSend[0].alertName) {
+      setError("No alert config available. Pick an alert from the dropdown first.");
       return;
     }
+
     // Derive date from CSV filename if it follows Bullflow_M_DD.csv pattern,
     // otherwise prompt. Common patterns: Bullflow_6_18.csv → 2026-06-18.
     let csvDate = null;
@@ -250,19 +264,26 @@ export default function AlertTester() {
       setError("Backfill canceled — invalid or missing date.");
       return;
     }
-    if (!window.confirm(
-      `Backfill ${liveConfigs.length} alert configs against ${csvFile.name} ` +
-      `into SQLite for date ${dateInput}?\n\n` +
-      `This writes alerts to live_alerts_v1. Existing rows with the same ID ` +
-      `will be silently skipped. Visit /live-flow?from=${dateInput}&to=${dateInput} ` +
-      `afterwards to verify.`
-    )) return;
+
+    const confirmMsg = useFullList
+      ? `Backfill ALL ${configsToSend.length} alert configs against ${csvFile.name} ` +
+        `into SQLite for date ${dateInput}?\n\n` +
+        `This writes alerts to live_alerts_v1. Visit /live-flow?from=${dateInput}&to=${dateInput} afterwards.`
+      : `Load Live Configs returned 0 — backfilling just the CURRENTLY EDITED alert.\n\n` +
+        `Alert: ${configsToSend[0].alertName}\n` +
+        `Date:  ${dateInput}\n` +
+        `CSV:   ${csvFile.name}\n\n` +
+        `To get all 10 alerts in, you'll repeat this for each alert in the dropdown ` +
+        `(change selection, edit filter to match Bullflow, click backfill again). ` +
+        `Or fix Load Live Configs first.\n\n` +
+        `Proceed with single-alert backfill?`;
+    if (!window.confirm(confirmMsg)) return;
 
     setBackfilling(true); setError(null); setBackfillResult(null);
     try {
       const fd = new FormData();
       fd.append("csv_file", csvFile);
-      fd.append("alert_configs", JSON.stringify(liveConfigs));
+      fd.append("alert_configs", JSON.stringify(configsToSend));
       fd.append("date", dateInput);
       const r = await fetch("/api/admin/live/ingest-bullflow-csv", { method:"POST", body: fd });
       if (!r.ok) {
@@ -490,23 +511,30 @@ export default function AlertTester() {
           {running ? "Simulating…" : "▶ RUN SIMULATION"}
         </button>
         {/* Backfill to SQLite — fills in days that MCP backfill couldn't fully capture.
-            Disabled until both CSV and liveConfigs are loaded since we need all 10 alerts. */}
+            Requires CSV. If liveConfigs loaded all 10, backfills everything in one click.
+            If liveConfigs empty (MCP fetch failed), backfills just the currently edited
+            alert; user repeats for each alert by changing the dropdown. */}
         <button onClick={backfillToSqlite}
-          disabled={backfilling || !csvFile || !liveConfigs || liveConfigs.length===0}
+          disabled={backfilling || !csvFile}
           title={
             !csvFile ? "Upload CSV first" :
-            !liveConfigs ? "Click 'Load Live Configs' first" :
-            "Write all matched alerts to live_alerts_v1 SQLite. Used to backfill days that the MCP 100-alert/day cap missed."
+            (!liveConfigs || liveConfigs.length === 0)
+              ? "Live configs not loaded — will backfill just the currently selected alert. Click 'Load Live Configs' for one-click full backfill."
+              : `Write all matched alerts to live_alerts_v1 SQLite (${liveConfigs.length} alert configs).`
           }
           style={{
-            background: (backfilling||!csvFile||!liveConfigs) ? P.al : "transparent",
-            color: (backfilling||!csvFile||!liveConfigs) ? P.dim : P.ac,
-            border: `1px solid ${(backfilling||!csvFile||!liveConfigs) ? P.bd : P.ac}`,
+            background: (backfilling||!csvFile) ? P.al : "transparent",
+            color: (backfilling||!csvFile) ? P.dim : P.ac,
+            border: `1px solid ${(backfilling||!csvFile) ? P.bd : P.ac}`,
             padding:"10px 18px", borderRadius:8, fontSize:11, fontWeight:700,
-            cursor: (backfilling||!csvFile||!liveConfigs) ? "not-allowed" : "pointer",
+            cursor: (backfilling||!csvFile) ? "not-allowed" : "pointer",
             letterSpacing:0.5,
           }}>
-          {backfilling ? "Backfilling…" : "⇪ BACKFILL TO SQLITE"}
+          {backfilling
+            ? "Backfilling…"
+            : (liveConfigs && liveConfigs.length > 0)
+              ? `⇪ BACKFILL TO SQLITE (${liveConfigs.length} alerts)`
+              : "⇪ BACKFILL TO SQLITE (1 alert)"}
         </button>
       </div>
 
