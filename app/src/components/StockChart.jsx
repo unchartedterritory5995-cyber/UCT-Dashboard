@@ -327,9 +327,9 @@ const BOLD_DOWN = '#f23645'
 // recedes, all over a deep-navy canvas. Scoped to boldCandles instances ONLY
 // (the Model Book stock detail + Setup Library / Bottoms charted examples), so
 // no other chart on the site is touched.
-const MB_UP = '#18df58'      // vivid TC2000 green
+const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → really pops)
 const MB_DOWN = '#c41f2d'    // deep darker red
-const MB_BG = '#0a0d1f'      // deep navy background
+const MB_BG = '#121310'      // near-black warm grey, a touch darker than the old default
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
@@ -2104,7 +2104,7 @@ export default function StockChart({
     // otherwise read brighter than the thin candles and look out of place.
     // Model Book volume tracks the TC2000 candle palette (vivid green / deep red);
     // the intraday popup keeps the base bold hue.
-    const upC = boldCandles ? 'rgba(24,223,88,0.82)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
+    const upC = boldCandles ? 'rgba(26,229,26,0.82)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
     const downC = boldCandles ? 'rgba(196,31,45,0.82)' : modelBookLook ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
     return filteredBars.map(b => ({
