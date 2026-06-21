@@ -263,6 +263,188 @@ REPEAT_WINDOW_SEC = 12 * 3600        # 12hr — covers full trading day + ext ho
 _contract_repeats: dict = {}         # contract_key -> {count, first_seen, first_alert_id}
 
 
+# ─── Per-alert conviction gates (2026-06-21) ─────────────────────────────────
+# Tuning knobs ported from the offline AlertTester simulator. Same pattern as
+# ALERT_TICKER_BLOCKLISTS above: hardcoded dict keyed by exact alert name,
+# edit + push to change. Empty/missing alert names fall through with all gates
+# disabled, so untuned alerts behave exactly as they do today.
+#
+# Two gates per alert (both optional):
+#
+#   min_repeat_fires (int, default 0 = off):
+#     2X follow-through filter. Only post when the same contract has had ≥N
+#     qualifying fires within `follow_through_window_sec`. Set to 2 to require
+#     a confirmation hit — institutional follow-through within minutes is what
+#     this catches; one-off trades drop out.
+#
+#   max_per_ticker_per_day (int, default 0 = unlimited):
+#     Per-ticker daily cap. Once a ticker has posted this alert today, suppress
+#     further posts on that ticker for this alert tier. Other alerts on the
+#     same ticker still flow. Set to 1 for "one Alpha Gold per ticker per day".
+#
+#   follow_through_window_sec (int, default 900 = 15min):
+#     Window for the min_repeat_fires counter. Distinct from REPEAT_WINDOW_SEC
+#     (12hr) which feeds the "fired N times today" badge — that one is for
+#     display, this one gates Discord. The June 18 simulator runs showed that
+#     5min misses SNDK + NVDA (paced 5-7min apart), 10-15min catches the real
+#     follow-through clusters.
+#
+# Workflow: tune values in the AlertTester (uctintelligence.com/alert-tester),
+# confirm the predicted Discord output, then edit this dict + push to GitHub.
+# Railway redeploys the worker; new gates take effect on next alert.
+#
+# Recovery: if any gate over-filters in production, set it to 0 here and push
+# again. Behavior reverts to current (no gate).
+ALERT_CONVICTION_GATES = {
+    "UCT Alpha Gold": {
+        "min_repeat_fires": 2,          # require 2X follow-through within window
+        "max_per_ticker_per_day": 1,    # one Alpha Gold per ticker per day
+        "follow_through_window_sec": 900,
+    },
+    # Other UCT alerts: leave them untuned for now. The Bullflow filters
+    # (premium floor, side, trade types) already do most of the work for
+    # Bullish/Bearish/Size/Leaps/Vol>OI/Unusual. Tune in the AlertTester first,
+    # then add entries here as they're validated.
+}
+
+
+def _get_alert_gates(alert_name: str) -> dict:
+    """Return the gates dict for this alert name, or empty dict (no gates)."""
+    if not alert_name:
+        return {}
+    # Exact-name match. Could relax to substring later if needed, but exact
+    # avoids accidental gating (e.g. "UCT Alpha Gold v2" wouldn't inherit
+    # "UCT Alpha Gold" gates unless explicitly listed).
+    return ALERT_CONVICTION_GATES.get(alert_name.strip(), {})
+
+
+# Sliding-window timestamps per contract — used by the 2X filter only.
+# Distinct from _contract_repeats because the WINDOW differs (15min vs 12hr).
+# Same contract_key shape from _make_contract_key().
+_follow_through_tracker: dict = {}   # contract_key -> [unix_ts, ...]
+
+# Per-(alert_name, ticker) daily post tracker for the per-ticker cap. Resets
+# implicitly when the date key changes; stale dates pruned lazily on read.
+_alerts_posted_today: dict = {}      # date_iso -> set of (alert_name, ticker) tuples
+
+
+def _track_follow_through_increment(alert: dict) -> int:
+    """
+    Called once per ACCEPTED alert in _ingest_alert (not on supersede or drop).
+    Adds this alert's timestamp to the contract's bucket and returns the count
+    of fires within the widest configured follow-through window.
+
+    Tracks fires across ALL alert types (Bullish at 10:00 + Alpha Gold at
+    10:05 counts as 2 follow-through fires) — institutional follow-through is
+    a cross-tier signal, not Alpha-Gold-only.
+
+    Uses the LONGEST follow_through_window_sec across all configured gates as
+    the prune horizon, so any gate can read the value at forward-time. If no
+    alerts are configured with the gate, defaults to 900s.
+    """
+    key = _make_contract_key(alert)
+    now = time.time()
+    # Find the widest window across all configured gates so we keep enough
+    # history for whichever alert ends up reading it.
+    max_window = max(
+        (g.get("follow_through_window_sec", 0) for g in ALERT_CONVICTION_GATES.values()),
+        default=900,
+    ) or 900
+    cutoff = now - max_window
+    bucket = _follow_through_tracker.setdefault(key, [])
+    bucket[:] = [t for t in bucket if t >= cutoff]
+    bucket.append(now)
+    return len(bucket)
+
+
+def _count_follow_through_in_window(alert: dict, window_sec: int) -> int:
+    """Read-only count of fires within an arbitrary window. Used by gates."""
+    key = _make_contract_key(alert)
+    cutoff = time.time() - max(0, window_sec)
+    bucket = _follow_through_tracker.get(key, [])
+    return sum(1 for t in bucket if t >= cutoff)
+
+
+def _has_alert_posted_for_ticker_today(alert_name: str, ticker: str) -> bool:
+    """True if this (alert_name, ticker) pair already posted to Discord today."""
+    if not alert_name or not ticker:
+        return False
+    today_iso = datetime.now(ET).date().isoformat()
+    return (alert_name, ticker.upper()) in _alerts_posted_today.get(today_iso, set())
+
+
+def _mark_alert_posted_for_ticker(alert_name: str, ticker: str):
+    """Record that this (alert_name, ticker) pair has posted today.
+
+    Prunes stale dates inline since we only ever check today's set.
+    """
+    if not alert_name or not ticker:
+        return
+    today_iso = datetime.now(ET).date().isoformat()
+    stale = [d for d in _alerts_posted_today if d != today_iso]
+    for d in stale:
+        del _alerts_posted_today[d]
+    _alerts_posted_today.setdefault(today_iso, set()).add(
+        (alert_name, ticker.upper())
+    )
+
+
+def _passes_alert_gates(alert: dict) -> tuple:
+    """
+    Returns (passes: bool, reason: str). Run inside _delayed_discord_forward,
+    AFTER dedup but BEFORE Discord POST. Looks up per-alert config from
+    ALERT_CONVICTION_GATES — alerts with no entry pass through unchanged.
+
+    Two gates checked (in order):
+      1. 2X follow-through: stamped count must be >= min_repeat_fires
+      2. Per-ticker daily cap: (alert_name, ticker) must not have posted yet
+
+    Either gate can be disabled by omitting the key (or setting to 0) in the
+    gates dict.
+    """
+    name = (alert.get("alertName") or "").strip()
+    gates = _get_alert_gates(name)
+    if not gates:
+        return True, ""
+
+    # Gate 1: institutional follow-through
+    min_fires = int(gates.get("min_repeat_fires", 0) or 0)
+    if min_fires > 1:
+        window_sec = int(gates.get("follow_through_window_sec", 900) or 900)
+        # Prefer the stamped count (computed at ingest); fall back to a fresh
+        # read if absent (older buffered alerts from before this code shipped).
+        ft_count = alert.get("_followThroughCount")
+        if ft_count is None:
+            ft_count = _count_follow_through_in_window(alert, window_sec)
+        if ft_count < min_fires:
+            return False, f"below_2x:{ft_count}<{min_fires}"
+
+    # Gate 2: per-ticker daily cap
+    max_per_ticker = int(gates.get("max_per_ticker_per_day", 0) or 0)
+    if max_per_ticker > 0:
+        ticker = (alert.get("ticker") or "").upper()
+        if _has_alert_posted_for_ticker_today(name, ticker):
+            return False, f"ticker_capped:{ticker}_already_posted_today"
+
+    return True, ""
+
+
+# ─── Sweep+Block combo detection — DEFERRED ──────────────────────────────────
+# The simulator detects combos by scanning the raw CSV's `tradeType` column.
+# Bullflow's SSE payload does NOT currently include an explicit sweep/block
+# tag — we only get alertType ("custom" vs "algo") and alertName. Without a
+# way to tell sweeps from blocks at ingest time, live combo detection here
+# requires one of:
+#   (a) Inspecting the raw Bullflow SSE event payload to confirm tradeType
+#       isn't there under another field name (needs a debug capture)
+#   (b) Schwab tape lookup per alert to determine execution type (adds latency)
+#
+# Until that's wired up, combo detection stays simulator-only. The 2X
+# follow-through filter and per-ticker cap above cover most of the noise
+# reduction the combo rule was added to provide.
+
+
+
 def _make_contract_key(alert: dict) -> tuple:
     """
     Contract key for repeat counter. INTENTIONALLY excludes premium and fill,
@@ -735,6 +917,7 @@ _status = {
     "total_alerts_dropped": 0,     # failed table filter
     "total_alerts_forwarded": 0,   # passed Discord threshold
     "total_alerts_grade_gated": 0, # below MIN_DISCORD_GRADE — silently aggregated
+    "total_alerts_gate_blocked": 0, # blocked by per-alert conviction gates
     "last_error": None,
     "last_discord_error": None,
     "started_at": None,
@@ -756,6 +939,11 @@ _status = {
         # User-managed blocklist — read fresh from module-level set each call
         # so the API echoes the current state, not a snapshot at startup.
         "user_ticker_blocklist": sorted(_user_ticker_blocklist),
+        # Per-alert conviction gates (2026-06-21) — 2X follow-through and
+        # per-ticker daily cap. Empty/missing alert names have no gates applied.
+        "alert_conviction_gates": {
+            name: dict(g) for name, g in ALERT_CONVICTION_GATES.items()
+        },
     },
 }
 
@@ -1382,6 +1570,10 @@ async def _ingest_alert(msg, discord_client):
                 # winner shows the same "Nx" badge — this is the same trade
                 # being relabeled by a higher-priority alert, not a new fire.
                 enriched["contractRepeatCount"] = a.get("contractRepeatCount", 1)
+                # Same logic for follow-through count: supersede = same trade,
+                # so the new alert carries the existing count rather than
+                # double-incrementing the bucket.
+                enriched["_followThroughCount"] = a.get("_followThroughCount", 1)
                 break
         # Persist supersede on the old row so historical view shows the same
         # state subscribers saw. Best-effort; logs but doesn't raise.
@@ -1393,6 +1585,10 @@ async def _ingest_alert(msg, discord_client):
         # action == "accept": this is a NEW distinct trade on this contract.
         # Increment per-contract counter and attach the badge value.
         enriched["contractRepeatCount"] = _track_repeat(enriched)
+        # Also stamp follow-through count (narrow window, used by 2X gates).
+        # Always tracked so the value is available if a gate gets enabled
+        # mid-day, even when no alert is currently configured to read it.
+        enriched["_followThroughCount"] = _track_follow_through_increment(enriched)
 
     # Enrich with OI data (trade size, prior OI, vol/OI ratio, exceeded flag).
     # Done after dedup so we don't waste SQLite reads on dropped alerts. The
@@ -1428,6 +1624,9 @@ async def _delayed_discord_forward(discord_client, alert: dict):
     Wait DISCORD_FORWARD_DELAY_SEC, then post to Discord only if this alert
     is still the dedup winner for its contract key. If a higher-priority
     alert superseded it during the delay, this is a no-op.
+
+    Per-alert conviction gates (defined in ALERT_CONVICTION_GATES) also run
+    here — gated alerts stay in the buffer + DB but don't reach Discord.
     """
     await asyncio.sleep(DISCORD_FORWARD_DELAY_SEC)
     if alert.get("_superseded"):
@@ -1439,9 +1638,41 @@ async def _delayed_discord_forward(discord_client, alert: dict):
     # would be stale anyway).
     if not winner or winner.get("alert_id") != alert.get("id"):
         return
+
+    # ── Per-alert conviction gates (2X follow-through, per-ticker cap) ─────
+    # No-op for alerts with no entry in ALERT_CONVICTION_GATES.
+    passes, gate_reason = _passes_alert_gates(alert)
+    if not passes:
+        alert["_gateBlocked"] = gate_reason
+        _status["total_alerts_gate_blocked"] = (
+            _status.get("total_alerts_gate_blocked", 0) + 1
+        )
+        log.info(
+            "[liveflow] gate blocked id=%s alert=%s ticker=%s reason=%s",
+            alert.get("id"), alert.get("alertName"), alert.get("ticker"),
+            gate_reason,
+        )
+        # Persist the gated state so the history view can show which alerts
+        # were filtered out of Discord (and why).
+        try:
+            live_alerts_db.update_alert_state(
+                alert.get("id"),
+                gate_passed=0,
+            )
+        except Exception:
+            pass
+        return
+
     alert["forwardedToDiscord"] = True
     try:
         await _post_to_discord(discord_client, alert)
+        # Record that this (alert_name, ticker) pair has posted today, so the
+        # per-ticker cap (if configured) can block subsequent posts. Cheap
+        # call regardless of whether the cap is configured.
+        name = (alert.get("alertName") or "").strip()
+        gates = _get_alert_gates(name)
+        if int(gates.get("max_per_ticker_per_day", 0) or 0) > 0:
+            _mark_alert_posted_for_ticker(name, alert.get("ticker") or "")
     except Exception as e:
         log.warning("[liveflow] delayed discord forward failed: %s", e)
 
