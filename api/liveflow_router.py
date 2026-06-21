@@ -76,6 +76,7 @@ def history_alerts(
     date_to:   str = Query(..., description="ISO date YYYY-MM-DD (inclusive)"),
     limit:     int = Query(default=2000, ge=1, le=10000),
     tickers:   str = Query(default="", description="Comma-separated ticker whitelist; empty = all"),
+    replay_gates: int = Query(default=0, description="If 1, replay alerts through current ALERT_CONVICTION_GATES to show what WOULD have posted with today's gating logic"),
 ):
     """
     Returns persisted alerts whose ingest date is in [date_from, date_to].
@@ -89,6 +90,15 @@ def history_alerts(
     Phase 1 caveat: only alerts ingested AFTER persistence shipped will appear
     here. Phase 2 will add Discord JSON backfill via the existing backtest
     infrastructure to fill in prior days.
+
+    `replay_gates=1`:
+      Re-runs every returned alert through the current ALERT_CONVICTION_GATES
+      logic. Stamps each alert with _replayedFollowThroughCount, _replayedGatePassed,
+      _replayedGateReason, _replayedWouldForward. Useful for tuning gate values
+      against historical data — "what WOULD have posted on June 18 if today's
+      gates had been active?" Does NOT modify the SQLite rows; replay output is
+      live-computed per request, so changing ALERT_CONVICTION_GATES + redeploying
+      yields fresh results on next call.
     """
     from api import live_alerts_db
     if not _DATE_RE.match(date_from) or not _DATE_RE.match(date_to):
@@ -102,6 +112,18 @@ def history_alerts(
         limit=limit, tickers=ticker_list,
     )
     counts = live_alerts_db.count_by_date(date_from, date_to)
+
+    # Optional gate replay — recomputes "would_forward" against current gates.
+    # Pure function; no DB writes. Echo the active gates back so the UI can
+    # show "these are the gates being applied" alongside the replayed output.
+    active_gates = None
+    if replay_gates:
+        alerts = liveflow_worker.replay_alerts_through_gates(alerts)
+        active_gates = {
+            name: dict(cfg)
+            for name, cfg in liveflow_worker.ALERT_CONVICTION_GATES.items()
+        }
+
     return {
         "date_from": date_from,
         "date_to": date_to,
@@ -109,6 +131,8 @@ def history_alerts(
         "returned": len(alerts),
         "counts": counts,
         "alerts": alerts,
+        "replay_gates": bool(replay_gates),
+        "active_gate_config": active_gates,
     }
 
 
