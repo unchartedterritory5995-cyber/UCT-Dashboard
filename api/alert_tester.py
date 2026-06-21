@@ -528,6 +528,49 @@ def _gate(alerts: list[dict], min_grade: str) -> tuple[list[dict], list[dict]]:
     return would_post, gated_out
 
 
+def _per_ticker_top_n(alerts: list[dict], n: int) -> tuple[list[dict], list[dict]]:
+    """
+    Cap the number of alerts per ticker after grading. For each ticker, keep
+    only the top-N alerts ranked by grade_score (then premium as tiebreaker).
+    Returns (kept, dropped).
+
+    n=0 means disabled (no cap). n=1 means one alert per ticker (the strongest).
+    """
+    if n <= 0:
+        return alerts, []
+    by_ticker: defaultdict = defaultdict(list)
+    for a in alerts:
+        by_ticker[a["ticker"]].append(a)
+    kept: list[dict] = []
+    dropped: list[dict] = []
+    for tkr, alist in by_ticker.items():
+        alist.sort(key=lambda x: (x.get("grade_score", 0), x.get("premium", 0)), reverse=True)
+        kept.extend(alist[:n])
+        dropped.extend(alist[n:])
+    return kept, dropped
+
+
+def _min_repeat_fires_filter(alerts: list[dict], min_fires: int) -> tuple[list[dict], list[dict]]:
+    """
+    Institutional follow-through filter. Only keep alerts where the SAME
+    contract has fired `min_fires` or more times in the repeat window.
+
+    min_fires=0 → disabled (no filter)
+    min_fires=2 → only emit alerts that are part of a multi-fire cluster
+                  (the contract was already alerted on once in the prior window)
+    min_fires=3 → require triple-hit before alerting
+
+    This is a powerful noise filter. With min_fires=2, single-hit one-off
+    trades drop out; only contracts where institutions added size survive.
+    Returns (kept, dropped).
+    """
+    if min_fires <= 1:
+        return alerts, []
+    kept = [a for a in alerts if a.get("repeat_fires", 1) >= min_fires]
+    dropped = [a for a in alerts if a.get("repeat_fires", 1) < min_fires]
+    return kept, dropped
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ROUTES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -590,6 +633,8 @@ async def simulate(
     min_discord_grade: str = Form("B"),
     dedup_window_sec: int = Form(60),
     repeat_window_sec: int = Form(300),
+    max_alerts_per_ticker: int = Form(0),
+    min_repeat_fires: int = Form(0),
 ):
     """
     Run the full UCT pipeline against an uploaded Bullflow CSV with the given
@@ -638,8 +683,24 @@ async def simulate(
     # Stage 5: Grade
     graded = _grade_all(aggregated, alert_name)
 
+    # Stage 5a: Min repeat fires filter (institutional follow-through gate).
+    # If min_repeat_fires >= 2, only emit alerts where the same contract was
+    # already alerted on in the repeat window — i.e. institutions added size.
+    if min_repeat_fires > 1:
+        graded_after_repeat_filter, repeat_filter_dropped = _min_repeat_fires_filter(graded, min_repeat_fires)
+    else:
+        graded_after_repeat_filter = graded
+        repeat_filter_dropped = []
+
+    # Stage 5b: Per-ticker top-N cap (optional, default off)
+    if max_alerts_per_ticker > 0:
+        graded_after_ticker_cap, ticker_dropped = _per_ticker_top_n(graded_after_repeat_filter, max_alerts_per_ticker)
+    else:
+        graded_after_ticker_cap = graded_after_repeat_filter
+        ticker_dropped = []
+
     # Stage 6: Gate
-    would_post, gated_out = _gate(graded, min_discord_grade)
+    would_post, gated_out = _gate(graded_after_ticker_cap, min_discord_grade)
 
     # ── Build summary stats ──
     tier_breakdown = Counter(a["grade"] for a in graded)
@@ -681,15 +742,22 @@ async def simulate(
             "3_normalized":             len(alerts),
             "4_after_dedup":            len(deduped),
             "5_graded":                 len(graded),
+            "5a_after_repeat_filter":   len(graded_after_repeat_filter),
+            "5b_after_ticker_cap":      len(graded_after_ticker_cap),
             "6_would_post_to_discord":  len(would_post),
         },
         "drop_reasons": drop_reasons,
         "dedup_dropped": dedup_dropped,
+        "repeat_filter_dropped": len(repeat_filter_dropped),
+        "ticker_cap_dropped": len(ticker_dropped),
+        "min_repeat_fires": min_repeat_fires,
+        "max_alerts_per_ticker": max_alerts_per_ticker,
         "tier_breakdown": tier_breakdown_sorted,
         "min_discord_grade": min_discord_grade,
         "top_tickers": top_tickers,
         "would_post_sample": would_post_sorted[:25],
         "gated_out_sample": gated_out_sorted[:25],
+        "ticker_dropped_sample": sorted(ticker_dropped, key=lambda a: (a["grade_level"], a["premium"]), reverse=True)[:25],
         "config_used": cfg,
         "_NEVER_POSTED_TO_DISCORD": True,
     }
