@@ -297,9 +297,18 @@ _contract_repeats: dict = {}         # contract_key -> {count, first_seen, first
 # again. Behavior reverts to current (no gate).
 ALERT_CONVICTION_GATES = {
     "UCT Alpha Gold": {
-        "min_repeat_fires": 2,          # require 2X follow-through within window
+        # 2026-06-21 tune: lowered min_repeat_fires 2→0 after replay against
+        # June 18 CSV showed min_repeat=2 yielded only 1-2 Discord posts/day,
+        # while min_repeat=0 with max_per_ticker=1 yielded 15 high-quality
+        # names (8 of 9 BBS picks matched + 7 additional A+/A grade calls).
+        # Rationale: most institutional Alpha Gold sweeps are SINGLE large
+        # block fills, not multi-fire campaigns. Requiring a second fire on
+        # the same contract within 15min misses the majority of quality
+        # setups. The max_per_ticker_per_day=1 cap is sufficient anti-spam
+        # protection on its own — prevents MU x6 type floods.
+        "min_repeat_fires": 0,
         "max_per_ticker_per_day": 1,    # one Alpha Gold per ticker per day
-        "follow_through_window_sec": 900,
+        "follow_through_window_sec": 900,  # unused at min_repeat=0; kept for future re-tune
     },
     # Other UCT alerts: leave them untuned for now. The Bullflow filters
     # (premium floor, side, trade types) already do most of the work for
