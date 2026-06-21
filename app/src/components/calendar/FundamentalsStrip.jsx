@@ -7,6 +7,9 @@ import styles from './FundamentalsStrip.module.css'
 
 function fmtCap(v) {
   if (v == null) return null
+  // Backend already returns a formatted string (e.g. "$10.32B") — show as-is.
+  // Re-wrapping it with "$" produced the "$$10.32B" double-dollar bug.
+  if (typeof v === 'string') return v
   if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
   if (v >= 1e9)  return `$${(v / 1e9).toFixed(2)}B`
   if (v >= 1e6)  return `$${(v / 1e6).toFixed(0)}M`
