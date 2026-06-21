@@ -187,6 +187,11 @@ export default function MonthView({
     return rows
   }, [grid, monthDaysMap])
 
+  // Pass the clicked day's data up alongside the date — the parent's weekly
+  // `days` map only covers the current week, so the drawer would otherwise get
+  // undefined for any other month day and render nothing.
+  const handleOpenDay = (ds) => onOpenDay(ds, monthDaysMap[ds])
+
   return (
     <div>
       {/* Month nav removed — CalendarHeader renders it in month view to avoid
@@ -199,13 +204,13 @@ export default function MonthView({
       </div>
       <div className={`${styles.mgrid} ${styles.mgridDesktop}`}>
         {grid.flat().map(cell => (
-          <MonthCell key={cell.ds} cell={cell} onOpenDay={onOpenDay} />
+          <MonthCell key={cell.ds} cell={cell} onOpenDay={handleOpenDay} />
         ))}
       </div>
 
       {/* Mobile agenda (hidden on desktop via CSS) */}
       <div className={styles.mgridMobile}>
-        <AgendaList rows={agendaRows} onOpenDay={onOpenDay} />
+        <AgendaList rows={agendaRows} onOpenDay={handleOpenDay} />
       </div>
     </div>
   )

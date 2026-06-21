@@ -67,7 +67,7 @@ export default function Calendar() {
   const { data: mySets } = useCalendarMySets()
   const { prefs, setPref } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
-  const [openDay, setOpenDay] = useState(null)      // ds string for DayDetailDrawer
+  const [openDay, setOpenDay] = useState(null)      // { ds, day } for DayDetailDrawer
 
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
@@ -240,15 +240,15 @@ export default function Calendar() {
             mySources={mySources}
             monthCursor={monthCursor}
             setMonthCursor={setMonthCursor}
-            onOpenDay={setOpenDay}
+            onOpenDay={(ds, day) => setOpenDay({ ds, day })}
           />
         )}
       </div>
 
       {openDay && (
         <DayDetailDrawer
-          ds={openDay}
-          day={days[openDay]}
+          ds={openDay.ds}
+          day={openDay.day || days[openDay.ds]}
           onClose={() => setOpenDay(null)}
           onSelect={onSelect}
         />
