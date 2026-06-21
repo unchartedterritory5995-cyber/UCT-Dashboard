@@ -318,9 +318,18 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-// Bold candle/volume palette (Model Book "TC2000" look — boldCandles instances).
+// Bold candle/volume palette (shared base — the intraday popup's modelBookLook).
 const BOLD_UP = '#21c45c'
 const BOLD_DOWN = '#f23645'
+
+// Model Book "Throughout the Years" palette — tuned to pop like TC2000:
+// a brighter, bolder green that leaps off the chart, a deeper darker red that
+// recedes, all over a deep-navy canvas. Scoped to boldCandles instances ONLY
+// (the Model Book stock detail + Setup Library / Bottoms charted examples), so
+// no other chart on the site is touched.
+const MB_UP = '#18df58'      // vivid TC2000 green
+const MB_DOWN = '#c41f2d'    // deep darker red
+const MB_BG = '#0a0d1f'      // deep navy background
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
@@ -614,7 +623,10 @@ export default function StockChart({
       }
     }
     return {
-      background: cs.background,
+      // Model Book charts (boldCandles) ride a deep-navy canvas to make the
+      // bold green/red candles pop (TC2000 look); every other surface keeps the
+      // user's configured background.
+      background: boldCandles ? MB_BG : cs.background,
       textColor: cs.textColor,
       gridColor: cs.grid?.color,
       borderColor: cs.grid?.color,
@@ -622,7 +634,7 @@ export default function StockChart({
       candleUp: cs.candles?.upColor,
       candleDown: cs.candles?.downColor,
     }
-  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor])
+  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -2090,8 +2102,10 @@ export default function StockChart({
     if (!filteredBars?.length) return []
     // Dim the bold volume to the same hue at lower opacity — dense solid bars
     // otherwise read brighter than the thin candles and look out of place.
-    const upC = (boldCandles || modelBookLook) ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
-    const downC = (boldCandles || modelBookLook) ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
+    // Model Book volume tracks the TC2000 candle palette (vivid green / deep red);
+    // the intraday popup keeps the base bold hue.
+    const upC = boldCandles ? 'rgba(24,223,88,0.82)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
+    const downC = boldCandles ? 'rgba(196,31,45,0.82)' : modelBookLook ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
@@ -2887,10 +2901,14 @@ export default function StockChart({
         // The intraday popup (modelBookLook) shares the Model Book main chart's
         // solid bold green/red so the two charts match exactly — without it the
         // popup falls back to the lighter default cs.candles palette.
+        // Model Book (boldCandles) gets the punchier TC2000 palette (vivid green
+        // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
+        const _bUp = boldCandles ? MB_UP : BOLD_UP
+        const _bDown = boldCandles ? MB_DOWN : BOLD_DOWN
         const _bold = (boldCandles || modelBookLook) ? {
-          upColor: BOLD_UP, downColor: BOLD_DOWN,
+          upColor: _bUp, downColor: _bDown,
           borderVisible: false,                       // pure solid bodies (TC2000 look)
-          wickUpColor: BOLD_UP, wickDownColor: BOLD_DOWN,
+          wickUpColor: _bUp, wickDownColor: _bDown,
         } : {}
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
