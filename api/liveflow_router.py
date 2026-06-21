@@ -276,3 +276,71 @@ async def test_discord_post():
             "error": f"{type(e).__name__}: {str(e)[:300]}",
             "traceback": traceback.format_exc()[-1500:],
         }
+
+
+# ─── Admin: clear historical alerts ─────────────────────────────────────────
+# One-shot destructive endpoint for wiping pre-go-live data. Requires explicit
+# confirm token to prevent accidental browser-history clicks. Use case: tuned
+# gates against historical data, now want LiveFlow.jsx to start fresh from
+# market open without pre-tune history cluttering the view.
+#
+# Usage from browser address bar:
+#   /api/admin/live/clear-before-date?cutoff=2026-06-22&confirm=YES_DELETE_ALL_BEFORE
+#
+# Cutoff is exclusive: deletes everything where date_iso < cutoff. So
+# cutoff=2026-06-22 keeps Monday onward and wipes Saturday June 21 and earlier.
+
+@router.api_route("/admin/clear-before-date", methods=["GET", "POST"])
+def admin_clear_before_date(
+    cutoff: str = Query(..., description="ISO date YYYY-MM-DD; deletes rows where date_iso < cutoff"),
+    confirm: str = Query("", description="Must equal YES_DELETE_ALL_BEFORE for the deletion to actually run"),
+    dry_run: int = Query(default=0, description="If 1, returns what WOULD be deleted without deleting"),
+):
+    """
+    Delete all alerts before the cutoff date. Destructive; requires confirm token.
+
+    Returns:
+      - ok: bool
+      - deleted: int (number of rows deleted, or 0 if dry_run)
+      - would_delete: int (only present on dry_run, computed from count_by_date)
+      - cutoff: str (echo of the input)
+    """
+    from api import live_alerts_db
+    if not _DATE_RE.match(cutoff):
+        return {"ok": False, "error": "cutoff must be YYYY-MM-DD"}
+
+    # Always show the counts first so caller knows what they're about to do
+    counts = live_alerts_db.count_by_date("2020-01-01", cutoff)
+    # count_by_date is inclusive on both ends; we want EXCLUSIVE upper bound,
+    # so subtract the cutoff-day's count if present (we're keeping that day).
+    cutoff_day_count = counts.pop(cutoff, 0)
+    would_delete = sum(counts.values())
+
+    if dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "cutoff": cutoff,
+            "would_delete": would_delete,
+            "by_date": counts,
+            "kept_on_cutoff_day": cutoff_day_count,
+        }
+
+    if confirm != "YES_DELETE_ALL_BEFORE":
+        return {
+            "ok": False,
+            "error": (
+                "confirm token required. Append &confirm=YES_DELETE_ALL_BEFORE to "
+                "the URL to actually delete. Use &dry_run=1 first to preview."
+            ),
+            "would_delete": would_delete,
+            "by_date": counts,
+        }
+
+    deleted = live_alerts_db.delete_alerts_before_date(cutoff)
+    return {
+        "ok": True,
+        "cutoff": cutoff,
+        "deleted": deleted,
+        "kept_on_cutoff_day": cutoff_day_count,
+    }
