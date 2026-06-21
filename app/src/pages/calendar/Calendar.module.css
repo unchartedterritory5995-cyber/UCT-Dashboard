@@ -590,25 +590,25 @@
 }
 
 /* ── Month cell content — reads like the week view (gold/blue BMO·AMC headers
-   + uniform logo tiles + ticker names). Bands stack (BMO above AMC), each
-   full-width — NOT side-by-side (that halved each band and clipped). Logos are
-   40px so every tile is an identical, prominent white square (the uniform unit),
-   which reads as consistent sizing despite varying logo shapes. Capped per band
-   so cells stay bounded; "+N more" + day-drawer for the rest. ── */
+   + uniform logo tiles + ticker names), but the chips flow in a HORIZONTAL
+   auto-fill grid (~2-3 across) to use the cell's full width and keep height
+   low (the same tickers take ~1/3 the vertical space of a single column).
+   Bands stack (BMO above AMC), full-width. Capped per band; "+N more" +
+   day-drawer for the rest. ── */
 .mtimings {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   /* content-sized (NOT flex:1 1 0 + min-height:0) — otherwise the timings block
-     is squeezed into the cell's leftover flex space and the logo rows overflow
-     out the bottom into the cell below. Letting it size to content makes the
-     cell grow and the grid row stretch all cells uniformly. */
+     is squeezed into the cell's leftover flex space and the chips overflow out
+     the bottom into the cell below. Content-sizing makes the cell grow and the
+     grid row stretch all cells uniformly. */
 }
 
 .mband {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -621,23 +621,29 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin-bottom: 3px;
 }
 
-/* Scaled mirror of the week view's .wrow */
+/* Horizontal chip grid — fills the cell width, wraps to as few rows as needed. */
+.mitems {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 5px 8px;
+}
+
+/* logo + ticker chip (scaled mirror of the week view's .wrow) */
 .mrow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 5px;
+  gap: 8px;
+  padding: 3px 4px;
   cursor: pointer;
-  border-radius: 9px;
-  transition: background 0.12s, transform 0.12s;
+  border-radius: 8px;
+  min-width: 0;
+  transition: background 0.12s;
 }
 
 .mrow:hover {
   background: rgba(255, 255, 255, 0.05);
-  transform: translateX(2px);
 }
 
 .mrow > span:first-child {
@@ -649,10 +655,9 @@
 }
 
 .mt {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--cal-txt);
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -662,7 +667,7 @@
   font-size: var(--cal-month-fs);
   color: var(--cal-muted);
   font-weight: 700;
-  padding: 3px 5px 0 55px;
+  padding: 3px 4px 0;
 }
 
 .mbandEmpty {

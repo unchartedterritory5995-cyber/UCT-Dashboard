@@ -50,7 +50,7 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 // (NOT side-by-side, which halved each band and clipped logo+ticker). Heavy
 // days collapse the tail to "+N more"; click opens the day drawer for the rest.
 
-const MONTH_MAX_PER_TIMING = 4   // logo+ticker rows; overflow collapses to "+N more"
+const MONTH_MAX_PER_TIMING = 6   // logo+ticker chips wrap horizontally; overflow → "+N more"
 
 function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
   const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
@@ -62,12 +62,14 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
       </div>
       {shown.length ? (
         <>
-          {shown.map(s => (
-            <div key={s} className={styles.mrow}>
-              <CompanyLogo sym={s} size={40} tile />
-              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
-            </div>
-          ))}
+          <div className={styles.mitems}>
+            {shown.map(s => (
+              <div key={s} className={styles.mrow}>
+                <CompanyLogo sym={s} size={34} tile />
+                <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
+              </div>
+            ))}
+          </div>
           {overflow > 0 && <div className={styles.mmore}>+{overflow} more</div>}
         </>
       ) : (
