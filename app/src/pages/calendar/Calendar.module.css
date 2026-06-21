@@ -1211,17 +1211,21 @@
 .agendaSyms {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 7px;
 }
 
+/* logo + ticker chip — mirrors the desktop month cell so mobile reads as richly */
 .agendaSym {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--cal-txt);
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--cal-line2);
-  border-radius: 5px;
-  padding: 2px 7px;
+  border-radius: 8px;
+  padding: 5px 10px 5px 5px;
 }
 
 /* ── B3: EventCard (IPO / Dividend / Split) ──────────────────────────────── */
@@ -1425,12 +1429,21 @@
     display: block;
   }
 
-  /* D2: My Stocks Hub — mobile stacked */
+  /* D2: My Stocks Hub — tabs become a single horizontal scroll strip (no
+     awkward 3-row wrap), each tab a 44px finger target. */
   .hubTabs {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .hubTabs::-webkit-scrollbar { display: none; }
   .hubTab {
-    flex: 1 1 40%;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
   }
   .hubCardGrid {
     grid-template-columns: 1fr;

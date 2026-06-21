@@ -121,7 +121,10 @@ function AgendaList({ rows, onOpenDay }) {
           <div className={styles.agendaDate}>{ds}</div>
           <div className={styles.agendaSyms}>
             {entries.map(e => (
-              <span key={e.sym} className={styles.agendaSym}>{e.sym}</span>
+              <span key={e.sym} className={styles.agendaSym}>
+                <CompanyLogo sym={e.sym} size={22} tile />
+                {e.sym}
+              </span>
             ))}
           </div>
         </div>
