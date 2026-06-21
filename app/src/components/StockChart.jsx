@@ -329,7 +329,7 @@ const BOLD_DOWN = '#f23645'
 // no other chart on the site is touched.
 const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → really pops)
 const MB_DOWN = '#c41f2d'    // deep darker red
-const MB_BG = '#121310'      // near-black warm grey, a touch darker than the old default
+const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
