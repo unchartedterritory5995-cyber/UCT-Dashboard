@@ -6,6 +6,7 @@ import CompanyLogo from '../components/CompanyLogo'
 import IntradayDayPopover from '../components/IntradayDayPopover'
 import { prefetchBars, prefetchBarsToIDB } from '../utils/prefetchBars'
 import { parseBarsCsv, resampleWeekly } from '../utils/barsCsv'
+import { captureChartPng } from '../utils/chartCapture'
 import { useAuth } from '../context/AuthContext'
 import { useIsPhone, useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -717,6 +718,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     [customBarsData],
   )
   const barsFileRef = useRef(null)
+  const chartWrapRef = useRef(null)  // chart container — captured to PNG by the download button
   const infoSideRef = useRef(null)  // info panel element — the intraday popup covers exactly this area
   const setupsSectionRef = useRef(null)  // setups/catalysts section — intraday popup stops just above it
   const [barsMsg, setBarsMsg] = useState(null)  // upload status line (admin)
@@ -1248,6 +1250,19 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
     }
   }
 
+  // Save the chart pane (price + Nasdaq + volume canvases, with any drawn
+  // annotations) as a PNG. Filename: TICKER_YEAR.png.
+  function downloadChartPng() {
+    const dataUrl = captureChartPng(chartWrapRef.current)
+    if (!dataUrl) return
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = `${stock.symbol}_${stock.year}.png`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
   if (!stockId) {
     return <div className={styles.emptyDetail}><p>Select a stock to view its chart and labeled setups.</p></div>
   }
@@ -1308,6 +1323,12 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
               <button className={styles.annotateCancel} onClick={cancelAnnotate}>Cancel</button>
             </>
           )}
+          {/* Save the on-screen chart as a PNG — available to every user. */}
+          {!annotateMode && (
+            <button className={styles.annotateBtn} onClick={downloadChartPng} title="Download this chart as a PNG image">
+              <UIcon name="download" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Download
+            </button>
+          )}
           <div className={styles.tfToggle}>
             <button className={`${styles.tfBtn} ${chartTf === 'D' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('D')}>D</button>
             <button className={`${styles.tfBtn} ${chartTf === 'W' ? styles.tfBtnActive : ''}`} onClick={() => setChartTf('W')}>W</button>
@@ -1316,7 +1337,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
       </div>
 
       <div className={styles.dvBody}>
-        <div className={styles.chartWrap}>
+        <div className={styles.chartWrap} ref={chartWrapRef}>
           <StockChart
             sym={stock.symbol}
             tf={chartTf}
