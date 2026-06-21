@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import useHideOnScroll from '../hooks/useHideOnScroll'
+import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
 
 const S = {
@@ -68,8 +69,11 @@ export default function FeedbackWidget() {
   const [sent, setSent] = useState(false)
   const [hovered, setHovered] = useState(null)
   const hiddenOnScroll = useHideOnScroll()
+  const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
   if (!user || location.pathname.startsWith('/admin')) return null
+  // Hide when a modal/sheet is open so the "?" never covers its bottom CTA.
+  if (scrollLocked && !mode) return null
 
   // Tuck away while scrolling, but stay put while a menu/popup is open.
   const tucked = hiddenOnScroll && !mode

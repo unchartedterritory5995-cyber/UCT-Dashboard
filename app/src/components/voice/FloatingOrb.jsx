@@ -6,6 +6,7 @@ import CompassOrb from './CompassOrb'
 import VisionAttachButton from './VisionAttachButton'
 import UIcon from '../ui/UIcon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
+import useScrollLocked from '../../hooks/useScrollLocked'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
@@ -63,6 +64,7 @@ export default function FloatingOrb({ context = 'global' }) {
   const [pos, setPos] = useState(loadPos)
   const [dragging, setDragging] = useState(false)
   const hiddenOnScroll = useHideOnScroll()
+  const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
   useEffect(() => {
     function onResize() {
@@ -116,6 +118,9 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const inSession = voice.mode === 'c' && status !== 'idle' && status !== 'error'
   const inTrainMode = inSession && voice.sessionContext === 'train_me'
+  // Hide entirely when a modal/sheet is open (so the orb never covers its bottom
+  // CTA on mobile) — unless we're mid live call.
+  if (scrollLocked && !inSession) return null
   // Tuck the orb away while scrolling — but never during a live call or a drag.
   const tucked = hiddenOnScroll && !inSession && !dragging
 

@@ -99,6 +99,14 @@ export default function EarningsModal({ row, label, onClose }) {
   const { data: recapData } = useCallRecap(row?.sym)
   const { data: audioData } = useEarningsAudio(row?.sym)
 
+  // Lock body scroll while the modal is open (also hides the floating
+  // orb/feedback FABs so they don't cover the bottom "View Chart" CTA).
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   // Live gap % + Earnings intel (analyst consensus + price targets)
   useEffect(() => {
     if (!row) return

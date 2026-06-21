@@ -11,6 +11,14 @@ export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [onClose])
+  // Lock body scroll while open (also hides the floating orb/feedback FABs).
+  // Only when there's actually a day to show (empty-day clicks render null).
+  useEffect(() => {
+    if (!day) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [day])
   if (!day) return null
   const bmo = (day.bmo||[]).map(e=>({...e,_timing:'bmo'}))
   const amc = (day.amc||[]).map(e=>({...e,_timing:'amc'}))
