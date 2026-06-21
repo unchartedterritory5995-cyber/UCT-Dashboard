@@ -130,7 +130,14 @@ export default function AlertTester() {
   const [repeatSec, setRepeatSec] = useState(600);
   const [maxPerTicker, setMaxPerTicker] = useState(0);
   const [minRepeatFires, setMinRepeatFires] = useState(0);
+  const [comboMinPremium, setComboMinPremium] = useState(0);
+  const [comboWindowSec, setComboWindowSec] = useState(900);
   const [running, setRunning] = useState(false);
+  // Backfill to SQLite (Option B) — writes CSV-derived alerts into live_alerts_v1
+  // so the Live Flow history view (/live-flow?from=DATE&to=DATE) shows the
+  // complete day even when MCP backfill missed alerts (100/day cap).
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [showGated, setShowGated] = useState(false);
@@ -194,6 +201,8 @@ export default function AlertTester() {
       fd.append("repeat_window_sec", String(repeatSec));
       fd.append("max_alerts_per_ticker", String(maxPerTicker));
       fd.append("min_repeat_fires", String(minRepeatFires));
+      fd.append("combo_min_combined_premium", String(comboMinPremium));
+      fd.append("combo_window_sec", String(comboWindowSec));
       const r = await fetch("/api/admin/alert-tester/simulate", { method:"POST", body: fd });
       if (!r.ok) {
         const txt = await r.text();
@@ -213,6 +222,60 @@ export default function AlertTester() {
     if (!liveConfigs) { setError("Click 'Load Live Config' first"); return; }
     const found = liveConfigs.find(a => a.alertName === selectedAlert);
     if (found) setCfg({ ...DEFAULT_CFG, ...found });
+  }
+
+  // Backfill the current CSV to live_alerts_v1 SQLite — used for historical
+  // days where MCP backfill was incomplete. Sends ALL liveConfigs (not just
+  // the selected alert) so the entire day's UCT alert pipeline gets captured.
+  // Idempotent: re-running on the same date silently skips duplicate IDs.
+  async function backfillToSqlite() {
+    if (!csvFile) { setError("Upload a Bullflow CSV first."); return; }
+    if (!liveConfigs || liveConfigs.length === 0) {
+      setError("Click 'Load Live Configs' first — backfill needs all 10 alert configs.");
+      return;
+    }
+    // Derive date from CSV filename if it follows Bullflow_M_DD.csv pattern,
+    // otherwise prompt. Common patterns: Bullflow_6_18.csv → 2026-06-18.
+    let csvDate = null;
+    const m = csvFile.name.match(/(\d{1,2})[_-](\d{1,2})/);
+    if (m) {
+      const y = new Date().getFullYear();
+      csvDate = `${y}-${String(m[1]).padStart(2,"0")}-${String(m[2]).padStart(2,"0")}`;
+    }
+    const dateInput = window.prompt(
+      "Trade date (YYYY-MM-DD) for this CSV:",
+      csvDate || ""
+    );
+    if (!dateInput || !/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      setError("Backfill canceled — invalid or missing date.");
+      return;
+    }
+    if (!window.confirm(
+      `Backfill ${liveConfigs.length} alert configs against ${csvFile.name} ` +
+      `into SQLite for date ${dateInput}?\n\n` +
+      `This writes alerts to live_alerts_v1. Existing rows with the same ID ` +
+      `will be silently skipped. Visit /live-flow?from=${dateInput}&to=${dateInput} ` +
+      `afterwards to verify.`
+    )) return;
+
+    setBackfilling(true); setError(null); setBackfillResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("csv_file", csvFile);
+      fd.append("alert_configs", JSON.stringify(liveConfigs));
+      fd.append("date", dateInput);
+      const r = await fetch("/api/admin/live/ingest-bullflow-csv", { method:"POST", body: fd });
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`Backfill failed: HTTP ${r.status} ${txt.slice(0,200)}`);
+      }
+      const data = await r.json();
+      setBackfillResult(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBackfilling(false);
+    }
   }
 
   const fmt$ = (n) => {
@@ -394,21 +457,99 @@ export default function AlertTester() {
           <NumField label="Dedup window (sec)" value={dedupSec} onChange={setDedupSec} hint="Same contract within window keeps only highest premium"/>
           <NumField label="Repeat-fires window (sec)" value={repeatSec} onChange={setRepeatSec} hint="Window for counting multi-fires on same contract. 600s = 10 min."/>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10, marginBottom:10 }}>
           <NumField label="Min repeat fires ('2X' filter)" value={minRepeatFires} onChange={setMinRepeatFires}
             hint={minRepeatFires<=1?"0 or 1 = off. Set to 2 for institutional follow-through (only emit when a contract had ≥2 large hits in window)":`Only emit alerts on contracts with ≥${minRepeatFires} fires in repeat window`}/>
           <NumField label="Max alerts per ticker" value={maxPerTicker} onChange={setMaxPerTicker}
             hint={maxPerTicker===0?"0 = unlimited. Set to 1 for 'one alert per ticker'":`${maxPerTicker} alert(s) max per ticker · highest grade wins`}/>
         </div>
+        {/* Sweep+Block combo detector — stealth accumulation across trade types */}
+        <div style={{ background:P.al, border:"1px dashed "+P.ac, borderRadius:6, padding:12 }}>
+          <div style={{ fontSize:9, fontWeight:800, color:P.ac, marginBottom:8, letterSpacing:0.5, textTransform:"uppercase" }}>
+            Sweep + Block Combo Detector (stealth-accumulation rule)
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10 }}>
+            <NumField label="Combo min combined premium ($)" value={comboMinPremium} onChange={setComboMinPremium} step={250000}
+              hint={comboMinPremium===0?"0 = OFF. Set to e.g. 2500000 to fire Alpha Gold when a SWEEP + BLOCK on the same contract combine to ≥$2.5M":`When ≥$${(comboMinPremium/1e6).toFixed(2)}M combined of sweeps+blocks hit one contract within window → emit COMBO alert`}/>
+            <NumField label="Combo window (sec)" value={comboWindowSec} onChange={setComboWindowSec}
+              hint="Time window in which sweep and block must both occur. 900s = 15 min."/>
+          </div>
+          <div style={{ marginTop:8, fontSize:9, color:P.dim, lineHeight:1.5 }}>
+            Detects institutional stealth accumulation: a sweep followed by (or preceded by) a block
+            on the same contract, where their combined premium meets the threshold. Individual trades
+            can be below the alert's normal floor — the combo's combined size is what counts.
+            Bypasses the alert's trade-type filter. Tagged "COMBO" in results.
+          </div>
+        </div>
       </Card>
 
       {/* Run */}
-      <div style={{ display:"flex", justifyContent:"center", marginBottom:24 }}>
+      <div style={{ display:"flex", justifyContent:"center", gap:12, marginBottom:24, alignItems:"center", flexWrap:"wrap" }}>
         <button onClick={runSimulation} disabled={running || !csvFile}
           style={{ background: running||!csvFile?P.dim:P.bu, color:P.bg, border:"none", padding:"12px 32px", borderRadius:8, fontSize:13, fontWeight:800, cursor: running||!csvFile?"not-allowed":"pointer", letterSpacing:1 }}>
           {running ? "Simulating…" : "▶ RUN SIMULATION"}
         </button>
+        {/* Backfill to SQLite — fills in days that MCP backfill couldn't fully capture.
+            Disabled until both CSV and liveConfigs are loaded since we need all 10 alerts. */}
+        <button onClick={backfillToSqlite}
+          disabled={backfilling || !csvFile || !liveConfigs || liveConfigs.length===0}
+          title={
+            !csvFile ? "Upload CSV first" :
+            !liveConfigs ? "Click 'Load Live Configs' first" :
+            "Write all matched alerts to live_alerts_v1 SQLite. Used to backfill days that the MCP 100-alert/day cap missed."
+          }
+          style={{
+            background: (backfilling||!csvFile||!liveConfigs) ? P.al : "transparent",
+            color: (backfilling||!csvFile||!liveConfigs) ? P.dim : P.ac,
+            border: `1px solid ${(backfilling||!csvFile||!liveConfigs) ? P.bd : P.ac}`,
+            padding:"10px 18px", borderRadius:8, fontSize:11, fontWeight:700,
+            cursor: (backfilling||!csvFile||!liveConfigs) ? "not-allowed" : "pointer",
+            letterSpacing:0.5,
+          }}>
+          {backfilling ? "Backfilling…" : "⇪ BACKFILL TO SQLITE"}
+        </button>
       </div>
+
+      {/* Backfill result panel */}
+      {backfillResult && (
+        <Card title="Backfill result · live_alerts_v1 SQLite">
+          {backfillResult.ok ? (
+            <>
+              <div style={{ display:"flex", gap:16, fontSize:11, marginBottom:8, flexWrap:"wrap" }}>
+                <div><span style={{ color:P.dim }}>Date:</span> <span style={{ color:P.text, fontWeight:700 }}>{backfillResult.date}</span></div>
+                <div><span style={{ color:P.dim }}>CSV rows:</span> <span style={{ color:P.text }}>{backfillResult.csv_rows?.toLocaleString()}</span></div>
+                <div><span style={{ color:P.dim }}>Inserted:</span> <span style={{ color:P.ac, fontWeight:700 }}>{backfillResult.alerts_inserted}</span></div>
+                <div><span style={{ color:P.dim }}>Skipped (dupes):</span> <span style={{ color:P.mt }}>{backfillResult.alerts_skipped_duplicates}</span></div>
+                {backfillResult.insert_errors > 0 && (
+                  <div><span style={{ color:P.dim }}>Errors:</span> <span style={{ color:P.be }}>{backfillResult.insert_errors}</span></div>
+                )}
+                <div><span style={{ color:P.dim }}>Elapsed:</span> <span style={{ color:P.text }}>{backfillResult.elapsed_sec}s</span></div>
+              </div>
+              <div style={{ fontSize:10, color:P.dim, marginBottom:8 }}>By alert:</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:6 }}>
+                {Object.entries(backfillResult.by_alert || {})
+                  .sort((a,b) => b[1]-a[1])
+                  .map(([name, count]) => (
+                    <div key={name} style={{ background:P.al, padding:"6px 10px", borderRadius:4, border:`1px solid ${P.bd}`, fontSize:10 }}>
+                      <span style={{ color:P.text, fontWeight:600 }}>{name}</span>
+                      <span style={{ color:P.ac, fontWeight:700, marginLeft:6 }}>{count}</span>
+                    </div>
+                  ))}
+              </div>
+              {backfillResult.next_step && (
+                <div style={{ marginTop:12, padding:"8px 12px", background:P.bu+"15", border:`1px solid ${P.bu}40`, borderRadius:5, fontSize:10, color:P.bu }}>
+                  → {backfillResult.next_step}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ color:P.be, fontSize:11 }}>
+              <div style={{ fontWeight:700, marginBottom:4 }}>Backfill failed</div>
+              <div>{backfillResult.error}</div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Results */}
       {results && (
@@ -419,8 +560,12 @@ export default function AlertTester() {
               {[
                 ["CSV", results.stages["1_csv_parsed"], P.dim],
                 ["Bullflow", results.stages["2_bullflow_matched"], P.mt],
-                ["Norm", results.stages["3_normalized"], P.mt],
-                ["Dedup", results.stages["4_after_dedup"], P.text],
+                [
+                  results.combo_min_combined_premium > 0 ? "⚡ Combos" : "Combos (off)",
+                  results.stages["2b_combos_detected"] ?? 0,
+                  results.combo_min_combined_premium > 0 ? P.ac : P.dim,
+                ],
+                ["After Dedup", results.stages["4_after_dedup"], P.text],
                 ["Graded", results.stages["5_graded"], P.ye],
                 [
                   results.min_repeat_fires > 1 ? `≥${results.min_repeat_fires}× Fires` : "2X (off)",
@@ -506,25 +651,39 @@ export default function AlertTester() {
                   <th style={{ padding:"4px 6px", textAlign:"right" }}>Premium</th>
                   <th style={{ padding:"4px 6px" }}>Type</th>
                   <th style={{ padding:"4px 6px" }}>Side</th>
-                  <th style={{ padding:"4px 6px", textAlign:"center" }}>Fires</th>
+                  <th style={{ padding:"4px 6px", textAlign:"center" }}>Signal</th>
                   <th style={{ padding:"4px 6px", textAlign:"center" }}>Grade</th>
                   <th style={{ padding:"4px 6px", textAlign:"right" }}>Score</th>
                 </tr>
               </thead>
               <tbody>
                 {results.would_post_sample.map(a => (
-                  <tr key={a.id} style={{ borderBottom:"1px solid "+P.bd+"22" }}>
+                  <tr key={a.id} style={{ borderBottom:"1px solid "+P.bd+"22", background: a.combo_upgrade ? P.ac+"08" : "transparent" }}>
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.time}</td>
                     <td style={{ padding:"3px 6px", color:P.text, fontWeight:800 }}>{a.ticker}</td>
                     <td style={{ padding:"3px 6px", color: a.cp==="C"?P.bu:P.be, fontWeight:800 }}>{a.cp}</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.text }}>${a.strike}</td>
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.exp}</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.dim }}>{a.dte}d</td>
-                    <td style={{ padding:"3px 6px", textAlign:"right", color:P.ac, fontWeight:700 }}>{fmt$(a.premium)}</td>
-                    <td style={{ padding:"3px 6px", color:P.dim }}>{a.trade_type}</td>
+                    <td style={{ padding:"3px 6px", textAlign:"right", color:P.ac, fontWeight:700 }}
+                        title={a.combo_upgrade ? `Sweep $${(a.combo_sweep_premium/1e6).toFixed(2)}M + Block $${(a.combo_block_premium/1e6).toFixed(2)}M combined` : undefined}>
+                      {fmt$(a.premium)}{a.combo_upgrade ? "*" : ""}
+                    </td>
+                    <td style={{ padding:"3px 6px", color: a.combo_upgrade ? P.ac : P.dim, fontWeight: a.combo_upgrade ? 800 : 600 }}>
+                      {a.combo_upgrade ? "COMBO" : a.trade_type}
+                    </td>
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.side}</td>
-                    <td style={{ padding:"3px 6px", textAlign:"center", color: (a.repeat_fires||1)>=2 ? P.ac : P.dim, fontWeight: (a.repeat_fires||1)>=2 ? 800 : 600 }}>
-                      {(a.repeat_fires||1)>=2 ? `${a.repeat_fires}×` : "—"}
+                    <td style={{ padding:"3px 6px", textAlign:"center" }}>
+                      {a.combo_upgrade ? (
+                        <span style={{ color:P.ac, fontWeight:800, padding:"1px 4px", borderRadius:3, background:P.ac+"22", border:"1px solid "+P.ac+"55", fontSize:8 }}
+                              title={`Sweep+Block combo: $${(a.combo_sweep_premium/1e6).toFixed(2)}M sweep + $${(a.combo_block_premium/1e6).toFixed(2)}M block (${a.combo_trade_count} trades)`}>
+                          ⚡COMBO
+                        </span>
+                      ) : (a.repeat_fires||1)>=2 ? (
+                        <span style={{ color:P.ac, fontWeight:800 }}>{a.repeat_fires}×</span>
+                      ) : (
+                        <span style={{ color:P.dim }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding:"3px 6px", textAlign:"center", color:GRADE_COLOR[a.grade], fontWeight:800 }}>{a.grade}</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.text }}>{a.grade_score}</td>
