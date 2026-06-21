@@ -736,33 +736,52 @@ def _extract_alerts(payload: Any) -> dict:
 
       1. Direct: {alerts: [...]}
       2. Data-nested: {data: {alerts: [...]}}
-      3. SSE-wrapped: {raw: {raw_text: "event: message\ndata: {JSON-RPC...}"}}
+      3. SSE at top level: {http: 200, raw_text: "event: message\ndata: {JSON-RPC}"}
          where the JSON-RPC envelope contains structuredContent.data.alerts
-      4. JSON-RPC envelope (no SSE): {result: {structuredContent: {data: {alerts}}}}
-      5. JSON-RPC content array fallback: result.content[0].text = "<JSON string>"
-         which when parsed contains .data.alerts
+      4. SSE nested under .raw: {raw: {raw_text: "..."}}
+      5. JSON-RPC envelope direct: {result: {structuredContent: {data: {alerts}}}}
+      6. JSON-RPC content array fallback: result.content[0].text = "<JSON>"
 
-    Discovered 2026-06-21: production MCP probe returns shape #3 (SSE +
-    JSON-RPC + structuredContent). Older code only handled shapes #1 and #2,
-    leading to empty alerts despite 200 OK with full data.
+    Bug fix 2026-06-21: shape #3 was missing — production payload has
+    raw_text directly on payload (not nested under .raw), but earlier fix
+    only checked payload.raw.raw_text. Symptom: 10 alerts present in MCP
+    response, _extract_alerts returned 0 with raw populated in output.
     """
     if not isinstance(payload, dict):
         return {"alerts": [], "count": 0, "raw": payload}
 
     # Shape 1: direct alerts list
     if "alerts" in payload and isinstance(payload["alerts"], list) and payload["alerts"]:
-        return {"alerts": payload["alerts"], "count": len(payload["alerts"])}
+        return {"alerts": payload["alerts"], "count": len(payload["alerts"]),
+                "_parser_v": 3}
 
     # Shape 2: nested under .data
     if "data" in payload and isinstance(payload["data"], dict):
         d = payload["data"]
         if "alerts" in d and isinstance(d["alerts"], list) and d["alerts"]:
-            return {"alerts": d["alerts"], "count": len(d["alerts"])}
+            return {"alerts": d["alerts"], "count": len(d["alerts"]),
+                    "_parser_v": 3}
 
-    # Shape 3 & 5: SSE-wrapped or direct text. Unpack via helpers.
+    # Shape 3: SSE raw_text at TOP LEVEL of payload (the actual production shape)
+    # Probe returns: {"http": 200, "raw_text": "event: message\ndata: {...}"}
+    top_raw_text = payload.get("raw_text")
+    if isinstance(top_raw_text, str) and "data:" in top_raw_text:
+        for line in top_raw_text.split("\n"):
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+            try:
+                envelope = json.loads(line[5:].strip())
+            except json.JSONDecodeError:
+                continue
+            extracted = _extract_from_jsonrpc(envelope)
+            if extracted["alerts"]:
+                extracted["_parser_v"] = 3
+                return extracted
+
+    # Shape 4: SSE nested under .raw (kept for robustness; covers alternate wrappings)
     raw = payload.get("raw")
     if isinstance(raw, dict):
-        # 3a. raw_text contains SSE-formatted lines
         raw_text = raw.get("raw_text") or raw.get("text") or ""
         if isinstance(raw_text, str) and "data:" in raw_text:
             for line in raw_text.split("\n"):
@@ -775,18 +794,23 @@ def _extract_alerts(payload: Any) -> dict:
                     continue
                 extracted = _extract_from_jsonrpc(envelope)
                 if extracted["alerts"]:
+                    extracted["_parser_v"] = 3
                     return extracted
-        # 3b. raw itself is the JSON-RPC envelope (no SSE wrapping)
+        # 4b. raw itself is the JSON-RPC envelope (no SSE wrapping)
         extracted = _extract_from_jsonrpc(raw)
         if extracted["alerts"]:
+            extracted["_parser_v"] = 3
             return extracted
 
-    # Shape 4: payload IS the JSON-RPC envelope at top level
+    # Shape 5: payload IS the JSON-RPC envelope at top level
     extracted = _extract_from_jsonrpc(payload)
     if extracted["alerts"]:
+        extracted["_parser_v"] = 3
         return extracted
 
-    return {"alerts": [], "count": 0, "raw": payload}
+    # Nothing matched — return raw for debugging. Includes _parser_v so we can
+    # tell deployed-but-failed-to-match from old-code-still-running.
+    return {"alerts": [], "count": 0, "raw": payload, "_parser_v": 3}
 
 
 def _extract_from_jsonrpc(envelope: Any) -> dict:
