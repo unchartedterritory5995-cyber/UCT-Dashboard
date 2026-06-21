@@ -61,17 +61,15 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
         <UIcon name={icon} size={12} aria-hidden="true" /> {label}
       </div>
       {shown.length ? (
-        <>
-          <div className={styles.mitems}>
-            {shown.map(s => (
-              <div key={s} className={styles.mrow}>
-                <CompanyLogo sym={s} size={34} tile />
-                <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
-              </div>
-            ))}
-          </div>
-          {overflow > 0 && <div className={styles.mmore}>+{overflow} more</div>}
-        </>
+        <div className={styles.mitems}>
+          {shown.map(s => (
+            <div key={s} className={styles.mrow}>
+              <CompanyLogo sym={s} size={34} tile />
+              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
+            </div>
+          ))}
+          {overflow > 0 && <div className={styles.mmoreChip}>+{overflow} more</div>}
+        </div>
       ) : (
         <div className={styles.mbandEmpty}>—</div>
       )}

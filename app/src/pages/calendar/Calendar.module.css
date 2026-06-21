@@ -586,7 +586,7 @@
   font-weight: 800;
   color: var(--cal-gold);
   letter-spacing: 0.3px;
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 /* ── Month cell content — reads like the week view (gold/blue BMO·AMC headers
@@ -598,7 +598,7 @@
 .mtimings {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 11px;
   /* content-sized (NOT flex:1 1 0 + min-height:0) — otherwise the timings block
      is squeezed into the cell's leftover flex space and the chips overflow out
      the bottom into the cell below. Content-sizing makes the cell grow and the
@@ -608,7 +608,7 @@
 .mband {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -616,18 +616,19 @@
 .mbandHd {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: var(--cal-month-fs);
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
 }
 
-/* Horizontal chip grid — fills the cell width, wraps to as few rows as needed. */
+/* Horizontal chip grid — fills the cell width, wraps to as few rows as needed.
+   The "+N more" ghost chip flows as the last grid cell, keeping the row tidy. */
 .mitems {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 5px 8px;
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+  gap: 4px 7px;
 }
 
 /* logo + ticker chip (scaled mirror of the week view's .wrow) */
@@ -661,13 +662,29 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.2px;
 }
 
-.mmore {
+/* "+N more" — a tidy ghost chip in the grid flow (not orphaned floating text);
+   clicking anywhere in the cell opens the day drawer with the full list. */
+.mmoreChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border: 1px dashed var(--cal-line2);
+  border-radius: 8px;
   font-size: var(--cal-month-fs);
-  color: var(--cal-muted);
   font-weight: 700;
-  padding: 3px 4px 0;
+  letter-spacing: 0.3px;
+  color: var(--cal-muted);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.mmoreChip:hover {
+  border-color: var(--cal-gold);
+  color: var(--cal-gold);
 }
 
 .mbandEmpty {
