@@ -571,6 +571,120 @@ def _min_repeat_fires_filter(alerts: list[dict], min_fires: int) -> tuple[list[d
     return kept, dropped
 
 
+def _detect_sweep_block_combos(
+    rows: list[dict],
+    cfg: dict,
+    min_combined_premium: float,
+    window_sec: int,
+    individual_floor: float = 250_000,
+) -> list[dict]:
+    """
+    Stealth-accumulation detector. Some institutions split a position across
+    trade types — a sweep followed by a block (or vice versa) on the same
+    contract within minutes. Each individual trade may be below the alert's
+    floor, but combined they reveal big-money positioning.
+
+    Scans rows that pass the alert's direction/side/option-type filters
+    (NOT the trade-type or premium-floor filters), groups by contract, and
+    looks for sliding-window pairs that contain BOTH a SWEEP and a BLOCK
+    with combined premium >= min_combined_premium.
+
+    Emits one synthetic "combo upgrade" alert per qualifying contract,
+    representing the cluster. The alert's premium is set to the combined
+    total so downstream grading reflects the true size.
+
+    Returns combo alerts (empty list if min_combined_premium <= 0).
+    """
+    if min_combined_premium <= 0:
+        return []
+
+    # Permissive filter for combo participation: keep Calls/Puts/Direction/Side
+    # checks but allow both SWEEP and BLOCK, with a lower individual floor.
+    combo_cfg = dict(cfg)
+    combo_cfg["minPremium"] = max(individual_floor, 0)
+    combo_cfg["sweepsCheckBox"] = True
+    combo_cfg["blocksCheckbox"] = True
+    combo_cfg["singlesCheckbox"] = False
+    combo_cfg["splitsCheckBox"] = False
+    combo_cfg["multilegCheckbox"] = False
+
+    candidates, _ = _apply_bullflow_filter(rows, combo_cfg)
+
+    # Group by contract identity
+    by_contract: defaultdict = defaultdict(list)
+    for r in candidates:
+        ck = f"{r['ticker']}|{r['cp']}|{r['strike']}|{r['exp']}"
+        by_contract[ck].append(r)
+
+    combos: list[dict] = []
+    for ck, trades in by_contract.items():
+        trades.sort(key=lambda t: t["unix"])
+        sweeps = [t for t in trades if t["trade_type"] == "SWEEP"]
+        blocks = [t for t in trades if t["trade_type"] == "BLOCK"]
+        if not sweeps or not blocks:
+            continue
+
+        # Find the first sweep-block pair within window, then aggregate all
+        # qualifying trades in the encompassing window. Each contract emits
+        # at most one combo alert (the cluster representative).
+        emitted = False
+        for s in sweeps:
+            if emitted:
+                break
+            for b in blocks:
+                if abs(s["unix"] - b["unix"]) > window_sec:
+                    continue
+                # Window anchor = the LATER trade. Look back `window_sec`.
+                anchor = max(s["unix"], b["unix"])
+                window_start = anchor - window_sec
+                in_window = [
+                    t for t in trades
+                    if window_start <= t["unix"] <= anchor
+                    and t["trade_type"] in ("SWEEP", "BLOCK")
+                ]
+                sweep_prem = sum(t["premium"] for t in in_window if t["trade_type"] == "SWEEP")
+                block_prem = sum(t["premium"] for t in in_window if t["trade_type"] == "BLOCK")
+                combined = sweep_prem + block_prem
+                if combined < min_combined_premium:
+                    continue
+                latest = max(in_window, key=lambda t: t["unix"])
+                # Build combo alert from the latest trade's metadata
+                combo = {
+                    "id": f"combo-{len(combos)+1}",
+                    "alert_name": cfg.get("alertName", "Custom Alert"),
+                    "ticker": latest["ticker"],
+                    "cp": latest["cp"],
+                    "strike": latest["strike"],
+                    "exp": latest["exp"],
+                    "dte": latest["dte"],
+                    "premium": combined,  # override with combined for grading
+                    "trade_price": latest["trade_price"],
+                    "trade_size": latest["trade_size"],
+                    "side": latest["side"],
+                    "trade_type": "COMBO",  # special marker
+                    "direction": latest["direction"],
+                    "vol": latest["vol"],
+                    "oi": latest["oi"],
+                    "spot": latest["spot"],
+                    "otm_pct": latest["otm_pct"],
+                    "iv": latest["iv"],
+                    "score": latest["score"],
+                    "time": latest["time"],
+                    "unix": latest["unix"],
+                    "symbol": latest["symbol"],
+                    "combo_upgrade": True,
+                    "combo_sweep_premium": sweep_prem,
+                    "combo_block_premium": block_prem,
+                    "combo_combined_premium": combined,
+                    "combo_trade_count": len(in_window),
+                }
+                combos.append(combo)
+                emitted = True
+                break
+
+    return combos
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ROUTES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -613,17 +727,122 @@ def _is_coro(fn):
 
 
 def _extract_alerts(payload: Any) -> dict:
-    """Unwrap the MCP response shape -> {alerts: [...], count: N}."""
+    """
+    Unwrap the MCP response shape -> {alerts: [...], count: N}.
+
+    Bullflow's MCP returns alerts inside several layers of envelope. Handles
+    all known shapes; falls back to {raw: payload} for debugging if nothing
+    matches:
+
+      1. Direct: {alerts: [...]}
+      2. Data-nested: {data: {alerts: [...]}}
+      3. SSE-wrapped: {raw: {raw_text: "event: message\ndata: {JSON-RPC...}"}}
+         where the JSON-RPC envelope contains structuredContent.data.alerts
+      4. JSON-RPC envelope (no SSE): {result: {structuredContent: {data: {alerts}}}}
+      5. JSON-RPC content array fallback: result.content[0].text = "<JSON string>"
+         which when parsed contains .data.alerts
+
+    Discovered 2026-06-21: production MCP probe returns shape #3 (SSE +
+    JSON-RPC + structuredContent). Older code only handled shapes #1 and #2,
+    leading to empty alerts despite 200 OK with full data.
+    """
     if not isinstance(payload, dict):
         return {"alerts": [], "count": 0, "raw": payload}
-    # Try common nested shapes
-    if "alerts" in payload and isinstance(payload["alerts"], list):
+
+    # Shape 1: direct alerts list
+    if "alerts" in payload and isinstance(payload["alerts"], list) and payload["alerts"]:
         return {"alerts": payload["alerts"], "count": len(payload["alerts"])}
+
+    # Shape 2: nested under .data
     if "data" in payload and isinstance(payload["data"], dict):
         d = payload["data"]
-        if "alerts" in d and isinstance(d["alerts"], list):
+        if "alerts" in d and isinstance(d["alerts"], list) and d["alerts"]:
             return {"alerts": d["alerts"], "count": len(d["alerts"])}
+
+    # Shape 3 & 5: SSE-wrapped or direct text. Unpack via helpers.
+    raw = payload.get("raw")
+    if isinstance(raw, dict):
+        # 3a. raw_text contains SSE-formatted lines
+        raw_text = raw.get("raw_text") or raw.get("text") or ""
+        if isinstance(raw_text, str) and "data:" in raw_text:
+            for line in raw_text.split("\n"):
+                line = line.strip()
+                if not line.startswith("data:"):
+                    continue
+                try:
+                    envelope = json.loads(line[5:].strip())
+                except json.JSONDecodeError:
+                    continue
+                extracted = _extract_from_jsonrpc(envelope)
+                if extracted["alerts"]:
+                    return extracted
+        # 3b. raw itself is the JSON-RPC envelope (no SSE wrapping)
+        extracted = _extract_from_jsonrpc(raw)
+        if extracted["alerts"]:
+            return extracted
+
+    # Shape 4: payload IS the JSON-RPC envelope at top level
+    extracted = _extract_from_jsonrpc(payload)
+    if extracted["alerts"]:
+        return extracted
+
     return {"alerts": [], "count": 0, "raw": payload}
+
+
+def _extract_from_jsonrpc(envelope: Any) -> dict:
+    """
+    Drill into a JSON-RPC envelope to find the alerts array.
+
+    Tries (in order):
+      a. envelope.result.structuredContent.data.alerts  ← preferred, already-parsed
+      b. envelope.result.content[0].text → parse as JSON → .data.alerts
+      c. envelope.data.alerts (envelope without the JSON-RPC wrapper)
+    """
+    if not isinstance(envelope, dict):
+        return {"alerts": [], "count": 0}
+
+    # Path a: structuredContent is pre-parsed by the JSON-RPC server
+    result = envelope.get("result")
+    if isinstance(result, dict):
+        sc = result.get("structuredContent")
+        if isinstance(sc, dict):
+            data = sc.get("data")
+            if isinstance(data, dict):
+                alerts = data.get("alerts")
+                if isinstance(alerts, list) and alerts:
+                    return {"alerts": alerts, "count": len(alerts)}
+
+        # Path b: content[0].text is a JSON string that needs second parse
+        content = result.get("content")
+        if isinstance(content, list) and content:
+            first = content[0]
+            if isinstance(first, dict):
+                text = first.get("text")
+                if isinstance(text, str):
+                    try:
+                        parsed = json.loads(text)
+                    except json.JSONDecodeError:
+                        parsed = None
+                    if isinstance(parsed, dict):
+                        # Try .data.alerts
+                        d = parsed.get("data")
+                        if isinstance(d, dict):
+                            alerts = d.get("alerts")
+                            if isinstance(alerts, list) and alerts:
+                                return {"alerts": alerts, "count": len(alerts)}
+                        # Try direct .alerts
+                        alerts = parsed.get("alerts")
+                        if isinstance(alerts, list) and alerts:
+                            return {"alerts": alerts, "count": len(alerts)}
+
+    # Path c: envelope.data.alerts (no JSON-RPC wrapper)
+    data = envelope.get("data")
+    if isinstance(data, dict):
+        alerts = data.get("alerts")
+        if isinstance(alerts, list) and alerts:
+            return {"alerts": alerts, "count": len(alerts)}
+
+    return {"alerts": [], "count": 0}
 
 
 @router.post("/simulate")
@@ -632,9 +851,11 @@ async def simulate(
     alert_config: str = Form(...),
     min_discord_grade: str = Form("B"),
     dedup_window_sec: int = Form(60),
-    repeat_window_sec: int = Form(300),
+    repeat_window_sec: int = Form(600),
     max_alerts_per_ticker: int = Form(0),
     min_repeat_fires: int = Form(0),
+    combo_min_combined_premium: float = Form(0),
+    combo_window_sec: int = Form(600),
 ):
     """
     Run the full UCT pipeline against an uploaded Bullflow CSV with the given
@@ -674,8 +895,18 @@ async def simulate(
     # Stage 2: Normalize
     alerts = _normalize(matched, alert_name)
 
+    # Stage 2b: Sweep+Block combo detection (parallel to main filter)
+    combo_alerts = _detect_sweep_block_combos(
+        rows, cfg,
+        min_combined_premium=combo_min_combined_premium,
+        window_sec=combo_window_sec,
+    )
+    # Merge combos into the normalized alert stream. Combo alerts are tagged
+    # `combo_upgrade=True` so the UI can label them distinctly.
+    alerts_with_combos = alerts + combo_alerts
+
     # Stage 3: Dedup
-    deduped, dedup_dropped = _dedup(alerts, dedup_window_sec)
+    deduped, dedup_dropped = _dedup(alerts_with_combos, dedup_window_sec)
 
     # Stage 4: Aggregate repeats
     aggregated = _aggregate_repeats(deduped, repeat_window_sec)
@@ -739,7 +970,8 @@ async def simulate(
         "stages": {
             "1_csv_parsed":             csv_total,
             "2_bullflow_matched":       len(matched),
-            "3_normalized":             len(alerts),
+            "2b_combos_detected":       len(combo_alerts),
+            "3_normalized":             len(alerts_with_combos),
             "4_after_dedup":            len(deduped),
             "5_graded":                 len(graded),
             "5a_after_repeat_filter":   len(graded_after_repeat_filter),
@@ -752,6 +984,8 @@ async def simulate(
         "ticker_cap_dropped": len(ticker_dropped),
         "min_repeat_fires": min_repeat_fires,
         "max_alerts_per_ticker": max_alerts_per_ticker,
+        "combo_min_combined_premium": combo_min_combined_premium,
+        "combo_alerts_detected": len(combo_alerts),
         "tier_breakdown": tier_breakdown_sorted,
         "min_discord_grade": min_discord_grade,
         "top_tickers": top_tickers,
