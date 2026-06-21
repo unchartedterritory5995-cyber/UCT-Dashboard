@@ -429,8 +429,132 @@ def _passes_alert_gates(alert: dict) -> tuple:
     return True, ""
 
 
+# ─── Historical gate replay ──────────────────────────────────────────────────
+# Pure function — takes a list of stored alerts (from live_alerts_db) and
+# replays them through CURRENT ALERT_CONVICTION_GATES config to determine what
+# WOULD have posted to Discord if those gates had been active when the alerts
+# were originally ingested.
+#
+# Uses fresh per-call state (NOT the production module-level _follow_through_tracker
+# or _alerts_posted_today) so this is safe to call from API endpoints without
+# polluting live worker state. The live worker keeps tracking against its own
+# real-time state; this function is read-only with respect to that.
+#
+# Returns the same alert dicts with new fields stamped on:
+#   _replayedFollowThroughCount  — int, fires within window (incl. self)
+#   _replayedGatePassed          — 1 if would have passed gates, 0 if not
+#   _replayedGateReason          — str, empty if passed, otherwise drop reason
+#   _replayedWouldForward        — 1 if would post to Discord, 0 if not
+#
+# Used by /api/live/alerts/history?replay_gates=1 to show "what if current
+# gates were active on a past date" — useful for tuning thresholds against
+# real historical data.
+def replay_alerts_through_gates(alerts: list) -> list:
+    """
+    Replay historical alerts through current ALERT_CONVICTION_GATES.
+
+    Operates on a list of alert dicts (typically from live_alerts_db.query_alerts).
+    Sorts by ingestedAt ascending so follow-through windows compute correctly
+    even if input is newest-first. Returns a NEW list of the same dicts with
+    additional `_replayed*` fields stamped on each.
+
+    Pure function: does NOT mutate production state, does NOT write to DB.
+    Safe to call repeatedly with the same input — deterministic output.
+
+    Uses the alert's RECORDED ingestedAt as the "now" for each gate check
+    (not time.time()) so daily caps reset at the correct ET midnight and
+    follow-through windows count the right fires.
+    """
+    if not alerts:
+        return []
+
+    # Local helper to parse ingestedAt (ISO string) → unix timestamp.
+    # Falls back to `timestamp` field if ingestedAt is missing/malformed.
+    def _to_unix(a):
+        ts = a.get("ingestedAt") or a.get("timestamp")
+        if ts is None:
+            return 0.0
+        if isinstance(ts, (int, float)):
+            return float(ts)
+        try:
+            # ISO string — strip trailing Z, parse with timezone.
+            s = str(ts).replace("Z", "+00:00")
+            return datetime.fromisoformat(s).timestamp()
+        except (ValueError, TypeError):
+            return 0.0
+
+    # Sort ascending by timestamp so follow-through windows accumulate correctly.
+    sorted_alerts = sorted(alerts, key=_to_unix)
+
+    # Fresh per-replay state (NOT the production module-level dicts).
+    replay_follow_through: dict = {}  # contract_key -> [unix_ts, ...]
+    replay_posted_today: dict = {}    # date_iso -> set of (alert_name, ticker)
+
+    for a in sorted_alerts:
+        name = (a.get("alertName") or "").strip()
+        ticker = (a.get("ticker") or "").upper()
+        alert_ts = _to_unix(a)
+
+        # Always track follow-through (across all alert types, not just gated ones).
+        # Mirrors the live worker's _track_follow_through_increment behavior.
+        key = _make_contract_key(a)
+        max_window = max(
+            (g.get("follow_through_window_sec", 0) for g in ALERT_CONVICTION_GATES.values()),
+            default=900,
+        ) or 900
+        cutoff = alert_ts - max_window
+        bucket = replay_follow_through.setdefault(key, [])
+        bucket[:] = [t for t in bucket if t >= cutoff]
+        bucket.append(alert_ts)
+        a["_replayedFollowThroughCount"] = len(bucket)
+
+        # Look up gates for this alert name.
+        gates = _get_alert_gates(name)
+        if not gates:
+            # No gates configured for this alert type — passes through unchanged.
+            a["_replayedGatePassed"] = 1
+            a["_replayedGateReason"] = ""
+            a["_replayedWouldForward"] = 1
+            continue
+
+        # Gate 1: 2X follow-through within the alert's configured window.
+        min_fires = int(gates.get("min_repeat_fires", 0) or 0)
+        if min_fires > 1:
+            window_sec = int(gates.get("follow_through_window_sec", 900) or 900)
+            cutoff_specific = alert_ts - window_sec
+            ft_in_window = sum(1 for t in bucket if t >= cutoff_specific)
+            if ft_in_window < min_fires:
+                a["_replayedGatePassed"] = 0
+                a["_replayedGateReason"] = f"below_2x:{ft_in_window}<{min_fires}"
+                a["_replayedWouldForward"] = 0
+                continue
+
+        # Gate 2: per-ticker daily cap. Date is computed from the alert's
+        # recorded timestamp in ET so the cap resets at the correct midnight.
+        max_per_ticker = int(gates.get("max_per_ticker_per_day", 0) or 0)
+        if max_per_ticker > 0:
+            try:
+                alert_et_date = datetime.fromtimestamp(alert_ts, tz=timezone.utc).astimezone(ET).date().isoformat()
+            except (OverflowError, ValueError):
+                alert_et_date = "1970-01-01"
+            posted_set = replay_posted_today.setdefault(alert_et_date, set())
+            if (name, ticker) in posted_set:
+                a["_replayedGatePassed"] = 0
+                a["_replayedGateReason"] = f"ticker_capped:{ticker}_already_posted_that_day"
+                a["_replayedWouldForward"] = 0
+                continue
+            # Passed the cap — mark this ticker as posted for that date.
+            posted_set.add((name, ticker))
+
+        # All gates passed.
+        a["_replayedGatePassed"] = 1
+        a["_replayedGateReason"] = ""
+        a["_replayedWouldForward"] = 1
+
+    return sorted_alerts
+
+
 # ─── Sweep+Block combo detection — DEFERRED ──────────────────────────────────
-# The simulator detects combos by scanning the raw CSV's `tradeType` column.
 # Bullflow's SSE payload does NOT currently include an explicit sweep/block
 # tag — we only get alertType ("custom" vs "algo") and alertName. Without a
 # way to tell sweeps from blocks at ingest time, live combo detection here
