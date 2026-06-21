@@ -2101,10 +2101,10 @@ export default function StockChart({
   const volData = useMemo(() => {
     if (!filteredBars?.length) return []
     // Model Book volume tracks the TC2000 candle palette (vivid green / deep red)
-    // at FULL opacity so the bars stand out on the canvas; the intraday popup
-    // keeps the dimmed base bold hue.
-    const upC = boldCandles ? 'rgba(26,229,26,1)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
-    const downC = boldCandles ? 'rgba(196,31,45,1)' : modelBookLook ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
+    // at a dimmed opacity so dense bars don't overpower the thin candles; the
+    // intraday popup keeps the base bold hue.
+    const upC = boldCandles ? 'rgba(26,229,26,0.82)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
+    const downC = boldCandles ? 'rgba(196,31,45,0.82)' : modelBookLook ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
     const gold = '#e6b800'
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
