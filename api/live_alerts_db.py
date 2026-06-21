@@ -361,6 +361,50 @@ def count_by_date(date_from: str, date_to: str) -> dict[str, int]:
         return {}
 
 
+def delete_alerts_before_date(cutoff_date_iso: str) -> int:
+    """
+    Delete all alerts whose date_iso is strictly less than cutoff_date_iso.
+
+    Used to clear historical data before going live with new gate config —
+    e.g. cutoff='2026-06-22' deletes everything from June 21 and earlier,
+    leaving Monday's market open to populate fresh data.
+
+    Returns the number of rows deleted. Idempotent: calling twice with the
+    same cutoff returns 0 on the second call.
+
+    cutoff_date_iso must be YYYY-MM-DD format. Caller is responsible for
+    validation and authorization — this is a destructive operation.
+    """
+    init_db()
+    sql = "DELETE FROM live_alerts WHERE date_iso < ?"
+    with _conn() as c:
+        cur = c.execute(sql, (cutoff_date_iso,))
+        c.commit()
+        deleted = cur.rowcount
+        log.warning(
+            "[live_alerts_db] delete_alerts_before_date cutoff=%s deleted=%d",
+            cutoff_date_iso, deleted,
+        )
+        return deleted
+
+
+def delete_all_alerts() -> int:
+    """
+    Nuclear option: delete every row in live_alerts. Returns rowcount.
+    Caller responsible for confirmation. Mainly useful for a true fresh
+    start when delete_alerts_before_date isn't enough (e.g., if alerts
+    have already been ingested for today's date and you want to start
+    over from zero).
+    """
+    init_db()
+    with _conn() as c:
+        cur = c.execute("DELETE FROM live_alerts")
+        c.commit()
+        deleted = cur.rowcount
+        log.warning("[live_alerts_db] delete_all_alerts deleted=%d", deleted)
+        return deleted
+
+
 def _row_to_alert_dict(row: sqlite3.Row) -> dict:
     """DB row → frontend-compatible alert dict (camelCase keys matching the
     shape served by /api/live/alerts/recent so the same React rendering code
