@@ -263,6 +263,34 @@ async def replay_csv_preview(
     date: str = Form(..., description="Trade date YYYY-MM-DD"),
 ):
     """
+    Wrapper that calls _replay_csv_preview_impl with full exception trapping.
+    Diagnostic endpoint — surfaces tracebacks in the JSON response (HTTP 200
+    with ok=false) instead of generic HTTP 500, so frontend can display the
+    real error. Remove this wrapper once the endpoint is stable.
+    """
+    import traceback as _tb
+    try:
+        return await _replay_csv_preview_impl(csv_file, alert_configs, date)
+    except Exception as e:
+        return JSONResponse({
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:500]}",
+            "traceback": _tb.format_exc()[-2500:],
+            "hint": (
+                "If error mentions 'has no attribute replay_alerts_through_full_pipeline', "
+                "the worker module on the WEB service is stale — push liveflow_worker.py "
+                "and redeploy. If error mentions '_grade_level' or '_alert_priority', "
+                "the function signature changed; check the imports."
+            ),
+        })
+
+
+async def _replay_csv_preview_impl(
+    csv_file: UploadFile,
+    alert_configs: str,
+    date: str,
+):
+    """
     PREVIEW what alerts from this CSV WOULD push to Discord under current
     worker gates. Does NOT insert to SQLite. Does NOT post to Discord.
 
@@ -442,6 +470,27 @@ async def replay_csv_to_discord(
     date: str = Form(..., description="Trade date YYYY-MM-DD"),
     confirm: str = Form(default="", description="Must equal YES_REPLAY_TO_DISCORD"),
     max_posts: int = Form(default=25, description="Hard cap on Discord posts; default 25"),
+):
+    """Diagnostic wrapper — surfaces exceptions as JSON instead of 500."""
+    import traceback as _tb
+    try:
+        return await _replay_csv_to_discord_impl(
+            csv_file, alert_configs, date, confirm, max_posts,
+        )
+    except Exception as e:
+        return JSONResponse({
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:500]}",
+            "traceback": _tb.format_exc()[-2500:],
+        })
+
+
+async def _replay_csv_to_discord_impl(
+    csv_file: UploadFile,
+    alert_configs: str,
+    date: str,
+    confirm: str,
+    max_posts: int,
 ):
     """
     EXECUTE the Discord replay. Posts qualifying alerts from the CSV to the
