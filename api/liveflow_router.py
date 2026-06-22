@@ -454,15 +454,13 @@ async def admin_force_push_discord(
 
         embed = liveflow_worker._build_embed(agg)
 
-        # Footer note that this was a manual override push so subscribers
-        # (and the operator's own review later) can distinguish from algo
-        # pushes. Doesn't break the existing embed layout — just appends
-        # to the description.
-        marker = "📌 Manual push (algo-bypassed)"
-        if embed.get("description"):
-            embed["description"] = marker + "\n" + embed["description"]
-        else:
-            embed["description"] = marker
+        # No subscriber-visible marker for manual pushes. The fact that this
+        # was an operator override (vs algo-pushed) is internal bookkeeping —
+        # the live_alerts SQLite row records it via gate_passed=1 stamped by
+        # this endpoint, but subscribers see a standard alert embed.
+        # (Previous version added "📌 Manual push (algo-bypassed)" to the
+        # description; removed 2026-06-22 per operator preference — manually
+        # pushed alerts should look identical to algo-pushed ones.)
 
         # POST to Discord with ?wait=true so we get the message_id back.
         post_url = liveflow_worker._discord_post_url()
