@@ -95,12 +95,14 @@ function isValidHistoryDate(s) {
   return isValidBacktestDate(s);
 }
 
-// True iff URL has both from + to params and at least one is a past date.
-// "Past" = strictly before today; today + today is treated as live mode.
+// True iff URL has both from + to params and they're valid dates.
+// Previously required at least one date to be strictly in the past, which
+// blocked the catch-up workflow: ?from=today&to=today is a legitimate
+// request to see SQLite data (e.g., after a worker restart wipes the
+// in-memory live buffer). Worker restart should not orphan today's alerts
+// — the URL params ARE user intent, regardless of whether dates are past.
 function isHistoryActive(from, to) {
-  if (!isValidHistoryDate(from) || !isValidHistoryDate(to)) return false;
-  const today = formatDateForInput(new Date());
-  return from < today || to < today;
+  return isValidHistoryDate(from) && isValidHistoryDate(to);
 }
 
 // ─── Tier metadata + derivation ───────────────────────────────────────────────
