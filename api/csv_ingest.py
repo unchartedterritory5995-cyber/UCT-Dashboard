@@ -253,6 +253,188 @@ async def ingest_bullflow_csv(
     })
 
 
+@router.post("/replay-csv-preview")
+async def replay_csv_preview(
+    csv_file: UploadFile = File(..., description="Bullflow daily CSV export"),
+    alert_configs: str = Form(
+        ...,
+        description="JSON array of alert config objects; each must have alertName + filter fields",
+    ),
+    date: str = Form(..., description="Trade date YYYY-MM-DD"),
+):
+    """
+    PREVIEW what alerts from this CSV WOULD push to Discord under current
+    worker gates. Does NOT insert to SQLite. Does NOT post to Discord.
+
+    Workflow:
+      1. Parse CSV via the same parser AlertTester uses
+      2. For each alert config, run the Bullflow filter to get candidate matches
+      3. Build alert dicts (live_alerts_db schema)
+      4. Run the full pipeline replay via liveflow_worker.replay_alerts_through_
+         full_pipeline — applies TABLE_FILTER → re-tag → grade → min_grade →
+         conviction gates
+      5. Cross-reference with SQLite to identify duplicates of alerts that
+         already posted to Discord today
+      6. Return summary + per-alert detail
+
+    Returns:
+      {
+        ok: bool,
+        date: str,
+        csv_rows: int,
+        candidates_from_bullflow: int,    # passed Bullflow filter for any alert
+        would_forward: int,               # passed all worker gates
+        already_posted_dupes: int,        # of would_forward, how many already in
+                                          # SQLite as forwardedToDiscord=1 today
+        net_new: int,                     # would_forward - already_posted_dupes
+        by_alert: {name: {candidates: N, would_forward: N, net_new: N}},
+        forward_list: [
+          {
+            ticker, cp, strike, exp, premium, time, grade,
+            original_alert, final_alert,   # final differs if re-tagged
+            is_duplicate: bool,
+            duplicate_id: str|null,        # SQLite id of the dupe if found
+          },
+          ...
+        ],
+        elapsed_sec: float
+      }
+    """
+    import time
+    t0 = time.time()
+
+    # 1. Parse alert configs
+    try:
+        configs = json.loads(alert_configs)
+    except json.JSONDecodeError as e:
+        raise HTTPException(400, f"Invalid alert_configs JSON: {e}")
+    if not isinstance(configs, list) or not configs:
+        raise HTTPException(400, "alert_configs must be a non-empty JSON array")
+
+    # 2. Parse CSV
+    raw = await csv_file.read()
+    rows, parse_errors = alert_tester._parse_csv(raw)
+    if not rows:
+        return JSONResponse({
+            "ok": False,
+            "error": "CSV had no parseable rows",
+            "parse_errors": parse_errors[:5] if parse_errors else [],
+        })
+
+    # 3. Run Bullflow filter per alert, collect all candidate alerts.
+    candidate_alerts: list = []
+    by_alert_candidates: dict = {}
+    for cfg in configs:
+        if not isinstance(cfg, dict):
+            continue
+        alert_name = (cfg.get("alertName") or "").strip()
+        if not alert_name or not alert_name.startswith("UCT "):
+            continue
+        try:
+            matched, _ = alert_tester._apply_bullflow_filter(rows, cfg)
+        except Exception as e:
+            log.warning("[csv_preview] filter error for %s: %s", alert_name, e)
+            continue
+        by_alert_candidates[alert_name] = len(matched)
+        for idx, r in enumerate(matched):
+            alert_dict = _build_alert_from_csv_row(r, alert_name, date, idx)
+            candidate_alerts.append(alert_dict)
+
+    if not candidate_alerts:
+        return JSONResponse({
+            "ok": True,
+            "date": date,
+            "csv_rows": len(rows),
+            "candidates_from_bullflow": 0,
+            "would_forward": 0,
+            "already_posted_dupes": 0,
+            "net_new": 0,
+            "by_alert": {},
+            "forward_list": [],
+            "elapsed_sec": round(time.time() - t0, 2),
+            "note": "No Bullflow matches in CSV for any configured alert.",
+        })
+
+    # 4. Run full-pipeline replay. The function stamps _replayed* fields on
+    # each alert dict. We import here to avoid a module-level circular import
+    # (csv_ingest already imports alert_tester which may import worker).
+    from api import liveflow_worker
+    replayed = liveflow_worker.replay_alerts_through_full_pipeline(candidate_alerts)
+    would_forward_alerts = [a for a in replayed if a.get("_replayedWouldForward") == 1]
+
+    # 5. Dedupe against SQLite: find alerts already posted to Discord today.
+    # Match by symbol (OCC string) + alertName since the same trade can fire
+    # multiple alerts. We pull all today's forwarded rows once and lookup.
+    posted_today_lookup: dict = {}
+    try:
+        all_today = live_alerts_db.query_alerts(
+            date_from=date, date_to=date, limit=10000,
+        )
+        for row in all_today:
+            if row.get("forwardedToDiscord"):
+                # Key on (symbol, final_alert_name) to handle re-tagged matches
+                key = (row.get("symbol"), (row.get("alertName") or "").strip())
+                posted_today_lookup[key] = row.get("id")
+    except Exception as e:
+        log.warning("[csv_preview] could not query existing posted alerts: %s", e)
+
+    # 6. Build forward_list with dedup flagging
+    forward_list = []
+    dupes_count = 0
+    by_alert_summary: dict = {}
+    for a in would_forward_alerts:
+        final_name = a.get("_replayedFinalAlertName") or a.get("alertName")
+        symbol = a.get("symbol")
+        dupe_key = (symbol, final_name)
+        dupe_id = posted_today_lookup.get(dupe_key)
+        is_dupe = dupe_id is not None
+        if is_dupe:
+            dupes_count += 1
+        forward_list.append({
+            "ticker": a.get("ticker"),
+            "cp": a.get("cp"),
+            "strike": a.get("strike"),
+            "exp": a.get("exp"),
+            "dte": a.get("dte"),
+            "premium": a.get("alertPremium"),
+            "ingestedAt": a.get("ingestedAt"),
+            "grade": a.get("_replayedGrade"),
+            "score": a.get("_replayedConvictionScore"),
+            "original_alert": a.get("alertName"),
+            "final_alert": final_name,
+            "is_duplicate": is_dupe,
+            "duplicate_id": dupe_id,
+        })
+        # Per-alert summary keyed on FINAL name (what would post to Discord)
+        summary = by_alert_summary.setdefault(final_name, {
+            "would_forward": 0, "net_new": 0,
+        })
+        summary["would_forward"] += 1
+        if not is_dupe:
+            summary["net_new"] += 1
+
+    # Sort forward_list by time for readability
+    forward_list.sort(key=lambda x: x.get("ingestedAt") or "")
+
+    return JSONResponse({
+        "ok": True,
+        "date": date,
+        "csv_rows": len(rows),
+        "candidates_from_bullflow": len(candidate_alerts),
+        "would_forward": len(would_forward_alerts),
+        "already_posted_dupes": dupes_count,
+        "net_new": len(would_forward_alerts) - dupes_count,
+        "by_alert_candidates": by_alert_candidates,
+        "by_alert_summary": by_alert_summary,
+        "forward_list": forward_list,
+        "elapsed_sec": round(time.time() - t0, 2),
+        "note": (
+            "This is a PREVIEW only — no Discord posts made, no SQLite writes. "
+            "Use this to decide if the replay-to-Discord step is worth running."
+        ),
+    })
+
+
 @router.post("/clear-csv-ingest")
 async def clear_csv_ingest(date: str = Form(...)):
     """
