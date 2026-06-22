@@ -341,8 +341,16 @@ ALERT_CONVICTION_GATES = {
         # the same contract within 15min misses the majority of quality
         # setups. The max_per_ticker_per_day=1 cap is sufficient anti-spam
         # protection on its own — prevents MU x6 type floods.
+        #
+        # 2026-06-22 tune: raised max_per_ticker_per_day 1→3 after first-day
+        # production showed TSLA fired three meaningful Alpha Gold sweeps on
+        # different contracts (400C, 405C, 450C LEAPS — total $7.27M across
+        # 3 different parts of the chain). Cap=1 missed two of them. Cap=3
+        # captures the conviction story when an institutional buyer builds a
+        # position across multiple strikes/expirations without devolving into
+        # MU-style 6x same-contract spam.
         "min_repeat_fires": 0,
-        "max_per_ticker_per_day": 1,    # one Alpha Gold per ticker per day
+        "max_per_ticker_per_day": 3,
         "follow_through_window_sec": 900,  # unused at min_repeat=0; kept for future re-tune
     },
     # UCT Unusual Weeklies — synthetic alert created by re-tagging in the
@@ -872,6 +880,189 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         a["_replayedWouldForward"] = 1
 
     return sorted_alerts
+
+
+async def replay_post_alerts_to_discord(
+    alerts: list,
+    max_posts: int = 25,
+    inter_post_delay_sec: float = 1.0,
+) -> dict:
+    """
+    Post a list of (already-replayed) alerts to Discord with REPLAY footer.
+
+    Use case: catch-up push after a gate config change. The caller already
+    ran replay_alerts_through_full_pipeline + identified the would-forward
+    alerts (excluding duplicates of already-posted SQLite rows). This function
+    just executes the Discord POST for each.
+
+    Differs from live worker's _post_to_discord:
+      - No PATCH logic (each replay is its own message; no aggregation)
+      - No re-gating (the caller already decided these qualify)
+      - No SQLite mutation (caller handles that)
+      - Adds REPLAY footer with the original trade time so subscribers see
+        the alert is a historical catch-up, not real-time
+      - Sequential with sleep() between posts to avoid Discord rate limits
+
+    Inputs:
+      alerts: list of alert dicts that should be posted. Each must have at
+        minimum: ticker, cp, strike, exp, dte, alertPremium, ingestedAt.
+      max_posts: hard cap on number of Discord POSTs. Defaults to 25 to
+        prevent runaway. Caller can override.
+      inter_post_delay_sec: sleep between posts. Discord webhooks allow ~30/
+        min globally; 1s spacing = 60/min upper bound, comfortably under
+        even bursting limits.
+
+    Returns dict:
+      {
+        attempted: int,
+        succeeded: int,
+        failed: int,
+        rate_limited: int,
+        results: [{alert_id, ticker, ok, status, message_id, error}, ...],
+        elapsed_sec: float,
+      }
+    """
+    import asyncio
+    import httpx
+    t0 = time.time()
+
+    if not DISCORD_WEBHOOK_URL:
+        return {
+            "attempted": 0, "succeeded": 0, "failed": 0, "rate_limited": 0,
+            "results": [],
+            "error": "DISCORD_WEBHOOK_URL not configured on worker — cannot replay.",
+            "elapsed_sec": 0.0,
+        }
+
+    # Hard-cap defense: never post more than max_posts regardless of input length.
+    alerts_to_post = list(alerts)[:max_posts]
+
+    results = []
+    succeeded = 0
+    failed = 0
+    rate_limited = 0
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for alert in alerts_to_post:
+            try:
+                # Build a single-fire aggregate from the alert dict so _build_embed
+                # has the shape it expects. Use alert's actual trade ts (not now).
+                trade_ts = alert.get("timestamp") or 0
+                try:
+                    if isinstance(trade_ts, str):
+                        trade_ts = datetime.fromisoformat(
+                            trade_ts.replace("Z", "+00:00")
+                        ).timestamp()
+                except Exception:
+                    trade_ts = 0.0
+
+                # Use the replayed final alert name (post-retag) so embed shows
+                # "UCT Unusual Weeklies" rather than the original Vol>OI/Unusual.
+                display_name = (
+                    alert.get("_replayedFinalAlertName")
+                    or alert.get("alertName")
+                    or "Alert"
+                )
+                size = alert.get("tradeSize") or 0
+                premium = float(alert.get("alertPremium") or 0)
+
+                agg = {
+                    "ticker": alert.get("ticker"),
+                    "cp": alert.get("cp"),
+                    "strike": alert.get("strike"),
+                    "exp": alert.get("exp"),
+                    "dte": alert.get("dte"),
+                    "total_premium": premium,
+                    "max_premium": premium,
+                    "total_size": size,
+                    "max_size": size,
+                    "fire_count": 1,
+                    "first_fire_ts": trade_ts,
+                    "last_fire_ts": trade_ts,
+                    "first_fill_price": alert.get("averageFillPrice"),
+                    "last_fill_price": alert.get("averageFillPrice"),
+                    "best_alert_name": display_name,
+                    "best_alert_priority": _alert_priority({"alertName": display_name}),
+                    "alert_names_seen": {display_name},
+                    "prior_oi": alert.get("priorOI"),
+                    "spot": alert.get("spot"),
+                    "moneyness_pct": alert.get("moneynessPct"),
+                    "moneyness_label": alert.get("moneynessLabel"),
+                }
+
+                embed = _build_embed(agg)
+
+                # Add REPLAY marker to the footer/description so subscribers
+                # see this isn't a live alert. Original trade time in ET.
+                if trade_ts:
+                    try:
+                        trade_time_et = datetime.fromtimestamp(trade_ts, tz=ET).strftime("%-I:%M %p ET")
+                    except Exception:
+                        trade_time_et = "earlier today"
+                else:
+                    trade_time_et = "earlier today"
+                replay_marker = f"⏪ REPLAY · trade fired at {trade_time_et}"
+                if embed.get("description"):
+                    embed["description"] = replay_marker + "\n" + embed["description"]
+                else:
+                    embed["description"] = replay_marker
+
+                payload = {"embeds": [embed]}
+                r = await client.post(_discord_post_url(), json=payload)
+
+                if r.status_code == 429:
+                    # Rate limited — back off and try once more
+                    rate_limited += 1
+                    retry_after = float(r.headers.get("Retry-After", "2"))
+                    log.warning("[replay_post] rate limited, sleeping %ss", retry_after)
+                    await asyncio.sleep(retry_after + 0.5)
+                    r = await client.post(_discord_post_url(), json=payload)
+
+                if r.status_code in (200, 204):
+                    succeeded += 1
+                    response_data = r.json() if r.content else {}
+                    results.append({
+                        "alert_id": alert.get("id"),
+                        "ticker": alert.get("ticker"),
+                        "ok": True,
+                        "status": r.status_code,
+                        "message_id": response_data.get("id"),
+                    })
+                else:
+                    failed += 1
+                    results.append({
+                        "alert_id": alert.get("id"),
+                        "ticker": alert.get("ticker"),
+                        "ok": False,
+                        "status": r.status_code,
+                        "error": r.text[:200],
+                    })
+                    log.warning(
+                        "[replay_post] failed id=%s status=%s body=%s",
+                        alert.get("id"), r.status_code, r.text[:200],
+                    )
+            except Exception as e:
+                failed += 1
+                results.append({
+                    "alert_id": alert.get("id"),
+                    "ticker": alert.get("ticker"),
+                    "ok": False,
+                    "error": f"{type(e).__name__}: {str(e)[:200]}",
+                })
+                log.exception("[replay_post] exception for id=%s", alert.get("id"))
+
+            # Inter-post delay — gentle pacing for Discord webhook.
+            if inter_post_delay_sec > 0:
+                await asyncio.sleep(inter_post_delay_sec)
+
+    return {
+        "attempted": len(alerts_to_post),
+        "succeeded": succeeded,
+        "failed": failed,
+        "rate_limited": rate_limited,
+        "results": results,
+        "elapsed_sec": round(time.time() - t0, 2),
+    }
 
 
 # ─── Sweep+Block combo detection — DEFERRED ──────────────────────────────────
