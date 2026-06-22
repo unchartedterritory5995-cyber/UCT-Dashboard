@@ -3993,6 +3993,13 @@ export default function StockChart({
         const oHi = toMs(oldExitRaw === 'null' ? null : oldExitRaw)
         let oS = Number.isNaN(oLo) ? 0 : filteredBars.findIndex(b => toMs(b.t) >= oLo)
         if (oS < 0) oS = 0
+        // The outgoing frame may have started before the first bar (pre-IPO blank
+        // pad, e.g. CRWV's IPO-base setup view sits at a negative `from`). Start the
+        // glide from where the view ACTUALLY is, not a snapped bar 0 — otherwise the
+        // re-assert below jumps -N → 0 before the glide, glitching the transition.
+        if (!Number.isNaN(oLo) && oS === 0) {
+          oS = -leadingBlankBars(oLo, toMs(filteredBars[0].t), resolvedTf)
+        }
         let oE = filteredBars.length - 1
         if (!Number.isNaN(oHi)) {
           for (let i = filteredBars.length - 1; i >= 0; i--) {
