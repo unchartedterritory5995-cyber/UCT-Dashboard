@@ -658,7 +658,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: #4ade80;
+  color: #1ae51a;   /* exact vivid green of the chart candles (MB_UP) */
 }
 .exAdvance {
   border: 1px solid transparent;
@@ -669,9 +669,9 @@
   outline: none;
   transition: border-color 0.15s, background 0.15s;
 }
-.exAdvance::placeholder { color: rgba(74, 222, 128, 0.4); font-weight: 600; }
-.exAdvance:hover { border-color: rgba(74, 222, 128, 0.25); }
-.exAdvance:focus { border-color: rgba(74, 222, 128, 0.55); background: rgba(74, 222, 128, 0.06); }
+.exAdvance::placeholder { color: rgba(26, 229, 26, 0.4); font-weight: 600; }
+.exAdvance:hover { border-color: rgba(26, 229, 26, 0.25); }
+.exAdvance:focus { border-color: rgba(26, 229, 26, 0.55); background: rgba(26, 229, 26, 0.06); }
 .exTools { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .exTool,
 .exToolSave,

@@ -154,7 +154,7 @@ export function SetupGlyph({ setup, className }) {
       {trendEl}
       {pivotEl}
       {data.map((d, i) => {
-        const color = d.up ? '#3cb868' : '#e05252'
+        const color = d.up ? '#1ae51a' : '#c41f2d'   // match the chart candles (MB_UP / MB_DOWN)
         const top = y(Math.max(d.o, d.c))
         const bot = y(Math.min(d.o, d.c))
         // Fully-opaque bodies + precision rendering: a translucent body let the
@@ -656,6 +656,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotations={annotating ? draft : (drawings.length ? drawings : null)}
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
+          annotationsTextVisible={annotating || view === 'setup'}
           onAnnotationsChange={setDraft}
           highlightBarTime={ex.label_date || null}
           highlightColor="#ffffff"

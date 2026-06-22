@@ -558,6 +558,7 @@ export default function StockChart({
   annotationsOpacity = 1,       // extra opacity multiplier (Model Book setup→setup crossfade)
   annotationsFadeWhole = false, // Model Book show-all OFF: fade the WHOLE setup layer with the zoom (not just text)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
+  annotationsTextVisible = null, // Setup Library: drive the TEXT-annotation fade directly (true=show / false=fade out) when there's no focus zoom to do it. null = leave it to the focus-zoom path (Model Book).
   staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
@@ -1370,6 +1371,31 @@ export default function StockChart({
     onAnnotationsChange?.((annotations || []).filter(d => d.id !== id))
   }, [annotations, onAnnotationsChange])
   const annClear = useCallback(() => { onAnnotationsChange?.([]) }, [onAnnotationsChange])
+  // Setup Library text-annotation fade. No focus zoom runs here to drive textFadeRef,
+  // so drive it directly off the Setup⇄Result toggle: snap on mount (text shows
+  // immediately), ease over ~260ms on a later toggle (fade out on Result, back in on
+  // Setup). Inert when annotationsTextVisible is null (Model Book keeps the zoom path).
+  const annTextFadeRafRef = useRef(null)
+  const annTextSeenRef = useRef(false)
+  useEffect(() => {
+    if (annotationsTextVisible == null) return
+    const target = annotationsTextVisible ? 1 : 0
+    if (!annTextSeenRef.current) { annTextSeenRef.current = true; textFadeRef.current = target; return }
+    const from = textFadeRef.current ?? 0
+    if (annTextFadeRafRef.current != null) cancelAnimationFrame(annTextFadeRafRef.current)
+    if (from === target) { textFadeRef.current = target; return }
+    const t0 = performance.now()
+    const dur = 260
+    const ease = x => -(Math.cos(Math.PI * x) - 1) / 2  // easeInOutSine
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur)
+      textFadeRef.current = from + (target - from) * ease(p)
+      if (p < 1) annTextFadeRafRef.current = requestAnimationFrame(step)
+      else { textFadeRef.current = target; annTextFadeRafRef.current = null }
+    }
+    annTextFadeRafRef.current = requestAnimationFrame(step)
+    return () => { if (annTextFadeRafRef.current != null) { cancelAnimationFrame(annTextFadeRafRef.current); annTextFadeRafRef.current = null } }
+  }, [annotationsTextVisible])
   // Index-pane annotation CRUD (GLOBAL ^IXIC measure marks) — mirrors annAdd/etc.
   // but bubbles through onIndexAnnotationsChange. Its own activeTool/selection so
   // it never fights the price-pane drawing state.
