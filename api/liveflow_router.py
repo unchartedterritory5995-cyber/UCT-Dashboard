@@ -77,6 +77,7 @@ def history_alerts(
     limit:     int = Query(default=2000, ge=1, le=10000),
     tickers:   str = Query(default="", description="Comma-separated ticker whitelist; empty = all"),
     replay_gates: int = Query(default=0, description="If 1, replay alerts through current ALERT_CONVICTION_GATES to show what WOULD have posted with today's gating logic"),
+    dedup:     int = Query(default=1, description="If 1 (default), collapse sibling alerts on the same trade to one row showing the highest-priority alert. Pass 0 to see raw SQLite rows."),
 ):
     """
     Returns persisted alerts whose ingest date is in [date_from, date_to].
@@ -99,6 +100,18 @@ def history_alerts(
       gates had been active?" Does NOT modify the SQLite rows; replay output is
       live-computed per request, so changing ALERT_CONVICTION_GATES + redeploying
       yields fresh results on next call.
+
+    `dedup=1` (default):
+      A single trade matching multiple Bullflow alerts (e.g. NOW Alpha Gold +
+      Bullish + Size Bulls + Sizable Sweep all fire on the same contract+price
+      simultaneously) collapses into ONE row showing the highest-priority alert
+      (Alpha Gold in that example) plus _matchedNames with the siblings. This
+      mirrors what the live worker does in-memory before posting to Discord —
+      LIVE mode shows 1 row per trade, so history mode should too.
+
+      The collapsed row inherits the highest grade among siblings, and is
+      marked forwardedToDiscord=true if ANY sibling was forwarded. Set dedup=0
+      to see raw SQLite rows (debugging or audit purposes).
     """
     from api import live_alerts_db
     if not _DATE_RE.match(date_from) or not _DATE_RE.match(date_to):
@@ -112,6 +125,12 @@ def history_alerts(
         limit=limit, tickers=ticker_list,
     )
     counts = live_alerts_db.count_by_date(date_from, date_to)
+
+    # Dedup sibling alerts on the same trade BEFORE replay so the replay only
+    # runs once per unique trade. Order matters: collapse first, then replay.
+    raw_count = len(alerts)
+    if dedup:
+        alerts = _collapse_sibling_alerts(alerts)
 
     # Optional gate replay — recomputes "would_forward" against current gates.
     # Pure function; no DB writes. Echo the active gates back so the UI can
@@ -129,11 +148,107 @@ def history_alerts(
         "date_to": date_to,
         "limit": limit,
         "returned": len(alerts),
+        "raw_row_count": raw_count,
+        "dedup_collapsed": raw_count - len(alerts) if dedup else 0,
         "counts": counts,
         "alerts": alerts,
         "replay_gates": bool(replay_gates),
         "active_gate_config": active_gates,
     }
+
+
+def _collapse_sibling_alerts(alerts: list) -> list:
+    """
+    Collapse multiple Bullflow alerts firing on the SAME trade into one row.
+
+    Sibling = matches all of: (ticker, cp, strike, exp, alertPremium,
+    averageFillPrice). When Bullflow tags a single trade with 4 alert
+    definitions (Alpha Gold + Bullish + Size Bulls + Sizable Sweep), all 4
+    arrive in SQLite as separate rows. Without dedup, history view shows
+    every trade 4 times — confusing and breaks the per-tier counts.
+
+    Algorithm:
+      1. Group alerts by sibling key
+      2. Per group, pick the highest-priority alert as winner
+      3. Aggregate sibling alert names into winner's _matchedNames field
+      4. Inherit the highest grade across siblings (so grade isn't lost when
+         a non-winner had the grade computed but winner didn't — shouldn't
+         happen normally, but defensive)
+      5. Mark forwardedToDiscord=true on winner if ANY sibling was forwarded
+
+    Returns a NEW list sorted by timestamp desc (newest first, same as input).
+    Does NOT mutate input alerts.
+    """
+    if not alerts:
+        return []
+
+    # Group by sibling key. Use rounded premium/fill so tiny float
+    # discrepancies (Bullflow's $1,170,000.00 vs $1,170,000.01) don't
+    # break the grouping.
+    def _key(a):
+        prem = a.get("alertPremium") or 0
+        fill = a.get("averageFillPrice") or 0
+        return (
+            (a.get("ticker") or "").upper(),
+            a.get("cp") or "",
+            a.get("strike"),
+            a.get("exp") or "",
+            round(float(prem), 0),
+            round(float(fill), 4),
+        )
+
+    # Grade ordering for "highest grade wins" tie-breaker.
+    grade_rank = {"A+ 🚀": 5, "A+": 5, "A": 4, "B+": 3, "B": 2, "C": 1, "D": 0}
+
+    groups: dict = {}
+    for a in alerts:
+        k = _key(a)
+        groups.setdefault(k, []).append(a)
+
+    out = []
+    for group in groups.values():
+        if len(group) == 1:
+            out.append(group[0])
+            continue
+        # Pick highest-priority alert as the canonical row.
+        winner = min(group, key=lambda x: liveflow_worker._alert_priority(x))
+        # Build a copy so we don't mutate the SQLite-derived dict that may
+        # be cached elsewhere.
+        winner = dict(winner)
+        # Aggregate names — winner's name first, then the siblings in
+        # priority order. UCT alerts (priority < 100) before ALGO.
+        sorted_group = sorted(group, key=lambda x: liveflow_worker._alert_priority(x))
+        winner["_matchedNames"] = [
+            a.get("alertName") for a in sorted_group if a.get("alertName")
+        ]
+        # Inherit highest grade across siblings — usually only winner has a
+        # grade, but if not, surface whatever the highest sibling grade was.
+        best_grade = None
+        best_rank = -1
+        for sib in group:
+            g = sib.get("grade")
+            r = grade_rank.get(g, -1) if g else -1
+            if r > best_rank:
+                best_rank = r
+                best_grade = g
+        if best_grade:
+            winner["grade"] = best_grade
+        # Mark forwarded if any sibling was forwarded.
+        if any(sib.get("forwardedToDiscord") for sib in group):
+            winner["forwardedToDiscord"] = True
+            # Also surface the message ID from whichever sibling has one.
+            for sib in group:
+                if sib.get("discordMessageId"):
+                    winner["discordMessageId"] = sib["discordMessageId"]
+                    break
+        # Sum total premium across siblings if they have different premium
+        # values (rare but possible — Bullflow can emit slightly different
+        # premium calculations across alerts).
+        out.append(winner)
+
+    # Sort newest first (mirrors query_alerts default ordering).
+    out.sort(key=lambda a: a.get("timestamp") or "", reverse=True)
+    return out
 
 
 # ─── User-managed ticker blocklist ─────────────────────────────────────────
