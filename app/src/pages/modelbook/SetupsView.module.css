@@ -276,7 +276,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.03);
 }
-.dirChip.long  { color: #4ecb7d; border: 1px solid rgba(60, 184, 104, 0.4);  background: rgba(60, 184, 104, 0.1); }
+.dirChip.long  { color: #1ae51a; border: 1px solid rgba(26, 229, 26, 0.4);   background: rgba(26, 229, 26, 0.1); }
 .dirChip.short { color: #f08484; border: 1px solid rgba(224, 82, 82, 0.4);   background: rgba(224, 82, 82, 0.1); }
 .dirChip.both  { color: #f0d479; border: 1px solid rgba(201, 168, 76, 0.4);  background: rgba(201, 168, 76, 0.1); }
 
@@ -455,8 +455,8 @@
   background: rgba(201, 168, 76, 0.75);
   border-radius: 1px;
 }
-.pbAccent_entry { color: #4ecb7d; }
-.pbAccent_entry .pbDiamond { background: #3cb868; box-shadow: 0 0 8px rgba(60, 184, 104, 0.5); }
+.pbAccent_entry { color: #1ae51a; }
+.pbAccent_entry .pbDiamond { background: #1ae51a; box-shadow: 0 0 8px rgba(26, 229, 26, 0.5); }
 .pbAccent_stop { color: #f08484; }
 .pbAccent_stop .pbDiamond { background: #e05252; box-shadow: 0 0 8px rgba(224, 82, 82, 0.5); }
 .pbAccent_exit { color: #f0d479; }
