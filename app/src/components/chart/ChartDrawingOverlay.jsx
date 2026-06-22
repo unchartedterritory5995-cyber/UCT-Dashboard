@@ -705,13 +705,26 @@ export default function ChartDrawingOverlay({
     return { x, y }
   }, [chartRef, seriesRef, bars, nearestIndex])
 
-  // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled
+  // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled.
+  // A point with `paneRelY` (placed below the price pane — see toChart) is
+  // anchored to a fraction of the canvas height, NOT the candle price scale, so
+  // it stays in the volume pane across a Setup⇄Result rescale.
   const resolvePixels = useCallback((points) => {
+    const H = sizeRef.current.h || 0
     return points.map(p => {
       const px = toPixel(p.time, p.price)
-      return { x: px?.x, y: px?.y, rawPrice: p.price, price: p.price, time: p.time }
+      const y = (p.paneRelY != null && H) ? p.paneRelY * H : px?.y
+      return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time }
     }).filter(p => p.x != null || p.y != null)
   }, [toPixel])
+
+  // Bottom edge (CSS px) of the price pane = pane-0 height. Annotations below it
+  // live in the volume (or index) pane, which the candle price scale doesn't map.
+  const pricePaneBottomPx = useCallback(() => {
+    try { const h = seriesRef?.current?.getPane?.()?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
+    try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
+    return null
+  }, [chartRef, seriesRef])
 
   // ── Coordinate conversion: pixel → chart ──
   // Robust: uses visible range + linear interpolation if coordinateToLogical fails
@@ -750,10 +763,21 @@ export default function ChartDrawingOverlay({
     let price = null
     try { price = series.coordinateToPrice(pixelY) } catch {}
 
+    // Vertical anchor for annotations placed BELOW the price pane (volume / index
+    // pane). The candle price scale doesn't cover those rows, so a price stored
+    // there gets re-extrapolated onto the price pane after a rescale (Setup⇄Result)
+    // and the label jumps up onto the chart. Pin such points to a fraction of the
+    // canvas height instead — the pane layout is stable across rescales, so they
+    // stay put in the volume pane.
+    let paneRelY = null
+    const pb = pricePaneBottomPx()
+    const H = sizeRef.current.h || 0
+    if (pb != null && H && pixelY > pb + 1) paneRelY = pixelY / H
+
     // Allow partial coords: horizontal only needs price, vertical only needs time
-    if (!time && !price) return null
-    return { time, price }
-  }, [chartRef, seriesRef, bars])
+    if (!time && price == null && paneRelY == null) return null
+    return paneRelY != null ? { time, price, paneRelY } : { time, price }
+  }, [chartRef, seriesRef, bars, pricePaneBottomPx])
 
   // Line mode (index pane): time → line value, for magnet-snap-to-line + advance %.
   const timeToLineValue = useMemo(() => {
@@ -1241,7 +1265,7 @@ export default function ChartDrawingOverlay({
 
     // Text tool: place text input (use fixed position via clientX/clientY to avoid overflow clip)
     if (activeTool === 'text') {
-      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price })
+      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price, paneRelY: coords.paneRelY ?? null })
       return
     }
 
@@ -1314,6 +1338,31 @@ export default function ChartDrawingOverlay({
         ? (timeToIndex.get(coords.time) || 0) - (timeToIndex.get(drag.startCoords.time) || 0)
         : 0
       const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
+      // Vertical anchor handling. Price-pane points keep the existing (log-safe)
+      // priceDelta move; volume-pane points move by a pixel-fraction so they stay
+      // in the volume pane. A point dragged ACROSS the pane boundary re-anchors to
+      // the side it lands on — so an old price-anchored volume label fixes itself
+      // permanently once nudged. The boundary is the price pane's bottom edge.
+      const ser = seriesRef?.current
+      const H = sizeRef.current.h || 0
+      const pb = pricePaneBottomPx()
+      const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) : 0
+      const clamp01 = v => Math.max(0, Math.min(1, v))
+      const moveY = (p) => {
+        if (p.paneRelY != null) {
+          const ny = p.paneRelY + (H ? pixelDY / H : 0)
+          if (pb != null && H && ny * H <= pb + 1) {       // dragged up into the price pane
+            let np = null; try { np = ser?.coordinateToPrice(ny * H) } catch { /* disposed */ }
+            if (np != null) return { price: np }
+          }
+          return { paneRelY: clamp01(ny), price: p.price }
+        }
+        let oy = null; try { oy = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
+        if (pb != null && H && oy != null && oy + pixelDY > pb + 1) {   // dragged down into the volume pane
+          return { paneRelY: clamp01((oy + pixelDY) / H) }
+        }
+        return { price: (p.price ?? 0) + priceDelta }
+      }
 
       let newPoints
       if (drag.handleIdx != null) {
@@ -1322,20 +1371,14 @@ export default function ChartDrawingOverlay({
           if (i !== drag.handleIdx) return p
           const origIdx = timeToIndex.get(p.time) ?? 0
           const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
-          return {
-            time: bars[newIdx]?.t || p.time,
-            price: p.price + priceDelta,
-          }
+          return { time: bars[newIdx]?.t || p.time, ...moveY(p) }
         })
       } else {
         // Move entire drawing
         newPoints = drag.originalPoints.map(p => {
           const origIdx = timeToIndex.get(p.time) ?? 0
           const newIdx = Math.max(0, Math.min(bars.length - 1, origIdx + timeDelta))
-          return {
-            time: bars[newIdx]?.t || p.time,
-            price: p.price + priceDelta,
-          }
+          return { time: bars[newIdx]?.t || p.time, ...moveY(p) }
         })
       }
 
@@ -1429,7 +1472,7 @@ export default function ChartDrawingOverlay({
     if (!textInput || !text.trim()) { setTextInput(null); return }
     addDrawing({
       type: 'text',
-      points: [{ time: textInput.time, price: textInput.price }],
+      points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneRelY != null ? { paneRelY: textInput.paneRelY } : {}) }],
       color,
       lineWidth,
       text: text.trim(),
