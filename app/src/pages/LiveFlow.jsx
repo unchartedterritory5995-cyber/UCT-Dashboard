@@ -689,9 +689,23 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
           // the user can see "would post" predictions for historical days.
           // Remove this if-block when going live (existing logic below stays).
           if (alert._replayedWouldForward !== undefined) {
+            // Admin override: even in replay mode, if the alert hasn't
+            // ACTUALLY forwarded yet (forwardedToDiscord=0 in SQLite), show
+            // the PUSH button so operator can manually push grade-blocked
+            // trades that the replay would have caught. Once pushed, the
+            // pushState flips to "done" and the cell becomes the 🔔+📌.
+            if (pushState === "done") {
+              return (
+                <span title="Manually pushed to Discord (admin override)"
+                  style={{ fontSize: 11, color: P.ac, fontWeight: 800 }}>
+                  <UIcon name="bell" size={11} />
+                  <span style={{ fontSize: 8, marginLeft: 3 }}>📌</span>
+                </span>
+              );
+            }
             if (alert._replayedWouldForward === 1) {
               const ft = alert._replayedFollowThroughCount;
-              return (
+              const fwdBadge = (
                 <span title={`Would forward to Discord under current gates · ${ft}× fires in window`}
                   style={{
                     fontSize: 9, padding: "2px 6px", borderRadius: 3,
@@ -700,8 +714,33 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
                     border: "1px solid #10b98155",
                   }}>✓ FWD</span>
               );
+              // Already-forwarded in SQLite: just badge, no button needed.
+              if (forwarded) return fwdBadge;
+              // Otherwise admin can push manually.
+              if (!isAdmin) return fwdBadge;
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {fwdBadge}
+                  <button onClick={handleForcePush}
+                    disabled={pushState === "pushing"}
+                    title="Force-push this alert to Discord (bypasses all gates)"
+                    style={{
+                      fontSize: 9, padding: "2px 6px",
+                      background: pushState === "pushing" ? P.dm + "22" : "transparent",
+                      color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
+                      border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
+                      borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
+                      fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
+                    }}>
+                    {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
+                  </button>
+                </span>
+              );
             }
-            return (
+            // BLK case — replay would have blocked. Admin can still push if
+            // they disagree with the algo's call (e.g., grade C Alpha Gold
+            // that's clearly meaningful).
+            const blkBadge = (
               <span title={`Blocked: ${alert._replayedGateReason || "unknown"}`}
                 style={{
                   fontSize: 9, padding: "2px 6px", borderRadius: 3,
@@ -710,6 +749,26 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
                   border: "1px solid #ef444433",
                   opacity: 0.85,
                 }}>⊘ BLK</span>
+            );
+            if (forwarded) return blkBadge;
+            if (!isAdmin) return blkBadge;
+            return (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {blkBadge}
+                <button onClick={handleForcePush}
+                  disabled={pushState === "pushing"}
+                  title="Force-push this alert to Discord (bypasses all gates)"
+                  style={{
+                    fontSize: 9, padding: "2px 6px",
+                    background: pushState === "pushing" ? P.dm + "22" : "transparent",
+                    color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
+                    border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
+                    borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
+                    fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
+                  }}>
+                  {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
+                </button>
+              </span>
             );
           }
           // — original live/non-replay rendering below —
