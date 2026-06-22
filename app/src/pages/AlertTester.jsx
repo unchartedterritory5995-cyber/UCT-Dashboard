@@ -143,6 +143,11 @@ export default function AlertTester() {
   // a catch-up replay-to-Discord is warranted after gate config changes.
   const [previewing, setPreviewing] = useState(false);
   const [previewResult, setPreviewResult] = useState(null);
+  // Discord replay PUSH — actually posts the alerts. Destructive. Triggered
+  // from a button inside the preview result panel after user has seen what
+  // would post. Confirms the count via window.confirm before firing.
+  const [pushingReplay, setPushingReplay] = useState(false);
+  const [pushResult, setPushResult] = useState(null);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [showGated, setShowGated] = useState(false);
@@ -356,6 +361,57 @@ export default function AlertTester() {
       setError(e.message);
     } finally {
       setPreviewing(false);
+    }
+  }
+
+  // Push the alerts that the preview said WOULD forward — actually POSTs to
+  // Discord. Reuses the same CSV, configs, and date from the preview call.
+  // Confirms before firing since this is destructive.
+  async function pushReplayToDiscord(preview) {
+    if (!csvFile) { setError("CSV no longer in state. Re-upload and re-run preview."); return; }
+    if (!preview || !preview.net_new) { setError("No new alerts to push."); return; }
+
+    const useFullList = liveConfigs && liveConfigs.length > 0;
+    const configsToSend = useFullList
+      ? liveConfigs
+      : [{ ...cfg, alertName: cfg.alertName || selectedAlert }];
+
+    // Same date that produced the preview. Stored on the preview response.
+    const dateForPush = preview.date;
+    if (!dateForPush || !/^\d{4}-\d{2}-\d{2}$/.test(dateForPush)) {
+      setError("Preview missing valid date — re-run preview.");
+      return;
+    }
+
+    const willPost = Math.min(preview.net_new, 25);
+    if (!window.confirm(
+      `Push ${willPost} alerts to Discord?\n\n` +
+      `Date: ${dateForPush}\n` +
+      `Net new (after dedup): ${preview.net_new}\n` +
+      `Hard cap: 25 (${preview.net_new > 25 ? preview.net_new - 25 + ' will be skipped' : 'all under cap'})\n\n` +
+      `Pacing: 1 post/sec to respect Discord rate limits. Total time ~${willPost}s.\n\n` +
+      `This is destructive — Discord posts cannot be unsent.`
+    )) return;
+
+    setPushingReplay(true); setError(null); setPushResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("csv_file", csvFile);
+      fd.append("alert_configs", JSON.stringify(configsToSend));
+      fd.append("date", dateForPush);
+      fd.append("confirm", "YES_REPLAY_TO_DISCORD");
+      fd.append("max_posts", "25");
+      const r = await fetch("/api/admin/live/replay-csv-to-discord", { method:"POST", body: fd });
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`Push failed: HTTP ${r.status} ${txt.slice(0,200)}`);
+      }
+      const data = await r.json();
+      setPushResult(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPushingReplay(false);
     }
   }
 
@@ -683,9 +739,74 @@ export default function AlertTester() {
               {previewResult.note && (
                 <div style={{ marginTop:12, fontSize:10, color:P.dim, fontStyle:"italic" }}>{previewResult.note}</div>
               )}
+              {/* Action button: actually push these to Discord. Only shown
+                  when there are net_new alerts to push. Destructive — confirms
+                  the count before sending. */}
+              {previewResult.net_new > 0 && (
+                <div style={{ marginTop:14, paddingTop:12, borderTop:`1px solid ${P.bd}`, display:"flex", alignItems:"center", gap:12 }}>
+                  <button onClick={() => pushReplayToDiscord(previewResult)}
+                    disabled={pushingReplay}
+                    style={{
+                      background: pushingReplay ? P.al : P.ac,
+                      color: pushingReplay ? P.dim : P.bg,
+                      border:"none",
+                      padding:"10px 22px", borderRadius:8, fontSize:12, fontWeight:800,
+                      cursor: pushingReplay ? "not-allowed" : "pointer",
+                      letterSpacing:0.5,
+                    }}>
+                    {pushingReplay ? "Pushing to Discord…" : `⏪ PUSH ${previewResult.net_new} NEW ALERTS TO DISCORD`}
+                  </button>
+                  <span style={{ fontSize:10, color:P.dim, fontStyle:"italic" }}>
+                    Will post {Math.min(previewResult.net_new, 25)} alerts (capped at 25), 1s spacing
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <div style={{ color:P.be, fontSize:11 }}>Error: {previewResult.error}</div>
+          )}
+        </Card>
+      )}
+
+      {/* Push-to-Discord result panel */}
+      {pushResult && (
+        <Card title="Discord replay · POSTED">
+          {pushResult.ok ? (
+            <>
+              <div style={{ display:"flex", gap:20, fontSize:11, marginBottom:10, flexWrap:"wrap" }}>
+                <div><span style={{ color:P.dim }}>Posted:</span> <span style={{ color:P.ac, fontWeight:800, fontSize:14 }}>{pushResult.posted}</span></div>
+                {pushResult.failed > 0 && (
+                  <div><span style={{ color:P.dim }}>Failed:</span> <span style={{ color:P.be, fontWeight:700 }}>{pushResult.failed}</span></div>
+                )}
+                {pushResult.rate_limited > 0 && (
+                  <div><span style={{ color:P.dim }}>Rate-limited:</span> <span style={{ color:P.mt }}>{pushResult.rate_limited}</span></div>
+                )}
+                {pushResult.skipped_due_to_cap > 0 && (
+                  <div><span style={{ color:P.dim }}>Skipped (over cap):</span> <span style={{ color:P.mt }}>{pushResult.skipped_due_to_cap}</span></div>
+                )}
+                <div><span style={{ color:P.dim }}>Elapsed:</span> <span style={{ color:P.text }}>{pushResult.elapsed_sec}s</span></div>
+              </div>
+              {pushResult.by_alert && Object.keys(pushResult.by_alert).length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {Object.entries(pushResult.by_alert).map(([name, count]) => (
+                    <div key={name} style={{ background:P.al, padding:"5px 9px", borderRadius:6, border:`1px solid ${P.bd}`, fontSize:11 }}>
+                      <span style={{ color:P.text, fontWeight:700 }}>{name}:</span>
+                      <span style={{ color:P.ac, marginLeft:5, fontWeight:700 }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pushResult.post_results && pushResult.failed > 0 && (
+                <div style={{ marginTop:10, paddingTop:8, borderTop:`1px solid ${P.bd}`, fontSize:10, color:P.be }}>
+                  <div style={{ marginBottom:4, fontWeight:700 }}>Failed posts:</div>
+                  {pushResult.post_results.filter(r => !r.ok).map((r, i) => (
+                    <div key={i} style={{ marginLeft:8 }}>{r.ticker}: {r.error || `HTTP ${r.status}`}</div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ color:P.be, fontSize:11 }}>{pushResult.error}</div>
           )}
         </Card>
       )}
