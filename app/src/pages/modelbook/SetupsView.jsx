@@ -655,7 +655,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           volumeMa={50}
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.07}
-          watermarkOpacity={0.3}
+          watermarkOpacity={0.45}
           watermarkX={wmPos.x}
           watermarkY={wmPos.y}
           onWatermarkCommit={saveWatermark}
