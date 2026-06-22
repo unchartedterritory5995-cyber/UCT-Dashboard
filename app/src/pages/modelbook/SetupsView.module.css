@@ -291,7 +291,7 @@
   animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .detailLeft {
-  flex: 1 1 50%;
+  flex: 1 1 40%;
   min-width: 0;
   overflow-y: auto;
   padding: 8px 26px 18px 12px;
@@ -302,7 +302,7 @@
   flex-direction: column;
 }
 .detailRight {
-  flex: 1 1 50%;
+  flex: 1 1 60%;
   min-width: 0;
   overflow-y: auto;
   padding: 8px 12px 48px 26px;
