@@ -138,6 +138,11 @@ export default function AlertTester() {
   // complete day even when MCP backfill missed alerts (100/day cap).
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
+  // Discord replay preview — shows what WOULD push to Discord under current
+  // worker gates without actually posting anything. Used to decide whether
+  // a catch-up replay-to-Discord is warranted after gate config changes.
+  const [previewing, setPreviewing] = useState(false);
+  const [previewResult, setPreviewResult] = useState(null);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [showGated, setShowGated] = useState(false);
@@ -296,6 +301,61 @@ export default function AlertTester() {
       setError(e.message);
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  // Preview what would push to Discord if we replayed today's CSV through the
+  // worker's current gates. Does NOT post anything — read-only simulation.
+  // Used to decide whether a Discord catch-up push is worth doing after gate
+  // config changes (e.g., new Unusual Weeklies tier, ETF blocklist additions).
+  async function previewDiscordReplay() {
+    if (!csvFile) { setError("Upload a Bullflow CSV first."); return; }
+
+    // Same configs strategy as backfill — prefer live configs, fall back to
+    // current edited single config if MCP fetch failed.
+    const useFullList = liveConfigs && liveConfigs.length > 0;
+    const configsToSend = useFullList
+      ? liveConfigs
+      : [{ ...cfg, alertName: cfg.alertName || selectedAlert }];
+
+    if (!configsToSend[0].alertName) {
+      setError("No alert config available. Pick an alert from the dropdown first.");
+      return;
+    }
+
+    // Derive date from filename if possible (Bullflow_M_DD.csv convention).
+    let csvDate = null;
+    const m = csvFile.name.match(/(\d{1,2})[_-](\d{1,2})/);
+    if (m) {
+      const y = new Date().getFullYear();
+      csvDate = `${y}-${String(m[1]).padStart(2,"0")}-${String(m[2]).padStart(2,"0")}`;
+    }
+    const dateInput = window.prompt(
+      "Trade date for this CSV (YYYY-MM-DD):",
+      csvDate || ""
+    );
+    if (!dateInput || !/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      setError("Preview canceled — invalid or missing date.");
+      return;
+    }
+
+    setPreviewing(true); setError(null); setPreviewResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("csv_file", csvFile);
+      fd.append("alert_configs", JSON.stringify(configsToSend));
+      fd.append("date", dateInput);
+      const r = await fetch("/api/admin/live/replay-csv-preview", { method:"POST", body: fd });
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`Preview failed: HTTP ${r.status} ${txt.slice(0,200)}`);
+      }
+      const data = await r.json();
+      setPreviewResult(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPreviewing(false);
     }
   }
 
@@ -536,7 +596,99 @@ export default function AlertTester() {
               ? `⇪ BACKFILL TO SQLITE (${liveConfigs.length} alerts)`
               : "⇪ BACKFILL TO SQLITE (1 alert)"}
         </button>
+        {/* Preview Discord replay — runs CSV through current gates without
+            posting anything. Use to decide if a catch-up replay is worth doing
+            after a gate config change (new alerts, blocklists, min_grade tunes). */}
+        <button onClick={previewDiscordReplay}
+          disabled={previewing || !csvFile}
+          title={
+            !csvFile ? "Upload CSV first" :
+            "Run CSV through worker's full pipeline (TABLE_FILTER → re-tag → grade → gates). Returns what WOULD push to Discord without actually posting."
+          }
+          style={{
+            background: (previewing||!csvFile) ? P.al : "transparent",
+            color: (previewing||!csvFile) ? P.dim : P.bu,
+            border: `1px solid ${(previewing||!csvFile) ? P.bd : P.bu}`,
+            padding:"10px 18px", borderRadius:8, fontSize:11, fontWeight:700,
+            cursor: (previewing||!csvFile) ? "not-allowed" : "pointer",
+            letterSpacing:0.5,
+          }}>
+          {previewing
+            ? "Previewing…"
+            : (liveConfigs && liveConfigs.length > 0)
+              ? `🔍 PREVIEW DISCORD REPLAY (${liveConfigs.length} alerts)`
+              : "🔍 PREVIEW DISCORD REPLAY (1 alert)"}
+        </button>
       </div>
+
+      {/* Preview result panel — shows what would push to Discord. */}
+      {previewResult && (
+        <Card title="Discord replay preview · NOT POSTED">
+          {previewResult.ok ? (
+            <>
+              <div style={{ display:"flex", gap:20, fontSize:11, marginBottom:12, flexWrap:"wrap" }}>
+                <div><span style={{ color:P.dim }}>Date:</span> <span style={{ color:P.text, fontWeight:700 }}>{previewResult.date}</span></div>
+                <div><span style={{ color:P.dim }}>CSV rows:</span> <span style={{ color:P.text }}>{previewResult.csv_rows?.toLocaleString()}</span></div>
+                <div><span style={{ color:P.dim }}>Bullflow matches:</span> <span style={{ color:P.text }}>{previewResult.candidates_from_bullflow}</span></div>
+                <div><span style={{ color:P.dim }}>Would forward:</span> <span style={{ color:P.bu, fontWeight:700 }}>{previewResult.would_forward}</span></div>
+                <div><span style={{ color:P.dim }}>Already posted:</span> <span style={{ color:P.mt }}>{previewResult.already_posted_dupes}</span></div>
+                <div><span style={{ color:P.dim }}>Net new:</span> <span style={{ color:P.ac, fontWeight:700 }}>{previewResult.net_new}</span></div>
+                <div><span style={{ color:P.dim }}>Elapsed:</span> <span style={{ color:P.text }}>{previewResult.elapsed_sec}s</span></div>
+              </div>
+              {previewResult.by_alert_summary && Object.keys(previewResult.by_alert_summary).length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+                  {Object.entries(previewResult.by_alert_summary).map(([name, summary]) => (
+                    <div key={name} style={{ background:P.al, padding:"6px 10px", borderRadius:6, border:`1px solid ${P.bd}`, fontSize:11 }}>
+                      <span style={{ color:P.text, fontWeight:700 }}>{name}</span>
+                      <span style={{ color:P.dim, marginLeft:8 }}>fwd:</span>
+                      <span style={{ color:P.bu, marginLeft:4 }}>{summary.would_forward}</span>
+                      <span style={{ color:P.dim, marginLeft:8 }}>net:</span>
+                      <span style={{ color:P.ac, marginLeft:4 }}>{summary.net_new}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {previewResult.forward_list && previewResult.forward_list.length > 0 && (
+                <div style={{ borderTop:`1px solid ${P.bd}`, paddingTop:10 }}>
+                  <div style={{ fontSize:10, color:P.dim, marginBottom:6, letterSpacing:1 }}>FORWARD LIST · {previewResult.forward_list.length} items</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"80px 60px 30px 80px 80px 50px 80px 30px 220px 60px", gap:6, fontSize:10, fontWeight:700, color:P.dim, marginBottom:6 }}>
+                    <div>TIME</div><div>TICKER</div><div>C/P</div><div>STRIKE</div><div>EXP</div><div>DTE</div><div>PREMIUM</div><div>GRADE</div><div>ALERT (→ if re-tagged)</div><div>STATUS</div>
+                  </div>
+                  {previewResult.forward_list.map((f, i) => (
+                    <div key={i} style={{
+                      display:"grid", gridTemplateColumns:"80px 60px 30px 80px 80px 50px 80px 30px 220px 60px",
+                      gap:6, fontSize:11, padding:"4px 0", borderTop: i>0?`1px solid ${P.bd}`:"none",
+                      opacity: f.is_duplicate ? 0.55 : 1,
+                    }}>
+                      <div style={{ color:P.dim }}>{(f.ingestedAt||"").slice(11,19)}</div>
+                      <div style={{ color:P.text, fontWeight:700 }}>{f.ticker}</div>
+                      <div style={{ color: f.cp==="C"?P.bu:P.be, fontWeight:700 }}>{f.cp}</div>
+                      <div style={{ color:P.text }}>${f.strike}</div>
+                      <div style={{ color:P.dim }}>{f.exp}</div>
+                      <div style={{ color:P.dim }}>{f.dte}d</div>
+                      <div style={{ color:P.ac, fontWeight:700 }}>{fmt$(f.premium)}</div>
+                      <div style={{ color:P.text, fontWeight:700 }}>{f.grade}</div>
+                      <div style={{ color:P.text }}>
+                        {f.original_alert !== f.final_alert
+                          ? <><span style={{ color:P.dim, textDecoration:"line-through" }}>{f.original_alert}</span> → <span style={{ color:P.bu, fontWeight:700 }}>{f.final_alert}</span></>
+                          : f.final_alert}
+                      </div>
+                      <div style={{ color: f.is_duplicate ? P.mt : P.ac, fontWeight:700, fontSize:10 }}>
+                        {f.is_duplicate ? "DUPE" : "NEW"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {previewResult.note && (
+                <div style={{ marginTop:12, fontSize:10, color:P.dim, fontStyle:"italic" }}>{previewResult.note}</div>
+              )}
+            </>
+          ) : (
+            <div style={{ color:P.be, fontSize:11 }}>Error: {previewResult.error}</div>
+          )}
+        </Card>
+      )}
 
       {/* Backfill result panel */}
       {backfillResult && (
