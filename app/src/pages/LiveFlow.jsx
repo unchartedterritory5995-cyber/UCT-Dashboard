@@ -480,13 +480,55 @@ function UserBlocklistPanel({ visible, onSaved }) {
 }
 
 // ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, tierColor, directionTinted }) {
+function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
   const forwarded = alert.forwardedToDiscord;
   const score = alert.convictionScore;
   const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
+
+  // Local UI state for the admin force-push button. Tracks loading + post-click
+  // result so we don't fire twice and so the row reflects success/fail without
+  // requiring a full refetch. The actual SQLite `forwardedToDiscord` will be
+  // refreshed on the next poll cycle.
+  const [pushState, setPushState] = useState("idle"); // idle | pushing | done | error
+  const [pushedMsgId, setPushedMsgId] = useState(null);
+
+  async function handleForcePush() {
+    const ticker = alert.ticker || "?";
+    const cp = alert.cp === "C" ? "Call" : (alert.cp === "P" ? "Put" : "?");
+    const strike = alert.strike != null ? `$${alert.strike}` : "?";
+    const prem = fmtPremium(alert.alertPremium);
+    if (!window.confirm(
+      `Push to Discord (bypassing all gates)?\n\n` +
+      `${ticker} ${strike} ${cp} ${alert.exp || ""}\n` +
+      `Premium: ${prem}   Grade: ${alert.grade || "?"}\n` +
+      `Alert: ${alert.alertName || "?"}\n\n` +
+      `This is a manual override — the alert did not qualify under current ` +
+      `gates. It will be marked as forwarded after posting.`
+    )) return;
+    setPushState("pushing");
+    try {
+      const r = await fetch("/api/live/admin/force-push-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alert, confirm: "YES_FORCE_PUSH" }),
+      });
+      const data = await r.json();
+      if (data.ok && data.posted) {
+        setPushState("done");
+        setPushedMsgId(data.message_id);
+      } else {
+        setPushState("error");
+        console.error("[force_push] failed:", data.error, data.traceback);
+        window.alert(`Push failed: ${data.error || "unknown error"}`);
+      }
+    } catch (e) {
+      setPushState("error");
+      window.alert(`Push failed: ${e.message}`);
+    }
+  }
 
   // In mixed-direction tier sections (Alpha Gold, LEAPS, Unusual, Algo) we
   // tint the row's primary text by direction so a bullish vs bearish trade
@@ -673,21 +715,41 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
           //   - forwarded → 🔔 in green (Discord post happened)
           //   - gate_passed=false → dim "⊘" (alert below conviction threshold)
           //   - everything else → "·" (no decision yet, or no grade computed)
-          if (forwarded) {
+          if (forwarded || pushState === "done") {
             return (
-              <span title="Forwarded to Discord"
-                style={{ fontSize: 11, color: P.bu, fontWeight: 800 }}>
+              <span title={pushState === "done" ? "Manually pushed to Discord (admin override)" : "Forwarded to Discord"}
+                style={{ fontSize: 11, color: pushState === "done" ? P.ac : P.bu, fontWeight: 800 }}>
                 <UIcon name="bell" size={11} />
+                {pushState === "done" && <span style={{ fontSize: 8, marginLeft: 3 }}>📌</span>}
               </span>
             );
           }
-          if (alert.gatePassed === false) {
-            return (
-              <span title="Below conviction gate — not posted"
+          // Admin force-push button — only when the alert hasn't already
+          // forwarded. Shows next to (or instead of) the dim "⊘" / "·"
+          // glyph. Subscriber view never sees this.
+          const baseGlyph = alert.gatePassed === false
+            ? <span title="Below conviction gate — not posted"
                 style={{ fontSize: 11, color: P.mt, fontWeight: 700 }}>⊘</span>
-            );
-          }
-          return <span style={{ color: P.mt, fontSize: 11 }}>·</span>;
+            : <span style={{ color: P.mt, fontSize: 11 }}>·</span>;
+          if (!isAdmin) return baseGlyph;
+          return (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {baseGlyph}
+              <button onClick={handleForcePush}
+                disabled={pushState === "pushing"}
+                title="Force-push this alert to Discord (bypasses all gates)"
+                style={{
+                  fontSize: 9, padding: "2px 6px",
+                  background: pushState === "pushing" ? P.dm + "22" : "transparent",
+                  color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
+                  border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
+                  borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
+                  fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
+                }}>
+                {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
+              </button>
+            </span>
+          );
         })()}
       </td>
     </tr>
@@ -695,7 +757,7 @@ function AlertRow({ alert, isNew, tierColor, directionTinted }) {
 }
 
 // ─── Tier section: collapsible header + tier rows ─────────────────────────────
-function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
+function TierSection({ tier, alerts, newIds, collapsed, onToggle, isAdmin }) {
   if (alerts.length === 0) return null;
   const meta = TIER_META[tier];
   // In mixed-direction tiers (Alpha/LEAPS/Unusual/Algo) we direction-tint rows.
@@ -728,6 +790,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle }) {
           isNew={newIds.has(a.id)}
           tierColor={meta.color}
           directionTinted={directionTinted}
+          isAdmin={isAdmin}
         />
       ))}
     </>
@@ -1712,6 +1775,7 @@ export default function LiveFlow() {
                   newIds={newIdsRef.current}
                   collapsed={!!collapsedTiers[tier]}
                   onToggle={() => setCollapsedTiers(c => ({ ...c, [tier]: !c[tier] }))}
+                  isAdmin={isAdmin}
                 />
               ))}
             </tbody>
