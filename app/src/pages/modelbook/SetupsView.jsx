@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
@@ -441,6 +441,15 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     if (v === (ex.advance_note || '')) return  // unchanged — skip the write
     patchExample({ advance_note: v || null }).then(() => onChanged?.())
   }
+  // Legacy volume-pane annotations get re-anchored to the pane (paneRelY) once the
+  // chart settles. Persist immediately when viewing; fold into the draft (saved on
+  // Save) when authoring, so it never jumps onto the chart after a Result flip.
+  const migrateDrawings = useCallback((next) => {
+    if (annotating) { setDraft(next); return }
+    if (!isAdmin) return  // viewers can't persist — an admin view migrates it for everyone
+    patchExample({ drawings_json: JSON.stringify(next) }).then(() => onChanged?.())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotating, isAdmin, ex.id, onChanged])
   // Per-example watermark position: drag commits persist HERE only, never the
   // global chart_settings, so other charts site-wide are unaffected.
   function saveWatermark({ x, y }) {
@@ -658,6 +667,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotationsEditable={annotating}
           annotationsTextVisible={annotating || view === 'setup'}
           onAnnotationsChange={setDraft}
+          onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
           highlightBarTime={ex.label_date || null}
           highlightColor="#ffffff"
         />

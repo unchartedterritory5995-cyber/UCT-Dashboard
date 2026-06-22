@@ -561,6 +561,7 @@ export default function StockChart({
   annotationsTextVisible = null, // Setup Library: drive the TEXT-annotation fade directly (true=show / false=fade out) when there's no focus zoom to do it. null = leave it to the focus-zoom path (Model Book).
   staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
+  onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
   onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
@@ -5718,6 +5719,7 @@ export default function StockChart({
             addDrawing={annAdd}
             updateDrawing={annUpdate}
             removeDrawing={annRemove}
+            onMigrate={onAnnotationsMigrate}
             selectedId={annotationsEditable ? selectedId : null}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}

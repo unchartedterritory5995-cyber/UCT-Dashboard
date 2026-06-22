@@ -616,6 +616,7 @@ export default function ChartDrawingOverlay({
   lineStyle = 'solid',
   magnet = false,
   drawings, addDrawing, updateDrawing, removeDrawing,
+  onMigrate = null,          // (drawings[]) => void — re-anchor legacy volume-pane points to paneRelY (called once when the view settles)
   selectedId, setSelectedId,
   repeatMode = true,
   hidePriceLabels = false,   // Model Book setup hrays: line only, no price label
@@ -725,6 +726,51 @@ export default function ChartDrawingOverlay({
     try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
     return null
   }, [chartRef, seriesRef])
+
+  // One-time migration of LEGACY volume-pane annotations (saved before paneRelY
+  // existed): they're price-anchored and jump onto the chart after a rescale.
+  // Once the view has SETTLED at the correctly-positioned framing, capture each
+  // below-the-price-pane point's pane-relative Y and bubble the patched set up so
+  // it can be persisted. Idempotent — points that already have paneRelY are
+  // skipped, so the re-render this triggers doesn't loop.
+  const migratedRef = useRef(false)
+  useEffect(() => { migratedRef.current = false }, [drawings])
+  useEffect(() => {
+    if (!onMigrate || !drawings?.length || !bars?.length) return
+    let raf = null, tries = 0, sawMotion = false
+    const attempt = () => {
+      raf = null
+      if (migratedRef.current) return
+      tries++
+      const H = sizeRef.current.h || 0
+      const pb = pricePaneBottomPx()
+      const series = seriesRef?.current
+      // Wait for the chart to be ready AND the view to settle so we capture the
+      // original, correct position — not a post-jump one. Settle = the framing
+      // moved then stopped; or (rare, no motion at all) a few stable frames.
+      if (!H || pb == null || !series) { if (tries < 180) raf = requestAnimationFrame(attempt); return }
+      if (movingRef.current) { sawMotion = true; if (tries < 180) raf = requestAnimationFrame(attempt); return }
+      if (!sawMotion && tries < 40) { raf = requestAnimationFrame(attempt); return }
+      let changed = false
+      const next = drawings.map(d => {
+        if (!d.points?.length) return d
+        let pchg = false
+        const np = d.points.map(p => {
+          if (p.paneRelY != null || p.price == null) return p
+          let y = null
+          try { y = series.priceToCoordinate(p.price) } catch { /* disposed */ }
+          if (y != null && y > pb + 1) { pchg = true; return { ...p, paneRelY: y / H } }
+          return p
+        })
+        if (pchg) { changed = true; return { ...d, points: np } }
+        return d
+      })
+      migratedRef.current = true
+      if (changed) onMigrate(next)
+    }
+    raf = requestAnimationFrame(attempt)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [onMigrate, drawings, bars, pricePaneBottomPx, seriesRef])
 
   // ── Coordinate conversion: pixel → chart ──
   // Robust: uses visible range + linear interpolation if coordinateToLogical fails
