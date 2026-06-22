@@ -614,7 +614,7 @@
   gap: 8px;
   padding: 9px 12px;
   border-bottom: 1px solid rgba(201, 168, 76, 0.12);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;   /* keep the meta + tools on ONE row (like the top chart) */
 }
 .exSym {
   font-family: var(--font-display);
@@ -631,6 +631,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 220px;
+  min-width: 0;        /* allow the name to truncate so the row never wraps */
+  flex-shrink: 1;
 }
 .exYear {
   font-family: var(--font-mono);
@@ -659,20 +661,22 @@
   font-size: 11px;
   font-weight: 700;
   color: #1ae51a;   /* exact vivid green of the chart candles (MB_UP) */
+  white-space: nowrap;
 }
 .exAdvance {
   border: 1px solid transparent;
   background: transparent;
   border-radius: 5px;
   padding: 4px 8px;
-  min-width: 180px;
+  flex: 0 1 200px;     /* prefer ~200px but shrink before the row wraps */
+  min-width: 0;
   outline: none;
   transition: border-color 0.15s, background 0.15s;
 }
 .exAdvance::placeholder { color: rgba(26, 229, 26, 0.4); font-weight: 600; }
 .exAdvance:hover { border-color: rgba(26, 229, 26, 0.25); }
 .exAdvance:focus { border-color: rgba(26, 229, 26, 0.55); background: rgba(26, 229, 26, 0.06); }
-.exTools { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.exTools { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 .exTool,
 .exToolSave,
 .exToolDanger {
