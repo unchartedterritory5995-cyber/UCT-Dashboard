@@ -4010,7 +4010,12 @@ export default function StockChart({
   // Each stock starts at the year view with setup text hidden; the first focus
   // zoom then eases it in. Without this reset, switching from a focused stock
   // would leave textFadeRef at 1 and the next setup's text would pop in instantly.
-  useEffect(() => { textFadeRef.current = 0 }, [sym, resolvedTf])
+  // When annotationsTextVisible drives the fade directly (Setup Library — no focus
+  // zoom), seed from it instead of 0 so text is present on first paint (this effect
+  // runs AFTER the snap effect above on mount and would otherwise clobber it).
+  useEffect(() => {
+    textFadeRef.current = annotationsTextVisible == null ? 0 : (annotationsTextVisible ? 1 : 0)
+  }, [sym, resolvedTf])  // eslint-disable-line react-hooks/exhaustive-deps -- read at mount only; sym/tf are stable within an example
 
   // Animated "focus a setup" zoom (Model Book). On a focusNonce bump: if
   // focusDate is set, smoothly zoom so that bar is the last candle on screen
