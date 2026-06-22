@@ -1435,12 +1435,9 @@ def _build_embed(agg: dict) -> dict:
             "name": "UCT Live Flow",
             "icon_url": UCT_LOGO_URL,
         }
-        # Thumbnail: renders the logo at ~80x80 on the right side of the embed.
-        # Much more prominent than the author icon (~24x24) — gives the brand
-        # real visual presence without dominating the alert data. Reuses the
-        # same URL since GitHub raw caches well and adding a second URL would
-        # double-fetch unnecessarily.
-        embed["thumbnail"] = {"url": UCT_LOGO_URL}
+        # 2026-06-22: removed embed.thumbnail per Ravi's preference. The author
+        # icon (~24x24 top-left) gives sufficient branding without the larger
+        # ~80x80 thumbnail on the right competing with the alert data fields.
     else:
         # Fallback: no logo, just keep the text label at the bottom as before.
         embed["footer"] = {"text": "via UCT Live Flow"}
