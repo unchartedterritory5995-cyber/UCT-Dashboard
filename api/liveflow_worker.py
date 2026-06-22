@@ -89,9 +89,32 @@ RECONNECT_MAX_SEC = 30.0
 # Anything that fails goes into _alerts_dropped counter, not the buffer.
 TABLE_FILTER = {
     "premium_min": 250_000,                # below this = noise
-    "ticker_blocklist": {"SPY", "QQQ", "IWM"},
+    # ETF blocklist: Bullflow's "Stocks" quick-filter doesn't always exclude
+    # ETFs (USO leaked through on 2026-06-22 as a UCT Bearish alert).
+    # Grouping below for maintainability — order doesn't matter, just readability.
+    "ticker_blocklist": {
+        # Major index ETFs
+        "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO", "VEA", "VWO",
+        # SPDR sector ETFs
+        "XLE", "XLF", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY", "XLB", "XLC",
+        # Industry/thematic
+        "XRT", "XOP", "XBI",
+        # Commodities / currencies / bonds
+        "GLD", "SLV", "USO", "UNG", "TLT", "IEF", "HYG", "LQD",
+        # Regional / country
+        "EEM", "EFA", "FXI", "EWZ", "INDA", "EWJ",
+        # Leveraged / inverse — these are where noise concentrates
+        "SOXL", "SOXS", "TQQQ", "SQQQ", "TNA", "TZA", "SPXL", "SPXS",
+        "LABU", "LABD", "NUGT", "DUST", "UVXY", "VXX",
+        # ARK funds
+        "ARKK", "ARKG", "ARKW", "ARKQ", "ARKF",
+    },
     # alertName must NOT contain any of these substrings (case-insensitive)
-    "alertname_block_substrings": ["grenade"],  # lottery/hedge noise
+    # 2026-06-22 additions: "urgent" + "repeater" suppress Bullflow's
+    # "Urgent Repeater" algo alerts which pushed despite gatePassed=false on
+    # Day 1 (APLD $263K, grade D). These aren't UCT alerts — they're
+    # Bullflow defaults firing inside the worker before grade gating.
+    "alertname_block_substrings": ["grenade", "urgent", "repeater"],
 }
 
 # Mega-cap tickers — used by per-alert blocklists below to exclude these from
@@ -120,6 +143,18 @@ ALERT_TICKER_BLOCKLISTS = {
     "UCT Unusual": MEGA_CAP_TICKERS,
     "UCT Vol>OI":  MEGA_CAP_TICKERS,
 }
+
+# Tickers excluded from "UCT Unusual Weeklies" re-tagging (see _maybe_retag_
+# weeklies below). For these names, $500K on a sub-7-DTE weekly is daily
+# noise — their normal flow exceeds that. We block them from the weeklies
+# channel so subscribers see real small/mid-cap conviction trades instead.
+# Includes the MEGA_CAP_TICKERS plus a few names treated as "mega-like" for
+# weekly purposes (MU/INTC/AMD/SNDK have huge weekly flow even though
+# technically large-cap). Tune freely — does NOT affect other alerts.
+UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE = MEGA_CAP_TICKERS | frozenset({
+    "AMD", "INTC", "MU", "SNDK", "CRM", "TSM", "ASML",
+    "SPCX",  # IPO with noisy weekly flow per user 2026-06-22
+})
 
 # User-managed ticker blocklist — edited live via the admin UI and persisted
 # to a JSON file on the Railway volume so it survives worker restarts. Use
@@ -310,6 +345,20 @@ ALERT_CONVICTION_GATES = {
         "max_per_ticker_per_day": 1,    # one Alpha Gold per ticker per day
         "follow_through_window_sec": 900,  # unused at min_repeat=0; kept for future re-tune
     },
+    # UCT Unusual Weeklies — synthetic alert created by re-tagging in the
+    # worker (see _maybe_retag_weeklies). Catches "size on weekly" flow that
+    # gets buried by the directional grade scorer because deep-OTM or short-
+    # DTE characteristics hurt the composite score. The premise: a $500K+
+    # premium on a sub-7-DTE option for a non-mega-cap stock is itself the
+    # signal — the trader is making a high-conviction time-bounded bet that
+    # the scorer's standard moneyness/DTE penalties miss.
+    #
+    # min_grade: D (effectively off) — premium + DTE + non-mega-cap is enough
+    # qualification. If too noisy, raise to C.
+    "UCT Unusual Weeklies": {
+        "min_grade": "D",
+        "max_per_ticker_per_day": 2,  # allow follow-through, but cap
+    },
     # Other UCT alerts: leave them untuned for now. The Bullflow filters
     # (premium floor, side, trade types) already do most of the work for
     # Bullish/Bearish/Size/Leaps/Vol>OI/Unusual. Tune in the AlertTester first,
@@ -325,6 +374,62 @@ def _get_alert_gates(alert_name: str) -> dict:
     # avoids accidental gating (e.g. "UCT Alpha Gold v2" wouldn't inherit
     # "UCT Alpha Gold" gates unless explicitly listed).
     return ALERT_CONVICTION_GATES.get(alert_name.strip(), {})
+
+
+def _get_alert_min_grade_level(alert_name: str) -> int:
+    """
+    Per-alert minimum grade level. Falls back to global MIN_DISCORD_GRADE_LEVEL
+    if the alert doesn't override.
+
+    Used so synthetic alerts like "UCT Unusual Weeklies" can accept lower
+    grades (D) than the default Discord floor (B) — the premise being that
+    these alerts have alternate qualification criteria (premium+DTE+cap-tier)
+    making the conviction grade less informative.
+
+    Returns: int grade level (higher = stricter). Compare with _grade_level().
+    """
+    gates = _get_alert_gates(alert_name)
+    override = gates.get("min_grade")
+    if override:
+        return _grade_level(str(override).strip().upper())
+    return MIN_DISCORD_GRADE_LEVEL
+
+
+def _maybe_retag_weeklies(alert_name: str, ticker: str, premium: float, dte) -> str:
+    """
+    Re-tag candidate alerts as "UCT Unusual Weeklies" when they represent
+    size on a sub-7-DTE expiration on a non-mega-cap stock. Otherwise return
+    the original alert_name unchanged.
+
+    Criteria (ALL must be true):
+      - original alert name is "UCT Vol>OI" or "UCT Unusual"
+      - DTE is a number and <= 7
+      - premium >= $500,000
+      - ticker is NOT in UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE
+
+    Why only re-tag Vol>OI / Unusual: those alerts already filter for unusual
+    activity, so their hits are pre-qualified candidates. Re-tagging Bullish
+    or Size alerts would conflict with their own dedicated channels.
+
+    Why mega-cap exclude: $500K on an NVDA/AAPL/MU weekly is a rounding error.
+    The "unusual" signal only holds for smaller names where $500K+ on a
+    weekly is genuinely uncommon.
+
+    Returns the (possibly modified) alert name to use going forward. Caller
+    overwrites the alertName field on the alert dict so downstream gates,
+    Discord posts, and SQLite all see the new name.
+    """
+    if not alert_name or not ticker:
+        return alert_name
+    if alert_name.strip() not in ("UCT Vol>OI", "UCT Unusual"):
+        return alert_name
+    if not isinstance(dte, (int, float)) or dte > 7 or dte < 0:
+        return alert_name
+    if not premium or premium < 500_000:
+        return alert_name
+    if ticker.upper() in UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE:
+        return alert_name
+    return "UCT Unusual Weeklies"
 
 
 # Sliding-window timestamps per contract — used by the 2X filter only.
@@ -1499,11 +1604,17 @@ async def _post_to_discord(client, alert):
     # GATE: only applies to FIRST posts. If we already have a message_id, we
     # always edit it regardless of current grade (preserves the message thread
     # in subscribers' channels — a trade that earned its way in stays in).
-    if not message_id and _grade_level(grade) < MIN_DISCORD_GRADE_LEVEL:
+    #
+    # Per-alert min_grade override: if the alert is in ALERT_CONVICTION_GATES
+    # with a min_grade key, use that instead of the global MIN_DISCORD_GRADE.
+    # This lets "UCT Unusual Weeklies" accept D-grade trades (where premium+
+    # DTE+cap are the signal) without lowering the global floor for everyone.
+    alert_min_grade_level = _get_alert_min_grade_level(alert.get("alertName") or "")
+    if not message_id and _grade_level(grade) < alert_min_grade_level:
         _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
         log.debug(
-            "[liveflow] grade %s below min %s — silent aggregate for %s %s $%s %s",
-            grade, MIN_DISCORD_GRADE,
+            "[liveflow] grade %s below alert-min for %s — silent aggregate for %s %s $%s %s",
+            grade, alert.get("alertName"),
             agg.get("ticker"), agg.get("cp"), agg.get("strike"), agg.get("exp"),
         )
         alert["gatePassed"] = False
@@ -1652,6 +1763,13 @@ async def _ingest_alert(msg, discord_client):
         _status["total_alerts_dropped"] += 1
         # Don't buffer — drop counter is enough for status visibility.
         return
+
+    # Re-tag candidates as "UCT Unusual Weeklies" when they meet the size-on-
+    # weekly criteria (premium >= $500K, DTE <= 7, non-mega-cap ticker). This
+    # routes them to their own gate config (min_grade=D) so genuine high-
+    # conviction short-dated bets don't get buried by the standard grade gate
+    # that's calibrated for longer-DTE flow. See _maybe_retag_weeklies docstring.
+    name = _maybe_retag_weeklies(name, ticker, premium, occ["dte"])
 
     enriched = {
         "id": msg.get("id"),
