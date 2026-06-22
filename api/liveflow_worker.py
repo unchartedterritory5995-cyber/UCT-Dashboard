@@ -668,6 +668,212 @@ def replay_alerts_through_gates(alerts: list) -> list:
     return sorted_alerts
 
 
+def replay_alerts_through_full_pipeline(alerts: list) -> list:
+    """
+    Full-pipeline replay: simulates what each alert WOULD do if it ran through
+    the live worker right now (current config). Unlike replay_alerts_through_
+    gates which only checks the conviction gates, this applies the entire
+    pipeline:
+
+        1. TABLE_FILTER (premium floor, ETF/ticker blocklist, alertname substrings)
+        2. ALERT_TICKER_BLOCKLISTS (per-alert ticker blocks, e.g. mega-caps on Unusual)
+        3. _maybe_retag_weeklies (re-route to "UCT Unusual Weeklies" if eligible)
+        4. _compute_conviction (build aggregate from preceding alerts on same contract,
+           compute grade)
+        5. Per-alert min_grade gate (uses _get_alert_min_grade_level)
+        6. min_repeat_fires + max_per_ticker_per_day (same as replay_alerts_through_gates)
+
+    Pure function: does NOT mutate production state (uses fresh local dicts),
+    does NOT write to DB, does NOT post to Discord.
+
+    Inputs: list of alert dicts in the live_alerts_db schema (camelCase keys
+    like alertName, alertPremium, ticker, cp, strike, exp, ingestedAt, etc.).
+    The same shape produced by csv_ingest._build_alert_for_db or returned
+    from query_alerts.
+
+    Returns: NEW list of dicts (sorted by ingestedAt asc) with stamped fields:
+      _replayedPassesTableFilter:  0/1
+      _replayedFilterReason:       str  (e.g. "ticker_blocked:USO" on failure)
+      _replayedFinalAlertName:     str  (after possible re-tag to Unusual Weeklies)
+      _replayedGrade:              str  ("A+", "A", "B", "C", "D", or None if didn't grade)
+      _replayedConvictionScore:    float
+      _replayedMinGradeRequired:   str  (alert's min_grade, may be "B" global or override)
+      _replayedPassesGradeGate:    0/1/None
+      _replayedFollowThroughCount: int
+      _replayedPassesConvictionGates: 0/1
+      _replayedGateReason:         str
+      _replayedWouldForward:       0/1   (THE answer — all gates passed?)
+
+    Use case: preview a CSV-derived flow against current gates to predict
+    Discord push volume before actually pushing (see csv_ingest preview endpoint).
+    """
+    if not alerts:
+        return []
+
+    def _to_unix(a):
+        ts = a.get("ingestedAt") or a.get("timestamp")
+        if ts is None:
+            return 0.0
+        if isinstance(ts, (int, float)):
+            return float(ts)
+        try:
+            s = str(ts).replace("Z", "+00:00")
+            return datetime.fromisoformat(s).timestamp()
+        except (ValueError, TypeError):
+            return 0.0
+
+    sorted_alerts = sorted(alerts, key=_to_unix)
+
+    # Per-replay state — fresh dicts, not the production module-level ones.
+    replay_aggregates: dict = {}        # (ticker,cp,strike,exp,date) -> agg dict
+    replay_follow_through: dict = {}    # contract_key tuple -> [unix_ts, ...]
+    replay_posted_today: dict = {}      # date_iso -> set of (alert_name, ticker)
+
+    max_window = max(
+        (g.get("follow_through_window_sec", 0) for g in ALERT_CONVICTION_GATES.values()),
+        default=900,
+    ) or 900
+
+    for a in sorted_alerts:
+        original_name = (a.get("alertName") or "").strip()
+        ticker = (a.get("ticker") or "").upper()
+        premium = float(a.get("alertPremium") or 0)
+        dte = a.get("dte")
+        alert_ts = _to_unix(a)
+
+        # Default stamps so callers can rely on these fields existing.
+        a["_replayedPassesTableFilter"] = 0
+        a["_replayedFilterReason"] = ""
+        a["_replayedFinalAlertName"] = original_name
+        a["_replayedGrade"] = None
+        a["_replayedConvictionScore"] = None
+        a["_replayedMinGradeRequired"] = None
+        a["_replayedPassesGradeGate"] = None
+        a["_replayedFollowThroughCount"] = 0
+        a["_replayedPassesConvictionGates"] = 0
+        a["_replayedGateReason"] = ""
+        a["_replayedWouldForward"] = 0
+
+        # Step 1: TABLE_FILTER — global premium/ticker/alertname checks.
+        passes, reason = _passes_table_filter(original_name, premium, ticker)
+        if not passes:
+            a["_replayedFilterReason"] = reason
+            continue
+        a["_replayedPassesTableFilter"] = 1
+
+        # Step 2: re-tag if eligible. After this point, `name` is the new alert
+        # name that gates and grading look up.
+        name = _maybe_retag_weeklies(original_name, ticker, premium, dte)
+        a["_replayedFinalAlertName"] = name
+
+        # Step 3: build/update aggregate state for this contract so grade
+        # computation has correct fire_count, total_premium, names_seen, etc.
+        # Mirrors _update_aggregate but uses our local dict.
+        # Date used for daily reset; computed from alert's recorded ET date.
+        try:
+            alert_et_date = datetime.fromtimestamp(alert_ts, tz=timezone.utc).astimezone(ET).date().isoformat()
+        except (OverflowError, ValueError):
+            alert_et_date = "1970-01-01"
+        agg_key = (
+            ticker, a.get("cp") or "", a.get("strike"), a.get("exp") or "",
+            alert_et_date,
+        )
+        agg = replay_aggregates.get(agg_key)
+        size = a.get("tradeSize") or 0
+        if not agg:
+            agg = {
+                "ticker": ticker, "cp": a.get("cp"), "strike": a.get("strike"),
+                "exp": a.get("exp"), "dte": dte,
+                "total_premium": premium, "max_premium": premium,
+                "total_size": size, "max_size": size,
+                "fire_count": 1,
+                "best_alert_name": name,
+                "best_alert_priority": _alert_priority({"alertName": name}),
+                "alert_names_seen": {name} if name else set(),
+                "prior_oi": a.get("priorOI"),
+                "moneyness_pct": a.get("moneynessPct"),
+                "moneyness_label": a.get("moneynessLabel"),
+            }
+            replay_aggregates[agg_key] = agg
+        else:
+            agg["total_premium"] += premium
+            agg["max_premium"] = max(agg["max_premium"], premium)
+            agg["total_size"] = (agg["total_size"] or 0) + size
+            agg["max_size"] = max(agg["max_size"] or 0, size)
+            agg["fire_count"] += 1
+            if name:
+                agg["alert_names_seen"].add(name)
+            new_pri = _alert_priority({"alertName": name})
+            if new_pri < (agg.get("best_alert_priority") or 99):
+                agg["best_alert_priority"] = new_pri
+                agg["best_alert_name"] = name
+            # Refresh moneyness from latest fire (spot drifts intraday).
+            if a.get("moneynessPct") is not None:
+                agg["moneyness_pct"] = a.get("moneynessPct")
+                agg["moneyness_label"] = a.get("moneynessLabel")
+
+        # Step 4: compute conviction grade from the (possibly multi-fire) aggregate.
+        score, grade = _compute_conviction(agg)
+        a["_replayedGrade"] = grade
+        a["_replayedConvictionScore"] = score
+
+        # Step 5: per-alert min_grade gate. If the alert is below the floor,
+        # mark and continue (no further gates relevant).
+        min_grade_level = _get_alert_min_grade_level(name)
+        # Translate level back to letter for display.
+        a["_replayedMinGradeRequired"] = {
+            v: k for k, v in {
+                "A+": _grade_level("A+"), "A": _grade_level("A"),
+                "B": _grade_level("B"),  "C": _grade_level("C"),
+                "D": _grade_level("D"),
+            }.items()
+        }.get(min_grade_level, "?")
+        if _grade_level(grade) < min_grade_level:
+            a["_replayedPassesGradeGate"] = 0
+            a["_replayedGateReason"] = f"grade_{grade}_below_{a['_replayedMinGradeRequired']}"
+            continue
+        a["_replayedPassesGradeGate"] = 1
+
+        # Step 6: follow-through tracker (same shape as replay_alerts_through_gates).
+        ft_key = (ticker, a.get("cp") or "", a.get("strike"), a.get("exp") or "")
+        cutoff = alert_ts - max_window
+        bucket = replay_follow_through.setdefault(ft_key, [])
+        bucket[:] = [t for t in bucket if t >= cutoff]
+        bucket.append(alert_ts)
+        a["_replayedFollowThroughCount"] = len(bucket)
+
+        # Step 7: conviction gates (min_repeat_fires, max_per_ticker_per_day).
+        gates = _get_alert_gates(name)
+        if gates:
+            min_fires = int(gates.get("min_repeat_fires", 0) or 0)
+            if min_fires > 1:
+                window_sec = int(gates.get("follow_through_window_sec", 900) or 900)
+                cutoff_specific = alert_ts - window_sec
+                ft_in_window = sum(1 for t in bucket if t >= cutoff_specific)
+                if ft_in_window < min_fires:
+                    a["_replayedGateReason"] = f"below_2x:{ft_in_window}<{min_fires}"
+                    continue
+
+            max_per_ticker = int(gates.get("max_per_ticker_per_day", 0) or 0)
+            if max_per_ticker > 0:
+                posted_set = replay_posted_today.setdefault(alert_et_date, set())
+                count_for_ticker = sum(
+                    1 for (n, t) in posted_set if n == name and t == ticker
+                )
+                if count_for_ticker >= max_per_ticker:
+                    a["_replayedGateReason"] = f"ticker_capped:{ticker}_already_{count_for_ticker}_today"
+                    continue
+                # Passed — mark as posted (using a list-of-tuples to allow
+                # counting beyond 1 when max_per_ticker > 1).
+                posted_set.add((name, ticker, alert_ts))
+
+        # All checks passed — this alert WOULD forward to Discord.
+        a["_replayedPassesConvictionGates"] = 1
+        a["_replayedWouldForward"] = 1
+
+    return sorted_alerts
+
+
 # ─── Sweep+Block combo detection — DEFERRED ──────────────────────────────────
 # Bullflow's SSE payload does NOT currently include an explicit sweep/block
 # tag — we only get alertType ("custom" vs "algo") and alertName. Without a
