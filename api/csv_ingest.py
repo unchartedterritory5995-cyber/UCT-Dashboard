@@ -435,6 +435,187 @@ async def replay_csv_preview(
     })
 
 
+@router.post("/replay-csv-to-discord")
+async def replay_csv_to_discord(
+    csv_file: UploadFile = File(..., description="Bullflow daily CSV export"),
+    alert_configs: str = Form(..., description="JSON array of alert configs"),
+    date: str = Form(..., description="Trade date YYYY-MM-DD"),
+    confirm: str = Form(default="", description="Must equal YES_REPLAY_TO_DISCORD"),
+    max_posts: int = Form(default=25, description="Hard cap on Discord posts; default 25"),
+):
+    """
+    EXECUTE the Discord replay. Posts qualifying alerts from the CSV to the
+    configured Discord webhook. ALSO inserts each posted alert into SQLite
+    with source='csv_replay_discord' and forwardedToDiscord=1 so re-running
+    the endpoint skips them automatically.
+
+    Workflow:
+      1. Same preview pipeline as /replay-csv-preview
+      2. Filter to (would_forward AND not is_duplicate)
+      3. Hard-cap to max_posts (default 25)
+      4. For each: insert SQLite row, post to Discord with REPLAY footer,
+         update SQLite with discord_message_id + forwardedToDiscord=1
+      5. Return summary
+
+    Requires confirm=YES_REPLAY_TO_DISCORD to actually run. Without it,
+    returns a preview-style payload (no posts, no inserts).
+
+    Use case: catch-up push after a gate config change. The CSV represents
+    the day's flow that the live worker either missed or filtered too
+    strictly under prior gates. The new gates would push these — this
+    endpoint executes that push.
+    """
+    import time
+    t0 = time.time()
+
+    # 1. Parse alert configs
+    try:
+        configs = json.loads(alert_configs)
+    except json.JSONDecodeError as e:
+        raise HTTPException(400, f"Invalid alert_configs JSON: {e}")
+    if not isinstance(configs, list) or not configs:
+        raise HTTPException(400, "alert_configs must be a non-empty JSON array")
+
+    # 2. Parse CSV
+    raw = await csv_file.read()
+    rows, parse_errors = alert_tester._parse_csv(raw)
+    if not rows:
+        return JSONResponse({"ok": False, "error": "CSV had no parseable rows"})
+
+    # 3. Build candidate alerts from Bullflow filter (same as preview)
+    candidate_alerts: list = []
+    for cfg in configs:
+        if not isinstance(cfg, dict):
+            continue
+        alert_name = (cfg.get("alertName") or "").strip()
+        if not alert_name or not alert_name.startswith("UCT "):
+            continue
+        try:
+            matched, _ = alert_tester._apply_bullflow_filter(rows, cfg)
+        except Exception as e:
+            log.warning("[csv_replay] filter error for %s: %s", alert_name, e)
+            continue
+        for idx, r in enumerate(matched):
+            alert_dict = _build_alert_from_csv_row(r, alert_name, date, idx)
+            candidate_alerts.append(alert_dict)
+
+    if not candidate_alerts:
+        return JSONResponse({
+            "ok": True, "date": date, "csv_rows": len(rows),
+            "candidates_from_bullflow": 0, "would_forward": 0,
+            "posted": 0, "elapsed_sec": round(time.time() - t0, 2),
+            "note": "No Bullflow matches in CSV.",
+        })
+
+    # 4. Run full-pipeline replay
+    from api import liveflow_worker
+    replayed = liveflow_worker.replay_alerts_through_full_pipeline(candidate_alerts)
+    would_forward_alerts = [a for a in replayed if a.get("_replayedWouldForward") == 1]
+
+    # 5. Dedupe against SQLite forwarded rows
+    posted_today_lookup: dict = {}
+    try:
+        all_today = live_alerts_db.query_alerts(date_from=date, date_to=date, limit=10000)
+        for row in all_today:
+            if row.get("forwardedToDiscord"):
+                key = (row.get("symbol"), (row.get("alertName") or "").strip())
+                posted_today_lookup[key] = row.get("id")
+    except Exception as e:
+        log.warning("[csv_replay] dedup query failed: %s", e)
+
+    # Filter to NET NEW (not already posted) and sort by trade time so
+    # subscribers see them in chronological order.
+    net_new = []
+    for a in would_forward_alerts:
+        final_name = a.get("_replayedFinalAlertName") or a.get("alertName")
+        dupe_key = (a.get("symbol"), final_name)
+        if dupe_key not in posted_today_lookup:
+            net_new.append(a)
+    net_new.sort(key=lambda x: x.get("ingestedAt") or "")
+
+    # 6. Confirm token check. Without it, return what WOULD happen and stop.
+    if confirm != "YES_REPLAY_TO_DISCORD":
+        return JSONResponse({
+            "ok": False,
+            "error": (
+                "confirm=YES_REPLAY_TO_DISCORD required. This endpoint POSTS to "
+                "Discord — destructive. Run without confirm to see this preview."
+            ),
+            "would_post_count": min(len(net_new), max_posts),
+            "would_post_capped_at": max_posts,
+            "net_new_total": len(net_new),
+            "by_alert": _summarize_by_alert(net_new),
+        })
+
+    # 7. Hard cap at max_posts. Take earliest-first so subscribers see the
+    # day chronologically rather than starting with the latest.
+    to_post = net_new[:max_posts]
+
+    # 8. Insert each to SQLite FIRST (so we have a record even if Discord
+    # post fails). Then post to Discord. Then update with message_id.
+    # Update source to distinguish from regular csv_ingest rows.
+    for a in to_post:
+        # Apply the replayed alert name to the SQLite row so history shows
+        # the re-tagged "UCT Unusual Weeklies" instead of original Vol>OI etc.
+        final_name = a.get("_replayedFinalAlertName") or a.get("alertName")
+        a["alertName"] = final_name
+        a["source"] = "csv_replay_discord"
+        a["grade"] = a.get("_replayedGrade")  # set grade so history view shows it
+        a["gatePassed"] = True
+        try:
+            live_alerts_db.insert_alert(a)
+        except Exception as e:
+            msg = str(e).lower()
+            if not ("unique" in msg or "duplicate" in msg or "constraint" in msg):
+                log.warning("[csv_replay] insert failed id=%s: %s", a.get("id"), e)
+
+    # 9. Post to Discord
+    post_result = await liveflow_worker.replay_post_alerts_to_discord(
+        to_post, max_posts=max_posts, inter_post_delay_sec=1.0,
+    )
+
+    # 10. Update SQLite with forwarded flag + message IDs for the ones
+    # that successfully posted.
+    for result in post_result.get("results", []):
+        if result.get("ok") and result.get("alert_id"):
+            try:
+                live_alerts_db.update_alert_state(
+                    result["alert_id"],
+                    forwarded_to_discord=1,
+                    discord_message_id=result.get("message_id"),
+                )
+            except Exception as e:
+                log.debug("[csv_replay] update_alert_state failed id=%s: %s",
+                          result.get("alert_id"), e)
+
+    return JSONResponse({
+        "ok": True,
+        "date": date,
+        "csv_rows": len(rows),
+        "candidates_from_bullflow": len(candidate_alerts),
+        "would_forward": len(would_forward_alerts),
+        "net_new": len(net_new),
+        "posted": post_result["succeeded"],
+        "failed": post_result["failed"],
+        "rate_limited": post_result["rate_limited"],
+        "capped_at": max_posts,
+        "skipped_due_to_cap": max(0, len(net_new) - max_posts),
+        "by_alert": _summarize_by_alert(to_post),
+        "post_results": post_result.get("results", []),
+        "elapsed_sec": round(time.time() - t0, 2),
+    })
+
+
+def _summarize_by_alert(alerts: list) -> dict:
+    """Group alerts by final (post-retag) name and return {name: count}.
+    Used for the replay/preview response 'by_alert' field."""
+    out: dict = {}
+    for a in alerts:
+        name = a.get("_replayedFinalAlertName") or a.get("alertName") or "Unknown"
+        out[name] = out.get(name, 0) + 1
+    return out
+
+
 @router.post("/clear-csv-ingest")
 async def clear_csv_ingest(date: str = Form(...)):
     """
