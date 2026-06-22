@@ -156,6 +156,41 @@ UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE = MEGA_CAP_TICKERS | frozenset({
     "SPCX",  # IPO with noisy weekly flow per user 2026-06-22
 })
 
+# ─── Earnings calendar (weekly refresh required) ──────────────────────────────
+# Hardcoded list of tickers reporting THIS WEEK. Two behaviors apply:
+#
+#   1. Filter-level block: any trade on these tickers with DTE <= EARNINGS_
+#      MAX_DTE_BLOCK gets dropped before grading (pure earnings gambles —
+#      no signal value, just lottery tickets that hammer subscribers with
+#      noise on report week).
+#
+#   2. Disclaimer badge: any trade on these tickers that PASSES filter (i.e.
+#      DTE > EARNINGS_MAX_DTE_BLOCK) gets an "⚠️ Earnings: <date>" badge
+#      added to the Discord embed so subscribers see the calendar context
+#      and understand the trade may be positioning vs an upcoming event.
+#
+# Source of truth: manual entry from Seeking Alpha / Market Chameleon weekly
+# earnings calendar. TODO long-term: replace with yfinance Ticker.earnings_
+# dates lookup, refresh nightly via a cron job. Until then, this dict needs
+# manual update every Sunday for the upcoming week.
+#
+# Date format: short human-readable string for the badge ("Tue 6/23", "Wed
+# 6/24"). Don't use ISO format — the badge needs to be scannable in Discord.
+EARNINGS_THIS_WEEK: dict = {
+    "MU":  "Wed 6/24",  # AMC
+    "FDX": "Tue 6/23",
+    # Add more before each Monday's open. Other Seeking Alpha names this
+    # week (KFY, WOR, DRI, BB, KBH, NG, WGO, PAYX, SNX, CMC, CCL, MKC,
+    # APOG, MLKN, FUL, ICLR, AYI, MEI, JEF) intentionally omitted — they
+    # don't see meaningful UCT alert flow.
+}
+
+# DTE cutoff for the earnings filter. Trades ≤ this DTE on an earnings-week
+# ticker get blocked at the filter; trades > this DTE pass with a badge.
+# 15 = blocks weeklies + biweeklies (pure earnings gambles) but allows
+# monthly-and-out positioning trades to pass through with the disclaimer.
+EARNINGS_MAX_DTE_BLOCK = 15
+
 # User-managed ticker blocklist — edited live via the admin UI and persisted
 # to a JSON file on the Railway volume so it survives worker restarts. Use
 # cases: recent IPOs with noisy flow (SPCX, RKLB), tickers you don't trade,
@@ -736,6 +771,13 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
     replay_aggregates: dict = {}        # (ticker,cp,strike,exp,date) -> agg dict
     replay_follow_through: dict = {}    # contract_key tuple -> [unix_ts, ...]
     replay_posted_today: dict = {}      # date_iso -> set of (alert_name, ticker)
+    # Contract-level dedup. Tracks which (contract, date) tuples have ALREADY
+    # had a "would_forward=1" alert in this replay. Subsequent alert events
+    # on the same contract get marked _replayedAggregatesIntoExisting=1
+    # instead of _replayedWouldForward=1 — mirrors the live worker's behavior
+    # where the SAME contract firing under multiple alert tiers produces ONE
+    # Discord post with "+N more" label rather than N separate messages.
+    replay_contract_first_seen: dict = {}  # (ticker,cp,strike,exp,date) -> alert_id
 
     max_window = max(
         (g.get("follow_through_window_sec", 0) for g in ALERT_CONVICTION_GATES.values()),
@@ -762,8 +804,8 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         a["_replayedGateReason"] = ""
         a["_replayedWouldForward"] = 0
 
-        # Step 1: TABLE_FILTER — global premium/ticker/alertname checks.
-        passes, reason = _passes_table_filter(original_name, premium, ticker)
+        # Step 1: TABLE_FILTER — global premium/ticker/alertname/earnings checks.
+        passes, reason = _passes_table_filter(original_name, premium, ticker, dte=dte)
         if not passes:
             a["_replayedFilterReason"] = reason
             continue
@@ -878,9 +920,20 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
                 # entry unique even when same (alert, ticker) fires repeatedly.
                 posted_set.add((name, ticker, alert_ts))
 
-        # All checks passed — this alert WOULD forward to Discord.
+        # All checks passed. Apply contract-level dedup: only the FIRST alert
+        # on this (contract, date) gets `_replayedWouldForward=1`; subsequent
+        # alerts on the same contract get `_replayedAggregatesIntoExisting=1`
+        # (they would PATCH the existing Discord message in the live worker,
+        # not create new posts). This is the key fix for the "199 alerts for
+        # 50 contracts" inflation in the preview output.
         a["_replayedPassesConvictionGates"] = 1
-        a["_replayedWouldForward"] = 1
+        if agg_key in replay_contract_first_seen:
+            a["_replayedAggregatesIntoExisting"] = 1
+            a["_replayedFirstAlertId"] = replay_contract_first_seen[agg_key]
+            a["_replayedWouldForward"] = 0
+        else:
+            a["_replayedWouldForward"] = 1
+            replay_contract_first_seen[agg_key] = a.get("id")
 
     return sorted_alerts
 
@@ -1615,10 +1668,14 @@ def parse_occ_symbol(symbol: str) -> dict:
 
 
 # ─── Filter Engine ───────────────────────────────────────────────────────────
-def _passes_table_filter(alert_name, premium, ticker):
+def _passes_table_filter(alert_name, premium, ticker, dte=None):
     """
     Returns (passes: bool, reason: str). Reason is "" on pass, short token on fail.
     Reason strings aren't surfaced to UI yet but kept for future debug visibility.
+
+    The dte parameter is optional for backwards compat — callers that don't
+    pass it skip the earnings short-DTE check. Callers in the live SSE path
+    and replay path DO pass it so the earnings filter applies consistently.
     """
     if not premium or premium < TABLE_FILTER["premium_min"]:
         return False, f"premium<{TABLE_FILTER['premium_min']}"
@@ -1639,6 +1696,17 @@ def _passes_table_filter(alert_name, premium, ticker):
     alert_blocklist = ALERT_TICKER_BLOCKLISTS.get(alert_key)
     if alert_blocklist and ticker and ticker.upper() in alert_blocklist:
         return False, f"alert_blocked:{alert_key}:{ticker}"
+    # Earnings short-DTE block. Pure event-driven gambles on this-week-
+    # reporting tickers (MU $1050P 10d type trades) get dropped at filter.
+    # Trades with DTE > EARNINGS_MAX_DTE_BLOCK on the same tickers pass
+    # through and get a disclaimer badge added in _build_embed.
+    if (
+        ticker
+        and isinstance(dte, (int, float))
+        and dte <= EARNINGS_MAX_DTE_BLOCK
+        and ticker.upper() in EARNINGS_THIS_WEEK
+    ):
+        return False, f"earnings_short_dte:{ticker.upper()}_{int(dte)}d"
     return True, ""
 
 
@@ -1824,6 +1892,14 @@ def _build_embed(agg: dict) -> dict:
         badges.append(f"🚀 **OI BREAK** {vol_oi_ratio:.1f}x")
     if fire_count > 1:
         badges.append(f"🔁 **{fire_count}x** today")
+    # Earnings disclaimer — when the ticker reports this week and the trade
+    # has DTE > EARNINGS_MAX_DTE_BLOCK (anything shorter was already filtered
+    # out). Subscribers need to know an earnings catalyst is approaching so
+    # they can size positions appropriately. The ticker lookup uses uppercase
+    # since EARNINGS_THIS_WEEK keys are uppercased.
+    earnings_date = EARNINGS_THIS_WEEK.get((ticker or "").upper())
+    if earnings_date:
+        badges.append(f"⚠️ **Earnings** {earnings_date}")
 
     # Core fields. Same 3-per-row layout as before via inline=True.
     fields = [
@@ -2158,7 +2234,7 @@ async def _ingest_alert(msg, discord_client):
     _status["total_alerts_received"] += 1
     _status["last_event_at"] = datetime.now(timezone.utc).isoformat()
 
-    passes, reason = _passes_table_filter(name, premium, ticker)
+    passes, reason = _passes_table_filter(name, premium, ticker, dte=occ["dte"])
     if not passes:
         _status["total_alerts_dropped"] += 1
         # Don't buffer — drop counter is enough for status visibility.
