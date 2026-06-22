@@ -656,6 +656,43 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
           </span>
         )}
       </td>
+      {/* Push column — admin only. Lets the operator force-push any alert to
+          Discord regardless of grade/gate state. Visible on every row so the
+          decision is one click away. Cell is wrapped in conditional render
+          because subscribers shouldn't see the column at all. */}
+      {isAdmin && (
+        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+          {(() => {
+            // Once successfully pushed in this session, show locked state.
+            if (pushState === "done" || forwarded) {
+              return (
+                <span title={pushState === "done"
+                  ? "Manually pushed to Discord (admin override)"
+                  : "Already forwarded to Discord"}
+                  style={{ fontSize: 10, color: P.ac, fontWeight: 700 }}>
+                  ✓ posted
+                </span>
+              );
+            }
+            return (
+              <button onClick={handleForcePush}
+                disabled={pushState === "pushing"}
+                title="Force-push this alert to Discord (bypasses all gates). Subscribers will see the embed in your test channel."
+                style={{
+                  fontSize: 9, padding: "4px 10px",
+                  background: pushState === "pushing" ? P.dm + "22" : "transparent",
+                  color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
+                  border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
+                  borderRadius: 4, cursor: pushState === "pushing" ? "wait" : "pointer",
+                  fontWeight: 700, letterSpacing: 0.5, lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                }}>
+                {pushState === "pushing" ? "pushing…" : pushState === "error" ? "↻ retry" : "→ push"}
+              </button>
+            );
+          })()}
+        </td>
+      )}
       <td style={{
         padding: "8px 10px", fontSize: 12, fontWeight: 800,
         fontFamily: "ui-monospace, monospace", textAlign: "center",
@@ -689,23 +726,9 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
           // the user can see "would post" predictions for historical days.
           // Remove this if-block when going live (existing logic below stays).
           if (alert._replayedWouldForward !== undefined) {
-            // Admin override: even in replay mode, if the alert hasn't
-            // ACTUALLY forwarded yet (forwardedToDiscord=0 in SQLite), show
-            // the PUSH button so operator can manually push grade-blocked
-            // trades that the replay would have caught. Once pushed, the
-            // pushState flips to "done" and the cell becomes the 🔔+📌.
-            if (pushState === "done") {
-              return (
-                <span title="Manually pushed to Discord (admin override)"
-                  style={{ fontSize: 11, color: P.ac, fontWeight: 800 }}>
-                  <UIcon name="bell" size={11} />
-                  <span style={{ fontSize: 8, marginLeft: 3 }}>📌</span>
-                </span>
-              );
-            }
             if (alert._replayedWouldForward === 1) {
               const ft = alert._replayedFollowThroughCount;
-              const fwdBadge = (
+              return (
                 <span title={`Would forward to Discord under current gates · ${ft}× fires in window`}
                   style={{
                     fontSize: 9, padding: "2px 6px", borderRadius: 3,
@@ -714,33 +737,8 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
                     border: "1px solid #10b98155",
                   }}>✓ FWD</span>
               );
-              // Already-forwarded in SQLite: just badge, no button needed.
-              if (forwarded) return fwdBadge;
-              // Otherwise admin can push manually.
-              if (!isAdmin) return fwdBadge;
-              return (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  {fwdBadge}
-                  <button onClick={handleForcePush}
-                    disabled={pushState === "pushing"}
-                    title="Force-push this alert to Discord (bypasses all gates)"
-                    style={{
-                      fontSize: 9, padding: "2px 6px",
-                      background: pushState === "pushing" ? P.dm + "22" : "transparent",
-                      color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
-                      border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
-                      borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
-                      fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
-                    }}>
-                    {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
-                  </button>
-                </span>
-              );
             }
-            // BLK case — replay would have blocked. Admin can still push if
-            // they disagree with the algo's call (e.g., grade C Alpha Gold
-            // that's clearly meaningful).
-            const blkBadge = (
+            return (
               <span title={`Blocked: ${alert._replayedGateReason || "unknown"}`}
                 style={{
                   fontSize: 9, padding: "2px 6px", borderRadius: 3,
@@ -750,32 +748,16 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
                   opacity: 0.85,
                 }}>⊘ BLK</span>
             );
-            if (forwarded) return blkBadge;
-            if (!isAdmin) return blkBadge;
-            return (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {blkBadge}
-                <button onClick={handleForcePush}
-                  disabled={pushState === "pushing"}
-                  title="Force-push this alert to Discord (bypasses all gates)"
-                  style={{
-                    fontSize: 9, padding: "2px 6px",
-                    background: pushState === "pushing" ? P.dm + "22" : "transparent",
-                    color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
-                    border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
-                    borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
-                    fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
-                  }}>
-                  {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
-                </button>
-              </span>
-            );
           }
           // — original live/non-replay rendering below —
           // Three states for the bell column:
           //   - forwarded → 🔔 in green (Discord post happened)
           //   - gate_passed=false → dim "⊘" (alert below conviction threshold)
           //   - everything else → "·" (no decision yet, or no grade computed)
+          //
+          // The PUSH-to-Discord control lives in a separate admin-only
+          // column to the left of Grade — see the {isAdmin && <td>...</td>}
+          // block above. This column stays as the status indicator only.
           if (forwarded || pushState === "done") {
             return (
               <span title={pushState === "done" ? "Manually pushed to Discord (admin override)" : "Forwarded to Discord"}
@@ -785,32 +767,13 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
               </span>
             );
           }
-          // Admin force-push button — only when the alert hasn't already
-          // forwarded. Shows next to (or instead of) the dim "⊘" / "·"
-          // glyph. Subscriber view never sees this.
-          const baseGlyph = alert.gatePassed === false
-            ? <span title="Below conviction gate — not posted"
+          if (alert.gatePassed === false) {
+            return (
+              <span title="Below conviction gate — not posted"
                 style={{ fontSize: 11, color: P.mt, fontWeight: 700 }}>⊘</span>
-            : <span style={{ color: P.mt, fontSize: 11 }}>·</span>;
-          if (!isAdmin) return baseGlyph;
-          return (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              {baseGlyph}
-              <button onClick={handleForcePush}
-                disabled={pushState === "pushing"}
-                title="Force-push this alert to Discord (bypasses all gates)"
-                style={{
-                  fontSize: 9, padding: "2px 6px",
-                  background: pushState === "pushing" ? P.dm + "22" : "transparent",
-                  color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
-                  border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
-                  borderRadius: 3, cursor: pushState === "pushing" ? "wait" : "pointer",
-                  fontWeight: 700, letterSpacing: 0.3, lineHeight: 1.2,
-                }}>
-                {pushState === "pushing" ? "…" : pushState === "error" ? "↻" : "PUSH"}
-              </button>
-            </span>
-          );
+            );
+          }
+          return <span style={{ color: P.mt, fontSize: 11 }}>·</span>;
         })()}
       </td>
     </tr>
@@ -832,7 +795,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle, isAdmin }) {
         borderTop: "1px solid " + P.bd,
         borderBottom: "1px solid " + meta.color + "30",
       }}>
-        <td colSpan={12} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
+        <td colSpan={isAdmin ? 13 : 12} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
@@ -1816,11 +1779,17 @@ export default function LiveFlow() {
                 {[
                   ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
                   ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
-                  ["Type", 9], ["Alert Name", 11], ["Grade", 11], ["🔔", 11],
+                  ["Type", 9], ["Alert Name", 11],
+                  // Push column is admin-only — hidden for subscribers.
+                  // Placed right after Alert Name per operator preference so
+                  // the decision context (alert tier + name) sits adjacent to
+                  // the action button. Spread-in via conditional array.
+                  ...(isAdmin ? [["Push", 10]] : []),
+                  ["Grade", 11], ["🔔", 11],
                 ].map(([label]) => (
                   <th key={label} style={{
                     padding: "8px 10px",
-                    textAlign: label === "Grade" ? "center" : (label === "🔔" ? "center" : "left"),
+                    textAlign: (label === "Grade" || label === "🔔" || label === "Push") ? "center" : "left",
                     color: P.dm, fontSize: 9, fontWeight: 700,
                     letterSpacing: 0.5, textTransform: "uppercase",
                   }}>{label}</th>
