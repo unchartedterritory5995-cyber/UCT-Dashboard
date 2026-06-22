@@ -865,14 +865,17 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
             max_per_ticker = int(gates.get("max_per_ticker_per_day", 0) or 0)
             if max_per_ticker > 0:
                 posted_set = replay_posted_today.setdefault(alert_et_date, set())
+                # Count existing fires on this (alert, ticker) pair. We store
+                # 3-tuples (name, ticker, ts) so multiple fires can be tracked,
+                # so unpack into a throwaway third var to avoid ValueError.
                 count_for_ticker = sum(
-                    1 for (n, t) in posted_set if n == name and t == ticker
+                    1 for (n, t, _ts) in posted_set if n == name and t == ticker
                 )
                 if count_for_ticker >= max_per_ticker:
                     a["_replayedGateReason"] = f"ticker_capped:{ticker}_already_{count_for_ticker}_today"
                     continue
-                # Passed — mark as posted (using a list-of-tuples to allow
-                # counting beyond 1 when max_per_ticker > 1).
+                # Passed — record this fire. Using ts in the tuple makes each
+                # entry unique even when same (alert, ticker) fires repeatedly.
                 posted_set.add((name, ticker, alert_ts))
 
         # All checks passed — this alert WOULD forward to Discord.
