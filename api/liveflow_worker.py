@@ -221,6 +221,24 @@ TIER_PREMIUM_REQUIREMENTS = {
 # and earnings tickers (MU weeklies $5M+).
 HIGH_PREMIUM_OVERRIDE = 5_000_000
 
+
+# Cross-alert per-ticker cap. Limits Discord posts per ticker per day across
+# ALL alert tiers combined. Without this, MU could dominate the channel with
+# 10+ posts (Size Bulls + Vol>OI + Size Bears + Bullish + Bearish Leaps etc.)
+# while other meaningful tickers get 1-2 posts. With cap=3, subscribers see
+# at most the 3 best trades per ticker — by premium — distributed across the
+# full universe of names with flow.
+#
+# Per-alert caps (in ALERT_CONVICTION_GATES.max_per_ticker_per_day) still
+# apply on top of this; this is the global ceiling. Whichever cap fires first
+# wins. Today's MU example: 11 raw alerts → top 3 by premium kept (the LEAPS
+# at $22M, bearish LEAPS at $6.51M, near-term bearish at $6.42M).
+#
+# Tradeoff: a ticker with 5 genuinely good trades loses 2 of them. Acceptable
+# because subscribers need ticker diversity more than ticker depth. The lost
+# trades remain visible in LiveFlow admin view for manual override push.
+GLOBAL_MAX_PER_TICKER_PER_DAY = 3
+
 # User-managed ticker blocklist — edited live via the admin UI and persisted
 # to a JSON file on the Railway volume so it survives worker restarts. Use
 # cases: recent IPOs with noisy flow (SPCX, RKLB), tickers you don't trade,
@@ -560,6 +578,12 @@ _follow_through_tracker: dict = {}   # contract_key -> [unix_ts, ...]
 # implicitly when the date key changes; stale dates pruned lazily on read.
 _alerts_posted_today: dict = {}      # date_iso -> set of (alert_name, ticker) tuples
 
+# Global ticker counter for GLOBAL_MAX_PER_TICKER_PER_DAY (across ALL alerts).
+# Different from _alerts_posted_today which tracks per (alert_name, ticker).
+# This tracks just ticker, so MU's Size Bulls + Vol>OI + Bullish all count
+# toward the same global ceiling.
+_global_posted_today: dict = {}      # date_iso -> {ticker: count}
+
 
 def _track_follow_through_increment(alert: dict) -> int:
     """
@@ -610,6 +634,9 @@ def _mark_alert_posted_for_ticker(alert_name: str, ticker: str):
     """Record that this (alert_name, ticker) pair has posted today.
 
     Prunes stale dates inline since we only ever check today's set.
+    Does NOT bump the global counter — that's bumped by the caller in
+    _delayed_discord_forward and only on NEW posts (not patches), so
+    multi-fire same-contract alerts don't burn through the global cap.
     """
     if not alert_name or not ticker:
         return
@@ -622,25 +649,87 @@ def _mark_alert_posted_for_ticker(alert_name: str, ticker: str):
     )
 
 
+def _bump_global_ticker_counter(ticker: str):
+    """Increment the GLOBAL_MAX_PER_TICKER_PER_DAY counter for `ticker`.
+
+    Called ONLY for NEW Discord posts (not patches on existing messages).
+    Patches represent the same contract evolving — keeping the message
+    updated — and shouldn't count against the daily cap, because the cap
+    is about "how many distinct contracts on this ticker hit Discord today",
+    not "how many fires we processed". MU C $1500 LEAPS firing 8 times
+    bumps the counter ONCE.
+    """
+    if not ticker:
+        return
+    today_iso = datetime.now(ET).date().isoformat()
+    stale_g = [d for d in _global_posted_today if d != today_iso]
+    for d in stale_g:
+        del _global_posted_today[d]
+    tg = _global_posted_today.setdefault(today_iso, {})
+    tg[ticker.upper()] = tg.get(ticker.upper(), 0) + 1
+
+
+def _global_ticker_post_count_today(ticker: str) -> int:
+    """How many times has ANY alert posted for this ticker today? Used by
+    GLOBAL_MAX_PER_TICKER_PER_DAY. Returns 0 if ticker hasn't posted today."""
+    if not ticker:
+        return 0
+    today_iso = datetime.now(ET).date().isoformat()
+    return _global_posted_today.get(today_iso, {}).get(ticker.upper(), 0)
+
+
 def _passes_alert_gates(alert: dict) -> tuple:
     """
     Returns (passes: bool, reason: str). Run inside _delayed_discord_forward,
     AFTER dedup but BEFORE Discord POST. Looks up per-alert config from
     ALERT_CONVICTION_GATES — alerts with no entry pass through unchanged.
 
-    Two gates checked (in order):
-      1. 2X follow-through: stamped count must be >= min_repeat_fires
-      2. Per-ticker daily cap: (alert_name, ticker) must not have posted yet
+    Three gates checked (in order):
+      1. GLOBAL per-ticker cap: ticker (across ALL alerts) must be below
+         GLOBAL_MAX_PER_TICKER_PER_DAY — prevents one ticker dominating.
+         CRITICAL: only applies to NEW posts. When a contract is already
+         on Discord (existing message_id in _contract_aggregates), the
+         current alert is a PATCH on that message, not a new post.
+         Patches always pass because they're the SAME signal evolving —
+         multi-fire institutional accumulation. The cap is for distinct
+         contracts on the same ticker, not contract progression.
+      2. 2X follow-through: stamped count must be >= min_repeat_fires
+      3. Per-(alert, ticker) daily cap: (alert_name, ticker) must not have
+         hit max_per_ticker_per_day
 
-    Either gate can be disabled by omitting the key (or setting to 0) in the
-    gates dict.
+    Any gate can be disabled by omitting the key (or setting to 0).
     """
     name = (alert.get("alertName") or "").strip()
     gates = _get_alert_gates(name)
+    ticker = (alert.get("ticker") or "").upper()
+
+    # Determine if this is a PATCH on an existing Discord message, or a
+    # NEW post. Look up the contract aggregate — if it has a message_id,
+    # we're patching. Patches bypass the cap (same-contract evolution).
+    contract_key = _make_contract_key(alert)
+    agg = _contract_aggregates.get(contract_key) if contract_key else None
+    is_patch = bool(agg and agg.get("discord_message_id"))
+
+    # Gate 1 (cross-alert global cap) runs FIRST and only on NEW posts.
+    # MU C $1500 LEAPS firing 8x → 1 evolving message (doesn't burn cap).
+    # MU on a different contract → counts against cap.
+    if (
+        not is_patch
+        and GLOBAL_MAX_PER_TICKER_PER_DAY
+        and GLOBAL_MAX_PER_TICKER_PER_DAY > 0
+        and ticker
+    ):
+        global_count = _global_ticker_post_count_today(ticker)
+        if global_count >= GLOBAL_MAX_PER_TICKER_PER_DAY:
+            return False, (
+                f"global_ticker_cap:{ticker}_already_{global_count}_today"
+                f"_({GLOBAL_MAX_PER_TICKER_PER_DAY}_cap)"
+            )
+
     if not gates:
         return True, ""
 
-    # Gate 1: institutional follow-through
+    # Gate 2: institutional follow-through
     min_fires = int(gates.get("min_repeat_fires", 0) or 0)
     if min_fires > 1:
         window_sec = int(gates.get("follow_through_window_sec", 900) or 900)
@@ -652,10 +741,9 @@ def _passes_alert_gates(alert: dict) -> tuple:
         if ft_count < min_fires:
             return False, f"below_2x:{ft_count}<{min_fires}"
 
-    # Gate 2: per-ticker daily cap
+    # Gate 3: per-(alert, ticker) daily cap
     max_per_ticker = int(gates.get("max_per_ticker_per_day", 0) or 0)
     if max_per_ticker > 0:
-        ticker = (alert.get("ticker") or "").upper()
         if _has_alert_posted_for_ticker_today(name, ticker):
             return False, f"ticker_capped:{ticker}_already_posted_today"
 
@@ -1034,6 +1122,63 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         else:
             a["_replayedWouldForward"] = 1
             replay_contract_first_seen[agg_key] = a.get("id")
+
+    # ─── Post-loop: GLOBAL_MAX_PER_TICKER_PER_DAY enforcement ────────────
+    # Cross-alert per-ticker cap. Without this, one ticker (e.g. MU with 11
+    # alerts across Size/Vol>OI/Bullish/Bearish Leaps tiers) can dominate
+    # Discord. Cap each ticker to the top N trades by premium.
+    #
+    # Why post-loop instead of inline: we need to know the full per-ticker
+    # set BEFORE deciding which to keep, so we can pick top-N by premium
+    # rather than first-N by arrival time. Live SSE handler can't do this
+    # (no foresight) and falls back to first-N — that's fine for live mode
+    # since arrival order roughly correlates with conviction (institutions
+    # usually act fast on theses), but replay can do better.
+    if GLOBAL_MAX_PER_TICKER_PER_DAY and GLOBAL_MAX_PER_TICKER_PER_DAY > 0:
+        # Collect alerts currently marked would_forward=1, grouped by
+        # (et_date, ticker). We re-compute ET date because the alert's
+        # timestamp ultimately drives the cap window (UTC midnight ≠ ET).
+        global_groups: dict = {}
+        for a in sorted_alerts:
+            if not a.get("_replayedWouldForward"):
+                continue
+            ts = a.get("timestamp") or a.get("ingested_at_ts") or 0
+            try:
+                et_date = datetime.fromtimestamp(
+                    ts, tz=timezone.utc
+                ).astimezone(ET).date().isoformat()
+            except (OverflowError, ValueError):
+                et_date = "1970-01-01"
+            ticker = (a.get("ticker") or "").upper()
+            if not ticker:
+                continue
+            global_groups.setdefault((et_date, ticker), []).append(a)
+
+        # Per group, sort by premium descending and keep top N. The rest
+        # get flipped to _replayedWouldForward=0 with a clear gate reason.
+        for (et_date, ticker), group in global_groups.items():
+            if len(group) <= GLOBAL_MAX_PER_TICKER_PER_DAY:
+                continue
+            # Sort top-down by premium; ties broken by earliest timestamp
+            # (deterministic, favors earlier institutional positioning).
+            group_sorted = sorted(
+                group,
+                key=lambda x: (
+                    -(x.get("alertPremium") or x.get("premium") or 0),
+                    x.get("timestamp") or 0,
+                ),
+            )
+            kept = group_sorted[:GLOBAL_MAX_PER_TICKER_PER_DAY]
+            blocked = group_sorted[GLOBAL_MAX_PER_TICKER_PER_DAY:]
+            kept_premiums = [
+                f"${int((a.get('alertPremium') or 0)/1000):,}K" for a in kept
+            ]
+            for b in blocked:
+                b["_replayedWouldForward"] = 0
+                b["_replayedGateReason"] = (
+                    f"global_ticker_cap:{ticker}_kept_top_"
+                    f"{GLOBAL_MAX_PER_TICKER_PER_DAY}_{','.join(kept_premiums)}"
+                )
 
     return sorted_alerts
 
@@ -2537,14 +2682,26 @@ async def _delayed_discord_forward(discord_client, alert: dict):
 
     alert["forwardedToDiscord"] = True
     try:
+        # Capture whether this was a new post BEFORE _post_to_discord runs,
+        # since after the call the aggregate will have a message_id either way.
+        contract_key = _make_contract_key(alert)
+        agg_before = _contract_aggregates.get(contract_key) if contract_key else None
+        was_new_post = not (agg_before and agg_before.get("discord_message_id"))
+
         await _post_to_discord(discord_client, alert)
-        # Record that this (alert_name, ticker) pair has posted today, so the
-        # per-ticker cap (if configured) can block subsequent posts. Cheap
-        # call regardless of whether the cap is configured.
+
+        # Record per-(alert, ticker) post for the per-alert cap (if configured).
         name = (alert.get("alertName") or "").strip()
         gates = _get_alert_gates(name)
         if int(gates.get("max_per_ticker_per_day", 0) or 0) > 0:
             _mark_alert_posted_for_ticker(name, alert.get("ticker") or "")
+
+        # Bump GLOBAL ticker counter ONLY on new posts. Patches don't count —
+        # they're the same contract evolving, not a new ticker mention.
+        # _mark_alert_posted_for_ticker already bumps global; for alerts WITHOUT
+        # a per-alert cap, we need to bump global directly here.
+        if was_new_post:
+            _bump_global_ticker_counter(alert.get("ticker") or "")
     except Exception as e:
         log.warning("[liveflow] delayed discord forward failed: %s", e)
 
