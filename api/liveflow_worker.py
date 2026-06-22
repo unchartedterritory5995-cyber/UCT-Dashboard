@@ -151,9 +151,10 @@ ALERT_TICKER_BLOCKLISTS = {
 # Includes the MEGA_CAP_TICKERS plus a few names treated as "mega-like" for
 # weekly purposes (MU/INTC/AMD/SNDK have huge weekly flow even though
 # technically large-cap). Tune freely — does NOT affect other alerts.
+# 2026-06-22: SPCX removed from exclude per operator — SPCX flow IS signal
+# for that small-cap ticker; let it route to Unusual Weeklies normally.
 UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE = MEGA_CAP_TICKERS | frozenset({
     "AMD", "INTC", "MU", "SNDK", "CRM", "TSM", "ASML",
-    "SPCX",  # IPO with noisy weekly flow per user 2026-06-22
 })
 
 # ─── Earnings calendar (weekly refresh required) ──────────────────────────────
@@ -191,6 +192,35 @@ EARNINGS_THIS_WEEK: dict = {
 # monthly-and-out positioning trades to pass through with the disclaimer.
 EARNINGS_MAX_DTE_BLOCK = 15
 
+
+# ─── Tier premium requirements ────────────────────────────────────────────────
+# Grade alone is insufficient — a B-grade trade at $700K and a B-grade trade
+# at $20M are different signals entirely. This matrix says: to push, a trade
+# must meet BOTH (a) the grade threshold and (b) the premium threshold for
+# that grade tier. Replaces the cliff-edge B-floor with a graduated rule.
+#
+# Tuned against the 2026-06-22 EOD OptionsFlow watchlist (40 trades) to
+# produce a Discord push volume of ~35-50 quality alerts per day rather
+# than 100+ noisy ones. Key calibration points:
+#   - $600K floor for A keeps PERI-style microcap signals ($690K)
+#   - $2M floor for B kills mid-quality $700K-$1.5M noise
+#   - C and D are blocked entirely (Unusual Weeklies tier has its own logic)
+TIER_PREMIUM_REQUIREMENTS = {
+    "A+": 500_000,
+    "A":  600_000,
+    "B":  2_000_000,
+    "C":  None,     # blocked unless tier override (e.g. Unusual Weeklies min_grade=D)
+    "D":  None,
+}
+
+
+# Premium threshold that overrides ALL filters: mega-cap exclude, earnings
+# short-DTE block, per-alert ticker blocklists. Above this dollar amount,
+# the trade IS the signal regardless of context. Calibrated to the watchlist's
+# $5M+ trades (13 of 40) which routinely include mega-cap names (NVDA $11M)
+# and earnings tickers (MU weeklies $5M+).
+HIGH_PREMIUM_OVERRIDE = 5_000_000
+
 # User-managed ticker blocklist — edited live via the admin UI and persisted
 # to a JSON file on the Railway volume so it survives worker restarts. Use
 # cases: recent IPOs with noisy flow (SPCX, RKLB), tickers you don't trade,
@@ -206,25 +236,62 @@ USER_BLOCKLIST_FILE = os.getenv(
 _user_ticker_blocklist: set = set()
 
 
+# Default seed list when no user_blocklist file exists. Empty by default —
+# tickers can be added via the admin UI at runtime. Earlier iterations seeded
+# this with SPCX but operator preference is to let SPCX flow through (its
+# weekly noise is real signal sometimes — see the IREN-style microcap thesis).
+DEFAULT_USER_BLOCKLIST_SEED = frozenset()
+
+
+# One-time deprecated-tickers cleanup. Any ticker listed here gets ACTIVELY
+# removed from the saved blocklist file on startup, regardless of file state.
+# Use this when a ticker was previously seeded but should no longer be blocked.
+# Once a ticker has cycled through one deploy with this list, it can be removed.
+# Why this exists: file persists on Railway volume across deploys, so a stale
+# blocklist entry survives even if the seed list changes. This forces cleanup.
+DEPRECATED_BLOCKLIST_REMOVALS = frozenset({
+    "SPCX",  # 2026-06-22: removed per operator after one day of testing
+})
+
+
 def _load_user_blocklist():
-    """Load tickers from disk into the in-memory set. Idempotent and safe."""
+    """Load tickers from disk into the in-memory set. Idempotent and safe.
+    If no file exists yet, seeds from DEFAULT_USER_BLOCKLIST_SEED. Also strips
+    any tickers in DEPRECATED_BLOCKLIST_REMOVALS — these get removed from the
+    saved file on first restart after being added to the deprecated list."""
     global _user_ticker_blocklist
     try:
         with open(USER_BLOCKLIST_FILE, "r") as f:
             data = json.load(f)
         tickers = data.get("tickers", [])
-        _user_ticker_blocklist = {
+        loaded = {
             t.upper().strip() for t in tickers if t and t.strip()
         }
+        # Strip any deprecated tickers and re-save if we changed anything.
+        cleaned = loaded - DEPRECATED_BLOCKLIST_REMOVALS
+        if cleaned != loaded:
+            removed = loaded - cleaned
+            log.info("[liveflow] removing deprecated tickers from blocklist: %s",
+                     sorted(removed))
+            _user_ticker_blocklist = cleaned
+            _save_user_blocklist()
+        else:
+            _user_ticker_blocklist = loaded
         log.info("[liveflow] loaded %d user-blocked tickers from %s",
                  len(_user_ticker_blocklist), USER_BLOCKLIST_FILE)
     except FileNotFoundError:
-        _user_ticker_blocklist = set()
-        log.info("[liveflow] no user blocklist file at %s — starting empty",
-                 USER_BLOCKLIST_FILE)
+        # First-run seed: populate from the default list. Save the seed so
+        # subsequent restarts read from disk instead of re-seeding.
+        _user_ticker_blocklist = set(DEFAULT_USER_BLOCKLIST_SEED) - DEPRECATED_BLOCKLIST_REMOVALS
+        log.info("[liveflow] no user blocklist file at %s — seeded with %d defaults: %s",
+                 USER_BLOCKLIST_FILE,
+                 len(_user_ticker_blocklist),
+                 sorted(_user_ticker_blocklist))
+        _save_user_blocklist()
     except Exception as e:
-        _user_ticker_blocklist = set()
-        log.warning("[liveflow] error loading user blocklist (%s) — starting empty", e)
+        _user_ticker_blocklist = set(DEFAULT_USER_BLOCKLIST_SEED) - DEPRECATED_BLOCKLIST_REMOVALS
+        log.warning("[liveflow] error loading user blocklist (%s) — seeded with %d defaults",
+                    e, len(_user_ticker_blocklist))
 
 
 def _save_user_blocklist():
@@ -313,6 +380,15 @@ def _grade_level(grade_str: str) -> int:
     if g.startswith("B"):  return 2
     if g.startswith("C"):  return 1
     return 0  # D, unknown, or empty
+
+
+def _strip_grade_emoji(grade_str: str) -> str:
+    """Strip trailing emoji/whitespace from a grade string for dict lookups.
+    'A+ 🚀' → 'A+'. Returns 'D' if input is None/empty for safe lookups."""
+    g = (grade_str or "D").strip()
+    # The valid letter grades all start with A/B/C/D; everything else trailing
+    # is decoration. Split on first space and take just the letter portion.
+    return g.split()[0] if g else "D"
 
 
 MIN_DISCORD_GRADE_LEVEL = _grade_level(MIN_DISCORD_GRADE)
@@ -883,6 +959,30 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
             a["_replayedGateReason"] = f"grade_{grade}_below_{a['_replayedMinGradeRequired']}"
             continue
         a["_replayedPassesGradeGate"] = 1
+
+        # Step 5b: TIER_PREMIUM_REQUIREMENTS — grade alone isn't enough. A
+        # B-grade $700K trade and a B-grade $20M trade are very different
+        # signals. Check per-tier premium floor (e.g. B requires $2M+).
+        # Skip this check for tiers with explicit min_grade overrides (e.g.
+        # Unusual Weeklies passes D-grade because premium+DTE+cap-tier IS
+        # the signal there — TIER_PREMIUM_REQUIREMENTS["D"] = None).
+        tier_floor = TIER_PREMIUM_REQUIREMENTS.get(_strip_grade_emoji(grade))
+        if tier_floor is None:
+            # Grade C/D with no override gate → block here. But UCT Unusual
+            # Weeklies sets min_grade=D so it already passed step 5; for that
+            # tier we don't want to re-block. Check whether the alert is one
+            # that sets its own min_grade and respect that.
+            alert_has_override = bool(_get_alert_gates(name).get("min_grade"))
+            if not alert_has_override:
+                a["_replayedPassesGradeGate"] = 0
+                a["_replayedGateReason"] = f"tier_premium_{grade}_blocked"
+                continue
+        elif not premium or premium < tier_floor:
+            a["_replayedPassesGradeGate"] = 0
+            a["_replayedGateReason"] = (
+                f"tier_premium_low:{grade}_${int((premium or 0)/1000)}K<${int(tier_floor/1000)}K"
+            )
+            continue
 
         # Step 6: follow-through tracker (same shape as replay_alerts_through_gates).
         ft_key = (ticker, a.get("cp") or "", a.get("strike"), a.get("exp") or "")
@@ -1526,8 +1626,10 @@ def _alert_priority(alert: dict) -> int:
         # LEAPS variants come slightly behind regular directional since users
         # generally weight short-term flow heavier than long-dated.
         return 4 if "Leaps" in name else 3
-    if "Leaps" in name:                 # neutral "UCT Leaps" (no direction)
-        return 5
+    # Neutral "UCT Leaps" handler removed 2026-06-22 — the directional
+    # variants (UCT Bullish Leaps / UCT Bearish Leaps) made the neutral
+    # version redundant, so it was deleted upstream in Bullflow. If it ever
+    # comes back, add: `if "Leaps" in name: return 5` here.
     if "Unusual" in name or "Vol>OI" in name:
         return 6
     if "ETF Flow" in name:
@@ -1692,21 +1794,31 @@ def _passes_table_filter(alert_name, premium, ticker, dte=None):
     # Per-alert ticker blocklists supplementing the global block. Lookup uses
     # the stripped name because Bullflow sometimes stores names with trailing
     # whitespace (e.g. "UCT Bullish " — confirmed in 2026-06-17 audit).
+    # HIGH_PREMIUM_OVERRIDE: trades $5M+ bypass per-alert mega-cap excludes.
+    # A $11M NVDA call IS the signal — don't block on mega-cap rule alone when
+    # the size is institutional-grade.
     alert_key = (alert_name or "").strip()
     alert_blocklist = ALERT_TICKER_BLOCKLISTS.get(alert_key)
     if alert_blocklist and ticker and ticker.upper() in alert_blocklist:
-        return False, f"alert_blocked:{alert_key}:{ticker}"
+        if not premium or premium < HIGH_PREMIUM_OVERRIDE:
+            return False, f"alert_blocked:{alert_key}:{ticker}"
+        # Else: premium >= $5M → bypass mega-cap exclusion. Trade passes.
     # Earnings short-DTE block. Pure event-driven gambles on this-week-
     # reporting tickers (MU $1050P 10d type trades) get dropped at filter.
     # Trades with DTE > EARNINGS_MAX_DTE_BLOCK on the same tickers pass
     # through and get a disclaimer badge added in _build_embed.
+    # HIGH_PREMIUM_OVERRIDE: $5M+ pre-earnings flow IS signal (e.g. MU $1200C
+    # 4d $7M — that's institutional pre-earnings positioning, not noise).
+    # Override the DTE block for those.
     if (
         ticker
         and isinstance(dte, (int, float))
         and dte <= EARNINGS_MAX_DTE_BLOCK
         and ticker.upper() in EARNINGS_THIS_WEEK
     ):
-        return False, f"earnings_short_dte:{ticker.upper()}_{int(dte)}d"
+        if not premium or premium < HIGH_PREMIUM_OVERRIDE:
+            return False, f"earnings_short_dte:{ticker.upper()}_{int(dte)}d"
+        # Else: premium >= $5M → bypass earnings short-DTE block.
     return True, ""
 
 
@@ -2100,6 +2212,42 @@ async def _post_to_discord(client, alert):
             log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
                       alert.get("id"), e)
         return
+
+    # TIER_PREMIUM_REQUIREMENTS check — grade alone isn't enough. A B-grade
+    # $700K trade and a B-grade $20M trade are different signals. Block when
+    # the trade's premium falls below the per-tier floor (e.g. B requires $2M+).
+    # Skip when the alert has an explicit min_grade override that this would
+    # contradict (e.g. Unusual Weeklies accepts D — TIER req for D is None,
+    # but the tier-override should win).
+    alert_premium = agg.get("max_premium") or agg.get("total_premium") or 0
+    if not message_id:
+        tier_floor = TIER_PREMIUM_REQUIREMENTS.get(_strip_grade_emoji(grade))
+        alert_has_override = bool(_get_alert_gates(alert.get("alertName") or "").get("min_grade"))
+        tier_blocks = False
+        block_reason = ""
+        if tier_floor is None and not alert_has_override:
+            tier_blocks = True
+            block_reason = f"tier_premium_{grade}_blocked"
+        elif tier_floor is not None and (not alert_premium or alert_premium < tier_floor):
+            tier_blocks = True
+            block_reason = (
+                f"tier_premium_low:{grade}_${int((alert_premium or 0)/1000)}K"
+                f"<${int(tier_floor/1000)}K"
+            )
+        if tier_blocks:
+            _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
+            log.debug(
+                "[liveflow] %s — silent aggregate for %s %s $%s %s",
+                block_reason, agg.get("ticker"), agg.get("cp"),
+                agg.get("strike"), agg.get("exp"),
+            )
+            alert["gatePassed"] = False
+            try:
+                live_alerts_db.update_alert_state(alert.get("id"), gate_passed=0)
+            except Exception as e:
+                log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
+                          alert.get("id"), e)
+            return
 
     # Past the gate. Stamp the alert + DB so history view sees this clearly.
     alert["gatePassed"] = True
