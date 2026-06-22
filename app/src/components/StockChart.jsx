@@ -50,6 +50,31 @@ const NOOP = () => {}
 // of the viewer's personal trade markers/price lines (hideJournalOverlay).
 const EMPTY_J2 = { markers: [], priceLines: [] }
 
+// Parse an ISO date / unix-seconds / unix-ms value to epoch milliseconds.
+const _dateToMs = (v) => {
+  if (v == null) return NaN
+  if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
+  const s = String(v)
+  return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+}
+
+// Bars-worth of blank space to render on the LEFT when a framed window's start
+// date predates the earliest loaded bar — e.g. a Setup Library / Model Book
+// example whose frame start is before the stock's IPO (first-ever trading day).
+// Lightweight-charts accepts a NEGATIVE `from` logical index, which paints empty
+// space before bar 0, so the chart honors the requested start instead of clamping
+// to the IPO bar and zooming in too far. Returns 0 when the start is not earlier
+// than the first bar (the normal case — charts with lead-in/warm-up bars).
+const PERIOD_MS = { D: 86400000, W: 604800000 }
+const leadingBlankBars = (startMs, firstBarMs, tf) => {
+  if (!Number.isFinite(startMs) || !Number.isFinite(firstBarMs) || startMs >= firstBarMs) return 0
+  const calDays = (firstBarMs - startMs) / 86400000
+  if (tf === 'W') return Math.round(calDays / 7)            // one bar per week
+  if (tf === 'D') return Math.round((calDays * 5) / 7)      // skip weekends
+  const per = PERIOD_MS[tf] || 86400000                     // intraday book charts don't occur
+  return Math.round((firstBarMs - startMs) / per)
+}
+
 // Throw on !ok so SWR's onErrorRetry sees a real error and backs off.
 // Without this, a 503 with a JSON body parses as a successful response
 // with bars=[], the chart paints blank, and SWR never retries. The bars
@@ -3711,7 +3736,13 @@ export default function StockChart({
           const yearHasData = startIdx >= 0 && endIdx >= startIdx
             && (!exitDate || filteredBars[startIdx].t <= exitDate)
           if (!yearHasData) { endIdx = filteredBars.length - 1; startIdx = Math.max(0, endIdx - 251) }
-          chart.timeScale().setVisibleLogicalRange({ from: startIdx, to: endIdx })
+          // Frame start predates the first bar (e.g. before an IPO): pad with
+          // blank space on the left instead of clamping to bar 0.
+          let fromIdx = startIdx
+          if (yearHasData && startIdx === 0) {
+            fromIdx = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
+          }
+          chart.timeScale().setVisibleLogicalRange({ from: fromIdx, to: endIdx })
         } else if (entryDate && filteredBars.length > 0) {
           const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
           const exitIdx  = exitDate
@@ -3803,7 +3834,12 @@ export default function StockChart({
         }
         const _has = _s >= 0 && _e >= _s && (!exitDate || filteredBars[_s].t <= exitDate)
         if (!_has) { _e = filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
-        try { chart.timeScale().setVisibleLogicalRange({ from: _s, to: _e }) } catch { /* out of range mid-load */ }
+        // Frame start predates the first bar (before an IPO) → blank-space pad.
+        let _from = _s
+        if (_has && _s === 0) {
+          _from = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
+        }
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _e }) } catch { /* out of range mid-load */ }
       }
     }
 
@@ -3902,10 +3938,17 @@ export default function StockChart({
       endIdx = filteredBars.length - 1
       startIdx = Math.max(0, endIdx - 251)
     }
+    // Frame start predates the first loaded bar (e.g. before an IPO): pad the
+    // left with blank space (negative logical index) so the chart honors the
+    // requested start instead of clamping to bar 0 and over-zooming.
+    let fromIdx = startIdx
+    if (yearHasData && startIdx === 0) {
+      fromIdx = -leadingBlankBars(lo, toMs(filteredBars[0].t), resolvedTf)
+    }
     // Store the LATEST computed range; the scheduled re-asserts below read this
     // ref (not captured locals) so a partial first data load can't lock stale
     // indices into the pending re-asserts (which showed the earliest bars).
-    yearRangeRef.current = { from: startIdx, to: endIdx }
+    yearRangeRef.current = { from: fromIdx, to: endIdx }
     exactPinSigRef.current = pinSig
     const applyYear = () => {
       const r = yearRangeRef.current
@@ -3961,7 +4004,7 @@ export default function StockChart({
       focusActiveRef.current = true
       focusRangeRef.current = null
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: startIdx, to: endIdx }, 900, () => {
+        { from: fromIdx, to: endIdx }, 900, () => {
           focusActiveRef.current = false
           // Release a held wider slice (Result → Setup): the outgoing candles
           // are off-screen now, so the tail re-cut is invisible.
@@ -4099,10 +4142,16 @@ export default function StockChart({
         }
       }
       if (endIdx < startIdx) endIdx = filteredBars.length - 1
+      // Frame start predates the first bar (before an IPO) → blank-space pad so
+      // the zoom-out lands on the same framed window as updateChart's year pin.
+      let fromIdx = startIdx
+      if (startIdx === 0) {
+        fromIdx = -leadingBlankBars(lo, toMs(filteredBars[0].t), resolvedTf)
+      }
       focusActiveRef.current = true
       focusRangeRef.current = null   // zooming back out to the year — let updateChart's year re-pin resume
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: startIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData, textFadeRef, false)
+        { from: fromIdx, to: endIdx }, 850, () => { focusActiveRef.current = false }, overlayData, textFadeRef, false)
     }
   }, [focusNonce, focusDate, focusStartDate, focusBarsBack, filteredBars, entryDate, exitDate, sym, resolvedTf, overlayData])
 
