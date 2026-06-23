@@ -36,6 +36,9 @@ _OVERLAP_DAYS = 3
 _PAGE = 1000
 _MAX_PAGES = 1000  # safety cap (≈1M activities)
 
+WARMING_WINDOW_HOURS = 2
+WARMING_STABLE_TICKS = 2  # consecutive no-growth ticks before warming stops
+
 
 class BrokerAccountNotFound(Exception):
     pass
@@ -265,6 +268,60 @@ async def _nightly_reconcile() -> dict[str, Any]:
                 return {"error": str(e)}
     results = await asyncio.gather(*(_one(a) for a in accts)) if accts else []
     return {"reconciled": len(results)}
+
+
+def _activity_count(user_id: str, broker_account_id: str) -> int:
+    """Number of raw activities currently stored for this account."""
+    try:
+        return len(activities_store.get_activities(user_id, broker_account_id))
+    except Exception:  # noqa: BLE001 — count is advisory; treat failure as 'unchanged'
+        return -1
+
+
+async def _warming_sync() -> dict[str, Any]:
+    """One warming pass: full-sync every account still inside its warming window,
+    advancing/clearing the stable-tick state. Late SnapTrade backfill that lands
+    older than the incremental overlap window is caught here (full=True ignores
+    the cursor). Clears warming after WARMING_STABLE_TICKS no-growth ticks."""
+    now_iso = _now_iso()
+    accts = connections.list_warming_accounts(now_iso)
+    if not accts:
+        return {"warming": 0}
+    paid_cache: dict[str, bool] = {}
+    cleared = 0
+    for a in accts:
+        if not _user_is_paid(a["userId"], paid_cache):
+            connections.clear_warming(a["userId"], a["id"])
+            cleared += 1
+            continue
+        try:
+            await sync_account(a["userId"], a["id"], full=True)
+        except Exception:  # noqa: BLE001 — one bad account never blocks the rest
+            pass
+        count = _activity_count(a["userId"], a["id"])
+        prev = a.get("warmingLastActivityCount")
+        ticks = int(a.get("warmingStableTicks") or 0)
+        if prev is not None and count == prev:
+            ticks += 1
+        else:
+            ticks = 0
+        if ticks >= WARMING_STABLE_TICKS:
+            connections.clear_warming(a["userId"], a["id"])
+            cleared += 1
+        else:
+            connections.bump_warming_state(
+                a["userId"], a["id"], activity_count=count, stable_ticks=ticks)
+    return {"warming": len(accts), "cleared": cleared}
+
+
+def run_warming_sync_blocking() -> None:
+    """APScheduler entry for the warming loop. NOT market-hours gated (SnapTrade
+    backfill lands any time after connect). Never raises into the scheduler."""
+    import logging
+    try:
+        asyncio.run(_warming_sync())
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("broker_sync").warning("warming sync failed: %s", e)
 
 
 async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[str, Any]:
