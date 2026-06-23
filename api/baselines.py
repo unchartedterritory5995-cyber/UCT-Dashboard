@@ -189,51 +189,49 @@ def refresh_baselines(
 
     date_clause, date_params = _date_filter_clause(days_back)
 
-    # Pull all (ticker, premium) pairs in scope. CAST since FlowDB stores
-    # Premium as TEXT. The CAST is cheap relative to the I/O.
-    #
     # CANCELED TRADE FILTER: BlackBoxStocks marks canceled orders with
-    # Color='#FF0000' (red). These are trades that were attempted but
-    # didn't actually fill — including them in percentile computation
-    # inflates the upper tail and makes gates too strict. E.g. AVGO had
-    # 14 canceled trades totaling $22.76M and MU had 13 canceled totaling
-    # $14.98M in the source data — without filtering, these phantom blocks
-    # would push P95/P99 thresholds artificially high.
+    # Color='#FF0000' (red). These are NOT standalone "phantom" trades —
+    # each red entry CANCELS a previously-recorded real trade with the
+    # same composite key. To compute accurate baselines, we must exclude
+    # BOTH the original trade AND the red cancellation marker.
+    #
+    # Example from QRVO 6/22/2026:
+    #   11:21:50 CALL $115 $5M MAGENTA (original, real fill)
+    #   11:26:28 CALL $115 $5M RED     (cancellation of that $5M)
+    # Net effect: no $5M trade actually occurred. Both rows excluded.
+    #
+    # Empirically (June 2026 sample): 135 red entries → 54 paired to a
+    # prior original, 81 "orphan" reds with no matching prior (excluded
+    # but no pair to remove). Matching is always same-day in practice.
+    #
+    # Algorithm:
+    #   1. Pull ALL qualifying rows (including reds) with metadata
+    #   2. Group by (date, composite_key)
+    #   3. Within each group, time-sort and use a stack: pop the most
+    #      recent non-red original when a red arrives. Mark both excluded.
+    #   4. Compute percentiles from the survivors.
     with _conn(db_path) as conn:
+        # Pull all rows including the metadata needed to identify cancel pairs.
+        # We pull ALL trades >= min_premium (including reds) so we can do the
+        # matching, then exclude pairs in Python.
         cursor = conn.execute(
             f"""
-            SELECT Symbol, CAST(Premium AS REAL) as prem
+            SELECT id, Symbol, CallPut, Strike, ExpirationDate, Type, Side,
+                   CAST(Premium AS REAL) as prem, Color, CreatedDate, CreatedTime
             FROM flow
             WHERE source = ?
               AND {date_clause}
               AND CAST(Premium AS REAL) >= ?
               AND Symbol IS NOT NULL
               AND Symbol != ''
-              AND (Color IS NULL OR Color != '#FF0000')
             """,
             [source] + date_params + [min_premium],
         )
-        rows = cursor.fetchall()
-
-        # Count canceled trades excluded for the response, so the admin can
-        # see how much "phantom flow" was filtered out. Diagnostic only —
-        # not used in percentile math.
-        cursor_canceled = conn.execute(
-            f"""
-            SELECT COUNT(*) FROM flow
-            WHERE source = ?
-              AND {date_clause}
-              AND CAST(Premium AS REAL) >= ?
-              AND Color = '#FF0000'
-            """,
-            [source] + date_params + [min_premium],
-        )
-        canceled_excluded = cursor_canceled.fetchone()[0]
+        all_rows = cursor.fetchall()
 
         # Also query the actual date range hit — tells the admin whether
         # the configured `days_back` is larger than the available data
-        # (e.g. you asked for 180 days but only have 90). Cheap query
-        # since CreatedDate is indexed.
+        # (e.g. you asked for 180 days but only have 90).
         cursor2 = conn.execute(
             f"""
             SELECT MIN(CreatedDate), MAX(CreatedDate), COUNT(DISTINCT CreatedDate)
@@ -245,8 +243,60 @@ def refresh_baselines(
         )
         date_min, date_max, distinct_dates = cursor2.fetchone()
 
-    log.info("[baselines] loaded %d qualifying rows (excluded %d canceled trades) "
-             "for percentile computation", len(rows), canceled_excluded)
+    # Identify cancel pairs. Group rows by (date, composite_key) then
+    # within each group, time-sort and pair reds with prior non-reds.
+    excluded_ids: set = set()
+    # groups[(date, key)] = list of (time_str, id, color)
+    groups: dict = {}
+    for row in all_rows:
+        (rid, sym, cp, strike, exp, typ, side, prem, color,
+         created_date, created_time) = row
+        comp_key = (sym, cp, strike, exp, typ, side, prem)
+        groups.setdefault((created_date, comp_key), []).append(
+            (created_time or "", rid, color)
+        )
+
+    cancel_pairs_matched = 0
+    orphan_reds = 0
+    for (_date, _key), trades in groups.items():
+        # Sort by time within the day. CreatedTime is "H:MM:SS AM/PM" — sort
+        # by parsed minutes for correctness. Fall back to string sort if
+        # parse fails (still chronological for same-format strings on the
+        # same day).
+        def _time_key(item):
+            t = item[0]
+            try:
+                # Parse "11:26:28 AM" → minutes since midnight
+                h, m, rest = t.split(":")
+                s, ampm = rest.split(" ")
+                hh = int(h) % 12 + (12 if ampm.upper() == "PM" else 0)
+                return hh * 3600 + int(m) * 60 + int(s)
+            except (ValueError, AttributeError):
+                return t  # lexical fallback
+        trades.sort(key=_time_key)
+
+        original_stack: list = []
+        for _time, tid, color in trades:
+            if color == '#FF0000':
+                if original_stack:
+                    # Match: pop the most recent non-red and exclude both.
+                    excluded_ids.add(original_stack.pop())
+                    cancel_pairs_matched += 1
+                else:
+                    orphan_reds += 1
+                excluded_ids.add(tid)
+            else:
+                original_stack.append(tid)
+
+    # Build the percentile input list from survivors only.
+    rows = [(sym, prem) for (rid, sym, _cp, _k, _e, _ty, _si, prem, _co, _d, _t)
+            in all_rows if rid not in excluded_ids]
+
+    log.info(
+        "[baselines] loaded %d rows for percentile computation; excluded %d "
+        "(%d cancel pairs matched, %d orphan reds)",
+        len(rows), len(excluded_ids), cancel_pairs_matched, orphan_reds,
+    )
 
     # Group by ticker, sort each list once, compute percentiles
     by_ticker: dict[str, list] = {}
@@ -321,7 +371,11 @@ def refresh_baselines(
         "ok": True,
         "tickers_computed": len(computed),
         "rows_scanned": len(rows),
-        "canceled_trades_excluded": canceled_excluded,
+        "cancel_filtering": {
+            "pairs_matched": cancel_pairs_matched,
+            "orphan_reds_excluded": orphan_reds,
+            "total_rows_excluded": len(excluded_ids),
+        },
         "upserted": upserted,
         "date_range": {
             "earliest": date_min,
@@ -338,6 +392,7 @@ def refresh_baselines(
             "source": source,
             "min_premium_for_baseline": min_premium,
             "exclude_canceled_trades": True,
+            "exclude_originals_of_cancellations": True,
         },
         "elapsed_sec": round(elapsed, 2),
     }
