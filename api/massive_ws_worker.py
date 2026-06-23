@@ -118,7 +118,7 @@ def get_status() -> dict:
 
 def _events_to_csv(events: list, source: str) -> str:
     """Convert AggEvents → BBS-format CSV string for FlowDB.insert_csv."""
-    from massive_processor import event_to_bbs_row
+    from api.massive_processor import event_to_bbs_row
     from api.flow_db import COLUMNS  # Reuse the exact column order
 
     buf = StringIO()
@@ -133,7 +133,7 @@ def _events_to_csv(events: list, source: str) -> str:
 
 def _write_events(events: list) -> None:
     """Split events into stocks/indexes and write each to FlowDB."""
-    from massive_processor import is_index_source
+    from api.massive_processor import is_index_source
 
     stocks = [e for e in events if not is_index_source(e.root)]
     indexes = [e for e in events if is_index_source(e.root)]
@@ -291,7 +291,7 @@ async def _consume_forever():
 
 async def _run_session(ws):
     """Handle one connected session: parse trades, periodic flush."""
-    from massive_processor import TradeAggregator, RawTrade
+    from api.massive_processor import TradeAggregator, RawTrade
 
     agg = TradeAggregator(min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
 
