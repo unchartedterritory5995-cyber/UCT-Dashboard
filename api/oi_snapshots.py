@@ -465,6 +465,107 @@ def _fetch_oi_all(
     return asyncio.run(_fetch_oi_all_async(contracts))
 
 
+# ── On-demand single-contract fetch ──────────────────────────────────────
+# Used by liveflow_worker.py when a Bullflow alert fires on a contract that
+# wasn't in the daily snapshot batch. The daily cron at 5:30 UTC only covers
+# tickers with ≥3 trades in the BBS flow table over the past N days, so first
+# alerts on new tickers (or low-volume tickers) miss the snapshot.
+#
+# With this fallback, ALL alerts get OI within ~300ms of arrival:
+#   1. liveflow worker calls fetch_and_persist_one_oi(...)
+#   2. We check DB first (fast, no API hit) — might already be there from
+#      a same-day fire or an earlier on-demand fetch
+#   3. If not, single Schwab options-chain call (~200-400ms)
+#   4. Persist result to contract_oi_snapshots with source='ondemand-schwab'
+#   5. Return OI value
+#
+# Subsequent fires on the same contract (multi-fire pattern) hit step 2 and
+# skip Schwab entirely.
+async def fetch_and_persist_one_oi(
+    sym: str, cp: str, strike: float, exp_iso: str,
+) -> Optional[int]:
+    """On-demand OI fetch for a single contract from Schwab.
+
+    `exp_iso` is ISO format ('YYYY-MM-DD') as used in Bullflow live alerts.
+    Internally converted to MDY for the snapshot key convention.
+
+    Idempotent: if the contract is already in contract_oi_snapshots for
+    today, returns the cached value without calling Schwab. Safe to call
+    from multiple alert handlers concurrently — DB unique constraint
+    handles race conditions.
+
+    Returns OI as int, or None if Schwab returns no data / errors out /
+    inputs are malformed. Caller handles None gracefully (no OI badge).
+    """
+    if not sym or not cp or strike is None or not exp_iso:
+        return None
+
+    # Bullflow gives ISO; our snapshot keys use MDY
+    if "-" not in exp_iso:
+        return None
+    parts = exp_iso.split("-")
+    if len(parts) != 3:
+        return None
+    try:
+        exp_mdy = f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
+    except (ValueError, IndexError):
+        return None
+
+    today_iso = date.today().isoformat()
+    ck = make_key(sym, cp, strike, exp_mdy)
+
+    # DB hit? Skip Schwab. This handles the multi-fire case where the FIRST
+    # fire triggered an on-demand fetch and persisted it; subsequent fires
+    # within the same day get the cached value for free.
+    existing = get_snapshot(ck, today_iso)
+    if existing:
+        return existing[0]
+
+    # Walk back a few days for a stale-but-OK match (weekend, holiday, or
+    # the daily cron skipped this ticker). OI changes slowly day-to-day;
+    # a 1-3 day old snapshot is meaningfully accurate for signal purposes.
+    for days_back in range(1, _STALE_OK_DAYS + 1):
+        check_date = _to_iso(date.today() - timedelta(days=days_back))
+        snap = get_snapshot(ck, check_date)
+        if snap:
+            return snap[0]
+
+    # No snapshot exists. Call Schwab.
+    try:
+        results = await _fetch_oi_all_async([(sym, cp, strike, exp_mdy)])
+    except Exception as e:
+        logger.warning(
+            f"[oi-snapshot] on-demand Schwab fetch failed for "
+            f"{sym} {cp} ${strike} {exp_iso}: {e}"
+        )
+        return None
+
+    if not results:
+        return None
+    _, oi = results[0]
+    if oi is None or oi == 0:
+        # Schwab returned no data (delisted, expired, or invalid contract).
+        # Don't persist a 0 — get_snapshot would return it on next call and
+        # we'd skip the retry.
+        return None
+
+    # Persist with source label so we can distinguish on-demand vs cron later
+    try:
+        record_batch([(ck, oi, "ondemand-schwab")], today_iso)
+        logger.info(
+            f"[oi-snapshot] on-demand persisted {sym} {cp} ${strike} {exp_iso} OI={oi}"
+        )
+    except Exception as e:
+        # Persist failure isn't fatal — caller still gets the OI value, just
+        # next same-day fire will refetch from Schwab instead of DB
+        logger.warning(f"[oi-snapshot] on-demand persist failed: {e}")
+
+    return oi
+
+
+_STALE_OK_DAYS = 5   # how far back to walk for "stale-but-OK" snapshot match
+
+
 # ── The daily job ────────────────────────────────────────────────────────
 # Chunked processing — split contracts into chunks, fetch + commit per chunk.
 # Means partial progress is durable: if the job crashes or gets cancelled
