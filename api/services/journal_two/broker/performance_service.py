@@ -19,6 +19,24 @@ from api.services.journal_two.broker import performance, cashflow_store
 logger = logging.getLogger(__name__)
 
 
+def _ensure_renderable_series(series: list[dict], *, current_total, today: str) -> list[dict]:
+    """Guarantee a >=2-point curve when a live balance exists, without writing
+    synthetic snapshots. If <2 real points and we know the current net-liq,
+    append a live 'now' anchor (flagged estimated). No-op when already >=2 or
+    when there's genuinely no balance to anchor on."""
+    if len(series) >= 2 or current_total is None:
+        return series
+    out = list(series)
+    if not out:
+        # No history at all — seed a starting endpoint from the live total so the
+        # hero shows a flat baseline rather than nothing.
+        out.append({"date": today, "value": float(current_total), "estimated": True})
+    # Append a live "now" anchor so a single real snapshot still yields a
+    # 2-point renderable series.
+    out.append({"date": today, "value": float(current_total), "estimated": True})
+    return out
+
+
 def _period_start(period: str | None) -> str | None:
     """ISO date the window starts at, or None for ALL."""
     period = (period or "ALL").upper()
@@ -71,7 +89,14 @@ def account_performance(user_id: str, account_id: str, period: str = "ALL",
                             "interest": by_type.get("interest", 0.0),
                             "fees": by_type.get("fee", 0.0)}
                 result = performance.compute_performance(equity, external, internal)
-                result["equitySeries"] = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+                series = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+                try:
+                    from api.services.journal_two.broker.historical_equity import _et_today
+                    series = _ensure_renderable_series(
+                        series, current_total=live_eq, today=_et_today())
+                except Exception:
+                    pass
+                result["equitySeries"] = series
                 result["flows"] = cashflow_store.list_flows(user_id, account_id, start=start, conn=conn)
                 result["estimated"] = False
                 result["period"] = (period or "ALL").upper()
@@ -91,13 +116,16 @@ def account_performance(user_id: str, account_id: str, period: str = "ALL",
                   if (start is None or r["snapshot_date"] >= start)]
 
         # Live right-edge: today's broker total if newer than the last snapshot.
+        live_total = None
+        today = None
         try:
             from api.services.journal_two import accounts as _accounts
             from api.services.journal_two.broker.historical_equity import _et_today
+            today = _et_today()
             acct = _accounts.get_account(user_id, account_id, conn=conn)
             if acct and acct.get("brokerTotalEquity") is not None:
-                today = _et_today()
                 live = round(float(acct["brokerTotalEquity"]), 2)
+                live_total = live
                 if start is None or today >= start:
                     if equity and equity[-1][0] >= today:
                         equity[-1] = (equity[-1][0], live)
@@ -114,7 +142,10 @@ def account_performance(user_id: str, account_id: str, period: str = "ALL",
             "fees": by_type.get("fee", 0.0),
         }
         result = performance.compute_performance(equity, external, internal)
-        result["equitySeries"] = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+        series = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+        if today is not None:
+            series = _ensure_renderable_series(series, current_total=live_total, today=today)
+        result["equitySeries"] = series
         result["flows"] = cashflow_store.list_flows(user_id, account_id, start=start, conn=conn)
         result["estimated"] = False
         result["period"] = (period or "ALL").upper()
@@ -153,9 +184,12 @@ def portfolio_performance(user_id: str, period: str = "ALL",
                       if (start is None or r["d"] >= start)]
 
         # Live right-edge: sum of current broker totals across all broker accounts.
+        live_edge_total = None
+        today = None
         try:
             from api.services.journal_two import accounts as _accounts
             from api.services.journal_two.broker.historical_equity import _et_today
+            today = _et_today()
             live_total = 0.0
             have_live = False
             for j2 in j2_ids:
@@ -164,8 +198,8 @@ def portfolio_performance(user_id: str, period: str = "ALL",
                     live_total += float(a["brokerTotalEquity"])
                     have_live = True
             if have_live:
-                today = _et_today()
                 live = round(live_total, 2)
+                live_edge_total = live
                 if start is None or today >= start:
                     if equity and equity[-1][0] >= today:
                         equity[-1] = (equity[-1][0], live)
@@ -188,7 +222,10 @@ def portfolio_performance(user_id: str, period: str = "ALL",
 
         result = performance.compute_performance(
             equity, external, {"dividends": div, "interest": interest, "fees": fees})
-        result["equitySeries"] = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+        series = [{"date": d, "value": v, "estimated": False} for d, v in equity]
+        if today is not None:
+            series = _ensure_renderable_series(series, current_total=live_edge_total, today=today)
+        result["equitySeries"] = series
         result["flows"] = sorted(flows, key=lambda f: f["date"])
         result["estimated"] = False
         result["period"] = (period or "ALL").upper()
