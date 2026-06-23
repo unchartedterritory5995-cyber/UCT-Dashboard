@@ -348,6 +348,33 @@ def set_user_blocklist(tickers):
 # Load on module import so the worker has the blocklist available immediately.
 _load_user_blocklist()
 
+
+# Load ticker baselines into worker memory at module import. The worker is
+# a separate process from the web service, so its baselines cache is
+# independent — needs its own load_baselines() call at startup. Fails
+# silently if the table doesn't exist yet (first deploy before any refresh);
+# worker falls back to static TIER_PREMIUM_REQUIREMENTS in that case.
+try:
+    from api import baselines as _baselines_for_worker
+    _baselines_for_worker.init_db()
+    _bl_loaded = _baselines_for_worker.load_baselines()
+    log.info("[liveflow] ticker baselines loaded into worker memory (%d tickers)",
+             _bl_loaded)
+except ImportError:
+    try:
+        import baselines as _baselines_for_worker
+        _baselines_for_worker.init_db()
+        _bl_loaded = _baselines_for_worker.load_baselines()
+        log.info("[liveflow] ticker baselines loaded into worker memory (%d tickers, root)",
+                 _bl_loaded)
+    except Exception as e:
+        log.warning("[liveflow] baselines unavailable in worker — falling back to "
+                    "static TIER_PREMIUM_REQUIREMENTS. Reason: %s", e)
+except Exception as e:
+    log.warning("[liveflow] baselines load failed in worker — falling back to "
+                "static TIER_PREMIUM_REQUIREMENTS. Reason: %s", e)
+
+
 # ─── Dedup engine ────────────────────────────────────────────────────────────
 # Bullflow fires one event per matching alert, so a single trade often arrives
 # 2-3 times (e.g. matches both UCT Bullish and UCT Vol>OI, plus their native
@@ -407,6 +434,53 @@ def _strip_grade_emoji(grade_str: str) -> str:
     # The valid letter grades all start with A/B/C/D; everything else trailing
     # is decoration. Split on first space and take just the letter portion.
     return g.split()[0] if g else "D"
+
+
+def _get_premium_floor_for_alert(
+    ticker: str, clean_grade: str, alert_name: str = ""
+):
+    """
+    Per-ticker, per-grade premium floor in dollars. Uses ticker_baselines
+    (the data-driven per-ticker percentile system) when available; falls
+    back to static TIER_PREMIUM_REQUIREMENTS otherwise.
+
+    Returns:
+      - A dollar amount the trade's premium must reach to pass the gate
+      - None if grade is blocked entirely (C, D — unless per-alert override)
+
+    Why a wrapper:
+      - Worker has both replay and live SSE code paths that need this logic
+      - Baselines module may not be importable in some test contexts
+      - Fallback to static thresholds is what guarantees safety on cold
+        starts before baselines load, or for unknown tickers, or if the
+        baselines module crashes
+
+    Soft import — if baselines is unavailable for any reason, fall back
+    silently to static thresholds. Logging at debug level only since this
+    is the hot path (called once per alert post-attempt).
+    """
+    # Try baselines first
+    try:
+        from api import baselines as _b
+    except ImportError:
+        try:
+            import baselines as _b
+        except ImportError:
+            _b = None
+    if _b is not None:
+        try:
+            floor = _b.get_premium_floor(ticker, clean_grade)
+            # baselines returns None for C/D grades, OR a dollar amount.
+            # We can't distinguish "no floor configured for this grade"
+            # from "low-sample fallback returned None for C/D" — in either
+            # case, fall through to static lookup below.
+            if floor is not None:
+                return floor
+        except Exception as e:
+            log.debug("[liveflow] baseline floor lookup failed for %s/%s: %s",
+                      ticker, clean_grade, e)
+    # Fallback: static TIER_PREMIUM_REQUIREMENTS
+    return TIER_PREMIUM_REQUIREMENTS.get(clean_grade)
 
 
 MIN_DISCORD_GRADE_LEVEL = _grade_level(MIN_DISCORD_GRADE)
@@ -1048,27 +1122,33 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
             continue
         a["_replayedPassesGradeGate"] = 1
 
-        # Step 5b: TIER_PREMIUM_REQUIREMENTS — grade alone isn't enough. A
-        # B-grade $700K trade and a B-grade $20M trade are very different
-        # signals. Check per-tier premium floor (e.g. B requires $2M+).
-        # Skip this check for tiers with explicit min_grade overrides (e.g.
-        # Unusual Weeklies passes D-grade because premium+DTE+cap-tier IS
-        # the signal there — TIER_PREMIUM_REQUIREMENTS["D"] = None).
-        tier_floor = TIER_PREMIUM_REQUIREMENTS.get(_strip_grade_emoji(grade))
+        # Step 5b: Per-ticker premium floor — replaces the static
+        # TIER_PREMIUM_REQUIREMENTS table. Uses ticker_baselines if
+        # available (percentile-based, flow-tier-aware), falls back to
+        # the static TIER_PREMIUM_REQUIREMENTS for unknown/thin tickers.
+        #
+        # Why: a $1.59M trade is unusual for NOK (P99 = $2.5M) but routine
+        # for MU (P75 = $2.19M). One static threshold can't serve both.
+        # baselines.get_premium_floor classifies tickers by flow frequency
+        # (sparse/mid/liquid) and applies appropriate floors per grade.
+        #
+        # Unusual Weeklies tier override still applies — alerts with their
+        # own min_grade in ALERT_CONVICTION_GATES bypass this check, since
+        # they're already signal-quality-screened upstream.
+        clean_grade = _strip_grade_emoji(grade)
+        tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, name)
         if tier_floor is None:
-            # Grade C/D with no override gate → block here. But UCT Unusual
-            # Weeklies sets min_grade=D so it already passed step 5; for that
-            # tier we don't want to re-block. Check whether the alert is one
-            # that sets its own min_grade and respect that.
+            # Grade C/D with no per-alert override → block.
             alert_has_override = bool(_get_alert_gates(name).get("min_grade"))
             if not alert_has_override:
                 a["_replayedPassesGradeGate"] = 0
-                a["_replayedGateReason"] = f"tier_premium_{grade}_blocked"
+                a["_replayedGateReason"] = f"tier_premium_{clean_grade}_blocked"
                 continue
         elif not premium or premium < tier_floor:
             a["_replayedPassesGradeGate"] = 0
             a["_replayedGateReason"] = (
-                f"tier_premium_low:{grade}_${int((premium or 0)/1000)}K<${int(tier_floor/1000)}K"
+                f"tier_premium_low:{ticker}_{clean_grade}_"
+                f"${int((premium or 0)/1000)}K<${int(tier_floor/1000)}K"
             )
             continue
 
@@ -1882,6 +1962,13 @@ _status = {
         "alert_conviction_gates": {
             name: dict(g) for name, g in ALERT_CONVICTION_GATES.items()
         },
+        # Static fallback premium floors (used when baselines unavailable or
+        # ticker has too few samples). Per-ticker baseline-driven floors take
+        # precedence when available — query /api/live/admin/baselines/{ticker}
+        # to see the live floor for any given ticker.
+        "tier_premium_requirements_fallback": dict(TIER_PREMIUM_REQUIREMENTS),
+        "high_premium_override": HIGH_PREMIUM_OVERRIDE,
+        "global_max_per_ticker_per_day": GLOBAL_MAX_PER_TICKER_PER_DAY,
     },
 }
 
@@ -2358,26 +2445,32 @@ async def _post_to_discord(client, alert):
                       alert.get("id"), e)
         return
 
-    # TIER_PREMIUM_REQUIREMENTS check — grade alone isn't enough. A B-grade
-    # $700K trade and a B-grade $20M trade are different signals. Block when
-    # the trade's premium falls below the per-tier floor (e.g. B requires $2M+).
-    # Skip when the alert has an explicit min_grade override that this would
-    # contradict (e.g. Unusual Weeklies accepts D — TIER req for D is None,
-    # but the tier-override should win).
+    # Per-ticker premium floor check — replaces static TIER_PREMIUM_REQUIREMENTS
+    # with baseline-driven floors from ticker_baselines. See replay code path
+    # at top of file for full reasoning. Briefly: a $1.59M trade is unusual
+    # for NOK but routine for MU; one static threshold can't serve both.
+    #
+    # Only applies to NEW posts (message_id is None). Multi-fire patches on
+    # the same contract bypass this check — once the first fire passed and
+    # got a Discord message, subsequent fires PATCH that message regardless
+    # of whether they'd independently qualify.
     alert_premium = agg.get("max_premium") or agg.get("total_premium") or 0
     if not message_id:
-        tier_floor = TIER_PREMIUM_REQUIREMENTS.get(_strip_grade_emoji(grade))
-        alert_has_override = bool(_get_alert_gates(alert.get("alertName") or "").get("min_grade"))
+        clean_grade = _strip_grade_emoji(grade)
+        ticker = (agg.get("ticker") or "").upper()
+        alert_name_str = alert.get("alertName") or ""
+        tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, alert_name_str)
+        alert_has_override = bool(_get_alert_gates(alert_name_str).get("min_grade"))
         tier_blocks = False
         block_reason = ""
         if tier_floor is None and not alert_has_override:
             tier_blocks = True
-            block_reason = f"tier_premium_{grade}_blocked"
+            block_reason = f"tier_premium_{clean_grade}_blocked"
         elif tier_floor is not None and (not alert_premium or alert_premium < tier_floor):
             tier_blocks = True
             block_reason = (
-                f"tier_premium_low:{grade}_${int((alert_premium or 0)/1000)}K"
-                f"<${int(tier_floor/1000)}K"
+                f"tier_premium_low:{ticker}_{clean_grade}_"
+                f"${int((alert_premium or 0)/1000)}K<${int(tier_floor/1000)}K"
             )
         if tier_blocks:
             _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
