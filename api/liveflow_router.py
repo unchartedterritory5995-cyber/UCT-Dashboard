@@ -744,9 +744,29 @@ def admin_baseline_for_ticker(ticker: str):
         "A":  baselines.get_premium_floor(t, "A"),
         "B":  baselines.get_premium_floor(t, "B"),
     }
+
+    # Surface which flow tier this ticker is in so the admin can see at
+    # a glance whether percentiles or flat floors are driving the gate.
+    flow_tier = None
+    trades_per_day = None
+    if baseline:
+        n = baseline.get("sample_count") or 0
+        days = max(baseline.get("days_back") or 1, 1)
+        trades_per_day = round(n / days, 2)
+        if n < baselines.MIN_SAMPLES:
+            flow_tier = "fallback (insufficient samples)"
+        elif trades_per_day < 1.0:
+            flow_tier = "sparse (flat floors)"
+        elif trades_per_day < 5.0:
+            flow_tier = "mid (P50/P75/P90 + caps)"
+        else:
+            flow_tier = "liquid (P75/P85/P95 + caps)"
+
     return {
         "ticker": t,
         "baseline": baseline,
+        "trades_per_day": trades_per_day,
+        "flow_tier": flow_tier,
         "computed_floors": floors,
         "fallback_active": (
             baseline is None
