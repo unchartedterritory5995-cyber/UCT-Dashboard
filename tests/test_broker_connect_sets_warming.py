@@ -23,12 +23,16 @@ def _make_account(conn, user_id):
 
 
 def test_begin_warming_marks_all_user_accounts():
+    import uuid
     init_db()
+    # Unique user id so re-runs against the persistent shared /data/auth.db
+    # don't collide (AccountConflictError) on the per-user account name.
+    user_id = "uw-" + uuid.uuid4().hex[:8]
     conn = get_connection()
     try:
-        ba_id = _make_account(conn, "uw1")
+        ba_id = _make_account(conn, user_id)
     finally:
         conn.close()
-    broker_sync_router._begin_warming("uw1")
-    acct = connections.get_broker_account("uw1", ba_id)
+    broker_sync_router._begin_warming(user_id)
+    acct = connections.get_broker_account(user_id, ba_id)
     assert acct["warming"] is True
