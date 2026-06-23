@@ -576,6 +576,53 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
       }}>
         {alert.averageFillPrice != null ? "$" + Number(alert.averageFillPrice).toFixed(2) : "—"}
       </td>
+      {/* % Money — color-coded against operator-validated thresholds.
+          ITM: green ≤30% (sweet spot), amber 30-50%, red >50% (deep ITM
+          synthetic position — gate blocks these). OTM: green ≤15% (near-
+          ATM), amber 15-40%, red >40% on non-LEAPS (lottery — gate blocks). */}
+      <td style={{
+        padding: "8px 10px", fontSize: 11, textAlign: "center",
+        fontFamily: "ui-monospace, monospace",
+      }}>
+        {(() => {
+          const pct = alert.moneynessPct;
+          const label = alert.moneynessLabel;
+          if (pct == null || !label) return <span style={{ color: P.dm }}>—</span>;
+          const absPct = Math.abs(pct);
+          let color = P.dm;
+          if (label === "ITM") {
+            if (absPct > 50) color = "#ef4444";
+            else if (absPct > 30) color = "#f59e0b";
+            else color = "#22c55e";
+          } else if (label === "OTM") {
+            if (absPct > 40) color = "#ef4444";
+            else if (absPct > 15) color = "#f59e0b";
+            else color = "#22c55e";
+          } else if (label === "ATM") {
+            color = "#22c55e";
+          }
+          const display = label === "ATM" ? "ATM" : `${label} ${Math.round(absPct)}%`;
+          return <span style={{ color, fontWeight: 600 }}>{display}</span>;
+        })()}
+      </td>
+      {/* Volume — cumulative contracts traded (multi-fire sums up). */}
+      <td style={{
+        padding: "8px 10px", color: primaryTextColor, fontSize: 11,
+        textAlign: "center",
+        fontFamily: "ui-monospace, monospace", fontWeight: 600,
+      }}>
+        {alert.tradeSize != null ? alert.tradeSize.toLocaleString() : "—"}
+      </td>
+      {/* OI — prior open interest from snapshot. Dim because it's
+          context, not the signal itself. The ratio Vol/OI is what matters
+          and is implied by visual comparison of the two adjacent cells. */}
+      <td style={{
+        padding: "8px 10px", color: P.dm, fontSize: 11,
+        textAlign: "center",
+        fontFamily: "ui-monospace, monospace",
+      }}>
+        {alert.priorOI != null ? alert.priorOI.toLocaleString() : "—"}
+      </td>
       <td style={{ padding: "8px 10px", fontSize: 9, fontWeight: 700 }}>
         <span style={{
           padding: "2px 7px", borderRadius: 3, letterSpacing: 0.5,
@@ -795,7 +842,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle, isAdmin }) {
         borderTop: "1px solid " + P.bd,
         borderBottom: "1px solid " + meta.color + "30",
       }}>
-        <td colSpan={isAdmin ? 13 : 12} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
+        <td colSpan={isAdmin ? 16 : 15} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
@@ -1779,6 +1826,10 @@ export default function LiveFlow() {
                 {[
                   ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
                   ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
+                  // Trade-context columns (added 2026-06-24). Grouped with
+                  // Avg Fill so all "what was the trade" data sits together
+                  // before the "what tier caught it" columns.
+                  ["% Money", 11], ["Volume", 10], ["OI", 10],
                   ["Type", 9], ["Alert Name", 11],
                   // Push column is admin-only — hidden for subscribers.
                   // Placed right after Alert Name per operator preference so
@@ -1789,7 +1840,8 @@ export default function LiveFlow() {
                 ].map(([label]) => (
                   <th key={label} style={{
                     padding: "8px 10px",
-                    textAlign: (label === "Grade" || label === "🔔" || label === "Push") ? "center" : "left",
+                    textAlign: (label === "Grade" || label === "🔔" || label === "Push"
+                                || label === "% Money" || label === "Volume" || label === "OI") ? "center" : "left",
                     color: P.dm, fontSize: 9, fontWeight: 700,
                     letterSpacing: 0.5, textTransform: "uppercase",
                   }}>{label}</th>
