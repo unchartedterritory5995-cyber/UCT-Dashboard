@@ -171,7 +171,7 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
     Returns stats dict."""
     import pandas as pd
     # Lazy-import to keep module-import cost low
-    from massive_processor import (
+    from api.massive_processor import (
         batch_process, event_to_bbs_row, is_index_source,
     )
     from api.flow_db import FlowDB, COLUMNS
