@@ -185,12 +185,17 @@ def _write_events(events: list) -> None:
 async def _consume_forever():
     """Outer loop: connect, run, reconnect on failure with backoff.
 
-    Backoff semantics: starts at 1s, doubles on each failure to MAX_BACKOFF.
-    Critically, the backoff resets ONLY after a successful authentication —
-    NOT when TCP connects. Massive will happily accept the TCP connection
-    and then immediately respond with auth_failed or max_connections; if we
-    reset backoff on TCP-open, an account that's locked out gets hammered
-    at ~1/sec, which makes the lockout worse on Massive's side.
+    Backoff semantics: starts at MIN_RECONNECT_GAP (20s) per Massive support
+    guidance — their server takes 10-30s to notice an unexpected client
+    disconnect. Reconnecting faster than that means the SERVER thinks both
+    connections are active, which trips max_connections and locks you out.
+    Doubles on each failure to MAX_BACKOFF.
+
+    The backoff resets to MIN_RECONNECT_GAP ONLY after a successful
+    authentication — NOT when TCP connects. Massive will happily accept
+    the TCP connection and then immediately respond with auth_failed or
+    max_connections; if we reset backoff on TCP-open, an account that's
+    locked out gets hammered too fast, which makes the lockout worse.
 
     Special-case: max_connections triggers a long cooldown (MAX_CONN_COOLDOWN)
     regardless of backoff. This error means Massive thinks you have too many
@@ -198,8 +203,12 @@ async def _consume_forever():
     """
     import websockets
 
-    backoff = 1.0
-    MAX_BACKOFF = 60.0
+    # Per Massive support: leave 10-30s gap between automatic reconnections
+    # so both client and server have time to fully close the old connection
+    # before a new one is established. We pick the high end (20s) for safety.
+    MIN_RECONNECT_GAP = 20.0
+    backoff = MIN_RECONNECT_GAP
+    MAX_BACKOFF = 120.0
     MAX_CONN_COOLDOWN = 600.0  # 10 min — long enough for server-side cleanup
 
     while ENABLED:
@@ -234,8 +243,9 @@ async def _consume_forever():
                     raise RuntimeError(f"auth failed: {auth_resp[:300]}")
 
                 # Auth successful — NOW it's safe to reset backoff. From here
-                # on, any disconnect is something to retry quickly.
-                backoff = 1.0
+                # on, any disconnect is something to retry quickly (but still
+                # honoring the 20s server-cleanup window).
+                backoff = MIN_RECONNECT_GAP
 
                 # 3. Subscribe
                 await ws.send(json.dumps({
