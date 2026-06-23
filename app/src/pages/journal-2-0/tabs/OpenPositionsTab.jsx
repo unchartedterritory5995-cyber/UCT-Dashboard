@@ -24,6 +24,8 @@ import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import BrokerSyncStatus from '../components/BrokerSyncStatus'
+import BrokerImportingBanner from '../components/BrokerImportingBanner'
+import useBrokerWarming from '../hooks/useBrokerWarming'
 import ColumnsPicker from '../components/ColumnsPicker'
 import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
@@ -120,6 +122,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { prices } = useLivePrices(symbols)
   const { mutate } = useSWRConfig()
+  const { warming, broker: warmingBroker } = useBrokerWarming()
 
   const accountSize = settings?.accountSize ?? 0
   const tradingMode = settings?.tradingMode ?? 'both'
@@ -243,6 +246,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
 
   return (
     <div className={styles.wrap}>
+      {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
       <BrokerSyncStatus onSynced={() => { refreshPositions(); refreshOptions() }} />
       <BrokerAccountHero account={selectedAccount} aggregates={aggregates} />

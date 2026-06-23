@@ -26,6 +26,8 @@ import AddTradeModal from '../components/AddTradeModal'
 import DeleteAllModal from '../components/DeleteAllModal'
 import ImportCsvModal from '../components/ImportCsvModal'
 import Toast from '../components/Toast'
+import BrokerImportingBanner from '../components/BrokerImportingBanner'
+import useBrokerWarming from '../hooks/useBrokerWarming'
 import { summaryStats } from '../../../lib/journal-2-0'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
@@ -103,6 +105,7 @@ export default function TradeJournalTab({ settings }) {
   const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
   const { reviewedIds } = useReviewedTradeIds(selectedAccountId)
+  const { warming, broker: warmingBroker } = useBrokerWarming()
 
   const tradingMode = settings?.tradingMode ?? 'both'
   const showShares = tradingMode !== 'options'
@@ -243,6 +246,7 @@ export default function TradeJournalTab({ settings }) {
 
   return (
     <div className={styles.wrap}>
+      {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <StatsGrid summary={summary} />
 
       <div className={styles.periodRow}>

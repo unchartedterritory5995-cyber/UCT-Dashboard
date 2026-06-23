@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import TileCard from '../../../components/TileCard'
 import { useAuth } from '../../../context/AuthContext'
+import BrokerImportingBanner from './BrokerImportingBanner'
+import useBrokerWarming from '../hooks/useBrokerWarming'
 import styles from './BrokerConnectionsCard.module.css'
 
 /**
@@ -12,6 +14,7 @@ import styles from './BrokerConnectionsCard.module.css'
  */
 export default function BrokerConnectionsCard() {
   const { isPaid, startCheckout } = useAuth()
+  const { warming, broker: warmingBroker } = useBrokerWarming()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -192,6 +195,7 @@ export default function BrokerConnectionsCard() {
   return (
     <TileCard icon="link" title="Brokerage Connections">
       <div className={styles.section}>
+        {warming && <BrokerImportingBanner broker={warmingBroker} />}
         {error && <div className={styles.error}>{error}</div>}
 
         {!connected && !showConsent && (
