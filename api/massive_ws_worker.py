@@ -51,8 +51,14 @@ MASSIVE_API_KEY = os.environ.get("MASSIVE_API_KEY", "").strip()
 
 # Real-time URL for Advanced plan. The 15-min delayed URL is different
 # (delayed.massive.com); we want real-time for live alerts.
-MASSIVE_WS_URL = os.environ.get(
-    "MASSIVE_WS_URL",
+#
+# IMPORTANT: This is MASSIVE_OPTIONS_WS_URL, not MASSIVE_WS_URL — bar_stream.py
+# uses MASSIVE_WS_URL for the /stocks endpoint, so reusing the same name here
+# would cause both modules to read the same value and both end up on whichever
+# endpoint that var points to (with predictable max_connections errors when the
+# second consumer collides with the first).
+MASSIVE_OPTIONS_WS_URL = os.environ.get(
+    "MASSIVE_OPTIONS_WS_URL",
     "wss://socket.massive.com/options",
 ).strip()
 
@@ -177,27 +183,45 @@ def _write_events(events: list) -> None:
 # ── WebSocket consumer ─────────────────────────────────────────────
 
 async def _consume_forever():
-    """Outer loop: connect, run, reconnect on failure with backoff."""
+    """Outer loop: connect, run, reconnect on failure with backoff.
+
+    Backoff semantics: starts at 1s, doubles on each failure to MAX_BACKOFF.
+    Critically, the backoff resets ONLY after a successful authentication —
+    NOT when TCP connects. Massive will happily accept the TCP connection
+    and then immediately respond with auth_failed or max_connections; if we
+    reset backoff on TCP-open, an account that's locked out gets hammered
+    at ~1/sec, which makes the lockout worse on Massive's side.
+
+    Special-case: max_connections triggers a long cooldown (MAX_CONN_COOLDOWN)
+    regardless of backoff. This error means Massive thinks you have too many
+    connections; retrying every minute won't help and may extend the lockout.
+    """
     import websockets
 
     backoff = 1.0
     MAX_BACKOFF = 60.0
+    MAX_CONN_COOLDOWN = 600.0  # 10 min — long enough for server-side cleanup
 
     while ENABLED:
         try:
-            logger.info("[massive-ws] connecting to %s", MASSIVE_WS_URL)
+            logger.info("[massive-ws] connecting to %s", MASSIVE_OPTIONS_WS_URL)
             async with websockets.connect(
-                MASSIVE_WS_URL,
+                MASSIVE_OPTIONS_WS_URL,
                 ping_interval=20,
                 ping_timeout=20,
                 max_size=2**24,  # 16 MB frames; bursts can be large
             ) as ws:
                 _state["connected"] = True
-                backoff = 1.0  # successful connect resets backoff
+                # NOTE: do NOT reset backoff here — wait for auth_success below
 
-                # 1. Initial status message
+                # 1. Initial status message — could be "connected" OR an error
                 first = await asyncio.wait_for(ws.recv(), timeout=10)
                 logger.info("[massive-ws] hello: %s", first[:200])
+                # Detect immediate rejection (e.g. max_connections) and fail
+                # fast so we don't waste an auth attempt that's guaranteed to
+                # be rejected too. Triggers the cooldown path below.
+                if "max_connections" in first:
+                    raise RuntimeError(f"max_connections at hello: {first[:300]}")
 
                 # 2. Authenticate
                 await ws.send(json.dumps({
@@ -208,6 +232,10 @@ async def _consume_forever():
                 logger.info("[massive-ws] auth: %s", auth_resp[:200])
                 if "auth_success" not in auth_resp:
                     raise RuntimeError(f"auth failed: {auth_resp[:300]}")
+
+                # Auth successful — NOW it's safe to reset backoff. From here
+                # on, any disconnect is something to retry quickly.
+                backoff = 1.0
 
                 # 3. Subscribe
                 await ws.send(json.dumps({
@@ -227,12 +255,26 @@ async def _consume_forever():
             _state["connected"] = False
             _state["last_error"] = str(e)
             _state["reconnect_count"] += 1
-            logger.warning(
-                "[massive-ws] connection error (%s) — reconnect in %.1fs",
-                e, backoff,
-            )
-            await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, MAX_BACKOFF)
+
+            # Pick cooldown: max_connections gets a long sleep, everything
+            # else gets normal exponential backoff.
+            err_str = str(e)
+            if "max_connections" in err_str:
+                sleep_for = MAX_CONN_COOLDOWN
+                logger.warning(
+                    "[massive-ws] max_connections — long cooldown %.0fs "
+                    "(retrying won't help; check account limit / contact support)",
+                    sleep_for,
+                )
+            else:
+                sleep_for = backoff
+                logger.warning(
+                    "[massive-ws] connection error (%s) — reconnect in %.1fs",
+                    e, sleep_for,
+                )
+                backoff = min(backoff * 2, MAX_BACKOFF)
+
+            await asyncio.sleep(sleep_for)
 
     logger.info("[massive-ws] disabled via env — consumer stopping")
 
@@ -368,7 +410,7 @@ def start() -> bool:
     logger.info(
         "[massive-ws] consumer thread started "
         "(url=%s, subscribe=%s, min_prem=$%s, min_vol=%d, dry_run=%s)",
-        MASSIVE_WS_URL, MASSIVE_WS_SUBSCRIBE,
+        MASSIVE_OPTIONS_WS_URL, MASSIVE_WS_SUBSCRIBE,
         f"{MIN_PREMIUM:,.0f}", MIN_VOLUME, DRY_RUN,
     )
     return True
