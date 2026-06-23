@@ -417,6 +417,63 @@ def record_sync_result(
     )
 
 
+def set_warming(
+    user_id: str, broker_account_id: str, until_iso: str | None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Begin (or extend) the post-connect warming window. Resets tick state."""
+    return _update_account_fields(
+        user_id, broker_account_id,
+        {"warming_until": until_iso, "warming_last_activity_count": None,
+         "warming_stable_ticks": 0},
+        conn,
+    )
+
+
+def clear_warming(
+    user_id: str, broker_account_id: str, conn: sqlite3.Connection | None = None
+) -> bool:
+    """End the warming window (backfill settled or window expired)."""
+    return _update_account_fields(
+        user_id, broker_account_id, {"warming_until": None}, conn
+    )
+
+
+def bump_warming_state(
+    user_id: str, broker_account_id: str, *, activity_count: int, stable_ticks: int,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Record the latest warming-tick observation (activity count + stability)."""
+    return _update_account_fields(
+        user_id, broker_account_id,
+        {"warming_last_activity_count": int(activity_count),
+         "warming_stable_ticks": int(stable_ticks)},
+        conn,
+    )
+
+
+def list_warming_accounts(
+    now_iso: str, conn: sqlite3.Connection | None = None
+) -> list[dict[str, Any]]:
+    """Active, sync-enabled accounts still inside their warming window."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM j2_broker_accounts
+             WHERE sync_enabled = 1 AND status = 'active'
+               AND warming_until IS NOT NULL AND warming_until > ?
+             ORDER BY warming_until ASC
+            """,
+            (now_iso,),
+        ).fetchall()
+        return [_row_to_broker_account(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 def _update_account_fields(
     user_id: str, broker_account_id: str, fields: dict[str, Any],
     conn: sqlite3.Connection | None,
@@ -475,6 +532,13 @@ def _row_to_broker_account(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "lastSyncAt": row["last_sync_at"],
         "lastSyncStatus": row["last_sync_status"],
         "lastError": row["last_error"],
+        "warmingUntil": row["warming_until"],
+        "warmingLastActivityCount": row["warming_last_activity_count"],
+        "warmingStableTicks": row["warming_stable_ticks"] or 0,
+        "warming": bool(
+            row["warming_until"]
+            and row["warming_until"] > datetime.now(timezone.utc).isoformat()
+        ),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }

@@ -624,6 +624,12 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN broker_buying_power REAL",
     "ALTER TABLE j2_accounts ADD COLUMN broker_market_value REAL",
     "ALTER TABLE j2_accounts ADD COLUMN broker_balance_synced_at TEXT",
+    # Broker import "warming" — after connect, the scheduler runs short full
+    # re-syncs until SnapTrade's async backfill stabilizes. Nullable; null = not
+    # warming. See docs/superpowers/specs/2026-06-22-broker-seamless-onboarding-design.md
+    "ALTER TABLE j2_broker_accounts ADD COLUMN warming_until TEXT",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN warming_last_activity_count INTEGER",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN warming_stable_ticks INTEGER NOT NULL DEFAULT 0",
 ]
 
 
