@@ -50,6 +50,20 @@ class DisconnectBody(BaseModel):
     purgeTrades: bool = False
 
 
+def _begin_warming(user_id: str) -> None:
+    """Mark every connected account 'warming' so the warming scheduler runs
+    short full re-syncs until SnapTrade's async backfill settles."""
+    from datetime import datetime, timezone, timedelta
+    from api.services.journal_two.broker import connections, sync as _sync
+    until = (datetime.now(timezone.utc)
+             + timedelta(hours=_sync.WARMING_WINDOW_HOURS)).isoformat()
+    for ba in connections.list_broker_accounts(user_id):
+        try:
+            connections.set_warming(user_id, ba["id"], until)
+        except Exception:  # noqa: BLE001 — warming is best-effort
+            pass
+
+
 def _guard_configured() -> None:
     if not snap.is_configured():
         raise HTTPException(
@@ -94,6 +108,7 @@ async def refresh_accounts(user: dict = Depends(_paid)) -> dict[str, Any]:
     _guard_configured()
     try:
         accounts = await broker_service.refresh_accounts(user["id"])
+        _begin_warming(user["id"])
         return {"accounts": accounts}
     except broker_service.NoBrokerConnection:
         raise HTTPException(status_code=409, detail="No brokerage connection. Connect first.")

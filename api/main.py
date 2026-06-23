@@ -1744,6 +1744,15 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(hour=2, minute=30),
                 id="broker_sync_nightly_reconcile", max_instances=1, replace_existing=True,
             )
+            # Import warming — short full re-syncs after a connect until
+            # SnapTrade's async backfill settles. Self-limiting (clears on 2
+            # stable ticks or a 2h window) + cheap no-op when nobody's warming.
+            _bs_warm_interval = int(os.getenv("BROKER_WARMING_INTERVAL_MIN", "3"))
+            _scheduler.add_job(
+                _broker_sync_engine.run_warming_sync_blocking,
+                trigger=IntervalTrigger(minutes=_bs_warm_interval),
+                id="broker_sync_warming", max_instances=1, replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET)")
 
         def _cot_daily_catchup():
