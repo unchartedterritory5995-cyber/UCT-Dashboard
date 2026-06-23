@@ -635,6 +635,17 @@ def _maybe_retag_weeklies(alert_name: str, ticker: str, premium: float, dte) -> 
     isinstance check would silently fail and skip retagging in that case.
     Coerce to int explicitly before comparing.
     """
+    # DEBUG (temporary): log inputs for any Vol>OI / Unusual alert so we can
+    # see what type/value of dte is actually being passed. Remove after
+    # confirming the root cause of the "Unusual Weeklies disappeared" bug.
+    if alert_name and alert_name.strip() in ("UCT Vol>OI", "UCT Unusual"):
+        log.warning(
+            "[retag_debug] name=%r ticker=%s premium=%r(%s) dte=%r(%s)",
+            alert_name, ticker,
+            premium, type(premium).__name__,
+            dte, type(dte).__name__,
+        )
+
     if not alert_name or not ticker:
         return alert_name
     if alert_name.strip() not in ("UCT Vol>OI", "UCT Unusual"):
@@ -652,6 +663,8 @@ def _maybe_retag_weeklies(alert_name: str, ticker: str, premium: float, dte) -> 
         except (ValueError, AttributeError):
             dte_val = None
     if dte_val is None or dte_val > 7 or dte_val < 0:
+        log.warning("[retag_debug] %s %s skipped: dte_val=%r (raw=%r)",
+                    alert_name, ticker, dte_val, dte)
         return alert_name
 
     # Coerce premium similarly — same DB round-trip concern.
@@ -664,10 +677,17 @@ def _maybe_retag_weeklies(alert_name: str, ticker: str, premium: float, dte) -> 
         except (ValueError, AttributeError):
             prem_val = None
     if not prem_val or prem_val < 500_000:
+        log.warning("[retag_debug] %s %s skipped: prem_val=%r (raw=%r)",
+                    alert_name, ticker, prem_val, premium)
         return alert_name
 
     if ticker.upper() in UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE:
+        log.warning("[retag_debug] %s %s skipped: in mega-cap exclude",
+                    alert_name, ticker)
         return alert_name
+
+    log.warning("[retag_debug] %s %s RETAGGED to Unusual Weeklies (dte=%s, prem=$%dK)",
+                alert_name, ticker, dte_val, int(prem_val / 1000))
     return "UCT Unusual Weeklies"
 
 
