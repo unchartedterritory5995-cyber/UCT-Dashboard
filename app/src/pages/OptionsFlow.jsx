@@ -950,9 +950,74 @@ function processFlowData(rows) {
     }
   }
 
-  // Filter: remove ML/, RED/canceled, invalid, and ML/-matched trades
+  // ── Cancel-pair filter ─────────────────────────────────────────────────────
+  // BlackBoxStocks marks canceled orders with Color=RED. Each red entry
+  // CANCELS a previously-recorded real trade with the same composite key
+  // (same ticker, CP, strike, exp, type, side, premium) — they are NOT
+  // standalone phantom entries. To compute accurate aggregations, we must
+  // exclude BOTH the original AND the red marker.
+  //
+  // Example QRVO 6/22:
+  //   11:21:50 CALL $115 $5M MAGENTA (original real fill)
+  //   11:26:28 CALL $115 $5M RED     (cancellation of that $5M)
+  // Without this filter, the Top Bullish aggregation would count the $5M
+  // twice (or once, depending on whether the red is filtered). With this
+  // filter, both rows are excluded — net effect: no $5M trade occurred.
+  //
+  // Empirically (June 2026 sample): 54 cancel pairs matched, 81 orphan
+  // reds with no prior match (excluded as just the red row). Matching
+  // is always same-day in practice.
+  const canceledTrades = new Set();
+  {
+    // Parse "H:MM:SS AM/PM" → seconds since midnight for correct time sort.
+    // localeCompare on raw strings would put "12:00 PM" before "9:00 AM"
+    // (because "1" < "9" lexically), so we need real time parsing.
+    const parseTimeToSec = (t) => {
+      if (!t) return 0;
+      const m = t.match(/(\d+):(\d+):(\d+)\s*(AM|PM)/i);
+      if (!m) return 0;
+      let h = parseInt(m[1]);
+      const min = parseInt(m[2]);
+      const sec = parseInt(m[3]);
+      const ampm = m[4].toUpperCase();
+      if (ampm === "PM" && h !== 12) h += 12;
+      if (ampm === "AM" && h === 12) h = 0;
+      return h * 3600 + min * 60 + sec;
+    };
+
+    // Group by (date, composite key). Same-day matching only — cancellations
+    // happen within minutes/hours of the original, never cross-day in
+    // observed data.
+    const groups = {};
+    rawTrades.forEach(t => {
+      const key = `${t.Dt}|${t.S}|${t.CP}|${t.K}|${t.E}|${t.Ty}|${t.Si}|${t.P}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    });
+
+    Object.values(groups).forEach(trades => {
+      // Time-sort within group. After sort, iterate; pop most recent
+      // non-red original whenever a red appears.
+      trades.sort((a, b) => parseTimeToSec(a.time) - parseTimeToSec(b.time));
+      const originalStack = [];
+      trades.forEach(t => {
+        if (t.Co === "RED") {
+          if (originalStack.length > 0) {
+            canceledTrades.add(originalStack.pop()); // matched original
+          }
+          canceledTrades.add(t); // always exclude the red marker
+        } else {
+          originalStack.push(t);
+        }
+      });
+    });
+  }
+
+  // Filter: remove ML/, RED + matching originals (cancel pairs), invalid,
+  // and ML/-matched trades. The canceledTrades Set built above contains
+  // both the red markers AND their matched originals.
   let filtered = rawTrades.filter(t =>
-    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && t.Co !== "RED" && !mlMatched.has(t)
+    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && !canceledTrades.has(t) && !mlMatched.has(t)
   );
 
   // ── Same-timestamp multi-strike spread filter ────────────────────────────────
