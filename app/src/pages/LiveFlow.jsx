@@ -485,7 +485,6 @@ function UserBlocklistPanel({ visible, onSaved }) {
 function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
-  const typeColor = alert.alertType === "algo" ? P.ac : (alert.alertType === "custom" ? P.bl : P.dm);
   const forwarded = alert.forwardedToDiscord;
   const score = alert.convictionScore;
   const flashStyle = isNew ? { animation: "uct-flash 1.4s ease-out" } : {};
@@ -622,12 +621,6 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
         fontFamily: "ui-monospace, monospace",
       }}>
         {alert.priorOI != null ? alert.priorOI.toLocaleString() : "—"}
-      </td>
-      <td style={{ padding: "8px 10px", fontSize: 9, fontWeight: 700 }}>
-        <span style={{
-          padding: "2px 7px", borderRadius: 3, letterSpacing: 0.5,
-          background: typeColor + "18", color: typeColor,
-        }}>{(alert.alertType || "?").toUpperCase()}</span>
       </td>
       <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>
         {(() => {
@@ -842,7 +835,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle, isAdmin }) {
         borderTop: "1px solid " + P.bd,
         borderBottom: "1px solid " + meta.color + "30",
       }}>
-        <td colSpan={isAdmin ? 16 : 15} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
+        <td colSpan={isAdmin ? 15 : 14} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
@@ -1830,7 +1823,7 @@ export default function LiveFlow() {
                   // Avg Fill so all "what was the trade" data sits together
                   // before the "what tier caught it" columns.
                   ["% Money", 11], ["Volume", 10], ["OI", 10],
-                  ["Type", 9], ["Alert Name", 11],
+                  ["Alert Name", 11],
                   // Push column is admin-only — hidden for subscribers.
                   // Placed right after Alert Name per operator preference so
                   // the decision context (alert tier + name) sits adjacent to
