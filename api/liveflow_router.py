@@ -625,3 +625,131 @@ async def admin_force_push_discord(
             "error": f"{type(e).__name__}: {str(e)[:200]}",
             "traceback": traceback.format_exc()[-1500:],
         }
+
+
+# ─── Ticker baseline endpoints ────────────────────────────────────────────
+# Per-ticker premium percentile baselines, computed from FlowDB (the
+# OptionsFlow data store). Used to replace static dollar thresholds with
+# data-driven per-ticker thresholds (e.g. "B grade requires premium ≥ P95
+# for THIS ticker" instead of "B grade requires $2M for everyone").
+#
+# Flow: admin hits /refresh-baselines → reads flow.db → computes percentiles
+# → writes ticker_baselines table → loads into worker memory. Worker uses
+# get_premium_floor(ticker, grade) in gate checks.
+#
+# The worker does NOT yet enforce baselines at deploy time — it loads them
+# for visibility. Integration into gate checks is a separate worker change
+# rolled out after the baseline data has been verified.
+
+@router.post("/admin/refresh-baselines")
+@router.get("/admin/refresh-baselines")
+def admin_refresh_baselines(
+    days_back: int = Query(default=180, ge=7, le=730,
+                           description="Look-back window in days. Default 180 (6 months) — uses all data you have. Endpoint accepts up to 730 (2 years) if you eventually upload that much."),
+    source: str = Query(default="stocks",
+                        description="FlowDB source: 'stocks' or 'indexes'. Worker only uses 'stocks'."),
+    min_premium: int = Query(default=250_000, ge=0, le=10_000_000,
+                             description="Premium floor for inclusion. Matches Bullflow's filter — trades below this never reach the worker."),
+):
+    """
+    Recompute per-ticker premium percentiles from FlowDB and persist to the
+    ticker_baselines table. Safe to run while the worker is active.
+
+    Returns a summary with row counts, data quality distribution, and timing.
+    Look at data_quality.reliable_30plus — that's how many tickers have
+    statistically meaningful baselines. The rest fall back to static thresholds.
+
+    First-run note: with only 14 days of seed data, expect ~120 reliable
+    tickers (top-100 most active). As live alerts and CSV uploads continue,
+    reliable count grows over weeks.
+    """
+    try:
+        from api import baselines
+    except ImportError:
+        try:
+            import baselines  # fallback if module is at root
+        except ImportError as e:
+            return {"ok": False, "error": f"baselines module not importable: {e}"}
+
+    try:
+        result = baselines.refresh_baselines(
+            days_back=days_back,
+            source=source,
+            min_premium=float(min_premium),
+        )
+        return result
+    except Exception as e:
+        import traceback
+        log.exception("[refresh_baselines] failed")
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:200]}",
+            "traceback": traceback.format_exc()[-1500:],
+        }
+
+
+@router.get("/admin/baselines/summary")
+def admin_baselines_summary():
+    """
+    Quick stats on the loaded baseline cache — total tickers, data quality
+    breakdown, last refresh time. Use this to verify the baselines module
+    is alive and how many tickers are usable.
+    """
+    try:
+        from api import baselines
+    except ImportError:
+        try:
+            import baselines
+        except ImportError as e:
+            return {"ok": False, "error": f"baselines module not importable: {e}"}
+
+    return baselines.baseline_summary()
+
+
+@router.get("/admin/baselines/{ticker}")
+def admin_baseline_for_ticker(ticker: str):
+    """
+    Return the baseline percentile data for a specific ticker. Useful for
+    spot-checking how the system would gate a particular trade.
+
+    Returns:
+      {
+        "ticker": "NOK",
+        "baseline": {...full row from ticker_baselines...},
+        "computed_floors": {
+          "A+": 591000,    # P75
+          "A":  748000,    # P85 interp
+          "B":  1135000,   # P95
+        }
+      }
+
+    If the ticker has insufficient samples or no baseline at all, the
+    computed_floors fall back to static.
+    """
+    try:
+        from api import baselines
+    except ImportError:
+        try:
+            import baselines
+        except ImportError as e:
+            return {"ok": False, "error": f"baselines module not importable: {e}"}
+
+    if not ticker or not ticker.strip():
+        return {"ok": False, "error": "ticker required"}
+
+    t = ticker.strip().upper()
+    baseline = baselines.get_baseline(t)
+    floors = {
+        "A+": baselines.get_premium_floor(t, "A+"),
+        "A":  baselines.get_premium_floor(t, "A"),
+        "B":  baselines.get_premium_floor(t, "B"),
+    }
+    return {
+        "ticker": t,
+        "baseline": baseline,
+        "computed_floors": floors,
+        "fallback_active": (
+            baseline is None
+            or (baseline.get("sample_count") or 0) < baselines.MIN_SAMPLES
+        ),
+    }
