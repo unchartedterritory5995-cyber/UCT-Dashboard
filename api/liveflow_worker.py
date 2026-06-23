@@ -629,15 +629,43 @@ def _maybe_retag_weeklies(alert_name: str, ticker: str, premium: float, dte) -> 
     Returns the (possibly modified) alert name to use going forward. Caller
     overwrites the alertName field on the alert dict so downstream gates,
     Discord posts, and SQLite all see the new name.
+
+    Type coercion: dte may arrive as a string (e.g. "4") when alerts come
+    from a JSON round-trip via csv_ingest or live_alerts_db. The original
+    isinstance check would silently fail and skip retagging in that case.
+    Coerce to int explicitly before comparing.
     """
     if not alert_name or not ticker:
         return alert_name
     if alert_name.strip() not in ("UCT Vol>OI", "UCT Unusual"):
         return alert_name
-    if not isinstance(dte, (int, float)) or dte > 7 or dte < 0:
+
+    # Coerce dte — accepts int, float, numeric string ("4", "4.0").
+    # Any unparseable value (None, "n/a", non-numeric) skips retag, which
+    # is the safe default (better to NOT retag than wrongly retag).
+    dte_val = None
+    if isinstance(dte, (int, float)):
+        dte_val = dte
+    elif isinstance(dte, str):
+        try:
+            dte_val = float(dte.strip())
+        except (ValueError, AttributeError):
+            dte_val = None
+    if dte_val is None or dte_val > 7 or dte_val < 0:
         return alert_name
-    if not premium or premium < 500_000:
+
+    # Coerce premium similarly — same DB round-trip concern.
+    prem_val = None
+    if isinstance(premium, (int, float)):
+        prem_val = premium
+    elif isinstance(premium, str):
+        try:
+            prem_val = float(premium.strip())
+        except (ValueError, AttributeError):
+            prem_val = None
+    if not prem_val or prem_val < 500_000:
         return alert_name
+
     if ticker.upper() in UNUSUAL_WEEKLIES_MEGA_CAP_EXCLUDE:
         return alert_name
     return "UCT Unusual Weeklies"
