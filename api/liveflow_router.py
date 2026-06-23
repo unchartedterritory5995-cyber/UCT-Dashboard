@@ -773,3 +773,122 @@ def admin_baseline_for_ticker(ticker: str):
             or (baseline.get("sample_count") or 0) < baselines.MIN_SAMPLES
         ),
     }
+
+
+@router.get("/admin/debug-retag")
+def admin_debug_retag(
+    ticker: str = Query(..., description="e.g. LITE"),
+    alert_name: str = Query(default="UCT Vol>OI",
+                            description="UCT Vol>OI or UCT Unusual to test retag candidacy"),
+    premium: float = Query(..., description="Premium in dollars, e.g. 634000"),
+    dte: str = Query(..., description="DTE — accepts string or number, mimics CSV parsing"),
+    grade: str = Query(default="D", description="Conviction grade: A+, A, B, C, D"),
+):
+    """
+    Trace a SINGLE hypothetical alert through the retag function and gate
+    logic. Returns the decision at each step so the admin can see exactly
+    where an alert gets blocked or passed.
+
+    Use case: when a class of trades is missing from preview output (e.g.
+    Unusual Weeklies disappeared), simulate one of them here and see which
+    step blocks it. Typical issues exposed:
+      - DTE arrived as string but retag's isinstance check expected number
+      - Premium below $500K so retag skipped
+      - Ticker in mega-cap exclude
+      - Grade C/D blocked at premium-floor step (alert override not detected)
+
+    Read-only: no DB writes, no Discord posts. Pure trace of the decision
+    tree against current loaded code.
+    """
+    # Try to import worker functions
+    try:
+        from worker import liveflow_worker as _w
+    except ImportError:
+        try:
+            import liveflow_worker as _w
+        except ImportError as e:
+            return {"ok": False, "error": f"liveflow_worker not importable: {e}"}
+
+    t = ticker.strip().upper()
+    trace = {
+        "input": {
+            "ticker": t,
+            "alert_name": alert_name,
+            "premium": premium,
+            "dte_raw": dte,
+            "dte_type": type(dte).__name__,
+            "grade": grade,
+        },
+        "steps": [],
+    }
+
+    # Step 1: Retag
+    try:
+        # Pass dte as string to mimic CSV ingest behavior
+        retag_result = _w._maybe_retag_weeklies(alert_name, t, premium, dte)
+        retagged = retag_result != alert_name
+        trace["steps"].append({
+            "step": "retag",
+            "input_name": alert_name,
+            "output_name": retag_result,
+            "retagged": retagged,
+            "interpretation": (
+                "✓ Retagged to Unusual Weeklies"
+                if retagged else
+                "✗ Did NOT retag — alert stays as " + alert_name
+            ),
+        })
+    except Exception as e:
+        trace["steps"].append({"step": "retag", "error": str(e)})
+        return trace
+
+    final_name = retag_result
+
+    # Step 2: Per-alert gates lookup (override check)
+    try:
+        gates = _w._get_alert_gates(final_name)
+        min_grade_override = gates.get("min_grade") if gates else None
+        trace["steps"].append({
+            "step": "gates_lookup",
+            "alert_name": final_name,
+            "gates_dict": dict(gates) if gates else {},
+            "has_min_grade_override": bool(min_grade_override),
+            "min_grade_override_value": min_grade_override,
+        })
+    except Exception as e:
+        trace["steps"].append({"step": "gates_lookup", "error": str(e)})
+
+    # Step 3: Premium floor lookup
+    try:
+        clean_grade = _w._strip_grade_emoji(grade)
+        floor = _w._get_premium_floor_for_alert(t, clean_grade, final_name)
+        trace["steps"].append({
+            "step": "premium_floor",
+            "clean_grade": clean_grade,
+            "floor": floor,
+            "floor_human": (f"${floor:,.0f}" if floor else "None (blocked or no floor)"),
+            "premium": premium,
+            "passes_floor": (floor is None or premium >= floor),
+        })
+    except Exception as e:
+        trace["steps"].append({"step": "premium_floor", "error": str(e)})
+
+    # Step 4: Final verdict
+    bypass_unusual_weeklies = (final_name == "UCT Unusual Weeklies")
+    bypass_high_premium = (premium >= 5_000_000)
+    if bypass_unusual_weeklies:
+        verdict = "✓ PASS via Unusual Weeklies bypass"
+    elif bypass_high_premium:
+        verdict = "✓ PASS via HIGH_PREMIUM_OVERRIDE ($5M+)"
+    elif floor is None:
+        if min_grade_override:
+            verdict = "✓ PASS via per-alert min_grade override"
+        else:
+            verdict = f"✗ BLOCK — grade {clean_grade} has no floor and no alert override"
+    elif premium >= floor:
+        verdict = f"✓ PASS — premium ${premium/1000:.0f}K >= floor ${floor/1000:.0f}K"
+    else:
+        verdict = f"✗ BLOCK — premium ${premium/1000:.0f}K < floor ${floor/1000:.0f}K"
+
+    trace["final_verdict"] = verdict
+    return trace
