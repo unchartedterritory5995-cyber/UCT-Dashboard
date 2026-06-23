@@ -2233,6 +2233,24 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] Compass automation PAUSED — all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)")
         print("[startup] Pattern engine jobs scheduled — outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)")
+
+        # ── Massive WebSocket consumer (Phase 1: feeds OptionsFlow page) ────
+        # Guarded by acquire_scheduler_lock() above — Massive enforces ONE
+        # concurrent options WS connection per account, so only the lock
+        # holder may connect. Other uvicorn workers skip it silently.
+        # Set MASSIVE_WS_DRY_RUN=1 on first deploy to verify behavior without
+        # writing to FlowDB; flip to 0 once /api/massive/status shows healthy
+        # counters during market hours.
+        try:
+            from api.massive_ws_worker import start as _start_massive_ws
+            if _start_massive_ws():
+                print("[startup] Massive WS consumer started")
+            else:
+                print("[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)")
+        except Exception as e:
+            # Never let WS failure block boot — OptionsFlow falls back to
+            # whatever's already in FlowDB from prior BBS uploads.
+            print(f"[startup] Massive WS consumer failed to start (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
@@ -2395,6 +2413,20 @@ app.include_router(research_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
+
+
+# ── Massive WS consumer health endpoint ────────────────────────────────
+# Lightweight status route so an operator can verify the consumer thread
+# is alive, connected, and ingesting trades. Wire to a uptime check or
+# just curl it during the first-deploy validation window.
+@app.get("/api/massive/status")
+async def _massive_ws_status():
+    """Live counters from the Massive WebSocket consumer thread."""
+    try:
+        from api.massive_ws_worker import get_status
+        return get_status()
+    except Exception as e:
+        return {"error": str(e), "available": False}
 
 # Discord flow watchlist — manual trigger endpoint
 register_discord_routes(app)
