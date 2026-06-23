@@ -1833,21 +1833,59 @@ def _lookup_prior_oi(ticker, cp, strike, exp_iso):
     return result
 
 
-def _enrich_with_oi(alert: dict):
+async def _enrich_with_oi(alert: dict):
     """
-    Mutates `alert` in-place adding OI enrichment fields. Always sets all four
-    fields (None / False on miss) so the frontend can render conditionally
-    without null-checking each individually.
+    Attach OI snapshot data (priorOI, oiSnapshotDate, volumeOIRatio,
+    oiExceeded) and tradeSize to the alert dict. Mutates in place.
+
+    Two-stage lookup:
+      1. Local snapshot — walks back up to 5 days through contract_oi_snapshots.
+         Fast (SQLite read, cached per-day in process). Covers tickers that
+         the daily 5:30 UTC cron snapshotted.
+      2. On-demand Schwab fetch — used when stage 1 misses (typically a
+         ticker that hasn't accumulated 3+ trades in our BBS flow CSV and
+         therefore isn't in the daily snapshot batch). Adds ~200-500ms
+         latency on the FIRST alert for that contract per day; subsequent
+         fires hit the persisted result from stage 1 in ~5ms.
+
+    Failure handling: any error → priorOI=None, volumeOIRatio=None,
+    oiExceeded=False. Alert still flows; the OI badge just doesn't render.
+    Worker keeps running.
     """
     premium = float(alert.get("alertPremium") or 0)
     fill = float(alert.get("averageFillPrice") or 0)
     trade_size = round(premium / (fill * 100)) if fill > 0 else None
     alert["tradeSize"] = trade_size
 
+    # Stage 1: local snapshot lookup (existing behavior).
     snap = _lookup_prior_oi(
         alert.get("ticker"), alert.get("cp"),
         alert.get("strike"), alert.get("exp"),
     )
+
+    # Stage 2: on-demand Schwab fallback when stage 1 missed. Persists the
+    # result for next time. Only called on misses to keep Schwab load minimal.
+    if not snap:
+        try:
+            from api import oi_snapshots
+            oi = await oi_snapshots.fetch_and_persist_one_oi(
+                alert.get("ticker"), alert.get("cp"),
+                alert.get("strike"), alert.get("exp"),
+            )
+            if oi is not None and oi > 0:
+                today_iso = datetime.now().date().isoformat()
+                snap = (oi, today_iso)
+                # Update the in-process cache so the next fire on this contract
+                # this session doesn't even hit SQLite (saves ~5ms × N fires)
+                cache_key = (
+                    f"{alert.get('ticker')}|{alert.get('cp')}|"
+                    f"{alert.get('strike')}|{alert.get('exp')}"
+                )
+                _oi_cache[cache_key] = snap
+        except Exception as e:
+            log.debug("[liveflow] on-demand OI fetch failed for %s: %s",
+                      alert.get("ticker"), e)
+
     if snap and trade_size and snap[0] > 0:
         oi, snap_date = snap
         ratio = round(trade_size / oi, 2)
@@ -1856,8 +1894,9 @@ def _enrich_with_oi(alert: dict):
         alert["volumeOIRatio"] = ratio
         alert["oiExceeded"] = ratio > 1.0
     else:
-        # Either no snapshot, no fill price, or OI is 0. Set defaults so
-        # frontend has stable shape and doesn't render a misleading badge.
+        # Either no snapshot found anywhere, no fill price, or OI is 0.
+        # Set defaults so frontend has stable shape and doesn't render a
+        # misleading badge.
         alert["priorOI"] = snap[0] if snap else None
         alert["oiSnapshotDate"] = snap[1] if snap else None
         alert["volumeOIRatio"] = None
@@ -2477,12 +2516,14 @@ def _build_embed(agg: dict) -> dict:
 
     # Alert label: show the best (highest-priority) name; if multiple distinct
     # names fired, add a "+N more" suffix so subscribers see the diversity.
-    # Type field removed — source is already conveyed via the embed footer.
+    # This now lives in the embed AUTHOR (header) instead of as a separate
+    # field at the bottom — removed the redundant "Alert" field 2026-06-24
+    # per operator preference. Brand recognition still preserved via the
+    # UCT logo icon to the left of the alert name.
     extras = len(names_seen) - 1
     alert_label = best_name
     if extras > 0:
         alert_label = f"{best_name}  +{extras} more"
-    fields.append({"name": "Alert", "value": alert_label, "inline": True})
 
     # Title: ticker + strike + CALL/PUT + exp (US date), with moneyness suffix
     # when available.
@@ -2520,20 +2561,19 @@ def _build_embed(agg: dict) -> dict:
         "color": color,
         "fields": fields,
     }
-    # Top-of-card branding: small logo + "UCT Live Flow" label. Replaces the
-    # plain text footer for a more polished look. If UCT_LOGO_URL is unset or
-    # the image fails to load, Discord still shows the "name" text alone.
+    # Top-of-card branding: small UCT logo + actual alert name (e.g.,
+    # "UCT Vol>OI", "UCT Alpha Gold  +2 more"). Replaced the static
+    # "UCT Live Flow" label 2026-06-24 — operator wanted the specific
+    # alert tier visible at-a-glance in the header instead of buried as
+    # a field at the bottom. UCT brand identity preserved via the logo icon.
     if UCT_LOGO_URL:
         embed["author"] = {
-            "name": "UCT Live Flow",
+            "name": alert_label,
             "icon_url": UCT_LOGO_URL,
         }
-        # 2026-06-22: removed embed.thumbnail per Ravi's preference. The author
-        # icon (~24x24 top-left) gives sufficient branding without the larger
-        # ~80x80 thumbnail on the right competing with the alert data fields.
     else:
-        # Fallback: no logo, just keep the text label at the bottom as before.
-        embed["footer"] = {"text": "via UCT Live Flow"}
+        # Fallback: no logo, show alert name as footer text.
+        embed["footer"] = {"text": f"{alert_label} · UCT Live Flow"}
     if badges:
         embed["description"] = " · ".join(badges)
     return embed
@@ -2919,7 +2959,10 @@ async def _ingest_alert(msg, discord_client):
     # Enrich with OI data (trade size, prior OI, vol/OI ratio, exceeded flag).
     # Done after dedup so we don't waste SQLite reads on dropped alerts. The
     # cache means repeat fires on the same contract only hit the DB once/day.
-    _enrich_with_oi(enriched)
+    # Async because of on-demand Schwab fallback for contracts not in the
+    # daily snapshot batch — adds ~300ms latency on first-fire of unseen
+    # contracts, hits cache on subsequent fires.
+    await _enrich_with_oi(enriched)
 
     # Enrich with spot price + moneyness (how deep ITM/OTM). Async because
     # Schwab quote lookup is async, but cached per-ticker for 2 min so the
