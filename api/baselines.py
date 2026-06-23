@@ -376,36 +376,96 @@ def get_premium_floor(ticker: str, grade: str) -> Optional[float]:
     """
     Return the premium floor for a (ticker, grade) pair, in dollars.
 
-    Logic:
-      - If ticker has a reliable baseline (sample_count >= MIN_SAMPLES):
-          A+ → P75 (top 25% for this ticker is enough for rocket-grade)
-          A  → P85 interpolated between P75 and P90 (top 15%)
-          B  → P95 (top 5% — only genuinely unusual flow)
-          C, D → None (blocked unless overridden by per-alert tier)
-      - If thin baseline (sample_count < MIN_SAMPLES): fall back to
-        FALLBACK_FLOORS (current static thresholds).
-      - If no baseline at all: fall back to FALLBACK_FLOORS.
+    Three-tier system based on flow frequency (trades per day in the
+    baseline data). The same percentile means different things for a
+    liquid name (NVDA, 76 trades/day) vs a sparse name (CDNS, 0.43/day).
 
-    Returns the dollar floor, or None for grades that are blocked entirely.
+    ┌─────────────────────────────────────────────────────────────────┐
+    │ TIER 1: SPARSE   (<1 trade/day)                                 │
+    │   For names like CDNS, SNPS — the FACT that institutional flow │
+    │   appeared is the signal. Use permissive flat floors to let it │
+    │   through, since Bullflow's $250K min + UCT alert match are    │
+    │   already meaningful filters.                                   │
+    │     A+ = $250K (essentially pass-through)                       │
+    │     A  = $500K                                                  │
+    │     B  = $1M                                                    │
+    │                                                                 │
+    │ TIER 2: MID      (1-5 trades/day)                               │
+    │   Moderate flow. Use lower percentiles (P50/P75/P90) with       │
+    │   sanity caps so outlier days don't distort. CBRS, ARM,        │
+    │   smaller mid-caps land here.                                   │
+    │     A+ = min(P50, $2M)                                          │
+    │     A  = min(P75, $3M)                                          │
+    │     B  = min(P90, $5M)                                          │
+    │                                                                 │
+    │ TIER 3: LIQUID   (≥5 trades/day)                                │
+    │   Constant flow. Full percentile filtering with caps. NVDA,    │
+    │   MU, TSLA, the active names.                                   │
+    │     A+ = min(P75, $3M)                                          │
+    │     A  = min(midpoint P75-P90, $5M)                             │
+    │     B  = min(P95, $10M)                                         │
+    │                                                                 │
+    │ FALLBACK: no baseline or sample_count < MIN_SAMPLES (30)        │
+    │   Static FALLBACK_FLOORS                                        │
+    └─────────────────────────────────────────────────────────────────┘
+
+    The hard caps (e.g. B never exceeds $10M) prevent outlier-distorted
+    baselines (CDNS jumping to P95=$33M because of 50 samples skewed by
+    recent massive blocks) from making the gate impossibly tight.
+
+    Returns the dollar floor, or None for grades that are blocked entirely
+    (C, D — except when a per-alert override allows them, e.g. Unusual
+    Weeklies has min_grade=D in ALERT_CONVICTION_GATES).
 
     Strips emoji from grade ("A+ 🚀" → "A+") so callers don't need to.
     """
-    # Strip emoji/whitespace — "A+ 🚀" → "A+"
+    # Normalize grade — "A+ 🚀" → "A+"
     g = (grade or "D").strip().split()[0] if grade else "D"
+
+    # C and D blocked at this gate (Unusual Weeklies tier override
+    # handled separately in worker via per-alert min_grade).
+    if g in ("C", "D"):
+        return None
 
     b = get_baseline(ticker)
     if not b or (b.get("sample_count") or 0) < MIN_SAMPLES:
-        # Thin or missing baseline — use static fallback
+        # Thin or missing baseline — use static fallback. Better to
+        # err permissive on tickers we know little about than to block
+        # legitimate flow based on insufficient data.
         return FALLBACK_FLOORS.get(g)
 
+    # Categorize ticker by flow frequency
+    n = b["sample_count"]
+    days = max(b.get("days_back") or 1, 1)
+    trades_per_day = n / days
+
+    p50 = b["p50_premium"] or 0
+    p75 = b["p75_premium"] or 0
+    p90 = b["p90_premium"] or 0
+    p95 = b["p95_premium"] or 0
+
+    # TIER 1: Sparse — rare flow IS the signal
+    if trades_per_day < 1.0:
+        if g == "A+": return 250_000
+        if g == "A":  return 500_000
+        if g == "B":  return 1_000_000
+
+    # TIER 2: Mid — moderate flow, light percentile filter
+    if trades_per_day < 5.0:
+        if g == "A+": return min(p50, 2_000_000) if p50 else 500_000
+        if g == "A":  return min(p75, 3_000_000) if p75 else 600_000
+        if g == "B":  return min(p90, 5_000_000) if p90 else 1_500_000
+
+    # TIER 3: Liquid — full percentile filter with sanity caps
     if g == "A+":
-        return b["p75_premium"]
+        return min(p75, 3_000_000) if p75 else 600_000
     if g == "A":
-        # P85 = midpoint between P75 and P90
-        return (b["p75_premium"] + b["p90_premium"]) / 2
+        midpoint = (p75 + p90) / 2 if (p75 and p90) else (p75 or p90 or 1_000_000)
+        return min(midpoint, 5_000_000)
     if g == "B":
-        return b["p95_premium"]
-    return None  # C, D blocked
+        return min(p95, 10_000_000) if p95 else 2_000_000
+
+    return None  # unreachable, but explicit
 
 
 def get_percentile(ticker: str, premium: float) -> Optional[float]:
