@@ -2251,6 +2251,22 @@ async def lifespan(app: FastAPI):
             # Never let WS failure block boot — OptionsFlow falls back to
             # whatever's already in FlowDB from prior BBS uploads.
             print(f"[startup] Massive WS consumer failed to start (non-fatal): {e}")
+
+        # ── Massive Flat Files daily ingester (T+1 batch fallback / archive) ─
+        # Runs alongside the WS consumer. WS provides intraday rows; Flat Files
+        # backfills yesterday's full archive overnight. Both write to the same
+        # FlowDB table; dedup_key handles overlap. Independent failure modes:
+        # if WS is locked out (e.g. max_connections), Flat Files still populates
+        # the page each morning, so the manual /options-flow-admin upload can
+        # be retired regardless of WS status.
+        try:
+            from api import massive_flatfiles_worker
+            if massive_flatfiles_worker.register_jobs(_scheduler):
+                print("[startup] Massive Flat Files cron registered (11:30/12:00/12:30 PM ET Mon-Fri)")
+            else:
+                print("[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)")
+        except Exception as e:
+            print(f"[startup] Massive Flat Files cron registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped — lock held by another uvicorn worker (multi-worker mode)")
 
@@ -2427,6 +2443,69 @@ async def _massive_ws_status():
         return get_status()
     except Exception as e:
         return {"error": str(e), "available": False}
+
+
+# ── Massive Flat Files: status + manual backfill ───────────────────────
+# Status route mirrors the WS one — last run timestamp, success/fail counts,
+# row counts written. The backfill route is for the operator to manually
+# ingest a specific date (or range) — useful for filling gaps if the cron
+# failed, or for seeding history for baselines.
+@app.get("/api/massive/flatfiles/status")
+async def _massive_flatfiles_status():
+    """Last-run state of the daily Flat Files ingester."""
+    try:
+        from api import massive_flatfiles_worker
+        return massive_flatfiles_worker.get_status()
+    except Exception as e:
+        return {"error": str(e), "available": False}
+
+
+@app.post("/api/admin/massive/flatfiles/run")
+async def _massive_flatfiles_manual_run(date: str = None, force: bool = False):
+    """Manually trigger Flat Files ingestion for a single date.
+
+    date format: YYYY-MM-DD. If omitted, runs the standard daily walk
+    (yesterday → backwards LOOKBACK_DAYS).
+
+    force=true ingests even if the date already has rows in FlowDB.
+    The FlowDB dedup_key UNIQUE constraint silently handles overlap, so
+    this is safe but wastes CPU.
+
+    TODO: wrap with admin-role check (e.g. require_admin dependency)
+    before exposing publicly. For now, ops-only — don't link from UI.
+    """
+    try:
+        from api import massive_flatfiles_worker
+        if date is None:
+            return massive_flatfiles_worker.daily_job()
+        import datetime as _dt
+        try:
+            d = _dt.date.fromisoformat(date)
+        except ValueError:
+            return {"error": f"bad date format (want YYYY-MM-DD): {date!r}"}
+        return massive_flatfiles_worker.process_date(d, force=force)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/admin/massive/flatfiles/backfill")
+async def _massive_flatfiles_backfill(start: str, end: str, force: bool = False):
+    """Backfill a date range. start/end are YYYY-MM-DD, inclusive.
+
+    Synchronous — for ranges over ~5 days this can take many minutes.
+    Use sparingly (e.g. for initial baselines population).
+    """
+    try:
+        from api import massive_flatfiles_worker
+        import datetime as _dt
+        try:
+            s = _dt.date.fromisoformat(start)
+            e = _dt.date.fromisoformat(end)
+        except ValueError:
+            return {"error": f"bad date format (want YYYY-MM-DD): start={start!r} end={end!r}"}
+        return massive_flatfiles_worker.backfill_range(s, e, force=force)
+    except Exception as e:
+        return {"error": str(e)}
 
 # Discord flow watchlist — manual trigger endpoint
 register_discord_routes(app)
