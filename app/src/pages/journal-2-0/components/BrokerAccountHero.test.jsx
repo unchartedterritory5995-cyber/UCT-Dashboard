@@ -82,6 +82,19 @@ describe('BrokerAccountHero', () => {
     expect(screen.getByText('$14,632.18')).toBeInTheDocument()
   })
 
+  it('renders the day-one 2-point curve (one real snapshot + a live estimated anchor)', () => {
+    // Day one: exactly one real net-liq snapshot plus the backend-appended
+    // live "now" anchor (estimated: true) → a 2-point baseline. The curve/SVG
+    // must render, not the null/empty state.
+    mockPerf.data.equitySeries = [
+      { date: '2026-06-16', value: 14000, estimated: false },
+      { date: '2026-06-17', value: 14632.18, estimated: true },
+    ]
+    const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    expect(container.querySelector('svg')).toBeInTheDocument()      // curve renders
+    expect(screen.getByText('$14,632.18')).toBeInTheDocument()      // account value
+  })
+
   it('returns null for a non-broker account', () => {
     const { container } = render(
       <BrokerAccountHero account={{ balanceSource: 'manual' }} aggregates={aggregates} />)

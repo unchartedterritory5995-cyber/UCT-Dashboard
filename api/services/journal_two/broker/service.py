@@ -243,6 +243,11 @@ def status(user_id: str) -> dict[str, Any]:
         ).fetchone()
         connected = row is not None
         accounts = connections.list_broker_accounts(user_id, conn=conn)
+        # Pin `warming` into the status contract explicitly so the Settings
+        # panel sees the post-connect warming flag even if the connections
+        # dict shape ever changes.
+        for ba in accounts:
+            ba["warming"] = ba.get("warming", False)
         dup_pending = conn.execute(
             "SELECT COUNT(*) AS n FROM j2_broker_dup_flags "
             "WHERE user_id = ? AND status = 'pending'",
