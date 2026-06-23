@@ -800,14 +800,20 @@ def admin_debug_retag(
     Read-only: no DB writes, no Discord posts. Pure trace of the decision
     tree against current loaded code.
     """
-    # Try to import worker functions
+    # Try to import worker functions. The module lives in api/liveflow_worker.py
+    # (imported elsewhere as `from api import liveflow_worker_threaded` which
+    # internally imports liveflow_worker). Fall back to root-level for layouts
+    # that don't use the api package prefix.
     try:
-        from worker import liveflow_worker as _w
+        from api import liveflow_worker as _w
     except ImportError:
         try:
-            import liveflow_worker as _w
-        except ImportError as e:
-            return {"ok": False, "error": f"liveflow_worker not importable: {e}"}
+            from worker import liveflow_worker as _w
+        except ImportError:
+            try:
+                import liveflow_worker as _w
+            except ImportError as e:
+                return {"ok": False, "error": f"liveflow_worker not importable: {e}"}
 
     t = ticker.strip().upper()
     trace = {
