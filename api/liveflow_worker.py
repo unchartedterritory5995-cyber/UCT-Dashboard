@@ -215,11 +215,18 @@ TIER_PREMIUM_REQUIREMENTS = {
 
 
 # Premium threshold that overrides ALL filters: mega-cap exclude, earnings
-# short-DTE block, per-alert ticker blocklists. Above this dollar amount,
-# the trade IS the signal regardless of context. Calibrated to the watchlist's
-# $5M+ trades (13 of 40) which routinely include mega-cap names (NVDA $11M)
-# and earnings tickers (MU weeklies $5M+).
-HIGH_PREMIUM_OVERRIDE = 5_000_000
+# short-DTE block, per-alert ticker blocklists, per-ticker baseline floors,
+# grade-tier gates. Above this dollar amount, the trade IS the signal
+# regardless of context.
+#
+# Lowered from $5M to $2M on 2026-06-24 after Day 1 production review:
+# the prior $5M threshold blocked ~10 trades per day that the operator was
+# manually pushing anyway (TSLA $3.97M put, MU $3.81M put, BABA $3.17M put,
+# COHR $2.88M put, etc.). At $2M, those auto-push correctly.
+#
+# At $2M we expose ~8-12 additional pushes/day in the $2-5M institutional
+# zone. Trades below $2M still respect normal grade/tier/baseline gates.
+HIGH_PREMIUM_OVERRIDE = 2_000_000
 
 
 # Cross-alert per-ticker cap. Limits Discord posts per ticker per day across
@@ -569,6 +576,28 @@ ALERT_CONVICTION_GATES = {
     "UCT Unusual Weeklies": {
         "min_grade": "D",
         "max_per_ticker_per_day": 2,  # allow follow-through, but cap
+    },
+    # UCT Bearish — added 2026-06-24 after Day 1 production review showed
+    # ~10 manual pushes/day were predominantly C-grade bearish flow that
+    # the gate had blocked (TSLA $3.97M P, MU $3.81M P, BABA $3.17M P,
+    # AAPL $1.75M P). The HIGH_PREMIUM_OVERRIDE drop to $2M catches the
+    # very big ones; this gate lets the $1-2M bearish through that wasn't
+    # routine for the ticker but was clearly institutional bearish positioning.
+    #
+    # min_grade=C — allows C-grade bearish with $1M+ premium. D-grade still
+    # blocked (typical Bullflow false positives). max_per_ticker=3 matches
+    # global cap to prevent over-concentration on dominant bearish names.
+    "UCT Bearish": {
+        "min_grade": "C",
+        "max_per_ticker_per_day": 3,
+    },
+    # UCT Size Bears — same rationale as UCT Bearish above. Bears C-grade
+    # gets blocked under default rules, but Size Bears with $1M+ premium is
+    # consistently meaningful institutional flow (today's blocked CRWV $2.93M,
+    # COHR $2.88M, TSLA $2.10M all qualified as "would-have-pushed manually").
+    "UCT Size Bears": {
+        "min_grade": "C",
+        "max_per_ticker_per_day": 3,
     },
     # Other UCT alerts: leave them untuned for now. The Bullflow filters
     # (premium floor, side, trade types) already do most of the work for
@@ -1165,6 +1194,34 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         score, grade = _compute_conviction(agg)
         a["_replayedGrade"] = grade
         a["_replayedConvictionScore"] = score
+
+        # Step 4b: Deep moneyness filter — blocks synthetic positions and
+        # lottery characteristics regardless of grade or premium. Operator-
+        # validated patterns:
+        #   ITM > 50%: synthetic stock substitute (delta ≈ 1.0). Someone
+        #     buying deep-ITM calls/puts is essentially long/short the
+        #     underlying with less capital — not a directional bet that
+        #     subscribers can act on. Common with LEAPS rolls and hedge
+        #     unwinds. Example: HOOD C $50 spot $105.6 (111% ITM, 542d).
+        #   OTM > 40% AND DTE < 365: pure lottery / tail hedge. No real
+        #     conviction edge to follow.
+        #   OTM > 40% AND DTE >= 365: still allowed — long-dated deep-OTM
+        #     LEAPS can be legitimate multi-year directional bets ("NVDA
+        #     to $300 by 2027" type theses). Don't penalize those.
+        money_pct = agg.get("moneyness_pct")
+        money_label = agg.get("moneyness_label")
+        if money_pct is not None and money_label:
+            abs_pct = abs(money_pct)
+            if money_label == "ITM" and abs_pct > 50:
+                a["_replayedPassesGradeGate"] = 0
+                a["_replayedGateReason"] = f"deep_itm_synthetic_{int(abs_pct)}%"
+                continue
+            if money_label == "OTM" and abs_pct > 40 and (dte or 0) < 365:
+                a["_replayedPassesGradeGate"] = 0
+                a["_replayedGateReason"] = (
+                    f"deep_otm_lottery_{int(abs_pct)}%_{int(dte or 0)}d"
+                )
+                continue
 
         # Step 5: per-alert min_grade gate. If the alert is below the floor,
         # mark and continue (no further gates relevant).
@@ -2536,6 +2593,39 @@ async def _post_to_discord(client, alert):
     # always edit it regardless of current grade (preserves the message thread
     # in subscribers' channels — a trade that earned its way in stays in).
     #
+    # Deep moneyness filter — blocks synthetic positions and lottery
+    # characteristics regardless of grade or premium. See replay code path
+    # (step 4b) for full reasoning. Operator-validated patterns:
+    #   ITM > 50%: synthetic position rotation (HOOD C $50 spot $105.6 type)
+    #   OTM > 40% on non-LEAPS (DTE < 365): pure lottery
+    money_pct = agg.get("moneyness_pct")
+    money_label = agg.get("moneyness_label")
+    dte = alert.get("dte") or 0
+    if not message_id and money_pct is not None and money_label:
+        abs_pct = abs(money_pct)
+        moneyness_blocks = False
+        block_reason = ""
+        if money_label == "ITM" and abs_pct > 50:
+            moneyness_blocks = True
+            block_reason = f"deep_itm_synthetic_{int(abs_pct)}%"
+        elif money_label == "OTM" and abs_pct > 40 and (dte or 0) < 365:
+            moneyness_blocks = True
+            block_reason = f"deep_otm_lottery_{int(abs_pct)}%_{int(dte or 0)}d"
+        if moneyness_blocks:
+            _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
+            log.info(
+                "[liveflow] gate_blocked %s — %s %s $%s %s",
+                block_reason, agg.get("ticker"), agg.get("cp"),
+                agg.get("strike"), agg.get("exp"),
+            )
+            alert["gatePassed"] = False
+            try:
+                live_alerts_db.update_alert_state(alert.get("id"), gate_passed=0)
+            except Exception as e:
+                log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
+                          alert.get("id"), e)
+            return
+
     # Per-alert min_grade override: if the alert is in ALERT_CONVICTION_GATES
     # with a min_grade key, use that instead of the global MIN_DISCORD_GRADE.
     # This lets "UCT Unusual Weeklies" accept D-grade trades (where premium+
