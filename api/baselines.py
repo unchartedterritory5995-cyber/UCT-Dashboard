@@ -191,6 +191,14 @@ def refresh_baselines(
 
     # Pull all (ticker, premium) pairs in scope. CAST since FlowDB stores
     # Premium as TEXT. The CAST is cheap relative to the I/O.
+    #
+    # CANCELED TRADE FILTER: BlackBoxStocks marks canceled orders with
+    # Color='#FF0000' (red). These are trades that were attempted but
+    # didn't actually fill — including them in percentile computation
+    # inflates the upper tail and makes gates too strict. E.g. AVGO had
+    # 14 canceled trades totaling $22.76M and MU had 13 canceled totaling
+    # $14.98M in the source data — without filtering, these phantom blocks
+    # would push P95/P99 thresholds artificially high.
     with _conn(db_path) as conn:
         cursor = conn.execute(
             f"""
@@ -201,10 +209,26 @@ def refresh_baselines(
               AND CAST(Premium AS REAL) >= ?
               AND Symbol IS NOT NULL
               AND Symbol != ''
+              AND (Color IS NULL OR Color != '#FF0000')
             """,
             [source] + date_params + [min_premium],
         )
         rows = cursor.fetchall()
+
+        # Count canceled trades excluded for the response, so the admin can
+        # see how much "phantom flow" was filtered out. Diagnostic only —
+        # not used in percentile math.
+        cursor_canceled = conn.execute(
+            f"""
+            SELECT COUNT(*) FROM flow
+            WHERE source = ?
+              AND {date_clause}
+              AND CAST(Premium AS REAL) >= ?
+              AND Color = '#FF0000'
+            """,
+            [source] + date_params + [min_premium],
+        )
+        canceled_excluded = cursor_canceled.fetchone()[0]
 
         # Also query the actual date range hit — tells the admin whether
         # the configured `days_back` is larger than the available data
@@ -221,7 +245,8 @@ def refresh_baselines(
         )
         date_min, date_max, distinct_dates = cursor2.fetchone()
 
-    log.info("[baselines] loaded %d qualifying rows for percentile computation", len(rows))
+    log.info("[baselines] loaded %d qualifying rows (excluded %d canceled trades) "
+             "for percentile computation", len(rows), canceled_excluded)
 
     # Group by ticker, sort each list once, compute percentiles
     by_ticker: dict[str, list] = {}
@@ -296,6 +321,7 @@ def refresh_baselines(
         "ok": True,
         "tickers_computed": len(computed),
         "rows_scanned": len(rows),
+        "canceled_trades_excluded": canceled_excluded,
         "upserted": upserted,
         "date_range": {
             "earliest": date_min,
@@ -311,6 +337,7 @@ def refresh_baselines(
             "days_back": days_back,
             "source": source,
             "min_premium_for_baseline": min_premium,
+            "exclude_canceled_trades": True,
         },
         "elapsed_sec": round(elapsed, 2),
     }
