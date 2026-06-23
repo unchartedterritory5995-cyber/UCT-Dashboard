@@ -816,6 +816,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] education init failed (non-fatal): {e}")
 
+    # Load ticker baselines (per-ticker premium percentiles) into in-memory
+    # cache for fast lookup by the LiveFlow worker's gate-check logic. Data
+    # lives in /data/flow.db (the OptionsFlow store) — populated by the
+    # admin /refresh-baselines endpoint when fresh CSVs are uploaded.
+    # On a cold restart this just reads the existing ticker_baselines table;
+    # no recomputation, ~50ms. If the table doesn't exist yet (first deploy
+    # before any refresh), init_db creates it empty and load_baselines
+    # returns 0 — harmless, gate-check code falls back to static thresholds.
+    try:
+        from api import baselines as _baselines
+        _baselines.init_db()
+        loaded = _baselines.load_baselines()
+        print(f"[startup] ticker baselines loaded ({loaded} tickers)")
+    except Exception as e:
+        # Try root-level import as fallback for filesystem layouts that
+        # don't have an `api` package wrapping standalone modules.
+        try:
+            import baselines as _baselines
+            _baselines.init_db()
+            loaded = _baselines.load_baselines()
+            print(f"[startup] ticker baselines loaded ({loaded} tickers, root import)")
+        except Exception as e2:
+            print(f"[startup] baselines load failed (non-fatal): {e} / {e2}")
+
     # Chart-health bootstrap: init quarantine + audit schemas synchronously so
     # the tables exist before any /api/bars handler runs, then spawn a daemon
     # thread to scan existing cache files for corruption (slow — up to ~18,425
