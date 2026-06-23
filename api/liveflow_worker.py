@@ -1132,25 +1132,38 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         # baselines.get_premium_floor classifies tickers by flow frequency
         # (sparse/mid/liquid) and applies appropriate floors per grade.
         #
-        # Unusual Weeklies tier override still applies — alerts with their
-        # own min_grade in ALERT_CONVICTION_GATES bypass this check, since
-        # they're already signal-quality-screened upstream.
+        # EXPLICIT BYPASSES:
+        # 1. "UCT Unusual Weeklies" — re-tagged synthetic alert whose retag
+        #    criteria (DTE≤7, premium≥$500K, non-mega-cap) ARE the signal.
+        #    Per-ticker percentile floors don't apply: a $600K weekly on a
+        #    sparse ticker like LITE is the whole point. Bypass entirely.
+        # 2. HIGH_PREMIUM_OVERRIDE — trades ≥$5M bypass per-ticker floor.
+        #    A $5M+ trade on ANY ticker is institutional-grade regardless
+        #    of that ticker's normal flow distribution.
         clean_grade = _strip_grade_emoji(grade)
-        tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, name)
-        if tier_floor is None:
-            # Grade C/D with no per-alert override → block.
-            alert_has_override = bool(_get_alert_gates(name).get("min_grade"))
-            if not alert_has_override:
+        if name == "UCT Unusual Weeklies":
+            # Unusual Weeklies bypasses the premium floor entirely — retag
+            # criteria already filtered this to high-signal weeklies.
+            pass
+        elif premium and premium >= HIGH_PREMIUM_OVERRIDE:
+            # $5M+ premium: institutional-grade regardless of ticker. Bypass.
+            pass
+        else:
+            tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, name)
+            if tier_floor is None:
+                # Grade C/D with no per-alert override → block.
+                alert_has_override = bool(_get_alert_gates(name).get("min_grade"))
+                if not alert_has_override:
+                    a["_replayedPassesGradeGate"] = 0
+                    a["_replayedGateReason"] = f"tier_premium_{clean_grade}_blocked"
+                    continue
+            elif not premium or premium < tier_floor:
                 a["_replayedPassesGradeGate"] = 0
-                a["_replayedGateReason"] = f"tier_premium_{clean_grade}_blocked"
+                a["_replayedGateReason"] = (
+                    f"tier_premium_low:{ticker}_{clean_grade}_"
+                    f"${int((premium or 0)/1000)}K<${int(tier_floor/1000)}K"
+                )
                 continue
-        elif not premium or premium < tier_floor:
-            a["_replayedPassesGradeGate"] = 0
-            a["_replayedGateReason"] = (
-                f"tier_premium_low:{ticker}_{clean_grade}_"
-                f"${int((premium or 0)/1000)}K<${int(tier_floor/1000)}K"
-            )
-            continue
 
         # Step 6: follow-through tracker (same shape as replay_alerts_through_gates).
         ft_key = (ticker, a.get("cp") or "", a.get("strike"), a.get("exp") or "")
@@ -2450,6 +2463,12 @@ async def _post_to_discord(client, alert):
     # at top of file for full reasoning. Briefly: a $1.59M trade is unusual
     # for NOK but routine for MU; one static threshold can't serve both.
     #
+    # EXPLICIT BYPASSES (mirrors replay path):
+    # 1. "UCT Unusual Weeklies" — synthetic retagged alert, retag criteria IS
+    #    the signal; per-ticker floors don't apply.
+    # 2. premium ≥ HIGH_PREMIUM_OVERRIDE ($5M+) — institutional regardless of
+    #    ticker.
+    #
     # Only applies to NEW posts (message_id is None). Multi-fire patches on
     # the same contract bypass this check — once the first fire passed and
     # got a Discord message, subsequent fires PATCH that message regardless
@@ -2459,25 +2478,34 @@ async def _post_to_discord(client, alert):
         clean_grade = _strip_grade_emoji(grade)
         ticker = (agg.get("ticker") or "").upper()
         alert_name_str = alert.get("alertName") or ""
-        tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, alert_name_str)
-        alert_has_override = bool(_get_alert_gates(alert_name_str).get("min_grade"))
-        tier_blocks = False
-        block_reason = ""
-        if tier_floor is None and not alert_has_override:
-            tier_blocks = True
-            block_reason = f"tier_premium_{clean_grade}_blocked"
-        elif tier_floor is not None and (not alert_premium or alert_premium < tier_floor):
-            tier_blocks = True
-            block_reason = (
-                f"tier_premium_low:{ticker}_{clean_grade}_"
-                f"${int((alert_premium or 0)/1000)}K<${int(tier_floor/1000)}K"
-            )
+        # EXPLICIT BYPASS 1: Unusual Weeklies — retag criteria ARE the signal.
+        # EXPLICIT BYPASS 2: $5M+ premium = institutional regardless of ticker.
+        if alert_name_str == "UCT Unusual Weeklies" or (
+            alert_premium and alert_premium >= HIGH_PREMIUM_OVERRIDE
+        ):
+            tier_blocks = False
+            block_reason = ""
+        else:
+            tier_floor = _get_premium_floor_for_alert(ticker, clean_grade, alert_name_str)
+            alert_has_override = bool(_get_alert_gates(alert_name_str).get("min_grade"))
+            tier_blocks = False
+            block_reason = ""
+            if tier_floor is None and not alert_has_override:
+                tier_blocks = True
+                block_reason = f"tier_premium_{clean_grade}_blocked"
+            elif tier_floor is not None and (not alert_premium or alert_premium < tier_floor):
+                tier_blocks = True
+                block_reason = (
+                    f"tier_premium_low:{ticker}_{clean_grade}_"
+                    f"${int((alert_premium or 0)/1000)}K<${int(tier_floor/1000)}K"
+                )
         if tier_blocks:
             _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
-            log.debug(
-                "[liveflow] %s — silent aggregate for %s %s $%s %s",
+            log.info(
+                "[liveflow] gate_blocked %s — %s %s $%s %s prem=$%s grade=%s alert=%s",
                 block_reason, agg.get("ticker"), agg.get("cp"),
                 agg.get("strike"), agg.get("exp"),
+                int(alert_premium or 0), grade, alert_name_str,
             )
             alert["gatePassed"] = False
             try:
