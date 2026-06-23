@@ -1077,6 +1077,19 @@ def replay_alerts_through_full_pipeline(alerts: list) -> list:
         dte = a.get("dte")
         alert_ts = _to_unix(a)
 
+        # DEBUG (temporary): log ALL short-DTE high-premium alerts entering
+        # the replay so we can see what alertName csv_ingest assigned. If
+        # they're not tagged as Vol>OI/Unusual, the retag function correctly
+        # doesn't process them — the bug is upstream in csv_ingest.
+        if (
+            isinstance(dte, (int, float)) and 0 <= dte <= 7
+            and premium and premium >= 500_000
+        ):
+            log.warning(
+                "[replay_entry] 4d candidate: name=%r ticker=%s premium=$%dK dte=%d",
+                original_name, ticker, int(premium/1000), int(dte),
+            )
+
         # Default stamps so callers can rely on these fields existing.
         a["_replayedPassesTableFilter"] = 0
         a["_replayedFilterReason"] = ""
@@ -2072,17 +2085,38 @@ def _passes_table_filter(alert_name, premium, ticker, dte=None):
     pass it skip the earnings short-DTE check. Callers in the live SSE path
     and replay path DO pass it so the earnings filter applies consistently.
     """
+    # DEBUG (temporary): log ALL short-DTE Vol>OI/Unusual decisions so we can
+    # see why 4-day weeklies aren't reaching _maybe_retag_weeklies. Remove
+    # once the bug is identified.
+    is_debug_candidate = (
+        alert_name and alert_name.strip() in ("UCT Vol>OI", "UCT Unusual")
+        and isinstance(dte, (int, float)) and 0 <= dte <= 7
+        and premium and premium >= 500_000
+    )
+
     if not premium or premium < TABLE_FILTER["premium_min"]:
+        if is_debug_candidate:
+            log.warning("[table_filter] %s %s 4d $%dK BLOCKED: premium<min",
+                        alert_name, ticker, int(premium/1000) if premium else 0)
         return False, f"premium<{TABLE_FILTER['premium_min']}"
     if ticker and ticker.upper() in TABLE_FILTER["ticker_blocklist"]:
+        if is_debug_candidate:
+            log.warning("[table_filter] %s %s 4d $%dK BLOCKED: ticker in ETF blocklist",
+                        alert_name, ticker, int(premium/1000))
         return False, f"ticker_blocked:{ticker}"
     # User-curated blocklist — managed live via admin UI, persisted to disk.
     # Applies globally across all alerts (unlike ALERT_TICKER_BLOCKLISTS).
     if ticker and ticker.upper() in _user_ticker_blocklist:
+        if is_debug_candidate:
+            log.warning("[table_filter] %s %s 4d $%dK BLOCKED: in user blocklist",
+                        alert_name, ticker, int(premium/1000))
         return False, f"user_blocked:{ticker}"
     name_lc = (alert_name or "").lower()
     for sub in TABLE_FILTER["alertname_block_substrings"]:
         if sub.lower() in name_lc:
+            if is_debug_candidate:
+                log.warning("[table_filter] %s %s 4d $%dK BLOCKED: alertname substring",
+                            alert_name, ticker, int(premium/1000))
             return False, f"name_blocked:{sub}"
     # Per-alert ticker blocklists supplementing the global block. Lookup uses
     # the stripped name because Bullflow sometimes stores names with trailing
@@ -2094,6 +2128,11 @@ def _passes_table_filter(alert_name, premium, ticker, dte=None):
     alert_blocklist = ALERT_TICKER_BLOCKLISTS.get(alert_key)
     if alert_blocklist and ticker and ticker.upper() in alert_blocklist:
         if not premium or premium < HIGH_PREMIUM_OVERRIDE:
+            if is_debug_candidate:
+                log.warning(
+                    "[table_filter] %s %s 4d $%dK BLOCKED: per-alert ticker blocklist (mega-cap)",
+                    alert_name, ticker, int(premium/1000),
+                )
             return False, f"alert_blocked:{alert_key}:{ticker}"
         # Else: premium >= $5M → bypass mega-cap exclusion. Trade passes.
     # Earnings short-DTE block. Pure event-driven gambles on this-week-
@@ -2110,8 +2149,19 @@ def _passes_table_filter(alert_name, premium, ticker, dte=None):
         and ticker.upper() in EARNINGS_THIS_WEEK
     ):
         if not premium or premium < HIGH_PREMIUM_OVERRIDE:
+            if is_debug_candidate:
+                log.warning(
+                    "[table_filter] %s %s 4d $%dK BLOCKED: earnings short-DTE (%s @ %dd)",
+                    alert_name, ticker, int(premium/1000),
+                    ticker.upper(), int(dte),
+                )
             return False, f"earnings_short_dte:{ticker.upper()}_{int(dte)}d"
         # Else: premium >= $5M → bypass earnings short-DTE block.
+    if is_debug_candidate:
+        log.warning(
+            "[table_filter] %s %s 4d $%dK PASSED — proceeding to retag",
+            alert_name, ticker, int(premium/1000),
+        )
     return True, ""
 
 
