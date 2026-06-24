@@ -733,12 +733,26 @@ function ExamplesPane({ setup }) {
 // library, the way a chart fills the right side of Throughout the Years. The
 // `key` forces a fresh mount per setup so the cascade + chart reset cleanly.
 function DetailStage({ setup }) {
+  const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
     <div className={styles.stage} key={setup.name}>
       <div className={styles.stageBody}>
         {/* Left — the playbook write-up */}
         <div className={styles.stagePlaybook}>
+          {/* Setup identity: glyph + name + direction/family chips */}
+          <div className={styles.pbIdentity}>
+            <span className={styles.pbGlyphWrap}>
+              <SetupGlyph setup={setup} className={styles.pbGlyph} />
+            </span>
+            <div className={styles.pbIdText}>
+              <h2 className={styles.pbSetupName}>{setup.name}</h2>
+              <div className={styles.pbChips}>
+                <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+                <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+              </div>
+            </div>
+          </div>
           <div className={styles.sectionHead}>
             <span className={styles.sectionRule} />
             <span className={styles.sectionLabel}>The Playbook</span>
