@@ -1316,13 +1316,47 @@ async def lifespan(app: FastAPI):
     # working set. Log RSS + thread count every 60s so the 2.4GB observation
     # (2026-06-15) can be confirmed as a plateau (post pass-2 removal) vs. a
     # climb -- the prerequisite for any further memory work.
+    # Opt-in leak attribution: with MEM_TRACE=1, tracemalloc names WHICH
+    # allocation sites grow across snapshots -- the prerequisite for fixing a
+    # genuine climb (vs. a large-but-stable working set) the [mem] line can only
+    # detect, not localize. Inert (zero overhead) unless the env flag is set.
+    _mem_trace_enabled = os.environ.get("MEM_TRACE") == "1"
+    if _mem_trace_enabled:
+        try:
+            import tracemalloc as _tm
+            _tm.start(1)  # nframe=1: attribute each block to its site, modest overhead
+            print("[mem] MEM_TRACE=1 -- tracemalloc started (top allocators logged ~every 5 min)")
+        except Exception as _tm_err:
+            _mem_trace_enabled = False
+            print(f"[mem] tracemalloc start failed (non-fatal): {_tm_err}")
+
     def _web_memwatch():
         import time as _mw_time
+        _tm_prev = None  # previous snapshot, for growth deltas
+        _cycle = 0
         while True:
             try:
                 _rss = _process_rss_mb()
                 if _rss is not None:
                     print(f"[mem] rss_mb={_rss} threads={threading.active_count()}")
+                # Every ~5 min dump the biggest allocators + their growth since
+                # the last dump. A genuine leak shows up as the site whose size
+                # keeps climbing snapshot-over-snapshot.
+                if _mem_trace_enabled and _cycle % 5 == 0:
+                    try:
+                        import tracemalloc as _tm
+                        _snap = _tm.take_snapshot()
+                        print("[mem] tracemalloc top allocators (size / count @ site):")
+                        for _stat in _snap.statistics("lineno")[:8]:
+                            print(f"[mem]   {_stat.size / 1e6:.1f}MB  n={_stat.count}  {_stat.traceback}")
+                        if _tm_prev is not None:
+                            print("[mem] tracemalloc largest growth since last dump:")
+                            for _stat in _snap.compare_to(_tm_prev, "lineno")[:8]:
+                                print(f"[mem]   +{_stat.size_diff / 1e6:.1f}MB  (now {_stat.size / 1e6:.1f}MB)  {_stat.traceback}")
+                        _tm_prev = _snap
+                    except Exception as _dump_err:
+                        print(f"[mem] tracemalloc dump error (non-fatal): {_dump_err}")
+                _cycle += 1
             except Exception:
                 pass
             _mw_time.sleep(60)
