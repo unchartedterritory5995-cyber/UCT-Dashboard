@@ -107,6 +107,54 @@ def _build_s3_key(d: date) -> str:
     )
 
 
+def _load_oi_for_events(db_path: str, events: list, snap_date_iso: str) -> dict:
+    """
+    Look up OI for each event from contract_oi_snapshots for the given
+    snap_date. Used by the Flat Files worker (which processes a specific
+    historical day, not "today").
+
+    Returns: {event_index: oi} for events where we found a snapshot.
+    Events without a snapshot get OI=0 downstream (color stays WHITE).
+    """
+    if not events:
+        return {}
+    import sqlite3
+
+    # Build (contract_key, event_idx) tuples. Contract key format must
+    # match oi_snapshots.make_key exactly: "SYM|C|150.0|M/D/YYYY"
+    keys_and_idx = []
+    for i, e in enumerate(events):
+        cp_letter = 'C' if e.cp == 'CALL' else 'P'
+        exp_str = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+        key = f"{e.root}|{cp_letter}|{float(e.strike)}|{exp_str}"
+        keys_and_idx.append((key, i))
+
+    if not keys_and_idx:
+        return {}
+
+    keys = [k for k, _ in keys_and_idx]
+    idx_by_key = {k: i for k, i in keys_and_idx}
+    placeholders = ",".join("?" for _ in keys)
+
+    out = {}
+    try:
+        with sqlite3.connect(db_path, timeout=10) as conn:
+            sql = f"""
+                SELECT contract_key, oi
+                FROM contract_oi_snapshots
+                WHERE snap_date = ?
+                  AND contract_key IN ({placeholders})
+            """
+            for key, oi in conn.execute(sql, (snap_date_iso, *keys)):
+                idx = idx_by_key.get(key)
+                if idx is not None and oi is not None and oi > 0:
+                    out[idx] = int(oi)
+    except Exception as e:
+        logger.warning("[massive-ff] OI batch lookup failed: %s", e)
+
+    return out
+
+
 def _bbs_date_str(d: date) -> str:
     """Match BBS CSV date format: 'M/D/YYYY' (no zero-pad)."""
     return f"{d.month}/{d.day}/{d.year}"
@@ -305,15 +353,35 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
             len(ticker_meta), len(all_syms),
         )
 
-    def _to_csv(evts, source):
+    # OI enrichment from contract_oi_snapshots. Unlike the WS worker we use
+    # the file's source_date (the trade day) as snap_date, not today's date.
+    # Cron at 5:30 AM ET on day T+1 captures EOD-T OI as snap_date=T+1, so
+    # for trades on day T, the relevant snapshot is the one taken the morning
+    # AFTER -- snap_date = source_date + 1. But for backfill of historical
+    # files, we look up snap_date = source_date (since snapshots taken on a
+    # given day capture flow that DAY's starting OI, mapped to that ISO date).
+    # Per oi_snapshots.daily_snapshot_job: snap_date is today's ISO date.
+    # So for a trade on day T, we want the snapshot from day T -- that's the
+    # OI at the start of day T's session.
+    snap_date_iso = source_date.isoformat()
+    oi_stocks = _load_oi_for_events(db.db_path, stocks_events, snap_date_iso)
+    oi_indexes = _load_oi_for_events(db.db_path, indexes_events, snap_date_iso)
+    logger.info(
+        "[massive-ff] OI snapshots resolved: %d/%d stocks, %d/%d indexes",
+        len(oi_stocks), len(stocks_events),
+        len(oi_indexes), len(indexes_events),
+    )
+
+    def _to_csv(evts, source, oi_map):
         buf = io.StringIO()
         buf.write(header)
-        for ev in evts:
+        for i, ev in enumerate(evts):
             meta = ticker_meta.get(ev.root, {})
             row = event_to_bbs_row(
                 ev, source=source,
                 mktcap=meta.get("mktcap", 0),
                 sector=meta.get("sector", ""),
+                oi=oi_map.get(i, 0),
             )
             buf.write(",".join(str(row.get(c, "")) for c in COLUMNS) + "\n")
         return buf.getvalue()
@@ -323,7 +391,7 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
     skipped = 0
 
     if stocks_events:
-        csv_str = _to_csv(stocks_events, "stocks")
+        csv_str = _to_csv(stocks_events, "stocks", oi_stocks)
         result = db.insert_csv(csv_str, source="stocks")
         inserted_stocks = result.get("inserted", 0)
         skipped += result.get("skipped", 0)
@@ -333,7 +401,7 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
         )
 
     if indexes_events:
-        csv_str = _to_csv(indexes_events, "indexes")
+        csv_str = _to_csv(indexes_events, "indexes", oi_indexes)
         result = db.insert_csv(csv_str, source="indexes")
         inserted_indexes = result.get("inserted", 0)
         skipped += result.get("skipped", 0)
