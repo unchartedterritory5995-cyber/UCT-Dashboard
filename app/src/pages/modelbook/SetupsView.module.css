@@ -380,39 +380,41 @@
    exceeds the pane, so rows keep their real height instead of being squeezed. */
 .playbook { margin-bottom: 0; }
 
-/* ── Playbook identity header: glyph + setup name + chips ── */
+/* ── Playbook identity header: glyph + setup name + chips, centered ── */
 .pbIdentity {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
+  text-align: center;
+  gap: 11px;
+  margin: 2px 0 16px;
 }
 .pbGlyphWrap {
   flex: none;
-  width: 104px;
-  height: 58px;
+  width: 132px;
+  height: 66px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(201, 168, 76, 0.25);
-  border-radius: 10px;
+  border-radius: 11px;
   background:
     linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.01)),
     rgba(14, 15, 19, 0.7);
   overflow: hidden;
 }
 .pbGlyph { display: block; width: 100%; height: 100%; }
-.pbIdText { min-width: 0; }
+.pbIdText { display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; }
 .pbSetupName {
   font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: 0.6px;
   color: #f0d479;
-  margin: 0 0 7px;
+  margin: 0;
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 22px rgba(240, 212, 121, 0.2);
 }
-.pbChips { display: flex; gap: 7px; flex-wrap: wrap; }
+.pbChips { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; }
 
 /* Lede: the "what this setup IS" paragraph. */
 .pbLede {
