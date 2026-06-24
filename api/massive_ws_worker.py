@@ -98,6 +98,12 @@ _state = {
     "reconnect_count": 0,
     "last_error": None,
     "thread": None,
+    # Enrichment diagnostics (Phase 2a debugging)
+    "last_meta_lookup_size": 0,      # symbols passed to _load_ticker_metadata
+    "last_meta_lookup_resolved": 0,  # symbols that returned non-empty meta
+    "last_meta_sample": {},          # first few resolved entries for visibility
+    "last_oi_lookup_size": 0,        # events passed to _load_oi_for_events
+    "last_oi_lookup_resolved": 0,    # events that returned non-zero OI
 }
 
 
@@ -116,7 +122,78 @@ def get_status() -> dict:
 
 # -- Event handling -------------------------------------------------
 
-def _events_to_csv(events: list, source: str, ticker_meta: dict = None) -> str:
+def _load_oi_for_events(events: list) -> dict:
+    """
+    Look up OI for each event from the daily contract_oi_snapshots table
+    (same /data/flow.db, separate table populated by the 5:30 AM ET cron).
+
+    The snapshot taken at 5:30 AM ET on day T captures end-of-day-T-1 OI -
+    i.e. the "starting OI" for day T's session. For a trade on day T, that's
+    the right reference for "did this trade exceed OI?" per BBS rules.
+
+    Returns: {event_index: oi} for events where we found a snapshot.
+    Events without a snapshot get OI=0 downstream (color stays WHITE).
+    """
+    if not events:
+        return {}
+    import sqlite3
+    from datetime import datetime
+
+    # Build (contract_key, event_idx) tuples. The contract_key format must
+    # match oi_snapshots.make_key exactly: "SYM|C|150.0|M/D/YYYY"
+    keys_and_idx = []
+    for i, e in enumerate(events):
+        cp_letter = 'C' if e.cp == 'CALL' else 'P'
+        exp_str = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+        key = f"{e.root}|{cp_letter}|{float(e.strike)}|{exp_str}"
+        keys_and_idx.append((key, i))
+
+    if not keys_and_idx:
+        return {}
+
+    # All events in a single flush were captured within ~2s of each other,
+    # so they share the same ET date. Use the first event's date as snap_date.
+    first_ts_et = datetime.fromtimestamp(events[0].first_ts_ns / 1e9, tz=UTC).astimezone(ET)
+    snap_date_iso = first_ts_et.date().isoformat()
+
+    try:
+        from api.flow_db import FlowDB
+        db_path = FlowDB().db_path
+    except Exception as e:
+        logger.warning("[massive-ws] OI lookup: FlowDB unavailable: %s", e)
+        return {}
+
+    keys = [k for k, _ in keys_and_idx]
+    idx_by_key = {k: i for k, i in keys_and_idx}
+    placeholders = ",".join("?" for _ in keys)
+
+    out = {}
+    try:
+        with sqlite3.connect(db_path, timeout=10) as conn:
+            sql = f"""
+                SELECT contract_key, oi
+                FROM contract_oi_snapshots
+                WHERE snap_date = ?
+                  AND contract_key IN ({placeholders})
+            """
+            for key, oi in conn.execute(sql, (snap_date_iso, *keys)):
+                idx = idx_by_key.get(key)
+                if idx is not None and oi is not None and oi > 0:
+                    out[idx] = int(oi)
+    except Exception as e:
+        logger.warning("[massive-ws] OI batch lookup failed: %s", e)
+
+    return out
+
+
+# Need to import the ET / UTC zones used above. The processor exports them
+# but a local import keeps this module self-contained for the OI helper.
+from zoneinfo import ZoneInfo
+ET = ZoneInfo("America/New_York")
+UTC = ZoneInfo("UTC")
+
+
+def _events_to_csv(events: list, source: str, ticker_meta: dict = None, oi_map: dict = None) -> str:
     """Convert AggEvents -> BBS-format CSV string for FlowDB.insert_csv.
 
     ticker_meta: optional {symbol: {"mktcap": int, "sector": str}} dict for
@@ -126,14 +203,17 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None) -> str:
     from api.flow_db import COLUMNS  # Reuse the exact column order
 
     ticker_meta = ticker_meta or {}
+    oi_map = oi_map or {}
     buf = StringIO()
     buf.write(",".join(COLUMNS) + "\n")
-    for evt in events:
+    for i, evt in enumerate(events):
         meta = ticker_meta.get(evt.root, {})
+        oi = oi_map.get(i, 0)
         row = event_to_bbs_row(
             evt, source=source,
             mktcap=meta.get("mktcap", 0),
             sector=meta.get("sector", ""),
+            oi=oi,
         )
         # Quote-safe write -- premium/strike never have commas but be defensive
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
@@ -248,14 +328,40 @@ def _write_events(events: list) -> None:
         # cap filter handles that gracefully (falls into Mid-Small bucket).
         all_syms = list({e.root for e in events})
         ticker_meta = _load_ticker_metadata(all_syms)
+
+        # Record diagnostic info so /api/massive/status reveals what enrichment
+        # is actually finding in production
+        _state["last_meta_lookup_size"] = len(all_syms)
+        _state["last_meta_lookup_resolved"] = len(ticker_meta)
+        # Sample up to 5 resolved entries (truncate values for compactness)
+        sample = {}
+        for sym in list(ticker_meta.keys())[:5]:
+            m = ticker_meta[sym]
+            sample[sym] = {
+                "mktcap": m.get("mktcap", 0),
+                "sector": m.get("sector", ""),
+            }
+        _state["last_meta_sample"] = sample
+
         if ticker_meta:
             logger.debug(
                 "[massive-ws] enriched %d/%d tickers with FlowDB metadata",
                 len(ticker_meta), len(all_syms),
             )
 
+        # OI enrichment: look up snapshot OI for each event's contract.
+        # Powers Color (WHITE/YELLOW/MAGENTA) per BBS rules. Without OI we
+        # can't tell if a trade exceeds existing positioning -- everything
+        # stays WHITE. Stocks and indexes both have snapshots (SOURCES list
+        # in oi_snapshots.py includes both).
+        oi_stocks = _load_oi_for_events(stocks) if stocks else {}
+        oi_indexes = _load_oi_for_events(indexes) if indexes else {}
+        _state["last_oi_lookup_size"] = len(stocks) + len(indexes)
+        _state["last_oi_lookup_resolved"] = len(oi_stocks) + len(oi_indexes)
+
         if stocks:
-            csv_str = _events_to_csv(stocks, "stocks", ticker_meta=ticker_meta)
+            csv_str = _events_to_csv(stocks, "stocks",
+                                     ticker_meta=ticker_meta, oi_map=oi_stocks)
             result = db.insert_csv(csv_str, source="stocks")
             _state["events_written_stocks"] += result.get("inserted", 0)
             if result.get("skipped", 0):
@@ -265,7 +371,8 @@ def _write_events(events: list) -> None:
                 )
 
         if indexes:
-            csv_str = _events_to_csv(indexes, "indexes", ticker_meta=ticker_meta)
+            csv_str = _events_to_csv(indexes, "indexes",
+                                     ticker_meta=ticker_meta, oi_map=oi_indexes)
             result = db.insert_csv(csv_str, source="indexes")
             _state["events_written_indexes"] += result.get("inserted", 0)
             if result.get("skipped", 0):
