@@ -217,29 +217,32 @@ function ExampleJumpList({ setup, onPick }) {
   )
   const examples = data?.examples || []
   return (
-    <div className={styles.jumpList} role="menu">
+    <div className={styles.jumpWrap} role="menu">
       {!data && <div className={styles.jumpMsg}>Loading examples…</div>}
       {data && examples.length === 0 && <div className={styles.jumpMsg}>No charted examples yet</div>}
       {examples.length > 0 && (
-        <div className={styles.jumpHead}>Charted Examples<span className={styles.jumpHeadCount}>{examples.length}</span></div>
+        <>
+          <div className={styles.jumpLabel}>Jump to example</div>
+          <div className={styles.jumpChips}>
+            {examples.map(ex => (
+              <button
+                key={ex.id}
+                type="button"
+                role="menuitem"
+                className={styles.jumpChip}
+                onClick={() => onPick(ex)}
+              >
+                <span className={styles.jumpChipLogo}>
+                  <CompanyLogo sym={ex.symbol} size={16} round name={ex.company} />
+                </span>
+                <span className={styles.jumpChipSym}>{ex.symbol}</span>
+                <span className={styles.jumpChipYear}>{ex.year}</span>
+                {ex.grade && <span className={styles.jumpChipGrade}>{ex.grade}</span>}
+              </button>
+            ))}
+          </div>
+        </>
       )}
-      {examples.map(ex => (
-        <button
-          key={ex.id}
-          type="button"
-          role="menuitem"
-          className={styles.jumpRow}
-          onClick={() => onPick(ex)}
-        >
-          <span className={styles.jumpLogo}>
-            <CompanyLogo sym={ex.symbol} size={18} round name={ex.company} />
-          </span>
-          <span className={styles.jumpSym}>{ex.symbol}</span>
-          <span className={styles.jumpYear}>{ex.year}</span>
-          {ex.grade && <span className={styles.jumpGrade}>{ex.grade}</span>}
-          <span className={styles.jumpGo} aria-hidden="true">›</span>
-        </button>
-      ))}
     </div>
   )
 }
