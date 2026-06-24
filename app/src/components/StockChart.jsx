@@ -356,6 +356,7 @@ const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → rea
 const MB_DOWN = '#c41f2d'    // deep darker red
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
+const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 // Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).
 function colorWithAlpha(color, a) {
@@ -1082,6 +1083,7 @@ export default function StockChart({
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
+  const volMaTailSeriesRef = useRef(null)  // candleFrameFade: post-setup tail of the volume MA (crossfades with everything else)
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
@@ -2297,6 +2299,9 @@ export default function StockChart({
       const base = overlayData?.[i]?.color
       if (tails[i] && base) { try { tails[i].applyOptions({ color: colorWithAlpha(base, frameFadeAlpha) }) } catch { /* disposed mid-anim */ } }
     }
+    if (volMaTailSeriesRef.current) {
+      try { volMaTailSeriesRef.current.applyOptions({ color: colorMulAlpha(VOL_MA_COLOR, frameFadeAlpha) }) } catch { /* disposed mid-anim */ }
+    }
   }, [frameFadeAlpha, candleFrameFade, overlayData])
 
   const indicatorData = useMemo(() => {
@@ -3240,27 +3245,44 @@ export default function StockChart({
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
       if (volumeMa && volMaData.length) {
-        if (!volMaSeriesRef.current) {
-          volMaSeriesRef.current = chart.addSeries(LineSeries, {
-            color: 'rgba(255,255,255,0.45)',
-            lineWidth: 1,
-            lineType: LineType.Curved,
-            priceScaleId: volScaleId,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            crosshairMarkerVisible: false,
-            autoscaleInfoProvider: () => null,
-          }, volSeparatePane ? VOL_PANE_INDEX : 0)
+        // candleFrameFade: split the volume MA into base (≤ setup day) + a fading
+        // tail past it, so it crossfades with the candles / volume / price MAs.
+        const _vmFade = candleFrameFade && fadeCutoff != null
+        const _vmCut = _vmFade ? String(fadeCutoff) : null
+        const baseVM = _vmFade ? volMaData.filter(p => String(p.time) <= _vmCut) : volMaData
+        const tailVM = _vmFade ? volMaData.filter(p => String(p.time) >= _vmCut) : null
+        const _vmPane = volSeparatePane ? VOL_PANE_INDEX : 0
+        const _vmOpts = {
+          lineWidth: 1, lineType: LineType.Curved, priceScaleId: volScaleId,
+          priceLineVisible: false, lastValueVisible: false,
+          crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
         }
-        volMaSeriesRef.current.setData(volMaData)
+        if (!volMaSeriesRef.current) {
+          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: VOL_MA_COLOR, ..._vmOpts }, _vmPane)
+        }
+        volMaSeriesRef.current.setData(baseVM)
+        if (_vmFade) {
+          const vmTailColor = colorMulAlpha(VOL_MA_COLOR, frameFadeAlphaRef.current)
+          if (!volMaTailSeriesRef.current) {
+            volMaTailSeriesRef.current = chart.addSeries(LineSeries, { color: vmTailColor, ..._vmOpts }, _vmPane)
+          } else {
+            volMaTailSeriesRef.current.applyOptions({ color: vmTailColor })
+          }
+          volMaTailSeriesRef.current.setData(tailVM)
+        } else if (volMaTailSeriesRef.current) {
+          try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}
+          volMaTailSeriesRef.current = null
+        }
       } else if (volMaSeriesRef.current) {
         try { chart.removeSeries(volMaSeriesRef.current) } catch {}
         volMaSeriesRef.current = null
+        if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
       }
     } else if (volumeSeriesRef.current) {
       try { chart.removeSeries(volumeSeriesRef.current) } catch {}
       volumeSeriesRef.current = null
       if (volMaSeriesRef.current) { try { chart.removeSeries(volMaSeriesRef.current) } catch {}; volMaSeriesRef.current = null }
+      if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
     }
 
     // ── Overlay lines — reuse series where possible ──
