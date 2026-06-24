@@ -48,15 +48,6 @@ export const FAMILY_CHIP = {
 export const SETUP_CATALOG = [
   // ── Bases & Breakouts ──────────────────────────────────────────────────────
   {
-    name: 'Bull Flag',
-    family: 'Bases & Breakouts',
-    direction: 'long',
-    essence: 'A sharp advance (the flagpole) followed by a brief, orderly pullback on lighter volume, then a breakout that resumes the trend.',
-    candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, [8, 0, 0.4, 1.5]],
-    trend: { from: 3, to: 8, side: 'h' },
-    emas: [9, 20],
-  },
-  {
     // Flat Top Breakout merged with VCP — same family of base breakout. Keeps
     // the Flat Top write-up but adopts the VCP contraction glyph.
     name: 'Flat Top Breakout (VCP)',
@@ -65,6 +56,15 @@ export const SETUP_CATALOG = [
     essence: '“1 tap, 2 tap, 3 tap, breakout” — repeated tests of a flat ceiling on rising lows until sellers there are exhausted.',
     candles: [9, -6, 7.5, -4, 5, -2.5, 3, -1.2, 0.6, [6.5, 0, 0.3]],
     pivot: { idx: 2, side: 'h' },
+    emas: [9, 20],
+  },
+  {
+    name: 'Bull Flag',
+    family: 'Bases & Breakouts',
+    direction: 'long',
+    essence: 'A sharp advance (the flagpole) followed by a brief, orderly pullback on lighter volume, then a breakout that resumes the trend.',
+    candles: [3.5, 9, 12, 8, -1.5, -0.8, -1.2, -0.6, -0.9, [8, 0, 0.4, 1.5]],
+    trend: { from: 3, to: 8, side: 'h' },
     emas: [9, 20],
   },
   {
