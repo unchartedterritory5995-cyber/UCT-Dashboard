@@ -447,7 +447,7 @@ function _windowPriceRange(bars, from, to, overlays) {
 // autoscaleInfoProvider on the candle series reading priceRangeRef — set per frame
 // here, cleared at the end so normal autoScale resumes. Falls back to the plain
 // horizontal-only animation when the price ranges can't be computed.
-function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null, textFadeRef = null, targetTextVisible = null) {
+function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, duration = 1150, onDone = null, overlays = null, textFadeRef = null, targetTextVisible = null, sRangeOverride = null, tRangeOverride = null) {
   // Text annotations fade only in the last sliver of the zoom (see step()) so they
   // land right as the animation settles on a setup / vanish right as it lands on
   // the year. endFade is the settled target; snap to it on any non-animated path.
@@ -465,8 +465,13 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   let start
   try { start = ts.getVisibleLogicalRange() } catch { start = null }
   if (!start) { priceRangeRef.current = null; snapFade(); try { ts.setVisibleLogicalRange(target) } catch { /* mid-load */ } onDone && onDone(); return }
-  const sRange = _windowPriceRange(bars, start.from, start.to, overlays)
-  const tRange = _windowPriceRange(bars, target.from, target.to, overlays)
+  // Callers can supply explicit price windows (Setup⇄Result flip): the horizontal
+  // target carries replay right-padding, but the VERTICAL must be fit to the real
+  // candles only — never the blank pad (or the other frame's bars held in the
+  // series mid-transition), which would otherwise inflate the scale and crunch
+  // the candles. Falls back to deriving from the logical windows when unset.
+  const sRange = sRangeOverride || _windowPriceRange(bars, start.from, start.to, overlays)
+  const tRange = tRangeOverride || _windowPriceRange(bars, target.from, target.to, overlays)
   if (!sRange || !tRange) { priceRangeRef.current = null; snapFade(); _animateVisibleRange(chart, rafRef, target, duration); onDone && onDone(); return }
   const startFade = textFadeRef ? (textFadeRef.current ?? 0) : 0
   const startWidth = start.to - start.from
@@ -3989,11 +3994,18 @@ export default function StockChart({
         } catch { /* provider optional */ }
       }
       try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
-      // Start the glide FROM the outgoing frame, re-asserted explicitly. The
-      // setData for the new frame (Setup → Result appends bars) can leave the
-      // view perturbed in this same commit; effects run before paint, so this
-      // restore never flashes. Skipped when a glide is already in flight
-      // (rapid flipping) — then we glide from wherever the view currently is.
+      // The vertical for BOTH ends is fit to the real candles of each frame
+      // (unpadded), computed here so the glide never reads the replay pad or the
+      // mid-transition held slice for autoscale — that was crunching the candles
+      // and dragging the price-anchored annotations on the way back to Setup.
+      const tRangeGlide = _windowPriceRange(filteredBars, fromIdx, endIdx, overlayData)
+      let sRangeGlide = null
+      // Start the glide FROM the outgoing frame, re-asserted explicitly (with the
+      // same replay pad it's showing, so there's no pre-glide jump). The setData
+      // for the new frame (Setup → Result appends bars) can leave the view
+      // perturbed in this same commit; effects run before paint, so this restore
+      // never flashes. Skipped when a glide is already in flight (rapid flipping)
+      // — then we glide from wherever the view currently is.
       if (!focusActiveRef.current) {
         const [oldEntryRaw, oldExitRaw] = prevPinSig.slice(fk.length + 1).split('|')
         const oLo = toMs(oldEntryRaw === 'null' ? null : oldEntryRaw)
@@ -4013,7 +4025,9 @@ export default function StockChart({
             if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
           }
         }
-        if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE }) } catch { /* mid-load */ } }
+        sRangeGlide = _windowPriceRange(filteredBars, oS, oE, overlayData)
+        const oPad = frameRightPadFrac > 0 ? Math.round((oE - oS) * frameRightPadFrac) : 0
+        if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE + oPad }) } catch { /* mid-load */ } }
       }
       focusActiveRef.current = true
       focusRangeRef.current = null
@@ -4023,7 +4037,7 @@ export default function StockChart({
           // Release a held wider slice (Result → Setup): the outgoing candles
           // are off-screen now, so the tail re-cut is invisible.
           if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
-        }, overlayData, null, null)
+        }, overlayData, null, null, sRangeGlide, tRangeGlide)
       yearFramedRef.current = `${fk}:${filteredBars.length}`  // already framed — no settle-window re-assert burst needed
       return
     }
