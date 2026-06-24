@@ -112,6 +112,73 @@ def _bbs_date_str(d: date) -> str:
     return f"{d.month}/{d.day}/{d.year}"
 
 
+def _load_ticker_metadata(db_path: str, symbols: list) -> dict:
+    """
+    Look up MktCap + Sector for each symbol from the most recent non-blank
+    FlowDB row that has those values. Same pattern as the WS worker — any
+    ticker that's been in FlowDB before has its metadata cached and we can
+    read it for free without hitting Schwab.
+
+    Returns: {"AAPL": {"mktcap": 3100000000000, "sector": "Technology"}, ...}
+    Symbols never seen before are simply omitted.
+    """
+    if not symbols:
+        return {}
+    import sqlite3
+    clean = sorted({s.strip().upper() for s in symbols if s and s.strip()})
+    if not clean:
+        return {}
+
+    out: dict = {}
+    try:
+        with sqlite3.connect(db_path, timeout=10) as conn:
+            placeholders = ",".join("?" for _ in clean)
+            mc_sql = f"""
+                SELECT f.Symbol, f.MktCap
+                FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(id) AS max_id
+                    FROM flow
+                    WHERE Symbol IN ({placeholders})
+                      AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
+                    GROUP BY Symbol
+                ) latest ON f.id = latest.max_id
+            """
+            for sym, mc_raw in conn.execute(mc_sql, clean):
+                if not sym:
+                    continue
+                sym = sym.strip().upper()
+                try:
+                    mc = int(float((mc_raw or "0").strip()))
+                except (ValueError, TypeError):
+                    mc = 0
+                if mc > 0:
+                    out.setdefault(sym, {})["mktcap"] = mc
+
+            sec_sql = f"""
+                SELECT f.Symbol, f.Sector
+                FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(id) AS max_id
+                    FROM flow
+                    WHERE Symbol IN ({placeholders})
+                      AND Sector IS NOT NULL AND Sector != ''
+                    GROUP BY Symbol
+                ) latest ON f.id = latest.max_id
+            """
+            for sym, sec_raw in conn.execute(sec_sql, clean):
+                if not sym:
+                    continue
+                sym = sym.strip().upper()
+                sec = (sec_raw or "").strip()
+                if sec:
+                    out.setdefault(sym, {})["sector"] = sec
+    except Exception as e:
+        logger.warning("[massive-ff] _load_ticker_metadata failed: %s", e)
+
+    return out
+
+
 def _already_ingested(d: date) -> bool:
     """Check FlowDB to see if this date already has rows. Idempotency guard."""
     try:
@@ -228,11 +295,26 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
     db = FlowDB()
     header = ",".join(COLUMNS) + "\n"
 
+    # Enrich with MktCap + Sector from FlowDB (free, instant cache). Same
+    # pattern as the WS worker — see massive_ws_worker._load_ticker_metadata.
+    all_syms = list({e.root for e in events})
+    ticker_meta = _load_ticker_metadata(db.db_path, all_syms)
+    if ticker_meta:
+        logger.info(
+            "[massive-ff] enriched %d/%d tickers with FlowDB metadata",
+            len(ticker_meta), len(all_syms),
+        )
+
     def _to_csv(evts, source):
         buf = io.StringIO()
         buf.write(header)
         for ev in evts:
-            row = event_to_bbs_row(ev, source=source)
+            meta = ticker_meta.get(ev.root, {})
+            row = event_to_bbs_row(
+                ev, source=source,
+                mktcap=meta.get("mktcap", 0),
+                sector=meta.get("sector", ""),
+            )
             buf.write(",".join(str(row.get(c, "")) for c in COLUMNS) + "\n")
         return buf.getvalue()
 
