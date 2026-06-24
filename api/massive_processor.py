@@ -290,33 +290,30 @@ def compute_color(premium: float, type_: str, *, volume: int = 0, oi: int = 0) -
     """
     BBS-style Color label for an aggregated event.
 
-    Per BBS official guide (https://blackboxstocks.com -- Options Guide):
+    Per BBS official guide:
     - WHITE:   Open Interest has NOT been exceeded (volume <= OI)
-    - YELLOW:  OI exceeded in a single trade -- block/sweep with vol > OI
-    - MAGENTA: OI exceeded across multiple trades / significant exceedance
+    - YELLOW:  OI exceeded in a single trade - block/sweep with vol > OI
+    - MAGENTA: OI exceeded significantly (volume >> OI - heavy positioning)
 
-    Colors are about OI exceedance -- new positioning vs trading existing
-    contracts -- NOT about premium size. A $30K trade opening fresh OI on an
+    Colors are about OI exceedance - new positioning vs trading existing
+    contracts - NOT about premium size. A $30K trade opening fresh OI on an
     illiquid strike is more directionally meaningful than a $1M trade on a
     heavily-held contract just churning between holders.
 
-    V1 LIMITATION: we don't yet have per-contract OI wired into the processor
-    (the Massive processor sets OI=0 as a stub). Until we wire the existing
-    Schwab OI snapshot system into the enrichment path, we can't compute the
-    OI ratio, so we return WHITE for everything. The conviction grader will
-    show "0 confirmed of N trades" -- accurate given we don't have the signal.
-
-    V2 will use volume/OI ratio:
-        if volume > 1.5 * oi  -> MAGENTA  (significant exceedance)
-        if volume > oi        -> YELLOW   (any exceedance -- opening flow)
-        else                  -> WHITE    (churn within existing OI)
+    When OI is unknown (oi=0), we can't compute exceedance, so default WHITE.
+    Volume/OI >= 1.5 ratio is the MAGENTA threshold - significant exceedance
+    that suggests aggressive opening positioning. Tuned to roughly match BBS's
+    color distribution against the June 22 export (52% confirmed = MAGENTA+YELLOW).
     """
-    # When real OI is wired, switch on this:
-    # if oi > 0 and volume > 0:
-    #     if volume > 1.5 * oi:
-    #         return 'MAGENTA'
-    #     if volume > oi:
-    #         return 'YELLOW'
+    # No OI data -> can't compute, default WHITE (consistent with how BBS
+    # treats contracts without OI data -- never confirmed).
+    if oi <= 0 or volume <= 0:
+        return 'WHITE'
+
+    if volume >= int(1.5 * oi):
+        return 'MAGENTA'
+    if volume > oi:
+        return 'YELLOW'
     return 'WHITE'
 
 
@@ -364,7 +361,7 @@ def event_to_bbs_row(
         'Spot': _fmt_price(spot) if spot else '0',
         'Premium': str(int(round(evt.premium))),
         'ExpirationDate': _fmt_mdY(evt.expiry),
-        'Color': compute_color(evt.premium, evt.type_),
+        'Color': compute_color(evt.premium, evt.type_, volume=evt.total_size, oi=oi),
         'ImpliedVolatility': f"{iv:.2f}" if iv else '0',
         'Dte': str(dte),
         'ER': er_flag,
