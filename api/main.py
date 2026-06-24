@@ -1834,6 +1834,35 @@ async def lifespan(app: FastAPI):
                                id="substack_poll_sunday_burst", max_instances=1, replace_existing=True)
             print("[scheduler] substack poll job registered (hourly + Sunday burst)")
 
+        # -- The Desk: Daily Sessions auto-publish -------------------------
+        _desk_sessions_on = os.environ.get("DESK_DAILY_SESSION_ENABLED", "0") == "1"
+        if _desk_sessions_on:
+            from api.services import desk_daily_session as _dds
+
+            def _dds_poll():
+                try:
+                    created = _dds.publish_new_sessions()
+                    if created:
+                        print(f"[desk-sessions] published {len(created)} session(s)")
+                except Exception as e:
+                    print(f"[desk-sessions] poll error (non-fatal): {e}")
+
+            def _dds_safety():
+                try:
+                    _dds.check_missing_session_alert()
+                except Exception as e:
+                    print(f"[desk-sessions] safety-net error (non-fatal): {e}")
+
+            # Interval poll: weekdays, every 30 min across the active window.
+            _scheduler.add_job(_dds_poll,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-23", minute="*/30"),
+                id="desk_daily_session_poll", max_instances=1, replace_existing=True)
+            # EOD safety net: weekdays 6 PM ET.
+            _scheduler.add_job(_dds_safety,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=0),
+                id="desk_daily_session_safety", max_instances=1, replace_existing=True)
+            print("[startup] Desk Daily Sessions auto-publish ENABLED")
+
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
         # mirroring the user's actual trading workflow. Everything outside
