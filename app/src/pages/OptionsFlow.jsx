@@ -1595,6 +1595,12 @@ export default function OptionsFlowDashboard() {
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
   // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
+  //
+  // Auto-refresh: also poll every 60s during market hours. The version probe
+  // is cheap (~50ms, returns a single number); only triggers a full CSV
+  // refetch when the DB actually has new rows, so no wasted bandwidth when
+  // nothing's changing. Skipped when tab is hidden (saves CPU + bandwidth)
+  // and outside 9:30 AM – 4:15 PM ET weekdays (data doesn't change overnight).
   useEffect(() => {
     const fetchVer = () => {
       fetch("/api/flow/version", { cache: "no-store" })
@@ -1605,7 +1611,24 @@ export default function OptionsFlowDashboard() {
     fetchVer();
     const onFocus = () => fetchVer();
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+
+    // Periodic polling during market hours, visible tabs only
+    const intervalId = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      // Market hours gate: 9:30 AM – 4:15 PM ET, Mon-Fri.
+      // Add a 15-min after-close grace window so late prints still surface.
+      const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const day = nowET.getDay();
+      if (day === 0 || day === 6) return;  // Sat/Sun
+      const mins = nowET.getHours() * 60 + nowET.getMinutes();
+      if (mins < 9 * 60 + 30 || mins > 16 * 60 + 15) return;  // outside window
+      fetchVer();
+    }, 60_000);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(intervalId);
+    };
   }, []);
 
   // Cache-busting version param — fetched from /api/flow/version on mount &
