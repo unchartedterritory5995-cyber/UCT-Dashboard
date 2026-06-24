@@ -392,6 +392,9 @@
   min-height: 0;
   overflow-y: auto;
   padding: 16px 4px 48px 0;
+  /* One example fills the stage; scrolling settles on whole charts, never a
+     half-peek of the next one. */
+  scroll-snap-type: y proximity;
 }
 
 /* ── Playbook hover panel ── */
@@ -704,6 +707,8 @@
   border-radius: 12px;
   background: rgba(14, 15, 19, 0.6);
   overflow: hidden;
+  scroll-snap-align: start;
+  scroll-margin-top: 6px;
 }
 .exBlockHead {
   display: flex;
@@ -823,7 +828,10 @@
   padding: 5px 12px;
   border-bottom: 1px solid rgba(201, 168, 76, 0.12);
 }
-.exChart { height: 575px; }
+/* Fill the stage so a single example owns the screen — the chart grows with
+   the viewport (chrome above it ≈ top bar + stage header + block header) and
+   the next example sits fully below the fold. */
+.exChart { height: calc(100vh - 218px); min-height: 440px; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
