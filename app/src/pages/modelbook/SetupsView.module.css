@@ -200,45 +200,81 @@
 .railRow:hover .railCaret { color: rgba(201, 168, 76, 0.75); }
 .railCaretOpen { transform: rotate(180deg); color: #f0d479; }
 
-/* ── Charted-examples dropdown (under a clicked setup) ── */
+/* ── Charted-examples dropdown (under a clicked setup) ──
+   An enclosed sub-panel that reads as part of the active row: indented under it,
+   gold-tinted card, a quiet section label, then clean go-to rows. */
 .jumpList {
   display: flex;
   flex-direction: column;
-  margin: 0 6px 6px 18px;
-  padding: 3px 0 4px;
-  border-left: 2px solid rgba(201, 168, 76, 0.3);
-  animation: jumpIn 0.14s ease-out;
+  gap: 1px;
+  margin: 3px 8px 10px 16px;
+  padding: 5px;
+  border-radius: 11px;
+  border: 1px solid rgba(201, 168, 76, 0.16);
+  background:
+    linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.015)),
+    rgba(12, 13, 17, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 6px 18px rgba(0, 0, 0, 0.35);
+  transform-origin: top center;
+  animation: jumpIn 0.16s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes jumpIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@keyframes jumpIn {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+.jumpHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.72);
+  padding: 4px 9px 7px;
+}
+.jumpHeadCount {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(13, 13, 16, 0.9);
+  background: rgba(201, 168, 76, 0.85);
+  border-radius: 999px;
+  padding: 1px 6px;
+  letter-spacing: 0.5px;
+}
 .jumpRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 6px 8px 6px 10px;
-  border-radius: 0 6px 6px 0;
+  padding: 7px 9px;
+  border-radius: 7px;
   transition: background 0.12s;
 }
-.jumpRow:hover { background: rgba(201, 168, 76, 0.1); }
+.jumpRow:hover { background: rgba(201, 168, 76, 0.13); }
+.jumpLogo { flex: none; display: flex; align-items: center; }
 .jumpSym {
+  flex: none;
   font-family: var(--font-display);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: #f0d479;
 }
 .jumpYear {
+  margin-right: auto;          /* pushes grade + arrow to the right edge */
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: rgba(220, 218, 212, 0.65);
+  color: rgba(220, 218, 212, 0.5);
 }
 .jumpGrade {
-  margin-left: auto;
+  flex: none;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -248,11 +284,22 @@
   border-radius: 3px;
   padding: 0 5px;
 }
-.jumpEmpty, .jumpLoading {
+.jumpGo {
+  flex: none;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: #f0d479;
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 0.12s, transform 0.12s;
+}
+.jumpRow:hover .jumpGo { opacity: 0.85; transform: none; }
+.jumpMsg {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
-  padding: 6px 10px;
+  padding: 7px 9px;
 }
 
 @keyframes rise {
@@ -921,7 +968,7 @@
 /* Fill the stage so a single example owns the screen — the chart grows with
    the viewport (chrome above it ≈ top bar + stage header + block header) and
    the next example sits fully below the fold. */
-.exChart { height: calc(100vh - 184px); min-height: 440px; }
+.exChart { height: calc(100vh - 214px); min-height: 440px; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
