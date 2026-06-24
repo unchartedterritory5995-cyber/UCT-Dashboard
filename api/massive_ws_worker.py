@@ -116,19 +116,107 @@ def get_status() -> dict:
 
 # ── Event handling ─────────────────────────────────────────────────
 
-def _events_to_csv(events: list, source: str) -> str:
-    """Convert AggEvents → BBS-format CSV string for FlowDB.insert_csv."""
+def _events_to_csv(events: list, source: str, ticker_meta: dict = None) -> str:
+    """Convert AggEvents → BBS-format CSV string for FlowDB.insert_csv.
+
+    ticker_meta: optional {symbol: {"mktcap": int, "sector": str}} dict for
+    per-row enrichment. Built once per flush by _load_ticker_metadata.
+    """
     from api.massive_processor import event_to_bbs_row
     from api.flow_db import COLUMNS  # Reuse the exact column order
 
+    ticker_meta = ticker_meta or {}
     buf = StringIO()
     buf.write(",".join(COLUMNS) + "\n")
     for evt in events:
-        row = event_to_bbs_row(evt, source=source)
+        meta = ticker_meta.get(evt.root, {})
+        row = event_to_bbs_row(
+            evt, source=source,
+            mktcap=meta.get("mktcap", 0),
+            sector=meta.get("sector", ""),
+        )
         # Quote-safe write — premium/strike never have commas but be defensive
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
         buf.write(line + "\n")
     return buf.getvalue()
+
+
+def _load_ticker_metadata(symbols: list) -> dict:
+    """
+    Look up MktCap + Sector for each symbol from the most recent non-blank
+    FlowDB row that has those values.
+
+    Reuses the same pattern as flow_db.get_mktcap_batch — any ticker that's
+    ever been in FlowDB (from a BBS upload, prior Bullflow, etc.) has its
+    metadata cached and we can read it for free without hitting Schwab.
+
+    Returns: {"AAPL": {"mktcap": 3100000000000, "sector": "Technology"}, ...}
+    Symbols never seen before are simply omitted.
+    """
+    if not symbols:
+        return {}
+    import sqlite3
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+    except Exception as e:
+        logger.warning("[massive-ws] _load_ticker_metadata: FlowDB unavailable: %s", e)
+        return {}
+
+    clean = sorted({s.strip().upper() for s in symbols if s and s.strip()})
+    if not clean:
+        return {}
+
+    out: dict = {}
+    try:
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            # MktCap: most recent non-zero per symbol
+            placeholders = ",".join("?" for _ in clean)
+            mc_sql = f"""
+                SELECT f.Symbol, f.MktCap
+                FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(id) AS max_id
+                    FROM flow
+                    WHERE Symbol IN ({placeholders})
+                      AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
+                    GROUP BY Symbol
+                ) latest ON f.id = latest.max_id
+            """
+            for sym, mc_raw in conn.execute(mc_sql, clean):
+                if not sym:
+                    continue
+                sym = sym.strip().upper()
+                try:
+                    mc = int(float((mc_raw or "0").strip()))
+                except (ValueError, TypeError):
+                    mc = 0
+                if mc > 0:
+                    out.setdefault(sym, {})["mktcap"] = mc
+
+            # Sector: most recent non-blank per symbol
+            sec_sql = f"""
+                SELECT f.Symbol, f.Sector
+                FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(id) AS max_id
+                    FROM flow
+                    WHERE Symbol IN ({placeholders})
+                      AND Sector IS NOT NULL AND Sector != ''
+                    GROUP BY Symbol
+                ) latest ON f.id = latest.max_id
+            """
+            for sym, sec_raw in conn.execute(sec_sql, clean):
+                if not sym:
+                    continue
+                sym = sym.strip().upper()
+                sec = (sec_raw or "").strip()
+                if sec:
+                    out.setdefault(sym, {})["sector"] = sec
+    except Exception as e:
+        logger.warning("[massive-ws] _load_ticker_metadata SQL failed: %s", e)
+
+    return out
 
 
 def _write_events(events: list) -> None:
@@ -154,24 +242,36 @@ def _write_events(events: list) -> None:
         from api.flow_db import FlowDB
         db = FlowDB()
 
+        # Enrich with MktCap + Sector from FlowDB cache (free, instant, no API).
+        # Any ticker that's been in FlowDB before (BBS upload, prior writes)
+        # has its metadata cached. New tickers get empty metadata; the page's
+        # cap filter handles that gracefully (falls into Mid-Small bucket).
+        all_syms = list({e.root for e in events})
+        ticker_meta = _load_ticker_metadata(all_syms)
+        if ticker_meta:
+            logger.debug(
+                "[massive-ws] enriched %d/%d tickers with FlowDB metadata",
+                len(ticker_meta), len(all_syms),
+            )
+
         if stocks:
-            csv_str = _events_to_csv(stocks, "stocks")
+            csv_str = _events_to_csv(stocks, "stocks", ticker_meta=ticker_meta)
             result = db.insert_csv(csv_str, source="stocks")
             _state["events_written_stocks"] += result.get("inserted", 0)
             if result.get("skipped", 0):
                 logger.debug(
                     "[massive-ws] stocks: %d inserted, %d skipped (dupes)",
-                    result["inserted"], result["skipped"]
+                    result["inserted"], result.get("skipped", 0),
                 )
 
         if indexes:
-            csv_str = _events_to_csv(indexes, "indexes")
+            csv_str = _events_to_csv(indexes, "indexes", ticker_meta=ticker_meta)
             result = db.insert_csv(csv_str, source="indexes")
             _state["events_written_indexes"] += result.get("inserted", 0)
             if result.get("skipped", 0):
                 logger.debug(
                     "[massive-ws] indexes: %d inserted, %d skipped (dupes)",
-                    result["inserted"], result["skipped"]
+                    result["inserted"], result.get("skipped", 0),
                 )
 
         _state["last_write_ts"] = time.time()
