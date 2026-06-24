@@ -188,6 +188,7 @@ function RailRow({ setup, active, onSelect }) {
   return (
     <button
       type="button"
+      data-setup-name={setup.name}
       className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
       onClick={() => onSelect(setup)}
     >
@@ -823,10 +824,38 @@ export default function SetupsView({ onExit }) {
     [selectedName],
   )
 
+  // Flat list of setups in the rail's visual order (group order, then within
+  // each group) — drives ↑/↓ keyboard navigation.
+  const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
+
   function openSetup(s) {
     setSelectedName(s.name)
     if (isPhone) setMobileView('detail')
   }
+
+  // ↑/↓ steps through the rail (like the arrow nav in Throughout the Years).
+  // Ignored while typing in the search box; off on phones (rail is view-switched).
+  useEffect(() => {
+    if (isPhone) return
+    function onKey(e) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      if (!visibleFlat.length) return
+      e.preventDefault()
+      const idx = visibleFlat.findIndex(s => s.name === selectedName)
+      const next = idx === -1
+        ? visibleFlat[0]
+        : visibleFlat[e.key === 'ArrowDown' ? Math.min(idx + 1, visibleFlat.length - 1) : Math.max(idx - 1, 0)]
+      if (!next) return
+      setSelectedName(next.name)
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-setup-name="${next.name}"]`)?.scrollIntoView({ block: 'nearest' })
+      })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [visibleFlat, selectedName, isPhone])
 
   // Clicking a family pill filters the rail AND loads that family's first setup
   // into the stage, so the filter feels responsive instead of leaving a stale
