@@ -1108,6 +1108,11 @@ export default function LiveFlow() {
   // Bump this to force the data-fetch effect to re-run (e.g. after the user
   // saves a new ticker blocklist — both live polling and backtest re-fetch).
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // On-demand OI fetch — fills priorOI on rows where the daily snapshot
+  // cron missed the ticker. Operator clicks the "Fetch OI" button to
+  // trigger a bulk Schwab call for all currently-null rows.
+  const [oiFetchLoading, setOiFetchLoading] = useState(false);
+  const [oiFetchResult, setOiFetchResult] = useState(null);  // { filled, total } | null
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -1331,6 +1336,81 @@ export default function LiveFlow() {
     (sum, t) => filters[t] ? sum + byTier[t].length : sum, 0
   );
 
+  // Count rows that need OI — used by the "Fetch OI" button label
+  const nullOICount = alerts.filter(a => a.priorOI == null).length;
+
+  // Bulk on-demand OI fetch. Posts all null-OI contracts to the backend,
+  // which checks our snapshot table first then batch-fetches misses from
+  // Schwab. Updates priorOI and volumeOIRatio on each matched row in
+  // local state so the table fills in without a full reload.
+  const handleFetchOI = async () => {
+    if (oiFetchLoading) return;
+    const nullOIAlerts = alerts.filter(a => a.priorOI == null);
+    if (!nullOIAlerts.length) {
+      setOiFetchResult({ filled: 0, total: 0 });
+      return;
+    }
+    setOiFetchLoading(true);
+    setOiFetchResult(null);
+
+    // Dedup by contract so we don't hit Schwab for the same contract
+    // when multi-fire rows share the same strike/exp.
+    const contractMap = new Map();
+    for (const a of nullOIAlerts) {
+      if (!a.ticker || !a.cp || a.strike == null || !a.exp) continue;
+      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+      if (!contractMap.has(k)) {
+        contractMap.set(k, {
+          ticker: a.ticker, cp: a.cp, strike: a.strike, exp: a.exp,
+        });
+      }
+    }
+    const contracts = Array.from(contractMap.values());
+
+    try {
+      // Hit endpoint in chunks of 100 (backend cap). Multi-chunk needed
+      // on heavy days but typically one call suffices.
+      const oiMap = {};
+      const CHUNK = 100;
+      for (let i = 0; i < contracts.length; i += CHUNK) {
+        const chunk = contracts.slice(i, i + CHUNK);
+        const r = await fetch("/api/oi-snapshot/bulk-fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(chunk),
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        Object.assign(oiMap, d.results || {});
+      }
+
+      // Merge OI back into alerts state. Compute volumeOIRatio inline
+      // so the existing display logic and gate badges work.
+      const filledKeys = new Set(Object.keys(oiMap));
+      setAlerts(prev => prev.map(a => {
+        if (a.priorOI != null) return a;  // already had OI, skip
+        const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+        if (!filledKeys.has(k)) return a;
+        const oi = oiMap[k];
+        const trade_size = a.tradeSize || 0;
+        const ratio = (oi > 0 && trade_size > 0) ? Math.round((trade_size / oi) * 100) / 100 : null;
+        return {
+          ...a,
+          priorOI: oi,
+          volumeOIRatio: ratio,
+          oiExceeded: ratio != null && ratio > 1.0,
+        };
+      }));
+
+      setOiFetchResult({ filled: filledKeys.size, total: contracts.length });
+    } catch (e) {
+      console.error("OI bulk fetch failed:", e);
+      setOiFetchResult({ filled: 0, total: contracts.length, error: e.message });
+    } finally {
+      setOiFetchLoading(false);
+    }
+  };
+
   return (
     <div style={{
       minHeight: "100vh", background: P.bg, color: P.wh,
@@ -1534,8 +1614,42 @@ export default function LiveFlow() {
         </div>
       </div>
 
-      {/* Filter chips */}
-      <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
+      {/* Filter chips + Fetch OI button. Fetch OI is shown when there are
+          null-OI rows visible — gives the operator a one-click way to fill
+          in the OI column for historical alerts where the daily snapshot
+          cron missed the ticker. */}
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
+        </div>
+        {nullOICount > 0 && (
+          <div style={{
+            padding: "10px 20px", borderBottom: "1px solid " + P.bd + "80",
+            background: P.cd + "60", display: "flex", alignItems: "center", gap: 10,
+          }}>
+            {oiFetchResult && (
+              <span style={{
+                fontSize: 10, color: oiFetchResult.error ? P.be : P.bu,
+                fontFamily: "ui-monospace, monospace",
+              }}>
+                {oiFetchResult.error
+                  ? `error: ${oiFetchResult.error}`
+                  : `filled ${oiFetchResult.filled}/${oiFetchResult.total}`}
+              </span>
+            )}
+            <button onClick={handleFetchOI} disabled={oiFetchLoading} style={{
+              padding: "4px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+              border: "1px solid " + P.ac + "80",
+              background: oiFetchLoading ? "transparent" : P.ac + "14",
+              color: oiFetchLoading ? P.mt : P.ac,
+              cursor: oiFetchLoading ? "wait" : "pointer", letterSpacing: 0.3,
+              fontFamily: "inherit", whiteSpace: "nowrap",
+            }}>
+              {oiFetchLoading ? "fetching…" : `↻ fetch oi (${nullOICount})`}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Admin: user-managed ticker exclusion list */}
       <UserBlocklistPanel
