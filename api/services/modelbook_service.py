@@ -159,7 +159,8 @@ _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
                    "label_date", "timeframe", "frame_start_date", "result_start_date",
                    "result_end_date", "entry_price", "stop_price",
                    "target_price", "grade", "notes", "advance_note",
-                   "watermark_x", "watermark_y", "drawings_json", "sort_order")
+                   "watermark_x", "watermark_y", "drawings_json", "result_drawings_json",
+                   "sort_order")
 
 
 def _connect() -> sqlite3.Connection:
@@ -199,6 +200,7 @@ def _init_db() -> None:
             ("modelbook_setup_examples", "watermark_x", "REAL"),
             ("modelbook_setup_examples", "watermark_y", "REAL"),
             ("modelbook_setup_examples", "timeframe", "TEXT"),
+            ("modelbook_setup_examples", "result_drawings_json", "TEXT"),  # annotations shown only in the Result view (separate from drawings_json = Setup view)
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")

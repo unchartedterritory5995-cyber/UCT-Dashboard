@@ -144,6 +144,7 @@ class ExamplePatch(BaseModel):
     watermark_x: Optional[float] = None
     watermark_y: Optional[float] = None
     drawings_json: Optional[str] = None
+    result_drawings_json: Optional[str] = None
     sort_order: Optional[int] = None
 
 
