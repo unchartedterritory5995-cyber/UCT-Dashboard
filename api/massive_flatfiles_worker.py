@@ -1,5 +1,5 @@
 """
-massive_flatfiles_worker.py — Daily Massive Flat Files ingester.
+massive_flatfiles_worker.py -- Daily Massive Flat Files ingester.
 
 Pulls the daily OPRA options trades CSV from Massive's S3-compatible
 bucket (T+1, published ~11 AM ET), runs it through the validated
@@ -7,7 +7,7 @@ massive_processor aggregator, and writes events to FlowDB. OptionsFlow.jsx
 picks them up via the same /api/flow/data path it always used.
 
 Architecture:
-- APScheduler cron at 11:30 AM ET, 12:00 PM, 12:30 PM (three retries — Massive
+- APScheduler cron at 11:30 AM ET, 12:00 PM, 12:30 PM (three retries -- Massive
   sometimes publishes late). Each run checks if yesterday is already ingested
   and no-ops if so, so multi-fire is safe.
 - Single function process_date(date) is the unit of work. Reusable from cron,
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 ET = ZoneInfo("America/New_York")
 
 
-# ── Configuration ──────────────────────────────────────────────────
+# -- Configuration --------------------------------------------------
 
 S3_ENDPOINT = os.environ.get("MASSIVE_S3_ENDPOINT", "https://files.massive.com").strip()
 S3_BUCKET = os.environ.get("MASSIVE_S3_BUCKET", "flatfiles").strip()
@@ -59,7 +59,7 @@ S3_KEY_TEMPLATE = "us_options_opra/trades_v1/{yyyy}/{mm}/{yyyy}-{mm}-{dd}.csv.gz
 ENABLED = os.environ.get("MASSIVE_FLATFILES_ENABLED", "1").lower() in ("1", "true", "yes")
 DRY_RUN = os.environ.get("MASSIVE_FLATFILES_DRY_RUN", "0").lower() in ("1", "true", "yes")
 
-# Filters — match the WS worker for consistency
+# Filters -- match the WS worker for consistency
 MIN_PREMIUM = float(os.environ.get("MASSIVE_MIN_PREMIUM", "10000"))
 MIN_VOLUME = int(os.environ.get("MASSIVE_MIN_VOLUME", "50"))
 
@@ -68,7 +68,7 @@ MIN_VOLUME = int(os.environ.get("MASSIVE_MIN_VOLUME", "50"))
 LOOKBACK_DAYS = int(os.environ.get("MASSIVE_FLATFILES_LOOKBACK", "5"))
 
 
-# ── Module state (read via get_status) ─────────────────────────────
+# -- Module state (read via get_status) -----------------------------
 
 _state = {
     "last_run_at": None,
@@ -99,7 +99,7 @@ def get_status() -> dict:
     return s
 
 
-# ── Core ───────────────────────────────────────────────────────────
+# -- Core -----------------------------------------------------------
 
 def _build_s3_key(d: date) -> str:
     return S3_KEY_TEMPLATE.format(
@@ -115,7 +115,7 @@ def _bbs_date_str(d: date) -> str:
 def _load_ticker_metadata(db_path: str, symbols: list) -> dict:
     """
     Look up MktCap + Sector for each symbol from the most recent non-blank
-    FlowDB row that has those values. Same pattern as the WS worker — any
+    FlowDB row that has those values. Same pattern as the WS worker -- any
     ticker that's been in FlowDB before has its metadata cached and we can
     read it for free without hitting Schwab.
 
@@ -195,7 +195,7 @@ def _already_ingested(d: date) -> bool:
             count = cur.fetchone()[0]
         return count > 0
     except Exception as e:
-        logger.warning("[massive-ff] idempotency check failed (%s) — proceeding", e)
+        logger.warning("[massive-ff] idempotency check failed (%s) -- proceeding", e)
         return False
 
 
@@ -296,7 +296,7 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
     header = ",".join(COLUMNS) + "\n"
 
     # Enrich with MktCap + Sector from FlowDB (free, instant cache). Same
-    # pattern as the WS worker — see massive_ws_worker._load_ticker_metadata.
+    # pattern as the WS worker -- see massive_ws_worker._load_ticker_metadata.
     all_syms = list({e.root for e in events})
     ticker_meta = _load_ticker_metadata(db.db_path, all_syms)
     if ticker_meta:
@@ -356,7 +356,7 @@ def process_date(target_date: date, *, force: bool = False) -> dict:
     """
     Process the Massive Flat File for a specific date.
 
-    Returns a result dict. Always returns — never raises (errors get
+    Returns a result dict. Always returns -- never raises (errors get
     captured in the returned dict and logged).
 
     force=True: ingest even if FlowDB already has rows for this date.
@@ -376,7 +376,7 @@ def process_date(target_date: date, *, force: bool = False) -> dict:
 
     try:
         if not force and _already_ingested(target_date):
-            msg = f"already ingested ({date_str}) — skipping"
+            msg = f"already ingested ({date_str}) -- skipping"
             logger.info("[massive-ff] %s", msg)
             result["status"] = "skipped"
             result["message"] = msg
@@ -443,7 +443,7 @@ def daily_job() -> dict:
     last_result = None
     for back in range(1, LOOKBACK_DAYS + 1):
         target = today_et - timedelta(days=back)
-        # Skip Sat/Sun without burning an S3 call — Massive doesn't publish
+        # Skip Sat/Sun without burning an S3 call -- Massive doesn't publish
         # for non-trading days anyway
         if target.weekday() >= 5:
             continue
@@ -452,7 +452,7 @@ def daily_job() -> dict:
         if result["status"] == "ok":
             return result
         if result["status"] == "skipped":
-            # Already have this date — try the day before it in case we have
+            # Already have this date -- try the day before it in case we have
             # a gap further back. Continue walking.
             continue
         if result["status"] == "no_file":
@@ -473,7 +473,7 @@ def backfill_range(start_date: date, end_date: date, *, force: bool = False) -> 
     Ingest every trading day in [start_date, end_date] inclusive.
 
     Use for initial baselines population or filling gaps. Skips weekends.
-    Runs synchronously — call from a background thread if needed.
+    Runs synchronously -- call from a background thread if needed.
 
     Returns a summary dict with per-date results.
     """
@@ -500,7 +500,7 @@ def backfill_range(start_date: date, end_date: date, *, force: bool = False) -> 
     return summary
 
 
-# ── APScheduler registration ───────────────────────────────────────
+# -- APScheduler registration ---------------------------------------
 
 def register_jobs(scheduler) -> bool:
     """
@@ -509,16 +509,16 @@ def register_jobs(scheduler) -> bool:
     Call from inside the if acquire_scheduler_lock(): block in main.py,
     AFTER scheduler is created but BEFORE scheduler.start().
 
-    Three runs per day (11:30 / 12:00 / 12:30 PM ET) — Massive's stated
+    Three runs per day (11:30 / 12:00 / 12:30 PM ET) -- Massive's stated
     publish time is "approximately 11:00 AM ET" but can be late.
     Idempotency means redundant runs are harmless no-ops.
     """
     if not ENABLED:
-        logger.info("[massive-ff] disabled — not registering scheduler jobs")
+        logger.info("[massive-ff] disabled -- not registering scheduler jobs")
         return False
     if not (S3_ACCESS_KEY and S3_SECRET):
         logger.warning(
-            "[massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set — "
+            "[massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set -- "
             "not registering scheduler jobs"
         )
         return False
@@ -531,7 +531,7 @@ def register_jobs(scheduler) -> bool:
         except Exception as e:
             logger.exception("[massive-ff] scheduled run crashed: %s", e)
 
-    # Three retries — each is a no-op if previous already succeeded
+    # Three retries -- each is a no-op if previous already succeeded
     for hh, mm in [(11, 30), (12, 0), (12, 30)]:
         scheduler.add_job(
             _wrapped,
