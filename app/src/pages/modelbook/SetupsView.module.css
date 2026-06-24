@@ -149,11 +149,21 @@
   transition: background 0.12s, border-color 0.12s;
 }
 .railRow:hover { background: rgba(255, 255, 255, 0.035); }
+.railRow + .railRow { border-top: 1px solid rgba(255, 255, 255, 0.045); }
 .railRowActive {
   background: rgba(201, 168, 76, 0.1);
   border-left-color: var(--ut-gold);
 }
-.railText { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+/* Don't draw a separator line directly above the highlighted row. */
+.railRowActive, .railRowActive + .railRow { border-top-color: transparent; }
+.railText { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.railNameRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.railDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
 .railName {
   font-family: var(--font-display);
   font-size: 13.5px;
@@ -171,13 +181,7 @@
   font-weight: 500;
   line-height: 1.4;
   color: rgba(214, 213, 207, 0.55);
-}
-.railDir {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  margin-top: 4px;
+  padding-left: 15px;
 }
 .railDir_long  { background: #1ae51a; box-shadow: 0 0 6px rgba(26, 229, 26, 0.4); }
 .railDir_short { background: #e05252; box-shadow: 0 0 6px rgba(224, 82, 82, 0.4); }
@@ -266,7 +270,7 @@
   gap: 14px;
   margin: 0 0 12px;
 }
-.sectionRule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.35), transparent); }
+.sectionRule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.45), transparent); }
 .sectionLabel {
   flex: none;
   font-family: var(--font-mono);
@@ -433,13 +437,13 @@
   background:
     linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
     rgba(14, 15, 19, 0.6);
-  padding: 2px 22px;
+  padding: 4px 26px;
 }
 .pbRow {
   display: flex;
   align-items: baseline;
-  gap: 18px;
-  padding: 12px 0;
+  gap: 20px;
+  padding: 14px 0;
 }
 .pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
 .pbLabel {

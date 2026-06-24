@@ -192,10 +192,12 @@ function RailRow({ setup, active, onSelect }) {
       onClick={() => onSelect(setup)}
     >
       <span className={styles.railText}>
-        <span className={styles.railName}>{setup.name}</span>
+        <span className={styles.railNameRow}>
+          <span className={`${styles.railDot} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
+          <span className={styles.railName}>{setup.name}</span>
+        </span>
         <span className={styles.railEssence}>{setup.essence}</span>
       </span>
-      <span className={`${styles.railDir} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
     </button>
   )
 }
