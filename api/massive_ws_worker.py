@@ -104,7 +104,81 @@ _state = {
     "last_meta_sample": {},          # first few resolved entries for visibility
     "last_oi_lookup_size": 0,        # events passed to _load_oi_for_events
     "last_oi_lookup_resolved": 0,    # events that returned non-zero OI
+    # Phase 2c: Side classification via Q.* NBBO
+    "quotes_received": 0,            # total Q events processed
+    "q_subscribed_count": 0,         # currently subscribed Q contracts
+    "q_subscribes_sent": 0,          # cumulative Q.subscribe messages sent
+    "q_unsubscribes_sent": 0,        # cumulative Q.unsubscribe messages sent
+    "last_side_lookup_size": 0,      # events in last classification batch
+    "last_side_lookup_classified": 0,  # events that got a non-empty Side
 }
+
+
+# Phase 2c: NBBO table and Q subscription pool (in-memory, per-session).
+# Cleared on disconnect -- rebuilt over the first ~10 min of market activity
+# after each reconnect. Lifetime is the WebSocket session.
+_nbbo_table: dict = {}        # {contract_sym: (bid, ask, ts_ms)}
+_q_subscribed: set = set()    # contract syms we're currently subscribed to Q for
+_q_last_seen: dict = {}       # {contract_sym: ts_ns} - LRU tracking
+_q_pending_subscribe: list = []   # queued contracts to subscribe (added by event loop)
+_q_pending_unsubscribe: list = [] # queued contracts to unsubscribe (LRU evictions)
+
+# 1000-contract hard cap per connection (Massive docs).
+# We leave a 50-slot headroom so churn doesn't immediately hit the ceiling
+# during subscribe-add cycles.
+MAX_Q_SUBSCRIPTIONS = 950
+
+# How fresh an NBBO needs to be (vs trade timestamp) to use for Side
+# classification. Stale quotes give wrong sides. 5 seconds is generous
+# for liquid contracts where quotes update every few hundred ms.
+NBBO_STALENESS_NS = 5_000_000_000
+
+
+def _classify_side(trade_price: float, nbbo: tuple) -> str:
+    """
+    Lee-Ready trade classification using NBBO.
+
+    nbbo: (bid, ask, ts_ms) tuple, or None if no quote data.
+
+    Returns BBS-format Side string:
+        "AA": price strictly above ask (super aggressive buyer)
+        "A":  price at ask (aggressive buyer)
+        "B":  price at bid (aggressive seller)
+        "BB": price strictly below bid (super aggressive seller)
+        "":   price at mid (no clear aggressor) OR no NBBO available
+
+    Tolerance: 0.5 cent for "at" classification, since aggregated burst
+    avg prices may drift slightly from the NBBO quote due to multi-exchange
+    variance and the time between the trade and the most recent quote.
+    """
+    if not nbbo:
+        return ""
+    bid, ask, _ts = nbbo
+    if bid <= 0 or ask <= 0 or ask < bid:
+        return ""
+    tol = 0.005
+    if trade_price > ask + tol:
+        return "AA"
+    if trade_price >= ask - tol:
+        return "A"
+    if trade_price < bid - tol:
+        return "BB"
+    if trade_price <= bid + tol:
+        return "B"
+    return ""  # mid-market
+
+
+def _reconstruct_occ_symbol(root: str, expiry, cp: str, strike: float) -> str:
+    """
+    Build Massive's OCC option symbol format from AggEvent fields.
+
+    Format: O:<ROOT><YY><MM><DD><C|P><STRIKE*1000 zero-padded to 8>
+    Example: NVDA + 2026-06-19 + CALL + 200.0 -> 'O:NVDA260619C00200000'
+    """
+    cp_letter = 'C' if cp == 'CALL' else 'P'
+    strike_int = int(round(strike * 1000))
+    yy = expiry.year % 100
+    return f"O:{root}{yy:02d}{expiry.month:02d}{expiry.day:02d}{cp_letter}{strike_int:08d}"
 
 
 def get_status() -> dict:
@@ -351,6 +425,71 @@ def _load_ticker_metadata(symbols: list) -> dict:
     return out
 
 
+def _classify_events_side(events: list) -> None:
+    """Phase 2c: set evt.side on each AggEvent using current NBBO table.
+
+    Mutates the events in place. Events for contracts without fresh NBBO
+    data keep side='' (which the page treats as no-direction, no-confirm).
+
+    Side classification uses the avg_price of the aggregated burst against
+    the most recent NBBO for that contract. We require the NBBO to be
+    within NBBO_STALENESS_NS of the event's first trade timestamp -- older
+    quotes give wrong sides (the market may have moved).
+    """
+    classified = 0
+    for evt in events:
+        sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
+        nbbo = _nbbo_table.get(sym)
+        if not nbbo:
+            continue
+        bid, ask, ts_ms = nbbo
+        # NBBO ts is unix ms; event ts is unix ns -- convert for comparison
+        nbbo_ts_ns = ts_ms * 1_000_000
+        age_ns = abs(evt.first_ts_ns - nbbo_ts_ns)
+        if age_ns > NBBO_STALENESS_NS:
+            continue
+        side = _classify_side(evt.avg_price, nbbo)
+        if side:
+            evt.side = side
+            classified += 1
+    _state["last_side_lookup_size"] = len(events)
+    _state["last_side_lookup_classified"] = classified
+
+
+def _queue_q_subscriptions_for_events(events: list) -> None:
+    """Phase 2c: enqueue Q subscriptions for contracts that emitted events
+    but aren't yet in our subscription pool.
+
+    Eviction policy: LRU based on _q_last_seen. When the pool is full
+    (MAX_Q_SUBSCRIPTIONS), the least-recently-traded contract gets
+    unsubscribed to make room.
+
+    The actual subscribe/unsubscribe WS messages are sent by the
+    q_subscription_manager task on its 5-second cadence -- we just queue
+    here so we don't block the flusher on network I/O.
+    """
+    for evt in events:
+        sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
+        # Already subscribed (or pending) -- nothing to do
+        if sym in _q_subscribed or sym in _q_pending_subscribe:
+            continue
+        # Room in the pool -- queue subscribe directly
+        if len(_q_subscribed) + len(_q_pending_subscribe) < MAX_Q_SUBSCRIPTIONS:
+            _q_pending_subscribe.append(sym)
+            continue
+        # Pool full -- evict LRU contract that isn't itself pending eviction
+        candidates = [(s, _q_last_seen.get(s, 0))
+                      for s in _q_subscribed
+                      if s not in _q_pending_unsubscribe]
+        if not candidates:
+            # Everything is already pending eviction -- skip and try next flush
+            continue
+        candidates.sort(key=lambda kv: kv[1])
+        lru_sym = candidates[0][0]
+        _q_pending_unsubscribe.append(lru_sym)
+        _q_pending_subscribe.append(sym)
+
+
 def _write_events(events: list) -> None:
     """Split events into stocks/indexes and write each to FlowDB."""
     from api.massive_processor import is_index_source
@@ -549,10 +688,21 @@ async def _consume_forever():
 
 
 async def _run_session(ws):
-    """Handle one connected session: parse trades, periodic flush."""
+    """Handle one connected session: parse trades, periodic flush, Q subscription pool."""
     from api.massive_processor import TradeAggregator, RawTrade
 
     agg = TradeAggregator(min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
+
+    # Phase 2c: clear NBBO/subscription state on each session. These don't
+    # survive disconnects -- we rebuild over the first few minutes of trading
+    # after reconnect. Module-level so the message handler can mutate them.
+    _nbbo_table.clear()
+    _q_subscribed.clear()
+    _q_last_seen.clear()
+    _q_pending_subscribe.clear()
+    _q_pending_unsubscribe.clear()
+    _state["q_subscribed_count"] = 0
+    _state["quotes_received"] = 0
 
     # Periodic flusher task -- runs alongside the receive loop
     stop_event = asyncio.Event()
@@ -570,9 +720,69 @@ async def _run_session(ws):
             events = agg.drain()
             if events:
                 _state["events_emitted"] += len(events)
+                # Phase 2c: classify Side for each event using current NBBO
+                _classify_events_side(events)
+                # Phase 2c: queue Q subscriptions for any newly-active contracts
+                # so future events on these contracts get classified
+                _queue_q_subscriptions_for_events(events)
                 _write_events(events)
 
+    async def q_subscription_manager():
+        """Drain subscribe/unsubscribe queues in batches every 5 seconds.
+
+        Batching avoids hammering Massive with one WS message per contract.
+        Operations happen via the same WS connection that's serving T/Q --
+        Massive's docs don't separate subscribe channels from data channels.
+        """
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                pass
+            # Take a snapshot of pending lists, then clear them so the event
+            # loop can continue queuing while we send.
+            subs = _q_pending_subscribe[:]
+            unsubs = _q_pending_unsubscribe[:]
+            _q_pending_subscribe.clear()
+            _q_pending_unsubscribe.clear()
+            # Dedup just in case the same contract got queued twice
+            subs = list(dict.fromkeys(subs))
+            unsubs = list(dict.fromkeys(unsubs))
+            # Send unsubscribes FIRST so we don't briefly exceed the 1000 cap
+            if unsubs:
+                try:
+                    params = ",".join(f"Q.{s}" for s in unsubs)
+                    await ws.send(json.dumps({
+                        "action": "unsubscribe",
+                        "params": params,
+                    }))
+                    _q_subscribed.difference_update(unsubs)
+                    _state["q_unsubscribes_sent"] += 1
+                    logger.info("[massive-ws] Q.unsubscribed %d contracts "
+                                "(pool now %d)", len(unsubs), len(_q_subscribed))
+                except Exception as e:
+                    logger.warning("[massive-ws] Q unsubscribe failed: %s", e)
+                    # On failure, leave the contract in our local set so we
+                    # don't count it as "free" capacity. Massive may still
+                    # have it subscribed; better to be conservative.
+                    _q_subscribed.update(unsubs)
+            if subs:
+                try:
+                    params = ",".join(f"Q.{s}" for s in subs)
+                    await ws.send(json.dumps({
+                        "action": "subscribe",
+                        "params": params,
+                    }))
+                    _q_subscribed.update(subs)
+                    _state["q_subscribes_sent"] += 1
+                    logger.info("[massive-ws] Q.subscribed %d contracts "
+                                "(pool now %d)", len(subs), len(_q_subscribed))
+                except Exception as e:
+                    logger.warning("[massive-ws] Q subscribe failed: %s", e)
+            _state["q_subscribed_count"] = len(_q_subscribed)
+
     flusher_task = asyncio.create_task(flusher())
+    q_mgr_task = asyncio.create_task(q_subscription_manager())
 
     try:
         async for msg in ws:
@@ -614,16 +824,35 @@ async def _run_session(ws):
                     ))
                     _state["trades_received"] += 1
                     _state["last_trade_ts"] = time.time()
+                    # Phase 2c: refresh LRU tracker for this contract so
+                    # active contracts stay in the Q subscription pool
+                    _q_last_seen[sym] = time.time_ns()
+                elif ev_type == "Q":
+                    # Phase 2c: NBBO update -- store latest bid/ask for the
+                    # contract so we can classify Side on subsequent trades.
+                    # Schema: ev=Q, sym, bp, ap, bs, as, t (ms), q (seq)
+                    try:
+                        sym = evt["sym"]
+                        bid = float(evt["bp"])
+                        ask = float(evt["ap"])
+                        ts_ms = int(evt["t"])
+                    except (KeyError, ValueError, TypeError):
+                        continue
+                    _nbbo_table[sym] = (bid, ask, ts_ms)
+                    _state["quotes_received"] += 1
                 elif ev_type == "status":
                     logger.info("[massive-ws] status: %s", evt)
                 else:
-                    # Other event types (Q, AM, etc.) -- we don't subscribe to
-                    # these in V1, but log if they show up unexpectedly.
+                    # Other event types (AM, A, FMV) -- not subscribed
                     logger.debug("[massive-ws] unhandled ev=%s", ev_type)
     finally:
         stop_event.set()
         try:
             await flusher_task
+        except Exception:
+            pass
+        try:
+            await q_mgr_task
         except Exception:
             pass
         # Final flush so we don't lose the last few seconds on disconnect
