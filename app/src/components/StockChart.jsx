@@ -370,6 +370,24 @@ function colorWithAlpha(color, a) {
   if (m) { const p = m[1].split(',').map(s => s.trim()); return `rgba(${p[0]},${p[1]},${p[2]},${a})` }
   return color
 }
+// Like colorWithAlpha but MULTIPLIES the existing alpha (volume bars already
+// carry a dimmed alpha — the fade scales it rather than replacing it).
+function colorMulAlpha(color, mul) {
+  if (!color) return color
+  if (color[0] === '#') {
+    let h = color.slice(1)
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+    const n = parseInt(h, 16)
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${mul})`
+  }
+  const m = color.match(/rgba?\(([^)]+)\)/)
+  if (m) {
+    const p = m[1].split(',').map(s => s.trim())
+    const baseA = p[3] != null ? parseFloat(p[3]) : 1
+    return `rgba(${p[0]},${p[1]},${p[2]},${baseA * mul})`
+  }
+  return color
+}
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
@@ -2237,6 +2255,19 @@ export default function StockChart({
           : b.c >= b.o ? upC : downC,
     }))
   }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
+  // Volume bars past the setup day crossfade with the candles on Setup⇄Result
+  // (each bar's existing alpha scaled by the fade). No-op at full opacity.
+  const fadedVolData = useMemo(() => {
+    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return volData
+    const a = Math.max(0, Math.min(1, frameFadeAlpha)), cut = String(fadeCutoff)
+    return volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) }))
+  }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
+  // Re-tint the volume series each fade frame (updateChart owns the base data).
+  useEffect(() => {
+    const s = volumeSeriesRef.current
+    if (!s || !candleFrameFade) return
+    try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
+  }, [fadedVolData, candleFrameFade])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
