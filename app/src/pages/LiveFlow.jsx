@@ -32,14 +32,10 @@ const P = {
                    // slightly muted so the brighter Alpha Gold tier (#FFD93B)
                    // pops against the UI chrome rather than blending into it.
   bl: "#5b9bd5",   // blue
-  bu: "#6FB089",   // calls/green — matches updated Bullish tier color
-  be: "#B86868",   // puts/red — matches updated Bearish tier color
+  bu: "#4F8266",   // calls/green — matches dimmed Bullish tier color
+  be: "#8F4F4F",   // puts/red — matches dimmed Bearish tier color
   wh: "#e8e6df",
-  tx: "#E8E8EE",   // bright neutral for data columns on non-Alpha rows. Lets
-                   // numbers read clearly without competing with Alpha's gold.
   dm: "#a8a290",
-  dm2: "#3a3a3f",  // extra-dim for em-dashes / absent values, so populated
-                   // data stands out against missing data.
   mt: "#6a6660",
 };
 
@@ -123,20 +119,13 @@ function isHistoryActive(from, to) {
 // bright; all other tiers muted ~40-50% so that Alpha stands out as the
 // visual signal whenever a new one arrives. Bullish/Bearish stay clearly
 // green/red but desaturated. LEAPS/Unusual deeper / less luminous.
-// 2026-06-25 v3: brightened non-Alpha tiers ~25-30% in luminance. The
-// previous v2 palette read as universally dull because tier color was painted
-// across all primary text. Now that data columns use a neutral bright (see
-// dataTextColor in AlertRow), tier color is concentrated on ticker/strike/
-// alert name/badge/border, so it can carry more saturation without competing
-// with Alpha. Brightness gap to #FFD93B (Alpha) is preserved by yellow's
-// inherent luminance advantage — Alpha still dominates the visual hierarchy.
 const TIER_META = {
   alpha:   { label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14" },  // BRIGHT — the star
-  bullish: { label: "Bullish",    color: "#6FB089", bg: "#6FB08914" },  // forest, brighter
-  bearish: { label: "Bearish",    color: "#B86868", bg: "#B8686814" },  // brick, brighter
-  leaps:   { label: "LEAPS",      color: "#9684C8", bg: "#9684C814" },  // indigo, brighter
-  unusual: { label: "Unusual",    color: "#7AA0C2", bg: "#7AA0C214" },  // steel blue, brighter
-  algo:    { label: "Algo",       color: "#8E8E96", bg: "#8E8E9614" },  // slate, brighter
+  bullish: { label: "Bullish",    color: "#4F8266", bg: "#4F826614" },  // muted forest
+  bearish: { label: "Bearish",    color: "#8F4F4F", bg: "#8F4F4F14" },  // muted brick
+  leaps:   { label: "LEAPS",      color: "#6E5FA0", bg: "#6E5FA014" },  // muted indigo
+  unusual: { label: "Unusual",    color: "#4A7290", bg: "#4A729014" },  // muted steel blue
+  algo:    { label: "Algo",       color: "#6B6B72", bg: "#6B6B7214" },  // neutral slate
 };
 const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
 
@@ -552,16 +541,17 @@ function AlertRow({
     }
   }
 
-  // Color strategy (2026-06-25 v3):
-  //   - Alpha rows: tierColor across the row (gold dominance, the point)
-  //   - Non-Alpha rows: tierColor stays on identifiers (ticker, alert name,
-  //     premium, badge, left border) — the things that say "what tier";
-  //     data columns (exp, volume, etc) use bright neutral so numbers read
-  //     clearly. Visual hierarchy by *coverage* rather than just brightness.
-  const isAlpha = tier === "alpha";
-  const primaryTextColor = tierColor || P.wh;          // ticker, strike, alert name (labels)
-  const accentTextColor = tierColor || P.ac;           // premium (headline number)
-  const dataTextColor = isAlpha ? tierColor : P.tx;    // exp, volume (body data)
+  // In mixed-direction tier sections (Alpha Gold, LEAPS, Unusual, Algo) we
+  // tint the row's primary text by direction so a bullish vs bearish trade
+  // is recognizable at a glance without scanning the C/P column. The C/P
+  // pill, type pill, score, and bell stay as-is since they have their own
+  // semantic colors that shouldn't be overridden.
+  // ALL primary text in the row takes the tier color so each line is
+  // visually unified by tier. Override the previous direction-tinting
+  // behavior — direction is still visible via the C/P pill, but the
+  // dominant row color tells you tier at a glance.
+  const primaryTextColor = tierColor || P.wh;
+  const accentTextColor = tierColor || P.ac;
 
   return (
     <tr style={{
@@ -621,7 +611,7 @@ function AlertRow({
         }}>
         {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
       </td>
-      <td style={{ padding: "8px 10px", color: dataTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
+      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
       <td style={{ padding: "8px 10px", color: P.dm, fontSize: 10 }}>
         {alert.dte != null ? alert.dte + "d" : "—"}
       </td>
@@ -646,55 +636,37 @@ function AlertRow({
         {(() => {
           const pct = alert.moneynessPct;
           const label = alert.moneynessLabel;
-          if (pct == null || !label) return <span style={{ color: P.dm2 }}>—</span>;
+          if (pct == null || !label) return <span style={{ color: P.dm }}>—</span>;
           const absPct = Math.abs(pct);
-          // Color tones aligned to dimmed tier palette (P.bu / P.ac / P.be)
-          // so green/amber/red semantic still reads but doesn't scream against
-          // the rest of the table. Was using saturated Tailwind colors which
-          // dominated every row visually.
           let color = P.dm;
           if (label === "ITM") {
-            if (absPct > 50) color = P.be;       // was #ef4444
-            else if (absPct > 30) color = P.ac;  // was #f59e0b
-            else color = P.bu;                    // was #22c55e
+            if (absPct > 50) color = "#ef4444";
+            else if (absPct > 30) color = "#f59e0b";
+            else color = "#22c55e";
           } else if (label === "OTM") {
-            if (absPct > 40) color = P.be;
-            else if (absPct > 15) color = P.ac;
-            else color = P.bu;
+            if (absPct > 40) color = "#ef4444";
+            else if (absPct > 15) color = "#f59e0b";
+            else color = "#22c55e";
           } else if (label === "ATM") {
-            color = P.bu;
+            color = "#22c55e";
           }
           const display = label === "ATM" ? "ATM" : `${label} ${Math.round(absPct)}%`;
           return <span style={{ color, fontWeight: 600 }}>{display}</span>;
         })()}
       </td>
-      {/* Volume — cumulative contracts traded (multi-fire sums up).
-          Magnitude-scaled coloring so unusual size catches the eye without
-          needing OI context: heavy (>=500) gets Alpha-gold tint, normal sits
-          at bright neutral, small (<50) is dimmed since it's rarely the
-          signal. Thresholds are absolute and ticker-agnostic; combine with
-          the OI BREAK badge for Vol/OI-ratio-based standout. */}
+      {/* Volume — cumulative contracts traded (multi-fire sums up). */}
       <td style={{
-        padding: "8px 10px", fontSize: 11, textAlign: "center",
+        padding: "8px 10px", color: primaryTextColor, fontSize: 11,
+        textAlign: "center",
         fontFamily: "ui-monospace, monospace", fontWeight: 600,
-        color: (() => {
-          const v = alert.tradeSize;
-          if (v == null) return P.dm2;
-          if (isAlpha) return tierColor;
-          if (v >= 500) return "#FFD93B";  // heavy — gold to flag size
-          if (v < 50) return P.dm;          // small — dim
-          return P.tx;                      // normal — bright neutral
-        })(),
       }}>
         {alert.tradeSize != null ? alert.tradeSize.toLocaleString() : "—"}
       </td>
-      {/* OI — prior open interest from snapshot. Em-dashes use P.dm2 (extra
-          dim) so they fade into the background; populated values use P.dm so
-          actual data catches the eye. The ratio Vol/OI is what matters and
-          is implied by visual comparison of the two adjacent cells. */}
+      {/* OI — prior open interest from snapshot. Dim because it's
+          context, not the signal itself. The ratio Vol/OI is what matters
+          and is implied by visual comparison of the two adjacent cells. */}
       <td style={{
-        padding: "8px 10px", fontSize: 11,
-        color: alert.priorOI != null ? P.dm : P.dm2,
+        padding: "8px 10px", color: P.dm, fontSize: 11,
         textAlign: "center",
         fontFamily: "ui-monospace, monospace",
       }}>
@@ -781,6 +753,66 @@ function AlertRow({
           </span>
         )}
       </td>
+      <td style={{
+        padding: "8px 10px", fontSize: 12, fontWeight: 800,
+        fontFamily: "ui-monospace, monospace", textAlign: "center",
+      }}>
+        {(() => {
+          const grade = alert.grade;
+          if (!grade) return <span style={{ color: P.mt }}>—</span>;
+          // Color ramp: A+/A green, B+/B amber, C/D dim. Matches the
+          // conviction-grade color scheme used in the SimulationPanel.
+          const c =
+            grade === "A+" ? P.bu :
+            grade === "A"  ? P.bu + "cc" :
+            grade === "B+" ? P.ac :
+            grade === "B"  ? P.ac + "cc" :
+            grade === "C"  ? P.dm :
+            P.mt;
+          return (
+            <span style={{
+              padding: "2px 7px", borderRadius: 4,
+              background: c + "22", color: c,
+              letterSpacing: 0.3,
+            }}>{grade}</span>
+          );
+        })()}
+      </td>
+      {/* Posted column — admin only. Shows at a glance whether each alert
+          went out automatically (passed conviction gate) or was manually
+          pushed by an admin (gate failed but operator decided to post anyway).
+          Derived from forwardedToDiscord + gatePassed; combined with local
+          pushState so a click during this session shows immediately as MANUAL
+          before the next DB poll catches up.
+              forwarded + gatePassed !== false  → AUTO   (gate let it through)
+              forwarded + gatePassed === false  → MANUAL (admin override)
+              !forwarded                        → blank  (nothing posted yet)
+          Local pushState === "done" always means MANUAL because the force-push
+          endpoint is the only thing that sets it. */}
+      {isAdmin && (
+        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+          {(() => {
+            const sessionManual = pushState === "done";
+            if (!forwarded && !sessionManual) {
+              return <span style={{ color: P.mt, fontSize: 10 }}>—</span>;
+            }
+            const isManual = sessionManual || alert.gatePassed === false;
+            const badgeColor = isManual ? P.ac : P.bu;
+            const label = isManual ? "MANUAL" : "AUTO";
+            const tooltip = isManual
+              ? "Admin force-pushed — bypassed conviction gate"
+              : "Auto-posted — passed conviction gate";
+            return (
+              <span title={tooltip} style={{
+                fontSize: 8, padding: "2px 6px", borderRadius: 3,
+                background: badgeColor + "22", color: badgeColor,
+                fontWeight: 800, letterSpacing: 0.5,
+                fontFamily: "ui-monospace, monospace",
+              }}>{label}</span>
+            );
+          })()}
+        </td>
+      )}
       {/* Push column — admin only. Lets the operator force-push any alert to
           Discord regardless of grade/gate state. Visible on every row so the
           decision is one click away. Cell is wrapped in conditional render
@@ -803,30 +835,14 @@ function AlertRow({
               <button onClick={handleForcePush}
                 disabled={pushState === "pushing"}
                 title="Force-push this alert to Discord (bypasses all gates). Subscribers will see the embed in your test channel."
-                onMouseEnter={(e) => {
-                  if (pushState === "idle") {
-                    e.currentTarget.style.color = P.ac;
-                    e.currentTarget.style.borderColor = P.ac + "66";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (pushState === "idle") {
-                    e.currentTarget.style.color = P.mt;
-                    e.currentTarget.style.borderColor = P.mt + "55";
-                  }
-                }}
                 style={{
                   fontSize: 9, padding: "4px 10px",
                   background: pushState === "pushing" ? P.dm + "22" : "transparent",
-                  // Default to dim slate so the button doesn't dominate every
-                  // row when there are 20+ push opportunities visible. Amber
-                  // appears on hover to confirm intent before the click.
-                  color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.mt),
-                  border: `1px solid ${pushState === "error" ? P.be : P.mt}55`,
+                  color: pushState === "error" ? P.be : (pushState === "pushing" ? P.dm : P.ac),
+                  border: `1px solid ${pushState === "error" ? P.be : P.ac}66`,
                   borderRadius: 4, cursor: pushState === "pushing" ? "wait" : "pointer",
                   fontWeight: 700, letterSpacing: 0.5, lineHeight: 1.2,
                   whiteSpace: "nowrap",
-                  transition: "color 120ms, border-color 120ms",
                 }}>
                 {pushState === "pushing" ? "pushing…" : pushState === "error" ? "↻ retry" : "→ push"}
               </button>
@@ -834,34 +850,6 @@ function AlertRow({
           })()}
         </td>
       )}
-      <td style={{
-        padding: "8px 10px", fontSize: 12, fontWeight: 800,
-        fontFamily: "ui-monospace, monospace", textAlign: "center",
-      }}>
-        {(() => {
-          const grade = alert.grade;
-          if (!grade) return <span style={{ color: P.mt }}>—</span>;
-          // Color ramp (2026-06-25 v3): A+/A = Alpha gold (#FFD93B) since A
-          // is the conviction signal worth flagging; B+/B = bright neutral
-          // so it reads as "above the line" without competing with A; C/D =
-          // dim slate so they recede into the background. Previously all
-          // grades looked identical at a glance.
-          const c =
-            grade === "A+" ? "#FFD93B" :
-            grade === "A"  ? "#FFD93B" :
-            grade === "B+" ? P.tx :
-            grade === "B"  ? P.tx :
-            grade === "C"  ? P.dm :
-            P.mt;
-          return (
-            <span style={{
-              padding: "2px 7px", borderRadius: 4,
-              background: c + "22", color: c,
-              letterSpacing: 0.3,
-            }}>{grade}</span>
-          );
-        })()}
-      </td>
       <td style={{ padding: "8px 10px", textAlign: "center" }}>
         {(() => {
           // REPLAY-GATES TOGGLE [BLOCK 4] — TEMPORARY: when replay mode is
@@ -939,7 +927,7 @@ function TierSection({ tier, alerts, newIds, collapsed, onToggle, isAdmin }) {
         borderTop: "1px solid " + P.bd,
         borderBottom: "1px solid " + meta.color + "30",
       }}>
-        <td colSpan={isAdmin ? 15 : 14} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
+        <td colSpan={isAdmin ? 17 : 15} style={{ padding: "6px 12px", cursor: "pointer" }} onClick={onToggle}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
@@ -2213,12 +2201,13 @@ export default function LiveFlow() {
                     { label: "Volume" },
                     { label: "OI" },
                     { label: "Alert Name" },
-                    ...(isAdmin ? [{ label: "Push" }] : []),
                     { label: "Grade",      sortKey: "grade" },
+                    ...(isAdmin ? [{ label: "Posted" }] : []),
+                    ...(isAdmin ? [{ label: "Push" }] : []),
                     { label: "🔔" },
                   ];
                   return COLUMNS.map(({ label, sortKey }) => {
-                    const isCentered = ["Grade", "🔔", "Push", "% Money", "Volume", "OI", "Tier"].includes(label);
+                    const isCentered = ["Grade", "🔔", "Push", "Posted", "% Money", "Volume", "OI", "Tier"].includes(label);
                     const isSortable = !!sortKey;
                     const isActiveSort = isSortable && sortBy.col === sortKey;
                     const arrow = isActiveSort ? (sortBy.dir === "desc" ? " ↓" : " ↑") : "";
@@ -2262,7 +2251,7 @@ export default function LiveFlow() {
               })}
               {sortedAlerts.length === 0 && (
                 <tr>
-                  <td colSpan={isAdmin ? 16 : 15} style={{ padding: 40, textAlign: "center", color: P.mt, fontSize: 12 }}>
+                  <td colSpan={isAdmin ? 17 : 15} style={{ padding: 40, textAlign: "center", color: P.mt, fontSize: 12 }}>
                     {hasActiveFilters ? "no alerts match the active filters" : "no alerts to show"}
                   </td>
                 </tr>
