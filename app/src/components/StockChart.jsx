@@ -357,6 +357,19 @@ const MB_DOWN = '#c41f2d'    // deep darker red
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
+// Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).
+function colorWithAlpha(color, a) {
+  if (!color) return color
+  if (color[0] === '#') {
+    let h = color.slice(1)
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+    const n = parseInt(h, 16)
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+  }
+  const m = color.match(/rgba?\(([^)]+)\)/)
+  if (m) { const p = m[1].split(',').map(s => s.trim()); return `rgba(${p[0]},${p[1]},${p[2]},${a})` }
+  return color
+}
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
@@ -1010,6 +1023,8 @@ export default function StockChart({
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
   const indScaleRef = useRef({})               // per-indicator last price-scale id, so an overlay toggle recreates it in the right pane
   const overlaySeriesRefs = useRef([])
+  const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
+  const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
   const bbUpperRef    = useRef(null)
   const bbMiddleRef   = useRef(null)
   const bbLowerRef    = useRef(null)
@@ -2158,19 +2173,20 @@ export default function StockChart({
     if (!candleFrameFade) return
     const prev = prevFadeExitRef.current
     prevFadeExitRef.current = exitDate
-    if (prev === undefined || prev === exitDate) { setFrameFadeAlpha(1); return }
+    if (prev === undefined || prev === exitDate) { setFrameFadeAlpha(1); frameFadeAlphaRef.current = 1; return }
     const fadeIn = String(exitDate ?? '') > String(prev ?? '')   // window grew → reveal the result run
     const from = fadeIn ? 0 : 1, to = fadeIn ? 1 : 0
     if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current)
     const t0 = performance.now(), dur = 720
     const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
+    const setA = v => { frameFadeAlphaRef.current = v; setFrameFadeAlpha(v) }
     const tick = (now) => {
       const p = Math.min(1, (now - t0) / dur)
-      setFrameFadeAlpha(from + (to - from) * ease(p))
+      setA(from + (to - from) * ease(p))
       if (p < 1) fadeRafRef.current = requestAnimationFrame(tick)
-      else { setFrameFadeAlpha(to); fadeRafRef.current = null }
+      else { setA(to); fadeRafRef.current = null }
     }
-    setFrameFadeAlpha(from)
+    setA(from)
     fadeRafRef.current = requestAnimationFrame(tick)
     return () => { if (fadeRafRef.current) { cancelAnimationFrame(fadeRafRef.current); fadeRafRef.current = null } }
   }, [exitDate, candleFrameFade])
@@ -2244,6 +2260,17 @@ export default function StockChart({
       return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
     })
   }, [filteredBars, resolvedOverlays, adjustTime, overlaysFromStart])
+  // Drive the MA tail opacity each frame of the Setup⇄Result crossfade (the
+  // overlay loop in updateChart owns the tail DATA; this only re-tints it as the
+  // alpha animates). No-op for charts that don't fade.
+  useEffect(() => {
+    if (!candleFrameFade) return
+    const tails = overlayTailSeriesRefs.current
+    for (let i = 0; i < tails.length; i++) {
+      const base = overlayData?.[i]?.color
+      if (tails[i] && base) { try { tails[i].applyOptions({ color: colorWithAlpha(base, frameFadeAlpha) }) } catch { /* disposed mid-anim */ } }
+    }
+  }, [frameFadeAlpha, candleFrameFade, overlayData])
 
   const indicatorData = useMemo(() => {
     const ind = cs.indicators || {}
@@ -3215,12 +3242,26 @@ export default function StockChart({
       const old = overlaySeriesRefs.current.pop()
       try { chart.removeSeries(old) } catch {}
     }
+    // candleFrameFade: each MA is split into a base segment (up to the setup day,
+    // always full) + a tail segment (past it) whose opacity crossfades with the
+    // candles on a Setup⇄Result flip. At full opacity the two read as one line.
+    const _fadeMA = candleFrameFade && fadeCutoff != null
+    const _cut = _fadeMA ? String(fadeCutoff) : null
+    const _tailAlpha = frameFadeAlphaRef.current
+    while (overlayTailSeriesRefs.current.length > (_fadeMA ? overlayData.length : 0)) {
+      const old = overlayTailSeriesRefs.current.pop()
+      try { chart.removeSeries(old) } catch {}
+    }
     // Update existing or add new overlay series. CRITICAL: when an existing
     // overlay's new data is empty (e.g. switched to a recent IPO with too few
     // bars to compute SMA200), we must explicitly clear it. The previous
     // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
     for (let i = 0; i < overlayData.length; i++) {
       const { data: ovData, color } = overlayData[i]
+      // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
+      // cutoff point joins them so the line is seamless at full opacity.
+      const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
+      const tailData = _fadeMA ? ovData.filter(p => String(p.time) >= _cut) : null
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
       const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
@@ -3231,8 +3272,8 @@ export default function StockChart({
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth })
-        overlaySeriesRefs.current[i].setData(ovData)
-      } else if (ovData.length) {
+        overlaySeriesRefs.current[i].setData(baseData)
+      } else if (baseData.length) {
         // Add new series only if there's data to show
         const ls = chart.addSeries(LineSeries, {
           color,
@@ -3243,8 +3284,28 @@ export default function StockChart({
           lastValueVisible: false,
           autoscaleInfoProvider: () => null,
         })
-        ls.setData(ovData)
+        ls.setData(baseData)
         overlaySeriesRefs.current.push(ls)
+      }
+      // The fading tail (only the post-setup portion).
+      if (_fadeMA) {
+        const tailColor = colorWithAlpha(color, _tailAlpha)
+        if (i < overlayTailSeriesRefs.current.length) {
+          overlayTailSeriesRefs.current[i].applyOptions({ color: tailColor, lineType: _ovLineType, lineWidth: _ovLineWidth })
+          overlayTailSeriesRefs.current[i].setData(tailData)
+        } else {
+          const ts = chart.addSeries(LineSeries, {
+            color: tailColor,
+            lineWidth: _ovLineWidth,
+            lineType: _ovLineType,
+            crosshairMarkerVisible: false,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            autoscaleInfoProvider: () => null,
+          })
+          ts.setData(tailData)
+          overlayTailSeriesRefs.current.push(ts)
+        }
       }
     }
 
@@ -3902,7 +3963,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
