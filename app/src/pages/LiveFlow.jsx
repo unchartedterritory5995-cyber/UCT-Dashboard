@@ -32,8 +32,8 @@ const P = {
                    // slightly muted so the brighter Alpha Gold tier (#FFD93B)
                    // pops against the UI chrome rather than blending into it.
   bl: "#5b9bd5",   // blue
-  bu: "#22C55E",   // calls/green — matches Bullish tier color for unified rows
-  be: "#EF4444",   // puts/red — matches Bearish tier color for unified rows
+  bu: "#4F8266",   // calls/green — matches dimmed Bullish tier color
+  be: "#8F4F4F",   // puts/red — matches dimmed Bearish tier color
   wh: "#e8e6df",
   dm: "#a8a290",
   mt: "#6a6660",
@@ -115,18 +115,17 @@ function isHistoryActive(from, to) {
 // Display order: Alpha pinned at top (rare, high-conviction). Bullish/Bearish
 // next (the bread-and-butter directional flow). LEAPS and Unusual below
 // (specialized signals worth their own sections). Algo last as fallback.
-// Tier colors — Option 1 palette (updated 2026-06-24). Alpha Gold bright
-// enough to pop against the rest, which step back slightly via reduced
-// saturation. Bullish/Bearish keep semantic green/red. LEAPS leans soft
-// violet (long-dated, contemplative). Unusual is cyan-blue (stands out
-// without competing with Alpha's warmth). Algo is neutral slate.
+// Tier colors — dimmed palette (updated 2026-06-24 v2). Alpha Gold kept
+// bright; all other tiers muted ~40-50% so that Alpha stands out as the
+// visual signal whenever a new one arrives. Bullish/Bearish stay clearly
+// green/red but desaturated. LEAPS/Unusual deeper / less luminous.
 const TIER_META = {
-  alpha:   { label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14" },
-  bullish: { label: "Bullish",    color: "#22C55E", bg: "#22C55E14" },
-  bearish: { label: "Bearish",    color: "#EF4444", bg: "#EF444414" },
-  leaps:   { label: "LEAPS",      color: "#A78BFA", bg: "#A78BFA14" },
-  unusual: { label: "Unusual",    color: "#38BDF8", bg: "#38BDF814" },
-  algo:    { label: "Algo",       color: "#71717A", bg: "#71717A14" },
+  alpha:   { label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14" },  // BRIGHT — the star
+  bullish: { label: "Bullish",    color: "#4F8266", bg: "#4F826614" },  // muted forest
+  bearish: { label: "Bearish",    color: "#8F4F4F", bg: "#8F4F4F14" },  // muted brick
+  leaps:   { label: "LEAPS",      color: "#6E5FA0", bg: "#6E5FA014" },  // muted indigo
+  unusual: { label: "Unusual",    color: "#4A7290", bg: "#4A729014" },  // muted steel blue
+  algo:    { label: "Algo",       color: "#6B6B72", bg: "#6B6B7214" },  // neutral slate
 };
 const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
 
