@@ -1,5 +1,5 @@
 """
-massive_ws_worker.py — Live Massive WebSocket consumer.
+massive_ws_worker.py -- Live Massive WebSocket consumer.
 
 Connects to the Massive Options trades stream, aggregates ticks into
 SWEEP/BLOCK events, and writes them to FlowDB as if they came from a BBS
@@ -8,12 +8,12 @@ CSV upload. OptionsFlow.jsx picks them up automatically via /api/flow/data.
 Design:
 - Single dedicated thread running its own asyncio loop. Insulates the
   FastAPI event loop from any WS hiccups.
-- Guard with acquire_scheduler_lock() — only ONE uvicorn worker runs the
+- Guard with acquire_scheduler_lock() -- only ONE uvicorn worker runs the
   consumer, mirroring the existing scheduler pattern in main.py L1680.
 - Reconnect with exponential backoff. On reconnect, in-flight aggregator
   state is preserved (next message resumes naturally).
 - Periodic flush every FLUSH_INTERVAL_SEC: drain completed events,
-  convert to BBS CSV, call FlowDB.insert_csv() — same path as the
+  convert to BBS CSV, call FlowDB.insert_csv() -- same path as the
   existing CSV upload, so dedup, schema, and read path all work unchanged.
 - DRY_RUN env var lets the operator deploy and watch logs WITHOUT writing
   to DB. Flip MASSIVE_WS_DRY_RUN=0 once the logs look right.
@@ -24,11 +24,11 @@ Mirrors the patterns established in main.py:
 - env-var gates for enabling/disabling
 
 V1 limitations (documented; addressed in V2):
-- Side classification stubbed as "" (no NBBO yet — need to also subscribe
+- Side classification stubbed as "" (no NBBO yet -- need to also subscribe
   to Q.* and maintain in-memory NBBO per contract)
 - Spot/IV/OI/MktCap/Sector/ER stubbed (wire to existing helpers below)
 - Per-asset-class connection limit on Massive's side means we only get
-  ONE options WS — can't run a parallel "shadow" consumer for testing.
+  ONE options WS -- can't run a parallel "shadow" consumer for testing.
   Use MASSIVE_WS_DRY_RUN=1 instead.
 """
 
@@ -45,14 +45,14 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-# ── Configuration (all via env vars) ───────────────────────────────
+# -- Configuration (all via env vars) -------------------------------
 
 MASSIVE_API_KEY = os.environ.get("MASSIVE_API_KEY", "").strip()
 
 # Real-time URL for Advanced plan. The 15-min delayed URL is different
 # (delayed.massive.com); we want real-time for live alerts.
 #
-# IMPORTANT: This is MASSIVE_OPTIONS_WS_URL, not MASSIVE_WS_URL — bar_stream.py
+# IMPORTANT: This is MASSIVE_OPTIONS_WS_URL, not MASSIVE_WS_URL -- bar_stream.py
 # uses MASSIVE_WS_URL for the /stocks endpoint, so reusing the same name here
 # would cause both modules to read the same value and both end up on whichever
 # endpoint that var points to (with predictable max_connections errors when the
@@ -83,7 +83,7 @@ MIN_VOLUME = int(os.environ.get("MASSIVE_MIN_VOLUME", "50"))
 FLUSH_INTERVAL_SEC = float(os.environ.get("MASSIVE_FLUSH_INTERVAL", "2.0"))
 
 
-# ── Module-level state (read via get_status() for health endpoint) ───
+# -- Module-level state (read via get_status() for health endpoint) ---
 
 _state = {
     "started_at": None,
@@ -114,10 +114,10 @@ def get_status() -> dict:
     return s
 
 
-# ── Event handling ─────────────────────────────────────────────────
+# -- Event handling -------------------------------------------------
 
 def _events_to_csv(events: list, source: str, ticker_meta: dict = None) -> str:
-    """Convert AggEvents → BBS-format CSV string for FlowDB.insert_csv.
+    """Convert AggEvents -> BBS-format CSV string for FlowDB.insert_csv.
 
     ticker_meta: optional {symbol: {"mktcap": int, "sector": str}} dict for
     per-row enrichment. Built once per flush by _load_ticker_metadata.
@@ -135,7 +135,7 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None) -> str:
             mktcap=meta.get("mktcap", 0),
             sector=meta.get("sector", ""),
         )
-        # Quote-safe write — premium/strike never have commas but be defensive
+        # Quote-safe write -- premium/strike never have commas but be defensive
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
         buf.write(line + "\n")
     return buf.getvalue()
@@ -146,7 +146,7 @@ def _load_ticker_metadata(symbols: list) -> dict:
     Look up MktCap + Sector for each symbol from the most recent non-blank
     FlowDB row that has those values.
 
-    Reuses the same pattern as flow_db.get_mktcap_batch — any ticker that's
+    Reuses the same pattern as flow_db.get_mktcap_batch -- any ticker that's
     ever been in FlowDB (from a BBS upload, prior Bullflow, etc.) has its
     metadata cached and we can read it for free without hitting Schwab.
 
@@ -280,19 +280,19 @@ def _write_events(events: list) -> None:
         _state["last_error"] = f"db_write: {e}"
 
 
-# ── WebSocket consumer ─────────────────────────────────────────────
+# -- WebSocket consumer ---------------------------------------------
 
 async def _consume_forever():
     """Outer loop: connect, run, reconnect on failure with backoff.
 
     Backoff semantics: starts at MIN_RECONNECT_GAP (20s) per Massive support
-    guidance — their server takes 10-30s to notice an unexpected client
+    guidance -- their server takes 10-30s to notice an unexpected client
     disconnect. Reconnecting faster than that means the SERVER thinks both
     connections are active, which trips max_connections and locks you out.
     Doubles on each failure to MAX_BACKOFF.
 
     The backoff resets to MIN_RECONNECT_GAP ONLY after a successful
-    authentication — NOT when TCP connects. Massive will happily accept
+    authentication -- NOT when TCP connects. Massive will happily accept
     the TCP connection and then immediately respond with auth_failed or
     max_connections; if we reset backoff on TCP-open, an account that's
     locked out gets hammered too fast, which makes the lockout worse.
@@ -309,7 +309,7 @@ async def _consume_forever():
     MIN_RECONNECT_GAP = 20.0
     backoff = MIN_RECONNECT_GAP
     MAX_BACKOFF = 120.0
-    MAX_CONN_COOLDOWN = 600.0  # 10 min — long enough for server-side cleanup
+    MAX_CONN_COOLDOWN = 600.0  # 10 min -- long enough for server-side cleanup
 
     while ENABLED:
         try:
@@ -321,9 +321,9 @@ async def _consume_forever():
                 max_size=2**24,  # 16 MB frames; bursts can be large
             ) as ws:
                 _state["connected"] = True
-                # NOTE: do NOT reset backoff here — wait for auth_success below
+                # NOTE: do NOT reset backoff here -- wait for auth_success below
 
-                # 1. Initial status message — could be "connected" OR an error
+                # 1. Initial status message -- could be "connected" OR an error
                 first = await asyncio.wait_for(ws.recv(), timeout=10)
                 logger.info("[massive-ws] hello: %s", first[:200])
                 # Detect immediate rejection (e.g. max_connections) and fail
@@ -342,7 +342,7 @@ async def _consume_forever():
                 if "auth_success" not in auth_resp:
                     raise RuntimeError(f"auth failed: {auth_resp[:300]}")
 
-                # Auth successful — NOW it's safe to reset backoff. From here
+                # Auth successful -- NOW it's safe to reset backoff. From here
                 # on, any disconnect is something to retry quickly (but still
                 # honoring the 20s server-cleanup window).
                 backoff = MIN_RECONNECT_GAP
@@ -355,11 +355,11 @@ async def _consume_forever():
                 sub_resp = await asyncio.wait_for(ws.recv(), timeout=10)
                 logger.info("[massive-ws] sub: %s", sub_resp[:200])
 
-                # 4. Drain forever — message loop alongside a periodic flusher
+                # 4. Drain forever -- message loop alongside a periodic flusher
                 await _run_session(ws)
 
         except asyncio.CancelledError:
-            logger.info("[massive-ws] cancelled — exiting")
+            logger.info("[massive-ws] cancelled -- exiting")
             raise
         except Exception as e:
             _state["connected"] = False
@@ -372,21 +372,21 @@ async def _consume_forever():
             if "max_connections" in err_str:
                 sleep_for = MAX_CONN_COOLDOWN
                 logger.warning(
-                    "[massive-ws] max_connections — long cooldown %.0fs "
+                    "[massive-ws] max_connections -- long cooldown %.0fs "
                     "(retrying won't help; check account limit / contact support)",
                     sleep_for,
                 )
             else:
                 sleep_for = backoff
                 logger.warning(
-                    "[massive-ws] connection error (%s) — reconnect in %.1fs",
+                    "[massive-ws] connection error (%s) -- reconnect in %.1fs",
                     e, sleep_for,
                 )
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
             await asyncio.sleep(sleep_for)
 
-    logger.info("[massive-ws] disabled via env — consumer stopping")
+    logger.info("[massive-ws] disabled via env -- consumer stopping")
 
 
 async def _run_session(ws):
@@ -395,7 +395,7 @@ async def _run_session(ws):
 
     agg = TradeAggregator(min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
 
-    # Periodic flusher task — runs alongside the receive loop
+    # Periodic flusher task -- runs alongside the receive loop
     stop_event = asyncio.Event()
 
     async def flusher():
@@ -405,7 +405,7 @@ async def _run_session(ws):
                                        timeout=FLUSH_INTERVAL_SEC)
             except asyncio.TimeoutError:
                 pass
-            # Flush by wall clock — close any bucket whose last trade is stale
+            # Flush by wall clock -- close any bucket whose last trade is stale
             now_ns = time.time_ns()
             agg.flush_stale(now_ns)
             events = agg.drain()
@@ -430,7 +430,7 @@ async def _run_session(ws):
             for evt in payload:
                 ev_type = evt.get("ev")
                 if ev_type == "T":
-                    # Options trade — see schema at
+                    # Options trade -- see schema at
                     # https://massive.com/docs/websocket/options/trades
                     try:
                         sym = evt["sym"]
@@ -451,14 +451,14 @@ async def _run_session(ws):
                         size=size,
                         exchange=exch,
                         conditions=cond,
-                        ts_ns=ts_ms * 1_000_000,  # ms → ns
+                        ts_ns=ts_ms * 1_000_000,  # ms -> ns
                     ))
                     _state["trades_received"] += 1
                     _state["last_trade_ts"] = time.time()
                 elif ev_type == "status":
                     logger.info("[massive-ws] status: %s", evt)
                 else:
-                    # Other event types (Q, AM, etc.) — we don't subscribe to
+                    # Other event types (Q, AM, etc.) -- we don't subscribe to
                     # these in V1, but log if they show up unexpectedly.
                     logger.debug("[massive-ws] unhandled ev=%s", ev_type)
     finally:
@@ -475,7 +475,7 @@ async def _run_session(ws):
             _write_events(events)
 
 
-# ── Thread entry point ─────────────────────────────────────────────
+# -- Thread entry point ---------------------------------------------
 
 def _thread_main():
     """Run the asyncio loop in this dedicated thread."""
@@ -503,10 +503,10 @@ def start() -> bool:
         logger.info("[massive-ws] disabled via MASSIVE_WS_ENABLED=0")
         return False
     if not MASSIVE_API_KEY:
-        logger.warning("[massive-ws] MASSIVE_API_KEY not set — not starting")
+        logger.warning("[massive-ws] MASSIVE_API_KEY not set -- not starting")
         return False
     if _state["running"]:
-        logger.info("[massive-ws] already running — start() ignored")
+        logger.info("[massive-ws] already running -- start() ignored")
         return False
 
     t = threading.Thread(
