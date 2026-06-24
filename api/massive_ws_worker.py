@@ -437,23 +437,40 @@ def _classify_events_side(events: list) -> None:
     quotes give wrong sides (the market may have moved).
     """
     classified = 0
+    in_pool = 0          # events whose contract is in Q subscription pool
+    have_nbbo = 0        # events with any NBBO entry (subscribed or not)
+    fresh_nbbo = 0       # events with NBBO within staleness window
+    mid_market = 0       # events where NBBO existed but trade was mid (correct null Side)
+    sample_misses = []   # up to 5 sample contracts with no NBBO -- helps debug
     for evt in events:
         sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
+        if sym in _q_subscribed:
+            in_pool += 1
         nbbo = _nbbo_table.get(sym)
         if not nbbo:
+            if len(sample_misses) < 5:
+                sample_misses.append(sym)
             continue
+        have_nbbo += 1
         bid, ask, ts_ms = nbbo
-        # NBBO ts is unix ms; event ts is unix ns -- convert for comparison
         nbbo_ts_ns = ts_ms * 1_000_000
         age_ns = abs(evt.first_ts_ns - nbbo_ts_ns)
         if age_ns > NBBO_STALENESS_NS:
             continue
+        fresh_nbbo += 1
         side = _classify_side(evt.avg_price, nbbo)
         if side:
             evt.side = side
             classified += 1
+        else:
+            mid_market += 1
     _state["last_side_lookup_size"] = len(events)
     _state["last_side_lookup_classified"] = classified
+    _state["last_side_in_pool"] = in_pool
+    _state["last_side_have_nbbo"] = have_nbbo
+    _state["last_side_fresh_nbbo"] = fresh_nbbo
+    _state["last_side_mid_market"] = mid_market
+    _state["last_side_sample_misses"] = sample_misses
 
 
 def _queue_q_subscriptions_for_events(events: list) -> None:
@@ -488,6 +505,111 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
         lru_sym = candidates[0][0]
         _q_pending_unsubscribe.append(lru_sym)
         _q_pending_subscribe.append(sym)
+
+
+def _build_warm_start_contracts(limit: int = 950) -> list:
+    """Phase 2c.1: warm-start the Q subscription pool.
+
+    Queries FlowDB for the most-active option contracts in the past N days
+    and returns them as OCC-formatted symbols ready for Q.* subscribe.
+
+    "Most active" = highest total volume across recent flow rows. This
+    favors high-conviction contracts (SPY/QQQ/NVDA weeklies, popular
+    earnings plays) over one-off prints on illiquid strikes.
+
+    Returns: list of OCC symbols like ['O:SPY260627P00450000', ...]
+    Max length = limit (default 950, leaves 50-slot headroom under cap).
+
+    Empty list if FlowDB is unreachable or has no usable data.
+    """
+    import sqlite3
+    from datetime import datetime, timedelta
+
+    LOOKBACK_DAYS = 7  # rolling 7-day window of "recently active"
+    out = []
+
+    try:
+        from api.flow_db import FlowDB
+        db_path = FlowDB().db_path
+    except Exception as e:
+        logger.warning("[massive-ws] warm-start: FlowDB unavailable: %s", e)
+        return out
+
+    # Build list of recent date strings in M/D/YYYY format (matches BBS schema).
+    today = datetime.utcnow().date()
+    date_strs = []
+    for i in range(LOOKBACK_DAYS):
+        d = today - timedelta(days=i)
+        date_strs.append(f"{d.month}/{d.day}/{d.year}")
+    if not date_strs:
+        return out
+
+    placeholders = ",".join("?" for _ in date_strs)
+    sql = f"""
+        SELECT Symbol, CallPut, Strike, ExpirationDate, SUM(CAST(Volume AS INTEGER)) AS total_vol
+        FROM flow
+        WHERE CreatedDate IN ({placeholders})
+          AND Symbol IS NOT NULL AND Symbol != ''
+          AND CallPut IN ('CALL', 'PUT')
+          AND Strike IS NOT NULL AND Strike != ''
+          AND ExpirationDate IS NOT NULL AND ExpirationDate != ''
+          AND Volume IS NOT NULL AND Volume != '' AND Volume != '0'
+        GROUP BY Symbol, CallPut, Strike, ExpirationDate
+        ORDER BY total_vol DESC
+        LIMIT ?
+    """
+
+    try:
+        with sqlite3.connect(db_path, timeout=10) as conn:
+            cur = conn.execute(sql, (*date_strs, limit * 2))
+            rows = cur.fetchall()
+    except Exception as e:
+        logger.warning("[massive-ws] warm-start: query failed: %s", e)
+        return out
+
+    # Skip contracts whose expiry is already past (no point subscribing)
+    today_date = datetime.utcnow().date()
+    skipped_expired = 0
+    skipped_malformed = 0
+    for sym, cp, strike_str, exp_str, _vol in rows:
+        # Skip adjusted/when-issued symbols (Massive rejects these too)
+        if sym and sym[-1].isdigit():
+            skipped_malformed += 1
+            continue
+        try:
+            strike = float(strike_str)
+        except (ValueError, TypeError):
+            skipped_malformed += 1
+            continue
+        # Parse expiry (M/D/YYYY)
+        try:
+            parts = exp_str.split("/")
+            if len(parts) != 3:
+                skipped_malformed += 1
+                continue
+            exp_date = datetime(int(parts[2]), int(parts[0]), int(parts[1])).date()
+        except (ValueError, TypeError, IndexError):
+            skipped_malformed += 1
+            continue
+        if exp_date < today_date:
+            skipped_expired += 1
+            continue
+        # Build OCC symbol -- this is the exact format Massive expects
+        try:
+            occ = _reconstruct_occ_symbol(sym, exp_date, cp, strike)
+        except Exception:
+            skipped_malformed += 1
+            continue
+        out.append(occ)
+        if len(out) >= limit:
+            break
+
+    logger.info(
+        "[massive-ws] warm-start: %d contracts from FlowDB "
+        "(skipped %d expired, %d malformed)",
+        len(out), skipped_expired, skipped_malformed
+    )
+    return out
 
 
 def _write_events(events: list) -> None:
@@ -645,7 +767,7 @@ async def _consume_forever():
                 # honoring the 20s server-cleanup window).
                 backoff = MIN_RECONNECT_GAP
 
-                # 3. Subscribe
+                # 3. Subscribe to trades
                 await ws.send(json.dumps({
                     "action": "subscribe",
                     "params": MASSIVE_WS_SUBSCRIBE,
@@ -653,7 +775,10 @@ async def _consume_forever():
                 sub_resp = await asyncio.wait_for(ws.recv(), timeout=10)
                 logger.info("[massive-ws] sub: %s", sub_resp[:200])
 
-                # 4. Drain forever -- message loop alongside a periodic flusher
+                # 4. Drain forever -- message loop alongside a periodic flusher.
+                # Warm-start (Phase 2c.1) happens INSIDE _run_session after it
+                # clears the per-session state, so we don't accidentally wipe
+                # the warm-started pool.
                 await _run_session(ws)
 
         except asyncio.CancelledError:
@@ -703,6 +828,50 @@ async def _run_session(ws):
     _q_pending_unsubscribe.clear()
     _state["q_subscribed_count"] = 0
     _state["quotes_received"] = 0
+
+    # Phase 2c.1: warm-start the Q subscription pool with historically-active
+    # contracts BEFORE the message loop starts. Without this, the first
+    # 10-15 minutes after market open have ~0% Side classification because
+    # the dynamic-add-on-emit logic only learns about contracts AFTER they
+    # emit an event. With warm-start, the NBBO table populates from the
+    # first market tick.
+    #
+    # Batched at 200 contracts per subscribe message to stay under any
+    # frame-size limits Massive may enforce.
+    warm = _build_warm_start_contracts(limit=MAX_Q_SUBSCRIPTIONS)
+    if warm:
+        BATCH = 200
+        for i in range(0, len(warm), BATCH):
+            chunk = warm[i:i + BATCH]
+            params = ",".join(f"Q.{s}" for s in chunk)
+            try:
+                await ws.send(json.dumps({
+                    "action": "subscribe",
+                    "params": params,
+                }))
+            except Exception as e:
+                logger.warning("[massive-ws] warm-start subscribe batch failed: %s", e)
+                break
+            # Brief yield between batches so the server can ack and our
+            # local event loop can handle anything else queued up.
+            await asyncio.sleep(0.1)
+        # Pre-populate local pool tracking so LRU eviction sees these.
+        _q_subscribed.update(warm)
+        now_ns = time.time_ns()
+        for sym in warm:
+            _q_last_seen[sym] = now_ns
+        _state["q_subscribed_count"] = len(_q_subscribed)
+        _state["q_subscribes_sent"] = (len(warm) + BATCH - 1) // BATCH
+        logger.info(
+            "[massive-ws] warm-start complete: pool initialized with "
+            "%d contracts in %d batches",
+            len(warm), _state["q_subscribes_sent"]
+        )
+    else:
+        logger.info(
+            "[massive-ws] warm-start skipped (no FlowDB data) -- "
+            "Q pool will grow dynamically from T event flow"
+        )
 
     # Periodic flusher task -- runs alongside the receive loop
     stop_event = asyncio.Event()
