@@ -180,7 +180,7 @@ export function SetupGlyph({ setup, className }) {
 }
 
 // ── Rail row (left index) ────────────────────────────────────────────────────
-// One entry in the setup index: a mini pattern glyph + name + direction.
+// One entry in the setup index: name + full description + a direction dot.
 // Selecting it loads the setup into the stage — the same "click a row, study
 // the chart" rhythm as a stock in Throughout the Years.
 function RailRow({ setup, active, onSelect }) {
@@ -191,9 +191,6 @@ function RailRow({ setup, active, onSelect }) {
       className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
       onClick={() => onSelect(setup)}
     >
-      <span className={styles.railGlyphWrap}>
-        <SetupGlyph setup={setup} className={styles.railGlyph} />
-      </span>
       <span className={styles.railText}>
         <span className={styles.railName}>{setup.name}</span>
         <span className={styles.railEssence}>{setup.essence}</span>
@@ -736,24 +733,9 @@ function ExamplesPane({ setup }) {
 // library, the way a chart fills the right side of Throughout the Years. The
 // `key` forces a fresh mount per setup so the cascade + chart reset cleanly.
 function DetailStage({ setup }) {
-  const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
     <div className={styles.stage} key={setup.name}>
-      <div className={styles.stageHeader}>
-        <span className={styles.stageGlyphWrap}>
-          <SetupGlyph setup={setup} className={styles.stageGlyph} />
-        </span>
-        <div className={styles.stageId}>
-          <div className={styles.stageTitleRow}>
-            <h1 className={styles.stageName}>{setup.name}</h1>
-            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
-          </div>
-          <p className={styles.stageEssence}>{setup.essence}</p>
-        </div>
-      </div>
-
       <div className={styles.stageBody}>
         {/* Left — the playbook write-up */}
         <div className={styles.stagePlaybook}>
