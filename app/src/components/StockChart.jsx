@@ -2256,18 +2256,14 @@ export default function StockChart({
     }))
   }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
-  // (each bar's existing alpha scaled by the fade). No-op at full opacity.
+  // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
+  // re-tint effect lives AFTER updateChart (below) so its setData wins over
+  // updateChart's full-opacity volume paint — otherwise the bars flicker.
   const fadedVolData = useMemo(() => {
     if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return volData
     const a = Math.max(0, Math.min(1, frameFadeAlpha)), cut = String(fadeCutoff)
     return volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) }))
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
-  // Re-tint the volume series each fade frame (updateChart owns the base data).
-  useEffect(() => {
-    const s = volumeSeriesRef.current
-    if (!s || !candleFrameFade) return
-    try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
-  }, [fadedVolData, candleFrameFade])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
@@ -4020,6 +4016,15 @@ export default function StockChart({
       try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
     }
   }, [fadedOhlc, goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
+
+  // Volume crossfade re-tint (Setup⇄Result). Mirrors the candle recolor above and
+  // MUST run AFTER updateChart so its setData wins over updateChart's full-opacity
+  // volume paint (otherwise the post-setup bars flicker during the transition).
+  useEffect(() => {
+    const s = volumeSeriesRef.current
+    if (!s || !candleFrameFade) return
+    try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
+  }, [fadedVolData, candleFrameFade, chartReady, updateChart])
 
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
