@@ -1300,15 +1300,23 @@ export default function LiveFlow() {
       }
     }
 
-    async function fetchHistory() {
-      // SQLite-backed historical query. One-shot fetch; no polling.
-      // Frontend reuses the same alert-row shape as live polling so all
-      // existing tier/dedup/render code works unchanged.
-      setBacktestLoading(true);
-      setAlerts([]);
-      setStatus(null);
-      setSimulation(null);
-      setError(null);
+    async function fetchHistory(isAutoRefresh = false) {
+      // SQLite-backed historical query. Default behavior: one-shot fetch.
+      //
+      // Auto-refresh path: when historyTo === today (the operator is viewing
+      // today's history during market hours), we re-poll every POLL_INTERVAL_MS
+      // so new alerts appear without manual refresh. Without this, the
+      // operator had to toggle the GATES button to force a re-fetch — bad UX.
+      //
+      // On auto-refresh, skip the loading spinner + alert wipe — we want the
+      // table to update in place, not flicker every poll cycle.
+      if (!isAutoRefresh) {
+        setBacktestLoading(true);
+        setAlerts([]);
+        setStatus(null);
+        setSimulation(null);
+        setError(null);
+      }
       try {
         abort = new AbortController();
         const qparams = new URLSearchParams({
@@ -1326,7 +1334,18 @@ export default function LiveFlow() {
         if (cancelled) return;
         if (d.error) throw new Error(d.error);
         const incoming = d.alerts || [];
-        newIdsRef.current = new Set();
+        // On auto-refresh, compute newIds so the flash animation runs on
+        // any rows arrived since the last poll (matches live-mode UX).
+        if (isAutoRefresh && lastIdRef.current) {
+          const newIds = new Set();
+          for (const a of incoming) {
+            if (a.id === lastIdRef.current) break;
+            newIds.add(a.id);
+          }
+          newIdsRef.current = newIds;
+        } else {
+          newIdsRef.current = new Set();
+        }
         lastIdRef.current = incoming[0]?.id || null;
         setAlerts(incoming);
         // Synthesize a status-like object so the header pill renders cleanly
@@ -1346,6 +1365,12 @@ export default function LiveFlow() {
         if (!cancelled) setError(e?.message || String(e));
       } finally {
         if (!cancelled) setBacktestLoading(false);
+        // Schedule next poll if the to-date is today (operator is watching
+        // today's flow during market hours).
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if (!cancelled && historyTo === todayIso) {
+          timer = setTimeout(() => fetchHistory(true), POLL_INTERVAL_MS);
+        }
       }
     }
 
