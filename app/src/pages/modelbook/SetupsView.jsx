@@ -15,8 +15,8 @@ import styles from './SetupsView.module.css'
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
 // Entry/stop/target price-line colors (same palette as Throughout the Years).
-const ENTRY_COLOR = '#3cb868'
-const STOP_COLOR = '#ff5b5b'   // brighter red — reads clearly on the dark chart
+const ENTRY_COLOR = '#1ae51a'   // exact bold candle green so the entry line matches the candles
+const STOP_COLOR = '#ff5b5b'    // brighter red — reads clearly on the dark chart
 const TARGET_COLOR = '#c9a84c'
 const NO_PRICE_LINES = []
 
@@ -777,6 +777,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
           annotationsTextVisible={annotating || view === 'setup'}
+          annotationsFadeWhole={!annotating}
+          candleFrameFade={!annotating}
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
           highlightBarTime={ex.label_date || null}

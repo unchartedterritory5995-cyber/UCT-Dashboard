@@ -53,7 +53,7 @@ export const SETUP_CATALOG = [
     name: 'Flat Top Breakout (VCP)',
     family: 'Bases & Breakouts',
     direction: 'long',
-    essence: '“1 tap, 2 tap, 3 tap, breakout” — repeated tests of a flat ceiling on rising lows until sellers there are exhausted.',
+    essence: 'A coiling price structure where each pullback is smaller than the last, reflecting drying-up selling pressure and compressed volatility before the move through resistance.',
     candles: [9, -6, 7.5, -4, 5, -2.5, 3, -1.2, 0.6, [6.5, 0, 0.3]],
     pivot: { idx: 2, side: 'h' },
     emas: [9, 20],

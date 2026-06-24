@@ -1,6 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
@@ -355,6 +355,8 @@ const BOLD_DOWN = '#f23645'
 const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → really pops)
 const MB_DOWN = '#c41f2d'    // deep darker red
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
+const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
+const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 
 // Main price-scale margins, with optional caller overrides of the top/bottom
 // margin (the global default reserves 0.30 headroom; some surfaces want a
@@ -544,6 +546,7 @@ export default function StockChart({
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
+  candleFrameFade = false,  // Setup Library: when exitDate moves (Setup⇄Result), crossfade the candles PAST the highlighted setup day in/out instead of popping them
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
@@ -2138,6 +2141,50 @@ export default function StockChart({
       ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
       : d))
   }, [ohlcData, highlightTimeSet, highlightColor])
+
+  // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
+  // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the
+  // latest highlighted (setup) day; direction is driven off exitDate moving
+  // later (fade in) or earlier (fade out). Inert unless candleFrameFade is set,
+  // and a no-op at full opacity (steady state), so no other chart is touched.
+  const [frameFadeAlpha, setFrameFadeAlpha] = useState(1)
+  const fadeRafRef = useRef(null)
+  const prevFadeExitRef = useRef(undefined)
+  const fadeCutoff = useMemo(() => {
+    if (!candleFrameFade || !highlightResolved?.length) return null
+    return highlightResolved.reduce((m, e) => (m == null || String(e.time) > String(m) ? e.time : m), null)
+  }, [candleFrameFade, highlightResolved])
+  useLayoutEffect(() => {
+    if (!candleFrameFade) return
+    const prev = prevFadeExitRef.current
+    prevFadeExitRef.current = exitDate
+    if (prev === undefined || prev === exitDate) { setFrameFadeAlpha(1); return }
+    const fadeIn = String(exitDate ?? '') > String(prev ?? '')   // window grew → reveal the result run
+    const from = fadeIn ? 0 : 1, to = fadeIn ? 1 : 0
+    if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current)
+    const t0 = performance.now(), dur = 720
+    const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur)
+      setFrameFadeAlpha(from + (to - from) * ease(p))
+      if (p < 1) fadeRafRef.current = requestAnimationFrame(tick)
+      else { setFrameFadeAlpha(to); fadeRafRef.current = null }
+    }
+    setFrameFadeAlpha(from)
+    fadeRafRef.current = requestAnimationFrame(tick)
+    return () => { if (fadeRafRef.current) { cancelAnimationFrame(fadeRafRef.current); fadeRafRef.current = null } }
+  }, [exitDate, candleFrameFade])
+  // Apply the crossfade alpha to the post-setup bars. Untouched at full opacity.
+  const fadedOhlc = useMemo(() => {
+    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return goldOhlc
+    const a = Math.max(0, Math.min(1, frameFadeAlpha))
+    const cut = String(fadeCutoff)
+    return goldOhlc.map(d => {
+      if (highlightTimeSet?.has(d.time) || String(d.time) <= cut) return d
+      const col = _candleRgba(d.close >= d.open, a)
+      return { ...d, color: col, borderColor: col, wickColor: col }
+    })
+  }, [goldOhlc, candleFrameFade, frameFadeAlpha, fadeCutoff, highlightTimeSet])
   const closeData = useMemo(
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
     [displayBars, adjustTime]
@@ -3875,12 +3922,12 @@ export default function StockChart({
     if (!series || !isOhlcType(cs.chartType)) return
     if (highlightTimeSet) {
       hadHighlightRef.current = true
-      try { series.setData(goldOhlc) } catch { /* range can be out of bounds mid-load */ }
+      try { series.setData(fadedOhlc) } catch { /* range can be out of bounds mid-load */ }
     } else if (hadHighlightRef.current) {
       hadHighlightRef.current = false
       try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
     }
-  }, [goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
+  }, [fadedOhlc, goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
 
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
