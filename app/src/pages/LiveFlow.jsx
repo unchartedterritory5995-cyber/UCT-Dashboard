@@ -1408,17 +1408,6 @@ export default function LiveFlow() {
   const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
   const visibleTotal = sortedAlerts.length;
 
-  // Top 5 banner data — highest-conviction A+/A grade alerts of the day,
-  // sorted by premium desc. Always visible at the top so subscribers see
-  // the day's marquee trades regardless of how far they've scrolled.
-  const topFive = [...dedupedAlerts]
-    .filter(a => {
-      const g = (a.grade || "").replace(" 🚀", "");
-      return g === "A+" || g === "A";
-    })
-    .sort((a, b) => (b.alertPremium || 0) - (a.alertPremium || 0))
-    .slice(0, 5);
-
   // Count rows that need OI — used by the "Fetch OI" button label
   const nullOICount = alerts.filter(a => a.priorOI == null).length;
 
@@ -1838,62 +1827,6 @@ export default function LiveFlow() {
           <span style={{ marginLeft: "auto", fontSize: 9, color: P.dm, fontFamily: "ui-monospace, monospace" }}>
             {visibleTotal} of {dedupedAlerts.length}
           </span>
-        </div>
-      )}
-
-      {/* Top 5 banner — highest-conviction (A+/A grade) trades of the day,
-          sorted by premium desc. Always pinned above the table so the day's
-          marquee trades remain visible regardless of scroll position.
-          Hidden in backtest mode (would conflict with simulation cards) and
-          when there are no qualifying trades yet (empty for slow days). */}
-      {!isBacktest && topFive.length > 0 && (
-        <div style={{
-          padding: "8px 20px", borderBottom: "1px solid " + P.bd + "60",
-          background: P.cd + "40",
-        }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 12, marginBottom: 6,
-          }}>
-            <span style={{
-              fontSize: 9, color: P.ac, letterSpacing: 0.5,
-              textTransform: "uppercase", fontWeight: 700,
-            }}>🥇 top 5 today</span>
-            <span style={{ fontSize: 9, color: P.mt, fontFamily: "ui-monospace, monospace" }}>
-              A+/A by premium
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {topFive.map(a => {
-              const t = deriveTier(a);
-              const meta = TIER_META[t];
-              const callColor = a.cp === "C" ? P.bu : P.be;
-              return (
-                <div key={a.id || (a.symbol + ":" + a.timestamp)}
-                  onClick={() => toggleInSet(setContractFilter,
-                    `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`)}
-                  title={`Click to filter to ${a.ticker} ${a.cp} $${a.strike}`}
-                  style={{
-                    padding: "5px 10px", borderRadius: 6,
-                    background: P.cd + "80",
-                    border: "1px solid " + meta.color + "40",
-                    borderLeft: "3px solid " + meta.color,
-                    fontSize: 10, fontFamily: "ui-monospace, monospace",
-                    cursor: "pointer", display: "flex", gap: 8, alignItems: "center",
-                    color: P.wh,
-                  }}>
-                  <span style={{ color: callColor, fontWeight: 800, fontSize: 11 }}>{a.ticker}</span>
-                  <span style={{ color: callColor }}>{a.cp}</span>
-                  <span style={{ color: callColor, fontWeight: 700 }}>${a.strike}</span>
-                  <span style={{ color: P.dm }}>{a.dte}d</span>
-                  <span style={{ color: P.ac, fontWeight: 700 }}>{fmtPremium(a.alertPremium)}</span>
-                  <span style={{
-                    fontSize: 8, padding: "1px 5px", borderRadius: 3,
-                    background: P.ac + "25", color: P.ac, fontWeight: 800,
-                  }}>{(a.grade || "").replace(" 🚀", "")}</span>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 
