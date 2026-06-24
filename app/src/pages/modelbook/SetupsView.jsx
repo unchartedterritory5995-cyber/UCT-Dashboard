@@ -221,10 +221,8 @@ function ExampleJumpList({ setup, onPick }) {
       {!data && <div className={styles.jumpMsg}>Loading examples…</div>}
       {data && examples.length === 0 && <div className={styles.jumpMsg}>No charted examples yet</div>}
       {examples.length > 0 && (
-        <>
-          <div className={styles.jumpLabel}>Jump to example</div>
-          <div className={styles.jumpChips}>
-            {examples.map(ex => (
+        <div className={styles.jumpChips}>
+          {examples.map(ex => (
               <button
                 key={ex.id}
                 type="button"
@@ -240,8 +238,7 @@ function ExampleJumpList({ setup, onPick }) {
                 {ex.grade && <span className={styles.jumpChipGrade}>{ex.grade}</span>}
               </button>
             ))}
-          </div>
-        </>
+        </div>
       )}
     </div>
   )
@@ -768,7 +765,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           volumeMa={50}
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.07}
-          watermarkOpacity={0.45}
+          watermarkOpacity={0.62}
           watermarkX={wmPos.x}
           watermarkY={wmPos.y}
           onWatermarkCommit={saveWatermark}
