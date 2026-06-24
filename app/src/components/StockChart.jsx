@@ -580,6 +580,7 @@ export default function StockChart({
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   candleFrameFade = false,  // Setup Library: when exitDate moves (Setup⇄Result), crossfade the candles PAST the highlighted setup day in/out instead of popping them
+  fitPriceToCandles = false, // price scale fits the CANDLES only — MA overlays don't expand it (they clip off-screen, TC2000-style), so price sits at the same spot regardless of where the 200MA is
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
@@ -3319,9 +3320,12 @@ export default function StockChart({
       // the standard 1; non-retina stays ~1px. Model Book (boldCandles) + the
       // intraday popup (modelBookLook) use it.
       const _ovLineWidth = (boldCandles || modelBookLook) ? 0.5 : 1
+      // fitPriceToCandles: MAs contribute NO price range, so the scale fits the
+      // candles only and a far 200MA clips off-screen instead of squashing price.
+      const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth })
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
         overlaySeriesRefs.current[i].setData(baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
@@ -3332,7 +3336,7 @@ export default function StockChart({
           crosshairMarkerVisible: false,
           priceLineVisible: false,
           lastValueVisible: false,
-          autoscaleInfoProvider: () => null,
+          autoscaleInfoProvider: _ovAutoscale,
         })
         ls.setData(baseData)
         overlaySeriesRefs.current.push(ls)
@@ -3341,7 +3345,7 @@ export default function StockChart({
       if (_fadeMA) {
         const tailColor = colorWithAlpha(color, _tailAlpha)
         if (i < overlayTailSeriesRefs.current.length) {
-          overlayTailSeriesRefs.current[i].applyOptions({ color: tailColor, lineType: _ovLineType, lineWidth: _ovLineWidth })
+          overlayTailSeriesRefs.current[i].applyOptions({ color: tailColor, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
           overlayTailSeriesRefs.current[i].setData(tailData)
         } else {
           const ts = chart.addSeries(LineSeries, {
@@ -3351,7 +3355,7 @@ export default function StockChart({
             crosshairMarkerVisible: false,
             priceLineVisible: false,
             lastValueVisible: false,
-            autoscaleInfoProvider: () => null,
+            autoscaleInfoProvider: _ovAutoscale,
           })
           ts.setData(tailData)
           overlayTailSeriesRefs.current.push(ts)
@@ -4013,7 +4017,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -4189,7 +4193,8 @@ export default function StockChart({
       // (unpadded), computed here so the glide never reads the replay pad or the
       // mid-transition held slice for autoscale — that was crunching the candles
       // and dragging the price-anchored annotations on the way back to Setup.
-      const tRangeGlide = _windowPriceRange(filteredBars, fromIdx, endIdx, overlayData)
+      const _glideOverlays = fitPriceToCandles ? null : overlayData
+      const tRangeGlide = _windowPriceRange(filteredBars, fromIdx, endIdx, _glideOverlays)
       let sRangeGlide = null
       // Start the glide FROM the outgoing frame, re-asserted explicitly (with the
       // same replay pad it's showing, so there's no pre-glide jump). The setData
@@ -4216,7 +4221,7 @@ export default function StockChart({
             if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
           }
         }
-        sRangeGlide = _windowPriceRange(filteredBars, oS, oE, overlayData)
+        sRangeGlide = _windowPriceRange(filteredBars, oS, oE, _glideOverlays)
         const oPad = frameRightPadFrac > 0 ? Math.round((oE - oS) * frameRightPadFrac) : 0
         if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE + oPad }) } catch { /* mid-load */ } }
       }

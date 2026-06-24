@@ -771,6 +771,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           exitDate={frame.end}
           exactDateRange
           frameRightPadFrac={0.15}
+          fitPriceToCandles
           frozen={!annotating}
           hideCrosshair={!annotating}
           hideLegend={!annotating}
