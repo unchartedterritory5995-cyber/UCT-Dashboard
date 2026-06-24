@@ -482,7 +482,11 @@ function UserBlocklistPanel({ visible, onSaved }) {
 }
 
 // ─── Alert row ────────────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
+function AlertRow({
+  alert, isNew, tier, tierMeta, tierColor, directionTinted, isAdmin,
+  onFilterTicker, onFilterContract, onFilterAlertName,
+  activeTicker, activeContract, activeAlertName,
+}) {
   const isCall = alert.cp === "C";
   const cpColor = isCall ? P.bu : (alert.cp === "P" ? P.be : P.dm);
   const forwarded = alert.forwardedToDiscord;
@@ -549,7 +553,30 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
       }}>
         {fmtTime(alert.timestamp)}
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13 }}>
+      {/* Tier badge — small colored chip. Replaces the old tier section headers
+          now that the table is a flat chronological feed. Not clickable (yet);
+          tier visibility still controlled by the chip row at top. */}
+      <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        {tierMeta && (
+          <span style={{
+            fontSize: 8, padding: "2px 6px", borderRadius: 3,
+            background: tierMeta.color + "18", color: tierMeta.color,
+            fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase",
+            fontFamily: "inherit",
+          }}>{tierMeta.label.split(" ")[0].slice(0, 5)}</span>
+        )}
+      </td>
+      {/* Ticker — clickable to filter feed to just this ticker. Active filter
+          state shows with a colored background. */}
+      <td
+        onClick={onFilterTicker ? () => onFilterTicker(alert.ticker) : undefined}
+        title={onFilterTicker ? `Filter to ${alert.ticker}` : undefined}
+        style={{
+          padding: "8px 10px", fontWeight: 800, color: primaryTextColor, fontSize: 13,
+          cursor: onFilterTicker ? "pointer" : "default",
+          background: activeTicker ? primaryTextColor + "18" : "transparent",
+          borderRadius: activeTicker ? 4 : 0,
+        }}>
         {alert.ticker || "—"}
       </td>
       <td style={{ padding: "8px 10px", fontWeight: 800, fontSize: 11 }}>
@@ -558,7 +585,17 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
           background: cpColor + "20", color: cpColor,
         }}>{alert.cp || "—"}</span>
       </td>
-      <td style={{ padding: "8px 10px", fontWeight: 700, color: primaryTextColor, fontSize: 12 }}>
+      {/* Strike — clickable to filter to this exact contract (ticker+cp+strike+exp). */}
+      <td
+        onClick={onFilterContract ? () => {
+          onFilterContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
+        } : undefined}
+        title={onFilterContract ? `Filter to ${alert.ticker} ${alert.cp} $${alert.strike} ${alert.exp}` : undefined}
+        style={{
+          padding: "8px 10px", fontWeight: 700, color: primaryTextColor, fontSize: 12,
+          cursor: onFilterContract ? "pointer" : "default",
+          background: activeContract ? primaryTextColor + "18" : "transparent",
+        }}>
         {alert.strike != null ? "$" + alert.strike.toFixed(alert.strike >= 100 ? 0 : 2) : "—"}
       </td>
       <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>{alert.exp || "—"}</td>
@@ -622,7 +659,14 @@ function AlertRow({ alert, isNew, tierColor, directionTinted, isAdmin }) {
       }}>
         {alert.priorOI != null ? alert.priorOI.toLocaleString() : "—"}
       </td>
-      <td style={{ padding: "8px 10px", color: primaryTextColor, fontSize: 11 }}>
+      <td
+        onClick={onFilterAlertName && alert.alertName ? () => onFilterAlertName(alert.alertName) : undefined}
+        title={onFilterAlertName && alert.alertName ? `Filter to ${alert.alertName}` : undefined}
+        style={{
+          padding: "8px 10px", color: primaryTextColor, fontSize: 11,
+          cursor: onFilterAlertName && alert.alertName ? "pointer" : "default",
+          background: activeAlertName ? primaryTextColor + "14" : "transparent",
+        }}>
         {(() => {
           const sp = deriveSubPriority(alert.alertName);
           const spLabel = subPriorityLabel(sp);
@@ -1113,6 +1157,17 @@ export default function LiveFlow() {
   // trigger a bulk Schwab call for all currently-null rows.
   const [oiFetchLoading, setOiFetchLoading] = useState(false);
   const [oiFetchResult, setOiFetchResult] = useState(null);  // { filled, total } | null
+  // ─── Click-to-filter state (added 2026-06-24) ────────────────────────────
+  // Each is a Set of values; empty Set = no filter. Click cells in the table
+  // to add to these; click pills above the table to remove. Tier visibility
+  // still controlled by the chip row's `filters` state — these are additive.
+  const [tickerFilter, setTickerFilter] = useState(new Set());
+  const [contractFilter, setContractFilter] = useState(new Set());  // key: T|C|S|E
+  const [alertNameFilter, setAlertNameFilter] = useState(new Set());
+  // ─── Sort state ──────────────────────────────────────────────────────────
+  // col: 'time' | 'premium' | 'grade'. dir: 'asc' | 'desc'. Default newest
+  // first (time desc) — matches how a trader scans the live feed.
+  const [sortBy, setSortBy] = useState({ col: "time", dir: "desc" });
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -1314,30 +1369,92 @@ export default function LiveFlow() {
   }, [isBacktest, backtestDate, refreshTrigger, simulateMode, simMinGrade, simExcludeETF, uploadedFile, isHistory, historyFrom, historyTo, replayGates]);
 
   // Dedup first: collapse alerts that fired multiple custom-alert rules for the
-  // same trade. Then group by tier (direction from cp), then sort within each
-  // tier by sub-priority so Alpha Gold pins to top, Leaps drops to bottom.
+  // same trade. Then build a SINGLE flat sorted list (no tier grouping) so the
+  // operator can see the actual chronological flow of the market.
   const dedupedAlerts = dedupAlerts(alerts);
+
+  // Filter pipeline: tier visibility (chip row) → ticker → contract → alert name
+  const filteredAlerts = dedupedAlerts.filter(a => {
+    if (!filters[deriveTier(a)]) return false;
+    if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
+    if (contractFilter.size > 0) {
+      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+      if (!contractFilter.has(k)) return false;
+    }
+    if (alertNameFilter.size > 0 && !alertNameFilter.has(a.alertName)) return false;
+    return true;
+  });
+
+  // Sort. Default = newest first (time desc). Sort headers in the table
+  // header row toggle this via setSortBy.
+  const gradeRank = (g) => {
+    if (!g) return -1;
+    const map = { "A+ 🚀": 5, "A+": 5, "A": 4, "B": 3, "C": 2, "D": 1 };
+    return map[g] ?? -1;
+  };
+  const sortedAlerts = [...filteredAlerts].sort((a, b) => {
+    let cmp = 0;
+    if (sortBy.col === "time") cmp = (b.timestamp || 0) - (a.timestamp || 0);
+    else if (sortBy.col === "premium") cmp = (b.alertPremium || 0) - (a.alertPremium || 0);
+    else if (sortBy.col === "grade") cmp = gradeRank(b.grade) - gradeRank(a.grade);
+    return sortBy.dir === "asc" ? -cmp : cmp;
+  });
+
+  // For the tier chip counts at the top, count per-tier on the deduped list
+  // (before ticker/contract filters apply) so the chips show the full universe.
   const byTier = {};
   for (const t of TIER_ORDER) byTier[t] = [];
   for (const a of dedupedAlerts) byTier[deriveTier(a)].push(a);
-
-  // Sort each tier's alerts: sub-priority ascending (1 first), ties broken by
-  // arrival order (timestamp descending — newest within the same priority on top).
-  for (const t of TIER_ORDER) {
-    byTier[t].sort((a, b) => {
-      const dp = deriveSubPriority(a.alertName) - deriveSubPriority(b.alertName);
-      if (dp !== 0) return dp;
-      return (b.timestamp || 0) - (a.timestamp || 0);
-    });
-  }
-
   const counts = Object.fromEntries(TIER_ORDER.map(t => [t, byTier[t].length]));
-  const visibleTotal = TIER_ORDER.reduce(
-    (sum, t) => filters[t] ? sum + byTier[t].length : sum, 0
-  );
+  const visibleTotal = sortedAlerts.length;
+
+  // Top 5 banner data — highest-conviction A+/A grade alerts of the day,
+  // sorted by premium desc. Always visible at the top so subscribers see
+  // the day's marquee trades regardless of how far they've scrolled.
+  const topFive = [...dedupedAlerts]
+    .filter(a => {
+      const g = (a.grade || "").replace(" 🚀", "");
+      return g === "A+" || g === "A";
+    })
+    .sort((a, b) => (b.alertPremium || 0) - (a.alertPremium || 0))
+    .slice(0, 5);
 
   // Count rows that need OI — used by the "Fetch OI" button label
   const nullOICount = alerts.filter(a => a.priorOI == null).length;
+
+  // ─── Click-to-filter handlers ────────────────────────────────────────────
+  // Generic Set toggle: click an already-active filter to remove it (toggle off),
+  // click a new value to add it. Multi-select works for stacking filters.
+  const toggleInSet = (setter, value) => {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  };
+  const clearAllFilters = () => {
+    setTickerFilter(new Set());
+    setContractFilter(new Set());
+    setAlertNameFilter(new Set());
+  };
+  const hasActiveFilters = tickerFilter.size > 0
+    || contractFilter.size > 0
+    || alertNameFilter.size > 0;
+
+  // ─── Sort header handler ──────────────────────────────────────────────────
+  // Click a sortable column header to sort by it. Clicking the same column
+  // again toggles asc/desc. Clicking a different column resets to desc (since
+  // for premium/grade desc-first matches the "biggest/best first" intuition;
+  // for time, desc-first means newest first).
+  const handleSort = (col) => {
+    setSortBy(prev => {
+      if (prev.col === col) {
+        return { col, dir: prev.dir === "desc" ? "asc" : "desc" };
+      }
+      return { col, dir: "desc" };
+    });
+  };
 
   // Bulk on-demand OI fetch. Posts all null-OI contracts to the backend,
   // which checks our snapshot table first then batch-fetches misses from
@@ -1657,6 +1774,129 @@ export default function LiveFlow() {
         onSaved={() => setRefreshTrigger(x => x + 1)}
       />
 
+      {/* Active filter pills — only when ticker/contract/alertName filters are set.
+          Each pill is removable. "Clear all" wipes all three. Tier visibility
+          chips above are untouched (those are toggles, not filters). */}
+      {hasActiveFilters && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+          padding: "8px 20px", borderBottom: "1px solid " + P.bd + "60",
+          background: P.cd + "30",
+        }}>
+          <span style={{
+            fontSize: 9, color: P.mt, letterSpacing: 0.5,
+            textTransform: "uppercase", marginRight: 4,
+          }}>filters</span>
+          {Array.from(tickerFilter).map(t => (
+            <span key={"tk:" + t} style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 6px 3px 10px", background: P.bu + "22",
+              border: "1px solid " + P.bu + "80", borderRadius: 12,
+              fontSize: 10, fontWeight: 700, color: P.bu,
+              fontFamily: "inherit",
+            }}>
+              {t}
+              <span onClick={() => toggleInSet(setTickerFilter, t)}
+                style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+            </span>
+          ))}
+          {Array.from(contractFilter).map(c => {
+            const [tk, cp, k, e] = c.split("|");
+            return (
+              <span key={"ct:" + c} style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 6px 3px 10px", background: P.ac + "22",
+                border: "1px solid " + P.ac + "80", borderRadius: 12,
+                fontSize: 10, fontWeight: 700, color: P.ac,
+                fontFamily: "inherit",
+              }}>
+                {tk} {cp} ${k}
+                <span onClick={() => toggleInSet(setContractFilter, c)}
+                  style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+              </span>
+            );
+          })}
+          {Array.from(alertNameFilter).map(n => (
+            <span key={"an:" + n} style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 6px 3px 10px", background: P.dm + "22",
+              border: "1px solid " + P.dm + "80", borderRadius: 12,
+              fontSize: 10, fontWeight: 700, color: P.wh,
+              fontFamily: "inherit",
+            }}>
+              {n}
+              <span onClick={() => toggleInSet(setAlertNameFilter, n)}
+                style={{ cursor: "pointer", opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+            </span>
+          ))}
+          <button onClick={clearAllFilters} style={{
+            padding: "3px 8px", fontSize: 9, color: P.dm,
+            background: "transparent", border: "1px solid " + P.bd,
+            borderRadius: 12, cursor: "pointer", letterSpacing: 0.3,
+            fontFamily: "inherit",
+          }}>clear all</button>
+          <span style={{ marginLeft: "auto", fontSize: 9, color: P.dm, fontFamily: "ui-monospace, monospace" }}>
+            {visibleTotal} of {dedupedAlerts.length}
+          </span>
+        </div>
+      )}
+
+      {/* Top 5 banner — highest-conviction (A+/A grade) trades of the day,
+          sorted by premium desc. Always pinned above the table so the day's
+          marquee trades remain visible regardless of scroll position.
+          Hidden in backtest mode (would conflict with simulation cards) and
+          when there are no qualifying trades yet (empty for slow days). */}
+      {!isBacktest && topFive.length > 0 && (
+        <div style={{
+          padding: "8px 20px", borderBottom: "1px solid " + P.bd + "60",
+          background: P.cd + "40",
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12, marginBottom: 6,
+          }}>
+            <span style={{
+              fontSize: 9, color: P.ac, letterSpacing: 0.5,
+              textTransform: "uppercase", fontWeight: 700,
+            }}>🥇 top 5 today</span>
+            <span style={{ fontSize: 9, color: P.mt, fontFamily: "ui-monospace, monospace" }}>
+              A+/A by premium
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {topFive.map(a => {
+              const t = deriveTier(a);
+              const meta = TIER_META[t];
+              const callColor = a.cp === "C" ? P.bu : P.be;
+              return (
+                <div key={a.id || (a.symbol + ":" + a.timestamp)}
+                  onClick={() => toggleInSet(setContractFilter,
+                    `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`)}
+                  title={`Click to filter to ${a.ticker} ${a.cp} $${a.strike}`}
+                  style={{
+                    padding: "5px 10px", borderRadius: 6,
+                    background: P.cd + "80",
+                    border: "1px solid " + meta.color + "40",
+                    borderLeft: "3px solid " + meta.color,
+                    fontSize: 10, fontFamily: "ui-monospace, monospace",
+                    cursor: "pointer", display: "flex", gap: 8, alignItems: "center",
+                    color: P.wh,
+                  }}>
+                  <span style={{ color: callColor, fontWeight: 800, fontSize: 11 }}>{a.ticker}</span>
+                  <span style={{ color: callColor }}>{a.cp}</span>
+                  <span style={{ color: callColor, fontWeight: 700 }}>${a.strike}</span>
+                  <span style={{ color: P.dm }}>{a.dte}d</span>
+                  <span style={{ color: P.ac, fontWeight: 700 }}>{fmtPremium(a.alertPremium)}</span>
+                  <span style={{
+                    fontSize: 8, padding: "1px 5px", borderRadius: 3,
+                    background: P.ac + "25", color: P.ac, fontWeight: 800,
+                  }}>{(a.grade || "").replace(" 🚀", "")}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
         {/* Backtest banner — only when in backtest mode (admin gated) */}
@@ -1930,43 +2170,76 @@ export default function LiveFlow() {
           }}>
             <thead style={{ position: "sticky", top: 0, background: P.cd, zIndex: 1 }}>
               <tr style={{ borderBottom: "1px solid " + P.bd }}>
-                {[
-                  ["Time", 10], ["Ticker", 13], ["C/P", 11], ["Strike", 12],
-                  ["Exp", 11], ["DTE", 10], ["Premium", 12], ["Avg Fill", 11],
-                  // Trade-context columns (added 2026-06-24). Grouped with
-                  // Avg Fill so all "what was the trade" data sits together
-                  // before the "what tier caught it" columns.
-                  ["% Money", 11], ["Volume", 10], ["OI", 10],
-                  ["Alert Name", 11],
-                  // Push column is admin-only — hidden for subscribers.
-                  // Placed right after Alert Name per operator preference so
-                  // the decision context (alert tier + name) sits adjacent to
-                  // the action button. Spread-in via conditional array.
-                  ...(isAdmin ? [["Push", 10]] : []),
-                  ["Grade", 11], ["🔔", 11],
-                ].map(([label]) => (
-                  <th key={label} style={{
-                    padding: "8px 10px",
-                    textAlign: (label === "Grade" || label === "🔔" || label === "Push"
-                                || label === "% Money" || label === "Volume" || label === "OI") ? "center" : "left",
-                    color: P.dm, fontSize: 9, fontWeight: 700,
-                    letterSpacing: 0.5, textTransform: "uppercase",
-                  }}>{label}</th>
-                ))}
+                {(() => {
+                  // Sortable cols indicated by SORT_KEY mapping; others render static.
+                  const COLUMNS = [
+                    { label: "Time",       sortKey: "time" },
+                    { label: "Tier" },
+                    { label: "Ticker" },
+                    { label: "C/P" },
+                    { label: "Strike" },
+                    { label: "Exp" },
+                    { label: "DTE" },
+                    { label: "Premium",    sortKey: "premium" },
+                    { label: "Avg Fill" },
+                    { label: "% Money" },
+                    { label: "Volume" },
+                    { label: "OI" },
+                    { label: "Alert Name" },
+                    ...(isAdmin ? [{ label: "Push" }] : []),
+                    { label: "Grade",      sortKey: "grade" },
+                    { label: "🔔" },
+                  ];
+                  return COLUMNS.map(({ label, sortKey }) => {
+                    const isCentered = ["Grade", "🔔", "Push", "% Money", "Volume", "OI", "Tier"].includes(label);
+                    const isSortable = !!sortKey;
+                    const isActiveSort = isSortable && sortBy.col === sortKey;
+                    const arrow = isActiveSort ? (sortBy.dir === "desc" ? " ↓" : " ↑") : "";
+                    return (
+                      <th key={label} onClick={isSortable ? () => handleSort(sortKey) : undefined} style={{
+                        padding: "8px 10px",
+                        textAlign: isCentered ? "center" : "left",
+                        color: isActiveSort ? P.ac : P.dm,
+                        fontSize: 9, fontWeight: 700,
+                        letterSpacing: 0.5, textTransform: "uppercase",
+                        cursor: isSortable ? "pointer" : "default",
+                        userSelect: "none",
+                      }}>{label}{arrow}</th>
+                    );
+                  });
+                })()}
               </tr>
             </thead>
             <tbody>
-              {TIER_ORDER.map(tier => filters[tier] && (
-                <TierSection
-                  key={tier}
-                  tier={tier}
-                  alerts={byTier[tier]}
-                  newIds={newIdsRef.current}
-                  collapsed={!!collapsedTiers[tier]}
-                  onToggle={() => setCollapsedTiers(c => ({ ...c, [tier]: !c[tier] }))}
-                  isAdmin={isAdmin}
-                />
-              ))}
+              {sortedAlerts.map(a => {
+                const tier = deriveTier(a);
+                const meta = TIER_META[tier];
+                return (
+                  <AlertRow
+                    key={a.id || (a.symbol + ":" + a.timestamp)}
+                    alert={a}
+                    tier={tier}
+                    tierMeta={meta}
+                    isNew={newIdsRef.current.has(a.id)}
+                    tierColor={meta.color}
+                    directionTinted={MIXED_DIRECTION_TIERS.has(tier)}
+                    isAdmin={isAdmin}
+                    onFilterTicker={(t) => toggleInSet(setTickerFilter, t)}
+                    onFilterContract={(c) => toggleInSet(setContractFilter, c)}
+                    onFilterAlertName={(n) => toggleInSet(setAlertNameFilter, n)}
+                    activeTicker={tickerFilter.has(a.ticker)}
+                    activeContract={contractFilter.has(`${a.ticker}|${a.cp}|${a.strike}|${a.exp}`)}
+                    activeAlertName={alertNameFilter.has(a.alertName)}
+                  />
+                );
+              })}
+              {sortedAlerts.length === 0 && (
+                <tr>
+                  <td colSpan={isAdmin ? 16 : 15} style={{ padding: 40, textAlign: "center", color: P.mt, fontSize: 12 }}>
+                    {hasActiveFilters ? "no alerts match the active filters" : "no alerts to show"}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
