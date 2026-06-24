@@ -8,7 +8,7 @@ function referenceSMA(bars, period) {
   for (let i = period - 1; i < bars.length; i++) {
     let sum = 0
     for (let j = i - period + 1; j <= i; j++) sum += bars[j].c
-    result.push({ time: bars[i].t, value: +(sum / period).toFixed(2) })
+    result.push({ time: bars[i].t, value: sum / period })
   }
   return result
 }
@@ -57,8 +57,8 @@ describe('computeSMA', () => {
     const bars = makeBars(10)
     const result = computeSMA(bars, 1)
     expect(result).toHaveLength(10)
-    expect(result[0].value).toBe(+bars[0].c.toFixed(2))
-    expect(result[9].value).toBe(+bars[9].c.toFixed(2))
+    expect(result[0].value).toBe(bars[0].c)
+    expect(result[9].value).toBe(bars[9].c)
   })
 
   test('completes SMA200 on 8000 bars in under 50ms', () => {
@@ -107,7 +107,7 @@ describe('computeSMA', () => {
       expect(result).toHaveLength(30)
       expect(result[0].time).toBe(bars[0].t)
       // First bar = average of just bar 0 (expanding window of size 1).
-      expect(result[0].value).toBe(+bars[0].c.toFixed(2))
+      expect(result[0].value).toBe(bars[0].c)
     })
 
     test('leading bars use an expanding window; tail matches the full-window SMA', () => {
@@ -125,7 +125,7 @@ describe('computeSMA', () => {
       const result = computeSMA(bars, 20, true)
       expect(result).toHaveLength(5)
       // bar 2 = average of bars[0..2]
-      const expected = +((bars[0].c + bars[1].c + bars[2].c) / 3).toFixed(2)
+      const expected = (bars[0].c + bars[1].c + bars[2].c) / 3
       expect(result[2].value).toBe(expected)
     })
   })

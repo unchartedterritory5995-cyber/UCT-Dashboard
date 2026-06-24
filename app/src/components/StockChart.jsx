@@ -161,13 +161,13 @@ export function computeSMA(bars, period, fromStart = false) {
   const result = []
   const start = fromStart ? 0 : period - 1
   for (let i = start; i < bars.length; i++) {
-    // Re-sum the full window at every bar to guarantee exact FP parity
-    // with the naive reference — rolling subtract accumulates rounding
-    // error that can flip .toFixed(2) results at cent boundaries.
+    // Re-sum the full window at every bar (exact, no rolling-subtract drift).
+    // Keep FULL precision — rounding the MA to cents stair-steps the line on
+    // low-priced (split-adjusted) names; TradingView renders it full-precision.
     const from = Math.max(0, i - period + 1)
     let sum = 0
     for (let j = from; j <= i; j++) sum += bars[j].c
-    result.push({ time: bars[i].t, value: +(sum / (i - from + 1)).toFixed(2) })
+    result.push({ time: bars[i].t, value: sum / (i - from + 1) })
   }
   return result
 }
@@ -178,22 +178,23 @@ function computeEMA(bars, period, fromStart = false) {
   if (bars.length < period && !fromStart) return []
   if (!bars.length) return []
   const k = 2 / (period + 1)
+  // Full precision (no cent rounding) so the line stays smooth on low-priced names.
   if (fromStart) {
     let ema = bars[0].c
-    const result = [{ time: bars[0].t, value: +ema.toFixed(2) }]
+    const result = [{ time: bars[0].t, value: ema }]
     for (let i = 1; i < bars.length; i++) {
       ema = bars[i].c * k + ema * (1 - k)
-      result.push({ time: bars[i].t, value: +ema.toFixed(2) })
+      result.push({ time: bars[i].t, value: ema })
     }
     return result
   }
   let sum = 0
   for (let i = 0; i < period; i++) sum += bars[i].c
   let ema = sum / period
-  const result = [{ time: bars[period - 1].t, value: +ema.toFixed(2) }]
+  const result = [{ time: bars[period - 1].t, value: ema }]
   for (let i = period; i < bars.length; i++) {
     ema = bars[i].c * k + ema * (1 - k)
-    result.push({ time: bars[i].t, value: +ema.toFixed(2) })
+    result.push({ time: bars[i].t, value: ema })
   }
   return result
 }
