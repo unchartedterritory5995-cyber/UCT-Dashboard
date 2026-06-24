@@ -547,16 +547,23 @@ function AlertRow({
   // is recognizable at a glance without scanning the C/P column. The C/P
   // pill, type pill, score, and bell stay as-is since they have their own
   // semantic colors that shouldn't be overridden.
-  const primaryTextColor = directionTinted ? cpColor : P.wh;
-  const accentTextColor = directionTinted ? cpColor : P.ac;
+  // ALL primary text in the row takes the tier color so each line is
+  // visually unified by tier. Override the previous direction-tinting
+  // behavior — direction is still visible via the C/P pill, but the
+  // dominant row color tells you tier at a glance.
+  const primaryTextColor = tierColor || P.wh;
+  const accentTextColor = tierColor || P.ac;
 
   return (
-    <tr style={{ borderBottom: "1px solid " + P.bd + "30", ...flashStyle }}>
+    <tr style={{
+      borderBottom: "1px solid " + P.bd + "30",
+      ...flashStyle,
+    }}>
       {/* First cell carries the tier-colored left border */}
       <td style={{
         padding: "8px 10px", color: P.dm, fontSize: 10,
         fontFamily: "ui-monospace, monospace",
-        borderLeft: tierColor ? "3px solid " + tierColor : "none",
+        borderLeft: tierColor ? "4px solid " + tierColor : "none",
       }}>
         {fmtTime(alert.timestamp)}
       </td>
