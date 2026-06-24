@@ -797,16 +797,12 @@ function ExamplesPane({ setup }) {
 // row) pops up the full playbook in a floating panel instead of spending a
 // permanent column on it. The `key` forces a fresh mount per setup so the
 // cascade + chart reset cleanly.
-function DetailStage({ setup, onHover, onLeave }) {
+function DetailStage({ setup }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   return (
     <div className={styles.stage} key={setup.name}>
-      {/* Slim identity header — hover (here or the rail) for the playbook. */}
-      <div
-        className={styles.stageHeader}
-        onMouseEnter={e => onHover?.(setup, e.currentTarget)}
-        onMouseLeave={onLeave}
-      >
+      {/* Slim identity header — hover the rail row (left) for the playbook. */}
+      <div className={styles.stageHeader}>
         <span className={styles.stageGlyphWrap}>
           <SetupGlyph setup={setup} className={styles.pbGlyph} />
         </span>
@@ -818,7 +814,7 @@ function DetailStage({ setup, onHover, onLeave }) {
             <span className={styles.stageEssence}>{setup.essence}</span>
           </div>
         </div>
-        <span className={styles.stagePbHint} aria-hidden="true">Hover for playbook</span>
+        <span className={styles.stagePbHint} aria-hidden="true">Hover a setup for its playbook</span>
       </div>
 
       {/* Charted examples — full width */}
@@ -1012,7 +1008,7 @@ export default function SetupsView({ onExit }) {
               <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
             )}
             {selected
-              ? <DetailStage setup={selected} onHover={onPbHover} onLeave={onPbLeave} />
+              ? <DetailStage setup={selected} />
               : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
           </main>
         )}

@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -1668,6 +1668,22 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
 
 function DrawingContextMenu({ x, y, onDelete, onClose }) {
   const menuRef = useRef(null)
+  // Clamp to the viewport so the menu always lands right next to the cursor —
+  // flips to the cursor's left/up edge when it would overflow (drawings near the
+  // right edge of a full-width chart otherwise pushed it off-screen). Measured
+  // post-render and kept hidden for the first paint so it never flashes far off.
+  const [pos, setPos] = useState({ left: x, top: y, ready: false })
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    const w = el?.offsetWidth || 150
+    const h = el?.offsetHeight || 40
+    const M = 8
+    let left = x + w > window.innerWidth - M ? x - w : x
+    let top = y + h > window.innerHeight - M ? y - h : y
+    left = Math.max(M, Math.min(left, window.innerWidth - w - M))
+    top = Math.max(M, Math.min(top, window.innerHeight - h - M))
+    setPos({ left, top, ready: true })
+  }, [x, y])
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
@@ -1681,8 +1697,9 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
       onPointerDown={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',
-        left: x,
-        top: y,
+        left: pos.left,
+        top: pos.top,
+        visibility: pos.ready ? 'visible' : 'hidden',
         zIndex: 20,
         minWidth: 140,
         background: '#1a1c17',
