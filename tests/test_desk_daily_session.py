@@ -57,3 +57,29 @@ def test_publish_is_idempotent(edu_db):
     assert len(dds.publish_new_sessions(client=client)) == 1
     assert dds.publish_new_sessions(client=client) == []   # second run no-ops
     assert len(edu.list_videos()) == 1
+
+
+def test_safety_net_silent_on_weekend(edu_db, monkeypatch):
+    fired = []
+    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    sat = datetime(2026, 6, 27, 18, 0, tzinfo=ET)
+    assert dds.check_missing_session_alert(now=sat, publish=False) is False
+    assert fired == []
+
+
+def test_safety_net_silent_when_today_present(edu_db, monkeypatch):
+    fired = []
+    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    edu.create_video({"youtube_id": "V", "title": "Daily Session — June 24, 2026",
+                      "category": "Daily Sessions", "sort_order": 0})
+    wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+    assert dds.check_missing_session_alert(now=wed, publish=False) is False
+    assert fired == []
+
+
+def test_safety_net_fires_when_absent_on_weekday(edu_db, monkeypatch):
+    fired = []
+    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+    assert dds.check_missing_session_alert(now=wed, publish=False) is True
+    assert len(fired) == 1

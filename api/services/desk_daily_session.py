@@ -59,3 +59,39 @@ def publish_new_sessions(client=None) -> list[dict]:
         created.append(row)
         have.add(vid)
     return created
+
+
+def todays_session_exists(now: datetime | None = None) -> bool:
+    now = now or datetime.now(_ET)
+    expected = _session_title(None, now=now)
+    cat = _category()
+    return any(v.get("title") == expected and v.get("category") == cat
+               for v in education_service.list_videos())
+
+
+def _alert_owner(now: datetime) -> None:
+    from api.services import discord_notify
+    discord_notify._send_webhook({
+        "title": "⚠️ Daily Session not published",
+        "description": (f"No '{_session_title(None, now=now)}' video is in The Desk "
+                        f"by {now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')}. "
+                        "Check that the webinar ran and auto-streamed to YouTube."),
+        "color": 0xE0A800,
+    })
+
+
+def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
+    """Weekday EOD guard. Tries one publish, then alerts the owner if today's
+    session still isn't in the library. Returns True iff it alerted."""
+    now = now or datetime.now(_ET)
+    if now.weekday() >= 5:          # Sat/Sun
+        return False
+    if publish:
+        try:
+            publish_new_sessions()
+        except Exception:
+            pass
+    if todays_session_exists(now):
+        return False
+    _alert_owner(now)
+    return True
