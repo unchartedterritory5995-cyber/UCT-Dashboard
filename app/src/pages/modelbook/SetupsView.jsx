@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
@@ -183,13 +183,14 @@ export function SetupGlyph({ setup, className }) {
 // One entry in the setup index: name + full description + a direction dot.
 // Selecting it loads the setup into the stage — the same "click a row, study
 // the chart" rhythm as a stock in Throughout the Years.
-function RailRow({ setup, active, onSelect, onHover, onLeave }) {
+function RailRow({ setup, active, expanded, onSelect, onHover, onLeave }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   return (
     <button
       type="button"
       data-setup-name={setup.name}
       className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
+      aria-expanded={expanded}
       onClick={() => onSelect(setup)}
       onMouseEnter={e => onHover?.(setup, e.currentTarget)}
       onMouseLeave={onLeave}
@@ -201,7 +202,39 @@ function RailRow({ setup, active, onSelect, onHover, onLeave }) {
         </span>
         <span className={styles.railEssence}>{setup.essence}</span>
       </span>
+      <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
     </button>
+  )
+}
+
+// Click a setup → a dropdown of its charted examples (logo · symbol · year ·
+// grade). Picking one scrolls the right pane to that example. Shares the SWR
+// cache key with ExamplesPane, so opening the menu warms the same data.
+function ExampleJumpList({ setup, onPick }) {
+  const { data } = useSWR(
+    `/api/modelbook/setup-examples?setup=${encodeURIComponent(setup.name)}`,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const examples = data?.examples || []
+  return (
+    <div className={styles.jumpList} role="menu">
+      {!data && <div className={styles.jumpLoading}>Loading examples…</div>}
+      {data && examples.length === 0 && <div className={styles.jumpEmpty}>No charted examples yet</div>}
+      {examples.map(ex => (
+        <button
+          key={ex.id}
+          type="button"
+          role="menuitem"
+          className={styles.jumpRow}
+          onClick={() => onPick(ex)}
+        >
+          <CompanyLogo sym={ex.symbol} size={16} round name={ex.company} />
+          <span className={styles.jumpSym}>{ex.symbol}</span>
+          <span className={styles.jumpYear}>{ex.year}</span>
+          {ex.grade && <span className={styles.jumpGrade}>{ex.grade}</span>}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -632,7 +665,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   }
 
   return (
-    <div className={styles.exBlock}>
+    <div className={styles.exBlock} id={`setup-ex-${ex.id}`}>
       <div className={styles.exBlockHead}>
         <CompanyLogo sym={ex.symbol} size={22} round name={companyName} alt={ex.data_symbol} />
         <span className={styles.exSym}>{ex.symbol}</span>
@@ -748,26 +781,26 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   )
 }
 
-// The scrollable right pane: header + admin add form + the example charts.
-function ExamplesPane({ setup }) {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+// The scrollable right pane: admin add form + the example charts. The section
+// label + Add button moved up into the stage header (DetailStage) so the first
+// chart sits right under the identity strip with no wasted band.
+function ExamplesPane({ setup, scrollReq, isAdmin, adding, setAdding }) {
   const { data, mutate } = useSWR(
     `/api/modelbook/setup-examples?setup=${encodeURIComponent(setup.name)}`,
     fetcher, { revalidateOnFocus: false },
   )
   const examples = useMemo(() => data?.examples || [], [data])
-  const [adding, setAdding] = useState(false)
+
+  // Jump to a specific example when the rail dropdown asks for it (once the
+  // examples have loaded and the block is mounted).
+  useEffect(() => {
+    if (!scrollReq?.exampleId || !examples.length) return
+    const el = document.getElementById(`setup-ex-${scrollReq.exampleId}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [scrollReq, examples])
+
   return (
     <div className={styles.exPane}>
-      <div className={styles.exHead}>
-        <span className={styles.exHeadLabel}>
-          Charted Examples{examples.length > 0 && <span className={styles.exCount}> · {examples.length}</span>}
-        </span>
-        {isAdmin && !adding && (
-          <button className={styles.exAddBtn} onClick={() => setAdding(true)}>+ Add Example</button>
-        )}
-      </div>
       {adding && (
         <ExampleForm
           setupName={setup.name}
@@ -797,11 +830,18 @@ function ExamplesPane({ setup }) {
 // row) pops up the full playbook in a floating panel instead of spending a
 // permanent column on it. The `key` forces a fresh mount per setup so the
 // cascade + chart reset cleanly.
-function DetailStage({ setup }) {
+function DetailStage({ setup, scrollReq }) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const [adding, setAdding] = useState(false)
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
+  // The DetailStage instance persists across setup changes (only the inner DOM
+  // is keyed), so reset the add form when switching setups.
+  useEffect(() => { setAdding(false) }, [setup.name])
   return (
     <div className={styles.stage} key={setup.name}>
-      {/* Slim identity header — hover the rail row (left) for the playbook. */}
+      {/* Slim identity header — hover the rail row (left) for the playbook.
+          Carries the section's Add-Example control (admins) on the right. */}
       <div className={styles.stageHeader}>
         <span className={styles.stageGlyphWrap}>
           <SetupGlyph setup={setup} className={styles.pbGlyph} />
@@ -814,12 +854,25 @@ function DetailStage({ setup }) {
             <span className={styles.stageEssence}>{setup.essence}</span>
           </div>
         </div>
-        <span className={styles.stagePbHint} aria-hidden="true">Hover a setup for its playbook</span>
+        <div className={styles.stageHeadRight}>
+          <span className={styles.stagePbHint} aria-hidden="true">Hover a setup for its playbook</span>
+          {isAdmin && (
+            <button className={styles.stageAddBtn} onClick={() => setAdding(a => !a)}>
+              {adding ? 'Close' : '+ Add Example'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Charted examples — full width */}
       <div className={styles.stageExamplesFull}>
-        <ExamplesPane setup={setup} />
+        <ExamplesPane
+          setup={setup}
+          scrollReq={scrollReq}
+          isAdmin={isAdmin}
+          adding={adding}
+          setAdding={setAdding}
+        />
       </div>
     </div>
   )
@@ -860,6 +913,16 @@ export default function SetupsView({ onExit }) {
   const onPbPopEnter = useCallback(() => clearTimeout(pbLeaveTimer.current), [])
   useEffect(() => () => { clearTimeout(pbEnterTimer.current); clearTimeout(pbLeaveTimer.current) }, [])
 
+  // Click a setup → a dropdown of its charted examples under the row. The menu
+  // belongs to the selected setup; picking an example scrolls the right pane to
+  // it via a bumped request (so re-picking the same one re-scrolls).
+  const [exMenuOpen, setExMenuOpen] = useState(false)
+  const [scrollReq, setScrollReq] = useState(null)
+  function jumpToExample(ex) {
+    setScrollReq(prev => ({ exampleId: ex.id, seq: (prev?.seq || 0) + 1 }))
+    if (isPhone) setMobileView('detail')
+  }
+
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
     for (const s of SETUP_CATALOG) c[s.family] = (c[s.family] || 0) + 1
@@ -892,7 +955,12 @@ export default function SetupsView({ onExit }) {
   const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
 
   function openSetup(s) {
-    setSelectedName(s.name)
+    if (s.name === selectedName) {
+      setExMenuOpen(o => !o)          // re-click the open setup → toggle its menu
+    } else {
+      setSelectedName(s.name)
+      setExMenuOpen(true)             // new setup → open its examples menu
+    }
     if (isPhone) setMobileView('detail')
   }
 
@@ -911,6 +979,7 @@ export default function SetupsView({ onExit }) {
         ? visibleFlat[0]
         : visibleFlat[e.key === 'ArrowDown' ? Math.min(idx + 1, visibleFlat.length - 1) : Math.max(idx - 1, 0)]
       if (!next) return
+      setExMenuOpen(false)
       setSelectedName(next.name)
       requestAnimationFrame(() => {
         document.querySelector(`[data-setup-name="${next.name}"]`)?.scrollIntoView({ block: 'nearest' })
@@ -925,6 +994,7 @@ export default function SetupsView({ onExit }) {
   // selection on screen. Stays in list view on phone (you're still browsing).
   function selectFilter(cat) {
     setFilter(cat)
+    setExMenuOpen(false)
     const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
     if (first) setSelectedName(first.name)
   }
@@ -986,14 +1056,19 @@ export default function SetupsView({ onExit }) {
                     <span className={styles.railGroupCount}>{g.setups.length}</span>
                   </div>
                   {g.setups.map(s => (
-                    <RailRow
-                      key={s.name}
-                      setup={s}
-                      active={s.name === selectedName}
-                      onSelect={openSetup}
-                      onHover={onPbHover}
-                      onLeave={onPbLeave}
-                    />
+                    <Fragment key={s.name}>
+                      <RailRow
+                        setup={s}
+                        active={s.name === selectedName}
+                        expanded={exMenuOpen && s.name === selectedName}
+                        onSelect={openSetup}
+                        onHover={onPbHover}
+                        onLeave={onPbLeave}
+                      />
+                      {exMenuOpen && s.name === selectedName && (
+                        <ExampleJumpList setup={s} onPick={jumpToExample} />
+                      )}
+                    </Fragment>
                   ))}
                 </div>
               ))}
@@ -1008,7 +1083,7 @@ export default function SetupsView({ onExit }) {
               <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
             )}
             {selected
-              ? <DetailStage setup={selected} />
+              ? <DetailStage setup={selected} scrollReq={scrollReq} />
               : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
           </main>
         )}
