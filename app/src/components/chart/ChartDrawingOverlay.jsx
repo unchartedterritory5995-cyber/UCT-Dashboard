@@ -13,6 +13,13 @@ const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a
 
 const FIB_EXT_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618]
 const FIB_EXT_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#22d3ee', '#818cf8']
+
+// The palette reds read muddy/dim against the dark chart — brighten them at
+// render so existing red text + lines pop, without rewriting stored drawings.
+const _RED_BRIGHTEN = { '#e74c3c': '#ff5b5b', '#ef4444': '#ff5b5b' }
+function brightenAnnotationColor(color) {
+  return (color && _RED_BRIGHTEN[color.toLowerCase()]) || color
+}
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
 const _COARSE_POINTER = typeof window !== 'undefined'
   && !!window.matchMedia?.('(pointer: coarse)')?.matches
@@ -1012,7 +1019,7 @@ export default function ChartDrawingOverlay({
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
         ctx.save()
-        ctx.strokeStyle = d.color || '#c9a84c'
+        ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
         ctx.lineWidth = d.lineWidth || 1
         ctx.setLineDash([])
         renderAnchoredVwap(ctx, d.points[0], bars, timeToIndex, toPixel)
@@ -1040,7 +1047,7 @@ export default function ChartDrawingOverlay({
         }
       }
       ctx.save()
-      ctx.strokeStyle = d.color || '#c9a84c'
+      ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
       ctx.lineWidth = d.lineWidth || 1
       // Per-drawing dashed style (e.g. a dashed horizontal level). Most shapes
       // set their own dash internally; lines respect this before they draw.
@@ -1103,7 +1110,7 @@ export default function ChartDrawingOverlay({
       const previewPts = resolvePixels([...pendingPoints, mouseCoords])
       if (previewPts.length) {
         ctx.save()
-        ctx.strokeStyle = color
+        ctx.strokeStyle = brightenAnnotationColor(color)
         ctx.lineWidth = lineWidth
         ctx.globalAlpha = 0.7
         ctx.setLineDash([])

@@ -16,7 +16,7 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 
 // Entry/stop/target price-line colors (same palette as Throughout the Years).
 const ENTRY_COLOR = '#3cb868'
-const STOP_COLOR = '#e74c3c'
+const STOP_COLOR = '#ff5b5b'   // brighter red — reads clearly on the dark chart
 const TARGET_COLOR = '#c9a84c'
 const NO_PRICE_LINES = []
 
