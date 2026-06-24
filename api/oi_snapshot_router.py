@@ -190,8 +190,22 @@ class BulkFetchOIContract(BaseModel):
     exp: str  # ISO 'YYYY-MM-DD'
 
 
+class BulkFetchOIResult(BaseModel):
+    """OI lookup result for one contract. Returned as structured object instead
+    of string-keyed dict to avoid Python-vs-JS number formatting mismatch:
+    Python f'{450.0}' → '450.0' but JS `${450}` → '450', breaking key lookups.
+    JSON round-trip through JS Number normalizes the strike value so the
+    frontend can match results back to alerts cleanly.
+    """
+    ticker: str
+    cp: str
+    strike: float
+    exp: str
+    oi: int
+
+
 class BulkFetchOIResponse(BaseModel):
-    results: dict  # ticker|cp|strike|exp_iso → oi
+    results: List[BulkFetchOIResult]
     cache_hits: int
     schwab_calls: int
 
@@ -228,8 +242,8 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
     oi_snapshots.init_db()
     today_iso = date.today().isoformat()
 
-    results: dict = {}
-    schwab_needed: List[tuple] = []  # [(ContractSpec, ck), ...]
+    results: List[BulkFetchOIResult] = []
+    schwab_needed: List[tuple] = []  # [(c, ck, exp_mdy), ...]
     cache_hits = 0
 
     # Stage 1: DB-first lookup
@@ -239,18 +253,20 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
             continue
         ck = oi_snapshots.make_key(c.ticker, c.cp, c.strike, exp_mdy)
         existing = oi_snapshots.get_snapshot(ck, today_iso)
-        key_iso = f"{c.ticker}|{c.cp}|{c.strike}|{c.exp}"
         if existing:
-            results[key_iso] = existing[0]
+            results.append(BulkFetchOIResult(
+                ticker=c.ticker, cp=c.cp, strike=c.strike, exp=c.exp,
+                oi=existing[0],
+            ))
             cache_hits += 1
         else:
-            schwab_needed.append((c, ck, key_iso, exp_mdy))
+            schwab_needed.append((c, ck, exp_mdy))
 
     # Stage 2: Schwab batch fetch for misses
     schwab_calls = 0
     if schwab_needed:
         payload = [(c.ticker, c.cp, c.strike, exp_mdy)
-                   for c, _, _, exp_mdy in schwab_needed]
+                   for c, _, exp_mdy in schwab_needed]
         try:
             schwab_results = await oi_snapshots._fetch_oi_all_async(payload)
             schwab_calls = len(payload)
@@ -262,9 +278,12 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
 
         # Persist + accumulate
         to_persist = []
-        for (orig_c, ck, key_iso, _), (_, oi) in zip(schwab_needed, schwab_results):
+        for (orig_c, ck, _), (_, oi) in zip(schwab_needed, schwab_results):
             if oi is not None and oi > 0:
-                results[key_iso] = oi
+                results.append(BulkFetchOIResult(
+                    ticker=orig_c.ticker, cp=orig_c.cp,
+                    strike=orig_c.strike, exp=orig_c.exp, oi=oi,
+                ))
                 to_persist.append((ck, oi, "ondemand-bulk"))
 
         if to_persist:
