@@ -183,7 +183,7 @@ export function SetupGlyph({ setup, className }) {
 // One entry in the setup index: name + full description + a direction dot.
 // Selecting it loads the setup into the stage — the same "click a row, study
 // the chart" rhythm as a stock in Throughout the Years.
-function RailRow({ setup, active, onSelect }) {
+function RailRow({ setup, active, onSelect, onHover, onLeave }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   return (
     <button
@@ -191,6 +191,8 @@ function RailRow({ setup, active, onSelect }) {
       data-setup-name={setup.name}
       className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
       onClick={() => onSelect(setup)}
+      onMouseEnter={e => onHover?.(setup, e.currentTarget)}
+      onMouseLeave={onLeave}
     >
       <span className={styles.railText}>
         <span className={styles.railNameRow}>
@@ -235,6 +237,65 @@ function Playbook({ pb, hideIntro }) {
           </ul>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Playbook hover panel ───────────────────────────────────────────────────────
+// Hovering a setup name (in the rail, or the stage identity header) pops up its
+// full playbook in a floating panel — the same hover-to-read rhythm as the
+// year-recap popover in Throughout the Years. The charts own the stage; the
+// write-up lives one hover away. pointer-events stay ON so a long dossier can be
+// scrolled (the parent keeps it open via a short close delay while the cursor
+// crosses from the row into the panel).
+function PlaybookPopover({ setup, anchor, onEnter, onLeave }) {
+  if (!setup || !anchor) return null
+  const pb = SETUP_PLAYBOOKS[setup.name]
+  const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
+  const gap = 10
+  const W = Math.min(440, window.innerWidth - 24)
+  // Prefer popping to the RIGHT of the anchor (out over the chart area); fall
+  // back to the left, then below, so a wide stage header still lands cleanly.
+  let left = anchor.right + gap
+  let top = Math.min(Math.max(8, anchor.top - 6), Math.max(8, window.innerHeight - 120))
+  if (left + W > window.innerWidth - 8) {
+    const leftAlt = anchor.left - W - gap
+    if (leftAlt >= 8) {
+      left = leftAlt
+    } else {
+      left = Math.min(Math.max(8, anchor.left), window.innerWidth - W - 8)
+      top = anchor.bottom + gap
+    }
+  }
+  const maxH = Math.max(160, window.innerHeight - top - 14)
+  return (
+    <div
+      className={styles.pbPop}
+      role="tooltip"
+      style={{ top, left, width: W, maxHeight: maxH }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+    >
+      <div className={styles.pbPopHead}>
+        <SetupGlyph setup={setup} className={styles.pbPopGlyph} />
+        <div className={styles.pbPopId}>
+          <span className={styles.pbPopName}>{setup.name}</span>
+          <span className={styles.pbPopChips}>
+            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+          </span>
+        </div>
+      </div>
+      <div className={styles.pbPopBody}>
+        {pb ? (
+          <Playbook pb={pb} />
+        ) : (
+          <p className={styles.placeholderText}>
+            The full write-up for this setup — definition, qualifying criteria, entry trigger,
+            risk placement, and trade management — is being authored and will live here.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -730,55 +791,39 @@ function ExamplesPane({ setup }) {
 }
 
 // ── Setup stage (right pane) ─────────────────────────────────────────────────
-// The selected setup's full entry: a slim identity header (glyph + name +
-// chips + one-line essence), then the playbook dossier alongside the
-// scrollable charted examples. No marketing hero — you're already "inside" the
-// library, the way a chart fills the right side of Throughout the Years. The
-// `key` forces a fresh mount per setup so the cascade + chart reset cleanly.
-function DetailStage({ setup }) {
+// The selected setup's charted examples fill the stage — the chart-dominant
+// right side of Throughout the Years. A slim identity header up top (glyph +
+// name + chips + one-line essence) names the setup; hovering it (or its rail
+// row) pops up the full playbook in a floating panel instead of spending a
+// permanent column on it. The `key` forces a fresh mount per setup so the
+// cascade + chart reset cleanly.
+function DetailStage({ setup, onHover, onLeave }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
-  const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
     <div className={styles.stage} key={setup.name}>
-      <div className={styles.stageBody}>
-        {/* Left — the playbook write-up */}
-        <div className={styles.stagePlaybook}>
-          {/* Setup identity: glyph + name + direction/family chips */}
-          <div className={styles.pbIdentity}>
-            <span className={styles.pbGlyphWrap}>
-              <SetupGlyph setup={setup} className={styles.pbGlyph} />
-            </span>
-            <div className={styles.pbIdText}>
-              <h2 className={styles.pbSetupName}>{setup.name}</h2>
-              <div className={styles.pbChips}>
-                <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-                <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
-              </div>
-            </div>
+      {/* Slim identity header — hover (here or the rail) for the playbook. */}
+      <div
+        className={styles.stageHeader}
+        onMouseEnter={e => onHover?.(setup, e.currentTarget)}
+        onMouseLeave={onLeave}
+      >
+        <span className={styles.stageGlyphWrap}>
+          <SetupGlyph setup={setup} className={styles.pbGlyph} />
+        </span>
+        <div className={styles.stageHeadText}>
+          <h2 className={styles.stageSetupName}>{setup.name}</h2>
+          <div className={styles.stageHeadMeta}>
+            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+            <span className={styles.stageEssence}>{setup.essence}</span>
           </div>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionRule} />
-            <span className={styles.sectionLabel}>The Playbook</span>
-            <span className={styles.sectionRule} />
-          </div>
-          {playbook ? (
-            <Playbook pb={playbook} />
-          ) : (
-            <div className={styles.placeholderPanel}>
-              <p className={styles.placeholderText}>
-                The full write-up for this setup — definition, qualifying criteria, entry trigger,
-                risk placement, and trade management — is being authored and will live here.
-              </p>
-            </div>
-          )}
         </div>
+        <span className={styles.stagePbHint} aria-hidden="true">Hover for playbook</span>
+      </div>
 
-        <div className={styles.stageDivider} aria-hidden="true" />
-
-        {/* Right — scrollable charted examples */}
-        <div className={styles.stageExamples}>
-          <ExamplesPane setup={setup} />
-        </div>
+      {/* Charted examples — full width */}
+      <div className={styles.stageExamplesFull}>
+        <ExamplesPane setup={setup} />
       </div>
     </div>
   )
@@ -796,6 +841,28 @@ export default function SetupsView({ onExit }) {
   const [selectedName, setSelectedName] = useState(SETUP_CATALOG[0]?.name || null)
   const isPhone = useIsPhone()
   const [mobileView, setMobileView] = useState('list')   // phone: list ⇄ detail
+
+  // Playbook hover panel. A short enter-debounce so scrubbing the rail doesn't
+  // flash a panel for every row in passing; a short close-delay bridges the gap
+  // between the row and the panel so the cursor can move onto it (and scroll a
+  // long dossier). Disabled on phones — there's no hover, and tapping selects.
+  const [hoverPb, setHoverPb] = useState({ setup: null, anchor: null })
+  const pbEnterTimer = useRef(null)
+  const pbLeaveTimer = useRef(null)
+  const onPbHover = useCallback((setup, el) => {
+    if (isPhone) return
+    clearTimeout(pbLeaveTimer.current)
+    clearTimeout(pbEnterTimer.current)
+    const rect = el.getBoundingClientRect()
+    pbEnterTimer.current = setTimeout(() => setHoverPb({ setup, anchor: rect }), 180)
+  }, [isPhone])
+  const onPbLeave = useCallback(() => {
+    clearTimeout(pbEnterTimer.current)
+    clearTimeout(pbLeaveTimer.current)
+    pbLeaveTimer.current = setTimeout(() => setHoverPb({ setup: null, anchor: null }), 140)
+  }, [])
+  const onPbPopEnter = useCallback(() => clearTimeout(pbLeaveTimer.current), [])
+  useEffect(() => () => { clearTimeout(pbEnterTimer.current); clearTimeout(pbLeaveTimer.current) }, [])
 
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
@@ -928,6 +995,8 @@ export default function SetupsView({ onExit }) {
                       setup={s}
                       active={s.name === selectedName}
                       onSelect={openSetup}
+                      onHover={onPbHover}
+                      onLeave={onPbLeave}
                     />
                   ))}
                 </div>
@@ -943,11 +1012,20 @@ export default function SetupsView({ onExit }) {
               <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
             )}
             {selected
-              ? <DetailStage setup={selected} />
+              ? <DetailStage setup={selected} onHover={onPbHover} onLeave={onPbLeave} />
               : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
           </main>
         )}
       </div>
+
+      {!isPhone && (
+        <PlaybookPopover
+          setup={hoverPb.setup}
+          anchor={hoverPb.anchor}
+          onEnter={onPbPopEnter}
+          onLeave={onPbLeave}
+        />
+      )}
     </div>
   )
 }

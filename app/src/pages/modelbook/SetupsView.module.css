@@ -329,46 +329,114 @@
   color: var(--text-muted);
 }
 
-/* body: playbook | examples */
-.stageBody {
+/* Slim identity header: glyph + name + chips + essence, then a hover-for-playbook
+   hint. The charted examples own everything below it. */
+.stageHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 8px 12px 0;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+  cursor: default;
+}
+.stageGlyphWrap {
+  flex: none;
+  width: 96px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.01)),
+    rgba(14, 15, 19, 0.7);
+  overflow: hidden;
+}
+.stageHeadText { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.stageSetupName {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #f0d479;
+  margin: 0;
+  text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 20px rgba(240, 212, 121, 0.2);
+}
+.stageHeadMeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.stageEssence {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(214, 213, 207, 0.6);
+  min-width: 0;
+}
+.stagePbHint {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.55);
+  border: 1px solid rgba(201, 168, 76, 0.22);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.stageExamplesFull {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  align-items: stretch;
-}
-.stagePlaybook {
-  flex: 1 1 42%;
-  min-width: 0;
   overflow-y: auto;
-  padding: 14px 22px 24px 0;
-  display: flex;
-  flex-direction: column;
-}
-.stageExamples {
-  flex: 1 1 58%;
-  min-width: 0;
-  overflow-y: auto;
-  padding: 14px 4px 48px 22px;
-}
-.stageDivider {
-  flex: none;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(201, 168, 76, 0.32) 8%, rgba(201, 168, 76, 0.32) 92%, transparent);
+  padding: 16px 4px 48px 0;
 }
 
-/* On narrower screens the side-by-side split would crush the playbook — stack
-   it above the examples and let the whole stage scroll as one column. */
-@media (max-width: 1280px) {
-  .stage { overflow-y: auto; padding-right: 14px; }
-  .stageBody { flex-direction: column; }
-  .stagePlaybook, .stageExamples { overflow: visible; padding: 14px 0 18px; }
-  .stageDivider {
-    width: auto;
-    height: 1px;
-    margin: 4px 0 12px;
-    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.32) 8%, rgba(201, 168, 76, 0.32) 92%, transparent);
-  }
+/* ── Playbook hover panel ── */
+.pbPop {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated, #15171c);
+  border: 1px solid var(--border);
+  border-top: 2px solid rgba(201, 168, 76, 0.55);
+  border-radius: 10px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: pbPopIn 0.12s ease-out;
 }
+@keyframes pbPopIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.pbPopHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.14);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.06), transparent);
+}
+.pbPopGlyph { flex: none; width: 64px; height: 34px; }
+.pbPopId { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pbPopName {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #f0d479;
+}
+.pbPopChips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pbPopBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px 16px; }
+/* Tighten the dossier to the narrower panel (label column + type sizes). */
+.pbPopBody .pbLede { font-size: 13px; line-height: 1.6; margin-bottom: 14px; }
+.pbPopBody .pbGrid { padding: 2px 16px; }
+.pbPopBody .pbRow { gap: 12px; padding: 11px 0; }
+.pbPopBody .pbLabel { width: 128px; font-size: 10px; letter-spacing: 1.2px; }
+.pbPopBody .pbBody { font-size: 12.5px; }
+.pbPopBody .pbMistakes { padding: 11px 16px 12px; }
+.pbPopBody .pbMistake { font-size: 12.5px; }
 
 /* legacy single-column detail wrapper (kept for safety) */
 .detail {
@@ -587,6 +655,9 @@
   .railScroll { overflow: visible; }
   .stageWrap { overflow: visible; }
   .stage { padding: 8px 2px 0; overflow: visible; }
+  .stageHeader { flex-wrap: wrap; gap: 10px; }
+  .stagePbHint { display: none; }   /* no hover on touch — popover is disabled */
+  .stageExamplesFull { overflow: visible; padding: 14px 0 24px; }
 }
 
 /* ── Charted examples (right pane) ── */
