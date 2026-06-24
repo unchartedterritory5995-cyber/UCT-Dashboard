@@ -1,12 +1,16 @@
-/* Model Book → Setup Library. A field-guide of the firm's playbook patterns:
-   hero + category pills + a grid of pattern cards, each with a hand-drawn
-   candlestick glyph of the setup. Matches the Model Book hub's gold/dark
-   cartographer aesthetic. */
+/* Model Book → Setup Library. A field-guide of the firm's playbook patterns,
+   each with a hand-drawn candlestick glyph. Matches the Model Book hub's
+   gold/dark cartographer aesthetic. */
 
-.library {
+/* Terminal-style two-pane reference: slim top bar + left index rail + study
+   stage. Echoes Throughout the Years (year strip / stock list / chart) so the
+   two Model Book sections feel like one tool, while keeping its own identity. */
+.root {
   position: relative;
-  padding: 14px 28px 48px;
-  min-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 16px);
+  padding: 8px 14px 0;
 }
 
 /* Soft gold/green ambient glow, echoing the hub. */
@@ -15,12 +19,48 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(46% 36% at 50% 0%, rgba(201, 168, 76, 0.07), transparent 70%),
-    radial-gradient(40% 46% at 88% 86%, rgba(60, 184, 104, 0.05), transparent 70%);
+    radial-gradient(46% 36% at 50% 0%, rgba(201, 168, 76, 0.06), transparent 70%),
+    radial-gradient(40% 46% at 92% 90%, rgba(60, 184, 104, 0.045), transparent 70%);
   z-index: 0;
 }
 
-.libTop { position: relative; z-index: 1; display: flex; align-items: center; }
+/* ── Top bar: back · wordmark · family filter ── */
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 4px 10px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.wordmark { display: flex; align-items: center; gap: 9px; flex: none; }
+.wordmarkGlyph {
+  width: 38px;
+  height: 24px;
+  filter: drop-shadow(0 2px 8px rgba(201, 168, 76, 0.3));
+}
+.wordmarkText {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
+  color: #f0d479;
+  text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 18px rgba(240, 212, 121, 0.2);
+  white-space: nowrap;
+}
+
+/* ── Shell: rail + stage ── */
+.shell {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 0;
+}
 
 .backBtn {
   flex: none;
@@ -38,58 +78,149 @@
 }
 .backBtn:hover { color: #f7e296; border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
 
-/* ── Hero ── */
-.hero {
-  position: relative;
+/* ── Left index rail ── */
+.rail {
+  flex: none;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.railHead { flex: none; padding: 10px 12px 8px 2px; }
+.railScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 6px 24px 0; }
+.railEmpty {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 18px 8px;
+}
+
+.railGroup { margin-bottom: 8px; }
+.railGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 6px 6px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--bg, #0d0d0d);
   z-index: 1;
-  text-align: center;
-  margin: 12px auto 26px;
-  max-width: 640px;
-  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.heroGlyph {
-  width: 124px;
-  height: auto;
-  margin-bottom: 6px;
-  filter: drop-shadow(0 4px 18px rgba(201, 168, 76, 0.25));
-}
-.heroTitle {
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: 7px;
+.railGroupLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: #f0d479;
-  margin: 0 0 8px;
-  text-shadow: 0 0 1px rgba(240, 212, 121, 0.5), 0 2px 26px rgba(240, 212, 121, 0.28);
+  color: rgba(201, 168, 76, 0.9);
 }
-.heroTagline {
-  font-family: var(--font-sans);
+.railGroupCount {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.railGroupHead::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 6px;
+  bottom: 2px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.28), transparent);
+}
+
+/* one setup row: glyph thumbnail + name/essence + direction tick */
+.railRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 8px 8px 8px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 7px 7px 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.railRow:hover { background: rgba(255, 255, 255, 0.035); }
+.railRowActive {
+  background: rgba(201, 168, 76, 0.1);
+  border-left-color: var(--ut-gold);
+}
+.railGlyphWrap {
+  flex: none;
+  width: 58px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 168, 76, 0.14);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.05), rgba(201, 168, 76, 0));
+  overflow: hidden;
+}
+.railRowActive .railGlyphWrap { border-color: rgba(201, 168, 76, 0.4); }
+.railGlyph { display: block; width: 100%; height: 100%; }
+.railText { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.railName {
+  font-family: var(--font-display);
   font-size: 13.5px;
-  font-weight: 500;
-  color: rgba(232, 230, 224, 0.8);
-  line-height: 1.55;
-  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: rgba(236, 234, 228, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.railRowActive .railName { color: #f0d479; }
+.railEssence {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(214, 213, 207, 0.55);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.railDir {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  align-self: flex-start;
+  margin-top: 3px;
+}
+.railDir_long  { background: #1ae51a; box-shadow: 0 0 6px rgba(26, 229, 26, 0.4); }
+.railDir_short { background: #e05252; box-shadow: 0 0 6px rgba(224, 82, 82, 0.4); }
+.railDir_both  { background: #e6c965; box-shadow: 0 0 6px rgba(230, 201, 101, 0.4); }
+
 @keyframes rise {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Toolbar: category pills + search ── */
-.toolbar {
-  position: relative;
-  z-index: 1;
+/* ── Family filter pills (in the top bar; horizontal scroll on overflow) ── */
+.pills {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 26px;
-  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 1px 0;
 }
-.pills { display: flex; gap: 6px; }
+.pills::-webkit-scrollbar { display: none; }
 .pill {
+  flex: none;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
@@ -112,23 +243,24 @@
 .pillActive:hover { color: #0d0d10; }
 .pillCount { opacity: 0.7; margin-left: 2px; }
 
-.searchWrap { position: relative; display: flex; align-items: center; }
+.searchWrap { position: relative; display: flex; align-items: center; width: 100%; }
 .searchIcon {
   position: absolute;
-  left: 10px;
+  left: 12px;
   color: rgba(201, 168, 76, 0.7);
   font-size: 14px;
   pointer-events: none;
 }
 .searchInput {
-  width: 220px;
+  width: 100%;
+  box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: 12.5px;
   color: var(--text);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 28px 6px 30px;
+  border-radius: 8px;
+  padding: 7px 28px 7px 32px;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -146,24 +278,12 @@
 }
 .searchClear:hover { color: #f0d479; }
 
-.emptySearch {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-muted);
-  padding: 40px 0;
-}
-
-/* ── Field-guide section dividers ── */
-.group { position: relative; z-index: 1; margin-bottom: 30px; }
+/* ── Section divider (playbook header) ── */
 .sectionHead {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 0 auto 10px;
-  max-width: 1400px;
+  margin: 0 0 12px;
 }
 .sectionRule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.35), transparent); }
 .sectionLabel {
@@ -175,91 +295,6 @@
   text-transform: uppercase;
   color: rgba(201, 168, 76, 0.9);
 }
-
-/* ── Card grid ── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 15px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  text-align: left;
-  gap: 0;
-  padding: 0;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(14, 15, 19, 0.72);
-  cursor: pointer;
-  overflow: hidden;
-  /* staggered cascade-in, keyed off inline --i (mirrors the hub cards) */
-  opacity: 0;
-  transform: translateY(12px);
-  animation: cardIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(0.12s + var(--i) * 0.03s);
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(201, 168, 76, 0.55);
-  background: rgba(24, 21, 12, 0.78);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 6px 22px rgba(201, 168, 76, 0.1);
-}
-
-/* glyph panel: chart-paper strip at the top of the card */
-.glyphWrap {
-  display: block;
-  padding: 12px 12px 6px;
-  background:
-    linear-gradient(180deg, rgba(201, 168, 76, 0.05), rgba(201, 168, 76, 0) 70%);
-  border-bottom: 1px solid rgba(201, 168, 76, 0.12);
-}
-.glyph { display: block; width: 100%; height: 135px; }
-.card:hover .glyph { filter: drop-shadow(0 0 6px rgba(201, 168, 76, 0.18)); }
-
-.cardName {
-  font-family: var(--font-display);
-  font-size: 16.5px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  color: #f0d479;
-  padding: 11px 14px 0;
-}
-.cardEssence {
-  flex: 1;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(214, 213, 207, 0.78);
-  padding: 6px 14px 0;
-}
-.cardFoot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 14px 13px;
-}
-.cardCta {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: rgba(220, 218, 212, 0.45);
-  transition: color 0.15s;
-}
-.card:hover .cardCta { color: #f0d479; }
 
 /* chips */
 .catChip,
@@ -280,46 +315,119 @@
 .dirChip.short { color: #f08484; border: 1px solid rgba(224, 82, 82, 0.4);   background: rgba(224, 82, 82, 0.1); }
 .dirChip.both  { color: #f0d479; border: 1px solid rgba(201, 168, 76, 0.4);  background: rgba(201, 168, 76, 0.1); }
 
-/* ── Setup detail: split view ──────────────────────────────────────────────────
-   Left half = identity + playbook write-up; right half = scrollable charted
-   examples; thin gold divider between. Each half scrolls independently. */
-.detailSplit {
+/* ── Stage: the selected setup's study view (right pane) ─────────────────────────
+   Slim identity header up top, then playbook | charted examples side by side,
+   each scrolling independently. Mirrors the chart-dominant right side of
+   Throughout the Years. */
+.stageWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px 0 18px;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stageEmpty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* identity header */
+.stageHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.stageGlyphWrap {
+  flex: none;
+  width: 116px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 11px;
+  background:
+    linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.01)),
+    rgba(14, 15, 19, 0.7);
+  overflow: hidden;
+}
+.stageGlyph { display: block; width: 100%; height: 100%; }
+.stageId { flex: 1 1 auto; min-width: 0; }
+.stageTitleRow { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin-bottom: 6px; }
+.stageName {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #f0d479;
+  margin: 0;
+  text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 22px rgba(240, 212, 121, 0.2);
+}
+.stageEssence {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(226, 224, 218, 0.8);
+  margin: 0;
+  max-width: 760px;
+}
+
+/* body: playbook | examples */
+.stageBody {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: stretch;
-  height: calc(100vh - 10px);
-  padding: 8px 10px 0;
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.detailLeft {
-  flex: 1 1 40%;
+.stagePlaybook {
+  flex: 1 1 42%;
   min-width: 0;
   overflow-y: auto;
-  padding: 8px 26px 18px 12px;
-  /* Fill the full half-height: fixed hero/header up top, the playbook grows to
-     take all remaining vertical space (rows expand evenly) so there's no blank
-     gap below — and no scrolling. */
+  padding: 14px 22px 24px 0;
   display: flex;
   flex-direction: column;
 }
-.detailRight {
-  flex: 1 1 60%;
+.stageExamples {
+  flex: 1 1 58%;
   min-width: 0;
   overflow-y: auto;
-  padding: 8px 12px 48px 26px;
+  padding: 14px 4px 48px 22px;
 }
-.splitDivider {
+.stageDivider {
   flex: none;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(201, 168, 76, 0.35) 10%, rgba(201, 168, 76, 0.35) 90%, transparent);
+  background: linear-gradient(180deg, transparent, rgba(201, 168, 76, 0.32) 8%, rgba(201, 168, 76, 0.32) 92%, transparent);
 }
-@media (max-width: 1024px) {
-  .detailSplit { flex-direction: column; height: auto; overflow: visible; }
-  .detailLeft, .detailRight { overflow: visible; padding: 8px 12px 24px; }
-  .splitDivider {
+
+/* On narrower screens the side-by-side split would crush the playbook — stack
+   it above the examples and let the whole stage scroll as one column. */
+@media (max-width: 1280px) {
+  .stage { overflow-y: auto; padding-right: 14px; }
+  .stageBody { flex-direction: column; }
+  .stagePlaybook, .stageExamples { overflow: visible; padding: 14px 0 18px; }
+  .stageDivider {
     width: auto;
     height: 1px;
-    margin: 6px 0 14px;
-    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.35) 10%, rgba(201, 168, 76, 0.35) 90%, transparent);
+    margin: 4px 0 12px;
+    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.32) 8%, rgba(201, 168, 76, 0.32) 92%, transparent);
   }
 }
 
@@ -331,72 +439,20 @@
   margin: 0 auto;
   animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.detailTop { display: flex; align-items: center; margin-bottom: 10px; }
-
-.detailHero {
-  display: flex;
-  gap: 24px;
-  align-items: stretch;
-  margin-bottom: 14px;
-}
-.detailGlyphPanel {
-  flex: none;
-  width: 260px;
-  padding: 12px 16px 8px;
-  border: 1px solid rgba(201, 168, 76, 0.25);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(201, 168, 76, 0.06), rgba(201, 168, 76, 0.01)),
-    rgba(14, 15, 19, 0.7);
-  text-align: center;
-}
-.detailGlyph { display: block; width: 100%; height: 118px; }
-.detailGlyphCaption {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.7);
-  padding: 7px 0 3px;
-  border-top: 1px solid rgba(201, 168, 76, 0.14);
-  margin-top: 7px;
-}
-.detailId { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
-.detailName {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #f0d479;
-  margin: 0 0 7px;
-  text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 22px rgba(240, 212, 121, 0.2);
-}
-.detailChips { display: flex; gap: 7px; margin-bottom: 10px; }
-.detailEssence {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(232, 230, 224, 0.85);
-  margin: 0;
-  max-width: 560px;
-}
 
 /* ── Playbook write-up: the firm's dossier for a setup ── */
-/* Grows to fill the left pane's remaining height; min-height:0 lets it shrink
-   on short viewports so overflow-y on .detailLeft scrolls instead of clipping. */
-.playbook { margin-bottom: 0; flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+/* Natural height — the playbook column (.stagePlaybook) scrolls when content
+   exceeds the pane, so rows keep their real height instead of being squeezed. */
+.playbook { margin-bottom: 0; }
 
 /* Lede: the "what this setup IS" paragraph, with a gold drop cap. */
 .pbLede {
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.7;
   color: rgba(236, 234, 228, 0.88);
-  max-width: 860px;
-  margin: 0 auto 26px;
+  margin: 0 0 18px;
 }
 .pbLede::first-letter {
   font-family: var(--font-display);
@@ -416,22 +472,13 @@
   background:
     linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
     rgba(14, 15, 19, 0.6);
-  padding: 2px 24px;
-  /* Fill the playbook's height; rows below flex-grow to share it evenly. */
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  padding: 2px 22px;
 }
 .pbRow {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 18px;
-  padding: 10px 0;
-  /* Each section row claims an equal share of the grid's height so the whole
-     dossier fills the pane regardless of how many sections a setup has. */
-  flex: 1 1 0;
-  min-height: 0;
+  padding: 12px 0;
 }
 .pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
 .pbLabel {
@@ -542,25 +589,42 @@
   margin: 0;
 }
 
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .detailHero { flex-direction: column; }
-  .detailGlyphPanel { width: 100%; max-width: 420px; margin: 0 auto; }
+/* Phone-only back button (list ⇄ detail switch). */
+.mobileBack {
+  flex: none;
+  align-self: flex-start;
+  margin: 6px 0 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #f0d479;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
 }
+.mobileBack:hover { border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.08); }
+
+/* ── Responsive ── */
+/* Tablet: keep both panes but tighten the rail. */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .rail { width: 270px; }
+}
+/* Phone: rail and stage each take the full width (view-switched in JS). */
 @media (max-width: 640px) {
-  .library { padding: 12px 14px 40px; }
-  .detail { padding: 12px 14px 40px; }
-  .heroTitle { font-size: 26px; letter-spacing: 5px; }
-  .toolbar { gap: 10px; }
-  .searchInput { width: 100%; }
-  .searchWrap { flex: 1 1 100%; }
-  .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .glyph { height: 95px; }
-  .cardName { font-size: 13.5px; padding: 9px 11px 0; }
-  .cardEssence { font-size: 11px; padding: 5px 11px 0; }
-  .cardFoot { padding: 10px 11px 11px; }
-  .cardCta { display: none; }
-  .detailName { font-size: 22px; }
+  .root { height: auto; min-height: calc(100vh - 16px); padding: 8px 10px 0; }
+  .topbar { flex-wrap: wrap; gap: 10px; padding-bottom: 8px; }
+  .wordmarkText { font-size: 15px; letter-spacing: 2.5px; }
+  .shell { display: block; }
+  .rail { width: 100%; border-right: none; }
+  .railScroll { overflow: visible; }
+  .stageWrap { overflow: visible; }
+  .stage { padding: 8px 2px 0; overflow: visible; }
+  .stageHeader { gap: 12px; }
+  .stageGlyphWrap { width: 92px; height: 52px; }
+  .stageName { font-size: 20px; }
 }
 
 /* ── Charted examples (right pane) ── */
@@ -850,5 +914,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero, .toolbar, .card, .detail, .detailSplit { animation-duration: 0.001s; animation-delay: 0s; }
+  .rail, .stage, .detail { animation-duration: 0.001s; animation-delay: 0s; }
 }

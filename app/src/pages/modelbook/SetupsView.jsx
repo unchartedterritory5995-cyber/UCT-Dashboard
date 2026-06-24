@@ -4,9 +4,10 @@ import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import useTickerMeta from '../../hooks/useTickerMeta'
+import { useIsPhone } from '../../hooks/useBreakpoint'
 import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
-import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, FAMILY_CHIP, DIRECTION_META } from './setupCatalog'
+import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, DIRECTION_META } from './setupCatalog'
 import { SETUP_PLAYBOOKS } from './setupPlaybooks'
 import { parseBarsCsv, resampleWeekly } from '../../utils/barsCsv'
 import styles from './SetupsView.module.css'
@@ -18,6 +19,10 @@ const ENTRY_COLOR = '#3cb868'
 const STOP_COLOR = '#e74c3c'
 const TARGET_COLOR = '#c9a84c'
 const NO_PRICE_LINES = []
+
+// Small decorative pattern used as the Setup Library wordmark mark (a clean
+// base-breakout sketch). Rendered by <SetupGlyph/> like any other pattern.
+const WORDMARK_GLYPH = { candles: [1.5, 4, 7, -1, 0.6, -0.8, 0.5, 8], pivot: { idx: 2, side: 'h' } }
 
 // Parse a stored drawings_json (chart annotations) → array; [] on missing/bad.
 function parseDrawings(json) {
@@ -174,21 +179,26 @@ export function SetupGlyph({ setup, className }) {
   )
 }
 
-// ── Library card ───────────────────────────────────────────────────────────────
-function SetupCard({ setup, index, onOpen }) {
+// ── Rail row (left index) ────────────────────────────────────────────────────
+// One entry in the setup index: a mini pattern glyph + name + direction.
+// Selecting it loads the setup into the stage — the same "click a row, study
+// the chart" rhythm as a stock in Throughout the Years.
+function RailRow({ setup, active, onSelect }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   return (
-    <button type="button" className={styles.card} style={{ '--i': index }} onClick={() => onOpen(setup)}>
-      <span className={styles.glyphWrap}>
-        <SetupGlyph setup={setup} className={styles.glyph} />
+    <button
+      type="button"
+      className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
+      onClick={() => onSelect(setup)}
+    >
+      <span className={styles.railGlyphWrap}>
+        <SetupGlyph setup={setup} className={styles.railGlyph} />
       </span>
-      <span className={styles.cardName}>{setup.name}</span>
-      <span className={styles.cardEssence}>{setup.essence}</span>
-      <span className={styles.cardFoot}>
-        <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-        <span className={styles.catChip}>{FAMILY_CHIP[setup.family] || setup.family.toUpperCase()}</span>
-        <span className={styles.cardCta}>Study →</span>
+      <span className={styles.railText}>
+        <span className={styles.railName}>{setup.name}</span>
+        <span className={styles.railEssence}>{setup.essence}</span>
       </span>
+      <span className={`${styles.railDir} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
     </button>
   )
 }
@@ -719,71 +729,74 @@ function ExamplesPane({ setup }) {
   )
 }
 
-// ── Setup detail scaffold ──────────────────────────────────────────────────────
-// The full per-setup page: glyph + identity up top, then the playbook write-up
-// and charted examples. Both sections are scaffolded ready for content — the
-// write-ups are authored by the firm and examples are charted with the same
-// annotated chart layout as Throughout the Years.
-function SetupDetail({ setup, onBack }) {
+// ── Setup stage (right pane) ─────────────────────────────────────────────────
+// The selected setup's full entry: a slim identity header (glyph + name +
+// chips + one-line essence), then the playbook dossier alongside the
+// scrollable charted examples. No marketing hero — you're already "inside" the
+// library, the way a chart fills the right side of Throughout the Years. The
+// `key` forces a fresh mount per setup so the cascade + chart reset cleanly.
+function DetailStage({ setup }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   const playbook = SETUP_PLAYBOOKS[setup.name]
   return (
-    <div className={styles.detailSplit}>
-      {/* Left half — identity + the playbook write-up */}
-      <div className={styles.detailLeft}>
-        <div className={styles.detailTop}>
-          <button className={styles.backBtn} onClick={onBack}>‹ Setup Library</button>
-        </div>
-
-        <div className={styles.detailHero}>
-          <div className={styles.detailGlyphPanel}>
-            <SetupGlyph setup={setup} className={styles.detailGlyph} />
-            <div className={styles.detailGlyphCaption}>Idealized pattern</div>
+    <div className={styles.stage} key={setup.name}>
+      <div className={styles.stageHeader}>
+        <span className={styles.stageGlyphWrap}>
+          <SetupGlyph setup={setup} className={styles.stageGlyph} />
+        </span>
+        <div className={styles.stageId}>
+          <div className={styles.stageTitleRow}>
+            <h1 className={styles.stageName}>{setup.name}</h1>
+            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
           </div>
-          <div className={styles.detailId}>
-            <h1 className={styles.detailName}>{setup.name}</h1>
-            <div className={styles.detailChips}>
-              <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-              <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
-            </div>
-            {/* The study screen shows the full playbook intro; the landing-page
-                cards keep the short essence. */}
-            <p className={styles.detailEssence}>{playbook?.intro || setup.essence}</p>
-          </div>
+          <p className={styles.stageEssence}>{setup.essence}</p>
         </div>
-
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionRule} />
-          <span className={styles.sectionLabel}>The Playbook</span>
-          <span className={styles.sectionRule} />
-        </div>
-        {playbook ? (
-          <Playbook pb={playbook} hideIntro />
-        ) : (
-          <div className={styles.placeholderPanel}>
-            <p className={styles.placeholderText}>
-              The full write-up for this setup — definition, qualifying criteria, entry trigger,
-              risk placement, and trade management — is being authored and will live here.
-            </p>
-          </div>
-        )}
       </div>
 
-      <div className={styles.splitDivider} aria-hidden="true" />
+      <div className={styles.stageBody}>
+        {/* Left — the playbook write-up */}
+        <div className={styles.stagePlaybook}>
+          <div className={styles.sectionHead}>
+            <span className={styles.sectionRule} />
+            <span className={styles.sectionLabel}>The Playbook</span>
+            <span className={styles.sectionRule} />
+          </div>
+          {playbook ? (
+            <Playbook pb={playbook} />
+          ) : (
+            <div className={styles.placeholderPanel}>
+              <p className={styles.placeholderText}>
+                The full write-up for this setup — definition, qualifying criteria, entry trigger,
+                risk placement, and trade management — is being authored and will live here.
+              </p>
+            </div>
+          )}
+        </div>
 
-      {/* Right half — scrollable charted examples */}
-      <div className={styles.detailRight}>
-        <ExamplesPane setup={setup} />
+        <div className={styles.stageDivider} aria-hidden="true" />
+
+        {/* Right — scrollable charted examples */}
+        <div className={styles.stageExamples}>
+          <ExamplesPane setup={setup} />
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Library (landing) screen ───────────────────────────────────────────────────
+// ── Library screen ─────────────────────────────────────────────────────────────
+// A terminal-style two-pane reference, echoing Throughout the Years: a slim
+// top bar (back + wordmark + family filter), a left index rail of setups
+// (grouped, searchable, each with its pattern glyph), and a main stage that
+// loads the selected setup's playbook + charted examples — content is on
+// screen the moment you open it, no marketing landing page.
 export default function SetupsView({ onExit }) {
   const [filter, setFilter] = useState('All')
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState(null)
+  const [selectedName, setSelectedName] = useState(SETUP_CATALOG[0]?.name || null)
+  const isPhone = useIsPhone()
+  const [mobileView, setMobileView] = useState('list')   // phone: list ⇄ detail
 
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
@@ -799,87 +812,115 @@ export default function SetupsView({ onExit }) {
       (!q || s.name.toLowerCase().includes(q) || s.essence.toLowerCase().includes(q)))
   }, [filter, query])
 
-  // Group the visible setups by family so the grid reads like a field-guide
-  // index (a labeled divider per group when "All" is showing).
+  // Group the visible setups by family so the rail reads like a field-guide
+  // index — a labeled divider per family.
   const groups = useMemo(() => {
     return SETUP_FAMILIES
       .map(cat => ({ cat, setups: visible.filter(s => s.family === cat) }))
       .filter(g => g.setups.length)
   }, [visible])
 
-  if (selected) {
-    return <SetupDetail setup={selected} onBack={() => setSelected(null)} />
+  const selected = useMemo(
+    () => SETUP_CATALOG.find(s => s.name === selectedName) || null,
+    [selectedName],
+  )
+
+  function openSetup(s) {
+    setSelectedName(s.name)
+    if (isPhone) setMobileView('detail')
   }
 
-  let cardIndex = 0
+  // Clicking a family pill filters the rail AND loads that family's first setup
+  // into the stage, so the filter feels responsive instead of leaving a stale
+  // selection on screen. Stays in list view on phone (you're still browsing).
+  function selectFilter(cat) {
+    setFilter(cat)
+    const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
+    if (first) setSelectedName(first.name)
+  }
+
   return (
-    <div className={styles.library}>
+    <div className={styles.root}>
       <div className={styles.libBg} aria-hidden="true" />
-      <div className={styles.libTop}>
+
+      {/* Slim top bar — back + wordmark + family filter (mirrors the year strip
+          in Throughout the Years). */}
+      <div className={styles.topbar}>
         <button className={styles.backBtn} onClick={onExit}>‹ Model Book</button>
-      </div>
-
-      <div className={styles.hero}>
-        <SetupGlyph
-          setup={{ candles: [2, 5, 8, -1.2, 0.8, -0.9, 0.6, 9], pivot: { idx: 2, side: 'h' } }}
-          className={styles.heroGlyph}
-        />
-        <h1 className={styles.heroTitle}>Setup Library</h1>
-        <p className={styles.heroTagline}>
-          Every pattern in the playbook — defined, illustrated, and backed by real charted examples
-          from the greatest stocks in history.
-        </p>
-      </div>
-
-      <div className={styles.toolbar}>
+        <div className={styles.wordmark}>
+          <SetupGlyph setup={WORDMARK_GLYPH} className={styles.wordmarkGlyph} />
+          <span className={styles.wordmarkText}>Setup Library</span>
+        </div>
         <div className={styles.pills}>
           {SETUP_CATEGORIES.map(cat => (
             <button
               key={cat}
               type="button"
               className={`${styles.pill} ${filter === cat ? styles.pillActive : ''}`}
-              onClick={() => setFilter(cat)}
+              onClick={() => selectFilter(cat)}
             >
               {cat} <span className={styles.pillCount}>{counts[cat] || 0}</span>
             </button>
           ))}
         </div>
-        <div className={styles.searchWrap}>
-          <span className={styles.searchIcon} aria-hidden="true">⌕</span>
-          <input
-            className={styles.searchInput}
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search setups"
-            aria-label="Search setups"
-          />
-          {query && (
-            <button className={styles.searchClear} onClick={() => setQuery('')} aria-label="Clear search">×</button>
-          )}
-        </div>
       </div>
 
-      {groups.length === 0 && (
-        <div className={styles.emptySearch}>No setups match “{query}”.</div>
-      )}
+      <div className={styles.shell}>
+        {/* Left — the setup index */}
+        {(!isPhone || mobileView === 'list') && (
+          <aside className={styles.rail}>
+            <div className={styles.railHead}>
+              <div className={styles.searchWrap}>
+                <span className={styles.searchIcon} aria-hidden="true">⌕</span>
+                <input
+                  className={styles.searchInput}
+                  type="search"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search setups"
+                  aria-label="Search setups"
+                />
+                {query && (
+                  <button className={styles.searchClear} onClick={() => setQuery('')} aria-label="Clear search">×</button>
+                )}
+              </div>
+            </div>
+            <div className={styles.railScroll}>
+              {groups.length === 0 && (
+                <div className={styles.railEmpty}>No setups match “{query}”.</div>
+              )}
+              {groups.map(g => (
+                <div key={g.cat} className={styles.railGroup}>
+                  <div className={styles.railGroupHead}>
+                    <span className={styles.railGroupLabel}>{g.cat}</span>
+                    <span className={styles.railGroupCount}>{g.setups.length}</span>
+                  </div>
+                  {g.setups.map(s => (
+                    <RailRow
+                      key={s.name}
+                      setup={s}
+                      active={s.name === selectedName}
+                      onSelect={openSetup}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
 
-      {groups.map(g => (
-        <section key={g.cat} className={styles.group}>
-          <div className={styles.sectionHead}>
-            <span className={styles.sectionRule} />
-            <span className={styles.sectionLabel}>
-              {g.cat} — {g.setups.length} {g.setups.length === 1 ? 'pattern' : 'patterns'}
-            </span>
-            <span className={styles.sectionRule} />
-          </div>
-          <div className={styles.grid}>
-            {g.setups.map(s => (
-              <SetupCard key={s.name} setup={s} index={cardIndex++} onOpen={setSelected} />
-            ))}
-          </div>
-        </section>
-      ))}
+        {/* Right — the selected setup's study stage */}
+        {(!isPhone || mobileView === 'detail') && (
+          <main className={styles.stageWrap}>
+            {isPhone && (
+              <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
+            )}
+            {selected
+              ? <DetailStage setup={selected} />
+              : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
+          </main>
+        )}
+      </div>
     </div>
   )
 }
