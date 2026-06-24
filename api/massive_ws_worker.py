@@ -124,35 +124,38 @@ def get_status() -> dict:
 
 def _load_oi_for_events(events: list) -> dict:
     """
-    Look up OI for each event from the daily contract_oi_snapshots table
-    (same /data/flow.db, separate table populated by the 5:30 AM ET cron).
+    Look up OI for each event using a two-stage lookup:
 
-    The snapshot taken at 5:30 AM ET on day T captures end-of-day-T-1 OI -
-    i.e. the "starting OI" for day T's session. For a trade on day T, that's
-    the right reference for "did this trade exceed OI?" per BBS rules.
+    Stage 1: contract_oi_snapshots for today's snap_date (most accurate,
+             populated by the 5:30 AM ET cron).
 
-    Returns: {event_index: oi} for events where we found a snapshot.
-    Events without a snapshot get OI=0 downstream (color stays WHITE).
+    Stage 2 (fallback): latest non-zero OI from the flow table for the
+             same contract. This catches contracts that aren't in the
+             snapshot pool (snapshot job filters to contracts with >=3
+             trades in past 30d, so less-active contracts are missing).
+             The flow table has OI for any contract ever uploaded via BBS,
+             which covers a much wider universe.
+
+    Returns: {event_index: oi}. Events missing from both stages stay
+    OI=0 downstream (color stays WHITE).
     """
     if not events:
         return {}
     import sqlite3
     from datetime import datetime
 
-    # Build (contract_key, event_idx) tuples. The contract_key format must
-    # match oi_snapshots.make_key exactly: "SYM|C|150.0|M/D/YYYY"
+    # Build (contract_key, event_idx) tuples
     keys_and_idx = []
     for i, e in enumerate(events):
         cp_letter = 'C' if e.cp == 'CALL' else 'P'
         exp_str = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
         key = f"{e.root}|{cp_letter}|{float(e.strike)}|{exp_str}"
-        keys_and_idx.append((key, i))
+        keys_and_idx.append((key, i, e))
 
     if not keys_and_idx:
         return {}
 
-    # All events in a single flush were captured within ~2s of each other,
-    # so they share the same ET date. Use the first event's date as snap_date.
+    # All events in one flush share the same ET trade date
     first_ts_et = datetime.fromtimestamp(events[0].first_ts_ns / 1e9, tz=UTC).astimezone(ET)
     snap_date_iso = first_ts_et.date().isoformat()
 
@@ -163,23 +166,72 @@ def _load_oi_for_events(events: list) -> dict:
         logger.warning("[massive-ws] OI lookup: FlowDB unavailable: %s", e)
         return {}
 
-    keys = [k for k, _ in keys_and_idx]
-    idx_by_key = {k: i for k, i in keys_and_idx}
-    placeholders = ",".join("?" for _ in keys)
-
     out = {}
     try:
         with sqlite3.connect(db_path, timeout=10) as conn:
-            sql = f"""
+            # Stage 1: contract_oi_snapshots
+            keys = [k for k, _, _ in keys_and_idx]
+            placeholders = ",".join("?" for _ in keys)
+            sql1 = f"""
                 SELECT contract_key, oi
                 FROM contract_oi_snapshots
                 WHERE snap_date = ?
                   AND contract_key IN ({placeholders})
             """
-            for key, oi in conn.execute(sql, (snap_date_iso, *keys)):
+            idx_by_key = {k: i for k, i, _ in keys_and_idx}
+            for key, oi in conn.execute(sql1, (snap_date_iso, *keys)):
                 idx = idx_by_key.get(key)
                 if idx is not None and oi is not None and oi > 0:
                     out[idx] = int(oi)
+
+            # Stage 2: flow table fallback for events that missed
+            unresolved = [(k, i, e) for k, i, e in keys_and_idx if i not in out]
+            if unresolved:
+                # Build per-contract query against flow. Each contract is
+                # (Symbol, CallPut, Strike, ExpirationDate). We use the MAX(id)
+                # row with non-zero OI - matches the pattern in
+                # flow_db.get_mktcap_batch.
+                #
+                # We can't easily IN-query on a composite key without temp
+                # tables, so we do one query per unresolved event. SQLite
+                # handles this fast (<1ms per query) and the unresolved
+                # set is usually small (<50).
+                sql2 = """
+                    SELECT OI FROM flow
+                    WHERE Symbol = ? AND CallPut = ? AND Strike = ?
+                      AND ExpirationDate = ?
+                      AND OI IS NOT NULL AND OI != '' AND OI != '0'
+                    ORDER BY id DESC LIMIT 1
+                """
+                for key, i, e in unresolved:
+                    # CallPut in flow table is stored as 'CALL'/'PUT' (from BBS),
+                    # while contract_key uses 'C'/'P'. Use the full word here.
+                    # Strike in flow is text - match the format BBS uses
+                    # (typically "715" not "715.0" - we need to try both).
+                    exp_str = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+                    strike_int = int(e.strike) if e.strike == int(e.strike) else None
+                    strike_candidates = []
+                    if strike_int is not None:
+                        strike_candidates.append(str(strike_int))     # "715"
+                    strike_candidates.append(str(float(e.strike)))    # "715.0"
+                    strike_candidates.append(f"{e.strike:g}")         # "715"
+                    # Dedup while preserving order
+                    seen = set()
+                    strike_candidates = [s for s in strike_candidates
+                                         if not (s in seen or seen.add(s))]
+                    for strike_str in strike_candidates:
+                        cur = conn.execute(sql2, (
+                            e.root, e.cp, strike_str, exp_str,
+                        ))
+                        row = cur.fetchone()
+                        if row:
+                            try:
+                                oi_val = int(float(row[0]))
+                                if oi_val > 0:
+                                    out[i] = oi_val
+                                    break
+                            except (ValueError, TypeError):
+                                continue
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
