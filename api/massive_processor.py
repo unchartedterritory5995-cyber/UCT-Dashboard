@@ -57,6 +57,62 @@ INDEX_SYMBOLS = frozenset({
 })
 
 
+# -- OPRA condition code semantics (Phase 2e: Block B multi-leg detection) --
+#
+# Fetched from Massive's official conditions reference at
+# https://api.massive.com/v3/reference/conditions?asset_class=options&data_type=trade
+#
+# These codes tell us what kind of execution the print represents. Before
+# Phase 2e we classified type with a heuristic (n_exchanges >= 3 = SWEEP),
+# but the condition code is the ground truth from OPRA itself.
+
+# Cancels / retractions -- DROP these trades entirely. They never actually
+# executed (or were broken/busted post-execution).
+CANCEL_CONDITIONS = frozenset({
+    201,  # CANC -- Canceled
+    203,  # CNCL -- Last and Canceled
+    205,  # CNCO -- Opening Trade and Canceled
+    207,  # CNOL -- Only Trade and Canceled
+})
+
+# Multi-leg / spread / combo prints. Any of these on a print means the burst
+# is part of a complex order (vertical spread, iron condor, calendar, etc.).
+# BBS tags these as type 'ML/'. These account for ~20% of all OPRA prints
+# and ~80%+ of institutional premium flow.
+MULTI_LEG_CONDITIONS = frozenset({
+    232,  # MLET -- Multi Leg auto-electronic trade
+    233,  # MLAT -- Multi Leg Auction
+    234,  # MLCT -- Multi Leg Cross
+    235,  # MLFT -- Multi Leg floor trade
+    236,  # MESL -- Multi Leg auto-electronic trade against single leg(s)
+    237,  # TLAT -- Stock Options Auction (stock+options combo)
+    238,  # MASL -- Multi Leg Auction against single leg(s)
+    239,  # MFSL -- Multi Leg floor trade against single leg(s)
+    240,  # TLET -- Stock Options auto-electronic trade
+    241,  # TLCT -- Stock Options Cross
+    242,  # TLFT -- Stock Options floor trade
+    243,  # TESL -- Stock Options auto-electronic trade against single leg(s)
+    244,  # TASL -- Stock Options Auction against single leg(s)
+    245,  # TFSL -- Stock Options floor trade against single leg(s)
+    246,  # CBMO -- Multi Leg Floor Trade of Proprietary Products (3+ legs)
+    247,  # MCTP -- Multilateral Compression Trade of Proprietary Products
+})
+
+# Intermarket Sweep Order -- explicit SWEEP marker from OPRA. More reliable
+# than counting exchanges (a sweep that lands on 2 exchanges is still a sweep
+# under OPRA's definition).
+ISO_CONDITION = 219  # ISOI -- Intermarket Sweep Order
+
+# Single-leg auction/cross/floor -- explicit BLOCK markers.
+SINGLE_LEG_CONDITIONS = frozenset({
+    227,  # SLAN -- Single Leg Auction Non ISO
+    228,  # SLAI -- Single Leg Auction ISO
+    229,  # SLCN -- Single Leg Cross Non ISO
+    230,  # SLCI -- Single Leg Cross ISO
+    231,  # SLFT -- Single Leg Floor Trade
+})
+
+
 @dataclass
 class RawTrade:
     """A single OPRA trade print, normalized from Massive (Flat Files or WS)."""
@@ -160,6 +216,12 @@ class TradeAggregator:
     def add_trade(self, trade: RawTrade) -> None:
         if trade.size <= 0 or trade.price <= 0:
             return
+        # Phase 2e: drop cancelled prints. Their condition code says they
+        # were retracted -- including them in aggregation would attribute
+        # premium/volume to trades that never actually happened.
+        if trade.conditions in CANCEL_CONDITIONS:
+            self._stats['dropped_cancelled'] = self._stats.get('dropped_cancelled', 0) + 1
+            return
         self._stats['added'] += 1
         key = (trade.ticker, round(trade.price, 4))
         bucket = self._pending.get(key)
@@ -237,7 +299,26 @@ class TradeAggregator:
             return None
 
         exchanges = {t.exchange for t in trades}
-        type_ = 'SWEEP' if len(exchanges) >= 3 else 'BLOCK'
+
+        # Phase 2e: classify type from OPRA condition codes (the authoritative
+        # source). Falls back to the n_exchanges heuristic only when no
+        # informative condition code is present (rare -- usually means the
+        # codes were stripped or are unrecognized).
+        #
+        # Priority order:
+        #   1. Any ML/combo code in the burst -> 'ML/' (multi-leg)
+        #   2. ISOI (219) -> 'SWEEP' (Intermarket Sweep Order)
+        #   3. Any single-leg auction/cross/floor code -> 'BLOCK'
+        #   4. Fallback: n_exchanges >= 3 -> 'SWEEP', else 'BLOCK'
+        conditions_seen = {t.conditions for t in trades}
+        if conditions_seen & MULTI_LEG_CONDITIONS:
+            type_ = 'ML/'
+        elif ISO_CONDITION in conditions_seen:
+            type_ = 'SWEEP'
+        elif conditions_seen & SINGLE_LEG_CONDITIONS:
+            type_ = 'BLOCK'
+        else:
+            type_ = 'SWEEP' if len(exchanges) >= 3 else 'BLOCK'
 
         return AggEvent(
             ticker=trades[0].ticker,
