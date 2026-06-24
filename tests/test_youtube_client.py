@@ -63,3 +63,17 @@ def test_list_raises_on_api_error(monkeypatch):
     c = yc.YouTubeClient(client_id="id", client_secret="sec", refresh_token="rt")
     with pytest.raises(yc.YouTubeApiError):
         c.list_completed_broadcasts()
+
+
+def test_list_passes_mine_true(monkeypatch):
+    captured = {}
+    def fake_post(url, data=None, timeout=None):
+        return _Resp(200, {"access_token": "AT", "expires_in": 3600})
+    def fake_get(url, params=None, headers=None, timeout=None):
+        captured["params"] = dict(params) if params else {}
+        return _Resp(200, {"items": []})
+    monkeypatch.setattr(yc.httpx, "post", fake_post)
+    monkeypatch.setattr(yc.httpx, "get", fake_get)
+    c = yc.YouTubeClient(client_id="id", client_secret="sec", refresh_token="rt")
+    c.list_completed_broadcasts()
+    assert captured["params"]["mine"] == "true"

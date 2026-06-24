@@ -79,6 +79,7 @@ class YouTubeClient:
             "broadcastStatus": "completed",
             "broadcastType": "all",
             "maxResults": max_results,
+            "mine": "true",
         }, headers={"Authorization": f"Bearer {token}"}, timeout=20)
         if resp.status_code != 200:
             raise YouTubeApiError(f"liveBroadcasts.list {resp.status_code}: {resp.text[:200]}")

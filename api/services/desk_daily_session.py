@@ -8,11 +8,11 @@ education_service.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from api.services import education_service
-from api.services.youtube_client import YouTubeClient
+from api.services.youtube_client import YouTubeClient, YouTubeAuthError
 
 _ET = ZoneInfo("America/New_York")
 
@@ -39,8 +39,21 @@ def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -
     return f"Daily Session — {dt.strftime('%B')} {dt.day}, {dt.year}"
 
 
-def publish_new_sessions(client=None) -> list[dict]:
+def _start_date_floor():
+    """ET date floor — only sessions on/after this publish. Env override, else None."""
+    raw = os.environ.get("DESK_DAILY_SESSION_START_DATE")
+    if raw:
+        try:
+            return date.fromisoformat(raw.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def publish_new_sessions(client=None, *, now=None) -> list[dict]:
     """Publish any completed broadcast not already in the library. Idempotent."""
+    now = now or datetime.now(_ET)
+    floor = _start_date_floor() or now.date()
     client = client or YouTubeClient()
     broadcasts = client.list_completed_broadcasts()
     have = education_service.existing_youtube_ids()
@@ -48,6 +61,9 @@ def publish_new_sessions(client=None) -> list[dict]:
     for b in broadcasts:
         vid = (b.get("video_id") or "").strip()
         if not vid or vid in have:
+            continue
+        b_dt = _to_et(b.get("started_at"), now=now)
+        if b_dt.date() < floor:
             continue
         row = education_service.create_video({
             "youtube_id": vid,
@@ -69,15 +85,18 @@ def todays_session_exists(now: datetime | None = None) -> bool:
                for v in education_service.list_videos())
 
 
-def _alert_owner(now: datetime) -> None:
+def _alert_owner(now: datetime, kind: str = "missing") -> None:
     from api.services import discord_notify
-    discord_notify._send_webhook({
-        "title": "⚠️ Daily Session not published",
-        "description": (f"No '{_session_title(None, now=now)}' video is in The Desk "
-                        f"by {now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')}. "
-                        "Check that the webinar ran and auto-streamed to YouTube."),
-        "color": 0xE0A800,
-    })
+    if kind == "auth":
+        title = "⚠️ Daily Session — YouTube auth/quota failure"
+        desc = ("Couldn't query YouTube for today's session (token may be expired or "
+                "quota exhausted). Re-mint YT_OAUTH_REFRESH_TOKEN or check API quota.")
+    else:
+        when = now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')
+        title = "⚠️ Daily Session not published"
+        desc = (f"No '{_session_title(None, now=now)}' video is in The Desk by {when}. "
+                "Check that the webinar ran and auto-streamed to YouTube.")
+    discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
 
 
 def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
@@ -89,6 +108,9 @@ def check_missing_session_alert(now: datetime | None = None, *, publish: bool = 
     if publish:
         try:
             publish_new_sessions()
+        except YouTubeAuthError:
+            _alert_owner(now, kind="auth")
+            return True
         except Exception:
             pass
     if todays_session_exists(now):

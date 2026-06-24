@@ -61,7 +61,7 @@ def test_publish_is_idempotent(edu_db):
 
 def test_safety_net_silent_on_weekend(edu_db, monkeypatch):
     fired = []
-    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
     sat = datetime(2026, 6, 27, 18, 0, tzinfo=ET)
     assert dds.check_missing_session_alert(now=sat, publish=False) is False
     assert fired == []
@@ -69,7 +69,7 @@ def test_safety_net_silent_on_weekend(edu_db, monkeypatch):
 
 def test_safety_net_silent_when_today_present(edu_db, monkeypatch):
     fired = []
-    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
     edu.create_video({"youtube_id": "V", "title": "Daily Session — June 24, 2026",
                       "category": "Daily Sessions", "sort_order": 0})
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
@@ -79,7 +79,68 @@ def test_safety_net_silent_when_today_present(edu_db, monkeypatch):
 
 def test_safety_net_fires_when_absent_on_weekday(edu_db, monkeypatch):
     fired = []
-    monkeypatch.setattr(dds, "_alert_owner", lambda now: fired.append(now))
+    monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
     assert dds.check_missing_session_alert(now=wed, publish=False) is True
     assert len(fired) == 1
+    assert fired[0][1] == "missing"
+
+
+# --- Fix 2 (I3): date floor tests ---
+
+def test_publish_skips_broadcasts_before_floor(edu_db):
+    """Default floor = today (ET); yesterday's broadcast is skipped, today's is created."""
+    fixed_now = datetime(2026, 6, 24, 18, 0, tzinfo=ET)  # Tuesday
+    yesterday_iso = "2026-06-23T13:30:00Z"   # June 23 ET
+    today_iso = "2026-06-24T13:30:00Z"       # June 24 ET
+    fc = _FakeClient([
+        {"video_id": "YEST", "title": "r", "started_at": yesterday_iso},
+        {"video_id": "TODAY", "title": "r", "started_at": today_iso},
+    ])
+    created = dds.publish_new_sessions(client=fc, now=fixed_now)
+    assert len(created) == 1
+    assert created[0]["youtube_id"] == "TODAY"
+    assert created[0]["title"] == "Daily Session — June 24, 2026"
+
+
+def test_publish_respects_start_date_env(edu_db, monkeypatch):
+    """When env floor is set to an old date, yesterday's broadcast should be published."""
+    monkeypatch.setenv("DESK_DAILY_SESSION_START_DATE", "2020-01-01")
+    fixed_now = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+    yesterday_iso = "2026-06-23T13:30:00Z"  # June 23 ET — before default floor but after env floor
+    fc = _FakeClient([
+        {"video_id": "YEST", "title": "r", "started_at": yesterday_iso},
+    ])
+    created = dds.publish_new_sessions(client=fc, now=fixed_now)
+    assert len(created) == 1
+    assert created[0]["youtube_id"] == "YEST"
+
+
+# --- Fix 3 (I2): distinct auth-failure alert tests ---
+
+def test_safety_net_auth_failure_fires_auth_alert(edu_db, monkeypatch):
+    """When publish_new_sessions raises YouTubeAuthError, kind='auth' alert is fired."""
+    fired = []
+    monkeypatch.setattr(dds, "publish_new_sessions",
+                        lambda **kw: (_ for _ in ()).throw(dds.YouTubeAuthError("boom")))
+    monkeypatch.setattr(dds, "_alert_owner",
+                        lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
+    wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+    result = dds.check_missing_session_alert(now=wed, publish=True)
+    assert result is True
+    assert len(fired) == 1
+    assert fired[0][1] == "auth"
+
+
+def test_safety_net_generic_publish_error_still_checks(edu_db, monkeypatch):
+    """A generic RuntimeError from publish is swallowed; missing session fires kind='missing'."""
+    fired = []
+    monkeypatch.setattr(dds, "publish_new_sessions",
+                        lambda **kw: (_ for _ in ()).throw(RuntimeError("oops")))
+    monkeypatch.setattr(dds, "_alert_owner",
+                        lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
+    wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
+    result = dds.check_missing_session_alert(now=wed, publish=True)
+    assert result is True
+    assert len(fired) == 1
+    assert fired[0][1] == "missing"
