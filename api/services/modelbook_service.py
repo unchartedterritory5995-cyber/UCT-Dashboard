@@ -160,7 +160,7 @@ _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
                    "result_end_date", "entry_price", "stop_price",
                    "target_price", "grade", "notes", "advance_note",
                    "watermark_x", "watermark_y", "drawings_json", "result_drawings_json",
-                   "sort_order")
+                   "scale_mode", "sort_order")
 
 
 def _connect() -> sqlite3.Connection:
@@ -201,6 +201,7 @@ def _init_db() -> None:
             ("modelbook_setup_examples", "watermark_y", "REAL"),
             ("modelbook_setup_examples", "timeframe", "TEXT"),
             ("modelbook_setup_examples", "result_drawings_json", "TEXT"),  # annotations shown only in the Result view (separate from drawings_json = Setup view)
+            ("modelbook_setup_examples", "scale_mode", "TEXT"),  # 'arith' | 'log' — price-scale mode for this example's chart
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -606,6 +607,7 @@ def create_setup_example(payload: dict) -> dict:
     data["symbol"] = str(data["symbol"]).upper().strip()
     data["year"] = int(data["year"])
     data["sort_order"] = int(data.get("sort_order") or 0)
+    data["scale_mode"] = data.get("scale_mode") or "arith"
     data["created_at"] = int(time.time())
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
@@ -614,13 +616,13 @@ def create_setup_example(payload: dict) -> dict:
                 timeframe, frame_start_date, result_start_date, result_end_date,
                 entry_price, stop_price, target_price, grade,
                 notes, advance_note, watermark_x, watermark_y,
-                drawings_json, sort_order, created_at)
+                drawings_json, scale_mode, sort_order, created_at)
                VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
                        :label_date, :timeframe, :frame_start_date, :result_start_date,
                        :result_end_date, :entry_price, :stop_price,
                        :target_price, :grade, :notes, :advance_note,
-                       :watermark_x, :watermark_y, :drawings_json, :sort_order,
-                       :created_at)""",
+                       :watermark_x, :watermark_y, :drawings_json, :scale_mode,
+                       :sort_order, :created_at)""",
             data,
         )
         c.commit()

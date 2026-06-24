@@ -396,6 +396,7 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
     company: initial?.company || '',
     year: initial?.year || new Date().getFullYear(),
     timeframe: initial?.timeframe || 'D',
+    scale_mode: initial?.scale_mode || 'arith',
     label_date: initial?.label_date || '',
     frame_start_date: initial?.frame_start_date || '',
     result_start_date: initial?.result_start_date || '',
@@ -422,6 +423,7 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
         company: form.company || null,
         year: parseInt(form.year, 10),
         timeframe: form.timeframe || 'D',
+        scale_mode: form.scale_mode || 'arith',
         label_date: form.label_date || null,
         frame_start_date: form.frame_start_date || null,
         result_start_date: form.result_start_date || null,
@@ -462,6 +464,11 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
           title="Chart timeframe for this example">
           <option value="D">Daily</option>
           <option value="W">Weekly</option>
+        </select>
+        <select className={styles.exInput} value={form.scale_mode} onChange={e => set('scale_mode', e.target.value)}
+          title="Price-scale mode for this example's chart">
+          <option value="arith">Arithmetic</option>
+          <option value="log">Logarithmic</option>
         </select>
         <select className={styles.exInput} value={form.grade} onChange={e => set('grade', e.target.value)}>
           <option value="">Grade…</option>
@@ -767,7 +774,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           frozen={!annotating}
           hideCrosshair={!annotating}
           hideLegend={!annotating}
-          forceScaleMode="arith"
+          forceScaleMode={ex.scale_mode === 'log' ? 'log' : 'arith'}
           boldCandles
           colorByNetChange
           hideLastValue

@@ -121,6 +121,7 @@ class ExampleIn(BaseModel):
     advance_note: Optional[str] = None
     watermark_x: Optional[float] = None
     watermark_y: Optional[float] = None
+    scale_mode: Optional[str] = None   # 'arith' | 'log'
     sort_order: Optional[int] = 0
 
 
@@ -145,6 +146,7 @@ class ExamplePatch(BaseModel):
     watermark_y: Optional[float] = None
     drawings_json: Optional[str] = None
     result_drawings_json: Optional[str] = None
+    scale_mode: Optional[str] = None   # 'arith' | 'log'
     sort_order: Optional[int] = None
 
 
