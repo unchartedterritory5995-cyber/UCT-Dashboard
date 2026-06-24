@@ -4026,6 +4026,30 @@ export default function StockChart({
     try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
   }, [fadedVolData, candleFrameFade, chartReady, updateChart])
 
+  // Pre-install the focus autoscale provider as soon as the chart is ready (for
+  // glide-capable charts). The frameChanged glide otherwise installs it LAZILY on
+  // the first Setup⇄Result flip, and that one applyOptions forces an autoscale
+  // recompute mid-glide → the first transition "skips". Installing it up front
+  // (inert — returns default autoscale until a glide sets focusPriceRangeRef)
+  // makes the first transition as smooth as every later one.
+  useEffect(() => {
+    if (!chartReady || (!exactDateRange && !candleFrameFade)) return
+    const series = candleSeriesRef.current
+    if (!series || focusProviderInstalledRef.current) return
+    try {
+      series.applyOptions({
+        autoscaleInfoProvider: (orig) => {
+          const r = focusPriceRangeRef.current
+          if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
+            return { priceRange: { minValue: r.lo, maxValue: r.hi } }
+          }
+          return orig ? orig() : null
+        },
+      })
+      focusProviderInstalledRef.current = true
+    } catch { /* provider optional */ }
+  }, [chartReady, exactDateRange, candleFrameFade, ohlcData])
+
 
   // Exact-range pin (Model Book): lock the view to [entryDate, exitDate].
   // MUST run AFTER updateChart() (above) so the series already holds the
