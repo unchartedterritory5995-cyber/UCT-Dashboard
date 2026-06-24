@@ -1476,6 +1476,12 @@ export default function LiveFlow() {
     try {
       // Hit endpoint in chunks of 100 (backend cap). Multi-chunk needed
       // on heavy days but typically one call suffices.
+      //
+      // Response format: { results: [{ticker, cp, strike, exp, oi}, ...], ... }
+      // We rebuild the lookup key locally so it matches the keys the alert
+      // rows generate — this avoids any Python-vs-JS number-formatting
+      // mismatch (Python f'{450.0}' → '450.0' vs JS `${450}` → '450' was
+      // the original bug here).
       const oiMap = {};
       const CHUNK = 100;
       for (let i = 0; i < contracts.length; i += CHUNK) {
@@ -1487,7 +1493,10 @@ export default function LiveFlow() {
         });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
-        Object.assign(oiMap, d.results || {});
+        for (const row of (d.results || [])) {
+          const k = `${row.ticker}|${row.cp}|${row.strike}|${row.exp}`;
+          oiMap[k] = row.oi;
+        }
       }
 
       // Merge OI back into alerts state. Compute volumeOIRatio inline
