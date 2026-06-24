@@ -538,6 +538,7 @@ export default function StockChart({
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
+  frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
@@ -3742,7 +3743,8 @@ export default function StockChart({
           if (yearHasData && startIdx === 0) {
             fromIdx = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
           }
-          chart.timeScale().setVisibleLogicalRange({ from: fromIdx, to: endIdx })
+          const _padR = frameRightPadFrac > 0 ? Math.round((endIdx - fromIdx) * frameRightPadFrac) : 0
+          chart.timeScale().setVisibleLogicalRange({ from: fromIdx, to: endIdx + _padR })
         } else if (entryDate && filteredBars.length > 0) {
           const entryIdx = filteredBars.findIndex(b => b.t >= entryDate)
           const exitIdx  = exitDate
@@ -3839,7 +3841,8 @@ export default function StockChart({
         if (_has && _s === 0) {
           _from = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(filteredBars[0].t), resolvedTf)
         }
-        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _e }) } catch { /* out of range mid-load */ }
+        const _padR = frameRightPadFrac > 0 ? Math.round((_e - _from) * frameRightPadFrac) : 0
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _e + _padR }) } catch { /* out of range mid-load */ }
       }
     }
 
@@ -3945,10 +3948,14 @@ export default function StockChart({
     if (yearHasData && startIdx === 0) {
       fromIdx = -leadingBlankBars(lo, toMs(filteredBars[0].t), resolvedTf)
     }
+    // Optional replay-style right margin: extend the framed window past the last
+    // candle by a fraction of its width so there's blank space to annotate into
+    // (Setup Library). Blank because the bars after exitDate are sliced out.
+    const padRight = frameRightPadFrac > 0 ? Math.round((endIdx - fromIdx) * frameRightPadFrac) : 0
     // Store the LATEST computed range; the scheduled re-asserts below read this
     // ref (not captured locals) so a partial first data load can't lock stale
     // indices into the pending re-asserts (which showed the earliest bars).
-    yearRangeRef.current = { from: fromIdx, to: endIdx }
+    yearRangeRef.current = { from: fromIdx, to: endIdx + padRight }
     exactPinSigRef.current = pinSig
     const applyYear = () => {
       const r = yearRangeRef.current
@@ -4011,7 +4018,7 @@ export default function StockChart({
       focusActiveRef.current = true
       focusRangeRef.current = null
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: fromIdx, to: endIdx }, 900, () => {
+        { from: fromIdx, to: endIdx + padRight }, 900, () => {
           focusActiveRef.current = false
           // Release a held wider slice (Result → Setup): the outgoing candles
           // are off-screen now, so the tail re-cut is invisible.
@@ -4056,7 +4063,7 @@ export default function StockChart({
     // that snaps the view to the latest bars) re-runs this pin and re-frames the
     // year. The focusActiveRef guard above means a live setup/catalyst zoom is
     // untouched; all effects run before paint, so there's no flash of "now".
-  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet, overlayData])
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet, overlayData, frameRightPadFrac])
 
   // Each stock starts at the year view with setup text hidden; the first focus
   // zoom then eases it in. Without this reset, switching from a focused stock
