@@ -169,3 +169,115 @@ def confirm_trades(trades: List[ConfirmRequest]):
         )
         out.append(ConfirmResponse(inferred_direction=d))
     return out
+
+
+# ── Bulk on-demand fetch ─────────────────────────────────────────────────
+# Powers the "Fetch OI" button in LiveFlow.jsx (added 2026-06-24). When the
+# operator views historical alerts where most rows have priorOI=null, this
+# endpoint fills them in by:
+#   1. Checking contract_oi_snapshots for any recent matches (last 5 days)
+#   2. For misses, calling Schwab in a single batch via _fetch_oi_all_async
+#   3. Persisting all results with source='ondemand-bulk'
+#
+# Returns a map keyed by ticker|cp|strike|exp (ISO) so the frontend can
+# match results back to displayed rows. Schwab batch endpoint groups by
+# ticker internally — so 50 contracts on 10 tickers = 10 API calls.
+class BulkFetchOIContract(BaseModel):
+    """One contract to fetch OI for. Matches what LiveFlow alerts contain."""
+    ticker: str
+    cp: str
+    strike: float
+    exp: str  # ISO 'YYYY-MM-DD'
+
+
+class BulkFetchOIResponse(BaseModel):
+    results: dict  # ticker|cp|strike|exp_iso → oi
+    cache_hits: int
+    schwab_calls: int
+
+
+def _iso_to_mdy(exp_iso: str) -> Optional[str]:
+    if not exp_iso or "-" not in exp_iso:
+        return None
+    parts = exp_iso.split("-")
+    if len(parts) != 3:
+        return None
+    try:
+        return f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
+    except (ValueError, IndexError):
+        return None
+
+
+@router.post("/bulk-fetch", response_model=BulkFetchOIResponse)
+async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
+    """On-demand OI fetch for a batch of contracts (operator-triggered).
+
+    Two-stage like the worker's _enrich_with_oi:
+      1. DB cache check (today's snapshot) — instant, no API
+      2. Schwab batch for the misses — single options chain call per
+         distinct ticker, OI per strike returned
+    Persists Schwab results to contract_oi_snapshots so future page loads
+    show OI without needing a re-fetch.
+
+    Hard cap: 100 contracts per request. Beyond that, frontend should
+    paginate or split into multiple calls.
+    """
+    if len(contracts) > 100:
+        raise HTTPException(400, "Max 100 contracts per request")
+
+    oi_snapshots.init_db()
+    today_iso = date.today().isoformat()
+
+    results: dict = {}
+    schwab_needed: List[tuple] = []  # [(ContractSpec, ck), ...]
+    cache_hits = 0
+
+    # Stage 1: DB-first lookup
+    for c in contracts:
+        exp_mdy = _iso_to_mdy(c.exp)
+        if not exp_mdy:
+            continue
+        ck = oi_snapshots.make_key(c.ticker, c.cp, c.strike, exp_mdy)
+        existing = oi_snapshots.get_snapshot(ck, today_iso)
+        key_iso = f"{c.ticker}|{c.cp}|{c.strike}|{c.exp}"
+        if existing:
+            results[key_iso] = existing[0]
+            cache_hits += 1
+        else:
+            schwab_needed.append((c, ck, key_iso, exp_mdy))
+
+    # Stage 2: Schwab batch fetch for misses
+    schwab_calls = 0
+    if schwab_needed:
+        payload = [(c.ticker, c.cp, c.strike, exp_mdy)
+                   for c, _, _, exp_mdy in schwab_needed]
+        try:
+            schwab_results = await oi_snapshots._fetch_oi_all_async(payload)
+            schwab_calls = len(payload)
+        except Exception as e:
+            logger.exception(f"[oi-snapshot bulk-fetch] Schwab call failed: {e}")
+            return BulkFetchOIResponse(
+                results=results, cache_hits=cache_hits, schwab_calls=0
+            )
+
+        # Persist + accumulate
+        to_persist = []
+        for (orig_c, ck, key_iso, _), (_, oi) in zip(schwab_needed, schwab_results):
+            if oi is not None and oi > 0:
+                results[key_iso] = oi
+                to_persist.append((ck, oi, "ondemand-bulk"))
+
+        if to_persist:
+            try:
+                oi_snapshots.record_batch(to_persist, today_iso)
+                logger.info(
+                    f"[oi-snapshot bulk-fetch] persisted {len(to_persist)} OI values"
+                )
+            except Exception as e:
+                logger.warning(f"[oi-snapshot bulk-fetch] persist failed: {e}")
+
+    return BulkFetchOIResponse(
+        results=results,
+        cache_hits=cache_hits,
+        schwab_calls=schwab_calls,
+    )
