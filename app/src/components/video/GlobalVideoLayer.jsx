@@ -3,12 +3,13 @@
 // Desk theater slot (docked) and a floating corner (mini) — the iframe never
 // re-mounts, so playback never restarts across navigation.
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
-import { subscribe, getSnapshot, next as storeNext, minimize, close as storeClose } from './videoStore'
-import { computeHostStyle } from './hostStyle'
+import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setCorner } from './videoStore'
+import { computeHostStyle, nearestCorner } from './hostStyle'
 import { PlayIcon } from '../../pages/education/icons'
-import { PauseIcon, CloseIcon, MinimizeIcon, NextIcon } from './icons'
+import { PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon } from './icons'
 import styles from './GlobalVideoLayer.module.css'
 
 const NEXT_COUNTDOWN = 6
@@ -35,10 +36,12 @@ export default function GlobalVideoLayer() {
   const current = active ? list[index] : null
   const upNext = active && index + 1 < list.length ? list[index + 1] : null
 
+  const navigate = useNavigate()
   const hostRef = useRef(null)
   const playerRef = useRef(null)
   const tickerRef = useRef(null)
   const curIdRef = useRef(null)
+  const dragRef = useRef(null)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -135,6 +138,29 @@ export default function GlobalVideoLayer() {
     return () => clearInterval(id)
   }, [ended, upNext])
 
+  const onExpand = useCallback(() => {
+    navigate('/desk?section=videos')
+    storeExpand()
+  }, [navigate])
+
+  const onDragStart = useCallback((e) => {
+    if (mode !== 'mini') return
+    e.preventDefault()
+    const move = (ev) => {
+      const p = ev.touches ? ev.touches[0] : ev
+      dragRef.current = { x: p.clientX, y: p.clientY }
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      const d = dragRef.current
+      if (d) setCorner(nearestCorner(d.x, d.y, window.innerWidth, window.innerHeight))
+      dragRef.current = null
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }, [mode])
+
   if (!active) return null
 
   const hostStyle = computeHostStyle(mode, corner, dockRect, vw, vh)
@@ -150,6 +176,11 @@ export default function GlobalVideoLayer() {
       style={hostStyle}
       data-mode={mode}
     >
+      {mode === 'mini' && (
+        <div className={styles.dragHandle} onPointerDown={onDragStart} aria-label="Move player">
+          <DragIcon />
+        </div>
+      )}
       <div ref={hostRef} className={styles.frame} />
       {!apiReady && <div className={styles.loading}>Loading…</div>}
 
@@ -166,6 +197,11 @@ export default function GlobalVideoLayer() {
         {mode === 'docked' && (
           <button className={styles.cbtn} onClick={() => minimize()} aria-label="Minimize">
             <MinimizeIcon />
+          </button>
+        )}
+        {mode === 'mini' && (
+          <button className={styles.cbtn} onClick={onExpand} aria-label="Expand to Desk">
+            <ExpandIcon />
           </button>
         )}
         <button className={styles.cbtn} onClick={() => storeClose()} aria-label="Close player">

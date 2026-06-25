@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import GlobalVideoLayer from './GlobalVideoLayer'
 import * as store from './videoStore'
+import { nearestCorner } from './hostStyle'
 
 vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true }))
 
@@ -71,5 +72,19 @@ describe('GlobalVideoLayer', () => {
     act(() => store.play(LIST, 0))
     fireEvent.click(screen.getByLabelText('Minimize'))
     expect(store.getSnapshot().mode).toBe('mini')
+  })
+
+  it('Expand button navigates to the Desk and re-docks', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    act(() => store.minimize())
+    fireEvent.click(screen.getByLabelText('Expand to Desk'))
+    expect(store.getSnapshot().mode).toBe('docked')
+  })
+
+  it('nearest-corner snap maps a drop point to a corner', () => {
+    expect(nearestCorner(10, 10, 1000, 800)).toBe('tl')
+    expect(nearestCorner(990, 790, 1000, 800)).toBe('br')
+    expect(nearestCorner(10, 790, 1000, 800)).toBe('bl')
   })
 })
