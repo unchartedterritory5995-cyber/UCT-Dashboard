@@ -627,6 +627,7 @@ export default function StockChart({
   annotationsFadeWhole = false, // Model Book show-all OFF: fade the WHOLE setup layer with the zoom (not just text)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   annotationsTextVisible = null, // Setup Library: drive the TEXT-annotation fade directly (true=show / false=fade out) when there's no focus zoom to do it. null = leave it to the focus-zoom path (Model Book).
+  annotationsDeclutter = false,  // Setup Library VIEW mode: auto-reposition text/+X% labels so they don't pile onto candles/each other as the chart zooms out (Setup→Result). Inert while authoring.
   staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
@@ -5981,6 +5982,7 @@ export default function StockChart({
             hidePriceLabels
             textFadeRef={annotationsEditable ? null : textFadeRef}
             fadeWholeLayer={!annotationsEditable && annotationsFadeWhole}
+            declutterText={!annotationsEditable && annotationsDeclutter}
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}

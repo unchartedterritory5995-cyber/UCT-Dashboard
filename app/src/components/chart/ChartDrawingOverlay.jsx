@@ -1,5 +1,6 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { placeLabels } from './labelDeclutter'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -268,6 +269,58 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
   ctx.strokeText(text, px, py)
   ctx.fillStyle = '#ffffff'
   ctx.fillText(text, px, py)
+  ctx.restore()
+}
+
+// Declutter renderers (Setup Library view mode). The placement (pl) carries the
+// decluttered box + an optional leader line back to the label's anchor. These
+// mirror renderText / renderAdvance so a label that DIDN'T move looks identical
+// to its authored form; a moved one gains a thin leader so it still reads.
+function renderDeclutteredText(ctx, pl, drawing, opacity = 1) {
+  if (opacity <= 0.02) return
+  const fs = drawing.fontSize || 13
+  ctx.save()
+  ctx.globalAlpha = ctx.globalAlpha * opacity
+  if (pl.leader) {
+    ctx.save()
+    ctx.globalAlpha = ctx.globalAlpha * 0.7
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    ctx.beginPath(); ctx.moveTo(pl.leader.x0, pl.leader.y0); ctx.lineTo(pl.leader.x1, pl.leader.y1); ctx.stroke()
+    ctx.restore()
+  }
+  ctx.font = `${fs}px "Instrument Sans", sans-serif`
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.textAlign = 'start'
+  ctx.textBaseline = 'alphabetic'
+  // Soft shadow keeps text legible where a leader carries it near candles.
+  ctx.shadowColor = 'rgba(0,0,0,0.7)'
+  ctx.shadowBlur = 2
+  const lines = pl.lines || String(drawing.text || '').split('\n')
+  lines.forEach((line, i) => ctx.fillText(line, pl.x, pl.y + (i + 1) * fs * 1.3))
+  ctx.shadowBlur = 0
+  ctx.restore()
+}
+
+function renderDeclutteredAdvance(ctx, pl) {
+  const cx = pl.x + pl.w / 2
+  const cy = pl.y + pl.h / 2
+  ctx.save()
+  if (pl.leader) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    ctx.beginPath(); ctx.moveTo(pl.leader.x0, pl.leader.y0); ctx.lineTo(pl.leader.x1, pl.leader.y1); ctx.stroke()
+  }
+  ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+  ctx.strokeText(pl.text, cx, cy)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(pl.text, cx, cy)
   ctx.restore()
 }
 
@@ -636,6 +689,7 @@ export default function ChartDrawingOverlay({
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
+  declutterText = false,     // Setup Library VIEW mode: keep text/advance labels readable as the chart zooms out (Setup→Result) — labels that would pile onto candles/each other slide to the nearest blank space with a leader line back to their anchor. Off while authoring so placement stays exact.
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -651,6 +705,12 @@ export default function ChartDrawingOverlay({
   const lastRangeKeyRef = useRef('')
   const movingRef = useRef(false)
   const settleTimerRef = useRef(null)
+  // Declutter (Setup Library): cached per-label offset from its authored anchor.
+  // Searched once the view settles, then ridden rigidly during pan/zoom so labels
+  // glide WITH their candles instead of re-hopping every frame. Reset when the
+  // annotation set changes or declutter toggles.
+  const labelPlaceRef = useRef(new Map())
+  useEffect(() => { labelPlaceRef.current.clear() }, [drawings, declutterText])
 
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
@@ -998,7 +1058,10 @@ export default function ChartDrawingOverlay({
     // lines/labels transition smoothly with the candles instead of popping in.
     let visFrom = -Infinity, visTo = Infinity
     let guardActive = false
-    if (textFadeRef) {
+    // Track motion for the off-screen guard (Model Book) AND the declutter pass
+    // (Setup Library): both need to ride cached placement while the view moves and
+    // re-resolve once it settles.
+    if (textFadeRef || declutterText) {
       try {
         const r = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
         if (r) { visFrom = r.from; visTo = r.to }
@@ -1010,12 +1073,99 @@ export default function ChartDrawingOverlay({
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
         settleTimerRef.current = setTimeout(() => { movingRef.current = false; redrawRef.current?.() }, 140)
       }
-      guardActive = !movingRef.current
+      guardActive = !!textFadeRef && !movingRef.current
     }
 
     const toPixelY = (_, price) => {
       const p = toPixel(null, price)
       return p?.y
+    }
+
+    // ── Declutter pass (Setup Library view mode) ──────────────────────────────
+    // Resolve where each TEXT / +X% ADVANCE label should sit so they don't pile
+    // onto candles or each other when the chart zooms out (Setup → Result). A
+    // label with room stays exactly where it was authored; a crowded one slides
+    // to the nearest blank space with a leader line back to its anchor. Skipped
+    // while authoring (active tool / drag) so placement stays exact.
+    const editingNow = !!activeTool || isDragging || !!dragRef.current
+    const declutterOn = declutterText && !editingNow && drawings.length > 0
+    const labelPlacements = new Map()
+    if (declutterOn) {
+      // Visible candle pixel extents the labels must dodge.
+      let lo = 0, hi = (bars?.length || 0) - 1
+      try {
+        const r = chartRef?.current?.timeScale?.()?.getVisibleLogicalRange?.()
+        if (r) { lo = Math.max(0, Math.floor(r.from) - 1); hi = Math.min((bars?.length || 0) - 1, Math.ceil(r.to) + 1) }
+      } catch { /* default to all bars */ }
+      const segs = []
+      for (let i = lo; i <= hi; i++) {
+        const b = bars?.[i]; if (!b) continue
+        let sx = null
+        try { sx = chartRef.current.timeScale().logicalToCoordinate(i) } catch { sx = null }
+        const stop = toPixel(null, b.h)?.y
+        const sbot = toPixel(null, b.l)?.y
+        if (sx == null || stop == null || sbot == null) continue
+        segs.push({ x: sx, top: Math.min(stop, sbot), bottom: Math.max(stop, sbot) })
+      }
+      const priceBottom = pricePaneBottomPx() ?? h
+      // Build the +X% advance label's box, anchor + leader target (mirrors
+      // renderAdvance's positioning, recomputing the % from live bars).
+      const advanceItem = (d) => {
+        if (!d.points?.length) return null
+        const pts = resolvePixels(d.points)
+        const p = pts[pts.length - 1]
+        if (!p || p.x == null || p.x < -40 || p.x > plotRight + 40) return null
+        let advPct = d.advPct, advHigh = d.advHigh, advLow = d.advLow
+        if (!lineData && d.points.length >= 2) {
+          const ai = timeToIndex.get(d.points[0].time)
+          const bi = timeToIndex.get(d.points[d.points.length - 1].time)
+          if (ai != null && bi != null && bars[ai] && bars[bi]) {
+            const pct = computeAdvancePct(bars[ai], bars[bi])
+            if (pct != null) { advPct = pct; advHigh = bars[bi].h; advLow = bars[bi].l }
+          }
+        }
+        if (advPct == null) return null
+        const isDecline = advPct < 0
+        const anchorPrice = (isDecline && advLow != null) ? advLow : advHigh
+        const anchorY = anchorPrice != null ? toPixelY(null, anchorPrice) : p.y
+        if (anchorY == null) return null
+        const n = Math.round(advPct)
+        const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
+        ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
+        const boxW = ctx.measureText(text).width + 8
+        const boxH = 16
+        const offset = lineData ? 9 : 16
+        const ax = p.x - boxW / 2
+        const ay = isDecline ? (anchorY + offset) : (anchorY - offset - boxH)
+        return { id: d.id, ax, ay, boxW, boxH, lines: [text], text, lx: p.x, ly: anchorY, kind: 'advance' }
+      }
+      const items = []
+      for (const d of drawings) {
+        if (d.type === 'text') {
+          // Volume-pane (paneRelY) text stays in the volume pane — don't hoist it.
+          if (!d.text || d.points?.[0]?.paneRelY != null) continue
+          const p0 = resolvePixels(d.points || [])[0]
+          if (!p0 || p0.x == null || p0.y == null || p0.x < -40 || p0.x > plotRight + 40) continue
+          const fs = d.fontSize || 13
+          ctx.font = `${fs}px "Instrument Sans", sans-serif`
+          const lines = String(d.text).split('\n')
+          const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 4
+          const boxH = lines.length * fs * 1.3 + 4
+          items.push({ id: d.id, ax: p0.x, ay: p0.y, boxW, boxH, lines, lx: p0.x, ly: p0.y, kind: 'text' })
+        } else if (d.type === 'advance') {
+          const adv = advanceItem(d)
+          if (adv) items.push(adv)
+        }
+      }
+      if (items.length) {
+        const placed = placeLabels({
+          items, segs,
+          plotLeft: 2, plotRight: Math.max(2, plotRight - 2),
+          top: 4, bottom: Math.max(40, priceBottom - 4),
+          cache: labelPlaceRef.current, useCache: movingRef.current,
+        })
+        for (const pl of placed) labelPlacements.set(pl.id, pl)
+      }
     }
 
     // Draw completed drawings
@@ -1079,7 +1229,12 @@ export default function ChartDrawingOverlay({
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
-        case 'text': renderText(ctx, pts, d, textOpacity); break
+        case 'text': {
+          const pl = labelPlacements.get(d.id)
+          if (pl) renderDeclutteredText(ctx, pl, d, textOpacity)
+          else renderText(ctx, pts, d, textOpacity)
+          break
+        }
         case 'fib': renderFib(ctx, pts, w, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
@@ -1091,6 +1246,8 @@ export default function ChartDrawingOverlay({
           // direction-blind), which mis-stated declines. Also refreshes advHigh/
           // advLow so the label anchors correctly. Line-mode (index pane) keeps its
           // stored value (% between the two clicked line points).
+          const pl = labelPlacements.get(d.id)
+          if (pl) { renderDeclutteredAdvance(ctx, pl); break }
           let ad = d
           if (!lineData && d.points?.length >= 2) {
             const ai = timeToIndex.get(d.points[0].time)
@@ -1172,7 +1329,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex])
+  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, declutterText, isDragging, lineData, pricePaneBottomPx])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
