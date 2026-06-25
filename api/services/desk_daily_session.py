@@ -117,3 +117,50 @@ def check_missing_session_alert(now: datetime | None = None, *, publish: bool = 
         return False
     _alert_owner(now)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Zoom recording processor
+# ---------------------------------------------------------------------------
+
+import tempfile
+from api.services import desk_session_jobs
+
+
+def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
+    """Drain the recording queue: download -> upload -> publish -> delete.
+    One job at a time. Idempotent (youtube_id guard + queue PK). Never raises;
+    per-job failures are recorded for retry / the EOD safety net."""
+    from api.services.zoom_client import ZoomClient
+    from api.services.youtube_client import YouTubeClient
+    zoom = zoom or ZoomClient()
+    youtube = youtube or YouTubeClient()
+    done: list[dict] = []
+    while True:
+        job = desk_session_jobs.claim_next()
+        if not job:
+            break
+        uuid = job["meeting_uuid"]
+        title = _session_title(job.get("start_time"))
+        tmp = None
+        try:
+            fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
+            zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
+            vid = youtube.upload_unlisted(tmp, title)
+            if vid not in education_service.existing_youtube_ids():
+                education_service.create_video({
+                    "youtube_id": vid, "title": title, "description": "",
+                    "category": _category(), "sort_order": 0})
+            try:
+                zoom.delete_recording(uuid)
+            except Exception:
+                pass  # publish succeeded; a stuck Zoom copy is non-fatal
+            desk_session_jobs.mark_done(uuid, vid)
+            done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
+        except Exception as e:
+            desk_session_jobs.mark_error(uuid, e)
+        finally:
+            if tmp and os.path.exists(tmp):
+                try: os.remove(tmp)
+                except OSError: pass
+    return done

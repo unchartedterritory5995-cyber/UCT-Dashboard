@@ -144,3 +144,60 @@ def test_safety_net_generic_publish_error_still_checks(edu_db, monkeypatch):
     assert result is True
     assert len(fired) == 1
     assert fired[0][1] == "missing"
+
+
+# ---------------------------------------------------------------------------
+# Task 5: process_pending_jobs
+# ---------------------------------------------------------------------------
+
+from api.services import desk_session_jobs as q
+
+
+class _FakeZoom:
+    def __init__(self): self.deleted = []
+    def stream_download(self, url, token, dest):
+        with open(dest, "wb") as f: f.write(b"video")
+        return dest
+    def delete_recording(self, uuid): self.deleted.append(uuid)
+
+
+class _FakeYT:
+    def upload_unlisted(self, path, title, description=""):
+        return "VIDX"
+
+
+@pytest.fixture
+def jobs_db(monkeypatch):
+    import tempfile, os as _os
+    with tempfile.TemporaryDirectory() as d:
+        monkeypatch.setattr(q, "_DB_PATH", _os.path.join(d, "jobs.db")); q._init_db()
+        yield q
+
+
+def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    z = _FakeZoom()
+    out = dds.process_pending_jobs(zoom=z, youtube=_FakeYT())
+    assert len(out) == 1
+    vids = edu.list_videos()
+    assert len(vids) == 1 and vids[0]["title"] == "Daily Session — June 24, 2026"
+    assert vids[0]["youtube_id"] == "VIDX"
+    assert z.deleted == ["U1"]                      # Zoom copy trashed
+    assert jobs_db.count_status("done") == 1
+
+
+def test_process_idempotent_on_existing_video(edu_db, jobs_db):
+    edu.create_video({"youtube_id": "VIDX", "title": "x", "category": "Daily Sessions", "sort_order": 0})
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert len([v for v in edu.list_videos() if v["youtube_id"] == "VIDX"]) == 1
+
+
+def test_process_marks_error_on_upload_failure(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    class _BoomYT:
+        def upload_unlisted(self, *a, **k): raise RuntimeError("upload boom")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_BoomYT())
+    assert jobs_db.count_status("error") == 1
+    assert edu.list_videos() == []
