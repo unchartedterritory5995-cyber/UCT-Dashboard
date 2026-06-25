@@ -8,6 +8,7 @@ import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
 import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setCorner } from './videoStore'
 import { computeHostStyle, nearestCorner } from './hostStyle'
+import { pauseOtherAudio } from './audioExclusivity'
 import { PlayIcon } from '../../pages/education/icons'
 import { PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon } from './icons'
 import styles from './GlobalVideoLayer.module.css'
@@ -79,6 +80,7 @@ export default function GlobalVideoLayer() {
             setEnded(true)
             setIsPlaying(false)
           } else if (e.data === 1) {
+            pauseOtherAudio()
             saveNow()
             setIsPlaying(true)
             setEnded(false)
