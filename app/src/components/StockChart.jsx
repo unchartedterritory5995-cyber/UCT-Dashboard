@@ -584,11 +584,11 @@ export default function StockChart({
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
-  boldCandles = false,      // bold solid green/red candles (Model Book look)
+  boldCandles = true,       // bold solid green/red candles on the Model Book canvas — now the app-wide default theme/look for every chart (opt out with boldCandles={false})
   hideLastValue = false,    // hide the last-price axis tag on the price series
-  volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  volumeSeparatePane = true, // volume rides its own bottom pane (Model Book look) — app-wide default (opt out with volumeSeparatePane={false})
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
-  markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
+  markVolumeExtremes = true, // gold the highest-volume-ever bar (Model Book look) — app-wide default (opt out with markVolumeExtremes={false})
   disableHvc = false,         // force the 52W-volume-high gold bars OFF (intraday popup)
   hidePriceLine = false,      // hide the dashed last-price line on price AND the volume value line/label (intraday popup)
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
@@ -599,7 +599,7 @@ export default function StockChart({
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
-  volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
+  volumeMa = 50,            // 50-period SMA line on the volume pane (Model Book look) — app-wide default (opt out with volumeMa={0})
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
