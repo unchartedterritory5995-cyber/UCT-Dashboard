@@ -1248,16 +1248,58 @@ async def _run_session(ws):
             _state["q_subscribed_count"] = len(_q_subscribed)
 
     async def spot_fetch_manager():
-        """Phase 2b: drain spot fetch queue every 10 sec via Schwab.
+        """Phase 2b: drain spot fetch queue every 10 sec via Yahoo Finance.
 
-        Pattern matches oi_fetch_manager. The Schwab options chain endpoint
-        returns underlyingPrice in its response -- we piggyback on that via
-        options_quotes_batch, using one contract per symbol.
+        Uses Yahoo's v8/chart endpoint (same one their ytd-performance route
+        is already using in production). One request per symbol, run in
+        parallel via asyncio.gather.
 
-        Defensive: if schwab_router import or call fails, just logs and
-        continues. Spot stays missing for that batch; page falls back to
-        spot=0 (same as pre-Phase-2b behavior).
+        Each chart response has meta.regularMarketPrice with the live spot.
+        Fall back to latest valid close from the close array if meta is
+        missing. Cache results in _SPOT_CACHE with 60-sec TTL.
+
+        Index symbols (SPX, NDX, etc.) get mapped to Yahoo's caret format
+        via YF_INDEX_MAP -- matches schwab_router.py exactly.
         """
+        YF_INDEX_MAP = {
+            "SPX": "^GSPC", "NDX": "^NDX", "DJX": "^DJI",
+            "RUT": "^RUT", "VIX": "^VIX", "XSP": "^GSPC",
+            "SPXW": "^GSPC",
+        }
+        UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+        async def fetch_one(client, our_sym):
+            """Single symbol fetch. Returns (our_sym, spot or None)."""
+            yf_sym = YF_INDEX_MAP.get(our_sym, our_sym)
+            try:
+                resp = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}",
+                    params={"interval": "1d", "range": "5d",
+                            "includePrePost": "false"},
+                    headers={"User-Agent": UA},
+                )
+                if resp.status_code != 200:
+                    return (our_sym, None)
+                data = resp.json()
+                result = data.get("chart", {}).get("result")
+                if not result:
+                    return (our_sym, None)
+                first = result[0]
+                # Prefer meta.regularMarketPrice (current/most-recent)
+                meta = first.get("meta", {})
+                spot = meta.get("regularMarketPrice")
+                if isinstance(spot, (int, float)) and spot > 0:
+                    return (our_sym, float(spot))
+                # Fallback: latest valid close
+                quote = first.get("indicators", {}).get("quote", [{}])[0]
+                closes = quote.get("close", [])
+                for c in reversed(closes):
+                    if isinstance(c, (int, float)) and c > 0:
+                        return (our_sym, float(c))
+                return (our_sym, None)
+            except Exception:
+                return (our_sym, None)
+
         while not stop_event.is_set():
             try:
                 await asyncio.wait_for(stop_event.wait(), timeout=10.0)
@@ -1268,76 +1310,34 @@ async def _run_session(ws):
             batch = _spot_fetch_queue[:]
             _spot_fetch_queue.clear()
             _spot_fetch_seen.clear()
-            # Cap to 100 per call to keep response manageable
-            if len(batch) > 100:
-                overflow = batch[100:]
-                batch = batch[:100]
+            # Cap to 30 parallel requests per cycle (Yahoo can be touchy
+            # with high concurrency; their ytd-performance route uses 30)
+            if len(batch) > 30:
+                overflow = batch[30:]
+                batch = batch[:30]
                 _spot_fetch_queue.extend(overflow)
                 _spot_fetch_seen.update(overflow)
             _state["spot_fetch_queue_size"] = len(_spot_fetch_queue)
+
             try:
-                from api.schwab_router import options_quotes_batch
-                # Build a minimal contract list - one per symbol. Use a far-
-                # OTM strike that's likely to exist for any active stock.
-                # We don't care about the strike's data; we only want the
-                # underlyingPrice that comes back with the chain response.
-                today = date.today()
-                # Pick a Friday expiry ~1 week out (most active stocks have
-                # weekly options). If not, current month's standard expiry.
-                friday_offset = (4 - today.weekday()) % 7 + 7
-                target_exp = today + timedelta(days=friday_offset)
-                payload = []
-                for sym in batch:
-                    payload.append({
-                        "symbol": sym,
-                        "cp": "C",
-                        # Strike of 1 is always far OTM and contract likely
-                        # doesn't exist -- but the chain CALL still returns
-                        # underlyingPrice on the response
-                        "strike": 1.0,
-                        "expDate": target_exp.isoformat(),
-                    })
-                response = await options_quotes_batch(payload)
-                # Try to extract underlyingPrice in a defensive way. The
-                # response shape from the Schwab chain endpoint varies.
-                # Common locations: response["underlyingPrice"] when batched
-                # by symbol; response["quotes"][i]["underlyingPrice"]; or
-                # quote["underlying"]["last"] in wrapped form.
+                import httpx
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    tasks = [fetch_one(client, sym) for sym in batch]
+                    results = await asyncio.gather(*tasks, return_exceptions=False)
                 now = time.time()
                 resolved = 0
-                if isinstance(response, dict):
-                    quotes = response.get("quotes", [])
-                    for sym, q in zip(batch, quotes):
-                        spot = None
-                        if isinstance(q, dict):
-                            # Try common field names
-                            for k in ("underlyingPrice", "underlying_price",
-                                      "spot", "underlying"):
-                                v = q.get(k)
-                                if isinstance(v, (int, float)) and v > 0:
-                                    spot = float(v)
-                                    break
-                                if isinstance(v, dict):
-                                    # underlying: {last: 123.45}
-                                    for kk in ("last", "lastPrice", "price"):
-                                        vv = v.get(kk)
-                                        if isinstance(vv, (int, float)) and vv > 0:
-                                            spot = float(vv)
-                                            break
-                                    if spot:
-                                        break
-                        if spot:
-                            _SPOT_CACHE[sym] = (spot, now)
-                            resolved += 1
+                for sym, spot in results:
+                    if spot is not None and spot > 0:
+                        _SPOT_CACHE[sym] = (spot, now)
+                        resolved += 1
                 logger.info(
-                    "[massive-ws] spot fetch: %d symbols -> %d resolved",
+                    "[massive-ws] spot fetch (Yahoo): %d symbols -> %d resolved",
                     len(batch), resolved
                 )
                 _state["spot_fetches_sent"] = _state.get("spot_fetches_sent", 0) + 1
                 _state["spot_symbols_resolved"] = _state.get("spot_symbols_resolved", 0) + resolved
             except Exception as e:
                 logger.debug("[massive-ws] spot fetch failed: %s", e)
-                # Re-clear seen so the next flush can re-queue these
                 _spot_fetch_seen.difference_update(batch)
 
     async def oi_fetch_manager():
