@@ -7,6 +7,7 @@ class _Resp:
         self._chunks = chunks or []; self.headers = headers or {}
     def json(self): return self._p
     def raise_for_status(self): pass
+    def read(self): return b"".join(self._chunks)
     def iter_bytes(self, chunk_size=1024):
         for ch in self._chunks: yield ch
     def __enter__(self): return self
@@ -18,13 +19,32 @@ def test_ensure_token_raises_when_unconfigured():
         c._ensure_token()
 
 def test_stream_download_writes_file(monkeypatch):
+    body = b"MP4DATA" + b"x" * 4000  # > 1KB, video-ish content-type
     monkeypatch.setattr(zc.httpx, "stream",
-        lambda *a, **k: _Resp(200, chunks=[b"hello ", b"world"]))
+        lambda *a, **k: _Resp(200, chunks=[body], headers={"content-type": "video/mp4"}))
     c = zc.ZoomClient(account_id="a", client_id="i", client_secret="s")
     with tempfile.TemporaryDirectory() as d:
         dest = os.path.join(d, "v.mp4")
-        c.stream_download("http://dl", "tok", dest)
-        assert open(dest, "rb").read() == b"hello world"
+        c.stream_download("https://x.zoom.us/rec/download/abc", "tok", dest)
+        assert open(dest, "rb").read() == body
+
+def test_stream_download_rejects_html_error_page(monkeypatch):
+    # An auth/redirect failure returns a 200 HTML page, not the MP4.
+    monkeypatch.setattr(zc.httpx, "stream",
+        lambda *a, **k: _Resp(200, chunks=[b"<!DOCTYPE html><html>sign in</html>"],
+                              headers={"content-type": "text/html; charset=utf-8"}))
+    c = zc.ZoomClient(account_id="a", client_id="i", client_secret="s")
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(zc.ZoomApiError):
+            c.stream_download("https://x.zoom.us/rec/download/abc", "tok", os.path.join(d, "v.mp4"))
+
+def test_stream_download_rejects_tiny_file(monkeypatch):
+    monkeypatch.setattr(zc.httpx, "stream",
+        lambda *a, **k: _Resp(200, chunks=[b"tiny"], headers={"content-type": "video/mp4"}))
+    c = zc.ZoomClient(account_id="a", client_id="i", client_secret="s")
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(zc.ZoomApiError):
+            c.stream_download("https://x.zoom.us/rec/download/abc", "tok", os.path.join(d, "v.mp4"))
 
 def test_delete_recording_calls_api(monkeypatch):
     seen = {}

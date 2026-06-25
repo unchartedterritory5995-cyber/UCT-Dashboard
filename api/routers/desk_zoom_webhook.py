@@ -60,3 +60,13 @@ async def zoom_webhook(request: Request):
                 pass  # never fail the webhook; processor/safety-net recovers
         return {"ok": True}
     return {"ignored": event}
+
+@router.get("/sessions-status")
+async def sessions_status(request: Request):
+    """Diagnostics: recent recording jobs (status/error/youtube_id). Gated by
+    the PUSH_SECRET bearer so it can be curled without a browser session."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    return {"jobs": desk_session_jobs.list_recent(20)}

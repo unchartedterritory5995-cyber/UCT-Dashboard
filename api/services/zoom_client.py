@@ -32,15 +32,28 @@ class ZoomClient:
         return self._token
 
     def stream_download(self, download_url: str, token: str, dest_path: str) -> str:
-        # download_token (from the webhook) authorizes the file URL directly.
+        # download_token (from the webhook) authorizes the file URL directly, sent
+        # as a Bearer header (Zoom deprecated the ?access_token= query param in 2023).
         url = download_url
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=None) as r:
+            ct = (r.headers.get("content-type") or "").lower()
             if r.status_code != 200:
-                raise ZoomApiError(f"download {r.status_code}")
+                body = r.read()[:300]
+                raise ZoomApiError(f"download status {r.status_code} ct={ct} body={body!r}")
+            # An auth/redirect failure returns a 200 HTML/JSON error page (e.g. a Zoom
+            # sign-in page), not the MP4 -> YouTube can't process it. Reject it loudly
+            # so the job errors instead of publishing a broken video.
+            if ct.startswith(("text/html", "application/json", "application/xml", "text/plain")):
+                body = r.read()[:300]
+                raise ZoomApiError(f"download not a video (ct={ct}) body={body!r}")
+            total = 0
             with open(dest_path, "wb") as f:
                 for chunk in r.iter_bytes(chunk_size=1024 * 1024):
-                    f.write(chunk)
+                    f.write(chunk); total += len(chunk)
+        print(f"[desk-sessions] downloaded {total} bytes ct={ct!r} url_host={url.split('/')[2] if '://' in url else url[:40]}")
+        if total < 1024:
+            raise ZoomApiError(f"download too small ({total} bytes) ct={ct}")
         return dest_path
 
     def delete_recording(self, meeting_uuid: str) -> None:
