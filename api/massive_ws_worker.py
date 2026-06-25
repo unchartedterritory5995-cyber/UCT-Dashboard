@@ -38,7 +38,7 @@ import time
 import asyncio
 import threading
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from io import StringIO
 from typing import Optional
 
@@ -111,6 +111,11 @@ _state = {
     "q_unsubscribes_sent": 0,        # cumulative Q.unsubscribe messages sent
     "last_side_lookup_size": 0,      # events in last classification batch
     "last_side_lookup_classified": 0,  # events that got a non-empty Side
+    # Phase 2f: on-demand OI fetch via Schwab
+    "oi_fetch_queue_size": 0,        # contracts pending on-demand fetch
+    "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
+    "oi_fetch_contracts_resolved": 0, # contracts where Schwab returned OI > 0
+    "oi_fetch_contracts_unresolved": 0, # contracts where Schwab returned no data
 }
 
 
@@ -122,6 +127,13 @@ _q_subscribed: set = set()    # contract syms we're currently subscribed to Q fo
 _q_last_seen: dict = {}       # {contract_sym: ts_ns} - LRU tracking
 _q_pending_subscribe: list = []   # queued contracts to subscribe (added by event loop)
 _q_pending_unsubscribe: list = [] # queued contracts to unsubscribe (LRU evictions)
+
+# Phase 2f: on-demand OI fetch queue. The flusher adds contracts that miss
+# the 2-stage snapshot+flow lookup; a background task drains the queue and
+# fetches from Schwab in batches. Results persist to contract_oi_snapshots
+# so subsequent flushes pick them up via Stage 1.
+_oi_fetch_queue: list = []    # list of (sym, cp_letter, strike, exp_mdy) tuples
+_oi_fetch_seen: set = set()   # contracts we've already queued this session (dedup)
 
 # 1000-contract hard cap per connection (Massive docs).
 # We leave a 50-slot headroom so churn doesn't immediately hit the ceiling
@@ -309,6 +321,32 @@ def _load_oi_for_events(events: list) -> dict:
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
+    # Phase 2f: Stage 3 -- enqueue unresolved contracts for on-demand Schwab
+    # fetch. The background oi_fetch_manager task drains the queue every 20s,
+    # calls Schwab in batch, and persists to contract_oi_snapshots. The NEXT
+    # batch of events for these contracts will hit Stage 1 (snapshot cache)
+    # and get the OI for free.
+    #
+    # Tradeoff: first event on a previously-unknown contract gets OI=0 here.
+    # Subsequent events (which are common for active contracts) benefit.
+    # For purely one-off contracts, we still miss -- but those are rare in
+    # institutional flow.
+    for key, i, e in keys_and_idx:
+        if i in out:
+            continue
+        sym = e.root
+        if sym and sym[-1].isdigit():
+            # Adjusted/when-issued -- Schwab will 400, don't bother
+            continue
+        cp_letter = 'C' if e.cp == 'CALL' else 'P'
+        exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+        contract_tup = (sym, cp_letter, float(e.strike), exp_mdy)
+        # Track this contract so we don't re-queue it within the same session
+        if contract_tup not in _oi_fetch_seen:
+            _oi_fetch_queue.append(contract_tup)
+            _oi_fetch_seen.add(contract_tup)
+    _state["oi_fetch_queue_size"] = len(_oi_fetch_queue)
+
     return out
 
 
@@ -319,29 +357,49 @@ ET = ZoneInfo("America/New_York")
 UTC = ZoneInfo("UTC")
 
 
-def _events_to_csv(events: list, source: str, ticker_meta: dict = None, oi_map: dict = None) -> str:
+def _events_to_csv(events: list, source: str, ticker_meta: dict = None,
+                   oi_map: dict = None, cum_vol_map: dict = None,
+                   spot_map: dict = None, er_map: dict = None) -> str:
     """Convert AggEvents -> BBS-format CSV string for FlowDB.insert_csv.
 
     ticker_meta: optional {symbol: {"mktcap": int, "sector": str}} dict for
     per-row enrichment. Built once per flush by _load_ticker_metadata.
+
+    cum_vol_map: Phase 2d optional {event_index: cumulative_day_volume} for
+    BBS-style Color computation. When provided, Color uses cumulative day
+    volume vs OI (matching BBS); otherwise falls back to single-event volume.
+
+    spot_map: Phase 2b optional {symbol: spot_price} for per-event Spot
+    column enrichment. Symbols missing from this dict fall back to spot=0.
+
+    er_map: Phase 2g optional {symbol: 'T'|'F'} earnings flag for upcoming
+    earnings within 14 days. Symbols missing default to 'F'.
     """
     from api.massive_processor import event_to_bbs_row
     from api.flow_db import COLUMNS  # Reuse the exact column order
 
     ticker_meta = ticker_meta or {}
     oi_map = oi_map or {}
+    cum_vol_map = cum_vol_map or {}
+    spot_map = spot_map or {}
+    er_map = er_map or {}
     buf = StringIO()
     buf.write(",".join(COLUMNS) + "\n")
     for i, evt in enumerate(events):
         meta = ticker_meta.get(evt.root, {})
         oi = oi_map.get(i, 0)
+        cum_vol = cum_vol_map.get(i)
+        spot = spot_map.get(evt.root, 0.0)
+        er_flag = er_map.get(evt.root, 'F')
         row = event_to_bbs_row(
             evt, source=source,
             mktcap=meta.get("mktcap", 0),
             sector=meta.get("sector", ""),
             oi=oi,
+            cumulative_volume=cum_vol,
+            spot=spot,
+            er_flag=er_flag,
         )
-        # Quote-safe write -- premium/strike never have commas but be defensive
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
         buf.write(line + "\n")
     return buf.getvalue()
@@ -612,6 +670,196 @@ def _build_warm_start_contracts(limit: int = 950) -> list:
     return out
 
 
+# Phase 2b: Spot price cache with TTL. Populated lazily by a background
+# fetcher task that drains _spot_fetch_queue every 10 seconds. Same pattern
+# as Phase 2f on-demand OI fetch -- the flusher queues symbols, background
+# task hits Schwab, results land in cache; next flush picks them up.
+#
+# This means the FIRST event on a previously-unknown symbol gets spot=0,
+# but subsequent events (for active symbols, common case) get real spot.
+_SPOT_CACHE: dict = {}        # {symbol: (price, fetched_at_ts)}
+_SPOT_TTL_SEC = 60            # quote freshness window
+_spot_fetch_queue: list = []  # symbols pending fetch (deduped)
+_spot_fetch_seen: set = set() # symbols already queued this drain cycle
+
+
+# Phase 2g: ER (earnings) flag enrichment. BBS rows include ER='T' for
+# tickers with earnings in the next 14 days, 'F' otherwise. This drives the
+# "EARNINGS FLOW" callout in the Market Read narrative.
+#
+# Strategy: piggyback on FlowDB. BBS uploads include the ER column, so for
+# tickers that have been in any BBS upload in the past few days, we can
+# read their ER status directly from FlowDB. No external API needed.
+#
+# For tickers we've never seen in BBS, we leave ER='F'. The narrative will
+# silently undercount earnings tickers for those, but the rest of the page
+# is unaffected.
+_ER_CACHE: dict = {}            # {symbol: ('T'|'F', fetched_at_ts)}
+_ER_TTL_SEC = 6 * 60 * 60       # refresh ER flag every 6 hours
+
+
+def _load_er_flags(symbols: list) -> dict:
+    """Phase 2g: look up ER flag per symbol from recent FlowDB rows.
+
+    Returns {symbol: 'T'|'F'}. Cached for 6 hours per symbol since earnings
+    calendars don't change intraday.
+    """
+    if not symbols:
+        return {}
+    now = time.time()
+    out = {}
+    to_fetch = []
+    for sym in symbols:
+        if not sym:
+            continue
+        entry = _ER_CACHE.get(sym)
+        if entry and (now - entry[1]) < _ER_TTL_SEC:
+            out[sym] = entry[0]
+        else:
+            to_fetch.append(sym)
+
+    if not to_fetch:
+        return out
+
+    # Query FlowDB for most recent ER value per symbol. ER comes in as 'T'
+    # or 'F' (BBS uses single-char codes for boolean flags).
+    try:
+        import sqlite3
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            placeholders = ",".join("?" for _ in to_fetch)
+            sql = f"""
+                SELECT f.Symbol, f.ER FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(rowid) AS max_rid FROM flow
+                    WHERE Symbol IN ({placeholders}) AND ER IS NOT NULL
+                      AND TRIM(ER) != ''
+                    GROUP BY Symbol
+                ) latest ON f.Symbol = latest.Symbol AND f.rowid = latest.max_rid
+            """
+            cur = conn.execute(sql, to_fetch)
+            for sym, er in cur.fetchall():
+                er_clean = (er or 'F').strip().upper()
+                er_val = 'T' if er_clean == 'T' else 'F'
+                out[sym] = er_val
+                _ER_CACHE[sym] = (er_val, now)
+        # For any symbol not found, cache 'F' so we don't keep re-querying
+        for sym in to_fetch:
+            if sym not in out:
+                out[sym] = 'F'
+                _ER_CACHE[sym] = ('F', now)
+    except Exception as e:
+        logger.warning("[massive-ws] ER flag lookup failed: %s", e)
+
+    return out
+
+
+def _load_spot_for_events(events: list) -> dict:
+    """Phase 2b: synchronous spot lookup with background fetch queue.
+
+    For each unique symbol in the batch:
+    - If cached and fresh, return cached spot
+    - Otherwise queue the symbol for background fetch
+
+    Returns {symbol: spot_price}. Symbols not in cache get omitted (caller
+    treats as spot=0 -- same as pre-Phase-2b behavior).
+    """
+    if not events:
+        return {}
+    now = time.time()
+    out = {}
+    for e in events:
+        sym = e.root
+        if not sym or sym in out:
+            continue
+        cached = _SPOT_CACHE.get(sym)
+        if cached and (now - cached[1]) < _SPOT_TTL_SEC:
+            out[sym] = cached[0]
+        else:
+            # Queue for background fetch
+            if sym and not sym[-1].isdigit() and sym not in _spot_fetch_seen:
+                _spot_fetch_queue.append(sym)
+                _spot_fetch_seen.add(sym)
+    _state["last_spot_lookup_size"] = len({e.root for e in events if e.root})
+    _state["last_spot_lookup_resolved"] = len(out)
+    _state["spot_fetch_queue_size"] = len(_spot_fetch_queue)
+    return out
+
+
+def _load_cumulative_volume(events: list) -> dict:
+    """Phase 2d: compute cumulative day volume per contract for BBS-style Color.
+
+    BBS computes Color (YELLOW/MAGENTA when volume > OI) using the DAY's
+    running total volume on a contract, not single-event volume. Without
+    this, our YELLOW/MAGENTA rate sits at ~12% vs BBS's 51%.
+
+    For each event, sum: (DB day-to-date volume for this contract) + (in-batch
+    volume on this contract up to and including this event). Returns
+    {event_index: cumulative_volume}.
+
+    Performance: one SQL query per batch (not per event). For a batch of 50
+    events on 30 unique contracts, this is ~3ms total.
+    """
+    if not events:
+        return {}
+    import sqlite3
+    from datetime import datetime
+
+    # ET trade date for these events (all share same date in any batch)
+    first_ts_et = datetime.fromtimestamp(events[0].first_ts_ns / 1e9, tz=UTC).astimezone(ET)
+    trade_date_mdY = f"{first_ts_et.month}/{first_ts_et.day}/{first_ts_et.year}"
+
+    # Build unique contract identifiers
+    contracts = {}  # contract_key -> (symbol, cp, strike_strs, exp_mdy)
+    for i, e in enumerate(events):
+        exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+        strike_int = int(e.strike) if e.strike == int(e.strike) else None
+        strike_strs = []
+        if strike_int is not None:
+            strike_strs.append(str(strike_int))
+        strike_strs.append(str(float(e.strike)))
+        seen = set()
+        strike_strs = [s for s in strike_strs if not (s in seen or seen.add(s))]
+        key = (e.root, e.cp, e.strike, exp_mdy)
+        if key not in contracts:
+            contracts[key] = strike_strs
+
+    # Query FlowDB for day-to-date cumulative volume per contract
+    db_vol = {}  # (root, cp, strike, exp_mdy) -> sum(Volume)
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            for key, strike_strs in contracts.items():
+                root, cp, strike, exp_mdy = key
+                total = 0
+                for strike_str in strike_strs:
+                    cur = conn.execute(
+                        "SELECT COALESCE(SUM(CAST(Volume AS INTEGER)), 0) "
+                        "FROM flow WHERE Symbol=? AND CallPut=? AND "
+                        "Strike=? AND ExpirationDate=? AND CreatedDate=?",
+                        (root, cp, strike_str, exp_mdy, trade_date_mdY),
+                    )
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        total += int(row[0])
+                if total > 0:
+                    db_vol[key] = total
+    except Exception as e:
+        logger.warning("[massive-ws] cumulative volume lookup failed: %s", e)
+
+    # For each event, cumulative = DB total + sum of this batch up to (incl) this event
+    batch_running = {}  # (root, cp, strike, exp_mdy) -> running batch sum
+    out = {}
+    for i, e in enumerate(events):
+        exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
+        key = (e.root, e.cp, e.strike, exp_mdy)
+        batch_running[key] = batch_running.get(key, 0) + e.total_size
+        out[i] = db_vol.get(key, 0) + batch_running[key]
+    return out
+
+
 def _write_events(events: list) -> None:
     """Split events into stocks/indexes and write each to FlowDB."""
     from api.massive_processor import is_index_source
@@ -672,9 +920,29 @@ def _write_events(events: list) -> None:
         _state["last_oi_lookup_size"] = len(stocks) + len(indexes)
         _state["last_oi_lookup_resolved"] = len(oi_stocks) + len(oi_indexes)
 
+        # Phase 2d: cumulative day volume per contract for BBS-style Color.
+        # Combined with OI, this drives YELLOW/MAGENTA confirmation. Without
+        # this, Color is computed from single-event volume and we sit at
+        # ~12% confirmed vs BBS's 51%.
+        cum_vol_stocks = _load_cumulative_volume(stocks) if stocks else {}
+        cum_vol_indexes = _load_cumulative_volume(indexes) if indexes else {}
+
+        # Phase 2b: spot price enrichment. Best-effort -- symbols not in cache
+        # get omitted and spot=0 in the row (same as pre-Phase-2b behavior).
+        # Symbols queue for background fetch; next batch picks them up.
+        spot_stocks = _load_spot_for_events(stocks) if stocks else {}
+        spot_indexes = _load_spot_for_events(indexes) if indexes else {}
+
+        # Phase 2g: ER flag from FlowDB cache (BBS uploads provide this).
+        # Free lookup, no external API.
+        all_syms_for_er = list({e.root for e in events})
+        er_map = _load_er_flags(all_syms_for_er)
+
         if stocks:
             csv_str = _events_to_csv(stocks, "stocks",
-                                     ticker_meta=ticker_meta, oi_map=oi_stocks)
+                                     ticker_meta=ticker_meta, oi_map=oi_stocks,
+                                     cum_vol_map=cum_vol_stocks,
+                                     spot_map=spot_stocks, er_map=er_map)
             result = db.insert_csv(csv_str, source="stocks")
             _state["events_written_stocks"] += result.get("inserted", 0)
             if result.get("skipped", 0):
@@ -685,7 +953,9 @@ def _write_events(events: list) -> None:
 
         if indexes:
             csv_str = _events_to_csv(indexes, "indexes",
-                                     ticker_meta=ticker_meta, oi_map=oi_indexes)
+                                     ticker_meta=ticker_meta, oi_map=oi_indexes,
+                                     cum_vol_map=cum_vol_indexes,
+                                     spot_map=spot_indexes, er_map=er_map)
             result = db.insert_csv(csv_str, source="indexes")
             _state["events_written_indexes"] += result.get("inserted", 0)
             if result.get("skipped", 0):
@@ -829,6 +1099,20 @@ async def _run_session(ws):
     _state["q_subscribed_count"] = 0
     _state["quotes_received"] = 0
 
+    # Phase 2f: clear OI fetch queue on each session. Contracts that were
+    # unresolved last session might now be in the cron snapshot (5:30 AM run);
+    # re-checking is essentially free since DB cache hits are <1ms.
+    _oi_fetch_queue.clear()
+    _oi_fetch_seen.clear()
+    _state["oi_fetch_queue_size"] = 0
+
+    # Phase 2b: clear spot fetch queue. Cache survives (60s TTL handles
+    # staleness), but pending queue is cleared so we don't re-fetch
+    # contracts that may have been resolved between sessions.
+    _spot_fetch_queue.clear()
+    _spot_fetch_seen.clear()
+    _state["spot_fetch_queue_size"] = 0
+
     # Phase 2c.1: warm-start the Q subscription pool with historically-active
     # contracts BEFORE the message loop starts. Without this, the first
     # 10-15 minutes after market open have ~0% Side classification because
@@ -950,8 +1234,166 @@ async def _run_session(ws):
                     logger.warning("[massive-ws] Q subscribe failed: %s", e)
             _state["q_subscribed_count"] = len(_q_subscribed)
 
+    async def spot_fetch_manager():
+        """Phase 2b: drain spot fetch queue every 10 sec via Schwab.
+
+        Pattern matches oi_fetch_manager. The Schwab options chain endpoint
+        returns underlyingPrice in its response -- we piggyback on that via
+        options_quotes_batch, using one contract per symbol.
+
+        Defensive: if schwab_router import or call fails, just logs and
+        continues. Spot stays missing for that batch; page falls back to
+        spot=0 (same as pre-Phase-2b behavior).
+        """
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=10.0)
+            except asyncio.TimeoutError:
+                pass
+            if not _spot_fetch_queue:
+                continue
+            batch = _spot_fetch_queue[:]
+            _spot_fetch_queue.clear()
+            _spot_fetch_seen.clear()
+            # Cap to 100 per call to keep response manageable
+            if len(batch) > 100:
+                overflow = batch[100:]
+                batch = batch[:100]
+                _spot_fetch_queue.extend(overflow)
+                _spot_fetch_seen.update(overflow)
+            _state["spot_fetch_queue_size"] = len(_spot_fetch_queue)
+            try:
+                from api.schwab_router import options_quotes_batch
+                # Build a minimal contract list - one per symbol. Use a far-
+                # OTM strike that's likely to exist for any active stock.
+                # We don't care about the strike's data; we only want the
+                # underlyingPrice that comes back with the chain response.
+                today = date.today()
+                # Pick a Friday expiry ~1 week out (most active stocks have
+                # weekly options). If not, current month's standard expiry.
+                friday_offset = (4 - today.weekday()) % 7 + 7
+                target_exp = today + timedelta(days=friday_offset)
+                payload = []
+                for sym in batch:
+                    payload.append({
+                        "symbol": sym,
+                        "cp": "C",
+                        # Strike of 1 is always far OTM and contract likely
+                        # doesn't exist -- but the chain CALL still returns
+                        # underlyingPrice on the response
+                        "strike": 1.0,
+                        "expDate": target_exp.isoformat(),
+                    })
+                response = await options_quotes_batch(payload)
+                # Try to extract underlyingPrice in a defensive way. The
+                # response shape from the Schwab chain endpoint varies.
+                # Common locations: response["underlyingPrice"] when batched
+                # by symbol; response["quotes"][i]["underlyingPrice"]; or
+                # quote["underlying"]["last"] in wrapped form.
+                now = time.time()
+                resolved = 0
+                if isinstance(response, dict):
+                    quotes = response.get("quotes", [])
+                    for sym, q in zip(batch, quotes):
+                        spot = None
+                        if isinstance(q, dict):
+                            # Try common field names
+                            for k in ("underlyingPrice", "underlying_price",
+                                      "spot", "underlying"):
+                                v = q.get(k)
+                                if isinstance(v, (int, float)) and v > 0:
+                                    spot = float(v)
+                                    break
+                                if isinstance(v, dict):
+                                    # underlying: {last: 123.45}
+                                    for kk in ("last", "lastPrice", "price"):
+                                        vv = v.get(kk)
+                                        if isinstance(vv, (int, float)) and vv > 0:
+                                            spot = float(vv)
+                                            break
+                                    if spot:
+                                        break
+                        if spot:
+                            _SPOT_CACHE[sym] = (spot, now)
+                            resolved += 1
+                logger.info(
+                    "[massive-ws] spot fetch: %d symbols -> %d resolved",
+                    len(batch), resolved
+                )
+                _state["spot_fetches_sent"] = _state.get("spot_fetches_sent", 0) + 1
+                _state["spot_symbols_resolved"] = _state.get("spot_symbols_resolved", 0) + resolved
+            except Exception as e:
+                logger.debug("[massive-ws] spot fetch failed: %s", e)
+                # Re-clear seen so the next flush can re-queue these
+                _spot_fetch_seen.difference_update(batch)
+
+    async def oi_fetch_manager():
+        """Phase 2f: drain the on-demand OI fetch queue every 20 seconds.
+
+        Calls Schwab in batches of up to 200 contracts per call. Persists
+        results to contract_oi_snapshots with source='ondemand-schwab' so
+        subsequent event batches pick them up via Stage 1 (DB cache).
+
+        20-second cadence is a compromise:
+        - Faster (e.g., 5s) -- more Schwab calls but contracts get OI sooner
+        - Slower (e.g., 60s) -- fewer calls but multi-fire contracts miss OI
+          on their first 2-3 fires.
+
+        20s catches the typical re-fire pattern (an active contract emits
+        events every few seconds during heavy flow) within 1-2 fires.
+        """
+        from datetime import date
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=20.0)
+            except asyncio.TimeoutError:
+                pass
+            if not _oi_fetch_queue:
+                continue
+            # Snapshot and clear the queue
+            batch = _oi_fetch_queue[:]
+            _oi_fetch_queue.clear()
+            _state["oi_fetch_queue_size"] = 0
+            # Cap to 200 per Schwab call. Anything over goes back to the
+            # queue for the next 20s cycle.
+            if len(batch) > 200:
+                overflow = batch[200:]
+                batch = batch[:200]
+                _oi_fetch_queue.extend(overflow)
+                _state["oi_fetch_queue_size"] = len(overflow)
+            try:
+                from api.oi_snapshots import _fetch_oi_all_async, record_batch
+                results = await _fetch_oi_all_async(batch)
+            except Exception as e:
+                logger.warning("[massive-ws] on-demand OI batch failed: %s", e)
+                # On failure, leave _oi_fetch_seen as-is so we don't retry
+                # these contracts in a tight loop. Next session start clears
+                # the dedup set.
+                continue
+            resolved = [(ck, oi, "ondemand-schwab")
+                        for ck, oi in results if oi is not None and oi > 0]
+            unresolved = sum(1 for _, oi in results if oi is None or oi == 0)
+            today_iso = date.today().isoformat()
+            if resolved:
+                try:
+                    record_batch(resolved, today_iso)
+                except Exception as e:
+                    logger.warning(
+                        "[massive-ws] OI snapshot persist failed: %s", e
+                    )
+            _state["oi_fetch_batches_sent"] += 1
+            _state["oi_fetch_contracts_resolved"] += len(resolved)
+            _state["oi_fetch_contracts_unresolved"] += unresolved
+            logger.info(
+                "[massive-ws] on-demand OI batch: %d contracts -> "
+                "%d resolved, %d no-data",
+                len(batch), len(resolved), unresolved
+            )
+
     flusher_task = asyncio.create_task(flusher())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
+    oi_mgr_task = asyncio.create_task(oi_fetch_manager())
+    spot_mgr_task = asyncio.create_task(spot_fetch_manager())
 
     try:
         async for msg in ws:
@@ -1022,6 +1464,14 @@ async def _run_session(ws):
             pass
         try:
             await q_mgr_task
+        except Exception:
+            pass
+        try:
+            await oi_mgr_task
+        except Exception:
+            pass
+        try:
+            await spot_mgr_task
         except Exception:
             pass
         # Final flush so we don't lose the last few seconds on disconnect
