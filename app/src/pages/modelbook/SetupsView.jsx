@@ -535,14 +535,19 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)
-  // Setup and Result share ONE annotation set (drawings_json). The author draws
-  // once on the Setup; those labels carry straight into the Result view and
-  // auto-reflow (declutter) as the chart zooms out so they never pile onto the
-  // candles or each other. `view` now only drives the candle FRAME (entry/exit
-  // dates) — not which annotations show. (Legacy result_drawings_json is left in
-  // the DB but no longer read, per the carry-over design.)
+  // Setup vs Result get SEPARATE annotation sets (drawings_json vs
+  // result_drawings_json). `view` is the live toggle; `shownView` lags it so the
+  // outgoing set fades out before the incoming one fades in (a crossfade rather
+  // than a swap). Editing targets the live view's set.
   const [view, setView] = useState('setup')
-  const activeField = 'drawings_json'
+  const [shownView, setShownView] = useState('setup')
+  const activeField = view === 'result' ? 'result_drawings_json' : 'drawings_json'
+  useEffect(() => {
+    if (annotating) { setShownView(view); return }
+    if (shownView === view) return
+    const t = setTimeout(() => setShownView(view), 280)
+    return () => clearTimeout(t)
+  }, [view, annotating, shownView])
   // Inline header "advance" blurb (e.g. "160% in 26 days"), admin-editable.
   const [advance, setAdvance] = useState(ex.advance_note || '')
   useEffect(() => { setAdvance(ex.advance_note || '') }, [ex.advance_note])
@@ -583,8 +588,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     patchExample({ watermark_x: x, watermark_y: y })
   }
   const drawings = useMemo(
-    () => boundHrays(parseDrawings(ex.drawings_json), ex.label_date),
-    [ex.drawings_json, ex.label_date],
+    () => boundHrays(parseDrawings(shownView === 'result' ? ex.result_drawings_json : ex.drawings_json), ex.label_date),
+    [ex.drawings_json, ex.result_drawings_json, shownView, ex.label_date],
   )
   const priceLines = useMemo(() => {
     const lines = []
@@ -611,7 +616,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   }, [view, ex.label_date, ex.frame_start_date, ex.result_start_date, ex.result_end_date, ex.year])
 
   function startAnnotate() {
-    setDraft(parseDrawings(ex.drawings_json))
+    setDraft(parseDrawings(view === 'result' ? ex.result_drawings_json : ex.drawings_json))
     setAnnotating(true)
   }
   async function saveAnnotations() {
@@ -791,8 +796,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotations={annotating ? draft : (drawings.length ? drawings : null)}
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
-          annotationsTextVisible={true}
-          annotationsFadeWhole={false}
+          annotationsTextVisible={annotating || shownView === view}
+          annotationsFadeWhole={!annotating}
           candleFrameFade={!annotating}
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}

@@ -517,7 +517,7 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   // vertical motion reads uniform on a log axis.
   const logLerp = (a, b, e) => Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * e)
   const t0 = performance.now()
-  const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)  // easeInOutCubic — softer accel/decel than sine for a smoother glide
+  const ease = x => -(Math.cos(Math.PI * x) - 1) / 2   // easeInOutSine
   const step = (now) => {
     const p = Math.min(1, (now - t0) / duration)
     const e = ease(p)
@@ -1103,7 +1103,6 @@ export default function StockChart({
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
   const exactPinSigRef = useRef(null)     // `${sym}_${tf}|${entryDate}|${exitDate}` last pinned exact-range frame — a same-chart date change (Setup ⇄ Result flip) glides instead of snapping
-  const annGlideRef = useRef(false)       // true ONLY during a Setup⇄Result glide — tells the annotation overlay to GPU-transform (follow the chart) instead of redrawing every frame, so the transition stays buttery
   const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
@@ -2200,11 +2199,8 @@ export default function StockChart({
     const fadeIn = String(exitDate ?? '') > String(prev ?? '')   // window grew → reveal the result run
     const from = fadeIn ? 0 : 1, to = fadeIn ? 1 : 0
     if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current)
-    // Match the Setup⇄Result glide duration + easing exactly so the candles reveal
-    // in lockstep with the zoom (the fade used to finish ~180ms before the glide
-    // settled, popping the result candles to full opacity mid-zoom).
-    const t0 = performance.now(), dur = 1000
-    const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)  // easeInOutCubic
+    const t0 = performance.now(), dur = 720
+    const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
     const setA = v => { frameFadeAlphaRef.current = v; setFrameFadeAlpha(v) }
     const tick = (now) => {
       const p = Math.min(1, (now - t0) / dur)
@@ -4101,7 +4097,6 @@ export default function StockChart({
     if (focusKeyRef.current !== fk) {
       if (focusRafRef.current != null) { cancelAnimationFrame(focusRafRef.current); focusRafRef.current = null }  // a glide from the previous chart must not keep driving the new one
       focusActiveRef.current = false
-      annGlideRef.current = false        // a glide cancelled by a stock/tf switch never fires its onDone — clear here so the new chart's overlay isn't stuck in transform mode
       focusPriceRangeRef.current = null  // drop any in-flight focus vertical so the new chart autoscales cleanly
       focusRangeRef.current = null       // and its horizontal window so the year pin takes over
       focusKeyRef.current = fk
@@ -4232,11 +4227,9 @@ export default function StockChart({
       }
       focusActiveRef.current = true
       focusRangeRef.current = null
-      annGlideRef.current = true   // overlay rides a GPU transform for the duration (no per-frame redraw → no stutter)
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: fromIdx, to: endIdx + padRight }, 1000, () => {
+        { from: fromIdx, to: endIdx + padRight }, 900, () => {
           focusActiveRef.current = false
-          annGlideRef.current = false  // glide done → overlay snaps back to a crisp accurate redraw
           // Release a held wider slice (Result → Setup): the outgoing candles
           // are off-screen now, so the tail re-cut is invisible.
           if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
@@ -5988,7 +5981,6 @@ export default function StockChart({
             hidePriceLabels
             textFadeRef={annotationsEditable ? null : textFadeRef}
             fadeWholeLayer={!annotationsEditable && annotationsFadeWhole}
-            transitionRef={annotationsEditable ? null : annGlideRef}
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}
