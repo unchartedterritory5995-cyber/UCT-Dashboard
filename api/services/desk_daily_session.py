@@ -21,6 +21,28 @@ def _category() -> str:
     return os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Live Trading Sessions")
 
 
+# Route a recording to its Desk destination by the Zoom webinar name (topic).
+# Each rule: (keyword matched in the topic, lowercased) -> (section, title prefix,
+# thumbnail eyebrow). First match wins; an unmatched named topic auto-derives
+# everything from the name itself; an empty topic falls back to the default type.
+_RULES = [
+    ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
+]
+_DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+
+def _route(topic: str | None) -> tuple[str, str, str]:
+    """(section, title_prefix, eyebrow_label) for a recording's webinar name."""
+    t = (topic or "").strip()
+    low = t.lower()
+    for kw, section, prefix, eyebrow in _RULES:
+        if kw in low:
+            return section, prefix, eyebrow
+    if not t:
+        return _DEFAULT_ROUTE
+    return t, t, t.upper()        # auto: the name IS the section + title + eyebrow
+
+
 def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> datetime:
     if not started_at_iso:
         return now or datetime.now(_ET)
@@ -182,7 +204,9 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
         if not job:
             break
         uuid = job["meeting_uuid"]
-        title = _session_title(job.get("start_time"))
+        section, title_prefix, eyebrow = _route(job.get("topic"))
+        date_text = _session_date_text(job.get("start_time"))
+        title = f"{title_prefix} — {date_text}"
         vid = (job.get("youtube_id") or "").strip()
         tmp = None
         try:
@@ -194,14 +218,14 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 try:  # branded thumbnail — cosmetic, NEVER fail publish over it
                     from api.services.desk_thumbnail import render_session_thumbnail
                     youtube.set_thumbnail(
-                        vid, render_session_thumbnail(_session_date_text(job.get("start_time"))))
+                        vid, render_session_thumbnail(date_text, eyebrow_label=eyebrow))
                 except Exception as te:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
             created_now = vid not in education_service.existing_youtube_ids()
             if created_now:
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
-                    "category": _category(), "sort_order": 0})
+                    "category": section, "sort_order": 0})
             try:
                 zoom.delete_recording(uuid)
             except Exception:

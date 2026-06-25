@@ -18,3 +18,9 @@ def test_render_handles_any_date_text():
     # Long month name still renders without raising.
     data = t.render_session_thumbnail("September 30, 2026")
     assert Image.open(io.BytesIO(data)).size == (1280, 720)
+
+
+def test_render_uses_custom_eyebrow():
+    # different session type renders without error at the right size
+    data = t.render_session_thumbnail("June 24, 2026", eyebrow_label="POST MARKET RECAP")
+    assert Image.open(io.BytesIO(data)).size == (1280, 720)

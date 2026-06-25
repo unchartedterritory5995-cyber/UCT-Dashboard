@@ -124,7 +124,7 @@ def test_publish_respects_start_date_env(edu_db, monkeypatch):
 def test_safety_net_stuck_queue_fires_stuck_alert(edu_db, jobs_db, monkeypatch):
     fired = []
     monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append(kw.get("kind", "missing")))
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     jobs_db.claim_next()  # leave it in 'processing' -> stuck
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
     assert dds.check_missing_session_alert(now=wed, publish=False) is True
@@ -170,7 +170,7 @@ def jobs_db(monkeypatch):
 
 
 def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     z = _FakeZoom(); yt = _FakeYT()
     out = dds.process_pending_jobs(zoom=z, youtube=yt)
     assert len(out) == 1
@@ -182,7 +182,7 @@ def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
 
 
 def test_thumbnail_failure_is_nonfatal(edu_db, jobs_db):
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     class _ThumbBoomYT(_FakeYT):
         def set_thumbnail(self, video_id, image_bytes):
             raise RuntimeError("thumbnail boom")
@@ -195,14 +195,14 @@ def test_thumbnail_failure_is_nonfatal(edu_db, jobs_db):
 
 def test_process_idempotent_on_existing_video(edu_db, jobs_db):
     edu.create_video({"youtube_id": "VIDX", "title": "x", "category": "Live Trading Sessions", "sort_order": 0})
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     assert len([v for v in edu.list_videos() if v["youtube_id"] == "VIDX"]) == 1
 
 
 def test_process_marks_error_on_upload_failure(edu_db, jobs_db, monkeypatch):
     monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     class _BoomYT:
         def upload_unlisted(self, *a, **k): raise RuntimeError("upload boom")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_BoomYT())
@@ -213,7 +213,7 @@ def test_process_marks_error_on_upload_failure(edu_db, jobs_db, monkeypatch):
 def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeypatch):
     from api.services import desk_session_jobs as q2
     monkeypatch.setattr(q2, "_STALE_SECS", -1)  # cutoff = now+1 -> row is always stale/reclaimable
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     jobs_db.claim_next(); jobs_db.mark_uploaded("U1", "VIDZ")  # simulate prior successful upload
     class _BoomZoom:
         def stream_download(self, *a, **k): raise AssertionError("should not download")
@@ -229,7 +229,7 @@ def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeyp
 def test_process_notifies_on_new_publish(edu_db, jobs_db, monkeypatch):
     calls = []
     monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append((title, vid)))
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     assert calls == [("Live Trading Session — June 24, 2026", "VIDX")]
 
@@ -239,6 +239,24 @@ def test_process_does_not_notify_on_idempotent_rerun(edu_db, jobs_db, monkeypatc
     monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append(vid))
     edu.create_video({"youtube_id": "VIDX", "title": "x",
                       "category": "Live Trading Sessions", "sort_order": 0})
-    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     assert calls == []   # video already existed -> no duplicate alert
+
+
+def test_route_known_auto_and_default():
+    assert dds._route("live trading today") == (
+        "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+    assert dds._route("Post Market Recap") == (
+        "Post Market Recap", "Post Market Recap", "POST MARKET RECAP")
+    assert dds._route("Thoughts on Current Market") == (
+        "Thoughts on Current Market", "Thoughts on Current Market", "THOUGHTS ON CURRENT MARKET")
+    assert dds._route("") == ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+
+def test_process_routes_by_webinar_name(edu_db, jobs_db):
+    jobs_db.enqueue("U2", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    v = edu.list_videos()[0]
+    assert v["title"] == "Post Market Recap — June 24, 2026"
+    assert v["category"] == "Post Market Recap"
