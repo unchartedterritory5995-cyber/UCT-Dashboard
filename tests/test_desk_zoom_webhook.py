@@ -30,16 +30,21 @@ def test_url_validation_returns_encrypted_token(client):
     assert r.json() == {"plainToken": "abc", "encryptedToken": expect}
 
 def test_recording_completed_enqueues(client):
-    body = {"event": "recording.completed", "payload": {"object": {
-        "uuid": "U1", "topic": "Live Trading", "start_time": "2026-06-24T13:30:00Z",
-        "recording_files": [{"file_type": "MP4", "download_url": "http://dl/1"}]},
-        "download_token": "TOK"}}
+    # Zoom sends download_token at the TOP LEVEL of the event body (sibling of payload).
+    body = {"event": "recording.completed",
+            "download_token": "TOK",
+            "payload": {"object": {
+                "uuid": "U1", "topic": "Live Trading", "start_time": "2026-06-24T13:30:00Z",
+                "recording_files": [{"file_type": "MP4", "download_url": "http://dl/1"}]}}}
     raw = json.dumps(body)
     r = client.post("/api/desk/zoom-webhook", content=raw,
                     headers={"x-zm-request-timestamp": "2", "x-zm-signature": _sig("2", raw),
                              "content-type": "application/json"})
     assert r.status_code == 200
     assert q.count_status("pending") == 1
+    job = q.list_recent(1)[0]
+    assert job["download_token"] == "TOK"       # captured from the top level
+    assert job["download_url"] == "http://dl/1"
 
 def test_bad_signature_rejected(client):
     raw = json.dumps({"event": "recording.completed", "payload": {}})

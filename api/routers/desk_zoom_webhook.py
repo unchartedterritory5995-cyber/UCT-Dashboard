@@ -51,11 +51,14 @@ async def zoom_webhook(request: Request):
         obj = payload.get("object") or {}
         uuid = obj.get("uuid")
         url = _first_mp4_url(obj)
+        # Zoom puts download_token at the TOP LEVEL of the event body (sibling of
+        # `payload`), NOT inside payload. Read top-level first, fall back for safety.
+        dtoken = data.get("download_token") or payload.get("download_token") or ""
         if uuid and url:
             try:
                 desk_session_jobs.enqueue(
                     uuid, obj.get("topic", ""), obj.get("start_time", ""),
-                    url, payload.get("download_token", ""))
+                    url, dtoken)
             except Exception:
                 pass  # never fail the webhook; processor/safety-net recovers
         return {"ok": True}
