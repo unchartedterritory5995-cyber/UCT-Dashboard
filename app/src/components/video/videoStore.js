@@ -69,14 +69,15 @@ export function setPlaying(b) {
   set({ playing: !!b })
 }
 
-// The Desk theater slot mounted → record its rect and (re)dock there.
+// The Desk theater slot reported its rect → just record where to dock. Does
+// NOT change mode: re-docking is an explicit user action (expand()), so a video
+// the user parked in the corner stays there even while the Desk is on screen.
 export function registerDockSlot(rect) {
-  const patch = { dockRect: rect }
-  if (state.mode === 'mini') patch.mode = 'docked'
-  set(patch)
+  set({ dockRect: rect })
 }
 
-// The slot unmounted (user navigated away) → float as mini.
+// Leaving the docked theater (navigated away OR intentionally minimized) →
+// float as mini and drop the stale rect.
 export function clearDockSlot() {
   const patch = { dockRect: null }
   if (state.mode === 'docked') patch.mode = 'mini'

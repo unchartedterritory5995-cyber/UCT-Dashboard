@@ -1,6 +1,72 @@
 .theater {
   margin: 0 0 18px;
 }
+
+/* Slim "playing in mini-player" strip shown on the Desk while the user has
+   parked the video in the corner. One click restores the full theater. */
+.restoreStrip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 12px;
+  background: rgba(201, 168, 76, 0.08);
+  cursor: pointer;
+  text-align: left;
+}
+.restoreStrip:hover {
+  background: rgba(201, 168, 76, 0.14);
+}
+.restoreThumbWrap {
+  flex: 0 0 auto;
+  width: 88px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.restoreThumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.restoreText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.restoreEyebrow {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c9a84c;
+}
+.restoreTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #f3efe2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.restoreCta {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0e0f0d;
+  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+@media (max-width: 640px) {
+  .restoreCta {
+    display: none;
+  }
+}
 .dockBox {
   width: 100%;
   aspect-ratio: 16 / 9;

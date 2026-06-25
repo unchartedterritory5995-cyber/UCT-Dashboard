@@ -39,13 +39,20 @@ describe('videoStore', () => {
     expect(v.getSnapshot().mode).toBe('docked')
   })
 
-  it('clearDockSlot auto-minimizes; registerDockSlot re-docks', () => {
+  it('clearDockSlot auto-minimizes and clears the rect', () => {
     v.play(LIST, 0)
+    v.registerDockSlot({ top: 0, left: 0, width: 640, height: 360 })
     v.clearDockSlot()
     expect(v.getSnapshot().mode).toBe('mini')
+    expect(v.getSnapshot().dockRect).toBeNull()
+  })
+
+  it('registerDockSlot records the rect without forcing a re-dock', () => {
+    v.play(LIST, 0)
+    v.minimize() // user intentionally parked it in the corner
     v.registerDockSlot({ top: 0, left: 0, width: 640, height: 360 })
     const s = v.getSnapshot()
-    expect(s.mode).toBe('docked')
+    expect(s.mode).toBe('mini') // stays mini — only expand() re-docks
     expect(s.dockRect.width).toBe(640)
   })
 

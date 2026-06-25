@@ -1,11 +1,16 @@
-// Placeholder the Desk Videos section renders where the "theater" lives. It
-// reserves a 16:9 box (the GlobalVideoLayer host overlays it) and reports that
-// box's rect to the store; on unmount (the user navigated away) it clears the
-// slot, which flips the store to the floating mini. Also renders the rich
-// browsing chrome — current title/description + Up-Next rail — that only makes
-// sense on the Desk.
+// Placeholder the Desk Videos section renders where the "theater" lives.
+//
+// When DOCKED, it reserves a 16:9 box (the GlobalVideoLayer host overlays it),
+// reports that box's rect to the store, and shows the rich browsing chrome
+// (title/description + Up-Next rail). Leaving the docked box — by navigating
+// away OR by the user intentionally minimizing — clears the slot, which floats
+// the player as a corner mini.
+//
+// When MINIMIZED (the user parked the player in the corner but is still on the
+// Desk), it shows a slim "restore to theater" strip instead of fighting the
+// user by yanking the video back into the theater.
 import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
-import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex } from './videoStore'
+import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand } from './videoStore'
 import styles from './VideoDockSlot.module.css'
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
@@ -14,6 +19,7 @@ export default function VideoDockSlot() {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const { list, index, mode } = snap
   const active = mode !== 'closed' && list.length > 0
+  const docked = mode === 'docked'
   const boxRef = useRef(null)
 
   const report = useCallback(() => {
@@ -23,8 +29,10 @@ export default function VideoDockSlot() {
     registerDockSlot({ top: r.top, left: r.left, width: r.width, height: r.height })
   }, [])
 
+  // Only track the rect while the theater box is on screen (docked). Leaving
+  // docked — minimize OR navigate-away (unmount) — runs the cleanup → clearDockSlot.
   useEffect(() => {
-    if (!active) return
+    if (!docked) return
     report()
     const onScrollOrResize = () => report()
     window.addEventListener('scroll', onScrollOrResize, true)
@@ -37,11 +45,28 @@ export default function VideoDockSlot() {
       if (ro) ro.disconnect()
       clearDockSlot()
     }
-  }, [active, report])
+  }, [docked, report])
 
   if (!active) return null
 
   const current = list[index]
+
+  // Minimized while still on the Desk → slim restore affordance, not the theater.
+  if (!docked) {
+    return (
+      <button className={styles.restoreStrip} onClick={() => expand()} aria-label="Restore to theater">
+        <span className={styles.restoreThumbWrap}>
+          <img className={styles.restoreThumb} src={thumb(current.youtube_id)} alt="" />
+        </span>
+        <span className={styles.restoreText}>
+          <span className={styles.restoreEyebrow}>Playing in mini-player</span>
+          <span className={styles.restoreTitle}>{current.title}</span>
+        </span>
+        <span className={styles.restoreCta}>Restore to theater</span>
+      </button>
+    )
+  }
+
   const upcoming = list.slice(index + 1)
 
   return (

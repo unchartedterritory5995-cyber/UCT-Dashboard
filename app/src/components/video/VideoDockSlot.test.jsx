@@ -16,13 +16,21 @@ describe('VideoDockSlot', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('registers a dock rect on mount and re-docks the store', () => {
+  it('renders the theater and registers a dock rect when docked', () => {
     act(() => store.play(LIST, 0))
-    act(() => { store.clearDockSlot() }) // simulate having been minimized
-    expect(store.getSnapshot().mode).toBe('mini')
     render(<VideoDockSlot />)
-    expect(store.getSnapshot().mode).toBe('docked')
     expect(store.getSnapshot().dockRect).not.toBeNull()
+    expect(screen.getByText('Second Video')).toBeInTheDocument() // up-next rail
+  })
+
+  it('shows a restore strip (not the theater) when minimized, and Restore re-docks', () => {
+    act(() => store.play(LIST, 0))
+    act(() => store.minimize()) // user parked it in the corner
+    render(<VideoDockSlot />)
+    // the full theater up-next rail is not shown while minimized
+    expect(screen.queryByText('Second Video')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /restore to theater/i }))
+    expect(store.getSnapshot().mode).toBe('docked')
   })
 
   it('clears the dock rect (auto-mini) on unmount', () => {

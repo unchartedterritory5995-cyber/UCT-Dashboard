@@ -20,7 +20,8 @@ beforeEach(() => {
         this.pauseVideo = vi.fn()
         this.playVideo = vi.fn()
         this.destroy = vi.fn()
-        this.getCurrentTime = () => 0
+        this.seekTo = vi.fn()
+        this.getCurrentTime = () => 20
         this.getDuration = () => 0
         lastPlayer = this
       }
@@ -86,5 +87,19 @@ describe('GlobalVideoLayer', () => {
     expect(nearestCorner(10, 10, 1000, 800)).toBe('tl')
     expect(nearestCorner(990, 790, 1000, 800)).toBe('br')
     expect(nearestCorner(10, 790, 1000, 800)).toBe('bl')
+  })
+
+  it('skip-forward seeks 15s ahead of the current time', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0)) // stub getCurrentTime() = 20
+    fireEvent.click(screen.getByLabelText('Forward 15 seconds'))
+    expect(lastPlayer.seekTo).toHaveBeenCalledWith(35, true)
+  })
+
+  it('skip-back seeks 15s behind, clamped at 0', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0)) // stub getCurrentTime() = 20
+    fireEvent.click(screen.getByLabelText('Back 15 seconds'))
+    expect(lastPlayer.seekTo).toHaveBeenCalledWith(5, true)
   })
 })

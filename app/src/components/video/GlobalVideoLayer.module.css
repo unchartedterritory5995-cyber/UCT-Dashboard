@@ -48,7 +48,8 @@
   transition: opacity 0.18s ease;
 }
 .host:hover .controls,
-.mini .controls {
+.mini .controls,
+.docked .controls {
   opacity: 1;
 }
 .ctitle {

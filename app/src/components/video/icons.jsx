@@ -73,3 +73,25 @@ export function DragIcon({ size = 18 }) {
     </svg>
   )
 }
+
+// Rewind: a counter-clockwise arrow with a "15" label.
+export function SkipBackIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M12 7a6 6 0 1 0 6 6" stroke={GOLD} strokeWidth="1.7" strokeLinecap="round" fill="none" />
+      <path d="M12 3.5 8.5 7 12 10.5z" fill={GOLD} />
+      <text x="12.5" y="15.5" fontSize="7.5" fontWeight="700" textAnchor="middle" fill={GOLD}>15</text>
+    </svg>
+  )
+}
+
+// Fast-forward: a clockwise arrow with a "15" label.
+export function SkipFwdIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M12 7a6 6 0 1 1 -6 6" stroke={GOLD} strokeWidth="1.7" strokeLinecap="round" fill="none" />
+      <path d="M12 3.5 15.5 7 12 10.5z" fill={GOLD} />
+      <text x="11.5" y="15.5" fontSize="7.5" fontWeight="700" textAnchor="middle" fill={GOLD}>15</text>
+    </svg>
+  )
+}

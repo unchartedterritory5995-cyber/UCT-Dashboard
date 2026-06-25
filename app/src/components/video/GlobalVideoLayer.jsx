@@ -10,7 +10,7 @@ import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExp
 import { computeHostStyle, nearestCorner } from './hostStyle'
 import { pauseOtherAudio } from './audioExclusivity'
 import { PlayIcon } from '../../pages/education/icons'
-import { PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon } from './icons'
+import { PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon, SkipBackIcon, SkipFwdIcon } from './icons'
 import styles from './GlobalVideoLayer.module.css'
 
 const NEXT_COUNTDOWN = 6
@@ -171,6 +171,19 @@ export default function GlobalVideoLayer() {
     if (!p) return
     try { (isPlaying ? p.pauseVideo : p.playVideo).call(p) } catch { /* ignore */ }
   }
+  // Jump the playhead by `delta` seconds (negative = rewind), clamped to [0, duration].
+  const seekBy = (delta) => {
+    const p = playerRef.current
+    if (!p || !p.getCurrentTime || !p.seekTo) return
+    try {
+      const d = p.getDuration ? p.getDuration() : 0
+      let target = (p.getCurrentTime() || 0) + delta
+      if (target < 0) target = 0
+      if (d > 0 && target > d) target = d
+      p.seekTo(target, true)
+      saveNow()
+    } catch { /* ignore */ }
+  }
 
   return (
     <div
@@ -188,8 +201,14 @@ export default function GlobalVideoLayer() {
 
       <div className={styles.controls}>
         <span className={styles.ctitle}>{current.title}</span>
+        <button className={styles.cbtn} onClick={() => seekBy(-15)} aria-label="Back 15 seconds">
+          <SkipBackIcon />
+        </button>
         <button className={styles.cbtn} onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
           {isPlaying ? <PauseIcon /> : <PlayIcon size={18} />}
+        </button>
+        <button className={styles.cbtn} onClick={() => seekBy(15)} aria-label="Forward 15 seconds">
+          <SkipFwdIcon />
         </button>
         {upNext && (
           <button className={styles.cbtn} onClick={() => storeNext()} aria-label="Next video">
