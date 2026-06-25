@@ -1394,6 +1394,84 @@ async def _run_session(ws):
                     logger.warning(
                         "[massive-ws] OI snapshot persist failed: %s", e
                     )
+
+                # COLOR REFRESH: backfill Color on today's WHITE rows that
+                # were written before this OI was known. Without this, the
+                # first trade of the day on a previously-unsnapshotted
+                # contract stays WHITE forever, even though Phase 1 has now
+                # resolved its OI. This is the "OI race condition" -- worst
+                # case affects the 9:30-10:00 AM window when many contracts
+                # don't yet have snapshots.
+                #
+                # Logic: for each newly-resolved (sym, cp, strike, exp_mdy)
+                # contract, look up today's flow rows with Color='WHITE'.
+                # Sum their cumulative volume on this contract. If cum_vol
+                # exceeds OI thresholds, UPDATE Color on all matching rows.
+                try:
+                    import sqlite3
+                    from api.flow_db import FlowDB
+                    today_mdY = date.today().strftime("%-m/%-d/%Y") if hasattr(date.today(), 'strftime') else f"{date.today().month}/{date.today().day}/{date.today().year}"
+                    today_mdY = f"{date.today().month}/{date.today().day}/{date.today().year}"
+                    db = FlowDB()
+                    color_updated = 0
+                    with sqlite3.connect(db.db_path, timeout=10) as conn:
+                        for (sym, cp_letter, strike, exp_mdy), oi, _src in resolved:
+                            cp_full = 'CALL' if cp_letter == 'C' else 'PUT'
+                            # Try multiple strike string formats since BBS/Massive
+                            # may write as "200" or "200.0" or "200.5"
+                            strike_strs = []
+                            if strike == int(strike):
+                                strike_strs.append(str(int(strike)))
+                            strike_strs.append(str(float(strike)))
+                            strike_strs.append(f"{strike:.1f}")
+                            seen = set()
+                            strike_strs = [s for s in strike_strs if not (s in seen or seen.add(s))]
+
+                            for strike_str in strike_strs:
+                                # Sum cumulative volume across today's rows for this contract
+                                cur = conn.execute(
+                                    "SELECT COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
+                                    "FROM flow WHERE Symbol=? AND CallPut=? AND "
+                                    "Strike=? AND ExpirationDate=? AND CreatedDate=?",
+                                    (sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                )
+                                cum_vol = cur.fetchone()[0] or 0
+                                if cum_vol <= 0:
+                                    continue
+                                # Determine new Color based on cumulative volume vs OI
+                                new_color = None
+                                if cum_vol >= int(1.5 * oi):
+                                    new_color = 'MAGENTA'
+                                elif cum_vol > oi:
+                                    new_color = 'YELLOW'
+                                if not new_color:
+                                    continue
+                                # UPDATE all today's WHITE rows for this contract to the new color
+                                upd = conn.execute(
+                                    "UPDATE flow SET Color=? WHERE Symbol=? AND "
+                                    "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                                    "CreatedDate=? AND Color='WHITE'",
+                                    (new_color, sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                )
+                                color_updated += upd.rowcount
+                                # Also update OI on those rows where OI was '0'
+                                conn.execute(
+                                    "UPDATE flow SET OI=? WHERE Symbol=? AND "
+                                    "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                                    "CreatedDate=? AND (OI='0' OR OI='' OR OI IS NULL)",
+                                    (str(oi), sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                )
+                                break  # found the right strike format; stop trying alternatives
+                        conn.commit()
+                    if color_updated:
+                        logger.info(
+                            "[massive-ws] Color refresh: upgraded %d WHITE -> Y/M "
+                            "after OI backfill", color_updated
+                        )
+                    _state["color_refresh_rows_updated"] = _state.get("color_refresh_rows_updated", 0) + color_updated
+                except Exception as e:
+                    logger.warning("[massive-ws] Color refresh failed: %s", e)
+
             _state["oi_fetch_batches_sent"] += 1
             _state["oi_fetch_contracts_resolved"] += len(resolved)
             _state["oi_fetch_contracts_unresolved"] += unresolved
