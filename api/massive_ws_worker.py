@@ -723,23 +723,36 @@ def _load_er_flags(symbols: list) -> dict:
 
     # Query FlowDB for most recent ER value per symbol. ER comes in as 'T'
     # or 'F' (BBS uses single-char codes for boolean flags).
+    #
+    # We need the latest VALID (non-empty) value PER SYMBOL. Date ordering
+    # is tricky because CreatedDate is M/D/YYYY text not ISO. So we sort by
+    # parsing the date columns. SQLite doesn't have native date parsing for
+    # this format, but we can use date(substr(...)) tricks. Simpler approach:
+    # pull ALL valid-ER rows per symbol and do the date comparison in Python.
     try:
         import sqlite3
+        from datetime import datetime as _dt
         from api.flow_db import FlowDB
         db = FlowDB()
         with sqlite3.connect(db.db_path, timeout=10) as conn:
             placeholders = ",".join("?" for _ in to_fetch)
             sql = f"""
-                SELECT f.Symbol, f.ER FROM flow f
-                INNER JOIN (
-                    SELECT Symbol, MAX(rowid) AS max_rid FROM flow
-                    WHERE Symbol IN ({placeholders}) AND ER IS NOT NULL
-                      AND TRIM(ER) != ''
-                    GROUP BY Symbol
-                ) latest ON f.Symbol = latest.Symbol AND f.rowid = latest.max_rid
+                SELECT Symbol, ER, CreatedDate FROM flow
+                WHERE Symbol IN ({placeholders})
+                  AND ER IS NOT NULL AND TRIM(ER) != ''
             """
             cur = conn.execute(sql, to_fetch)
-            for sym, er in cur.fetchall():
+            # Group by symbol, pick the one with latest parsed date
+            by_sym = {}  # symbol -> (parsed_date, er_value)
+            for sym, er, created_date in cur.fetchall():
+                try:
+                    d = _dt.strptime(created_date, "%m/%d/%Y").date()
+                except (ValueError, TypeError):
+                    continue
+                existing = by_sym.get(sym)
+                if existing is None or d > existing[0]:
+                    by_sym[sym] = (d, er)
+            for sym, (_, er) in by_sym.items():
                 er_clean = (er or 'F').strip().upper()
                 er_val = 'T' if er_clean == 'T' else 'F'
                 out[sym] = er_val
