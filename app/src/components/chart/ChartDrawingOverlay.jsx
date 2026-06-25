@@ -652,12 +652,11 @@ export default function ChartDrawingOverlay({
   const lastRangeKeyRef = useRef('')
   const movingRef = useRef(false)
   const settleTimerRef = useRef(null)
-  // Setup⇄Result transition: while transitionRef is true we freeze the canvas
-  // bitmap and ride a CSS transform that maps the START frame's coordinates to the
-  // current frame's, sampled live from the chart. xfRef holds the reference anchors
-  // captured the moment the glide began.
+  // Setup⇄Result transition: while transitionRef is true we fade the annotation
+  // layer out (xfHidden) and skip redraws, then redraw crisp + fade back in on
+  // settle. xfActiveRef mirrors xfHidden for the synchronous rAF/redraw guards.
   const xfActiveRef = useRef(false)
-  const xfRef = useRef(null)
+  const [xfHidden, setXfHidden] = useState(false)
 
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
@@ -939,48 +938,24 @@ export default function ChartDrawingOverlay({
         }
       }
 
-      // ── Setup⇄Result glide: GPU-transform the frozen bitmap, don't redraw ──
-      // Redrawing the whole carried-over annotation set every frame is what made
-      // the transition stutter. Instead we freeze the canvas at the start frame and
-      // ride a translate+scale that maps the start coordinate mapping → the current
-      // one (sampled from two logical indices + two prices — exact on the arithmetic
-      // scale Setup Library uses). Lines track perfectly; text rides along + crisps
-      // up on the settle redraw.
-      const canvas = canvasRef.current
-      if (transitionRef?.current && chart && series && canvas) {
-        try {
-          const ts = chart.timeScale()
-          const xA = ts.logicalToCoordinate(0), xB = ts.logicalToCoordinate(100)
-          const yA = series.priceToCoordinate(1), yB = series.priceToCoordinate(100)
-          if (xA != null && xB != null && yA != null && yB != null) {
-            if (!xfActiveRef.current) {
-              redrawRef.current?.()                 // canvas now holds the start frame
-              xfRef.current = { xA, xB, yA, yB }     // …captured at the same mapping
-              xfActiveRef.current = true
-              canvas.style.transformOrigin = '0 0'
-              canvas.style.willChange = 'transform'
-            } else {
-              const r = xfRef.current
-              if (r && Math.abs(r.xB - r.xA) > 0.01 && Math.abs(r.yB - r.yA) > 0.01) {
-                const sx = (xB - xA) / (r.xB - r.xA)
-                const sy = (yB - yA) / (r.yB - r.yA)
-                const tx = xA - sx * r.xA
-                const ty = yA - sy * r.yA
-                canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`
-              }
-            }
-          }
-        } catch { /* chart torn down mid-frame */ }
+      // ── Setup⇄Result glide: fade the layer out, don't redraw ──
+      // The flip rescales anisotropically (time compresses, price expands ~6×), so
+      // there's no rigid transform that follows the candles without stretching the
+      // fixed-size text — and redrawing the whole carried-over set every frame is
+      // what stuttered (two big high-DPI canvases compositing at once). So we simply
+      // fade the annotations out as the glide starts and fade them back in, redrawn
+      // crisp at the settled frame. Matches the old buttery transition.
+      if (transitionRef?.current) {
+        if (!xfActiveRef.current) { xfActiveRef.current = true; setXfHidden(true) }
         raf = requestAnimationFrame(tick)
         return
       }
       if (xfActiveRef.current) {
-        // Glide ended → drop the transform and snap to a crisp, accurate redraw.
+        // Glide ended → redraw crisp at the settled frame, then fade back in.
         xfActiveRef.current = false
-        xfRef.current = null
-        if (canvas) { canvas.style.transform = ''; canvas.style.willChange = '' }
         lastKey = ''
         redrawRef.current?.()
+        setXfHidden(false)
       }
 
       if (chart) {
@@ -1016,10 +991,9 @@ export default function ChartDrawingOverlay({
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // While a Setup⇄Result glide rides the CSS transform, never clear/redraw the
-    // frozen bitmap (a stray redraw would wipe it mid-transition). The glide's
-    // enter step redraws once BEFORE flipping this on; the exit step flips it off
-    // first, then redraws crisp.
+    // While a Setup⇄Result glide is fading the layer out, skip redraws entirely
+    // (the layer is hidden). The glide's exit step flips this off first, then
+    // redraws crisp before fading back in.
     if (xfActiveRef.current) return
     const ctx = canvas.getContext('2d')
     const dpr = window.devicePixelRatio || 1
@@ -1642,6 +1616,10 @@ export default function ChartDrawingOverlay({
           touchAction: canvasTouchAction,
           cursor: canvasCursor,
           zIndex: 4,
+          // Setup⇄Result glide fades the layer out (then a crisp redraw fades it
+          // back in at the settled frame) — keeps the zoom buttery + unstretched.
+          opacity: xfHidden ? 0 : 1,
+          transition: 'opacity 150ms ease',
         }}
         onPointerDown={(e) => { setCtxMenu(null); handlePointerDown(e) }}
         onPointerMove={handlePointerMove}
