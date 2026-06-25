@@ -1,175 +1,179 @@
-# The Desk — Daily Sessions Auto-Publish (Zoom → YouTube → The Desk)
+# The Desk — Daily Sessions Auto-Publish (Zoom Cloud Record → YouTube → The Desk)
 
 **Date:** 2026-06-24
-**Status:** Design approved (pending spec review)
+**Status:** v2 — capture method pivoted to Zoom cloud auto-record (supersedes the v1 YouTube-live-poll design below)
 **Author:** Claude + Patrick
 
 ## Problem
 
-UCT runs a live Zoom **webinar** every weekday. The recording should land in **The
-Desk → Videos** automatically, titled with the day's date (e.g. *"Daily Session —
-June 24, 2026"*), with **zero per-session effort** and no risk of "forgetting."
+UCT runs a Zoom **webinar** every weekday — a **new, paywalled link each day**, scheduled
+from a template (NOT a recurring webinar). The recording must land in **The Desk →
+Videos** automatically, titled with the day's date (e.g. *"Daily Session — June 24,
+2026"*), with **zero per-session effort** and no risk of "forgetting."
 
-## Approach (chosen)
+## Approach (v2, chosen)
 
-**Zoom Webinar → live-streams to YouTube (unlisted) → engine detects the new
-video → auto-publishes a Desk Videos record.**
+**Zoom webinar auto-records to cloud → Zoom fires a `recording.completed` webhook →
+engine downloads the recording → uploads to YouTube (unlisted) → publishes a dated
+Desk Videos record → deletes the recording from Zoom cloud.**
 
-The video never touches our servers. No download, no re-upload, no storage cap, no
-heavy-file processing on the web pod. The capture side is **pure account
-configuration** (no code); the only net-new code is a small detect-poll + publish
-job that mirrors the existing `ensure_default_videos()` / COT-self-heal patterns.
+Why this beats the v1 "live-stream to YouTube" approach for THIS user:
+- **Truly zero-click capture.** Zoom **Automatic Cloud Recording** starts the instant
+  the host starts the webinar — no "Go Live" button. Zoom's auto-start for *custom
+  RTMP* live streaming is account-gated and unreliable, so v1 couldn't guarantee
+  hands-off. Auto cloud recording can.
+- **New link every day is invisible to the automation.** The webhook fires for *any*
+  recording on the account, regardless of the (fresh, paywalled) webinar link — so a
+  template-scheduled new webinar each day "just works." A recurring webinar is not
+  required.
+- **Permanent hosting + no storage cap.** Re-hosting on YouTube unlisted reuses the
+  existing Desk player and is free/unlimited; deleting the Zoom cloud copy after a
+  successful upload keeps us under Zoom's storage cap.
 
-### Why this over the alternatives
-
-| Approach | Verdict |
-|---|---|
-| Zoom **Cloud Recording** + webhook → download → re-upload to YouTube | Works, but heavy: video download + chunked re-upload on our infra (memory/segfault risk per `project_worker_segfault_2026_06_10`), Zoom storage cap, webhook signature handling. Rejected. |
-| Keep the **Zoom share link** in The Desk | Simplest, but Zoom cloud storage cap (~5GB Pro) purges old recordings → links rot in a growing daily library. Rejected. |
-| **Zoom live-stream → YouTube unlisted** (this design) | Zero per-session effort (Zoom auto-start), permanent free hosting, reuses the existing Desk YouTube player, no video on our infra. **Chosen.** |
-
-Confirmed mechanics:
-- Zoom webinars support **custom live streaming with a persistent stream key + auto-start**
-  configured once at scheduling — the host never clicks "Go Live"
-  ([Zoom KB0064210](https://support.zoom.us/hc/en-us/articles/115001777826)).
-- Archived **unlisted** live broadcasts are listable via the authenticated YouTube Data API
-  `liveBroadcasts.list` (privacy can be unlisted; completed broadcasts persist when the stream
-  records) — so detection works for unlisted videos that the public RSS feed would hide
-  ([YouTube Live API](https://developers.google.com/youtube/v3/live/docs/liveBroadcasts/list)).
+Cost: the video now transits our infra (download + re-upload). We mitigate the
+memory/segfault risk (`project_worker_segfault_2026_06_10`) by **streaming the
+download to a temp file on disk** (never the whole file in RAM) and using **YouTube
+resumable chunked upload** read from that file. Processing runs as a **background job
+off the web request path**, one recording at a time.
 
 ## Architecture
 
-Three units, each independently testable:
+Five units, each independently testable:
 
 ### 1. Capture (configuration only — no code)
-Zoom Webinar → Custom Live Streaming Service → persistent YouTube stream key/URL →
-**auto-start enabled**. YouTube persistent stream default privacy = **unlisted**.
-Every weekday the webinar auto-broadcasts and YouTube auto-archives it as an
-unlisted video. Covered in detail in the **Setup Walkthrough** section below.
+Zoom account: **Settings → Recording → Automatic recording → Record to the cloud** ON.
+A **webinar template** ("Daily Session") with auto-record-to-cloud baked in; the
+operator schedules a new webinar from it each day (fresh paywalled link). Detailed in
+the **Setup Walkthrough**.
 
-### 2. Detect (new service: `api/services/desk_daily_session.py`)
-A poll, run on an interval through the day (and self-heal on Desk visits), that:
-1. Calls YouTube Data API `liveBroadcasts.list` (`mine=true`, `broadcastStatus=completed`,
-   `part=snippet,status,contentDetails`) using a stored UCT YouTube **OAuth refresh token**.
-2. Filters to broadcasts whose archived video we haven't published yet
-   (`youtube_id not in existing_youtube_ids()`), newer than the last-seen marker.
-3. For each new one, hands the `videoId` + actual session date to the publish step.
+### 2. Webhook receiver (`api/routers/desk_zoom_webhook.py`)
+`POST /api/desk/zoom-webhook` — thin, lives on the web pod:
+- **URL validation:** on Zoom's `endpoint.url_validation` event, respond with
+  `{plainToken, encryptedToken}` where `encryptedToken = HMAC-SHA256(plainToken, ZOOM_WEBHOOK_SECRET_TOKEN)` (hex). Required to verify the endpoint in Zoom.
+- **Signature check:** verify the `x-zm-signature` header
+  (`v0=HMAC-SHA256("v0:{x-zm-request-timestamp}:{raw_body}", secret)`) on every event;
+  reject mismatches with 401.
+- On `recording.completed`, extract `{meeting_uuid, topic, start_time, download_url(s),
+  download_token}` and **enqueue** a job row (status `pending`) into a small SQLite
+  queue on `/data`. Return 200 immediately. Never download in the request.
 
-**Why poll, not webhook:** unlisted videos don't reliably appear in YouTube's public
-WebSub/RSS feed, and we already know the session cadence. An interval poll that
-dedupes by `videoId` is robust to a drifting webinar time or a session that runs long.
+### 3. Zoom client (`api/services/zoom_client.py`, raw httpx)
+- **S2S OAuth:** `account_credentials` grant → access token (cached, refreshed on
+  expiry) from `ZOOM_S2S_ACCOUNT_ID` / `ZOOM_S2S_CLIENT_ID` / `ZOOM_S2S_CLIENT_SECRET`.
+- `stream_download(download_url, token, dest_path)` — `httpx.stream` the MP4 to a temp
+  file in chunks (never `.read()` the whole body).
+- `delete_recording(meeting_uuid)` — `DELETE /v2/meetings/{uuid}/recordings` (trash) so
+  the Zoom cloud copy doesn't accrue against the storage cap.
+- Structured errors (`ZoomAuthError`, `ZoomApiError`) so the worker can alert vs retry.
 
-### 3. Publish (into the existing `edu_videos` store)
-`create_video({...})` with:
-- `youtube_id` = the archived broadcast's video id
-- `title` = `"Daily Session — {Month D, YYYY}"` (date from the broadcast's actual start time, ET)
-- `category` = `"Daily Sessions"` (new dedicated section in The Desk → Videos)
-- `description` = optional short default
-- `sort_order` = 0
+### 4. YouTube uploader (extend `api/services/youtube_client.py`)
+- Keep the existing OAuth token refresh, but the credential now needs the
+  **`youtube.upload`** scope (v1 used read-only `youtube.readonly`).
+- `upload_unlisted(file_path, title, description="") -> str` — resumable upload
+  (`uploads?uploadType=resumable`), `status.privacyStatus="unlisted"`, reading the file
+  in chunks from disk. Returns the new `videoId`.
+- (The v1 `list_completed_broadcasts` read-poll is no longer used; leave it or remove
+  it in the plan's cleanup step.)
 
-**Idempotent** by `youtube_id` (same guard `ensure_default_videos()` uses) — re-runs
-never duplicate. The existing `/api/education/*` endpoints + Desk Videos player render
-it with no frontend change beyond the new category appearing in the chips.
+### 5. Recording processor (`api/services/desk_daily_session.py`, extended)
+A background job (scheduler, web or worker pod) that drains the queue one row at a time:
+1. Claim the oldest `pending` job (mark `processing`).
+2. `zoom_client.stream_download(...)` → temp file.
+3. `youtube_client.upload_unlisted(file, title=_session_title(start_time))` → `videoId`.
+4. `education_service.create_video({youtube_id, title, category="Daily Sessions", ...})`
+   — **idempotent** by both the Zoom `meeting_uuid` (queue PK) and `youtube_id`.
+5. `zoom_client.delete_recording(meeting_uuid)`; mark job `done`; delete temp file.
+6. On failure: mark `error` with the message; the EOD safety net surfaces it. Bounded
+   retries (e.g. 3) before giving up.
 
-### 4. Safety net — "don't forget"
-On a weekday, if no new Daily Sessions video has been published by an **end-of-day
-cutoff** (e.g. 6 PM ET), the engine alerts the owner (Discord webhook / existing alert
-channel), mirroring the holiday-guard pattern (`lesson_scheduled_jobs_holiday_guard`).
-With auto-start configured, forgetting is essentially impossible; this catches the
-rare case where auto-start hiccupped or the webinar didn't run. Weekday-gated, and
-data-driven (checks whether today's video exists before alerting).
+`_session_title()` (date → `Daily Session — {Month} {D}, {YYYY}` ET) is **unchanged**
+from v1 and reused. The publish-into-`edu_videos` step is **unchanged** in spirit.
+
+### 6. End-of-day safety net (reuse v1, retarget)
+Weekday EOD: if no `Daily Session — {today}` row exists in The Desk, alert the owner
+(Discord). Now also distinguishes a **stuck queue / Zoom-or-YouTube auth failure** from
+a genuinely-absent session (different alert text), since those are the realistic failure
+modes. Weekday-gated, data-driven.
 
 ## Data model
 
-No new table. Reuses `edu_videos` (`api/services/education_service.py`). One new
-**category value** `"Daily Sessions"`. A tiny bit of poll state (last-seen broadcast
-id / last-run timestamp) lives in a flag file on the `/data` volume or a 1-row helper
-table — matching how COT/catalyst self-heal track `_LAST_AUTO_REFRESH_AT`.
+- Reuse `edu_videos` (`education_service`) for the published record — no new video table.
+- **New tiny queue table** (`desk_session_jobs` on `/data`, own SQLite or a table in an
+  existing dashboard DB): `meeting_uuid PK, topic, start_time, download_url,
+  download_token, status(pending|processing|done|error), youtube_id, attempts, error,
+  created_at, updated_at`. PK on `meeting_uuid` gives idempotency against duplicate
+  webhooks. Tiny, mirrors the cot.db/catalysts.db local-SQLite pattern.
 
-## Scheduling
+## Environment / secrets (web pod)
 
-APScheduler block in `api/main.py` next to COT / Twitter / Catalyst, gated by a new
-env flag (e.g. `DESK_DAILY_SESSION_ENABLED=1`):
-- **Detect poll:** every ~30 min during a weekday window after the session (interval,
-  not a single fixed time — robust to time drift).
-- **Safety-net check:** once at the EOD cutoff (weekday).
-- **Request-driven self-heal:** a Desk Videos load can trigger a debounced poll
-  (30-min cooldown), same idiom as COT `get_status()`.
-
-## Environment / secrets
-
-- `YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`, `YT_OAUTH_REFRESH_TOKEN` — a UCT
-  Google Cloud OAuth client + a long-lived refresh token for the channel that owns the
-  stream (read-only `youtube.readonly` scope is enough for `liveBroadcasts.list`).
+- `ZOOM_S2S_ACCOUNT_ID`, `ZOOM_S2S_CLIENT_ID`, `ZOOM_S2S_CLIENT_SECRET` — Zoom
+  Server-to-Server OAuth app (scopes: `cloud_recording:read:list_account_recordings:admin`
+  + recording read/download + `cloud_recording:delete...` — exact scope names finalized
+  during setup).
+- `ZOOM_WEBHOOK_SECRET_TOKEN` — for URL validation + signature verification.
+- `YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`, `YT_OAUTH_REFRESH_TOKEN` — now minted
+  with the **`youtube.upload`** scope.
 - `DESK_DAILY_SESSION_ENABLED=1` — master switch (inert when unset).
 - Optional: `DESK_DAILY_SESSION_CATEGORY` (default `"Daily Sessions"`),
-  `DESK_DAILY_SESSION_EOD_CUTOFF_ET` (default `18:00`).
-
-Stored in Railway web-pod env (the web pod owns `education.db`), staged via
-`railway variables --set` then `railway redeploy --service web`.
+  `DESK_DAILY_SESSION_MAX_ATTEMPTS` (default 3).
 
 ## Error handling
 
-- YouTube API failure → log + retry next interval; never crash the scheduler tick
-  (same defensive posture as `tweet_poller`).
-- Auth/refresh-token expiry → structured error + owner alert (so a silent stall is
-  visible), don't loop.
-- Publish failure → leave the video unpublished so the next poll retries (idempotent).
-- Holiday / no-session day → safety net is weekday-gated and data-driven, so it won't
-  cry wolf, but also won't publish a phantom.
+- Webhook: bad signature → 401; unknown event → 200 ignore; always 200 fast on accepted
+  events (Zoom retries non-2xx, so never do slow work inline).
+- Download/upload/delete failures → job `error` + bounded retry; EOD safety net alerts.
+- Zoom or YouTube auth failure → distinct owner alert (token expired / quota), not the
+  generic "webinar didn't run."
+- Idempotent: re-delivered webhook for the same `meeting_uuid` → no duplicate (queue PK);
+  re-run after a partial failure resumes without a duplicate Desk row (youtube_id guard).
+- Temp files always cleaned up (success or failure).
 
 ## Testing
 
-- **Detect:** unit-test the `liveBroadcasts.list` response parser with fixtures
-  (completed unlisted broadcast → `videoId` + date; already-published → skipped;
-  empty → no-op).
-- **Publish:** idempotency (same `videoId` twice → one row), correct dated title,
-  correct category — against a temp `education.db` (mirrors `test_education.py`).
-- **Safety net:** weekday + no-video → alert fires; video present → silent; weekend →
-  silent.
-- No live YouTube calls in tests (inject a fake client).
+- **Webhook:** URL-validation HMAC response correct; signature accept/reject; a
+  `recording.completed` event enqueues exactly one job; duplicate delivery → still one.
+- **Zoom client:** token refresh (monkeypatched httpx); `stream_download` writes the
+  body to disk in chunks (fake stream); delete calls the right endpoint.
+- **YouTube uploader:** resumable upload happy path returns the videoId (monkeypatched);
+  auth/quota error surfaces `YouTubeApiError`.
+- **Processor:** end-to-end with fakes — pending job → upload → `create_video` (dated
+  title, "Daily Sessions") → delete → `done`; idempotency (same uuid twice → one Desk
+  row); failure path marks `error` + cleans the temp file.
+- **Safety net:** weekday/absent → alert; present → silent; weekend → silent; stuck-queue
+  → distinct alert.
+- No live Zoom/YouTube calls in tests (inject fakes).
 
 ## Setup Walkthrough (one-time, human steps)
 
-This is the configuration that makes the daily stream happen — done once, then it
-runs itself. Delivered to the operator separately as a step-by-step; summarized here
-so the spec is self-contained.
+See the companion `…-SETUP-walkthrough.md` (being updated for v2). Summary:
+1. **YouTube:** channel with live/upload enabled; mint a YouTube OAuth refresh token with
+   the **upload** scope (OAuth Playground, Desktop client).
+2. **Zoom recording:** Settings → Recording → **Automatic recording → Record to the
+   cloud** ON.
+3. **Zoom template:** schedule a webinar with auto-record-to-cloud → **Save as Template**
+   ("Daily Session"). Daily: Schedule a Webinar → Use template → fresh paywalled link.
+4. **Zoom app:** create a **Server-to-Server OAuth** app (recording read/download/delete
+   scopes) → copy Account ID + Client ID + Client Secret. Add an **Event Subscription**
+   for `recording.completed` pointing at `https://uctintelligence.com/api/desk/zoom-webhook`
+   → copy the **Secret Token**.
+5. Hand Claude the Zoom + YouTube credentials; Claude stores them in Railway, verifies the
+   webhook validates, runs a test webinar.
 
-1. **YouTube channel** — use/create the UCT channel that will host the recordings.
-   In YouTube Studio, **enable live streaming** (one-time identity verification, can
-   take ~24h to activate). Set the channel's default upload/stream privacy to
-   **Unlisted**.
-2. **Persistent stream key** — YouTube Studio → **Go Live → Stream → Stream
-   settings** → copy the **persistent Stream key** and **Stream URL**
-   (`rtmp://a.rtmp.youtube.com/live2`). Persistent (reusable) is essential so it
-   survives across recurring webinar occurrences. Set this stream's visibility to
-   **Unlisted**.
-3. **Zoom** — confirm Pro/Business + Webinar add-on. In Zoom **Settings → In
-   Meeting (Advanced) → Allow livestreaming of webinars → Custom Live Streaming
-   Service**, enable it.
-4. **Configure the recurring webinar** — edit the daily webinar → **Live Streaming
-   → Configure custom streaming service** → paste Stream URL + Stream key + a
-   livestreaming page URL → **enable Auto-start** → save. (Configure on **desktop**;
-   the iPhone host control only offers "Live on YouTube," not the custom service.)
-5. **Google Cloud OAuth** — create a Google Cloud project, enable **YouTube Data
-   API v3**, create an **OAuth client (Desktop)**, and run a one-time consent flow as
-   the channel owner to mint a **refresh token** with `youtube.readonly`. Put the
-   client id/secret/refresh token into Railway env.
-6. **Flip on** `DESK_DAILY_SESSION_ENABLED=1`, redeploy, and verify after the next
-   session that *"Daily Session — {date}"* appears under The Desk → Videos → Daily
-   Sessions.
+## Out of scope (v1/v2)
 
-**Daily reality after setup:** the host just starts the webinar as usual. Auto-start
-fires the YouTube broadcast; ~minutes after the webinar ends, the poll finds the
-archived unlisted video and publishes it. If anything fails, the EOD safety net pings
-the owner the same day.
+- Trimming/editing the recording (raw recording published; trim later in YouTube Studio).
+- AI title/summary (dated title is the requirement).
+- Multiple recordings per day (each completed recording → its own dated record; if two
+  land the same day, the second would collide on title — acceptable for v1, revisit if
+  it happens).
 
-## Out of scope (v1)
+---
 
-- Trimming / editing the recording (publish the raw archive; YouTube Studio can trim later).
-- AI title/summary/auto-categorization (dated title is the requirement; smart metadata
-  is a future enhancement).
-- Auto-starting the webinar itself (host still opens the webinar; only the *stream*
-  is auto-started).
-- Multiple concurrent daily sessions (assumes one webinar/day; the poll handles >1 if
-  it ever happens, each gets its own dated record).
+## v1 (superseded) — Zoom live-stream → YouTube unlisted poll
+
+The originally-shipped design live-streamed the webinar to YouTube unlisted and polled
+`liveBroadcasts.list`. Superseded because Zoom's auto-start for custom RTMP is
+unreliable (couldn't guarantee zero-click) and the user needs a fresh paywalled link
+per day. The v1 publish half (`_session_title`, `edu_videos` insert, idempotency, EOD
+safety net) is **reused** by v2; the v1 detect-poll (`list_completed_broadcasts`) is
+retired. v1 code shipped inert on master `af071caa`.
