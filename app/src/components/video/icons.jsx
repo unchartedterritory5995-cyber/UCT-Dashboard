@@ -1,0 +1,75 @@
+// On-brand gold SVG controls for the persistent video player. Matches the
+// gradient + stroke language of pages/education/icons.jsx. No generic emoji.
+const GOLD = '#c9a84c'
+const GOLD_BRIGHT = '#e6cf86'
+
+function Defs({ id }) {
+  return (
+    <defs>
+      <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor={GOLD_BRIGHT} />
+        <stop offset="100%" stopColor={GOLD} />
+      </linearGradient>
+    </defs>
+  )
+}
+
+export function PauseIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <Defs id="vid-pause" />
+      <rect x="6.5" y="5" width="3.4" height="14" rx="1" fill="url(#vid-pause)" />
+      <rect x="14.1" y="5" width="3.4" height="14" rx="1" fill="url(#vid-pause)" />
+    </svg>
+  )
+}
+
+export function CloseIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <Defs id="vid-close" />
+      <path d="M6 6l12 12M18 6L6 18" stroke="url(#vid-close)" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function MinimizeIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <Defs id="vid-min" />
+      {/* arrows collapsing inward to a corner */}
+      <path d="M10 4v6H4M14 20v-6h6" stroke="url(#vid-min)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function ExpandIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <Defs id="vid-exp" />
+      <path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5" stroke="url(#vid-exp)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function NextIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <Defs id="vid-next" />
+      <path d="M6 5l9 7-9 7z" fill="url(#vid-next)" />
+      <rect x="16.5" y="5" width="2.4" height="14" rx="1" fill="url(#vid-next)" />
+    </svg>
+  )
+}
+
+export function DragIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <g fill={GOLD}>
+        <circle cx="9" cy="6" r="1.4" /><circle cx="15" cy="6" r="1.4" />
+        <circle cx="9" cy="12" r="1.4" /><circle cx="15" cy="12" r="1.4" />
+        <circle cx="9" cy="18" r="1.4" /><circle cx="15" cy="18" r="1.4" />
+      </g>
+    </svg>
+  )
+}
