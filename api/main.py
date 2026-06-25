@@ -82,6 +82,7 @@ from api.routers import research as research_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
+from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.flow_router import flow_router
 from api.flow_summary import flow_summary_router
 from api.oi_snapshot_router import router as oi_snapshot_router
@@ -815,6 +816,12 @@ async def lifespan(app: FastAPI):
         print("[startup] education.db initialized")
     except Exception as e:
         print(f"[startup] education init failed (non-fatal): {e}")
+
+    try:
+        from api.services import desk_session_jobs as _dsj_boot
+        _dsj_boot._init_db()
+    except Exception as _e:
+        print(f"[startup] desk_session_jobs init skipped: {_e}")
 
     # Load ticker baselines (per-ticker premium percentiles) into in-memory
     # cache for fast lookup by the LiveFlow worker's gate-check logic. Data
@@ -1834,18 +1841,23 @@ async def lifespan(app: FastAPI):
                                id="substack_poll_sunday_burst", max_instances=1, replace_existing=True)
             print("[scheduler] substack poll job registered (hourly + Sunday burst)")
 
-        # -- The Desk: Daily Sessions auto-publish -------------------------
+        # -- The Desk: Daily Sessions auto-publish (v2: Zoom cloud record) --
         _desk_sessions_on = os.environ.get("DESK_DAILY_SESSION_ENABLED", "0") == "1"
         if _desk_sessions_on:
             from api.services import desk_daily_session as _dds
+            from api.services import desk_session_jobs as _dsj
+            try:
+                _dsj._init_db()
+            except Exception as e:
+                print(f"[desk-sessions] jobs db init error: {e}")
 
-            def _dds_poll():
+            def _dds_process():
                 try:
-                    created = _dds.publish_new_sessions()
-                    if created:
-                        print(f"[desk-sessions] published {len(created)} session(s)")
+                    out = _dds.process_pending_jobs()
+                    if out:
+                        print(f"[desk-sessions] published {len(out)} session(s)")
                 except Exception as e:
-                    print(f"[desk-sessions] poll error (non-fatal): {e}")
+                    print(f"[desk-sessions] process error (non-fatal): {e}")
 
             def _dds_safety():
                 try:
@@ -1853,15 +1865,14 @@ async def lifespan(app: FastAPI):
                 except Exception as e:
                     print(f"[desk-sessions] safety-net error (non-fatal): {e}")
 
-            # Interval poll: weekdays, every 30 min across the active window.
-            _scheduler.add_job(_dds_poll,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9-23", minute="*/30"),
-                id="desk_daily_session_poll", max_instances=1, replace_existing=True)
-            # EOD safety net: weekdays 6 PM ET.
+            # Drain the recording queue every 5 min (a recording usually finishes
+            # processing on Zoom's side a few minutes after the webinar ends).
+            _scheduler.add_job(_dds_process, trigger=CronTrigger(minute="*/5"),
+                id="desk_daily_session_process", max_instances=1, replace_existing=True)
             _scheduler.add_job(_dds_safety,
                 trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=0),
                 id="desk_daily_session_safety", max_instances=1, replace_existing=True)
-            print("[startup] Desk Daily Sessions auto-publish ENABLED")
+            print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
@@ -2467,6 +2478,7 @@ app.include_router(research_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
+app.include_router(desk_zoom_webhook_router.router)
 
 
 # -- Massive WS consumer health endpoint --------------------------------
