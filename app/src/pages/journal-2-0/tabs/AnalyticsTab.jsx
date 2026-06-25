@@ -15,6 +15,7 @@ import useJ2Analytics from '../hooks/useJ2Analytics'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import PerformancePanel from '../components/PerformancePanel'
+import CollapsibleSection from '../components/CollapsibleSection'
 import useLivePrices from '../../../hooks/useLivePrices'
 import {
   fmtSignedDollar,
@@ -220,15 +221,40 @@ export default function AnalyticsTab() {
 
       {data && data.tradeCount > 0 && (
         <>
-          {data.edgeScore && <EdgeScorecard edge={data.edgeScore} />}
-          <EquitySection equity={data.equity} />
-          <PerformanceSection performance={data.performance} />
-          <DistributionSection distribution={data.distribution} />
-          <AttributionSection attribution={data.attribution} />
+          {data.edgeScore && (
+            <CollapsibleSection id="edge" title="Edge Score" defaultOpen>
+              <EdgeScorecard edge={data.edgeScore} />
+            </CollapsibleSection>
+          )}
+          <CollapsibleSection id="equity" title="Closed-Trade Equity" defaultOpen>
+            <EquitySection equity={data.equity} />
+          </CollapsibleSection>
+          <CollapsibleSection id="performance" title="Performance">
+            <PerformanceSection performance={data.performance} />
+          </CollapsibleSection>
+          <CollapsibleSection id="distribution" title="Distribution">
+            <DistributionSection distribution={data.distribution} />
+          </CollapsibleSection>
+          <CollapsibleSection id="attribution" title="Attribution">
+            <AttributionSection attribution={data.attribution} />
+          </CollapsibleSection>
         </>
       )}
       {data && (data.strategyCount ?? 0) > 0 && data.options && (
-        <OptionsSection options={data.options} />
+        <CollapsibleSection
+          id="options"
+          title="Options Breakdown"
+          meta={
+            `${data.options.headline.count} strateg` +
+            `${data.options.headline.count === 1 ? 'y' : 'ies'} · ` +
+            `${fmtSignedDollar(data.options.headline.totalPnl)} P&L` +
+            (data.options.headline.winRate != null
+              ? ` · ${(data.options.headline.winRate * 100).toFixed(0)}% win`
+              : '')
+          }
+        >
+          <OptionsSection options={data.options} />
+        </CollapsibleSection>
       )}
       {data && data.tradeCount === 0 && data.equity?.curve?.length > 0 && (
         // Shouldn't happen but guard — keep blank
@@ -267,7 +293,6 @@ function EdgeScorecard({ edge }) {
     <section className={styles.edgeSection}>
       <div className={styles.edgeRow}>
         <div className={styles.edgeMain}>
-          <span className={styles.edgeLabel}>Edge Score</span>
           {score == null ? (
             <>
               <span className={styles.edgeValueDim}>—</span>
@@ -426,8 +451,7 @@ function EquitySection({ equity }) {
   }, [curve, showDD, showLive, liveUnrealized])
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionHeader}>Closed-Trade Equity</h3>
+    <div className={styles.section}>
       <p className={styles.sectionCaption}>
         Running balance from realized P&amp;L only — excludes open-position mark-to-market.
       </p>
@@ -469,7 +493,7 @@ function EquitySection({ equity }) {
         )}
         <ReactECharts option={option} style={{ height: 280 }} />
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -536,8 +560,7 @@ function PerformanceSection({ performance }) {
   }, [performance])
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionHeader}>Performance</h3>
+    <div className={styles.section}>
       <div className={styles.grid2}>
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
@@ -567,7 +590,7 @@ function PerformanceSection({ performance }) {
           <ReactECharts option={dowOption} style={{ height: 220 }} />
         </div>
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -667,8 +690,7 @@ function DistributionSection({ distribution }) {
   }, [distribution])
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionHeader}>Distribution</h3>
+    <div className={styles.section}>
       <div className={styles.grid2}>
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>Long vs Short</h4>
@@ -691,7 +713,7 @@ function DistributionSection({ distribution }) {
           )}
         </div>
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -736,8 +758,7 @@ function AttributionSection({ attribution }) {
   }, [attribution, rwrWindow])
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionHeader}>Attribution</h3>
+    <div className={styles.section}>
       <div className={styles.grid2}>
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
@@ -781,7 +802,7 @@ function AttributionSection({ attribution }) {
         </div>
       </div>
       <SymbolMiniCards symbols={symbolSorted} />
-    </section>
+    </div>
   )
 }
 
@@ -872,7 +893,7 @@ function Kpi({ label, value, positive, negative }) {
 // ── Section 5: Options breakdown (Phase 5 Step 6) ─────────────────────────
 
 function OptionsSection({ options }) {
-  const { headline, byAssetType, byStrategyType, creditVsDebit, dteScatter } = options
+  const { byAssetType, byStrategyType, creditVsDebit, dteScatter } = options
   const byAssetOption = useMemo(() => ({
     ...baseChart,
     tooltip: { ...baseChart.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -1025,15 +1046,7 @@ function OptionsSection({ options }) {
   }, [dteScatter])
 
   return (
-    <section className={styles.section}>
-      <header className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>Options Breakdown</h3>
-        <span className={styles.sectionSub}>
-          {headline.count} strategies · {fmtSignedDollar(headline.totalPnl)} P&L
-          {headline.winRate != null && ` · ${(headline.winRate * 100).toFixed(0)}% win rate`}
-        </span>
-      </header>
-
+    <div className={styles.section}>
       <div className={styles.chartGrid}>
         <ChartCard title="Equity vs Options">
           <ReactECharts option={byAssetOption} style={{ height: 260, width: '100%' }} />
@@ -1057,7 +1070,7 @@ function OptionsSection({ options }) {
           </ChartCard>
         )}
       </div>
-    </section>
+    </div>
   )
 }
 

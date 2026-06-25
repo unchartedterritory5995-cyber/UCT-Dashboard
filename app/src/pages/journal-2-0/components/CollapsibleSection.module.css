@@ -1,0 +1,68 @@
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 16px;
+  background: var(--bg-surface);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.header:hover {
+  background: var(--bg-hover);
+}
+
+.headerOpen {
+  border-bottom: 1px solid var(--border);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transform: rotate(-90deg);
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.chevronOpen {
+  transform: rotate(0deg);
+}
+
+.header:hover .chevron {
+  color: var(--ut-gold);
+}
+
+.title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.titleOpen {
+  color: var(--text-bright);
+}
+
+.meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.body {
+  padding: 12px 14px 16px;
+}
