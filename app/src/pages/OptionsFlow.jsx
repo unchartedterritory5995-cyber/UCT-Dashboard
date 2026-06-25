@@ -3752,8 +3752,15 @@ export default function OptionsFlowDashboard() {
 
                   const cwAboveSpot = cwStrike > sp;
                   const pwBelowSpot = pwStrike < sp;
-                  const cwLabel = cwAboveSpot ? "ceiling" : ((sp - cwStrike) / sp < 0.02 ? "decision point" : "major support below");
-                  const pwLabel = pwBelowSpot ? "floor" : "resistance above";
+                  // Decorative labels used by the key-level sidebar and the
+                  // bottom Call/Put pills. Prefer backend classification —
+                  // it returns "Ceiling" / "Pull Up" / "At Wall" for the call
+                  // wall and "Floor" / "Magnet" / "At Wall" for the put wall.
+                  // Lowercase for the inline pill styling.
+                  const _lvls = gexData.levels || {};
+                  const _warnSummary = gexData.warnings || {};
+                  const cwLabel = (_lvls.call_wall?.label || (cwAboveSpot ? "Ceiling" : ((sp - cwStrike) / sp < 0.02 ? "Decision point" : "Major support below"))).toLowerCase();
+                  const pwLabel = (_lvls.put_wall?.label  || (pwBelowSpot ? "Floor" : "Magnet")).toLowerCase();
                   const wallsInverted = !cwAboveSpot || !pwBelowSpot;
                   const spotBetweenWalls = cwStrike === pwStrike || (sp >= Math.min(cwStrike,pwStrike) && sp <= Math.max(cwStrike,pwStrike));
                   const wallSpread = Math.abs(cwStrike - pwStrike);
@@ -3869,8 +3876,25 @@ export default function OptionsFlowDashboard() {
                     verdictText = isIntraday ? "Strong floor at $" + pwStrike + " with a weak ceiling above — price wants to go up. Breakout potential." : "Strong weekly floor at $" + pwStrike + ". Buy dips toward it — breakout potential above $" + cwStrike + ".";
                     verdictIcon = "↗"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                   } else if (pwDominant && !pwBelowSpot) {
-                    verdictText = isIntraday ? "Gravity pulling price UP toward $" + pwStrike + " — " + fmtGex(pwGex) + " lifting price. Bullish pull." : "$" + pwStrike + " pulling price UP this week — " + fmtGex(pwGex) + " wants price higher. Bullish weekly bias.";
-                    verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
+                    // Largest gamma is the put cluster ABOVE spot. From OI
+                    // alone we can't tell whether dealers are short the puts
+                    // (→ magnet pulling up) or long (→ resistance). Old text
+                    // assumed magnet and called it "Bullish weekly bias",
+                    // which is over-confident. New language describes the
+                    // structural fact and the test. When also belowDangerLine,
+                    // we lead with the regime conflict to avoid contradicting
+                    // the banner above.
+                    if (belowDangerLine) {
+                      verdictText = isIntraday
+                        ? "Negative gamma AND biggest cluster ($"+pwStrike+") above spot — sharp moves both ways. Watch behavior at $"+pwStrike+"."
+                        : "Negative gamma AND biggest cluster ($"+pwStrike+") above spot. Reclaim of $"+pwStrike+" flips the bias up; rejection sends price back to the next put-gamma level below.";
+                      verdictIcon = "⚡"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                    } else {
+                      verdictText = isIntraday
+                        ? "Largest put cluster sits above spot at $"+pwStrike+" ("+fmtGex(pwGex)+"). Could pull price up or cap it — watch the first test."
+                        : "Largest put cluster sits above spot at $"+pwStrike+" ("+fmtGex(pwGex)+"). Could act as a magnet pulling up OR as resistance. Watch behavior on the first test.";
+                      verdictIcon = "◇"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                    }
                   } else {
                     verdictText = isIntraday ? "Price bouncing between floor ($" + Math.min(pwStrike,cwStrike) + ") and ceiling ($" + Math.max(pwStrike,cwStrike) + "). Expect choppy back-and-forth." : "Choppy week between $" + Math.min(pwStrike,cwStrike) + " and $" + Math.max(pwStrike,cwStrike) + ". Swing the range — sell premium or fade the edges.";
                     verdictIcon = "↔"; verdictBg = P.ac+"22"; verdictColor = P.ac;
@@ -3987,8 +4011,15 @@ export default function OptionsFlowDashboard() {
                     setupTitle = "What to expect — strong bounce zone at $" + pwStrike;
                     setupText = "Very strong floor at $" + pwStrike + " — " + (pwGex/cwGex).toFixed(1) + "x stronger than the ceiling." + (isIntraday?" Price has a big safety net below and room to run above $"+cwStrike+".":" Weekly dips toward $"+pwStrike+" are buying opportunities. Swing target above $"+cwStrike+".");
                   } else if (pwDominant && !pwBelowSpot) {
-                    setupTitle = "What to expect — resistance at $" + pwStrike;
-                    setupText = "The biggest support level ($" + pwStrike + ") is above current price — it's pulling price UP. " + fmtGex(pwGex) + (isIntraday?" wants price higher than where it is now.":" wants price higher. Look for swing entries on dips — bullish weekly bias.");
+                    // Same logic as verdictText — describe structure, not
+                    // direction. Acknowledge regime conflict when applicable.
+                    if (belowDangerLine) {
+                      setupTitle = "What to expect — pivot test at $" + pwStrike;
+                      setupText = "Largest put cluster ($"+pwStrike+", "+fmtGex(pwGex)+") sits above spot AND price is in negative gamma. This is a pivot, not a bullish setup — sharp moves possible both ways. " + (isIntraday?"How price reacts at $"+pwStrike+" tells you the direction.":"A daily reclaim of $"+pwStrike+" flips the bias up. Rejection sends price to the next put-gamma level below. Wait for the test before committing.");
+                    } else {
+                      setupTitle = "What to expect — pivot at $" + pwStrike;
+                      setupText = "The largest put cluster ($"+fmtGex(pwGex)+") sits above current price at $"+pwStrike+". From OI alone we can't tell if this acts as a magnet pulling price up or as resistance capping it — that depends on dealer positioning we don't see. " + (isIntraday?"Watch the first test of $"+pwStrike+" — that's the read.":"Watch how price behaves on the first test of $"+pwStrike+" this week. A clean reclaim suggests magnet (dealers short puts → hedge by buying); rejection suggests resistance (dealers long puts → hedge by selling).");
+                    }
                   } else {
                     setupTitle = "What to expect — choppy between $" + Math.min(pwStrike,cwStrike) + "–$" + Math.max(pwStrike,cwStrike);
                     setupText = "Floor and ceiling are about the same strength. Price will bounce between them. " + (isPositive?(isIntraday?"Safety net is ON — moves are contained.":"Safety net is ON — weekly range likely holds. Sell premium or swing the edges."):(isIntraday?"Safety net is OFF — swings can be sharp.":"Safety net is OFF — wider weekly swings. Tighter stops, smaller size."));
@@ -4102,7 +4133,7 @@ export default function OptionsFlowDashboard() {
                       }
                     }
                     if (pwMagnet) {
-                      trades.push({ i:"↑", bg:P.bu+"33", c:P.bu, t:"Floor at $"+pwStrike+" is above current price — pulling price UP. "+fmtGex(pwGex)+" wants price at $"+pwStrike+"." });
+                      trades.push({ i:"◇", bg:P.ac+"33", c:P.ac, t:"Largest put cluster at $"+pwStrike+" sits above current price ("+fmtGex(pwGex)+"). Could pull price up (magnet) or cap rallies (resistance) — OI alone can't tell us dealer direction. Watch how price behaves on the first test." });
                     }
                   }
 
@@ -4162,11 +4193,41 @@ export default function OptionsFlowDashboard() {
                   return (
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                      <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                        {/* Confidence pill — tells the user what data the
+                            narrative is built from. In naive mode (the
+                            default), we have OI + greeks but no dealer-side
+                            attribution, so directional claims are weakly
+                            supported. In trade-aware mode with adequate
+                            coverage, est_customer_net carries directional
+                            signal. Without this pill, users can't tell which
+                            mode they're looking at — and the conclusions
+                            mean very different things. */}
+                        {(() => {
+                          const adj = gexData.adjusted === true;
+                          const days = gexData.attributionDays || 0;
+                          const cov  = gexData.coveragePct    || 0;
+                          const conf = gexData.avgConfidence  || 0;
+                          const hasGoodCoverage = adj && days >= 2 && cov >= 0.3;
+                          if (hasGoodCoverage) {
+                            return (
+                              <span title={"Trade-aware mode: "+Math.round(cov*100)+"% chain coverage, "+days+" days attribution, "+Math.round(conf*100)+"% avg confidence"} style={{ fontSize:9, fontWeight:700, color:P.bu, background:P.bu+"22", padding:"2px 8px", borderRadius:10, letterSpacing:0.5 }}>
+                                TRADE-AWARE · {days}D · {Math.round(cov*100)}% COV
+                              </span>
+                            );
+                          }
+                          return (
+                            <span title="OI-only mode: we have call/put OI and greeks but can't see which side opened each position. Directional claims (magnet vs resistance, who 'wants' what price) are inferred from the naive convention — dealers short all OI. This is a level-identification tool, not a directional one." style={{ fontSize:9, fontWeight:700, color:"#c9a84c", background:"#c9a84c22", padding:"2px 8px", borderRadius:10, letterSpacing:0.5 }}>
+                              OI-ONLY · NAIVE
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                      {belowDangerLine?"⚠️ Danger Line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
@@ -4240,14 +4301,28 @@ export default function OptionsFlowDashboard() {
                           parts.push((firstResAbove ? "Next resistance at $"+firstResAbove.strike+"." : "Room to run higher.")+" "+(isPositive ? (isIntraday?"Pullbacks toward "+cwStr+" are buying opportunities.":"Buy dips toward "+cwStr+" this week — safety net supports.") : "Safety net off — protect below "+cwStr+"."));
                         }
                       } else if (!pwBelowSpot) {
-                        // PW above = resistance
-                        parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
-                        parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
+                        // PW above spot — could be magnet OR resistance.
+                        // Don't claim "Bullish weekly bias" — describe the
+                        // structural fact and let price action confirm.
+                        if (belowDangerLine) {
+                          parts.push("Largest put cluster ("+pwStr+", "+fmtGex(pwGex)+") sits above spot AND price is in negative gamma — sharp moves both ways.");
+                          parts.push(isIntraday ? "Watch how price tests "+pwStr+" — that's the read." : "Reclaim of "+pwStr+" flips bias up; rejection drops to the next put-gamma level below.");
+                        } else {
+                          parts.push("Largest put cluster sits above spot at "+pwStr+" ("+fmtGex(pwGex)+").");
+                          parts.push(isIntraday ? "Could pull price up (magnet) or cap rallies (resistance) — watch the first test." : "Could act as a magnet OR as resistance — OI alone doesn't tell us dealer direction. Watch behavior on the first test before committing.");
+                        }
                       }
 
-                      // Danger line proximity add-on
-                      if (zgNearSpot) {
-                        parts.push("⚠️ Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle flips the safety net off.");
+                      // Danger line proximity — only fire when the backend's
+                      // gated warning agrees. Old code fired whenever raw
+                      // distance was tiny, even when the wider context made
+                      // it irrelevant. belowDangerLine was already replaced
+                      // above with backend-gated version.
+                      if (belowDangerLine && !zgNearSpot) {
+                        // Below but not RIGHT at the line — still meaningful
+                        parts.push("Spot is below the danger line at $"+(zg?.toFixed(0)||"—")+" — drops can accelerate from here.");
+                      } else if (zgNearSpot && belowDangerLine) {
+                        parts.push("⚠️ Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle and the safety net is fully off.");
                       } else if (zgBelowClose) {
                         parts.push("Danger line at $"+(zg?.toFixed(0)||"—")+" is close — thin cushion before the safety net breaks.");
                       }
