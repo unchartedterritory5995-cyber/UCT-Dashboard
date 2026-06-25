@@ -325,6 +325,8 @@
   .overlayPeriod { font-size: 16px; }
   .overlaySelect { font-size: 16px; }
   .opacitySlider { max-width: unset; }
+  /* Comfortable tap target for the avatar action on touch. */
+  .avatarChangeBtn { min-height: var(--tap-min); }
 }
 
 /* ── Voice Panel ── */

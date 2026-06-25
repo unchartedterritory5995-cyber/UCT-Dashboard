@@ -14,6 +14,16 @@
   justify-content: center;
 }
 
+/* On touch, give the bell the same comfortable tap target as its sibling
+   movers/hamburger buttons in the mobile top bar (they already use --tap-min).
+   Gated to touch so the desktop NavBar bell is unchanged. */
+@media (max-width: 1024px) {
+  .bell {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 .bellIcon { font-size: 18px; }
 
 .badge {
