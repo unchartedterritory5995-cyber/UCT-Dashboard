@@ -8,6 +8,8 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 1, display_name: 'Pat', role: mockRole },
     plan: mockPlan,
+    // AuthContext is the single source for paid access (admin counts as paid).
+    isPaid: mockRole === 'admin' || (!!mockPlan && mockPlan !== 'free'),
   }),
 }))
 vi.mock('swr', () => ({ default: () => ({ data: null }) }))

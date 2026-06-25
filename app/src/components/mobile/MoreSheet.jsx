@@ -24,12 +24,17 @@ const NAV_SECTIONS = [
     label: 'Markets',
     items: [
       { to: '/breadth', label: 'Breadth', icon: 'breadth' },
-      { to: '/charts', label: 'Charts', icon: 'chart' },
-      { to: '/calendar', label: 'Calendar', icon: 'calendar' },
-      { to: '/screener', label: 'Screener', icon: 'screener' },
-      { to: '/patterns', label: 'Patterns', icon: 'patterns' },
       { to: '/options-flow', label: 'Options Flow', icon: 'flow' },
       { to: '/post-market', label: 'Post Market', icon: 'moon' },
+    ],
+  },
+  {
+    label: 'Research',
+    items: [
+      { to: '/charts', label: 'Charts', icon: 'chart' },
+      { to: '/screener', label: 'Screener', icon: 'screener' },
+      { to: '/patterns', label: 'Patterns', icon: 'patterns' },
+      { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },
   {
