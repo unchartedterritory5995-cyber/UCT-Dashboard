@@ -517,7 +517,7 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   // vertical motion reads uniform on a log axis.
   const logLerp = (a, b, e) => Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * e)
   const t0 = performance.now()
-  const ease = x => -(Math.cos(Math.PI * x) - 1) / 2   // easeInOutSine
+  const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)  // easeInOutCubic — softer accel/decel than sine for a smoother glide
   const step = (now) => {
     const p = Math.min(1, (now - t0) / duration)
     const e = ease(p)
@@ -627,7 +627,6 @@ export default function StockChart({
   annotationsFadeWhole = false, // Model Book show-all OFF: fade the WHOLE setup layer with the zoom (not just text)
   annotationsEditable = false,  // admin authoring: enable the drawing toolbar + editing
   annotationsTextVisible = null, // Setup Library: drive the TEXT-annotation fade directly (true=show / false=fade out) when there's no focus zoom to do it. null = leave it to the focus-zoom path (Model Book).
-  annotationsDeclutter = false,  // Setup Library VIEW mode: auto-reposition text/+X% labels so they don't pile onto candles/each other as the chart zooms out (Setup→Result). Inert while authoring.
   staticAnnotations = null,     // Model Book: stock-level drawings shown always on the full-year view (read-only, independent of any setup)
   onAnnotationsChange = null,   // (drawings[]) => void — called when admin adds/edits/removes an annotation
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
@@ -2200,8 +2199,11 @@ export default function StockChart({
     const fadeIn = String(exitDate ?? '') > String(prev ?? '')   // window grew → reveal the result run
     const from = fadeIn ? 0 : 1, to = fadeIn ? 1 : 0
     if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current)
-    const t0 = performance.now(), dur = 720
-    const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
+    // Match the Setup⇄Result glide duration + easing exactly so the candles reveal
+    // in lockstep with the zoom (the fade used to finish ~180ms before the glide
+    // settled, popping the result candles to full opacity mid-zoom).
+    const t0 = performance.now(), dur = 1000
+    const ease = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)  // easeInOutCubic
     const setA = v => { frameFadeAlphaRef.current = v; setFrameFadeAlpha(v) }
     const tick = (now) => {
       const p = Math.min(1, (now - t0) / dur)
@@ -4229,7 +4231,7 @@ export default function StockChart({
       focusActiveRef.current = true
       focusRangeRef.current = null
       _animateFocusZoom(chart, series, focusRafRef, focusPriceRangeRef, filteredBars,
-        { from: fromIdx, to: endIdx + padRight }, 900, () => {
+        { from: fromIdx, to: endIdx + padRight }, 1000, () => {
           focusActiveRef.current = false
           // Release a held wider slice (Result → Setup): the outgoing candles
           // are off-screen now, so the tail re-cut is invisible.
@@ -5982,7 +5984,6 @@ export default function StockChart({
             hidePriceLabels
             textFadeRef={annotationsEditable ? null : textFadeRef}
             fadeWholeLayer={!annotationsEditable && annotationsFadeWhole}
-            declutterText={!annotationsEditable && annotationsDeclutter}
             activeTool={annotationsEditable ? activeTool : null}
             setActiveTool={setActiveTool}
             color={drawColor}

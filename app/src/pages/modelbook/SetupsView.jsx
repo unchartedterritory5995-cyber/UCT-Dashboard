@@ -793,7 +793,6 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotationsEditable={annotating}
           annotationsTextVisible={true}
           annotationsFadeWhole={false}
-          annotationsDeclutter={!annotating}
           candleFrameFade={!annotating}
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
