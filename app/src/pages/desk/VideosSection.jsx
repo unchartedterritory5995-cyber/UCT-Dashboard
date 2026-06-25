@@ -7,7 +7,8 @@ import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
-import VideoPlayer from './VideoPlayer'
+import VideoDockSlot from '../../components/video/VideoDockSlot'
+import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import styles from '../EducationalVideos.module.css'
@@ -45,7 +46,6 @@ export default function VideosSection() {
   const { data, error, isLoading, mutate } = useSWR('/api/education/videos', fetcher)
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState(null) // null = All
-  const [playing, setPlaying] = useState(null)
   const [editing, setEditing] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
@@ -117,6 +117,7 @@ export default function VideosSection() {
 
   return (
     <div className={styles.page}>
+      <VideoDockSlot />
       <div className={styles.header}>
         <div className={styles.headerMain}>
           <span className={styles.headerIcon} aria-hidden="true">
@@ -164,7 +165,7 @@ export default function VideosSection() {
               <button
                 key={p.id}
                 className={styles.pathCard}
-                onClick={() => setPlaying({ list: p.videos, index: 0 })}
+                onClick={() => playVideo(p.videos, 0)}
               >
                 <div className={styles.pathName}>{p.name}</div>
                 <div className={styles.pathBlurb}>{p.blurb}</div>
@@ -186,7 +187,7 @@ export default function VideosSection() {
               <button
                 key={cw.video.youtube_id}
                 className={styles.upNextItem}
-                onClick={() => setPlaying({ list: cw.list, index: cw.index })}
+                onClick={() => playVideo(cw.list, cw.index)}
               >
                 <span className={styles.upNextThumbWrap}>
                   <img className={styles.upNextThumb} src={thumb(cw.video.youtube_id)} alt="" loading="lazy" />
@@ -245,7 +246,7 @@ export default function VideosSection() {
               <article key={v.id} className={styles.card}>
                 <button
                   className={styles.thumbBtn}
-                  onClick={() => setPlaying({ list: cat.videos, index: vi })}
+                  onClick={() => playVideo(cat.videos, vi)}
                   aria-label={`Play ${v.title}`}
                 >
                   <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
@@ -280,14 +281,6 @@ export default function VideosSection() {
           </div>
         </section>
       ))}
-
-      {playing && (
-        <VideoPlayer
-          list={playing.list}
-          startIndex={playing.index}
-          onClose={() => setPlaying(null)}
-        />
-      )}
 
       {editing && (
         <VideoForm
