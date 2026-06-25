@@ -8,7 +8,7 @@
  * action modals arrive in Phase 4.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   activeStop,
   positionPnlDollar,
@@ -267,6 +267,60 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   )
 }
 
+// ── Sorting ──────────────────────────────────────────────────────────────────
+// Most columns sort numerically; symbol/side are text and date is an ISO
+// string (lexical = chronological). 'actions' is not sortable.
+const TEXT_SORT_KEYS = new Set(['symbol', 'side', 'date'])
+
+function defaultDirForPos(key) {
+  // text → A→Z; numbers + date → biggest/newest first.
+  return key === 'symbol' || key === 'side' ? 'asc' : 'desc'
+}
+
+// Comparable value for a column, mirroring Row's display logic (including
+// option rows + broker "no real stop" blanking). Returns null for blanks,
+// which always sink to the bottom.
+function sortKeyFor(key, position, current, accountSize) {
+  const hasPrice = typeof current === 'number' && Number.isFinite(current)
+  if (position.isOption) {
+    switch (key) {
+      case 'symbol': return position.symbol
+      case 'side': return position.side
+      case 'date': return position.entryDate ?? null
+      case 'sharesCol': return position.shares
+      case 'entry': return position.entryPrice
+      case 'current': return position.optCurrent ?? null
+      case 'pnlDollar': return position.optPnlDollar ?? null
+      case 'pnlPercent': return position.optPnlPercent ?? null
+      case 'accountPct':
+        return (position.optMarketValue != null && accountSize)
+          ? position.optMarketValue / accountSize : null
+      default: return null  // stop/risk/heat/beSell N/A for options
+    }
+  }
+  const active = activeStop(position)
+  const noRealStop =
+    position.source === 'broker' && active != null && active === position.entryPrice
+  switch (key) {
+    case 'symbol': return position.symbol
+    case 'side': return position.side
+    case 'date': return position.entryEstimated ? null : (position.entryDate ?? null)
+    case 'sharesCol': return position.shares
+    case 'entry': return position.entryPrice
+    case 'current': return hasPrice ? current : null
+    case 'stop': return noRealStop ? null : active
+    case 'pnlDollar': return hasPrice ? positionPnlDollar(position, current) : null
+    case 'pnlPercent': return hasPrice ? positionPnlPercent(position, current) : null
+    case 'accountPct': return hasPrice ? positionInvestedPercent(position, current, accountSize) : null
+    case 'stopDist': return (noRealStop || !hasPrice) ? null : positionStopDistancePercent(position, current)
+    case 'riskDollar': return noRealStop ? null : positionRiskDollar(position)
+    case 'riskAcct': return noRealStop ? null : positionRiskAccountPercent(position, accountSize)
+    case 'beSell': return (noRealStop || !hasPrice) ? null : positionBeSellShares(position, current, isFractional(position))
+    case 'heat': return (noRealStop || !hasPrice) ? null : positionHeatDollar(position, current)
+    default: return null
+  }
+}
+
 export default function PositionsTable({
   positions,
   prices,
@@ -278,10 +332,39 @@ export default function PositionsTable({
   onOptionClose,
   onOptionDelete,
 }) {
-  const sorted = useMemo(
-    () => [...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)),
-    [positions],
-  )
+  const [sort, setSort] = useState({ key: 'symbol', dir: 'asc' })
+
+  const handleSort = (key) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: defaultDirForPos(key) },
+    )
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const text = TEXT_SORT_KEYS.has(sort.key)
+    return [...positions].sort((a, b) => {
+      const av = sortKeyFor(sort.key, a, prices?.[a.symbol]?.price, accountSize)
+      const bv = sortKeyFor(sort.key, b, prices?.[b.symbol]?.price, accountSize)
+      const aEmpty = av == null || av === ''
+      const bEmpty = bv == null || bv === ''
+      if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
+      else if (aEmpty) return 1
+      else if (bEmpty) return -1
+      else {
+        let c
+        if (text) c = String(av) < String(bv) ? -1 : String(av) > String(bv) ? 1 : 0
+        else c = av - bv
+        if (c !== 0) return c * dir
+      }
+      // Stable tiebreak: symbol A→Z, then id.
+      const s = a.symbol.localeCompare(b.symbol)
+      if (s !== 0) return s
+      return String(a.id) < String(b.id) ? -1 : 1
+    })
+  }, [positions, prices, accountSize, sort])
 
   if (sorted.length === 0) {
     return (
@@ -299,16 +382,38 @@ export default function PositionsTable({
       <table className={styles.table}>
         <thead>
           <tr>
-            {visibleColumns.map((c) => (
-              <th
-                key={c.key}
-                className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
-                title={c.tooltip || undefined}
-                scope="col"
-              >
-                {c.label}
-              </th>
-            ))}
+            {visibleColumns.map((c) => {
+              const sortable = c.key !== 'actions'
+              const activeCol = sort.key === c.key
+              return (
+                <th
+                  key={c.key}
+                  className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
+                  title={c.tooltip || undefined}
+                  scope="col"
+                  aria-sort={
+                    sortable && activeCol
+                      ? (sort.dir === 'asc' ? 'ascending' : 'descending')
+                      : undefined
+                  }
+                >
+                  {sortable ? (
+                    <button
+                      type="button"
+                      className={`${styles.thBtn} ${activeCol ? styles.thBtnActive : ''}`}
+                      onClick={() => handleSort(c.key)}
+                    >
+                      <span>{c.label}</span>
+                      <span className={styles.sortCaret} aria-hidden="true">
+                        {activeCol ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                      </span>
+                    </button>
+                  ) : (
+                    c.label
+                  )}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>

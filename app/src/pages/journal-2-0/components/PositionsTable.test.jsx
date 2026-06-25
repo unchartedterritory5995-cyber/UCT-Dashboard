@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 // TickerPopup pulls in AuthContext via useFlagged; stub it to a simple
 // button for table-render tests. Integration with the real TickerPopup
@@ -182,5 +183,60 @@ describe('PositionsTable — YSS reference render (§14.7)', () => {
       return row.querySelector('td')?.textContent
     })
     expect(symbols).toEqual(['AAA', 'MMM', 'ZZZ'])
+  })
+})
+
+describe('PositionsTable — sortable headers', () => {
+  const firstSym = () =>
+    screen.getAllByRole('row').slice(1)[0].querySelector('td')?.textContent
+
+  it('sorts by P&L (biggest first), then toggles to smallest first', async () => {
+    const user = userEvent.setup()
+    const a = { ...YSS, id: 'a', symbol: 'AAA' }
+    const b = { ...YSS, id: 'b', symbol: 'BBB' }
+    const prices = { AAA: { price: 30 }, BBB: { price: 40 } }
+    render(
+      <PositionsTable
+        positions={[a, b]}
+        prices={prices}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'P&L $' }))
+    expect(firstSym()).toBe('BBB')
+    await user.click(screen.getByRole('button', { name: 'P&L $' }))
+    expect(firstSym()).toBe('AAA')
+  })
+
+  it('toggles the Symbol column to descending on second click', async () => {
+    const user = userEvent.setup()
+    const positions = [
+      { ...YSS, id: '1', symbol: 'AAA' },
+      { ...YSS, id: '2', symbol: 'ZZZ' },
+    ]
+    render(
+      <PositionsTable
+        positions={positions}
+        prices={{}}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(firstSym()).toBe('AAA')  // default symbol asc
+    await user.click(screen.getByRole('button', { name: 'Symbol' }))
+    expect(firstSym()).toBe('ZZZ')
+  })
+
+  it('does not render a sort button for the Actions column', () => {
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument()
   })
 })
