@@ -7,6 +7,7 @@ import contextlib, os, sqlite3, threading, time
 _DB_PATH = os.environ.get("DESK_JOBS_DB_PATH", "/data/desk_session_jobs.db")
 _WRITE_LOCK = threading.Lock()
 _MAX_ATTEMPTS = int(os.environ.get("DESK_DAILY_SESSION_MAX_ATTEMPTS", "3"))
+_STALE_SECS = int(os.environ.get("DESK_DAILY_SESSION_STALE_SECS", "1800"))
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS desk_session_jobs (
@@ -50,18 +51,28 @@ def enqueue(meeting_uuid, topic, start_time, download_url, download_token) -> bo
 
 def claim_next():
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cutoff = int(time.time()) - _STALE_SECS
         row = c.execute(
             "SELECT * FROM desk_session_jobs WHERE status='pending' "
-            "ORDER BY created_at ASC, rowid ASC LIMIT 1").fetchone()
-        if not row: return None
+            "OR (status='processing' AND updated_at < ?) "
+            "ORDER BY created_at ASC, rowid ASC LIMIT 1", (cutoff,)).fetchone()
+        if not row:
+            return None
         c.execute("UPDATE desk_session_jobs SET status='processing', updated_at=? "
                   "WHERE meeting_uuid=?", (int(time.time()), row["meeting_uuid"]))
-        c.commit(); return dict(row) | {"status": "processing"}
+        c.commit()
+        return dict(row) | {"status": "processing"}
 
 def mark_done(meeting_uuid, youtube_id):
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("UPDATE desk_session_jobs SET status='done', youtube_id=?, "
                   "updated_at=? WHERE meeting_uuid=?",
+                  (youtube_id, int(time.time()), meeting_uuid)); c.commit()
+
+def mark_uploaded(meeting_uuid, youtube_id):
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE desk_session_jobs SET youtube_id=?, updated_at=? "
+                  "WHERE meeting_uuid=?",
                   (youtube_id, int(time.time()), meeting_uuid)); c.commit()
 
 def mark_error(meeting_uuid, error):

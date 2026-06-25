@@ -77,7 +77,7 @@ def test_safety_net_silent_when_today_present(edu_db, monkeypatch):
     assert fired == []
 
 
-def test_safety_net_fires_when_absent_on_weekday(edu_db, monkeypatch):
+def test_safety_net_fires_when_absent_on_weekday(edu_db, jobs_db, monkeypatch):
     fired = []
     monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
@@ -116,34 +116,23 @@ def test_publish_respects_start_date_env(edu_db, monkeypatch):
     assert created[0]["youtube_id"] == "YEST"
 
 
-# --- Fix 3 (I2): distinct auth-failure alert tests ---
+# --- Fix B (review #5): queue-aware safety net tests ---
 
-def test_safety_net_auth_failure_fires_auth_alert(edu_db, monkeypatch):
-    """When publish_new_sessions raises YouTubeAuthError, kind='auth' alert is fired."""
+def test_safety_net_stuck_queue_fires_stuck_alert(edu_db, jobs_db, monkeypatch):
     fired = []
-    monkeypatch.setattr(dds, "publish_new_sessions",
-                        lambda **kw: (_ for _ in ()).throw(dds.YouTubeAuthError("boom")))
-    monkeypatch.setattr(dds, "_alert_owner",
-                        lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
+    monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append(kw.get("kind", "missing")))
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.claim_next()  # leave it in 'processing' -> stuck
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
-    result = dds.check_missing_session_alert(now=wed, publish=True)
-    assert result is True
-    assert len(fired) == 1
-    assert fired[0][1] == "auth"
+    assert dds.check_missing_session_alert(now=wed, publish=False) is True
+    assert fired == ["stuck"]
 
-
-def test_safety_net_generic_publish_error_still_checks(edu_db, monkeypatch):
-    """A generic RuntimeError from publish is swallowed; missing session fires kind='missing'."""
+def test_safety_net_missing_when_no_session_and_empty_queue(edu_db, jobs_db, monkeypatch):
     fired = []
-    monkeypatch.setattr(dds, "publish_new_sessions",
-                        lambda **kw: (_ for _ in ()).throw(RuntimeError("oops")))
-    monkeypatch.setattr(dds, "_alert_owner",
-                        lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
+    monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append(kw.get("kind", "missing")))
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
-    result = dds.check_missing_session_alert(now=wed, publish=True)
-    assert result is True
-    assert len(fired) == 1
-    assert fired[0][1] == "missing"
+    assert dds.check_missing_session_alert(now=wed, publish=False) is True
+    assert fired == ["missing"]
 
 
 # ---------------------------------------------------------------------------
@@ -201,3 +190,19 @@ def test_process_marks_error_on_upload_failure(edu_db, jobs_db, monkeypatch):
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_BoomYT())
     assert jobs_db.count_status("error") == 1
     assert edu.list_videos() == []
+
+
+def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeypatch):
+    from api.services import desk_session_jobs as q2
+    monkeypatch.setattr(q2, "_STALE_SECS", -1)  # cutoff = now+1 -> row is always stale/reclaimable
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    jobs_db.claim_next(); jobs_db.mark_uploaded("U1", "VIDZ")  # simulate prior successful upload
+    class _BoomZoom:
+        def stream_download(self, *a, **k): raise AssertionError("should not download")
+        def delete_recording(self, uuid): pass
+    class _BoomYT:
+        def upload_unlisted(self, *a, **k): raise AssertionError("should not upload")
+    out = dds.process_pending_jobs(zoom=_BoomZoom(), youtube=_BoomYT())
+    assert len(out) == 1
+    vids = [v for v in edu.list_videos() if v["youtube_id"] == "VIDZ"]
+    assert len(vids) == 1

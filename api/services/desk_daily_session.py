@@ -87,35 +87,38 @@ def todays_session_exists(now: datetime | None = None) -> bool:
 
 def _alert_owner(now: datetime, kind: str = "missing") -> None:
     from api.services import discord_notify
-    if kind == "auth":
-        title = "⚠️ Daily Session — YouTube auth/quota failure"
-        desc = ("Couldn't query YouTube for today's session (token may be expired or "
-                "quota exhausted). Re-mint YT_OAUTH_REFRESH_TOKEN or check API quota.")
+    if kind == "stuck":
+        title = "⚠️ Daily Session stuck in processing"
+        desc = ("Today's recording is queued but not published (download/upload/"
+                "auth failure). Check Zoom/YouTube credentials + the desk_session_jobs queue.")
     else:
         when = now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')
         title = "⚠️ Daily Session not published"
         desc = (f"No '{_session_title(None, now=now)}' video is in The Desk by {when}. "
-                "Check that the webinar ran and auto-streamed to YouTube.")
+                "Check that the webinar ran and auto-recorded to the Zoom cloud.")
     discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
 
 
 def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
-    """Weekday EOD guard. Tries one publish, then alerts the owner if today's
-    session still isn't in the library. Returns True iff it alerted."""
+    """Weekday EOD guard. Drains the queue once, then alerts the owner if today's
+    session still isn't in The Desk — distinguishing a stuck/errored queue from a
+    genuinely-absent session. Returns True iff it alerted."""
     now = now or datetime.now(_ET)
-    if now.weekday() >= 5:          # Sat/Sun
+    if now.weekday() >= 5:
         return False
     if publish:
         try:
-            publish_new_sessions()
-        except YouTubeAuthError:
-            _alert_owner(now, kind="auth")
-            return True
+            process_pending_jobs()
         except Exception:
             pass
     if todays_session_exists(now):
         return False
-    _alert_owner(now)
+    try:
+        stuck = (desk_session_jobs.count_status("processing")
+                 + desk_session_jobs.count_status("error"))
+    except Exception:
+        stuck = 0
+    _alert_owner(now, kind=("stuck" if stuck else "missing"))
     return True
 
 
@@ -142,11 +145,14 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             break
         uuid = job["meeting_uuid"]
         title = _session_title(job.get("start_time"))
+        vid = (job.get("youtube_id") or "").strip()
         tmp = None
         try:
-            fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
-            zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
-            vid = youtube.upload_unlisted(tmp, title)
+            if not vid:
+                fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
+                zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
+                vid = youtube.upload_unlisted(tmp, title)
+                desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
             if vid not in education_service.existing_youtube_ids():
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
@@ -154,7 +160,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             try:
                 zoom.delete_recording(uuid)
             except Exception:
-                pass  # publish succeeded; a stuck Zoom copy is non-fatal
+                pass
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
         except Exception as e:

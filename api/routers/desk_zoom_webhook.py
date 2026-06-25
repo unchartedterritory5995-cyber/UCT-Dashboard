@@ -35,15 +35,14 @@ async def zoom_webhook(request: Request):
     secret = _secret()
     ts = request.headers.get("x-zm-request-timestamp", "")
     sig = request.headers.get("x-zm-signature", "")
+    if not _verify_signature(secret, ts, raw, sig):
+        return Response(status_code=401)
     import json as _json
     try:
         data = _json.loads(raw) if raw else {}
     except ValueError:
         return Response(status_code=400)
     event = data.get("event")
-    # URL validation must still be signature-checked.
-    if not _verify_signature(secret, ts, raw, sig):
-        return Response(status_code=401)
     if event == "endpoint.url_validation":
         plain = (data.get("payload") or {}).get("plainToken", "")
         return _validation_response(plain, secret)

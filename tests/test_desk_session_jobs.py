@@ -30,3 +30,18 @@ def test_mark_error_retries_then_fails(db, monkeypatch):
     assert db.count_status("pending") == 1
     db.claim_next(); db.mark_error("u", "boom2")     # attempts=2 -> error
     assert db.count_status("error") == 1
+
+
+def test_claim_reclaims_stale_processing(db, monkeypatch):
+    monkeypatch.setattr(q, "_STALE_SECS", -1)   # cutoff = now+1 -> every row is stale
+    db.enqueue("u", "t", "s", "u", "k")
+    j1 = db.claim_next(); assert j1["meeting_uuid"] == "u"
+    # still 'processing', but stale -> reclaimable
+    j2 = db.claim_next(); assert j2 is not None and j2["meeting_uuid"] == "u"
+
+
+def test_mark_uploaded_sets_youtube_id(db):
+    db.enqueue("u", "t", "s", "u", "k"); db.claim_next()
+    db.mark_uploaded("u", "VIDY")
+    rows = db.list_recent()
+    assert rows[0]["youtube_id"] == "VIDY"
