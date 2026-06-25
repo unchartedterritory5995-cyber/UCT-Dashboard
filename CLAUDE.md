@@ -1574,6 +1574,62 @@ CREATE TABLE catalyst_alerts_fired (user_id, ticker, market_date, fired_at, PRIM
 - **catalyst_alerts_fired PRIMARY KEY** is (user_id, ticker, market_date) — three-column. Removing market_date would create perma-dedup; removing user_id would silence other users.
 - **catalyst_at field** is computed as min(source timestamps) by `_compute_catalyst_at()`. Empty when all sources are Perplexity-synthetic. Frontend falls back to thesis_at with dimmed italics in that case.
 
+## The Desk — Live Trading Sessions auto-publish (built 2026-06-24/25, LIVE)
+
+The firm's daily Zoom **webinar** (new paywalled link each day from a template, NOT
+recurring) is auto-recorded and published into **The Desk → Videos → "Live Trading
+Sessions"** with **zero per-session effort**. Fully hands-off + proven end-to-end.
+
+**Flow:** Zoom **Automatic Cloud Recording** → Zoom fires `recording.completed`
+webhook → engine downloads the MP4 (streamed to a temp file) → uploads to YouTube
+**unlisted** (resumable) → sets a **branded thumbnail** → publishes an `edu_videos`
+record (reuses the existing Educational Videos store + player) → **trashes the Zoom
+cloud copy** (storage-cap safe). Title `Live Trading Session — {Month D, YYYY}` (ET).
+
+### Files
+- `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
+  url_validation challenge + enqueue). `GET /api/desk/sessions-status` (PUSH_SECRET
+  bearer) = diagnostics: recent `desk_session_jobs` rows incl. status/error/youtube_id/
+  download_url/token.
+- `api/services/desk_session_jobs.py` — SQLite queue `/data/desk_session_jobs.db`, PK
+  `meeting_uuid` (idempotent vs dup webhooks); `claim_next` reclaims stale `processing`
+  rows past `_STALE_SECS` (crash recovery); `mark_uploaded`/`mark_done`/`mark_error`.
+- `api/services/zoom_client.py` — Zoom S2S OAuth + `stream_download` (Bearer header,
+  content-type+min-size GUARD → rejects HTML/JSON error pages) + `delete_recording`.
+- `api/services/youtube_client.py` — OAuth refresh + `upload_unlisted` (resumable,
+  streamed from disk) + `set_thumbnail` (thumbnails.set) + `list_completed_broadcasts`
+  (v1 poll, retired).
+- `api/services/desk_daily_session.py` — `process_pending_jobs` (drain → download →
+  upload → set_thumbnail [non-fatal] → publish → trash → done), `_session_title`,
+  `_session_date_text`, `check_missing_session_alert` (weekday EOD safety net, Discord).
+- `api/services/desk_thumbnail.py` + `api/services/desk_assets/` (compass-mark.png,
+  DejaVuSans-Bold/Regular .ttf) — 1280×720 branded card (Pillow).
+- `api/main.py` — webhook `include_router` + scheduler `*/5` queue-drain + weekday-18:00
+  safety, gated by `DESK_DAILY_SESSION_ENABLED`; `desk_session_jobs._init_db()` at startup.
+
+### Env (web pod)
+`DESK_DAILY_SESSION_ENABLED=1` · `ZOOM_S2S_ACCOUNT_ID/_CLIENT_ID/_CLIENT_SECRET` ·
+`ZOOM_WEBHOOK_SECRET_TOKEN` · `YT_OAUTH_CLIENT_ID/_CLIENT_SECRET/_REFRESH_TOKEN`
+(upload scope, OAuth app published→prod so the token doesn't expire) ·
+`DESK_DAILY_SESSION_CATEGORY="Live Trading Sessions"` · optional `_START_DATE`,
+`_STALE_SECS`, `_MAX_ATTEMPTS`. Webhook URL: `https://uctintelligence.com/api/desk/zoom-webhook`.
+
+### LOCKED invariants / gotchas (do NOT regress)
+- **Zoom `download_token` is at the TOP LEVEL of the `recording.completed` event body**
+  (sibling of `payload`), NOT inside `payload`. Reading the wrong place → empty token →
+  unauthenticated download → 200 HTML error page → YouTube "Processing abandoned". The
+  content-type/size guard in `stream_download` is the backstop.
+- **`thumbnails.set` is covered by the `youtube.upload` scope** (no extra scope needed);
+  channel must be custom-thumbnail-eligible (phone-verified).
+- **Thumbnail + Zoom delete are NON-FATAL** — wrapped in try/except; never break publish.
+- **Idempotent**: queue PK on `meeting_uuid` + `edu_videos` dedup on `youtube_id`;
+  reclaimed job with a stored `youtube_id` skips re-upload (no duplicate YouTube video).
+- **Diagnose via `GET /api/desk/sessions-status`** (PUSH_SECRET), NOT logs — engine logs
+  are flooded by yfinance/theme noise. **Cloudflare 1010-blocks raw curl/python UAs** to
+  uctintelligence.com → send a browser `User-Agent` when curling.
+- Setup walkthrough (one-time Zoom + YouTube + GCP OAuth) + design/plan specs in
+  `docs/superpowers/specs/2026-06-24-desk-daily-sessions-*` + `…-thumbnails-design.md`.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
