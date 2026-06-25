@@ -151,4 +151,15 @@
     padding: 7px 11px !important;
     font-size: 11px !important;
   }
+
+  /* The absolutely-positioned refresh (↻) glyph in the data-mode header — tiny
+     by default. Grow the hit area to a comfortable square while keeping it
+     centered on its anchor (the transform stays on the inline style). */
+  .of-mroot .of-refresh {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
 }

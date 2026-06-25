@@ -3344,7 +3344,7 @@ export default function OptionsFlowDashboard() {
         {/* Date Filter — rolling windows + presets + calendar */}
         {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+            <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
                 { key:"Last1", label:"1d", days:1 },
                 { key:"Last5", label:"5d", days:5 },
@@ -4515,7 +4515,7 @@ export default function OptionsFlowDashboard() {
                 </div>
               )}
               {marketIndices && (
-                <button onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
               )}
             </div>
             {/* AI Narrative */}
@@ -4561,7 +4561,7 @@ export default function OptionsFlowDashboard() {
           };
           return (
             <div style={{ marginBottom:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              <div className="of-chiprow-wrap" style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                 <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
                 {caps.map(c => {
                   const active = capFilter === c;
@@ -4894,7 +4894,7 @@ export default function OptionsFlowDashboard() {
             {FD.SECTORS.length > 0 && (
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
-                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                  <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                     {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
                       <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
                         padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
@@ -5411,7 +5411,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>TOP 10 FLOW PICKS</div>
-                      <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
+                      <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
                         {["Both","Calls","Puts","Unusual"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
                             padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
