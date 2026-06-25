@@ -364,3 +364,38 @@ async def top_conviction(request: Request):
         )
     except Exception as e:  # never 500 a dashboard tile
         return JSONResponse({"date": None, "count": 0, "items": [], "error": str(e)})
+
+
+# ── background cache warmer ──────────────────────────────────────────────────
+# The first compute after a (re)deploy reads flow.db cold off the Railway
+# volume -- ~6-13s of disk I/O before the OS page cache is warm (the table is
+# already indexed; this is purely cold-disk, not a slow query). With the pod
+# redeploying frequently, that cold read kept landing on a real user's request.
+# Warm it in a daemon thread instead so users always get the ~80ms cached
+# payload. Steady-state cost is negligible (each refresh runs cache-warm).
+# Disable with FLOW_CONVICTION_WARMER=0.
+
+_WARMER_STARTED = False
+
+
+def _start_cache_warmer() -> None:
+    global _WARMER_STARTED
+    if _WARMER_STARTED:
+        return
+    _WARMER_STARTED = True
+
+    def _warm_loop():
+        time.sleep(20)  # let the app finish booting before the first cold read
+        while True:
+            try:
+                get_top_conviction(10)
+            except Exception:
+                pass
+            time.sleep(45)  # under _CACHE_TTL (60s) so the cache never expires cold
+
+    threading.Thread(target=_warm_loop, daemon=True,
+                     name="flow-conviction-warmer").start()
+
+
+if os.environ.get("FLOW_CONVICTION_WARMER", "1") != "0":
+    _start_cache_warmer()
