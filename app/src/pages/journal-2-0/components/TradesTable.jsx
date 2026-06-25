@@ -126,8 +126,29 @@ function cellFor(key, trade, opts) {
       return holdDaysDisplay(trade.holdDays)
     case 'originalStop':
       return money(trade.originalStop)
-    case 'setup':
-      return trade.setup || dash
+    case 'setup': {
+      // Inline setup tagging — equity trades only. Option rows are backed by a
+      // strategy id (not a j2_trades row), so they stay read-only text.
+      if (!opts?.onUpdateSetup || trade.isOption) return trade.setup || dash
+      const known = opts.setups || []
+      return (
+        <select
+          className={`${styles.setupSelect} ${trade.setup ? '' : styles.setupSelectEmpty}`}
+          value={trade.setup || ''}
+          aria-label={`Setup for ${trade.symbol}`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => opts.onUpdateSetup(trade, e.target.value || null)}
+        >
+          <option value="">+ tag setup</option>
+          {known.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+          {trade.setup && !known.includes(trade.setup) && (
+            <option value={trade.setup}>{trade.setup}</option>
+          )}
+        </select>
+      )
+    }
     default:
       return null
   }
@@ -152,7 +173,7 @@ function sortValue(key, trade) {
   return trade[key]
 }
 
-export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds }) {
+export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds, setups, onUpdateSetup }) {
   // Default sort: entryDate DESC (spec §11.3). Clicking a header re-sorts.
   const [sort, setSort] = useState({ key: 'entryDate', dir: 'desc' })
 
@@ -248,7 +269,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
                     onRowAction && c.key === 'symbol' ? { cursor: 'pointer' } : undefined
                   }
                 >
-                  {cellFor(c.key, t, { reviewedIds })}
+                  {cellFor(c.key, t, { reviewedIds, setups, onUpdateSetup })}
                 </td>
               ))}
             </tr>

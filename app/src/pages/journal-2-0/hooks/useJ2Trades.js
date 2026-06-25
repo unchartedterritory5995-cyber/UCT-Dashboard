@@ -24,5 +24,6 @@ export default function useJ2Trades() {
     isLoading,
     error,
     refresh: () => mutate(),
+    mutate,
   }
 }

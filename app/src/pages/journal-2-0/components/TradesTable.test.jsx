@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TradesTable, { buildTradesColumns } from './TradesTable'
@@ -132,5 +132,80 @@ describe('TradesTable — sortable headers', () => {
     await user.click(screen.getByRole('button', { name: 'Setup' }))
     // Even descending, the blank-setup row stays last.
     expect(firstRowSymbol()).toBe('TAGGED')
+  })
+})
+
+describe('TradesTable — inline setup tagging', () => {
+  const cols = () => buildTradesColumns().filter((c) => !c.hiddenByDefault)
+
+  it('renders a setup dropdown for equity trades and saves the pick', async () => {
+    const user = userEvent.setup()
+    const onUpdateSetup = vi.fn()
+    render(
+      <TradesTable
+        trades={[{ ...BASE_TRADE, setup: null }]}
+        visibleColumns={cols()}
+        setups={['VCP', 'Flag', 'EP']}
+        onUpdateSetup={onUpdateSetup}
+      />,
+    )
+    const sel = screen.getByLabelText('Setup for YSS')
+    await user.selectOptions(sel, 'Flag')
+    expect(onUpdateSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1' }), 'Flag',
+    )
+  })
+
+  it('passes null when the setup is cleared', async () => {
+    const user = userEvent.setup()
+    const onUpdateSetup = vi.fn()
+    render(
+      <TradesTable
+        trades={[{ ...BASE_TRADE, setup: 'VCP' }]}
+        visibleColumns={cols()}
+        setups={['VCP']}
+        onUpdateSetup={onUpdateSetup}
+      />,
+    )
+    await user.selectOptions(screen.getByLabelText('Setup for YSS'), '')
+    expect(onUpdateSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1' }), null,
+    )
+  })
+
+  it('keeps an existing setup not in the account list as a valid option', () => {
+    render(
+      <TradesTable
+        trades={[{ ...BASE_TRADE, setup: 'Custom XYZ' }]}
+        visibleColumns={cols()}
+        setups={['VCP']}
+        onUpdateSetup={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('Setup for YSS').value).toBe('Custom XYZ')
+  })
+
+  it('leaves option rows read-only (no dropdown)', () => {
+    render(
+      <TradesTable
+        trades={[{ ...BASE_TRADE, isOption: true, setup: 'Long Call' }]}
+        visibleColumns={cols()}
+        setups={['VCP']}
+        onUpdateSetup={vi.fn()}
+      />,
+    )
+    expect(screen.queryByLabelText('Setup for YSS')).not.toBeInTheDocument()
+    expect(screen.getByText('Long Call')).toBeInTheDocument()
+  })
+
+  it('falls back to plain text when no onUpdateSetup is provided', () => {
+    render(
+      <TradesTable
+        trades={[{ ...BASE_TRADE, setup: 'VCP' }]}
+        visibleColumns={cols()}
+      />,
+    )
+    expect(screen.queryByLabelText('Setup for YSS')).not.toBeInTheDocument()
+    expect(screen.getByText('VCP')).toBeInTheDocument()
   })
 })

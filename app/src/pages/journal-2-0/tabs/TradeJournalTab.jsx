@@ -96,7 +96,7 @@ function optionClosedToRow(s) {
 }
 
 export default function TradeJournalTab({ settings }) {
-  const { trades, isLoading, error, refresh } = useJ2Trades()
+  const { trades, isLoading, error, refresh, mutate: mutateTrades } = useJ2Trades()
   const {
     strategies: closedStrategies,
     isLoading: stratLoading,
@@ -189,6 +189,35 @@ export default function TradeJournalTab({ settings }) {
       'success',
     )
   }, [refresh, showToast, selectedAccountId, accounts])
+
+  // Inline setup tagging from the table (equity trades only — option rows are
+  // backed by a strategy id, not a j2_trades row). Optimistic + reconciled.
+  const handleUpdateSetup = useCallback(async (trade, setup) => {
+    mutateTrades(
+      (cur) => (cur
+        ? { ...cur, trades: cur.trades.map((t) => (t.id === trade.id ? { ...t, setup } : t)) }
+        : cur),
+      { revalidate: false },
+    )
+    try {
+      const updated = await jsonFetch(`/api/j2/trades/${trade.id}`, 'PATCH', { setup })
+      mutateTrades(
+        (cur) => (cur
+          ? { ...cur, trades: cur.trades.map((t) => (t.id === trade.id ? updated : t)) }
+          : cur),
+        { revalidate: false },
+      )
+      // Setup attribution feeds the Analytics tab — let it recompute.
+      mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+      showToast(
+        setup ? `Tagged ${trade.symbol} → ${setup}` : `Cleared setup on ${trade.symbol}`,
+        'success',
+      )
+    } catch (e) {
+      refresh()  // roll back to server truth
+      showToast(`Couldn't update setup: ${String(e.message || e)}`, 'error')
+    }
+  }, [mutateTrades, mutate, refresh, showToast])
 
   const handleDeleteAll = useCallback(async () => {
     const res = await jsonFetch('/api/j2/trades', 'DELETE', { confirm: 'DELETE' })
@@ -372,6 +401,8 @@ export default function TradeJournalTab({ settings }) {
             trades={filteredTrades}
             visibleColumns={visibleColumns}
             reviewedIds={reviewedIds}
+            setups={settings?.setups || []}
+            onUpdateSetup={handleUpdateSetup}
             onRowAction={(action, trade) => {
               // Option rows have no trade drawer (yet) — only shares open it.
               if (action === 'open' && !trade.isOption) setDrawerTrade(trade)

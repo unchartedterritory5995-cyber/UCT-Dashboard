@@ -116,6 +116,39 @@
   cursor: help;
 }
 
+.setupSelect {
+  max-width: 150px;
+  padding: 2px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.setupSelect:hover {
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+
+.setupSelect:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+.setupSelectEmpty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.setupSelect option {
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-style: normal;
+}
+
 .pos { color: var(--gain); }
 .neg { color: var(--loss); }
 .dash { color: var(--text-muted); }
