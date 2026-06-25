@@ -12,6 +12,7 @@ import httpx
 
 _TOKEN_URL = "https://oauth2.googleapis.com/token"
 _BROADCASTS_URL = "https://www.googleapis.com/youtube/v3/liveBroadcasts"
+_UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 
 
 class YouTubeAuthError(Exception):
@@ -71,6 +72,32 @@ class YouTubeClient:
         self._access_token = data["access_token"]
         self._token_exp = time.time() + int(data.get("expires_in", 3600))
         return self._access_token
+
+    def upload_unlisted(self, file_path: str, title: str, description: str = "") -> str:
+        """Resumable upload of a local file as an UNLISTED video. Streams the
+        bytes from disk (no full-file RAM load). Returns the new videoId."""
+        token = self._ensure_token()
+        size = os.path.getsize(file_path)
+        meta = {"snippet": {"title": title, "description": description},
+                "status": {"privacyStatus": "unlisted", "selfDeclaredMadeForKids": False}}
+        init = httpx.post(_UPLOAD_URL,
+            params={"uploadType": "resumable", "part": "snippet,status"},
+            headers={"Authorization": f"Bearer {token}",
+                     "X-Upload-Content-Type": "video/*",
+                     "X-Upload-Content-Length": str(size)},
+            json=meta, timeout=30)
+        if init.status_code not in (200, 201):
+            raise YouTubeApiError(f"upload init {init.status_code}: {init.text[:200]}")
+        session_url = init.headers.get("location") or init.headers.get("Location")
+        if not session_url:
+            raise YouTubeApiError("upload init: no resumable session URL")
+        with open(file_path, "rb") as fh:
+            put = httpx.put(session_url, content=fh,
+                headers={"Content-Type": "video/*", "Content-Length": str(size)},
+                timeout=None)
+        if put.status_code not in (200, 201):
+            raise YouTubeApiError(f"upload put {put.status_code}: {put.text[:200]}")
+        return put.json()["id"]
 
     def list_completed_broadcasts(self, max_results: int = 10) -> list[dict]:
         token = self._ensure_token()

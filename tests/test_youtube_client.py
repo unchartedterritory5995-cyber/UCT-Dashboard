@@ -31,10 +31,11 @@ def test_ensure_token_raises_when_unconfigured():
 
 
 class _Resp:
-    def __init__(self, status, payload=None, text=""):
+    def __init__(self, status, payload=None, text="", headers=None):
         self.status_code = status
         self._payload = payload or {}
         self.text = text
+        self.headers = headers or {}
     def json(self):
         return self._payload
 
@@ -77,3 +78,33 @@ def test_list_passes_mine_true(monkeypatch):
     c = yc.YouTubeClient(client_id="id", client_secret="sec", refresh_token="rt")
     c.list_completed_broadcasts()
     assert captured["params"]["mine"] == "true"
+
+
+def test_upload_unlisted_returns_video_id(monkeypatch, tmp_path):
+    f = tmp_path / "v.mp4"
+    f.write_bytes(b"x" * 10)
+    captured = {}
+    def fake_post(url, params=None, headers=None, json=None, timeout=None):
+        captured["meta"] = json
+        captured["init_url"] = url
+        return _Resp(200, headers={"location": "https://up.example/session"})
+    def fake_put(url, content=None, headers=None, timeout=None):
+        captured["put_url"] = url
+        return _Resp(200, {"id": "VIDUP"})
+    monkeypatch.setattr(yc.httpx, "post", fake_post)
+    monkeypatch.setattr(yc.httpx, "put", fake_put)
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    vid = c.upload_unlisted(str(f), "Daily Session — June 24, 2026")
+    assert vid == "VIDUP"
+    assert captured["put_url"] == "https://up.example/session"
+    assert captured["meta"]["status"]["privacyStatus"] == "unlisted"
+
+
+def test_upload_unlisted_raises_on_init_failure(monkeypatch, tmp_path):
+    f = tmp_path / "v.mp4"; f.write_bytes(b"x" * 10)
+    monkeypatch.setattr(yc.httpx, "post", lambda *a, **k: _Resp(403, text="no"))
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    with pytest.raises(yc.YouTubeApiError):
+        c.upload_unlisted(str(f), "t")
