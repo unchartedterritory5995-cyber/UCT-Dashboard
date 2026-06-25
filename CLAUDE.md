@@ -1584,7 +1584,10 @@ Sessions"** with **zero per-session effort**. Fully hands-off + proven end-to-en
 webhook → engine downloads the MP4 (streamed to a temp file) → uploads to YouTube
 **unlisted** (resumable) → sets a **branded thumbnail** → publishes an `edu_videos`
 record (reuses the existing Educational Videos store + player) → **trashes the Zoom
-cloud copy** (storage-cap safe). Title `Live Trading Session — {Month D, YYYY}` (ET).
+cloud copy** (storage-cap safe) → **alerts the owner (email via Resend + Discord)**.
+Title `Live Trading Session — {Month D, YYYY}` (ET). `_notify_published` fires once per
+genuinely-new publish (not on idempotent re-runs); recipients = `DESK_DAILY_SESSION_ALERT_EMAILS`
+or `ADMIN_EMAILS`; best-effort (never breaks publish).
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
