@@ -409,6 +409,7 @@ def event_to_bbs_row(
     sector: str = '',
     er_flag: str = 'F',
     uoa_flag: Optional[str] = None,
+    cumulative_volume: Optional[int] = None,
 ) -> dict:
     """
     Convert an AggEvent to a BBS CSV row dict.
@@ -416,13 +417,22 @@ def event_to_bbs_row(
     Enrichment params (spot, iv, oi, mktcap, sector, er_flag, uoa_flag) come
     from your existing helpers at deploy time. Defaults are V1 stubs that
     insert cleanly but show 0/blank in the UI for those fields.
+
+    cumulative_volume (Phase 2d): if provided, this is the total day-cumulative
+    volume on this contract (sum of THIS event + all prior events today).
+    Used for BBS-style Color computation (vol > OI is judged on the day's
+    running total, not single-event volume). If None, falls back to single-
+    event volume -- which produces fewer YELLOW/MAGENTA than BBS does.
     """
     ts_et = datetime.fromtimestamp(evt.first_ts_ns / 1e9, tz=UTC).astimezone(ET)
     dte = (evt.expiry - ts_et.date()).days
 
+    # Volume used for Color and Uoa: cumulative if provided, else single-event
+    vol_for_color = cumulative_volume if cumulative_volume is not None else evt.total_size
+
     # Uoa derived from volume/OI ratio if not provided and OI is known
     if uoa_flag is None:
-        if oi > 0 and evt.total_size > oi:
+        if oi > 0 and vol_for_color > oi:
             uoa_flag = 'T'
         else:
             uoa_flag = 'F'
@@ -442,7 +452,7 @@ def event_to_bbs_row(
         'Spot': _fmt_price(spot) if spot else '0',
         'Premium': str(int(round(evt.premium))),
         'ExpirationDate': _fmt_mdY(evt.expiry),
-        'Color': compute_color(evt.premium, evt.type_, volume=evt.total_size, oi=oi),
+        'Color': compute_color(evt.premium, evt.type_, volume=vol_for_color, oi=oi),
         'ImpliedVolatility': f"{iv:.2f}" if iv else '0',
         'Dte': str(dte),
         'ER': er_flag,
