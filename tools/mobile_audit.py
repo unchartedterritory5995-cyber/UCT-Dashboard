@@ -160,7 +160,7 @@ def main():
     report = {"base": base, "results": []}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(executable_path=os.environ.get("PW_CHROME") or None)
         for vp_name, vp in viewports.items():
             (OUT_DIR / vp_name).mkdir(exist_ok=True)
             ctx = browser.new_context(

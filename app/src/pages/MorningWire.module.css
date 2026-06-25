@@ -745,6 +745,16 @@
 @media (max-width: 640px) {
   .page { padding: 10px 8px 24px; }
 
+  /* Wide data tables in the injected rundown HTML would otherwise overflow the
+     phone viewport. Make each table its own horizontal scroll region so the page
+     never grows a horizontal scrollbar and the columns stay legible. */
+  .rundownWrap table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* ── Analyst Activity mobile ─────────────────────────────── */
   .analystHeader {
     flex-direction: column;

@@ -89,6 +89,14 @@
     border-radius: 0;
   }
   .body { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  /* Keep the action row pinned above the keyboard + give the buttons a real
+     touch target so Save/Cancel are never cramped or hidden on a phone. */
+  .footer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+  .primaryBtn, .ghostBtn, .dangerBtn { min-height: var(--tap-min); }
 }
 
 .grid2 {

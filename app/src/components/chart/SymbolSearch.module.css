@@ -38,12 +38,23 @@
   left: 0;
   top: 28px;
   width: 280px;
+  /* Never exceed the viewport on a narrow phone (was a fixed 280px that
+     overflowed a 375px screen once any left offset was applied). */
+  max-width: calc(100vw - 20px);
   background: #1a1c17;
   border: 1px solid #2e3127;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   z-index: 20;
+}
+
+/* Phone: pin the dropdown to the left edge and let it span the screen width so
+   results aren't clipped or pushed off-screen. */
+@media (max-width: 640px) {
+  .dropdown {
+    width: calc(100vw - 20px);
+  }
 }
 
 .inputRow {

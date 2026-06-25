@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { prefersReducedMotion } from './introStorage'
+import { prefersReducedMotion, hasSeenIntroThisSession, markIntroSeenThisSession } from './introStorage'
 import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
 import styles from './IntroAnimation.module.css'
@@ -25,12 +25,18 @@ export default function IntroAnimation() {
     setPhase('done')
   }, [])
 
-  // Plays every time the app mounts (full page load / refresh / fresh visit).
-  // Internal route changes don't remount App, so it won't replay during in-app
-  // navigation — only on actual page loads.
+  // Plays once per browser session: the first full page load shows the cinematic;
+  // refreshes / returns within the same session skip straight to the app (no
+  // repeated ~9s gate). Internal route changes don't remount App, so it never
+  // replays during in-app navigation.
   useEffect(() => {
     if (phase !== 'idle') return
     if (loading) return
+    if (hasSeenIntroThisSession()) {
+      setPhase('done')
+      return
+    }
+    markIntroSeenThisSession()
     setPhase('playing')
   }, [phase, loading])
 
