@@ -19,7 +19,7 @@ def get_theme_performance():
             themes = result if isinstance(result, list) else (result.get("themes") or [])
             for theme in themes:
                 etf = theme.get("ticker")
-                if etf and etf != "UCT20":
+                if etf and etf != "UCT20" and svc.looks_like_ticker(etf.upper()):
                     tickers.add(etf.upper())
                 for h in (theme.get("holdings") or []):
                     sym = h.get("sym") if isinstance(h, dict) else (h if isinstance(h, str) else None)
