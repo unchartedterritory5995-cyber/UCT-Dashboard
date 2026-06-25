@@ -199,6 +199,34 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
 - `j2_positions.stop_price`/`entry_date` are NOT NULL → broker imports store placeholders;
   the UI renders "—"/"est." (don't show a fake stop / today's date).
 
+## Journal 2.0 — Table & Analytics polish (2026-06-24)
+
+UX pass over the three big J2 surfaces (memory `project_journal_tables_polish_2026_06_24`).
+
+- **Collapsible Analytics** — `tabs/AnalyticsTab.jsx` is now an accordion of
+  `components/CollapsibleSection.jsx` (reusable: inline-SVG chevron — NO emoji,
+  per-section open/closed persisted in `localStorage` key
+  `uct.j2.analytics.section.<id>`, children UNMOUNTED while collapsed so the
+  ECharts don't mount). Defaults: **Edge Score + Closed-Trade Equity open;
+  Performance / Distribution / Attribution / Options Breakdown collapsed.** The
+  broker "Account Balance" panel stays always-visible. Section components dropped
+  their own `<section>`+`<h3 sectionHeader>` — CollapsibleSection supplies the header.
+- **Sortable table headers** — both `components/TradesTable.jsx` (closed trades)
+  and `components/PositionsTable.jsx` (open positions) have click-to-sort headers
+  (gold ▲/▼ caret + `aria-sort`; first click numeric/date→desc, text→asc, second
+  click toggles; blanks always sink last; stable tiebreak). TradesTable default =
+  entryDate desc; PositionsTable default = symbol asc; the Actions column isn't
+  sortable. PositionsTable's `sortKeyFor()` mirrors Row's display logic (live-price
+  P&L/risk/heat, broker no-real-stop blanking, option-row N/A). Shared CSS
+  `.thBtn`/`.sortCaret`/`.thBtnActive` is duplicated in both `.module.css`.
+- **Inline setup tagging** — the Setup cell on EQUITY closed-trade rows is an
+  inline `<select>` of `settings.setups`; saves via `PATCH /api/j2/trades/{id}`
+  with an OPTIMISTIC SWR write (reconciled from the server response, rolls back via
+  `refresh()` on error) + invalidates `/api/j2/analytics` so attribution recomputes.
+  **Option rows stay read-only** (their id is a strategy id, not a `j2_trades` row →
+  PATCH would 404); an off-list existing setup is preserved as an option.
+  `hooks/useJ2Trades.js` now also returns `mutate` for the optimistic write.
+
 ## Mobile Navigation
 
 Shown at ≤1024px (desktop uses the left `NavBar`). Two pieces, both in `Layout.jsx`:
