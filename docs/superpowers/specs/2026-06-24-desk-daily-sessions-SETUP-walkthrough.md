@@ -51,10 +51,13 @@ Room** instead of the "enable in 24h" message.
 1. Sign in at **zoom.us** as the account owner/admin.
 2. **Settings** (left sidebar) → **Meeting** tab → scroll to **In Meeting
    (Advanced)**.
-3. Find **Allow livestreaming of meetings / webinars** → toggle **ON** → check
+3. Find the **webinar** line specifically — **Allow livestreaming of webinars**
+   (distinct from the meetings toggle just above/below it) → toggle **ON** → check
    **Custom Live Streaming Service**. Save.
-   - (If you manage webinars separately under **Webinar** settings, enable the same
-     "Custom Live Streaming Service" there too.)
+   - We run **webinars, not meetings** — make sure it's the webinar toggle that's
+     enabled (enabling only the meetings one won't expose the option in your webinar).
+   - Some accounts also surface this under a separate **Webinar** settings group —
+     enable "Custom Live Streaming Service" there too if you see it.
 
 ✅ **Done when:** the **Custom Live Streaming Service** checkbox is enabled.
 
