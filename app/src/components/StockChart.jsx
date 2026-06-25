@@ -2199,18 +2199,47 @@ export default function StockChart({
     const fadeIn = String(exitDate ?? '') > String(prev ?? '')   // window grew → reveal the result run
     const from = fadeIn ? 0 : 1, to = fadeIn ? 1 : 0
     if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current)
-    const t0 = performance.now(), dur = 720
+    // Drive the candle/volume/MA-tail crossfade IMPERATIVELY (ref + direct setData
+    // in the rAF tick) instead of through React state. Calling setFrameFadeAlpha on
+    // every frame forced a full re-render of this (large) component + a rebuild of
+    // the whole OHLC/volume arrays + a setData on every frame — and that ran
+    // concurrently with the zoom glide's OWN rAF loop, so frames dropped and the
+    // Setup⇄Result transition felt choppy. Here only the ref moves per frame; React
+    // state is settled ONCE at the end so the steady-state memos/effects stay
+    // correct. Duration matches the zoom glide (900ms) so motion + colour land
+    // together instead of the colour finishing ~180ms early. Inputs (goldOhlc /
+    // volData / fadeCutoff / highlightTimeSet / overlayData) are stable across a
+    // flip (same example, same bars), captured fresh each time this re-runs.
+    frameFadeAlphaRef.current = from   // sync before any updateChart overlay repaint in this commit reads it
+    const cut = fadeCutoff == null ? null : String(fadeCutoff)
+    const buildCandles = a => (cut == null ? goldOhlc : goldOhlc.map(d => {
+      if (highlightTimeSet?.has(d.time) || String(d.time) <= cut) return d
+      const col = _candleRgba(d.close >= d.open, a)
+      return { ...d, color: col, borderColor: col, wickColor: col }
+    }))
+    const buildVol = a => (cut == null ? volData : volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) })))
+    const paint = a => {
+      frameFadeAlphaRef.current = a
+      try { candleSeriesRef.current?.setData(a >= 1 ? goldOhlc : buildCandles(a)) } catch { /* range out of bounds mid-load */ }
+      try { volumeSeriesRef.current?.setData(a >= 1 ? volData : buildVol(a)) } catch { /* range out of bounds mid-load */ }
+      const tails = overlayTailSeriesRefs.current
+      for (let i = 0; i < tails.length; i++) {
+        const base = overlayData?.[i]?.color
+        if (tails[i] && base) { try { tails[i].applyOptions({ color: colorWithAlpha(base, a) }) } catch { /* disposed mid-anim */ } }
+      }
+      if (volMaTailSeriesRef.current) { try { volMaTailSeriesRef.current.applyOptions({ color: colorMulAlpha(VOL_MA_COLOR, a) }) } catch { /* disposed mid-anim */ } }
+    }
+    const t0 = performance.now(), dur = 900
     const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
-    const setA = v => { frameFadeAlphaRef.current = v; setFrameFadeAlpha(v) }
     const tick = (now) => {
       const p = Math.min(1, (now - t0) / dur)
-      setA(from + (to - from) * ease(p))
+      paint(from + (to - from) * ease(p))
       if (p < 1) fadeRafRef.current = requestAnimationFrame(tick)
-      else { setA(to); fadeRafRef.current = null }
+      else { fadeRafRef.current = null; setFrameFadeAlpha(to) }   // settle React steady state once, at the end
     }
-    setA(from)
     fadeRafRef.current = requestAnimationFrame(tick)
     return () => { if (fadeRafRef.current) { cancelAnimationFrame(fadeRafRef.current); fadeRafRef.current = null } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- captured inputs are stable across a Setup⇄Result flip; re-running only on exitDate keeps the fade in lockstep with the frame change
   }, [exitDate, candleFrameFade])
   // Apply the crossfade alpha to the post-setup bars. Untouched at full opacity.
   const fadedOhlc = useMemo(() => {
