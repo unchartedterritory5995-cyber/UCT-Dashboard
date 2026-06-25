@@ -1595,12 +1595,6 @@ export default function OptionsFlowDashboard() {
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
   // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
-  //
-  // Auto-refresh: also poll every 60s during market hours. The version probe
-  // is cheap (~50ms, returns a single number); only triggers a full CSV
-  // refetch when the DB actually has new rows, so no wasted bandwidth when
-  // nothing's changing. Skipped when tab is hidden (saves CPU + bandwidth)
-  // and outside 9:30 AM – 4:15 PM ET weekdays (data doesn't change overnight).
   useEffect(() => {
     const fetchVer = () => {
       fetch("/api/flow/version", { cache: "no-store" })
@@ -1611,24 +1605,7 @@ export default function OptionsFlowDashboard() {
     fetchVer();
     const onFocus = () => fetchVer();
     window.addEventListener("focus", onFocus);
-
-    // Periodic polling during market hours, visible tabs only
-    const intervalId = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      // Market hours gate: 9:30 AM – 4:15 PM ET, Mon-Fri.
-      // Add a 15-min after-close grace window so late prints still surface.
-      const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const day = nowET.getDay();
-      if (day === 0 || day === 6) return;  // Sat/Sun
-      const mins = nowET.getHours() * 60 + nowET.getMinutes();
-      if (mins < 9 * 60 + 30 || mins > 16 * 60 + 15) return;  // outside window
-      fetchVer();
-    }, 60_000);
-
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      clearInterval(intervalId);
-    };
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   // Cache-busting version param — fetched from /api/flow/version on mount &
@@ -2662,33 +2639,57 @@ export default function OptionsFlowDashboard() {
       if (ratio > 0.25) return { lw:2, ls:0, op:"80" };
       return { lw:1, ls:2, op:"59" };
     };
+    // Read backend classification with safe fallback. The backend's classifier
+    // (gex_service.classify_gex_state) produces labels that account for the
+    // wall's position relative to spot AND whether it's near enough to count
+    // as "At Wall". We prefer those labels over the chart's old position-only
+    // logic. Color palette per role:
+    //   resistance (Ceiling above spot)         → red
+    //   support    (Floor below spot)           → green/cyan
+    //   magnet_up / magnet_down                 → amber (ambiguous direction —
+    //                                             could pull or repel; OI alone
+    //                                             can't tell us which)
+    //   wall       (At Wall, within 0.3% spot)  → amber (neutral pivot)
+    //   danger / gamma_flip                     → amber dashed
+    const lvls = gexData.levels || {};
+    const cwLvl = lvls.call_wall;
+    const pwLvl = lvls.put_wall;
+    const zgLvl = lvls.zero_gamma;
+    const roleColor = (role) => {
+      if (role === "resistance") return "#c43030";
+      if (role === "support")    return "#0a8f55";
+      return "#c9a84c"; // magnet_up, magnet_down, wall, gamma_flip, danger
+    };
     const lines = [];
     if (cw && pw && cw.strike === pw.strike) {
+      // Pin case: both walls at same strike — preserve old combined visual
       const combined = cw.gex + Math.abs(pw.gex);
       const proximity = sp > 0 ? Math.abs(cw.strike - sp) / sp : 0;
       const aboveSpot = cw.strike > sp;
       let title, color;
       if (proximity < 0.003) { title = "Pin "+fmtG(combined); color = "#c9a84c"; }
-      else if (aboveSpot) { title = "Resistance "+fmtG(combined); color = "#c43030"; }
-      else { title = "Support ↑ "+fmtG(combined); color = "#00BCD4"; }
+      else if (aboveSpot) { title = "Ceiling "+fmtG(combined); color = "#c43030"; }
+      else { title = "Floor "+fmtG(combined); color = "#0a8f55"; }
       lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
     } else {
       if (cw) {
-        const aboveSpot = cw.strike > sp;
-        let title, color;
-        if (aboveSpot) { title = "Ceiling "+fmtG(cw.gex); color = "#c43030"; }
-        else { title = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; }
-        lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
+        // Prefer backend label; fall back to position-based if backend absent
+        const label = cwLvl?.label || (cw.strike > sp ? "Ceiling" : "Pull Up");
+        const color = roleColor(cwLvl?.role) || (cw.strike > sp ? "#c43030" : "#c9a84c");
+        lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title: label+" "+fmtG(cw.gex) });
       }
       if (pw) {
-        const belowSpot = pw.strike < sp;
-        let title, color;
-        if (belowSpot) { title = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; }
-        else { title = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; }
-        lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
+        const label = pwLvl?.label || (pw.strike < sp ? "Floor" : "Magnet");
+        const color = roleColor(pwLvl?.role) || (pw.strike < sp ? "#0a8f55" : "#c9a84c");
+        lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title: label+" "+fmtG(Math.abs(pw.gex)) });
       }
     }
-    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
+    if (zg) {
+      // Backend distinguishes Danger Line (spot below AND within near_threshold)
+      // from Gamma Flip (everywhere else). Old code always said "Danger Line".
+      const zgLabel = zgLvl?.label || "Gamma Flip";
+      lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title: zgLabel });
+    }
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
     // Secondary above/below levels: keep the LINES (visible, color-coded so
     // user still sees support/resistance positions), but suppress the right-
@@ -3565,7 +3566,48 @@ export default function OptionsFlowDashboard() {
               </Card>
             )}
 
-            {!gexLoading && !hasError && gexData && (
+            {!gexLoading && !hasError && gexData && (() => {
+              // ── Backend classification (with safe fallback) ──────────────
+              // The classifier in gex_service.classify_gex_state produces:
+              //   levels.call_wall  → label = Ceiling | Pull Up | At Wall
+              //   levels.put_wall   → label = Floor | Magnet | At Wall
+              //   levels.zero_gamma → label = Danger Line (only when spot is
+              //                       below AND within near_threshold_pct) |
+                                  // Gamma Flip (everywhere else)
+              //   warnings.below_danger_active is the gated test — true only
+              //   when spot is BELOW zero_gamma AND within near threshold.
+              //   Old logic fired "Below danger line" whenever sp < zg, even
+              //   when 20% away.
+              const lvls = gexData.levels || {};
+              const cwLvl = lvls.call_wall;
+              const pwLvl = lvls.put_wall;
+              const zgLvl = lvls.zero_gamma;
+              const warn = gexData.warnings || {};
+              const cwTitle = (cwLvl?.label || "Ceiling");
+              const pwTitle = (pwLvl?.label || "Floor");
+              const zgTitle = (zgLvl?.label || "Danger Line");
+              // Danger-line card sub-text: signed distance with correct
+              // suffix. Old code said "-0.34% above" regardless of sign.
+              const zgPctSigned = (gexData.zeroGamma && gexData.spot)
+                ? ((gexData.spot - gexData.zeroGamma) / gexData.zeroGamma * 100)
+                : null;
+              const zgPctStr = zgPctSigned !== null
+                ? (Math.abs(zgPctSigned).toFixed(2) + "% " + (zgPctSigned >= 0 ? "above" : "below"))
+                : "";
+              // Total GEX sub-text. The "Below danger line" badge should only
+              // fire when the backend says we're actually near it. Otherwise
+              // surface plain Safety net ON/OFF.
+              const dangerActive = !!warn.below_danger_active;
+              const totalGexSub = dangerActive
+                ? "⚠️ " + zgTitle
+                : (gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF");
+              // Border color for the put-wall card. "Floor" stays red; "Magnet"
+              // and "At Wall" shift to amber to signal "this cluster's effect
+              // is ambiguous given OI-only data — it's a pivot, not directional".
+              const pwBorder = pwLvl?.role === "support" ? P.be : "#c9a84c";
+              // Same idea for call wall — "Pull Up" or "At Wall" is amber.
+              const cwBorder = cwLvl?.role === "resistance" ? P.bu : "#c9a84c";
+              return (
               <>
                 {/* Key Level Cards */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8 }}>
@@ -3575,26 +3617,24 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Danger Line</div>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{zgTitle}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
-                      {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
-                    </div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{zgPctStr}</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Ceiling</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+cwBorder }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{cwTitle}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} ceiling</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} call cluster</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Floor</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+pwBorder }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{pwTitle}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(Math.abs(gexData.putWall.gex)) : ""} put cluster</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{totalGexSub}</div>
                   </div>
                 </div>
 
@@ -3726,8 +3766,19 @@ export default function OptionsFlowDashboard() {
                   const cwPct = Math.round(cwGex / (cwGex + pwGex) * 100);
                   const pwPct = 100 - cwPct;
 
-                  const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
-                  const belowDangerLine = zg && sp < zg;
+                  // Use the backend's gated warning. Old `sp < zg` fired even
+                  // when spot was 20% away from zero gamma. Backend's
+                  // below_danger_active requires BOTH spot_below AND within
+                  // near_threshold_pct (default 3%). Fall back to old check
+                  // only if backend warnings missing entirely.
+                  const _warn = gexData.warnings || {};
+                  const belowDangerLine = (_warn.below_danger_active !== undefined)
+                    ? _warn.below_danger_active
+                    : !!(zg && sp < zg);
+                  // isPositive (Safety net ON) follows the same gating — if
+                  // we're not actually near a danger line, positive total GEX
+                  // alone is sufficient for "safety net on".
+                  const isPositive = tg > 0 && !belowDangerLine;
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
@@ -3759,6 +3810,26 @@ export default function OptionsFlowDashboard() {
                   const floorStrike = pwBelowSpot ? pwStrike : (firstSupBelow ? firstSupBelow.strike : null);
                   const levelBelowFloor = floorStrike ? allStrikesBelow.find(s => s.strike < floorStrike) : null;
                   const thinBelow = floorStrike && (!levelBelowFloor || (floorStrike - levelBelowFloor.strike) / sp > 0.015);
+
+                  // Grounded "support below spot" reference used by trade
+                  // text and stop levels. Picks the actual put wall if it's
+                  // below spot, else the strongest put-gamma strike below
+                  // spot. If neither exists, `realSupportBelow` is null and
+                  // trade text must acknowledge that we have no defined
+                  // support — old code fabricated sp*0.97 here which
+                  // produced bogus levels like "$711" on SPY when put wall
+                  // was actually $735 (above spot). Stop levels under
+                  // sp*0.97 are below the bottom of our strike window, so
+                  // we genuinely have no data there.
+                  const realSupportBelow = pwBelowSpot
+                    ? pwStrike
+                    : (firstSupBelow ? firstSupBelow.strike : null);
+                  // String forms: when null, render "no defined support" so
+                  // template strings degrade gracefully without printing
+                  // "$null".
+                  const supportBelowStr = realSupportBelow !== null
+                    ? "$" + realSupportBelow
+                    : "no defined support below";
 
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
@@ -3985,13 +4056,21 @@ export default function OptionsFlowDashboard() {
                     if (cwAboveSpot) {
                       const cwDistPct = (cwStrike - sp) / sp;
                       if (isIntraday) {
-                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-(pwBelowSpot?pwStrike:sp*0.97))*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        if (realSupportBelow !== null) {
+                          trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Buy dips toward $"+(sp-(sp-realSupportBelow)*0.3).toFixed(0)+". "+(isPositive?fmtGex(tg)+" safety net active — dips tend to bounce.":"No safety net — use smaller size and wider stops.")+" Stop below $"+realSupportBelow+"." });
+                        } else {
+                          trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"No defined support below spot in current strike window — use a volatility-based stop (e.g. 1× ATR below entry) rather than a level stop. "+(isPositive?fmtGex(tg)+" safety net is active overall, but the closest put cluster is above spot.":"No safety net and no support level — smaller size, tight ATR stop.") });
+                        }
                         trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " First test at $"+firstResAbove.strike+"." : "") });
                         if (cwDistPct < 0.005 && firstResAbovePin) {
                           trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price pushes above $"+cwStrike+" and holds, "+fmtGex(cwGex)+" becomes support. Next target $"+firstResAbovePin.strike+"." });
                         }
                       } else {
-                        trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+" or a dip toward $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+". "+(isPositive?"Safety net is on — weekly dips tend to find buyers.":"No safety net — size down and use wider stops.")+" Stop on a daily close below $"+(pwBelowSpot?pwStrike:(sp*0.97).toFixed(0))+"." });
+                        if (realSupportBelow !== null) {
+                          trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+" or a dip toward $"+realSupportBelow+". "+(isPositive?"Safety net is on — weekly dips tend to find buyers.":"No safety net — size down and use wider stops.")+" Stop on a daily close below $"+realSupportBelow+"." });
+                        } else {
+                          trades.push({ i:"B", bg:P.bu+"33", c:P.bu, t:"Swing long entry on a daily close above $"+sp.toFixed(0)+". No defined support below spot in our strike window — use a daily-close-based stop (e.g. close below the prior swing low) rather than a level stop. "+(isPositive?"Safety net is on but no clean support level — keep size modest.":"No safety net and no support level — small size, daily-close stops only.") });
+                        }
                         trades.push({ i:"T", bg:P.ac+"33", c:P.ac, t:"Swing target $"+cwStrike+" ("+fmtGex(cwGex)+" ceiling)."+(firstResAbove && firstResAbove.strike < cwStrike ? " Watch for resistance at $"+firstResAbove.strike+" first." : "")+" Take partial profits there." });
                         if (cwDistPct < 0.01 && firstResAbovePin) {
                           trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"If price closes above $"+cwStrike+", "+fmtGex(cwGex)+" becomes support below. Swing target $"+firstResAbovePin.strike+"." });
@@ -4047,19 +4126,34 @@ export default function OptionsFlowDashboard() {
                   // Premium selling on positive GEX
                   if (isPositive && !pinSetup && !squeezeSetup) {
                     if (isIntraday) {
-                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless." });
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t: realSupportBelow !== null
+                        ? "Sell puts below $"+realSupportBelow+" — the "+fmtGex(tg)+" safety net means big drops are unlikely. High probability they expire worthless."
+                        : "Premium-selling: skip naked put strikes here. No defined support below spot to anchor short strikes. Use spreads with defined risk instead." });
                     } else {
-                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Sell weekly puts below $"+(pwBelowSpot?pwStrike:(sp*0.96).toFixed(0))+" — "+fmtGex(tg)+" safety net makes big weekly drops unlikely. Let time decay work for you." });
+                      trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t: realSupportBelow !== null
+                        ? "Sell weekly puts below $"+realSupportBelow+" — "+fmtGex(tg)+" safety net makes big weekly drops unlikely. Let time decay work for you."
+                        : "Weekly premium-selling: skip naked put strikes. No defined support below spot to anchor short strikes — use defined-risk spreads instead." });
                     }
                   }
 
-                  // Danger zone
-                  const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
+                  // Danger zone — anchor on a real strike, not a fabricated %.
+                  const dangerLevel = realSupportBelow; // may be null
                   if (thinBelow && !pinSetup && !squeezeSetup) {
-                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
+                    const dangerRef = firstSupBelow ? firstSupBelow.strike : dangerLevel;
+                    if (dangerRef !== null) {
+                      trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+dangerRef+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+dangerRef+" — a break means fast downside with nothing to catch it.") });
+                    } else {
+                      trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"No defined support below spot in current strike window — any break can run fast with nothing to catch it.":"No defined support below spot — any daily close lower can run fast with no cushion.") });
+                    }
                   }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
+                  if (dangerLevel !== null) {
+                    trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
+                  } else {
+                    // No real support level — phrase the risk around spot
+                    // and zero gamma instead of a made-up dollar value.
+                    trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: no defined support below spot in our strike window — downside has no anchor."+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net also breaks — drops can snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Call wall at $"+cwStrike+" flipping to resistance would compound the risk." : "") });
+                  }
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
@@ -4241,7 +4335,8 @@ export default function OptionsFlowDashboard() {
                   );
                 })()}
               </>
-            )}
+              );
+            })()}
           </div>
           );
         })()}
