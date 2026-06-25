@@ -1585,9 +1585,17 @@ webhook → engine downloads the MP4 (streamed to a temp file) → uploads to Yo
 **unlisted** (resumable) → sets a **branded thumbnail** → publishes an `edu_videos`
 record (reuses the existing Educational Videos store + player) → **trashes the Zoom
 cloud copy** (storage-cap safe) → **alerts the owner (email via Resend + Discord)**.
-Title `Live Trading Session — {Month D, YYYY}` (ET). `_notify_published` fires once per
+**Routing by webinar name:** `_route(topic)` maps the Zoom webinar name → `(section,
+title_prefix, eyebrow)`. `_RULES` pins `"live trading*"` → Live Trading Sessions (back-compat,
+since the template is literally named "live trading today"); any other named topic
+**auto-derives** section = title = the name + thumbnail eyebrow = NAME.upper() (e.g. a
+"Post Market Recap" webinar → "Post Market Recap — {date}" in a "Post Market Recap"
+section); empty topic → default. So new content types = just name a Zoom template.
+Title `{type} — {Month D, YYYY}` (ET). `_notify_published` fires once per
 genuinely-new publish (not on idempotent re-runs); recipients = `DESK_DAILY_SESSION_ALERT_EMAILS`
-or `ADMIN_EMAILS`; best-effort (never breaks publish).
+or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist — EVERY cloud
+recording on the account auto-posts (titled by its webinar name); add a skip rule in
+`_route` if private/internal recordings ever need excluding.**
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
