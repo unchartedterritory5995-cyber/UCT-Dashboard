@@ -3828,9 +3828,31 @@ export default function OptionsFlowDashboard() {
                   // was actually $735 (above spot). Stop levels under
                   // sp*0.97 are below the bottom of our strike window, so
                   // we genuinely have no data there.
-                  const realSupportBelow = pwBelowSpot
-                    ? pwStrike
-                    : (firstSupBelow ? firstSupBelow.strike : null);
+                  //
+                  // MIN_STOP_DIST_PCT: a "support" strike inside this band
+                  // around spot is useless as a stop — you'd stop out on
+                  // noise. 0.5% on SPY at $733 is ~$3.66; if firstSupBelow
+                  // returns $733 (a real put strike but essentially at
+                  // spot), reject it and fall back to the next-strongest
+                  // strike below the band — or null if none exists.
+                  const MIN_STOP_DIST_PCT = 0.005;
+                  const _passesMinDist = (strike) =>
+                    strike !== null && (sp - strike) / sp >= MIN_STOP_DIST_PCT;
+                  // Try the put wall first if it's below spot, then the
+                  // already-computed firstSupBelow. If both are too close,
+                  // walk allStrikesBelow looking for the first put-gamma
+                  // strike that passes the band test.
+                  let _candidates = [];
+                  if (pwBelowSpot) _candidates.push(pwStrike);
+                  if (firstSupBelow) _candidates.push(firstSupBelow.strike);
+                  // Walk all put-gamma strikes below spot as fallback. This
+                  // catches the case where pw is above spot AND the closest
+                  // put cluster below is too close to use as a stop — we
+                  // want the NEXT cluster down.
+                  allStrikesBelow.forEach(s => {
+                    if (Math.abs(s.putGex) > 0) _candidates.push(s.strike);
+                  });
+                  const realSupportBelow = _candidates.find(_passesMinDist) ?? null;
                   // String forms: when null, render "no defined support" so
                   // template strings degrade gracefully without printing
                   // "$null".
@@ -4031,6 +4053,14 @@ export default function OptionsFlowDashboard() {
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
                   const cwMagnet = !cwAboveSpot; // call wall below spot = support
                   const pwMagnet = !pwBelowSpot; // put wall above spot = resistance
+                  // conflictPivot: spot below danger line AND the dominant
+                  // gamma cluster is a put above spot. The page-level
+                  // narrative for this case is "sharp moves both ways, wait
+                  // for the test" — so any directional trade (Buy dips,
+                  // Target ceiling, clear-air-above) contradicts that
+                  // framing and should be suppressed in favor of a single
+                  // pivot trade.
+                  const conflictPivot = belowDangerLine && pwDominant && !pwBelowSpot;
 
                   if (pinSetup) {
                     // Pin setup trades
@@ -4084,7 +4114,9 @@ export default function OptionsFlowDashboard() {
                     }
                   } else {
                     // Directional trades
-                    if (cwAboveSpot) {
+                    if (cwAboveSpot && conflictPivot) {
+                      trades.push({ i:"◇", bg:P.ac+"33", c:P.ac, t:"Wait for the read at $"+pwStrike+". A clean reclaim opens upside toward $"+cwStrike+". A rejection at $"+pwStrike+" with spot below the danger line means lower — no long bias until reclaim." });
+                    } else if (cwAboveSpot) {
                       const cwDistPct = (cwStrike - sp) / sp;
                       if (isIntraday) {
                         if (realSupportBelow !== null) {
@@ -4132,7 +4164,10 @@ export default function OptionsFlowDashboard() {
                         }
                       }
                     }
-                    if (pwMagnet) {
+                    if (pwMagnet && !conflictPivot) {
+                      // When conflictPivot fires above, the magnet trade is
+                      // already covered by the single pivot trade — skip to
+                      // avoid duplicate text.
                       trades.push({ i:"◇", bg:P.ac+"33", c:P.ac, t:"Largest put cluster at $"+pwStrike+" sits above current price ("+fmtGex(pwGex)+"). Could pull price up (magnet) or cap rallies (resistance) — OI alone can't tell us dealer direction. Watch how price behaves on the first test." });
                     }
                   }
@@ -4144,8 +4179,10 @@ export default function OptionsFlowDashboard() {
                     trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
                   }
 
-                  // Clear air / breakout potential
-                  if (clearAirAbove && cwAboveSpot) {
+                  // Clear air / breakout potential. Suppress when
+                  // conflictPivot active — this is a bullish call that
+                  // contradicts the "wait for the test" pivot trade.
+                  if (clearAirAbove && cwAboveSpot && !conflictPivot) {
                     const intermediateRes = firstResAbove && firstResAbove.strike < cwStrike ? firstResAbove : null;
                     if (isIntraday) {
                       trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Not much blocking price above $"+sp.toFixed(0)+""+(intermediateRes ? " — if $"+intermediateRes.strike+" breaks" : "")+", could run quickly toward $"+cwStrike+"." });
@@ -4394,6 +4431,26 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
                     <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
                     <div style={{ fontSize:13, fontWeight:800, color:P.wh, textTransform:"uppercase", letterSpacing:1.5, marginBottom:5 }}>Game Plan</div>
+                    {/* Triple-coincidence callout: when spot, zero gamma,
+                        and realSupportBelow all sit within ~1% of each
+                        other, the trade text below will mention the same
+                        dollar value in 3+ different roles (stop, danger
+                        line, support). Without this, the reader has to
+                        figure out which "$733" each sentence means. The
+                        intraday SPY 1DTE page hit this exact case. */}
+                    {(()=>{
+                      const zgClose   = zg && Math.abs(sp - zg) / sp < 0.005;
+                      const supClose  = realSupportBelow !== null && (sp - realSupportBelow) / sp < 0.01;
+                      const zgSupSame = zg && realSupportBelow !== null && Math.abs(zg - realSupportBelow) / sp < 0.005;
+                      if (zgClose && supClose && zgSupSame) {
+                        return (
+                          <div style={{ fontSize:10, color:P.ac, background:P.ac+"15", border:"1px solid "+P.ac+"40", padding:"5px 8px", borderRadius:4, marginBottom:8, lineHeight:1.4 }}>
+                            ⚠️ Spot (${sp.toFixed(0)}), danger line (${zg.toFixed(0)}), and nearest support (${realSupportBelow}) all sit at ~${sp.toFixed(0)}. The trade text below mentions this same level in multiple roles — read carefully.
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     {trades.map((t,ti) => (
                       <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
                         <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
@@ -4402,7 +4459,12 @@ export default function OptionsFlowDashboard() {
                     ))}
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
-                      <span>Safety net breaks: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+")":""}</span>
+                      <span>Safety net breaks: ${zg?zg.toFixed(0):"—"}{(()=>{
+                        if (!zgDist) return "";
+                        const d = Math.abs(parseFloat(zgDist));
+                        if (d < 0.1) return " (RIGHT HERE)";
+                        return " ("+d.toFixed(2)+"% "+(parseFloat(zgDist)>=0?"above":"below")+")";
+                      })()}</span>
                       <span>{gexData.fetchedAt ? "Fetched: "+gexData.fetchedAt+" ET" : ""}</span>
                       <span>UCT Intelligence</span>
                     </div>
