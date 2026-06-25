@@ -116,6 +116,21 @@
   --tap-min: 44px;
 }
 
+/* ── Phone comfort scale ───────────────────────────────────────────────────
+   On phones, nudge the smallest type tokens up one step so token-compliant UI
+   (labels, captions, body, controls) reads comfortably on a 375px screen. Dense
+   data tables that hardcode literal 10/11px stay dense on purpose — this only
+   lifts text that opted into the scale, so tables keep their information density
+   while prose/labels/buttons get the comfort bump. */
+@media (max-width: 640px) {
+  :root {
+    --text-xs: 11px;   /* was 10 */
+    --text-sm: 12px;   /* was 11 */
+    --text-base: 13px; /* was 12 */
+    --text-md: 14px;   /* was 13 */
+  }
+}
+
 /* ── OLED Black theme ── */
 [data-theme="oled"] {
   --bg: #000000;
