@@ -104,6 +104,39 @@ def _alert_owner(now: datetime, kind: str = "missing") -> None:
     discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
 
 
+_DESK_VIDEOS_URL = "https://uctintelligence.com/desk?section=videos"
+
+
+def _alert_recipients() -> list[str]:
+    raw = (os.environ.get("DESK_DAILY_SESSION_ALERT_EMAILS")
+           or os.environ.get("ADMIN_EMAILS", ""))
+    return [e.strip() for e in raw.split(",") if e.strip()]
+
+
+def _notify_published(title: str, video_id: str) -> None:
+    """Fire a success alert (Discord + email) when a session posts to The Desk.
+    Best-effort — never raises (must not break the processor)."""
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "✅ Live Trading Session posted",
+            "description": f"**{title}** is now live in The Desk → Videos.\n"
+                           f"[Open The Desk]({_DESK_VIDEOS_URL})",
+            "color": 0x4ADE80,
+        })
+    except Exception:
+        pass
+    try:
+        from api.services import email_service
+        html = (f"<p style='font-size:16px'><b>{title}</b> is now live in "
+                f"<b>The Desk → Videos → Live Trading Sessions</b>.</p>"
+                f"<p><a href='{_DESK_VIDEOS_URL}' style='color:#c9a84c'>Open The Desk →</a></p>")
+        for to in _alert_recipients():
+            email_service.send_email(to, f"✅ {title} is posted to The Desk", html)
+    except Exception:
+        pass
+
+
 def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
     """Weekday EOD guard. Drains the queue once, then alerts the owner if today's
     session still isn't in The Desk — distinguishing a stuck/errored queue from a
@@ -164,7 +197,8 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                         vid, render_session_thumbnail(_session_date_text(job.get("start_time"))))
                 except Exception as te:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
-            if vid not in education_service.existing_youtube_ids():
+            created_now = vid not in education_service.existing_youtube_ids()
+            if created_now:
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
                     "category": _category(), "sort_order": 0})
@@ -174,6 +208,8 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 pass
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
+            if created_now:                 # alert once, only on a genuinely-new publish
+                _notify_published(title, vid)
         except Exception as e:
             desk_session_jobs.mark_error(uuid, e)
         finally:

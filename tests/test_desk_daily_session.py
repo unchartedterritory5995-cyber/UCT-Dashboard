@@ -224,3 +224,21 @@ def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeyp
     assert len(out) == 1
     vids = [v for v in edu.list_videos() if v["youtube_id"] == "VIDZ"]
     assert len(vids) == 1
+
+
+def test_process_notifies_on_new_publish(edu_db, jobs_db, monkeypatch):
+    calls = []
+    monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append((title, vid)))
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert calls == [("Live Trading Session — June 24, 2026", "VIDX")]
+
+
+def test_process_does_not_notify_on_idempotent_rerun(edu_db, jobs_db, monkeypatch):
+    calls = []
+    monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append(vid))
+    edu.create_video({"youtube_id": "VIDX", "title": "x",
+                      "category": "Live Trading Sessions", "sort_order": 0})
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert calls == []   # video already existed -> no duplicate alert
