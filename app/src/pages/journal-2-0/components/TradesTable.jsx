@@ -3,7 +3,7 @@
  * Spec §11.3.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   money,
   moneySigned,
@@ -133,17 +133,60 @@ function cellFor(key, trade, opts) {
   }
 }
 
+// Columns that sort numerically; everything else sorts as text. Dates are
+// ISO strings, so lexical comparison already orders them chronologically.
+const NUMERIC_SORT_KEYS = new Set([
+  'shares', 'entryPrice', 'exitPrice', 'pnlDollar', 'pnlDollarNet',
+  'fees', 'pnlPercent', 'rMultiple', 'holdDays', 'originalStop',
+])
+const DATE_SORT_KEYS = new Set(['entryDate', 'exitDate'])
+
+// First click on a column picks the most useful direction: biggest/newest
+// first for numbers + dates, A→Z for text.
+function defaultDirFor(key) {
+  return NUMERIC_SORT_KEYS.has(key) || DATE_SORT_KEYS.has(key) ? 'desc' : 'asc'
+}
+
+function sortValue(key, trade) {
+  if (key === 'pnlDollarNet') return trade.pnlDollarNet ?? trade.pnlDollar
+  return trade[key]
+}
+
 export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds }) {
-  // Default sort: entryDate DESC (spec §11.3). Callers may pre-sort; we
-  // sort again here to be safe.
-  const sorted = useMemo(
-    () =>
-      [...trades].sort((a, b) => {
-        if (a.entryDate === b.entryDate) return 0
-        return a.entryDate > b.entryDate ? -1 : 1
-      }),
-    [trades],
-  )
+  // Default sort: entryDate DESC (spec §11.3). Clicking a header re-sorts.
+  const [sort, setSort] = useState({ key: 'entryDate', dir: 'desc' })
+
+  const handleSort = (key) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: defaultDirFor(key) },
+    )
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const numeric = NUMERIC_SORT_KEYS.has(sort.key)
+    return [...trades].sort((a, b) => {
+      const av = sortValue(sort.key, a)
+      const bv = sortValue(sort.key, b)
+      const aEmpty = av == null || av === ''
+      const bEmpty = bv == null || bv === ''
+      // Blanks always sink to the bottom, regardless of direction.
+      if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
+      else if (aEmpty) return 1
+      else if (bEmpty) return -1
+      else {
+        let c
+        if (numeric) c = av - bv
+        else c = String(av) < String(bv) ? -1 : String(av) > String(bv) ? 1 : 0
+        if (c !== 0) return c * dir
+      }
+      // Stable tiebreak: newest entry first, then id.
+      if (a.entryDate !== b.entryDate) return a.entryDate > b.entryDate ? -1 : 1
+      return String(a.id) < String(b.id) ? -1 : 1
+    })
+  }, [trades, sort])
 
   if (sorted.length === 0) {
     return (
@@ -164,16 +207,29 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
       <table className={styles.table}>
         <thead>
           <tr>
-            {visibleColumns.map((c) => (
-              <th
-                key={c.key}
-                className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
-                title={c.tooltip || undefined}
-                scope="col"
-              >
-                {c.label}
-              </th>
-            ))}
+            {visibleColumns.map((c) => {
+              const active = sort.key === c.key
+              return (
+                <th
+                  key={c.key}
+                  className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
+                  title={c.tooltip || undefined}
+                  scope="col"
+                  aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  <button
+                    type="button"
+                    className={`${styles.thBtn} ${active ? styles.thBtnActive : ''}`}
+                    onClick={() => handleSort(c.key)}
+                  >
+                    <span>{c.label}</span>
+                    <span className={styles.sortCaret} aria-hidden="true">
+                      {active ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </button>
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import TradesTable, { buildTradesColumns } from './TradesTable'
 
 const BASE_TRADE = {
@@ -82,5 +83,54 @@ describe('TradesTable — YSS reference render (§11.3)', () => {
     const rows = screen.getAllByRole('row').slice(1)
     const firstSymbol = rows[0].querySelector('td')?.textContent
     expect(firstSymbol).toBe('NEWER')
+  })
+})
+
+describe('TradesTable — sortable headers', () => {
+  const cols = () => buildTradesColumns().filter((c) => !c.hiddenByDefault)
+  const firstRowSymbol = () =>
+    screen.getAllByRole('row').slice(1)[0].querySelector('td')?.textContent
+
+  it('clicking P&L sorts biggest-first, then toggles to smallest-first', async () => {
+    const user = userEvent.setup()
+    const small = { ...BASE_TRADE, id: 's', symbol: 'SMALL', pnlDollar: 50 }
+    const big = { ...BASE_TRADE, id: 'g', symbol: 'BIG', pnlDollar: 900 }
+    render(<TradesTable trades={[small, big]} visibleColumns={cols()} />)
+
+    await user.click(screen.getByRole('button', { name: 'P&L $' }))
+    expect(firstRowSymbol()).toBe('BIG')
+
+    await user.click(screen.getByRole('button', { name: 'P&L $' }))
+    expect(firstRowSymbol()).toBe('SMALL')
+  })
+
+  it('clicking Symbol sorts alphabetically (A→Z)', async () => {
+    const user = userEvent.setup()
+    const z = { ...BASE_TRADE, id: 'z', symbol: 'ZZZZ' }
+    const a = { ...BASE_TRADE, id: 'a', symbol: 'AAAA' }
+    render(<TradesTable trades={[z, a]} visibleColumns={cols()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Symbol' }))
+    expect(firstRowSymbol()).toBe('AAAA')
+  })
+
+  it('marks the active column header with aria-sort', async () => {
+    const user = userEvent.setup()
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols()} />)
+    await user.click(screen.getByRole('button', { name: 'R' }))
+    const rHeader = screen.getByRole('button', { name: 'R' }).closest('th')
+    expect(rHeader).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sorts blank setups to the bottom regardless of direction', async () => {
+    const user = userEvent.setup()
+    const tagged = { ...BASE_TRADE, id: 'x', symbol: 'TAGGED', setup: 'VCP' }
+    const blank = { ...BASE_TRADE, id: 'y', symbol: 'BLANK', setup: '' }
+    render(<TradesTable trades={[blank, tagged]} visibleColumns={cols()} />)
+    await user.click(screen.getByRole('button', { name: 'Setup' }))
+    expect(firstRowSymbol()).toBe('TAGGED')
+    await user.click(screen.getByRole('button', { name: 'Setup' }))
+    // Even descending, the blank-setup row stays last.
+    expect(firstRowSymbol()).toBe('TAGGED')
   })
 })
