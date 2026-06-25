@@ -13,6 +13,9 @@
 }
 
 .dragGrip { color: var(--text-muted, #4b5563); font-size: 13px; cursor: move; user-select: none; }
+/* The color-cycle dot is intentionally a compact 10×10 marker; the mobile audit
+   still flags it as sub-target. Left as a documented dense exception — growing it
+   would reshape the widget header for a purely decorative-adjacent control. */
 .colorDot {
   width: 10px; height: 10px; border-radius: 50%;
   border: none; padding: 0; cursor: pointer;
@@ -123,6 +126,26 @@
   align-self: stretch;
   background: var(--border, #1f2937);
   margin: 2px 4px;
+}
+
+/* ── Phone: comfortable tap targets in the widget header + TF bar ──
+   /charts (and /watchlists, which redirects here) renders the full ChartWidget
+   on phone, so the close button, TF chips, and symbol badge are all touch
+   targets. 40px clears the audit (≥40h/≥24w) while keeping the bars compact;
+   the standalone close button gets the full 44px. */
+@media (max-width: 640px) {
+  .tfBtn {
+    min-height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .closeBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  .symbolSlot {
+    min-height: 40px;
+  }
 }
 
 .workspace {

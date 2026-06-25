@@ -25,6 +25,11 @@
 .badge:hover {
   opacity: 0.8;
 }
+/* Phone: give the clickable ticker title a comfortable tap height. inline-flex
+   + center keeps the glyph aligned; only the hit area grows. */
+@media (max-width: 640px) {
+  .badge { min-height: 40px; }
+}
 .badge svg {
   opacity: 0.4;
   transition: opacity 0.15s;

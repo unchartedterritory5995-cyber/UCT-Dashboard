@@ -325,8 +325,15 @@
   .overlayPeriod { font-size: 16px; }
   .overlaySelect { font-size: 16px; }
   .opacitySlider { max-width: unset; }
-  /* Comfortable tap target for the avatar action on touch. */
+  /* Comfortable tap targets on touch: avatar action, chart-type pills, and the
+     chart-settings selects (40px clears the audit; selects already use 16px to
+     avoid iOS focus-zoom). */
   .avatarChangeBtn { min-height: var(--tap-min); }
+  .chartPill { min-height: 40px; }
+  .select,
+  .prefSelect,
+  .overlaySelect,
+  .overlayPeriod { min-height: 40px; }
 }
 
 /* ── Voice Panel ── */
