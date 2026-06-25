@@ -13,17 +13,17 @@ ET = ZoneInfo("America/New_York")
 
 def test_session_title_formats_et_date():
     # 2026-06-24T13:30:00Z == 09:30 ET, still June 24
-    assert dds._session_title("2026-06-24T13:30:00Z") == "Daily Session — June 24, 2026"
+    assert dds._session_title("2026-06-24T13:30:00Z") == "Live Trading Session — June 24, 2026"
 
 
 def test_session_title_handles_utc_midnight_rolling_back_to_prev_et_day():
     # 2026-06-25T02:00:00Z == 2026-06-24 22:00 ET
-    assert dds._session_title("2026-06-25T02:00:00Z") == "Daily Session — June 24, 2026"
+    assert dds._session_title("2026-06-25T02:00:00Z") == "Live Trading Session — June 24, 2026"
 
 
 def test_session_title_falls_back_to_now_when_missing():
     fixed = datetime(2026, 6, 24, 12, 0, tzinfo=ET)
-    assert dds._session_title(None, now=fixed) == "Daily Session — June 24, 2026"
+    assert dds._session_title(None, now=fixed) == "Live Trading Session — June 24, 2026"
 
 
 class _FakeClient:
@@ -41,21 +41,24 @@ def edu_db(monkeypatch):
         yield edu
 
 
+_NOW = datetime(2026, 6, 24, 12, 0, tzinfo=ET)  # pin date-floor so tests are time-independent
+
+
 def test_publish_creates_dated_record(edu_db):
     client = _FakeClient([{"video_id": "VID1", "title": "raw",
                            "started_at": "2026-06-24T13:30:00Z", "privacy": "unlisted"}])
-    created = dds.publish_new_sessions(client=client)
+    created = dds.publish_new_sessions(client=client, now=_NOW)
     assert len(created) == 1
     assert created[0]["youtube_id"] == "VID1"
-    assert created[0]["title"] == "Daily Session — June 24, 2026"
-    assert created[0]["category"] == "Daily Sessions"
+    assert created[0]["title"] == "Live Trading Session — June 24, 2026"
+    assert created[0]["category"] == "Live Trading Sessions"
 
 
 def test_publish_is_idempotent(edu_db):
     client = _FakeClient([{"video_id": "VID1", "title": "raw",
                            "started_at": "2026-06-24T13:30:00Z"}])
-    assert len(dds.publish_new_sessions(client=client)) == 1
-    assert dds.publish_new_sessions(client=client) == []   # second run no-ops
+    assert len(dds.publish_new_sessions(client=client, now=_NOW)) == 1
+    assert dds.publish_new_sessions(client=client, now=_NOW) == []   # second run no-ops
     assert len(edu.list_videos()) == 1
 
 
@@ -70,8 +73,8 @@ def test_safety_net_silent_on_weekend(edu_db, monkeypatch):
 def test_safety_net_silent_when_today_present(edu_db, monkeypatch):
     fired = []
     monkeypatch.setattr(dds, "_alert_owner", lambda now, **kw: fired.append((now, kw.get("kind", "missing"))))
-    edu.create_video({"youtube_id": "V", "title": "Daily Session — June 24, 2026",
-                      "category": "Daily Sessions", "sort_order": 0})
+    edu.create_video({"youtube_id": "V", "title": "Live Trading Session — June 24, 2026",
+                      "category": "Live Trading Sessions", "sort_order": 0})
     wed = datetime(2026, 6, 24, 18, 0, tzinfo=ET)
     assert dds.check_missing_session_alert(now=wed, publish=False) is False
     assert fired == []
@@ -100,7 +103,7 @@ def test_publish_skips_broadcasts_before_floor(edu_db):
     created = dds.publish_new_sessions(client=fc, now=fixed_now)
     assert len(created) == 1
     assert created[0]["youtube_id"] == "TODAY"
-    assert created[0]["title"] == "Daily Session — June 24, 2026"
+    assert created[0]["title"] == "Live Trading Session — June 24, 2026"
 
 
 def test_publish_respects_start_date_env(edu_db, monkeypatch):
@@ -151,8 +154,11 @@ class _FakeZoom:
 
 
 class _FakeYT:
+    def __init__(self): self.thumbs = []
     def upload_unlisted(self, path, title, description=""):
         return "VIDX"
+    def set_thumbnail(self, video_id, image_bytes):
+        self.thumbs.append((video_id, len(image_bytes)))
 
 
 @pytest.fixture
@@ -165,18 +171,30 @@ def jobs_db(monkeypatch):
 
 def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
     jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
-    z = _FakeZoom()
-    out = dds.process_pending_jobs(zoom=z, youtube=_FakeYT())
+    z = _FakeZoom(); yt = _FakeYT()
+    out = dds.process_pending_jobs(zoom=z, youtube=yt)
     assert len(out) == 1
     vids = edu.list_videos()
-    assert len(vids) == 1 and vids[0]["title"] == "Daily Session — June 24, 2026"
+    assert len(vids) == 1 and vids[0]["title"] == "Live Trading Session — June 24, 2026"
     assert vids[0]["youtube_id"] == "VIDX"
     assert z.deleted == ["U1"]                      # Zoom copy trashed
+    assert yt.thumbs and yt.thumbs[0][0] == "VIDX" and yt.thumbs[0][1] > 1000  # branded thumb set
+
+
+def test_thumbnail_failure_is_nonfatal(edu_db, jobs_db):
+    jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    class _ThumbBoomYT(_FakeYT):
+        def set_thumbnail(self, video_id, image_bytes):
+            raise RuntimeError("thumbnail boom")
+    out = dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_ThumbBoomYT())
+    assert len(out) == 1                            # publish still succeeds
+    assert edu.list_videos()[0]["youtube_id"] == "VIDX"
+    assert jobs_db.count_status("done") == 1
     assert jobs_db.count_status("done") == 1
 
 
 def test_process_idempotent_on_existing_video(edu_db, jobs_db):
-    edu.create_video({"youtube_id": "VIDX", "title": "x", "category": "Daily Sessions", "sort_order": 0})
+    edu.create_video({"youtube_id": "VIDX", "title": "x", "category": "Live Trading Sessions", "sort_order": 0})
     jobs_db.enqueue("U1", "t", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     assert len([v for v in edu.list_videos() if v["youtube_id"] == "VIDX"]) == 1

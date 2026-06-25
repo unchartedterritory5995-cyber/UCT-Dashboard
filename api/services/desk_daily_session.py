@@ -18,7 +18,7 @@ _ET = ZoneInfo("America/New_York")
 
 
 def _category() -> str:
-    return os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Daily Sessions")
+    return os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Live Trading Sessions")
 
 
 def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> datetime:
@@ -34,9 +34,14 @@ def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> dateti
     return dt.astimezone(_ET)
 
 
-def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+def _session_date_text(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+    """ET date as 'June 24, 2026' — shared by the title and the thumbnail."""
     dt = _to_et(started_at_iso, now=now)
-    return f"Daily Session — {dt.strftime('%B')} {dt.day}, {dt.year}"
+    return f"{dt.strftime('%B')} {dt.day}, {dt.year}"
+
+
+def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+    return f"Live Trading Session — {_session_date_text(started_at_iso, now=now)}"
 
 
 def _start_date_floor():
@@ -88,12 +93,12 @@ def todays_session_exists(now: datetime | None = None) -> bool:
 def _alert_owner(now: datetime, kind: str = "missing") -> None:
     from api.services import discord_notify
     if kind == "stuck":
-        title = "⚠️ Daily Session stuck in processing"
+        title = "⚠️ Live Trading Session stuck in processing"
         desc = ("Today's recording is queued but not published (download/upload/"
                 "auth failure). Check Zoom/YouTube credentials + the desk_session_jobs queue.")
     else:
         when = now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')
-        title = "⚠️ Daily Session not published"
+        title = "⚠️ Live Trading Session not published"
         desc = (f"No '{_session_title(None, now=now)}' video is in The Desk by {when}. "
                 "Check that the webinar ran and auto-recorded to the Zoom cloud.")
     discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
@@ -153,6 +158,12 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
                 vid = youtube.upload_unlisted(tmp, title)
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
+                try:  # branded thumbnail — cosmetic, NEVER fail publish over it
+                    from api.services.desk_thumbnail import render_session_thumbnail
+                    youtube.set_thumbnail(
+                        vid, render_session_thumbnail(_session_date_text(job.get("start_time"))))
+                except Exception as te:
+                    print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
             if vid not in education_service.existing_youtube_ids():
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
