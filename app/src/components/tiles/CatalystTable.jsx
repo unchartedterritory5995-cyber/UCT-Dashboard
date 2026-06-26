@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
 import useLivePrices from '../../hooks/useLivePrices'
-import HighlightThesis from '../../utils/highlightThesis'
+import HighlightThesis, { thesisHeadline } from '../../utils/highlightThesis'
 import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import CompanyLogo from '../CompanyLogo'
@@ -268,6 +268,17 @@ export default function CatalystTable() {
   const [aOnly, setAOnly] = useState(false)
   // Local optimistic record of this session's 👍/👎 votes, keyed by ticker.
   const [votes, setVotes] = useState({})
+  // Which rows have their full thesis expanded (collapsed = one-line headline).
+  const [expanded, setExpanded] = useState(() => new Set())
+
+  function toggleExpand(ticker) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(ticker)) next.delete(ticker)
+      else next.add(ticker)
+      return next
+    })
+  }
 
   if (!UI_ENABLED) return null
 
@@ -558,15 +569,47 @@ export default function CatalystTable() {
                       <GradeBadge grade={r.grade} />
                     </td>
                     <td className={styles.colThesis}>
-                      <TypeChip type={r.catalyst_type} />
-                      <HighlightThesis text={r.thesis_text} />
-                      <CitationsPopover sources={parseSources(r.thesis_sources)} />
-                      <FeedbackButtons
-                        ticker={r.ticker}
-                        marketDate={marketDate}
-                        verdict={votes[r.ticker]}
-                        onVote={vote}
-                      />
+                      {(() => {
+                        const isExp = expanded.has(r.ticker)
+                        return (
+                          <div className={styles.thesisCell}>
+                            <button
+                              type="button"
+                              className={styles.thesisToggle}
+                              onClick={() => toggleExpand(r.ticker)}
+                              aria-expanded={isExp}
+                              title={isExp ? 'Collapse' : 'Show full catalyst'}
+                            >
+                              <TypeChip type={r.catalyst_type} />
+                              {!isExp && (
+                                <span className={styles.thesisHeadline}>
+                                  {thesisHeadline(r.thesis_text)}
+                                </span>
+                              )}
+                              <UIcon
+                                name={isExp ? 'chevronDown' : 'chevronRight'}
+                                size={13}
+                                gold={false}
+                                className={styles.thesisChevron}
+                              />
+                            </button>
+                            {isExp && (
+                              <div className={styles.thesisFull}>
+                                <HighlightThesis text={r.thesis_text} />
+                                <div className={styles.thesisActions}>
+                                  <CitationsPopover sources={parseSources(r.thesis_sources)} />
+                                  <FeedbackButtons
+                                    ticker={r.ticker}
+                                    marketDate={marketDate}
+                                    verdict={votes[r.ticker]}
+                                    onVote={vote}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td
                       className={styles.colUpdated}

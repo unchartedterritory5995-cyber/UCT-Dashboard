@@ -415,6 +415,58 @@
   transition: opacity 0.12s, transform 0.12s;
 }
 .fbBtn:hover { opacity: 0.9; transform: scale(1.15); }
+
+/* Collapsible catalyst cell — one-line headline by default, full thesis on click.
+   Keeps the table a fast scan (~20 rows) instead of a wall of prose. */
+.thesisCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.thesisToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.thesisHeadline {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ut-cream, #e8e2d4);
+}
+.thesisChevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-muted);
+  opacity: 0.6;
+  transition: opacity 0.12s;
+}
+.thesisToggle:hover .thesisChevron { opacity: 1; }
+.thesisToggle:hover .thesisHeadline { color: #fff; }
+.thesisFull {
+  line-height: 1.5;
+}
+.thesisActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+/* In the expanded panel the actions live on their own row, so kill the
+   inline left-margins they carry when trailing the thesis text. */
+.thesisActions .citationsWrap,
+.thesisActions .feedbackWrap { margin-left: 0; }
 .fbGoodActive { opacity: 1; filter: drop-shadow(0 0 3px rgba(74,222,128,0.7)); }
 .fbBadActive  { opacity: 1; filter: drop-shadow(0 0 3px rgba(248,113,113,0.7)); }
 

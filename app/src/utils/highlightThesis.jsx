@@ -1,15 +1,15 @@
 // app/src/utils/highlightThesis.jsx
 //
-// Renders a thesis string with:
-//   - **bold** markdown converted to <strong>
-//   - $CASHTAGS styled gold
-//   - $123.45 amounts and +12% percentages styled bold (with +/− coloring on pct)
+// Renders a thesis string with restrained emphasis:
+//   - the ONLY thing colored is a ± percentage move (the one number that
+//     earns emphasis); green for +, red for −.
+//   - **bold** markdown, $CASHTAGS and $amounts all render as plain text.
+// (Decluttered 2026-06-26: the old "bold everything" treatment turned every
+// cell into visual static — when fifteen things are bold, nothing is.)
 import React from 'react'
 
-// Single combined splitter so order-of-application is deterministic
-const SPLIT_RE = /(\*\*[^*]+\*\*|\$[A-Z]{1,5}\b|\$\d[\d,]*\.?\d*[BMK]?|[+-]?\d+(?:\.\d+)?%)/g
-
-const GOLD = 'var(--ut-gold, #c9a84c)'
+// Split on **bold** (to strip the markers) and ± percentages (to color them).
+const SPLIT_RE = /(\*\*[^*]+\*\*|[+-]\d+(?:\.\d+)?%)/g
 
 export default function HighlightThesis({ text }) {
   if (!text) return null
@@ -17,28 +17,34 @@ export default function HighlightThesis({ text }) {
   return (
     <>
       {parts.map((p, i) => {
-        // **bold** markdown
+        // **bold** markdown → plain text (drop the markers, no <strong>)
         if (/^\*\*[^*]+\*\*$/.test(p)) {
-          return <strong key={i}>{p.slice(2, -2)}</strong>
+          return <span key={i}>{p.slice(2, -2)}</span>
         }
-        // $CASHTAG
-        if (/^\$[A-Z]{1,5}$/.test(p)) {
-          return <span key={i} style={{ color: GOLD, fontWeight: 600 }}>{p}</span>
-        }
-        // $123.45 / $1.2B etc.
-        if (/^\$\d/.test(p)) {
-          return <strong key={i}>{p}</strong>
-        }
-        // +12% / -5.3%
-        if (/^[+-]?\d+(?:\.\d+)?%$/.test(p)) {
-          const sign = p[0]
-          const color = sign === '-'
-            ? 'var(--loss)'
-            : sign === '+' ? 'var(--gain)' : 'inherit'
-          return <strong key={i} style={{ color }}>{p}</strong>
+        // ± percentage → the one colored signal
+        if (/^[+-]\d+(?:\.\d+)?%$/.test(p)) {
+          const color = p[0] === '-' ? 'var(--loss)' : 'var(--gain)'
+          return <span key={i} style={{ color, fontWeight: 600 }}>{p}</span>
         }
         return <span key={i}>{p}</span>
       })}
     </>
   )
+}
+
+// Derive a one-line headline from a full thesis for the collapsed row view.
+// Strips **markdown**, the redundant leading "Company Name (TICKER)" prefix
+// (the ticker already sits in the Sym column), and a trailing source tag like
+// "(News)" / "(Earnings - News)". CSS handles the single-line ellipsis.
+export function thesisHeadline(text) {
+  if (!text) return ''
+  let s = String(text).replace(/\*\*/g, '').trim()
+  // Drop a leading "Some Company (XYZ) " lead-in when present near the start.
+  s = s.replace(/^.{0,60}?\(\$?[A-Z]{1,6}\)[\s:,-]*/, '')
+  // Drop a trailing source citation in parens, e.g. "(News)" / "(Earnings - News)".
+  s = s.replace(/\s*\([^()]{0,40}?(?:news|tweet|earnings|rss|report)[^()]*\)[.\s]*$/i, '')
+  s = s.trim()
+  // Stripping the "Company (TICKER)" lead-in can leave a lowercase verb
+  // ("is gapping…") — recapitalize the first letter so it reads as a headline.
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 }
