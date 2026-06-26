@@ -81,6 +81,14 @@ describe('GlobalVideoLayer', () => {
     expect(store.getSnapshot().mode).toBe('mini')
   })
 
+  it('shows the UCT broadcast watermark when docked, not when minimized', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    expect(screen.getByTestId('brand-watermark')).toBeInTheDocument()
+    act(() => store.minimize())
+    expect(screen.queryByTestId('brand-watermark')).not.toBeInTheDocument()
+  })
+
   it('Expand button navigates to the Desk and re-docks', () => {
     renderLayer()
     act(() => store.play(LIST, 0))

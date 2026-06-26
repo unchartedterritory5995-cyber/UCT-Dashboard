@@ -92,7 +92,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 10px 8px;
-  background: linear-gradient(to top, rgba(8, 9, 8, 0.88), rgba(8, 9, 8, 0));
+  background: linear-gradient(to top, rgba(8, 9, 8, 0.98) 0%, rgba(8, 9, 8, 0.82) 55%, rgba(8, 9, 8, 0) 100%);
   opacity: 0;
   transition: opacity 0.18s ease;
 }
@@ -152,6 +152,40 @@
 }
 .speedBtn:hover {
   background: rgba(201, 168, 76, 0.2);
+}
+
+/* UCT broadcast watermark (docked) — TV-style corner bug, never blocks clicks. */
+.watermark {
+  position: absolute;
+  right: 12px;
+  bottom: 48px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 999px;
+  background: rgba(8, 9, 8, 0.42);
+  opacity: 0.66;
+  pointer-events: none;
+}
+.wmMark {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+.wmText {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  color: #e6cf86;
+}
+@media (max-width: 640px) {
+  .watermark {
+    bottom: 42px;
+    transform: scale(0.85);
+    transform-origin: bottom right;
+  }
 }
 
 .pipOverlay {

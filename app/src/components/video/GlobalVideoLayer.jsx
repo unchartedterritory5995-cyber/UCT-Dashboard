@@ -352,6 +352,15 @@ export default function GlobalVideoLayer() {
         </div>
       )}
 
+      {/* UCT broadcast watermark — every frame reads as a UCT production and it
+          masks the corner where a residual YouTube logo could appear. */}
+      {docked && !ended && (
+        <div className={styles.watermark} data-testid="brand-watermark" aria-hidden="true">
+          <img className={styles.wmMark} src={brandMark} alt="" />
+          <span className={styles.wmText}>UCT</span>
+        </div>
+      )}
+
       {/* Top bar — UCT brand + title. Doubles as the drag handle in mini. */}
       <div
         className={styles.topbar}
