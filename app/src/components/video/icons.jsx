@@ -123,6 +123,18 @@ export function MuteIcon({ size = 18 }) {
   )
 }
 
+// Pop-out: a window with an up-right arrow (open in a separate window).
+export function PopOutIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M13 4h7v7" stroke={GOLD} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 4l-8 8" stroke={GOLD} strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"
+            stroke={GOLD} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 // Closed-captions: "CC" inside a rounded rectangle.
 export function CcIcon({ size = 18 }) {
   return (

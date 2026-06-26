@@ -14,12 +14,13 @@ import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExp
 import { computeHostStyle } from './hostStyle'
 import { fmtTime, nextRate } from './playerUtils'
 import { pauseOtherAudio } from './audioExclusivity'
+import { pipSupported, openPip } from './documentPip'
 import Scrubber from './Scrubber'
 import brandMark from '../intro/assets/compass-mark.png'
 import { PlayIcon } from '../../pages/education/icons'
 import {
   PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon,
-  SkipBackIcon, SkipFwdIcon, FullscreenIcon, VolumeIcon, MuteIcon, CcIcon,
+  SkipBackIcon, SkipFwdIcon, FullscreenIcon, VolumeIcon, MuteIcon, CcIcon, PopOutIcon,
 } from './icons'
 import styles from './GlobalVideoLayer.module.css'
 
@@ -54,6 +55,7 @@ export default function GlobalVideoLayer() {
   const playerRef = useRef(null)
   const tickerRef = useRef(null)
   const curIdRef = useRef(null)
+  const pipRef = useRef(null)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -63,6 +65,8 @@ export default function GlobalVideoLayer() {
   const [cc, setCc] = useState(false)
   const [isFs, setIsFs] = useState(false)
   const [dragPos, setDragPos] = useState(null)
+  const [pipOn, setPipOn] = useState(false)
+  const canPip = pipSupported()
 
   const saveNow = useCallback(() => {
     const p = playerRef.current
@@ -130,6 +134,7 @@ export default function GlobalVideoLayer() {
   // Tear down when the session closes.
   useEffect(() => {
     if (active) return
+    try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
     saveNow()
@@ -141,6 +146,7 @@ export default function GlobalVideoLayer() {
 
   // Flush + destroy on unmount (full app teardown only — never during routing).
   useEffect(() => () => {
+    try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
     saveNow()
@@ -259,6 +265,28 @@ export default function GlobalVideoLayer() {
       else el.requestFullscreen?.()
     } catch { /* ignore */ }
   }
+  // Pop the video into a separate OS window (draggable to another monitor).
+  // The in-page player pauses while popped out; we resume it where PiP left off.
+  const popOut = async () => {
+    const p = player()
+    let t = 0
+    try { t = (p && p.getCurrentTime && p.getCurrentTime()) || 0 } catch { /* ignore */ }
+    try { p && p.pauseVideo && p.pauseVideo() } catch { /* ignore */ }
+    const obj = await openPip({ videoId: current.youtube_id, startSeconds: t })
+    if (!obj) { try { p && p.playVideo && p.playVideo() } catch { /* ignore */ } return }
+    pipRef.current = obj
+    setPipOn(true)
+    obj.pip.addEventListener('pagehide', () => {
+      let pt = t
+      try { pt = obj.player.getCurrentTime() || t } catch { /* ignore */ }
+      try { obj.player.destroy() } catch { /* ignore */ }
+      pipRef.current = null
+      setPipOn(false)
+      const mp = player()
+      try { mp && mp.seekTo && mp.seekTo(pt, true); mp && mp.playVideo && mp.playVideo() } catch { /* ignore */ }
+    }, { once: true })
+  }
+  const bringBack = () => { try { pipRef.current?.pip?.close?.() } catch { /* ignore */ } }
 
   const cls = [styles.host, mode === 'mini' ? styles.mini : styles.docked, dragPos ? styles.dragging : '']
     .filter(Boolean).join(' ')
@@ -267,6 +295,14 @@ export default function GlobalVideoLayer() {
     <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode}>
       <div ref={hostRef} className={styles.frame} />
       {!apiReady && <div className={styles.loading}>Loading…</div>}
+
+      {pipOn && (
+        <div className={styles.pipOverlay}>
+          <img className={styles.pipBrand} src={brandMark} alt="" />
+          <div className={styles.pipLabel}>Playing in a pop-out window</div>
+          <button className={styles.nextPlayBtn} onClick={bringBack}>Bring back here</button>
+        </div>
+      )}
 
       {/* Top bar — UCT brand + title. Doubles as the drag handle in mini. */}
       <div
@@ -318,6 +354,11 @@ export default function GlobalVideoLayer() {
           {docked && (
             <button className={styles.cbtn} onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
               {muted ? <MuteIcon /> : <VolumeIcon />}
+            </button>
+          )}
+          {docked && canPip && !pipOn && (
+            <button className={styles.cbtn} onClick={popOut} aria-label="Pop out to a window">
+              <PopOutIcon />
             </button>
           )}
           {docked && (
