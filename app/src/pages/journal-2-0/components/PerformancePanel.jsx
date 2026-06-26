@@ -19,6 +19,7 @@ const METRICS = [
 ]
 const PERIODS = ['1W', '1M', '3M', 'YTD', '1Y', 'ALL']
 const PREF_KEY = 'j2_perf_metric'
+const TX_PREF_KEY = 'j2_perf_tx_open'
 
 const GOLD = 'var(--ut-gold, #c9a84c)'
 const GREEN = 'var(--color-success, #4ade80)'
@@ -42,11 +43,19 @@ function Stat({ label, value, tone }) {
 export default function PerformancePanel({ accountId, account }) {
   const [metric, setMetric] = useState(() => localStorage.getItem(PREF_KEY) || 'twr')
   const [period, setPeriod] = useState('ALL')
+  const [showTx, setShowTx] = useState(() => localStorage.getItem(TX_PREF_KEY) === '1')
   const { data, isLoading, error } = useJ2BrokerPerformance(accountId, period)
 
   const pickMetric = (k) => {
     setMetric(k)
     try { localStorage.setItem(PREF_KEY, k) } catch { /* ignore */ }
+  }
+  const toggleTx = () => {
+    setShowTx((v) => {
+      const next = !v
+      try { localStorage.setItem(TX_PREF_KEY, next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
   }
   const active = METRICS.find((m) => m.key === metric) || METRICS[0]
 
@@ -146,23 +155,49 @@ export default function PerformancePanel({ accountId, account }) {
       <ReactECharts option={option} style={{ height: 240 }} />
 
       <div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Transactions</div>
         {(data.flows || []).length === 0 ? (
-          <div style={{ fontSize: 12, opacity: 0.6 }}>No cash flows in this period.</div>
+          <>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Transactions</div>
+            <div style={{ fontSize: 12, opacity: 0.6 }}>No cash flows in this period.</div>
+          </>
         ) : (
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-            <tbody>
-              {data.flows.map((f, i) => (
-                <tr key={i} style={{ borderTop: '1px solid var(--border, #2a2a2a)' }}>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-muted)' }}>{f.date}</td>
-                  <td style={{ padding: '5px 8px', textTransform: 'capitalize' }}>{f.type}</td>
-                  <td style={{ padding: '5px 8px', textAlign: 'right', color: f.amount >= 0 ? GREEN : RED }}>
-                    {moneySigned(f.amount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <button
+              type="button"
+              onClick={toggleTx}
+              aria-expanded={showTx}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                background: 'transparent', border: 'none', padding: '2px 0', cursor: 'pointer',
+                fontSize: 12, color: 'var(--text-muted)', textAlign: 'left',
+              }}
+            >
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5"
+                style={{ transform: showTx ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <polyline points="9 6 15 12 9 18" />
+              </svg>
+              <span>Transactions ({data.flows.length})</span>
+            </button>
+            {showTx && (
+              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginTop: 6 }}>
+                <tbody>
+                  {data.flows.map((f, i) => (
+                    <tr key={i} style={{ borderTop: '1px solid var(--border, #2a2a2a)' }}>
+                      <td style={{ padding: '5px 8px', color: 'var(--text-muted)' }}>{f.date}</td>
+                      <td style={{ padding: '5px 8px', textTransform: 'capitalize' }}>{f.type}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: f.amount >= 0 ? GREEN : RED }}>
+                        {moneySigned(f.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </div>
     </div>

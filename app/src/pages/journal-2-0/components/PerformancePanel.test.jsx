@@ -34,10 +34,19 @@ import PerformancePanel from './PerformancePanel'
 describe('PerformancePanel', () => {
   beforeEach(() => localStorage.clear())
 
-  it('shows the TWR headline by default and a deposit transaction row', () => {
+  it('shows the TWR headline by default', () => {
     render(<PerformancePanel accountId="a1" account={{ balanceSource: 'broker' }} />)
     expect(screen.getByText('+21.0%')).toBeInTheDocument()
+  })
+
+  it('collapses the transactions list by default behind a count toggle', () => {
+    render(<PerformancePanel accountId="a1" account={{ balanceSource: 'broker' }} />)
+    // The toggle shows the count; the rows themselves are hidden.
+    expect(screen.getByText('Transactions (1)')).toBeInTheDocument()
     // Exact 'deposit' = the transaction row (not the 'Net Deposits' stat).
+    expect(screen.queryByText('deposit')).not.toBeInTheDocument()
+    // Expanding reveals the row.
+    fireEvent.click(screen.getByRole('button', { name: /transactions \(1\)/i }))
     expect(screen.getByText('deposit')).toBeInTheDocument()
   })
 
