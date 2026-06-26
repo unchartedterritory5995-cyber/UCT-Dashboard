@@ -778,6 +778,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] catalyst_store init failed (non-fatal): {e}")
 
+    # Premarket startup catch-up: a redeploy DURING the premarket window (e.g. a
+    # 7:15am deploy skips the 7:00 cron) would otherwise leave the board stale
+    # until the next cron or a user's tile load. On boot, if it's a weekday
+    # 6am-9:30am ET and today's board is empty or stale, kick a refresh now so
+    # it's fresh BEFORE the trader sits down. Mirrors the COT startup catch-up.
+    try:
+        if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
+            from zoneinfo import ZoneInfo as _Z
+            _net = datetime.now(_Z("America/New_York"))
+            _premkt = _net.weekday() < 5 and (6 <= _net.hour < 10)
+            if _premkt:
+                from api.services.catalyst import store as _cs
+                _md = _net.date().isoformat()
+                _rows = _cs.get_for_date(_md, ranked_only=True)
+                _ref = _cs.last_refresh_for_date(_md)
+                _stale = (_ref is None) or ((time.time() - _ref) / 60.0 > 45)
+                if not _rows or _stale:
+                    from api.services.catalyst.engine import run_refresh as _crf
+                    threading.Thread(target=_crf, daemon=True,
+                                     name="catalyst-startup-catchup").start()
+                    print("[startup] catalyst premarket catch-up refresh kicked")
+    except Exception as e:
+        print(f"[startup] catalyst premarket catch-up failed (non-fatal): {e}")
+
     try:
         from api.services import wire_feedback_store as _wf_store
         _wf_store._init_db()
@@ -1943,7 +1967,22 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0"),
                 id="catalyst_autotune", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
+            # Premarket health check: 7:00, 8:00, 9:00 ET — distinguishes a
+            # broken pipeline from a quiet morning -> pings the operator
+            # (Discord/email, deduped once per day) AND force-refreshes. 7am
+            # gives runway to fix; 9am is the final pre-open gate. Honors
+            # CATALYST_HEALTH_ALERTS_ENABLED.
+            def _cat_health():
+                try:
+                    from api.services.catalyst import health
+                    health.run_premarket_health_check()
+                except Exception as _e:
+                    print(f"[scheduler] catalyst health check failed (non-fatal): {_e}")
+            _scheduler.add_job(_cat_health,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0"),
+                id="catalyst_premarket_health", max_instances=1, replace_existing=True)
+
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
 
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays

@@ -29,6 +29,17 @@ logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 _CASHTAG_RE = re.compile(r"\$([A-Z]{1,5})\b")
 
+# Per-source pull stats from the most recent collect_all(). Lets the premarket
+# health check distinguish "genuinely quiet morning" from "a source (Massive /
+# Perplexity / etc.) is down" — a silent partial outage thins the list with no
+# other signal. {source: count, ..., "universe": int, "at": unix_seconds}.
+_LAST_SOURCE_STATS: dict = {}
+
+
+def get_last_source_stats() -> dict:
+    """Read-only snapshot of the last collect_all() per-source contribution."""
+    return dict(_LAST_SOURCE_STATS)
+
 # Securities-litigation / investor-alert boilerplate — never a catalyst.
 _LEGAL_NOISE_RE = re.compile(
     r"investor notice|shareholder alert|class action|securities fraud"
@@ -698,6 +709,12 @@ def collect_all() -> list[dict]:
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
     universe.update(results.get("analyst", {}).keys())
+
+    # Record per-source contribution so the health check can spot a dead source.
+    global _LAST_SOURCE_STATS
+    _LAST_SOURCE_STATS = {name: len(results.get(name, {}) or {}) for name in tasks}
+    _LAST_SOURCE_STATS["universe"] = len(universe)
+    _LAST_SOURCE_STATS["at"] = int(time.time())
 
     if not universe:
         return []
