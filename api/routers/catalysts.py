@@ -34,34 +34,48 @@ def _today() -> str:
 # the data heals itself within ~a minute (frontend polls every 30s).
 _LAST_AUTO_REFRESH_AT = 0.0
 _AUTO_REFRESH_COOLDOWN_SECONDS = 1800  # 30 min — don't stampede the engine
+# Data older than this on a trading day is "stale" and triggers a self-heal even
+# when ranked rows already exist. 90 min sits below the tile's 2h stale flag, so
+# the board heals itself before it ever shows "⚠ stale". Demand-driven (only on
+# a tile load) + cooldown-bounded, so it also covers the 9:30am–4pm scheduler
+# gap for anyone actually looking, at near-$0 (skip-if-stable reuses theses).
+_STALE_HEAL_SECONDS = 90 * 60
 
 
-def _self_heal_due(has_ranked: bool, now_et, last_refresh_at: float, now: float) -> bool:
+def _self_heal_due(has_ranked: bool, data_age_seconds, now_et,
+                   last_refresh_at: float, now: float) -> bool:
     """Pure decision for the self-heal (kept separate so it's unit-testable
-    without mocking threads/clocks). Heal when: no ranked rows yet, it's a
-    weekday, the premarket window has opened (>=6 AM ET), and we're past the
-    cooldown since the last auto-refresh."""
-    if has_ranked:
-        return False
-    if now_et.weekday() >= 5 or now_et.hour < 6:
+    without mocking threads/clocks). Heal during the weekday 6 AM–8 PM ET window,
+    past the cooldown, when EITHER there are no ranked rows yet OR the data we
+    have is stale (older than _STALE_HEAL_SECONDS). The stale case is what
+    recovers a missed cron / mid-morning redeploy — previously the board sat on
+    old rows until the next scheduled run."""
+    if now_et.weekday() >= 5 or now_et.hour < 6 or now_et.hour >= 20:
         return False
     if now - last_refresh_at < _AUTO_REFRESH_COOLDOWN_SECONDS:
         return False
-    return True
+    if not has_ranked:
+        return True
+    if data_age_seconds is not None and data_age_seconds > _STALE_HEAL_SECONDS:
+        return True
+    return False
 
 
-def _maybe_auto_refresh_if_stale(ranked_rows: list) -> None:
+def _maybe_auto_refresh_if_stale(ranked_rows: list, refreshed_at=None) -> None:
     global _LAST_AUTO_REFRESH_AT
     if os.environ.get("CATALYST_SELF_HEAL_ENABLED", "1").lower() not in ("1", "true", "yes"):
         return
-    if not _self_heal_due(bool(ranked_rows), dt.datetime.now(_ET),
-                          _LAST_AUTO_REFRESH_AT, time.time()):
+    now = time.time()
+    data_age = (now - refreshed_at) if refreshed_at else None
+    if not _self_heal_due(bool(ranked_rows), data_age, dt.datetime.now(_ET),
+                          _LAST_AUTO_REFRESH_AT, now):
         return
-    _LAST_AUTO_REFRESH_AT = time.time()
+    _LAST_AUTO_REFRESH_AT = now
+    reason = "no ranked rows" if not ranked_rows else f"data {int((data_age or 0)/60)}m stale"
     try:
         threading.Thread(target=engine.run_refresh, daemon=True,
                          name="catalyst-self-heal").start()
-        logger.info("[catalysts] self-heal: today has no ranked rows — kicked background refresh")
+        logger.info("[catalysts] self-heal (%s) — kicked background refresh", reason)
     except Exception:
         logger.exception("[catalysts] self-heal refresh failed to start")
 
@@ -70,7 +84,8 @@ def _maybe_auto_refresh_if_stale(ranked_rows: list) -> None:
 def catalysts_today(user=Depends(get_current_user)):
     md = _today()
     rows = store.get_for_date(md, ranked_only=True)
-    _maybe_auto_refresh_if_stale(rows)
+    refreshed_at = store.last_refresh_for_date(md)
+    _maybe_auto_refresh_if_stale(rows, refreshed_at)
     sector_contexts = engine.get_sector_contexts(md)
     return {
         "market_date": md,
@@ -78,7 +93,7 @@ def catalysts_today(user=Depends(get_current_user)):
         # Honest last-refresh time (every engine pass stamps it, even when
         # skip-if-stable reuses the thesis). The tile reads this for "updated
         # X ago" so a quiet morning's reused theses don't look stale.
-        "refreshed_at": store.last_refresh_for_date(md),
+        "refreshed_at": refreshed_at,
         "rows": rows,
         "sector_contexts": sector_contexts,
     }
