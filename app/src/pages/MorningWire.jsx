@@ -124,34 +124,115 @@ export default function MorningWire() {
     trackId: `morning-wire-${rundown?.date || 'today'}`,
   })
 
-  // Per-segment 👍/👎 feedback: inject controls into each injected rd-seg label,
-  // one delegated click handler posts the vote (best-effort).
+  // Per-segment + overall feedback: inject 👍/👎 AND a ✎ note affordance into the
+  // rundown DOM (the rundown is dangerouslySetInnerHTML, so controls are injected,
+  // not React). One delegated handler posts votes + notes (best-effort). Notes feed
+  // the nightly wire-critic so the brief self-refines. Existing votes/notes hydrate
+  // from /api/wire-feedback/mine so the UI reflects what you already left.
   useEffect(() => {
     const root = rundownRef.current
-    if (!root || !rundown?.html) return
+    if (!root || !rundown?.html || !rundown?.date) return
+    const date = rundown.date
+    const hydrated = {}  // seg -> { verdict, note }
+
+    const ctrlHtml = (seg) =>
+      '<span class="rd-fb">' +
+      `<button data-fb-vote="up" data-seg="${seg}" aria-label="thumbs up">👍</button>` +
+      `<button data-fb-vote="down" data-seg="${seg}" aria-label="thumbs down">👎</button>` +
+      `<button class="rd-fb-note" data-fb-note="${seg}" aria-label="add a note" title="Add a note">✎</button>` +
+      '</span>'
+
+    // Controls on each segment label.
     root.querySelectorAll('section.rd-seg[data-seg] > .rd-seg-label').forEach((label) => {
       if (label.querySelector('[data-fb-vote]')) return
-      label.insertAdjacentHTML('beforeend',
-        '<span class="rd-fb">' +
-        '<button data-fb-vote="up" aria-label="thumbs up">👍</button>' +
-        '<button data-fb-vote="down" aria-label="thumbs down">👎</button></span>')
+      const seg = label.closest('section.rd-seg')?.dataset.seg || 'overall'
+      label.insertAdjacentHTML('beforeend', ctrlHtml(seg))
     })
+
+    // Overall-brief feedback bar (once, at the end of the monologue).
+    const sections = root.querySelector('.rd-sections')
+    if (sections && !root.querySelector('.rd-overall-fb')) {
+      const bar = document.createElement('div')
+      bar.className = 'rd-overall-fb'
+      bar.innerHTML = '<span class="rd-overall-fb-label">Feedback on the whole brief</span>' + ctrlHtml('overall')
+      sections.appendChild(bar)
+    }
+
+    const segAnchor = (seg) => seg === 'overall'
+      ? root.querySelector('.rd-overall-fb')
+      : root.querySelector(`section.rd-seg[data-seg="${seg}"]`)
+
+    const paint = () => {
+      root.querySelectorAll('[data-fb-vote]').forEach((b) => {
+        b.classList.toggle('rd-fb-on', hydrated[b.dataset.seg]?.verdict === b.dataset.fbVote)
+      })
+      root.querySelectorAll('[data-fb-note]').forEach((b) => {
+        b.classList.toggle('rd-fb-note-has', !!(hydrated[b.dataset.fbNote]?.note))
+      })
+    }
+
+    const togglePanel = (seg) => {
+      const existing = root.querySelector(`.rd-note-panel[data-seg="${seg}"]`)
+      root.querySelectorAll('.rd-note-panel').forEach((p) => p.remove())
+      if (existing) return  // was open → just close
+      const anchor = segAnchor(seg)
+      if (!anchor) return
+      const panel = document.createElement('div')
+      panel.className = 'rd-note-panel'
+      panel.dataset.seg = seg
+      panel.innerHTML =
+        '<textarea class="rd-note-input" rows="3" placeholder="What should change here? Your note refines future briefs."></textarea>' +
+        '<div class="rd-note-actions"><span class="rd-note-status"></span>' +
+        `<button class="rd-note-save" data-fb-note-save="${seg}">Save note</button></div>`
+      anchor.insertAdjacentElement('afterend', panel)
+      const ta = panel.querySelector('.rd-note-input')
+      ta.value = hydrated[seg]?.note || ''
+      ta.focus()
+    }
+
+    const post = (payload) => fetch('/api/wire-feedback', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ market_date: date, ...payload }),
+    })
+
     const onClick = async (e) => {
-      const btn = e.target.closest('[data-fb-vote]')
-      if (!btn) return
-      const seg = btn.closest('section.rd-seg')?.dataset.seg || 'overall'
-      btn.parentElement.querySelectorAll('[data-fb-vote]').forEach((b) => b.classList.remove('rd-fb-on'))
-      btn.classList.add('rd-fb-on')
-      try {
-        await fetch('/api/wire-feedback', {
-          method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ market_date: rundown.date, segment_key: seg, verdict: btn.dataset.fbVote }),
-        })
-      } catch { /* best-effort */ }
+      const saveBtn = e.target.closest('[data-fb-note-save]')
+      if (saveBtn) {
+        const seg = saveBtn.dataset.fbNoteSave
+        const panel = saveBtn.closest('.rd-note-panel')
+        const ta = panel?.querySelector('.rd-note-input')
+        const status = panel?.querySelector('.rd-note-status')
+        const note = (ta?.value || '').trim()
+        if (status) status.textContent = 'Saving…'
+        try {
+          await post({ segment_key: seg, note })
+          hydrated[seg] = { ...(hydrated[seg] || {}), note }
+          if (status) status.textContent = 'Saved ✓'
+          paint()
+          setTimeout(() => panel?.remove(), 700)
+        } catch { if (status) status.textContent = 'Save failed — try again' }
+        return
+      }
+      const noteBtn = e.target.closest('[data-fb-note]')
+      if (noteBtn) { togglePanel(noteBtn.dataset.fbNote); return }
+      const vote = e.target.closest('[data-fb-vote]')
+      if (vote) {
+        const seg = vote.dataset.seg || vote.closest('section.rd-seg')?.dataset.seg || 'overall'
+        hydrated[seg] = { ...(hydrated[seg] || {}), verdict: vote.dataset.fbVote }
+        paint()
+        try { await post({ segment_key: seg, verdict: vote.dataset.fbVote }) } catch { /* best-effort */ }
+      }
     }
     root.addEventListener('click', onClick)
-    return () => root.removeEventListener('click', onClick)
+
+    let cancelled = false
+    fetch(`/api/wire-feedback/mine?date=${encodeURIComponent(date)}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.feedback) { Object.assign(hydrated, d.feedback); paint() } })
+      .catch(() => {})
+
+    return () => { cancelled = true; root.removeEventListener('click', onClick) }
   }, [rundown?.html, rundown?.date])
 
   const handleRefresh = useCallback(() => Promise.all([

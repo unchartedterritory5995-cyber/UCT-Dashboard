@@ -915,3 +915,41 @@
 }
 :global(.rd-fb button:hover) { opacity: 0.8; }
 :global(.rd-fb button.rd-fb-on) { opacity: 1; }
+/* ✎ note button: gold-tinted, brighter once a note exists */
+:global(.rd-fb button.rd-fb-note) { color: var(--color-gold, #c9a84c); font-size: 13px; }
+:global(.rd-fb button.rd-fb-note-has) { opacity: 1; }
+
+/* Overall-brief feedback bar (appended after the monologue) */
+:global(.rd-overall-fb) {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin: 14px 0 4px; padding-top: 10px;
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+:global(.rd-overall-fb .rd-fb) { float: none; }
+:global(.rd-overall-fb-label) {
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--color-text-muted, #8a8f98);
+}
+
+/* Note panel (textarea + save), injected after a segment or the overall bar */
+:global(.rd-note-panel) {
+  margin: 8px 0 14px; display: flex; flex-direction: column; gap: 6px;
+  animation: rdNoteIn .15s ease-out;
+}
+@keyframes rdNoteIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+:global(.rd-note-input) {
+  width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px;
+  background: var(--color-bg-elev, rgba(255,255,255,0.04));
+  border: 1px solid var(--color-border, rgba(255,255,255,0.12));
+  border-radius: 8px; padding: 8px 10px; color: var(--color-text, #e6e8eb);
+  font: inherit; font-size: 13px; line-height: 1.5;
+}
+:global(.rd-note-input:focus) { outline: none; border-color: var(--color-gold, #c9a84c); }
+:global(.rd-note-actions) { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+:global(.rd-note-status) { font-size: 11px; color: var(--color-text-muted, #8a8f98); }
+:global(.rd-note-save) {
+  background: var(--color-gold, #c9a84c); color: #14110a; border: none;
+  border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; min-height: 32px;
+}
+:global(.rd-note-save:hover) { filter: brightness(1.08); }

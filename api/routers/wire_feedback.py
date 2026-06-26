@@ -1,4 +1,4 @@
-"""Morning Wire per-segment feedback: user vote POST + PUSH_SECRET internal GET."""
+"""Morning Wire per-segment feedback: vote/note POST + hydrate GET + PUSH_SECRET internal GET."""
 from __future__ import annotations
 
 import os
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api", tags=["wire-feedback"])
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SEG_KEYS = {"overall", "tape", "macro", "earn", "analyst", "movers", "setups", "close"}
+_NOTE_MAX = 2000
 
 
 def _segment_text(market_date: str, segment_key: str) -> str:
@@ -38,19 +39,37 @@ def _segment_text(market_date: str, segment_key: str) -> str:
 def wire_feedback_vote(body: dict = Body(...), user=Depends(get_current_user)):
     market_date = str(body.get("market_date") or "").strip()
     segment_key = str(body.get("segment_key") or "").strip()
-    verdict = str(body.get("verdict") or "").lower().strip()
+    # verdict is optional: 'up' | 'down' | omitted (note-only feedback).
+    verdict_raw = body.get("verdict")
+    verdict = str(verdict_raw).lower().strip() if verdict_raw is not None else None
+    # note is optional; None = "not provided" (leave any existing note untouched).
+    note_raw = body.get("note")
+    note = str(note_raw)[:_NOTE_MAX] if note_raw is not None else None
+
     if not _DATE_RE.match(market_date):
         raise HTTPException(400, "market_date must be YYYY-MM-DD")
     if segment_key not in _SEG_KEYS:
         raise HTTPException(400, "invalid segment_key")
-    if verdict not in ("up", "down"):
+    if verdict is not None and verdict not in ("up", "down"):
         raise HTTPException(400, "verdict must be 'up' or 'down'")
+    if verdict is None and note is None:
+        raise HTTPException(400, "provide a verdict and/or a note")
+
     is_admin = 1 if user.get("role") == "admin" else 0
-    store.record_vote(user_id=str(user["id"]), market_date=market_date,
-                      segment_key=segment_key, verdict=verdict,
-                      segment_text=_segment_text(market_date, segment_key),
-                      is_admin=is_admin)
-    return {"ok": True, "segment_key": segment_key, "verdict": verdict}
+    store.record_feedback(user_id=str(user["id"]), market_date=market_date,
+                          segment_key=segment_key, verdict=verdict, note=note,
+                          segment_text=_segment_text(market_date, segment_key),
+                          is_admin=is_admin)
+    return {"ok": True, "segment_key": segment_key,
+            "verdict": verdict, "has_note": bool(note)}
+
+
+@router.get("/wire-feedback/mine")
+def wire_feedback_mine(date: str, user=Depends(get_current_user)):
+    """This user's votes + notes for `date` (YYYY-MM-DD), so the UI can pre-fill."""
+    if not _DATE_RE.match(date or ""):
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+    return {"feedback": store.get_user_feedback(str(user["id"]), date)}
 
 
 @router.get("/wire-feedback/recent-internal")
