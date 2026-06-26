@@ -2691,6 +2691,31 @@ async def _massive_diagnose():
     except Exception as e:
         out["error"] = str(e)
     return out
+
+
+@app.post("/api/admin/massive/backfill-ticktest")
+async def _massive_backfill_ticktest(target_date: str = None):
+    """Apply tick-test classification retroactively to flow rows with Side=''.
+
+    For each contract on target_date, walks chronologically and compares each
+    event's Price to the previous event's Price. Uptick -> Side='A', downtick
+    -> Side='B'. Also recomputes Color for rows that were stuck at WHITE
+    because their OI was 0 at write time but Phase 1 has since backfilled it.
+
+    Idempotent: only touches rows with Side=''. Safe to run multiple times.
+
+    target_date: 'M/D/YYYY' format (e.g. '6/26/2026'). Defaults to today.
+    """
+    try:
+        from api.backfill_tick_test import run_backfill
+        stats = run_backfill(target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
