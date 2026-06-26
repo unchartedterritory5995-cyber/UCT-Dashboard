@@ -12,6 +12,7 @@ import TapeFeed from '../components/tiles/TapeFeed'
 import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
+import DeskVideoRail from '../components/dashboard/DeskVideoRail'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
 import UIcon from '../components/ui/UIcon'
 import styles from './Dashboard.module.css'
@@ -74,6 +75,7 @@ export default function Dashboard() {
           <IntradayPulse />
           <JournalSnapshotTile />
           <CatalystTable />
+          <DeskVideoRail />
           <div className={styles.row2}>
             <MoversSidebar />
             <MarketBreadth />
@@ -103,6 +105,7 @@ export default function Dashboard() {
             <MarketBreadth />
             {/* 3. Catalysts / needs attention (★ highlights your tickers) */}
             <CatalystTable />
+            <DeskVideoRail />
             {/* 4. Movers */}
             <MobileSection
               icon={<UIcon name="equity" />}

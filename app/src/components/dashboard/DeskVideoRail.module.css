@@ -1,0 +1,110 @@
+.rail {
+  width: 100%;
+  background: var(--bg-surface, #14160f);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.headIcon {
+  display: inline-flex;
+}
+.headTitle {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary, #f3efe2);
+}
+.viewAll {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #c9a84c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.scroll::-webkit-scrollbar { display: none; }
+.card {
+  flex: 0 0 auto;
+  width: 190px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.thumbWrap {
+  position: relative;
+  display: block;
+  width: 190px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+}
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.playOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.card:hover .playOverlay {
+  opacity: 1;
+}
+.resumePill {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0e0f0d;
+  background: linear-gradient(135deg, #e6cf86, #c9a84c);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.progressBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.progressFill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #e6cf86, #c9a84c);
+}
+.cardTitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-primary, #f3efe2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
