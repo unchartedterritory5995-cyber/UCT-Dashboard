@@ -1429,6 +1429,32 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
   - 🎫 Support Ticket → navigates to `/support`
 - Backdrop click closes menu/form; Escape not wired (backdrop handles it)
 
+## Morning Wire — Per-Segment Feedback (votes + notes)
+
+Owner/users rate the brief on the MorningWire tab. **The rundown is
+`dangerouslySetInnerHTML`, so feedback controls are DOM-injected into the rendered
+HTML (NOT React components)** via a `useEffect` + one delegated click handler in
+`app/src/pages/MorningWire.jsx`.
+
+- **Surfaces:** 👍/👎 **and** a `✎` note button on each `section.rd-seg` label, plus an
+  overall "Feedback on the whole brief" bar appended after the monologue. Clicking `✎`
+  opens an inline `<textarea>` → **Save note**. Notes can be left with or without a thumb.
+- **Hydration:** on load, `GET /api/wire-feedback/mine?date=` pre-fills the user's existing
+  votes + notes; the `✎` glows gold (`.rd-fb-note-has`) when a segment has a note. CSS lives
+  in `MorningWire.module.css` (`:global(.rd-fb*)`, `.rd-overall-fb`, `.rd-note-*`).
+- **Backend:** `api/routers/wire_feedback.py` + `api/services/wire_feedback_store.py`
+  (`/data/wire_feedback.db`). `POST /api/wire-feedback` takes optional `verdict`
+  (`up`/`down`) and/or optional `note` (≤2000 chars; **partial-merge upsert** — a note never
+  clobbers an earlier thumb and vice-versa; note-only rows store verdict `''`). Segment text is
+  snapshotted at write time. `GET /api/wire-feedback/recent-internal` (PUSH_SECRET bearer)
+  returns admin votes **+ notes** to the engine.
+- **Consumption:** the morning-wire nightly `wire_critic.py` pulls admin feedback; **notes are
+  explicit owner directives that bypass the min-votes gate and outweigh the thumbs** → distilled
+  into `wire_prompt_config` that `generate_rundown` reads back. Round-trip: a note shifts the
+  next morning's brief. (See morning-wire CLAUDE.md "Wire-Critic — owner notes".)
+- **Deferred:** voice dictation in the note box (mounting React `VoiceInputButton` into
+  injected innerHTML is disproportionate; textarea-only for v1).
+
 ## Support Chat — UX (2026-03-27)
 - **Enter** sends reply in the reply textarea
 - **Shift+Enter** inserts newline
