@@ -7,7 +7,7 @@ import { buildMonthGrid, dowLabels, todayET } from '../../lib/calendar'
 import DayCell from './DayCell'
 import styles from './MonthView.module.css'
 
-export default function MonthView({ year, month, days = [], mode = 'pct' }) {
+export default function MonthView({ year, month, days = [], mode = 'pct', basis = 'closed' }) {
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month])
   const summaryByDate = useMemo(() => {
     const map = {}
@@ -30,6 +30,7 @@ export default function MonthView({ year, month, days = [], mode = 'pct' }) {
             cell={cell}
             summary={cell ? summaryByDate[cell.date] : undefined}
             mode={mode}
+            basis={basis}
             isToday={cell?.date === today}
           />
         ))}

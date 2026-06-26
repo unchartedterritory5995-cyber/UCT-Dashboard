@@ -22,8 +22,9 @@ import styles from './DayCell.module.css'
  * @param {Object|undefined} props.summary - { pnlDollar, pnlPercent, rSum, tradeCount, hasNotes }
  * @param {'pct'|'dollar'|'r'} props.mode
  * @param {boolean} props.isToday
+ * @param {'closed'|'account'} props.basis
  */
-export default function DayCell({ cell, summary, mode = 'pct', isToday = false }) {
+export default function DayCell({ cell, summary, mode = 'pct', isToday = false, basis = 'closed' }) {
   const navigate = useNavigate()
   if (!cell) return <div className={styles.blank} />
 
@@ -34,6 +35,14 @@ export default function DayCell({ cell, summary, mode = 'pct', isToday = false }
   const bg = cellBackground(value, mode)
 
   const onClick = () => navigate(`/journal-2-0/calendar/${cell.date}`)
+
+  // In account-balance basis, every day carries a real net-liq change (even
+  // with no closed trades — open positions still mark to market), so show the
+  // $ figure whenever a delta exists. Closed-trade basis keeps the old gate
+  // (only days with trades show a number).
+  const hasDelta = Number.isFinite(summary?.pnlDollar)
+  const showPnl =
+    summary?.tradeCount > 0 || (basis === 'account' && hasDelta)
 
   return (
     <button
@@ -62,7 +71,7 @@ export default function DayCell({ cell, summary, mode = 'pct', isToday = false }
           </span>
         )}
       </div>
-      {summary?.tradeCount > 0 ? (
+      {showPnl ? (
         <div className={styles.body}>
           <div className={styles.pnlBig}>{fmtSignedDollar(summary.pnlDollar)}</div>
           <div className={styles.pnlSmall}>

@@ -99,13 +99,13 @@ export default function CalendarTab() {
       )}
 
       {view === 'month' && (
-        <MonthView year={year} month={month} days={days} mode={mode} />
+        <MonthView year={year} month={month} days={days} mode={mode} basis={effectiveBasis} />
       )}
       {view === 'year' && (
         <YearView year={year} days={days} mode={mode} />
       )}
       {view === 'week' && (
-        <WeekView year={year} week={week || 1} days={days} mode={mode} />
+        <WeekView year={year} week={week || 1} days={days} mode={mode} basis={effectiveBasis} />
       )}
 
       {isLoading && days.length === 0 && (

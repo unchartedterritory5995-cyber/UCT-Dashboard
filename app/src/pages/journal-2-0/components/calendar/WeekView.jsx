@@ -37,7 +37,7 @@ function isoWeekToDates(year, week) {
   return days
 }
 
-export default function WeekView({ year, week, days = [], mode = 'pct' }) {
+export default function WeekView({ year, week, days = [], mode = 'pct', basis = 'closed' }) {
   const navigate = useNavigate()
   const weekDates = useMemo(() => isoWeekToDates(year, week), [year, week])
   const summaryByDate = useMemo(() => {
@@ -60,6 +60,11 @@ export default function WeekView({ year, week, days = [], mode = 'pct' }) {
           const bg = cellBackground(value, mode)
           const isToday = date === today
           const dayNum = Number(date.slice(8, 10))
+          // Account basis: every snapshot day has a real net-liq change → show it
+          // even with no closed trades (open positions still mark to market).
+          const hasDelta = Number.isFinite(summary?.pnlDollar)
+          const showPnl =
+            summary?.tradeCount > 0 || (basis === 'account' && hasDelta)
           return (
             <div
               key={date}
@@ -77,20 +82,21 @@ export default function WeekView({ year, week, days = [], mode = 'pct' }) {
                   <span className={styles.notesBadge} title="Has notes"><UIcon name="edit" size={12} /></span>
                 )}
               </button>
-              {summary?.tradeCount > 0 ? (
-                <>
-                  <div className={styles.summary}>
-                    <div className={styles.pnl}>{fmtSignedDollar(summary.pnlDollar)}</div>
-                    <div className={styles.subtle}>
-                      {fmtSignedPct(summary.pnlPercent)} · {fmtSignedR(summary.rSum)}
-                    </div>
+              {showPnl ? (
+                <div className={styles.summary}>
+                  <div className={styles.pnl}>{fmtSignedDollar(summary.pnlDollar)}</div>
+                  <div className={styles.subtle}>
+                    {fmtSignedPct(summary.pnlPercent)}
+                    {summary.tradeCount > 0 ? ` · ${fmtSignedR(summary.rSum)}` : ''}
+                  </div>
+                  {summary.tradeCount > 0 && (
                     <div className={styles.count}>
                       {summary.tradeCount} trade{summary.tradeCount === 1 ? '' : 's'} · {summary.winners}W/{summary.losers}L
                     </div>
-                  </div>
-                </>
+                  )}
+                </div>
               ) : (
-                <div className={styles.empty}>No trades</div>
+                <div className={styles.empty}>{basis === 'account' ? '—' : 'No trades'}</div>
               )}
             </div>
           )

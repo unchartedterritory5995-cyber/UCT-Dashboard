@@ -200,23 +200,88 @@ def _account_is_broker(
 def _load_equity_series(
     user_id: str, account_id: str, conn: sqlite3.Connection | None = None
 ) -> list[dict[str, Any]]:
-    """Live-edged daily net-liq series for a broker account. Returns [] on any
-    failure so the calendar always degrades to closed-trade mode rather than
-    erroring. Monkeypatched in tests."""
+    """Live-edged daily net-liq series for a broker account, ascending
+    [{date, equity}, ...]. Returns [] on any failure so the calendar always
+    degrades to closed-trade mode rather than erroring. Monkeypatched in tests.
+
+    Source = the broker's OWN reported daily net-liq snapshots
+    (`j2_broker_equity_snapshots`) — the exact same trustworthy default the
+    Performance panel (`performance_service`) uses. The fragile MTM
+    reconstruction (`historical_equity.reconstruct_daily_equity`) is NOT used
+    by default: per-user historical pricing (delistings, splits, fetch gaps)
+    produced phantom ±20% daily spikes when differenced into the calendar. It
+    stays available only as a pre-snapshot backfill behind BROKER_RECON_HISTORY=1,
+    mirroring performance_service's gating.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
     try:
-        from api.services.journal_two import accounts as _accounts
-        from api.services.journal_two.broker import historical_equity
-        acct = _accounts.get_account(user_id, account_id, conn=conn)
-        live_eq = (
-            float(acct["brokerTotalEquity"])
-            if acct and acct.get("brokerTotalEquity") is not None
-            else None
-        )
-        return historical_equity.reconstruct_daily_equity(
-            user_id, account_id, live_equity=live_eq, conn=conn
-        ) or []
+        # Resolve the broker_account_id backing this j2 account.
+        ba = conn.execute(
+            "SELECT id FROM j2_broker_accounts WHERE user_id = ? AND j2_account_id = ? "
+            "ORDER BY created_at ASC LIMIT 1",
+            (user_id, account_id),
+        ).fetchone()
+        broker_account_id = ba["id"] if ba else None
+
+        series: list[dict[str, Any]] = []
+        if broker_account_id:
+            rows = conn.execute(
+                "SELECT snapshot_date, total_equity FROM j2_broker_equity_snapshots "
+                "WHERE user_id = ? AND broker_account_id = ? "
+                "ORDER BY snapshot_date ASC",
+                (user_id, broker_account_id),
+            ).fetchall()
+            series = [
+                {"date": r["snapshot_date"], "equity": float(r["total_equity"])}
+                for r in rows
+                if r["total_equity"] is not None
+            ]
+
+        # Live right-edge: today's real broker net-liq if newer than the last
+        # snapshot (so today's cell tracks intraday rather than waiting for the
+        # EOD sync). Only meaningful once we already have ≥1 snapshot to diff against.
+        try:
+            from api.services.journal_two import accounts as _accounts
+            from api.services.journal_two.broker.historical_equity import _et_today
+            acct = _accounts.get_account(user_id, account_id, conn=conn)
+            live_eq = (
+                float(acct["brokerTotalEquity"])
+                if acct and acct.get("brokerTotalEquity") is not None
+                else None
+            )
+            if live_eq is not None and series:
+                today = _et_today()
+                if series[-1]["date"] == today:
+                    series[-1] = {"date": today, "equity": round(live_eq, 2)}
+                elif series[-1]["date"] < today:
+                    series.append({"date": today, "equity": round(live_eq, 2)})
+        except Exception:
+            pass
+
+        # Optional fragile backfill (off by default; mirrors performance_service).
+        if not series and os.environ.get("BROKER_RECON_HISTORY") == "1":
+            try:
+                from api.services.journal_two import accounts as _accounts
+                from api.services.journal_two.broker import historical_equity
+                acct = _accounts.get_account(user_id, account_id, conn=conn)
+                live_eq = (
+                    float(acct["brokerTotalEquity"])
+                    if acct and acct.get("brokerTotalEquity") is not None
+                    else None
+                )
+                series = historical_equity.reconstruct_daily_equity(
+                    user_id, account_id, live_equity=live_eq, conn=conn
+                ) or []
+            except Exception:
+                series = []
+
+        return series
     except Exception:
         return []
+    finally:
+        if owned:
+            conn.close()
 
 
 def _account_equity_days(

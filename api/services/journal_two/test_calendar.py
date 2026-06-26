@@ -526,6 +526,58 @@ def _add_broker_account(conn, user_id, *, balance_source="snaptrade", name="RH",
     return acct_id
 
 
+def _map_broker_account(conn, user_id, j2_account_id, *, broker_account_id=None):
+    """Map a j2 account to a j2_broker_accounts row so snapshot lookups resolve."""
+    now = datetime.now(timezone.utc).isoformat()
+    bkid = broker_account_id or str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO j2_broker_accounts (id, user_id, snaptrade_account_id, "
+        "j2_account_id, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+        (bkid, user_id, "snap-" + bkid[:8], j2_account_id, now, now),
+    )
+    conn.commit()
+    return bkid
+
+
+def _add_equity_snapshot(conn, user_id, broker_account_id, date, equity):
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO j2_broker_equity_snapshots (user_id, broker_account_id, "
+        "snapshot_date, total_equity, cash, market_value, synced_at) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (user_id, broker_account_id, date, equity, 0.0, equity, now),
+    )
+    conn.commit()
+
+
+def test_load_equity_series_sources_from_broker_snapshots(db_conn, monkeypatch):
+    """The calendar's account-balance series must come from the broker's OWN
+    reported daily net-liq snapshots (ground truth) — NOT the fragile MTM
+    reconstruction (which produces phantom ±20% daily spikes from price-fetch
+    gaps / partial days). Mirrors performance_service's trustworthy default."""
+    import api.services.journal_two.calendar as cal
+    uid = "u-snap"
+    _add_user(db_conn, uid, "snap@example.com")
+    acct_id = _add_broker_account(db_conn, uid, broker_total_equity=None)
+    bkid = _map_broker_account(db_conn, uid, acct_id)
+    _add_equity_snapshot(db_conn, uid, bkid, "2026-06-01", 100000.0)
+    _add_equity_snapshot(db_conn, uid, bkid, "2026-06-02", 100500.0)
+    _add_equity_snapshot(db_conn, uid, bkid, "2026-06-03", 100200.0)
+
+    # If reconstruction were (wrongly) used, this would blow up / return spikes.
+    def _boom(*a, **k):
+        raise AssertionError("reconstruct_daily_equity must NOT be called by default")
+    from api.services.journal_two.broker import historical_equity
+    monkeypatch.setattr(historical_equity, "reconstruct_daily_equity", _boom)
+
+    series = cal._load_equity_series(uid, acct_id, conn=db_conn)
+    assert series == [
+        {"date": "2026-06-01", "equity": 100000.0},
+        {"date": "2026-06-02", "equity": 100500.0},
+        {"date": "2026-06-03", "equity": 100200.0},
+    ]
+
+
 def test_account_equity_days_diffs_close_to_close():
     from api.services.journal_two.calendar import _account_equity_days
     series = [
