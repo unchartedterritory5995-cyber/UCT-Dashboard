@@ -75,7 +75,6 @@ export default function Dashboard() {
           <IntradayPulse />
           <JournalSnapshotTile />
           <CatalystTable />
-          <DeskVideoRail />
           <div className={styles.row2}>
             <MoversSidebar />
             <MarketBreadth />
@@ -89,6 +88,7 @@ export default function Dashboard() {
           <div className={styles.row4}>
             <OptionsFlowPreview />
           </div>
+          <DeskVideoRail />
         </div>
 
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}
@@ -105,7 +105,6 @@ export default function Dashboard() {
             <MarketBreadth />
             {/* 3. Catalysts / needs attention (★ highlights your tickers) */}
             <CatalystTable />
-            <DeskVideoRail />
             {/* 4. Movers */}
             <MobileSection
               icon={<UIcon name="equity" />}
@@ -165,6 +164,8 @@ export default function Dashboard() {
             >
               <OptionsFlowPreview embedded />
             </MobileSection>
+            {/* From the Desk — video discovery rail */}
+            <DeskVideoRail />
           </PullToRefresh>
         </div>
 

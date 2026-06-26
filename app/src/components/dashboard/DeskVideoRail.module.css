@@ -108,3 +108,30 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Phone — tighten padding + scale cards so two peek into view, scroll-snap,
+   and give the horizontal scroll momentum + a touch-friendly tap target. */
+@media (max-width: 640px) {
+  .rail {
+    padding: 12px 12px 14px;
+    border-radius: 10px;
+  }
+  .scroll {
+    gap: 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -2px;
+    padding: 0 2px 4px;
+  }
+  .card {
+    width: 150px;
+    scroll-snap-align: start;
+  }
+  .thumbWrap {
+    width: 150px;
+  }
+  /* Touch has no hover — keep the play affordance visible. */
+  .playOverlay {
+    opacity: 0.85;
+  }
+}
