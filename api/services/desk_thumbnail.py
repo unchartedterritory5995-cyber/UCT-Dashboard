@@ -56,17 +56,18 @@ _DEFAULT_THEME = Theme(
     tagline=(138, 147, 163),    # muted slate
 )
 
-# Thoughts on Market: rich gold-on-emerald — premium and unmistakably distinct
-# from the dark Live Trading card at thumbnail size.
+# Thoughts on Market: rich gold-on-emerald — bright jewel-green so the card
+# clearly pops against the dark Videos library page (not a near-black card).
+_EMERALD_GOLD = (212, 178, 86)  # slightly richer gold that reads on bright green
 _EMERALD_THEME = Theme(
-    bg_top=(9, 41, 32),         # deep emerald
-    bg_bottom=(3, 14, 11),      # near-black green
-    glow=_GOLD,                 # keep the brand gold halo
-    wordmark=(244, 240, 226),   # warm ivory
-    eyebrow=_GOLD,
-    date=(244, 240, 226),
-    rule=_GOLD,
-    tagline=(150, 168, 150),    # muted sage
+    bg_top=(18, 140, 100),      # vivid jewel emerald
+    bg_bottom=(9, 64, 46),      # deep emerald (stays clearly green, not black)
+    glow=_EMERALD_GOLD,         # warm gold halo behind the compass
+    wordmark=(248, 244, 230),   # warm ivory
+    eyebrow=_EMERALD_GOLD,
+    date=(248, 244, 230),
+    rule=_EMERALD_GOLD,
+    tagline=(170, 190, 168),    # soft sage
 )
 
 _THEMES = {
