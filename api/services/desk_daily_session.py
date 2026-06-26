@@ -27,6 +27,7 @@ def _category() -> str:
 # everything from the name itself; an empty topic falls back to the default type.
 _RULES = [
     ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
+    ("thoughts on market", "Thoughts on Market", "Thoughts on Market", "THOUGHTS ON MARKET"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 

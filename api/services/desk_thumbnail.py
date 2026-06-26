@@ -1,39 +1,102 @@
-"""Render a branded 1280x720 thumbnail for a Live Trading Session video.
+"""Render a branded 1280x720 thumbnail for a Desk session video.
 
-Pure Pillow (no network). Dark UCT card with the compass mark, wordmark, a gold
-"LIVE TRADING SESSION" eyebrow, the date, and the locked tagline. Returns JPEG
-bytes ready for YouTube's thumbnails.set. Assets (compass + fonts) are bundled
-in desk_assets/ and loaded by absolute path so it renders identically on Railway.
+Pure Pillow (no network). A UCT card with the compass mark, wordmark, a session
+eyebrow, the date, and the locked tagline. Returns JPEG bytes ready for YouTube's
+thumbnails.set. Assets (compass + fonts) are bundled in desk_assets/ and loaded by
+absolute path so it renders identically on Railway.
+
+Each session *type* gets its own colour THEME so the cards are visually distinct in
+The Desk → Videos library. The theme is picked from the eyebrow label (auto-derived
+from the Zoom webinar name) so a new content type needs no code change here:
+
+  - "LIVE TRADING SESSION"  -> dark gold-on-black card (the default / back-compat)
+  - "THOUGHTS ON MARKET"    -> rich gold-on-emerald card (stands apart at a glance)
+
+Pass an explicit `variant` to override the auto-pick.
 """
 from __future__ import annotations
 
 import io
 import os
+from typing import NamedTuple
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 _W, _H = 1280, 720
 _ASSETS = os.path.join(os.path.dirname(__file__), "desk_assets")
+
+# Shared brand constants.
 _GOLD = (201, 168, 76)          # #c9a84c brand gold
-_WHITE = (236, 240, 246)
-_MUTED = (138, 147, 163)
-_BG_TOP = (13, 17, 23)          # #0d1117
-_BG_BOTTOM = (5, 7, 11)         # near-black
 
 _WORDMARK = "UNCHARTED TERRITORY"
 _TAGLINE = "Navigate the market, effectively."
+
+
+class Theme(NamedTuple):
+    """Per-session-type palette. Compass + gold glow stay for brand cohesion."""
+    bg_top: tuple        # gradient start (top of card)
+    bg_bottom: tuple     # gradient end (bottom of card)
+    glow: tuple          # soft halo behind the compass
+    wordmark: tuple      # "UNCHARTED TERRITORY"
+    eyebrow: tuple       # the session-type eyebrow
+    date: tuple          # the big date
+    rule: tuple          # thin divider under the date
+    tagline: tuple       # the locked tagline
+
+
+# Default: the original gold-on-near-black Live Trading card.
+_DEFAULT_THEME = Theme(
+    bg_top=(13, 17, 23),        # #0d1117
+    bg_bottom=(5, 7, 11),       # near-black
+    glow=_GOLD,
+    wordmark=(236, 240, 246),   # off-white
+    eyebrow=_GOLD,
+    date=(236, 240, 246),
+    rule=_GOLD,
+    tagline=(138, 147, 163),    # muted slate
+)
+
+# Thoughts on Market: rich gold-on-emerald — premium and unmistakably distinct
+# from the dark Live Trading card at thumbnail size.
+_EMERALD_THEME = Theme(
+    bg_top=(9, 41, 32),         # deep emerald
+    bg_bottom=(3, 14, 11),      # near-black green
+    glow=_GOLD,                 # keep the brand gold halo
+    wordmark=(244, 240, 226),   # warm ivory
+    eyebrow=_GOLD,
+    date=(244, 240, 226),
+    rule=_GOLD,
+    tagline=(150, 168, 150),    # muted sage
+)
+
+_THEMES = {
+    "default": _DEFAULT_THEME,
+    "live": _DEFAULT_THEME,
+    "thoughts": _EMERALD_THEME,
+    "emerald": _EMERALD_THEME,
+}
+
+
+def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
+    """Explicit `variant` wins; otherwise auto-pick from the eyebrow text."""
+    if variant:
+        return _THEMES.get(variant.lower().strip(), _DEFAULT_THEME)
+    low = (eyebrow_label or "").lower()
+    if "thought" in low:        # "THOUGHTS ON MARKET" / "Thoughts on the Market"
+        return _EMERALD_THEME
+    return _DEFAULT_THEME
 
 
 def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(os.path.join(_ASSETS, name), size)
 
 
-def _gradient_bg() -> Image.Image:
+def _gradient_bg(top: tuple, bottom: tuple) -> Image.Image:
     img = Image.new("RGB", (_W, _H))
     dr = ImageDraw.Draw(img)
     for y in range(_H):
         t = y / _H
-        c = tuple(int(_BG_TOP[i] + (_BG_BOTTOM[i] - _BG_TOP[i]) * t) for i in range(3))
+        c = tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
         dr.line([(0, y), (_W, y)], fill=c)
     return img
 
@@ -52,17 +115,26 @@ def _draw_tracked_center(draw, cx, y, text, font, fill, tracking):
         x += w + tracking
 
 
-def render_session_thumbnail(date_text: str, eyebrow_label: str = "LIVE TRADING SESSION") -> bytes:
+def render_session_thumbnail(
+    date_text: str,
+    eyebrow_label: str = "LIVE TRADING SESSION",
+    *,
+    variant: str | None = None,
+) -> bytes:
     """Render the branded card for `date_text` (e.g. "June 24, 2026") + an
-    `eyebrow_label` (the session type, e.g. "POST MARKET RECAP") -> JPEG bytes."""
+    `eyebrow_label` (the session type, e.g. "THOUGHTS ON MARKET") -> JPEG bytes.
+
+    The colour theme is auto-selected from `eyebrow_label` (or forced via
+    `variant`) so each session type looks distinct in the library."""
+    theme = _resolve_theme(variant, eyebrow_label)
     eyebrow = f"— {eyebrow_label} —"
-    img = _gradient_bg().convert("RGBA")
+    img = _gradient_bg(theme.bg_top, theme.bg_bottom).convert("RGBA")
     cx = _W // 2
 
-    # Soft gold glow behind the compass.
+    # Soft glow behind the compass.
     glow = Image.new("RGBA", (_W, _H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse([cx - 150, 40, cx + 150, 340], fill=(*_GOLD, 60))
+    gd.ellipse([cx - 150, 40, cx + 150, 340], fill=(*theme.glow, 60))
     img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(70)))
 
     # Compass mark, centered near the top.
@@ -81,12 +153,12 @@ def render_session_thumbnail(date_text: str, eyebrow_label: str = "LIVE TRADING 
     f_date = _font("DejaVuSans-Bold.ttf", 96)
     f_tag = _font("DejaVuSans.ttf", 30)
 
-    _draw_tracked_center(draw, cx, 252, _WORDMARK, f_word, _WHITE, 10)
-    _draw_tracked_center(draw, cx, 350, eyebrow, f_eye, _GOLD, 5)
-    _draw_center(draw, cx, 410, date_text, f_date, _WHITE)
-    # thin gold rule under the date
-    draw.rectangle([cx - 90, 548, cx + 90, 552], fill=_GOLD)
-    _draw_center(draw, cx, 600, _TAGLINE, f_tag, _MUTED)
+    _draw_tracked_center(draw, cx, 252, _WORDMARK, f_word, theme.wordmark, 10)
+    _draw_tracked_center(draw, cx, 350, eyebrow, f_eye, theme.eyebrow, 5)
+    _draw_center(draw, cx, 410, date_text, f_date, theme.date)
+    # thin rule under the date
+    draw.rectangle([cx - 90, 548, cx + 90, 552], fill=theme.rule)
+    _draw_center(draw, cx, 600, _TAGLINE, f_tag, theme.tagline)
 
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
