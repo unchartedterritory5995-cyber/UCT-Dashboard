@@ -1,9 +1,10 @@
 """Tracks daily spend, enforces soft + hard caps.
 
 Anthropic pricing (USD per million tokens, 2026):
-  claude-opus-4-7:   $15.00 input, $75.00 output
+  claude-opus-4-8:   $5.00  input, $25.00 output
+  claude-opus-4-7:   $5.00  input, $25.00 output
   claude-sonnet-4-6: $3.00  input, $15.00 output
-  claude-haiku-4-5:  $0.80  input, $4.00  output
+  claude-haiku-4-5:  $1.00  input, $5.00  output
 """
 import logging
 import os
@@ -15,10 +16,14 @@ logger = logging.getLogger(__name__)
 _SOFT_CAP_LOGGED_FOR_DATE: str | None = None
 _HARD_CAP_TRIPPED = False
 
+# Per-million-token rates. MUST carry an entry for whatever CATALYST_OPUS_MODEL
+# resolves to — estimate_cost() returns $0 for an unknown model, which would
+# make the daily soft/hard cost caps silently un-enforceable (unbounded spend).
 _PRICING = {
-    "claude-opus-4-7":   {"input": 15.0, "output": 75.0},
+    "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
+    "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},
     "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
-    "claude-haiku-4-5":  {"input": 0.80, "output": 4.0},
+    "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0},
 }
 
 
@@ -28,8 +33,13 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     base = model.rsplit("-", 1)[0] if model.count("-") >= 3 else model
     rates = _PRICING.get(model) or _PRICING.get(base)
     if not rates:
-        logger.warning("[cost_guard] unknown model pricing: %s", model)
-        return 0.0
+        # Unknown model: fall back to the priciest known rate, NOT $0. Returning
+        # $0 here would make the daily caps un-enforceable for any model added to
+        # CATALYST_OPUS_MODEL without a pricing entry — silent unbounded spend.
+        rates = max(_PRICING.values(), key=lambda r: r["output"])
+        logger.warning("[cost_guard] unknown model pricing: %s — using priciest "
+                       "known rate ($%.0f/$%.0f) so caps stay enforced",
+                       model, rates["input"], rates["output"])
     return (input_tokens * rates["input"] / 1_000_000.0
             + output_tokens * rates["output"] / 1_000_000.0)
 

@@ -22,11 +22,17 @@ def test_under_soft_cap_allows(s):
 
 
 def test_estimate_call_cost():
-    """Opus 4.7 pricing: $15/M input, $75/M output (2026)."""
-    cost = cost_guard.estimate_cost("claude-opus-4-7",
+    """Opus 4.8 pricing: $5/M input, $25/M output (2026)."""
+    cost = cost_guard.estimate_cost("claude-opus-4-8",
                                     input_tokens=1000, output_tokens=250)
-    # 1000 * 15/1M + 250 * 75/1M = 0.015 + 0.01875 = 0.03375
-    assert cost == pytest.approx(0.03375, rel=1e-3)
+    # 1000 * 5/1M + 250 * 25/1M = 0.005 + 0.00625 = 0.01125
+    assert cost == pytest.approx(0.01125, rel=1e-3)
+
+
+def test_unknown_model_falls_back_to_priciest_rate():
+    """An unknown model must NOT cost $0 (that would disable the caps)."""
+    cost = cost_guard.estimate_cost("claude-made-up-9", 1_000_000, 1_000_000)
+    assert cost == pytest.approx(30.0, rel=1e-3)  # $5 + $25 (priciest known)
 
 
 def test_haiku_pricing_is_cheaper():
