@@ -95,3 +95,40 @@ export function SkipFwdIcon({ size = 18 }) {
     </svg>
   )
 }
+
+export function FullscreenIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"
+            stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function VolumeIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M4 9v6h3l5 4V5L7 9z" fill={GOLD} />
+      <path d="M16 8.5a4 4 0 0 1 0 7M18.5 6a7 7 0 0 1 0 12" stroke={GOLD} strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    </svg>
+  )
+}
+
+export function MuteIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <path d="M4 9v6h3l5 4V5L7 9z" fill={GOLD} />
+      <path d="M16 9.5l5 5M21 9.5l-5 5" stroke={GOLD} strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+// Closed-captions: "CC" inside a rounded rectangle.
+export function CcIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <rect x="3" y="6" width="18" height="12" rx="2.5" stroke={GOLD} strokeWidth="1.5" />
+      <text x="12" y="15.5" fontSize="7.5" fontWeight="800" textAnchor="middle" fill={GOLD}>CC</text>
+    </svg>
+  )
+}

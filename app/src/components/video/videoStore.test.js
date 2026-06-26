@@ -65,12 +65,12 @@ describe('videoStore', () => {
     expect(v.currentVideo()).toBeNull()
   })
 
-  it('setCorner persists to localStorage and notifies subscribers', () => {
+  it('setPos persists the free-drag position and notifies subscribers', () => {
     let hits = 0
     const unsub = v.subscribe(() => { hits += 1 })
-    v.setCorner('tl')
-    expect(v.getSnapshot().corner).toBe('tl')
-    expect(localStorage.getItem('desk_video_corner')).toBe('tl')
+    v.setPos(300, 200)
+    expect(v.getSnapshot().pos).toEqual({ x: 300, y: 200 })
+    expect(JSON.parse(localStorage.getItem('desk_video_pos'))).toEqual({ x: 300, y: 200 })
     expect(hits).toBeGreaterThan(0)
     unsub()
   })

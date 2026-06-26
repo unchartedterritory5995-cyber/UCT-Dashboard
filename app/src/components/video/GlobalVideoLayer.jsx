@@ -1,16 +1,26 @@
 // The single, app-root-level video player. Mounted once (outside <Routes>),
 // it owns one YT.Player and only ever REPOSITIONS its fixed host between the
-// Desk theater slot (docked) and a floating corner (mini) — the iframe never
-// re-mounts, so playback never restarts across navigation.
+// Desk theater slot (docked) and a free-draggable floating mini — the iframe
+// never re-mounts, so playback never restarts across navigation.
+//
+// YouTube's own chrome is hidden (controls:0); we render a fully custom,
+// UCT-branded control set (scrubber, time, speed, captions, mute, fullscreen)
+// so the player reads as part of our ecosystem, not YouTube's.
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
-import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setCorner } from './videoStore'
-import { computeHostStyle, nearestCorner } from './hostStyle'
+import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos } from './videoStore'
+import { computeHostStyle } from './hostStyle'
+import { fmtTime, nextRate } from './playerUtils'
 import { pauseOtherAudio } from './audioExclusivity'
+import Scrubber from './Scrubber'
+import brandMark from '../intro/assets/compass-mark.png'
 import { PlayIcon } from '../../pages/education/icons'
-import { PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon, SkipBackIcon, SkipFwdIcon } from './icons'
+import {
+  PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon,
+  SkipBackIcon, SkipFwdIcon, FullscreenIcon, VolumeIcon, MuteIcon, CcIcon,
+} from './icons'
 import styles from './GlobalVideoLayer.module.css'
 
 const NEXT_COUNTDOWN = 6
@@ -32,20 +42,27 @@ export default function GlobalVideoLayer() {
   const apiReady = useYouTubeApi()
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const { vw, vh } = useViewport()
-  const { list, index, mode, corner, dockRect } = snap
+  const { list, index, mode, pos, dockRect } = snap
   const active = mode !== 'closed' && list.length > 0
+  const docked = mode === 'docked'
   const current = active ? list[index] : null
   const upNext = active && index + 1 < list.length ? list[index + 1] : null
 
   const navigate = useNavigate()
+  const hostElRef = useRef(null)
   const hostRef = useRef(null)
   const playerRef = useRef(null)
   const tickerRef = useRef(null)
   const curIdRef = useRef(null)
-  const dragRef = useRef(null)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
+  const [prog, setProg] = useState({ t: 0, d: 0 })
+  const [rate, setRate] = useState(1)
+  const [muted, setMuted] = useState(false)
+  const [cc, setCc] = useState(false)
+  const [isFs, setIsFs] = useState(false)
+  const [dragPos, setDragPos] = useState(null)
 
   const saveNow = useCallback(() => {
     const p = playerRef.current
@@ -71,6 +88,10 @@ export default function GlobalVideoLayer() {
         modestbranding: 1,
         playsinline: 1,
         autoplay: 1,
+        controls: 0, // we render our own branded controls
+        fs: 0, // our own fullscreen button
+        iv_load_policy: 3, // no annotations
+        cc_load_policy: 0,
         start: resumeSeconds(startId) || undefined,
       },
       events: {
@@ -127,6 +148,28 @@ export default function GlobalVideoLayer() {
     try { p.destroy() } catch { /* ignore */ }
   }, [saveNow])
 
+  // Poll playhead for the scrubber + time readout while a video is active.
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(() => {
+      const p = playerRef.current
+      if (!p || !p.getCurrentTime) return
+      try {
+        const t = p.getCurrentTime() || 0
+        const d = (p.getDuration && p.getDuration()) || 0
+        setProg((prev) => (prev.t === t && prev.d === d ? prev : { t, d }))
+      } catch { /* ignore */ }
+    }, 300)
+    return () => clearInterval(id)
+  }, [active])
+
+  // Track real fullscreen state (Esc, F11, etc).
+  useEffect(() => {
+    const onFs = () => setIsFs(document.fullscreenElement === hostElRef.current)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+
   // Auto-advance countdown when a video ends and another follows.
   useEffect(() => {
     if (!ended || !upNext) return
@@ -145,19 +188,18 @@ export default function GlobalVideoLayer() {
     storeExpand()
   }, [navigate])
 
-  const onDragStart = useCallback((e) => {
-    if (mode !== 'mini') return
-    e.preventDefault()
-    const move = (ev) => {
-      const p = ev.touches ? ev.touches[0] : ev
-      dragRef.current = { x: p.clientX, y: p.clientY }
-    }
-    const up = () => {
+  // Free-drag the mini anywhere on screen; persists where you drop it.
+  const startDrag = useCallback((e) => {
+    if (mode !== 'mini' || !hostElRef.current) return
+    if (e.target.closest('button')) return // let control buttons click through
+    const r = hostElRef.current.getBoundingClientRect()
+    const off = { dx: e.clientX - r.left, dy: e.clientY - r.top }
+    const move = (ev) => setDragPos({ x: ev.clientX - off.dx, y: ev.clientY - off.dy })
+    const up = (ev) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
-      const d = dragRef.current
-      if (d) setCorner(nearestCorner(d.x, d.y, window.innerWidth, window.innerHeight))
-      dragRef.current = null
+      setPos(ev.clientX - off.dx, ev.clientY - off.dy)
+      setDragPos(null)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -165,15 +207,16 @@ export default function GlobalVideoLayer() {
 
   if (!active) return null
 
-  const hostStyle = computeHostStyle(mode, corner, dockRect, vw, vh)
+  const base = computeHostStyle(mode, dockRect, vw, vh, pos)
+  const hostStyle = mode === 'mini' && dragPos ? { ...base, top: dragPos.y, left: dragPos.x } : base
+
+  const player = () => playerRef.current
   const togglePlay = () => {
-    const p = playerRef.current
-    if (!p) return
+    const p = player(); if (!p) return
     try { (isPlaying ? p.pauseVideo : p.playVideo).call(p) } catch { /* ignore */ }
   }
-  // Jump the playhead by `delta` seconds (negative = rewind), clamped to [0, duration].
   const seekBy = (delta) => {
-    const p = playerRef.current
+    const p = player()
     if (!p || !p.getCurrentTime || !p.seekTo) return
     try {
       const d = p.getDuration ? p.getDuration() : 0
@@ -184,50 +227,118 @@ export default function GlobalVideoLayer() {
       saveNow()
     } catch { /* ignore */ }
   }
+  const seekFrac = (frac) => {
+    const p = player()
+    if (!p || !p.seekTo) return
+    const d = (p.getDuration && p.getDuration()) || prog.d
+    if (d > 0) { try { p.seekTo(frac * d, true) } catch { /* ignore */ } }
+  }
+  const cycleRate = () => {
+    const r = nextRate(rate)
+    setRate(r)
+    try { player()?.setPlaybackRate?.(r) } catch { /* ignore */ }
+  }
+  const toggleMute = () => {
+    const p = player(); if (!p) return
+    try { (muted ? p.unMute : p.mute).call(p) } catch { /* ignore */ }
+    setMuted(!muted)
+  }
+  // Best-effort captions via the IFrame API (support varies by video).
+  const toggleCc = () => {
+    const p = player()
+    try {
+      if (!cc) { p?.loadModule?.('captions'); p?.setOption?.('captions', 'track', { languageCode: 'en' }) }
+      else { p?.setOption?.('captions', 'track', {}); p?.unloadModule?.('captions') }
+    } catch { /* ignore */ }
+    setCc(!cc)
+  }
+  const toggleFs = () => {
+    const el = hostElRef.current; if (!el) return
+    try {
+      if (document.fullscreenElement === el) document.exitFullscreen?.()
+      else el.requestFullscreen?.()
+    } catch { /* ignore */ }
+  }
+
+  const cls = [styles.host, mode === 'mini' ? styles.mini : styles.docked, dragPos ? styles.dragging : '']
+    .filter(Boolean).join(' ')
 
   return (
-    <div
-      className={`${styles.host} ${mode === 'mini' ? styles.mini : styles.docked}`}
-      style={hostStyle}
-      data-mode={mode}
-    >
-      {mode === 'mini' && (
-        <div className={styles.dragHandle} onPointerDown={onDragStart} aria-label="Move player">
-          <DragIcon />
-        </div>
-      )}
+    <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode}>
       <div ref={hostRef} className={styles.frame} />
       {!apiReady && <div className={styles.loading}>Loading…</div>}
 
+      {/* Top bar — UCT brand + title. Doubles as the drag handle in mini. */}
+      <div
+        className={styles.topbar}
+        onPointerDown={mode === 'mini' ? startDrag : undefined}
+        style={mode === 'mini' ? { cursor: 'grab' } : undefined}
+      >
+        <img className={styles.brand} src={brandMark} alt="UCT" />
+        <span className={styles.brandWord}>UCT</span>
+        <span className={styles.topTitle}>{current.title}</span>
+        {mode === 'mini' && <span className={styles.grip} aria-hidden="true"><DragIcon size={16} /></span>}
+      </div>
+
+      {/* Bottom control bar — our own scrubber + transport. */}
       <div className={styles.controls}>
-        <span className={styles.ctitle}>{current.title}</span>
-        <button className={styles.cbtn} onClick={() => seekBy(-15)} aria-label="Back 15 seconds">
-          <SkipBackIcon />
-        </button>
-        <button className={styles.cbtn} onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
-          {isPlaying ? <PauseIcon /> : <PlayIcon size={18} />}
-        </button>
-        <button className={styles.cbtn} onClick={() => seekBy(15)} aria-label="Forward 15 seconds">
-          <SkipFwdIcon />
-        </button>
-        {upNext && (
-          <button className={styles.cbtn} onClick={() => storeNext()} aria-label="Next video">
-            <NextIcon />
+        <Scrubber current={prog.t} duration={prog.d} onSeek={seekFrac} />
+        <div className={styles.btnrow}>
+          <button className={styles.cbtn} onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
+            {isPlaying ? <PauseIcon /> : <PlayIcon size={18} />}
           </button>
-        )}
-        {mode === 'docked' && (
-          <button className={styles.cbtn} onClick={() => minimize()} aria-label="Minimize">
-            <MinimizeIcon />
+          <button className={styles.cbtn} onClick={() => seekBy(-15)} aria-label="Back 15 seconds">
+            <SkipBackIcon />
           </button>
-        )}
-        {mode === 'mini' && (
-          <button className={styles.cbtn} onClick={onExpand} aria-label="Expand to Desk">
-            <ExpandIcon />
+          <button className={styles.cbtn} onClick={() => seekBy(15)} aria-label="Forward 15 seconds">
+            <SkipFwdIcon />
           </button>
-        )}
-        <button className={styles.cbtn} onClick={() => storeClose()} aria-label="Close player">
-          <CloseIcon />
-        </button>
+          {docked && (
+            <span className={styles.time}>{fmtTime(prog.t)} / {fmtTime(prog.d)}</span>
+          )}
+          <span className={styles.spacer} />
+          {docked && upNext && (
+            <button className={styles.cbtn} onClick={() => storeNext()} aria-label="Next video">
+              <NextIcon />
+            </button>
+          )}
+          <button className={styles.speedBtn} onClick={cycleRate} aria-label="Playback speed">
+            {rate}×
+          </button>
+          {docked && (
+            <button
+              className={`${styles.cbtn} ${cc ? styles.cbtnOn : ''}`}
+              onClick={toggleCc}
+              aria-label={cc ? 'Turn captions off' : 'Turn captions on'}
+              aria-pressed={cc}
+            >
+              <CcIcon />
+            </button>
+          )}
+          {docked && (
+            <button className={styles.cbtn} onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+              {muted ? <MuteIcon /> : <VolumeIcon />}
+            </button>
+          )}
+          {docked && (
+            <button className={styles.cbtn} onClick={toggleFs} aria-label={isFs ? 'Exit fullscreen' : 'Fullscreen'}>
+              <FullscreenIcon />
+            </button>
+          )}
+          {docked && (
+            <button className={styles.cbtn} onClick={() => minimize()} aria-label="Minimize">
+              <MinimizeIcon />
+            </button>
+          )}
+          {mode === 'mini' && (
+            <button className={styles.cbtn} onClick={onExpand} aria-label="Expand to Desk">
+              <ExpandIcon />
+            </button>
+          )}
+          <button className={styles.cbtn} onClick={() => storeClose()} aria-label="Close player">
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       {ended && upNext && (

@@ -2,23 +2,22 @@
 // useSyncExternalStore pattern of pages/desk/videoProgress.js: module-level
 // state + a listener set + getSnapshot. Drives GlobalVideoLayer's mode:
 //   closed → no video | docked → theater over the Desk slot | mini → floating
-const CORNER_KEY = 'desk_video_corner'
-const CORNERS = ['br', 'bl', 'tr', 'tl']
+const POS_KEY = 'desk_video_pos'
 
-function readCorner() {
+// Last free-drag position of the mini (top-left, viewport px), or null = default.
+function readPos() {
   try {
-    const c = localStorage.getItem(CORNER_KEY)
-    return CORNERS.includes(c) ? c : 'br'
-  } catch {
-    return 'br'
-  }
+    const j = JSON.parse(localStorage.getItem(POS_KEY) || 'null')
+    if (j && typeof j.x === 'number' && typeof j.y === 'number') return j
+  } catch { /* ignore */ }
+  return null
 }
 
 let state = {
   list: [],
   index: 0,
   mode: 'closed', // 'closed' | 'docked' | 'mini'
-  corner: readCorner(),
+  pos: readPos(), // { x, y } free-drag position of the mini, or null
   dockRect: null, // { top, left, width, height } of the Desk slot, or null
   playing: false,
 }
@@ -59,10 +58,11 @@ export function close() {
   set({ list: [], index: 0, mode: 'closed', dockRect: null, playing: false })
 }
 
-export function setCorner(corner) {
-  if (!CORNERS.includes(corner)) return
-  try { localStorage.setItem(CORNER_KEY, corner) } catch { /* ignore */ }
-  set({ corner })
+// Free-drag: park the mini at any { x, y } (top-left, viewport px); persisted.
+export function setPos(x, y) {
+  const pos = { x: Math.round(x), y: Math.round(y) }
+  try { localStorage.setItem(POS_KEY, JSON.stringify(pos)) } catch { /* ignore */ }
+  set({ pos })
 }
 
 export function setPlaying(b) {
@@ -99,6 +99,6 @@ export function getSnapshot() {
 }
 
 export function __reset() {
-  state = { list: [], index: 0, mode: 'closed', corner: readCorner(), dockRect: null, playing: false }
+  state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false }
   listeners.clear()
 }

@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 8500;
   background: #000;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
   transition: top 0.32s cubic-bezier(0.22, 1, 0.36, 1),
@@ -10,12 +10,15 @@
     width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* While dragging the mini, follow the cursor 1:1 (no position easing). */
+.dragging {
+  transition: none;
+}
 .docked {
-  border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
 }
 .mini {
-  border: 1px solid rgba(201, 168, 76, 0.35);
+  border: 1px solid rgba(201, 168, 76, 0.4);
 }
 .frame {
   position: absolute;
@@ -34,25 +37,37 @@
   color: #a8a290;
   font-size: 13px;
 }
-.controls {
+
+/* ── Top bar: UCT brand + title (drag handle in mini) ─────────────────── */
+.topbar {
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
+  gap: 7px;
+  padding: 7px 10px;
+  background: linear-gradient(to bottom, rgba(8, 9, 8, 0.82), rgba(8, 9, 8, 0));
   opacity: 0;
   transition: opacity 0.18s ease;
+  user-select: none;
 }
-.host:hover .controls,
-.mini .controls,
-.docked .controls {
-  opacity: 1;
+.brand {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
-.ctitle {
+.brandWord {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #e6cf86;
+  flex: 0 0 auto;
+}
+.topTitle {
   flex: 1;
   min-width: 0;
   color: #f3efe2;
@@ -61,6 +76,48 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.grip {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+/* ── Bottom bar: scrubber + transport ─────────────────────────────────── */
+.controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 8px;
+  background: linear-gradient(to top, rgba(8, 9, 8, 0.88), rgba(8, 9, 8, 0));
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.host:hover .topbar,
+.host:hover .controls,
+.docked .topbar,
+.docked .controls,
+.mini .topbar,
+.mini .controls {
+  opacity: 1;
+}
+.btnrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.spacer {
+  flex: 1;
+}
+.time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #d8d2c0;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 .cbtn {
   display: inline-flex;
@@ -75,8 +132,28 @@
   border-radius: 6px;
 }
 .cbtn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
 }
+.cbtnOn {
+  background: rgba(201, 168, 76, 0.28);
+}
+.speedBtn {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  background: transparent;
+  color: #e6cf86;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.speedBtn:hover {
+  background: rgba(201, 168, 76, 0.2);
+}
+
 .nextCard {
   position: absolute;
   inset: 0;
@@ -114,32 +191,8 @@
 .nextPlayBtn {
   background: rgba(201, 168, 76, 0.18);
 }
-.dragHandle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 26px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-.mini .dragHandle {
-  display: flex;
-}
-.mini:hover .dragHandle {
-  opacity: 1;
-}
 
-/* Mobile: a touch smaller, controls always visible for tappability. */
 @media (max-width: 640px) {
-  .mini .controls {
-    opacity: 1;
-  }
   .host {
     border-radius: 8px;
   }

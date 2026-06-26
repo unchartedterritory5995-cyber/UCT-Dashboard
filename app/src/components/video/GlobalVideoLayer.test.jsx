@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import GlobalVideoLayer from './GlobalVideoLayer'
 import * as store from './videoStore'
-import { nearestCorner } from './hostStyle'
 
 vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true }))
 
@@ -21,6 +20,9 @@ beforeEach(() => {
         this.playVideo = vi.fn()
         this.destroy = vi.fn()
         this.seekTo = vi.fn()
+        this.setPlaybackRate = vi.fn()
+        this.mute = vi.fn()
+        this.unMute = vi.fn()
         this.getCurrentTime = () => 20
         this.getDuration = () => 0
         lastPlayer = this
@@ -83,10 +85,22 @@ describe('GlobalVideoLayer', () => {
     expect(store.getSnapshot().mode).toBe('docked')
   })
 
-  it('nearest-corner snap maps a drop point to a corner', () => {
-    expect(nearestCorner(10, 10, 1000, 800)).toBe('tl')
-    expect(nearestCorner(990, 790, 1000, 800)).toBe('br')
-    expect(nearestCorner(10, 790, 1000, 800)).toBe('bl')
+  it('the speed button cycles the playback rate', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    const speed = screen.getByLabelText('Playback speed')
+    expect(speed).toHaveTextContent('1×')
+    fireEvent.click(speed)
+    expect(lastPlayer.setPlaybackRate).toHaveBeenCalledWith(1.25)
+    expect(speed).toHaveTextContent('1.25×')
+  })
+
+  it('the mute button mutes the player', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    fireEvent.click(screen.getByLabelText('Mute'))
+    expect(lastPlayer.mute).toHaveBeenCalled()
+    expect(screen.getByLabelText('Unmute')).toBeInTheDocument()
   })
 
   it('skip-forward seeks 15s ahead of the current time', () => {
