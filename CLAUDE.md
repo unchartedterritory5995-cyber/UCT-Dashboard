@@ -199,6 +199,34 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
 - `j2_positions.stop_price`/`entry_date` are NOT NULL → broker imports store placeholders;
   the UI renders "—"/"est." (don't show a fake stop / today's date).
 
+## Journal 2.0 — Table & Analytics polish (2026-06-24)
+
+UX pass over the three big J2 surfaces (memory `project_journal_tables_polish_2026_06_24`).
+
+- **Collapsible Analytics** — `tabs/AnalyticsTab.jsx` is now an accordion of
+  `components/CollapsibleSection.jsx` (reusable: inline-SVG chevron — NO emoji,
+  per-section open/closed persisted in `localStorage` key
+  `uct.j2.analytics.section.<id>`, children UNMOUNTED while collapsed so the
+  ECharts don't mount). Defaults: **Edge Score + Closed-Trade Equity open;
+  Performance / Distribution / Attribution / Options Breakdown collapsed.** The
+  broker "Account Balance" panel stays always-visible. Section components dropped
+  their own `<section>`+`<h3 sectionHeader>` — CollapsibleSection supplies the header.
+- **Sortable table headers** — both `components/TradesTable.jsx` (closed trades)
+  and `components/PositionsTable.jsx` (open positions) have click-to-sort headers
+  (gold ▲/▼ caret + `aria-sort`; first click numeric/date→desc, text→asc, second
+  click toggles; blanks always sink last; stable tiebreak). TradesTable default =
+  entryDate desc; PositionsTable default = symbol asc; the Actions column isn't
+  sortable. PositionsTable's `sortKeyFor()` mirrors Row's display logic (live-price
+  P&L/risk/heat, broker no-real-stop blanking, option-row N/A). Shared CSS
+  `.thBtn`/`.sortCaret`/`.thBtnActive` is duplicated in both `.module.css`.
+- **Inline setup tagging** — the Setup cell on EQUITY closed-trade rows is an
+  inline `<select>` of `settings.setups`; saves via `PATCH /api/j2/trades/{id}`
+  with an OPTIMISTIC SWR write (reconciled from the server response, rolls back via
+  `refresh()` on error) + invalidates `/api/j2/analytics` so attribution recomputes.
+  **Option rows stay read-only** (their id is a strategy id, not a `j2_trades` row →
+  PATCH would 404); an off-list existing setup is preserved as an option.
+  `hooks/useJ2Trades.js` now also returns `mutate` for the optimistic write.
+
 ## Mobile Navigation
 
 Shown at ≤1024px (desktop uses the left `NavBar`). Two pieces, both in `Layout.jsx`:
@@ -1573,6 +1601,73 @@ CREATE TABLE catalyst_alerts_fired (user_id, ticker, market_date, fired_at, PRIM
 - **Skip-if-stable hash** is on raw_signals JSON; bumping the hash function invalidates all cached theses (forces re-synthesis = cost spike). Don't change without intentional opt-in.
 - **catalyst_alerts_fired PRIMARY KEY** is (user_id, ticker, market_date) — three-column. Removing market_date would create perma-dedup; removing user_id would silence other users.
 - **catalyst_at field** is computed as min(source timestamps) by `_compute_catalyst_at()`. Empty when all sources are Perplexity-synthetic. Frontend falls back to thesis_at with dimmed italics in that case.
+
+## The Desk — Live Trading Sessions auto-publish (built 2026-06-24/25, LIVE)
+
+The firm's daily Zoom **webinar** (new paywalled link each day from a template, NOT
+recurring) is auto-recorded and published into **The Desk → Videos → "Live Trading
+Sessions"** with **zero per-session effort**. Fully hands-off + proven end-to-end.
+
+**Flow:** Zoom **Automatic Cloud Recording** → Zoom fires `recording.completed`
+webhook → engine downloads the MP4 (streamed to a temp file) → uploads to YouTube
+**unlisted** (resumable) → sets a **branded thumbnail** → publishes an `edu_videos`
+record (reuses the existing Educational Videos store + player) → **trashes the Zoom
+cloud copy** (storage-cap safe) → **alerts the owner (email via Resend + Discord)**.
+**Routing by webinar name:** `_route(topic)` maps the Zoom webinar name → `(section,
+title_prefix, eyebrow)`. `_RULES` pins `"live trading*"` → Live Trading Sessions (back-compat,
+since the template is literally named "live trading today"); any other named topic
+**auto-derives** section = title = the name + thumbnail eyebrow = NAME.upper() (e.g. a
+"Post Market Recap" webinar → "Post Market Recap — {date}" in a "Post Market Recap"
+section); empty topic → default. So new content types = just name a Zoom template.
+Title `{type} — {Month D, YYYY}` (ET). `_notify_published` fires once per
+genuinely-new publish (not on idempotent re-runs); recipients = `DESK_DAILY_SESSION_ALERT_EMAILS`
+or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist — EVERY cloud
+recording on the account auto-posts (titled by its webinar name); add a skip rule in
+`_route` if private/internal recordings ever need excluding.**
+
+### Files
+- `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
+  url_validation challenge + enqueue). `GET /api/desk/sessions-status` (PUSH_SECRET
+  bearer) = diagnostics: recent `desk_session_jobs` rows incl. status/error/youtube_id/
+  download_url/token.
+- `api/services/desk_session_jobs.py` — SQLite queue `/data/desk_session_jobs.db`, PK
+  `meeting_uuid` (idempotent vs dup webhooks); `claim_next` reclaims stale `processing`
+  rows past `_STALE_SECS` (crash recovery); `mark_uploaded`/`mark_done`/`mark_error`.
+- `api/services/zoom_client.py` — Zoom S2S OAuth + `stream_download` (Bearer header,
+  content-type+min-size GUARD → rejects HTML/JSON error pages) + `delete_recording`.
+- `api/services/youtube_client.py` — OAuth refresh + `upload_unlisted` (resumable,
+  streamed from disk) + `set_thumbnail` (thumbnails.set) + `list_completed_broadcasts`
+  (v1 poll, retired).
+- `api/services/desk_daily_session.py` — `process_pending_jobs` (drain → download →
+  upload → set_thumbnail [non-fatal] → publish → trash → done), `_session_title`,
+  `_session_date_text`, `check_missing_session_alert` (weekday EOD safety net, Discord).
+- `api/services/desk_thumbnail.py` + `api/services/desk_assets/` (compass-mark.png,
+  DejaVuSans-Bold/Regular .ttf) — 1280×720 branded card (Pillow).
+- `api/main.py` — webhook `include_router` + scheduler `*/5` queue-drain + weekday-18:00
+  safety, gated by `DESK_DAILY_SESSION_ENABLED`; `desk_session_jobs._init_db()` at startup.
+
+### Env (web pod)
+`DESK_DAILY_SESSION_ENABLED=1` · `ZOOM_S2S_ACCOUNT_ID/_CLIENT_ID/_CLIENT_SECRET` ·
+`ZOOM_WEBHOOK_SECRET_TOKEN` · `YT_OAUTH_CLIENT_ID/_CLIENT_SECRET/_REFRESH_TOKEN`
+(upload scope, OAuth app published→prod so the token doesn't expire) ·
+`DESK_DAILY_SESSION_CATEGORY="Live Trading Sessions"` · optional `_START_DATE`,
+`_STALE_SECS`, `_MAX_ATTEMPTS`. Webhook URL: `https://uctintelligence.com/api/desk/zoom-webhook`.
+
+### LOCKED invariants / gotchas (do NOT regress)
+- **Zoom `download_token` is at the TOP LEVEL of the `recording.completed` event body**
+  (sibling of `payload`), NOT inside `payload`. Reading the wrong place → empty token →
+  unauthenticated download → 200 HTML error page → YouTube "Processing abandoned". The
+  content-type/size guard in `stream_download` is the backstop.
+- **`thumbnails.set` is covered by the `youtube.upload` scope** (no extra scope needed);
+  channel must be custom-thumbnail-eligible (phone-verified).
+- **Thumbnail + Zoom delete are NON-FATAL** — wrapped in try/except; never break publish.
+- **Idempotent**: queue PK on `meeting_uuid` + `edu_videos` dedup on `youtube_id`;
+  reclaimed job with a stored `youtube_id` skips re-upload (no duplicate YouTube video).
+- **Diagnose via `GET /api/desk/sessions-status`** (PUSH_SECRET), NOT logs — engine logs
+  are flooded by yfinance/theme noise. **Cloudflare 1010-blocks raw curl/python UAs** to
+  uctintelligence.com → send a browser `User-Agent` when curling.
+- Setup walkthrough (one-time Zoom + YouTube + GCP OAuth) + design/plan specs in
+  `docs/superpowers/specs/2026-06-24-desk-daily-sessions-*` + `…-thumbnails-design.md`.
 
 ## Known Issues / Gotchas
 

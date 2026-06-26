@@ -944,11 +944,50 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
         return []
 
 
+# ── yfinance daily negative-lookup cache ────────────────────────────────────
+# When Yahoo rate-limits the pod's IP, EVERY _fetch_daily_yf returns empty
+# ("possibly delisted; no timezone found") -- including live tickers. The worker's
+# full-universe warm re-runs every 5 min with no positive freshness gate to stop
+# it, so the same ~3,685 doomed calls fire every cycle and keep the IP throttled.
+# Record a per-ticker failure and skip yfinance for an exponentially-growing
+# backoff window (genuinely-delisted tickers stretch toward the cap; a throttle
+# clears on its own once the window lapses). A later success clears the entry.
+_YF_DAILY_FAIL: dict[str, tuple[float, int]] = {}
+_YF_DAILY_FAIL_LOCK = _threading.Lock()
+_YF_FAIL_BASE_SECS = 1800        # 30 min after the 1st failure
+_YF_FAIL_MAX_SECS = 6 * 3600     # capped at 6h
+
+
+def _yf_daily_in_backoff(ticker_up: str) -> bool:
+    with _YF_DAILY_FAIL_LOCK:
+        rec = _YF_DAILY_FAIL.get(ticker_up)
+        if not rec:
+            return False
+        last, n = rec
+        wait = min(_YF_FAIL_BASE_SECS * (2 ** max(0, n - 1)), _YF_FAIL_MAX_SECS)
+        return (_time.monotonic() - last) < wait
+
+
+def _yf_daily_record_fail(ticker_up: str) -> None:
+    with _YF_DAILY_FAIL_LOCK:
+        _, n = _YF_DAILY_FAIL.get(ticker_up, (0.0, 0))
+        _YF_DAILY_FAIL[ticker_up] = (_time.monotonic(), n + 1)
+
+
+def _yf_daily_record_ok(ticker_up: str) -> None:
+    with _YF_DAILY_FAIL_LOCK:
+        _YF_DAILY_FAIL.pop(ticker_up, None)
+
+
 def _fetch_daily_yf(ticker: str) -> list[dict]:
     """Fetch daily bars from yfinance period='max' for deep history.
     Returns bars in our normalized format (t = ISO date string).
     Used during nightly warm to get pre-2006 history that Massive lacks.
     """
+    ticker_up = ticker.upper()
+    # Skip tickers in a recent-failure backoff window (Yahoo IP throttle / delisted).
+    if _yf_daily_in_backoff(ticker_up):
+        return []
     try:
         from api.services.yfinance_pool import fetch_history as _yf_fetch
         # period='max' on a wide universe is a known yfinance slow-path
@@ -956,12 +995,13 @@ def _fetch_daily_yf(ticker: str) -> list[dict]:
         # intraday fast-path because this is invoked from the nightly
         # warm, not user requests, and the deeper data is worth the wait.
         df = _yf_fetch(
-            ticker.upper(),
+            ticker_up,
             timeout=20.0,
             period='max', interval='1d',
             auto_adjust=False, raise_errors=False,
         )
         if df is None or df.empty:
+            _yf_daily_record_fail(ticker_up)
             return []
         out = []
         for ts, row in df.iterrows():
@@ -977,8 +1017,13 @@ def _fetch_daily_yf(ticker: str) -> list[dict]:
                 })
             except Exception:
                 continue
+        if out:
+            _yf_daily_record_ok(ticker_up)
+        else:
+            _yf_daily_record_fail(ticker_up)
         return out
     except Exception as e:
+        _yf_daily_record_fail(ticker_up)
         print(f"[bars] yfinance daily fetch failed for {ticker}: {e}")
         return []
 

@@ -95,7 +95,7 @@ def test_upload_unlisted_returns_video_id(monkeypatch, tmp_path):
     monkeypatch.setattr(yc.httpx, "put", fake_put)
     c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
     monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
-    vid = c.upload_unlisted(str(f), "Daily Session — June 24, 2026")
+    vid = c.upload_unlisted(str(f), "Live Trading Session — June 24, 2026")
     assert vid == "VIDUP"
     assert captured["put_url"] == "https://up.example/session"
     assert captured["meta"]["status"]["privacyStatus"] == "unlisted"
@@ -108,3 +108,26 @@ def test_upload_unlisted_raises_on_init_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
     with pytest.raises(yc.YouTubeApiError):
         c.upload_unlisted(str(f), "t")
+
+
+def test_set_thumbnail_posts_image(monkeypatch):
+    seen = {}
+    def fake_post(url, params=None, headers=None, content=None, timeout=None):
+        seen.update(url=url, params=params, ct=headers.get("Content-Type"), body=content)
+        return _Resp(200, {})
+    monkeypatch.setattr(yc.httpx, "post", fake_post)
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    c.set_thumbnail("VID9", b"\xff\xd8jpegbytes")
+    assert "thumbnails/set" in seen["url"]
+    assert seen["params"]["videoId"] == "VID9"
+    assert seen["ct"] == "image/jpeg"
+    assert seen["body"] == b"\xff\xd8jpegbytes"
+
+
+def test_set_thumbnail_raises_on_error(monkeypatch):
+    monkeypatch.setattr(yc.httpx, "post", lambda *a, **k: _Resp(403, text="no"))
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    with pytest.raises(yc.YouTubeApiError):
+        c.set_thumbnail("VID9", b"x")

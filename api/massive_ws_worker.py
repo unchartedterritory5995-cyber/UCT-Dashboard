@@ -143,7 +143,13 @@ MAX_Q_SUBSCRIPTIONS = 950
 # How fresh an NBBO needs to be (vs trade timestamp) to use for Side
 # classification. Stale quotes give wrong sides. 5 seconds is generous
 # for liquid contracts where quotes update every few hundred ms.
-NBBO_STALENESS_NS = 5_000_000_000
+NBBO_STALENESS_NS = 60_000_000_000  # 60s -- accommodates illiquid contracts
+                                      # whose NBBO updates may be 10-30+ sec
+                                      # between quotes. The market doesn't
+                                      # reverse on illiquid contracts in 60s,
+                                      # so Side classification stays directionally
+                                      # valid. Original was 5s -- too tight for
+                                      # the long tail of contracts Massive sees.
 
 
 def _classify_side(trade_price: float, nbbo: tuple) -> str:
@@ -1394,6 +1400,92 @@ async def _run_session(ws):
                     logger.warning(
                         "[massive-ws] OI snapshot persist failed: %s", e
                     )
+
+                # COLOR REFRESH: backfill Color on today's WHITE rows that
+                # were written before this OI was known. Without this, the
+                # first trade of the day on a previously-unsnapshotted
+                # contract stays WHITE forever, even though Phase 1 has now
+                # resolved its OI. This is the "OI race condition" -- worst
+                # case affects the 9:30-10:00 AM window when many contracts
+                # don't yet have snapshots.
+                #
+                # Logic: for each newly-resolved (sym, cp, strike, exp_mdy)
+                # contract, look up today's flow rows with Color='WHITE'.
+                # Sum their cumulative volume on this contract. If cum_vol
+                # exceeds OI thresholds, UPDATE Color on all matching rows.
+                #
+                # CRITICAL: This block runs in a thread pool via run_in_executor
+                # so the SQLite UPDATE statements don't block the asyncio event
+                # loop. Without offloading, a slow UPDATE (e.g., 100+ rows on
+                # contended SQLite) could pause the WS message handler for
+                # multiple seconds -- causing Q events to back up and NBBO
+                # freshness to crater. Side classification depends on fresh
+                # NBBO so this offloading is mandatory.
+                def _color_refresh_sync(resolved_contracts):
+                    import sqlite3
+                    from api.flow_db import FlowDB
+                    today_mdY = f"{date.today().month}/{date.today().day}/{date.today().year}"
+                    db = FlowDB()
+                    rows_updated = 0
+                    try:
+                        with sqlite3.connect(db.db_path, timeout=10) as conn:
+                            for (sym, cp_letter, strike, exp_mdy), oi, _src in resolved_contracts:
+                                cp_full = 'CALL' if cp_letter == 'C' else 'PUT'
+                                strike_strs = []
+                                if strike == int(strike):
+                                    strike_strs.append(str(int(strike)))
+                                strike_strs.append(str(float(strike)))
+                                strike_strs.append(f"{strike:.1f}")
+                                seen = set()
+                                strike_strs = [s for s in strike_strs if not (s in seen or seen.add(s))]
+                                for strike_str in strike_strs:
+                                    cur = conn.execute(
+                                        "SELECT COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
+                                        "FROM flow WHERE Symbol=? AND CallPut=? AND "
+                                        "Strike=? AND ExpirationDate=? AND CreatedDate=?",
+                                        (sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                    )
+                                    cum_vol = cur.fetchone()[0] or 0
+                                    if cum_vol <= 0:
+                                        continue
+                                    new_color = None
+                                    if cum_vol >= int(1.5 * oi):
+                                        new_color = 'MAGENTA'
+                                    elif cum_vol > oi:
+                                        new_color = 'YELLOW'
+                                    if not new_color:
+                                        continue
+                                    upd = conn.execute(
+                                        "UPDATE flow SET Color=? WHERE Symbol=? AND "
+                                        "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                                        "CreatedDate=? AND Color='WHITE'",
+                                        (new_color, sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                    )
+                                    rows_updated += upd.rowcount
+                                    conn.execute(
+                                        "UPDATE flow SET OI=? WHERE Symbol=? AND "
+                                        "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                                        "CreatedDate=? AND (OI='0' OR OI='' OR OI IS NULL)",
+                                        (str(oi), sym, cp_full, strike_str, exp_mdy, today_mdY),
+                                    )
+                                    break
+                            conn.commit()
+                    except Exception as e:
+                        logger.warning("[massive-ws] Color refresh failed (in thread): %s", e)
+                    return rows_updated
+
+                try:
+                    loop = asyncio.get_event_loop()
+                    color_updated = await loop.run_in_executor(None, _color_refresh_sync, resolved)
+                    if color_updated:
+                        logger.info(
+                            "[massive-ws] Color refresh: upgraded %d WHITE -> Y/M "
+                            "after OI backfill", color_updated
+                        )
+                    _state["color_refresh_rows_updated"] = _state.get("color_refresh_rows_updated", 0) + color_updated
+                except Exception as e:
+                    logger.warning("[massive-ws] Color refresh dispatch failed: %s", e)
+
             _state["oi_fetch_batches_sent"] += 1
             _state["oi_fetch_contracts_resolved"] += len(resolved)
             _state["oi_fetch_contracts_unresolved"] += unresolved

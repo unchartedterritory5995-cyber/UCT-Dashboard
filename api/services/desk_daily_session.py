@@ -18,7 +18,29 @@ _ET = ZoneInfo("America/New_York")
 
 
 def _category() -> str:
-    return os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Daily Sessions")
+    return os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Live Trading Sessions")
+
+
+# Route a recording to its Desk destination by the Zoom webinar name (topic).
+# Each rule: (keyword matched in the topic, lowercased) -> (section, title prefix,
+# thumbnail eyebrow). First match wins; an unmatched named topic auto-derives
+# everything from the name itself; an empty topic falls back to the default type.
+_RULES = [
+    ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
+]
+_DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+
+def _route(topic: str | None) -> tuple[str, str, str]:
+    """(section, title_prefix, eyebrow_label) for a recording's webinar name."""
+    t = (topic or "").strip()
+    low = t.lower()
+    for kw, section, prefix, eyebrow in _RULES:
+        if kw in low:
+            return section, prefix, eyebrow
+    if not t:
+        return _DEFAULT_ROUTE
+    return t, t, t.upper()        # auto: the name IS the section + title + eyebrow
 
 
 def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> datetime:
@@ -34,9 +56,14 @@ def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> dateti
     return dt.astimezone(_ET)
 
 
-def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+def _session_date_text(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+    """ET date as 'June 24, 2026' — shared by the title and the thumbnail."""
     dt = _to_et(started_at_iso, now=now)
-    return f"Daily Session — {dt.strftime('%B')} {dt.day}, {dt.year}"
+    return f"{dt.strftime('%B')} {dt.day}, {dt.year}"
+
+
+def _session_title(started_at_iso: str | None, *, now: datetime | None = None) -> str:
+    return f"Live Trading Session — {_session_date_text(started_at_iso, now=now)}"
 
 
 def _start_date_floor():
@@ -88,15 +115,48 @@ def todays_session_exists(now: datetime | None = None) -> bool:
 def _alert_owner(now: datetime, kind: str = "missing") -> None:
     from api.services import discord_notify
     if kind == "stuck":
-        title = "⚠️ Daily Session stuck in processing"
+        title = "⚠️ Live Trading Session stuck in processing"
         desc = ("Today's recording is queued but not published (download/upload/"
                 "auth failure). Check Zoom/YouTube credentials + the desk_session_jobs queue.")
     else:
         when = now.strftime('%-I:%M %p ET') if os.name != 'nt' else now.strftime('%I:%M %p ET')
-        title = "⚠️ Daily Session not published"
+        title = "⚠️ Live Trading Session not published"
         desc = (f"No '{_session_title(None, now=now)}' video is in The Desk by {when}. "
                 "Check that the webinar ran and auto-recorded to the Zoom cloud.")
     discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
+
+
+_DESK_VIDEOS_URL = "https://uctintelligence.com/desk?section=videos"
+
+
+def _alert_recipients() -> list[str]:
+    raw = (os.environ.get("DESK_DAILY_SESSION_ALERT_EMAILS")
+           or os.environ.get("ADMIN_EMAILS", ""))
+    return [e.strip() for e in raw.split(",") if e.strip()]
+
+
+def _notify_published(title: str, video_id: str) -> None:
+    """Fire a success alert (Discord + email) when a session posts to The Desk.
+    Best-effort — never raises (must not break the processor)."""
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "✅ Live Trading Session posted",
+            "description": f"**{title}** is now live in The Desk → Videos.\n"
+                           f"[Open The Desk]({_DESK_VIDEOS_URL})",
+            "color": 0x4ADE80,
+        })
+    except Exception:
+        pass
+    try:
+        from api.services import email_service
+        html = (f"<p style='font-size:16px'><b>{title}</b> is now live in "
+                f"<b>The Desk → Videos → Live Trading Sessions</b>.</p>"
+                f"<p><a href='{_DESK_VIDEOS_URL}' style='color:#c9a84c'>Open The Desk →</a></p>")
+        for to in _alert_recipients():
+            email_service.send_email(to, f"✅ {title} is posted to The Desk", html)
+    except Exception:
+        pass
 
 
 def check_missing_session_alert(now: datetime | None = None, *, publish: bool = True) -> bool:
@@ -144,7 +204,9 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
         if not job:
             break
         uuid = job["meeting_uuid"]
-        title = _session_title(job.get("start_time"))
+        section, title_prefix, eyebrow = _route(job.get("topic"))
+        date_text = _session_date_text(job.get("start_time"))
+        title = f"{title_prefix} — {date_text}"
         vid = (job.get("youtube_id") or "").strip()
         tmp = None
         try:
@@ -153,16 +215,25 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
                 vid = youtube.upload_unlisted(tmp, title)
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
-            if vid not in education_service.existing_youtube_ids():
+                try:  # branded thumbnail — cosmetic, NEVER fail publish over it
+                    from api.services.desk_thumbnail import render_session_thumbnail
+                    youtube.set_thumbnail(
+                        vid, render_session_thumbnail(date_text, eyebrow_label=eyebrow))
+                except Exception as te:
+                    print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
+            created_now = vid not in education_service.existing_youtube_ids()
+            if created_now:
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
-                    "category": _category(), "sort_order": 0})
+                    "category": section, "sort_order": 0})
             try:
                 zoom.delete_recording(uuid)
             except Exception:
                 pass
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
+            if created_now:                 # alert once, only on a genuinely-new publish
+                _notify_published(title, vid)
         except Exception as e:
             desk_session_jobs.mark_error(uuid, e)
         finally:

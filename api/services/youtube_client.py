@@ -12,6 +12,7 @@ import httpx
 
 _TOKEN_URL = "https://oauth2.googleapis.com/token"
 _BROADCASTS_URL = "https://www.googleapis.com/youtube/v3/liveBroadcasts"
+_THUMBNAIL_URL = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set"
 _UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 
 
@@ -98,6 +99,18 @@ class YouTubeClient:
         if put.status_code not in (200, 201):
             raise YouTubeApiError(f"upload put {put.status_code}: {put.text[:200]}")
         return put.json()["id"]
+
+    def set_thumbnail(self, video_id: str, image_bytes: bytes) -> None:
+        """Set a custom thumbnail (JPEG bytes) on a video. The youtube.upload
+        scope covers thumbnails.set; the channel must be eligible for custom
+        thumbnails (it is, via phone verification)."""
+        token = self._ensure_token()
+        resp = httpx.post(_THUMBNAIL_URL,
+            params={"videoId": video_id, "uploadType": "media"},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
+            content=image_bytes, timeout=30)
+        if resp.status_code not in (200, 201):
+            raise YouTubeApiError(f"thumbnail set {resp.status_code}: {resp.text[:200]}")
 
     def list_completed_broadcasts(self, max_results: int = 10) -> list[dict]:
         token = self._ensure_token()

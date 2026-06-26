@@ -25,6 +25,20 @@ from api.services.cache import cache
 from api.services.engine import _load_wire_data
 from api.services.massive import get_agg_bars
 
+import re
+
+# A real equity/ETF symbol: 1-5 uppercase letters, optional single class suffix
+# (e.g. BRK.B). Curated-only themes carry their theme *id* in the `ticker` field
+# instead of an ETF — those are UPPER_SNAKE ("MANAGED_CARE"), too long
+# ("ECOMMERCE"), or contain digits ("GLP1"), so they fail this and must NOT be
+# sent to the bars warmer (yfinance treats them as delisted tickers -> log spam).
+_TICKER_RE = re.compile(r"^[A-Z]{1,5}([.\-][A-Z])?$")
+
+
+def looks_like_ticker(s: str | None) -> bool:
+    """True only for plausible equity/ETF symbols (filters theme-id pseudo-tickers)."""
+    return bool(s) and bool(_TICKER_RE.match(s))
+
 
 _CACHE_KEY = "theme_performance"
 _CACHE_TTL = 900          # 15 min in-memory cache

@@ -49,11 +49,12 @@ def themes(period: str = Query("1W")):
         result = get_themes(period)
         try:
             from api.routers.bars import warm_bars_async
+            from api.services.theme_performance import looks_like_ticker
             tickers: set[str] = set()
             for bucket in ("leaders", "laggards"):
                 for theme in (result.get(bucket) or []):
                     etf = theme.get("ticker")
-                    if etf and etf != "UCT20":
+                    if etf and etf != "UCT20" and looks_like_ticker(etf.upper()):
                         tickers.add(etf.upper())
                     for h in (theme.get("holdings") or []):
                         sym = h if isinstance(h, str) else h.get("sym") if isinstance(h, dict) else None
