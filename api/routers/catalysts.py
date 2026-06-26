@@ -75,6 +75,10 @@ def catalysts_today(user=Depends(get_current_user)):
     return {
         "market_date": md,
         "generated_at": rows[0]["thesis_at"] if rows else None,
+        # Honest last-refresh time (every engine pass stamps it, even when
+        # skip-if-stable reuses the thesis). The tile reads this for "updated
+        # X ago" so a quiet morning's reused theses don't look stale.
+        "refreshed_at": store.last_refresh_for_date(md),
         "rows": rows,
         "sector_contexts": sector_contexts,
     }

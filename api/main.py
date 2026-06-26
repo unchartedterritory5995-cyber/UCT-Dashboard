@@ -1900,6 +1900,15 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="0,30"),
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
 
+            # Pre-open burst: 9:10 + 9:20 ET — a fresh pull right before the
+            # 9:30 open so the board is current while the trader is prepping.
+            # Cheap: skip-if-stable reuses unchanged theses, so on a quiet
+            # morning these are near-$0 but still re-stamp refreshed_at + catch
+            # any late-breaking pre-open catalyst.
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="10,20"),
+                id="catalyst_preopen", max_instances=1, replace_existing=True)
+
             # AMC earnings burst: 4:00, 4:05, 4:10, 4:15, 4:20, 4:25, 4:30 PM ET
             _scheduler.add_job(_cat_refresh,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0-30/5"),
@@ -1934,7 +1943,7 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0"),
                 id="catalyst_autotune", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
 
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS catalysts (
   grade           TEXT,
   catalyst_type   TEXT,
   is_new          INTEGER,
+  refreshed_at    INTEGER,
   PRIMARY KEY (market_date, ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_catalysts_date_rank  ON catalysts(market_date, rank);
@@ -127,7 +128,8 @@ def _init_db() -> None:
         for col, decl in (("catalyst_at", "INTEGER"),
                           ("grade", "TEXT"),
                           ("catalyst_type", "TEXT"),
-                          ("is_new", "INTEGER")):
+                          ("is_new", "INTEGER"),
+                          ("refreshed_at", "INTEGER")):
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -147,17 +149,23 @@ def _init_db() -> None:
 
 def upsert_catalyst(row: dict) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        row = {"grade": None, "catalyst_type": None, "is_new": None, **row}
+        # refreshed_at = wall-clock time of THIS write, stamped on every upsert
+        # (including skip-if-stable cache reuse, where thesis_at stays pinned to
+        # the original synthesis). This is the honest "last time the engine
+        # looked" timestamp the tile shows, so a quiet morning where the 9:10 /
+        # 9:20 runs reuse the 6 AM thesis no longer reads as "3h ago · stale".
+        row = {"grade": None, "catalyst_type": None, "is_new": None,
+               "refreshed_at": int(time.time()), **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type, is_new)
+                grade, catalyst_type, is_new, refreshed_at)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type, :is_new)
+                       :grade, :catalyst_type, :is_new, :refreshed_at)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -176,7 +184,8 @@ def upsert_catalyst(row: dict) -> None:
                  raw_signals    = excluded.raw_signals,
                  grade          = excluded.grade,
                  catalyst_type  = excluded.catalyst_type,
-                 is_new         = excluded.is_new""",
+                 is_new         = excluded.is_new,
+                 refreshed_at   = excluded.refreshed_at""",
             row,
         )
         c.commit()
@@ -336,6 +345,18 @@ def recent_ranked_tickers(market_date: str, days: int = 3) -> set[str]:
             return {(r["ticker"] or "").upper() for r in rows}
     except Exception:
         return set()
+
+
+def last_refresh_for_date(market_date: str) -> Optional[int]:
+    """Wall-clock unix time of the most recent engine write for this date —
+    the honest 'last refreshed' moment, independent of thesis_at (which
+    skip-if-stable freezes at first synthesis). None if the date has no rows."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT MAX(refreshed_at) AS r FROM catalysts WHERE market_date = ?",
+            (market_date,),
+        ).fetchone()
+        return row["r"] if row and row["r"] is not None else None
 
 
 def get_ticker_for_date(ticker: str, market_date: str) -> Optional[dict]:

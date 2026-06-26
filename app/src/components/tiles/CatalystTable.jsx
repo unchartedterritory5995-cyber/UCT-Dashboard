@@ -273,6 +273,9 @@ export default function CatalystTable() {
 
   const allRows = data?.rows || []
   const generatedAt = data?.generated_at
+  // Prefer the honest last-refresh time (stamped on every engine pass) over
+  // generated_at (= thesis_at, frozen by skip-if-stable on quiet mornings).
+  const refreshedAt = data?.refreshed_at ?? data?.generated_at
   const marketDate = data?.market_date
   const sectorContexts = data?.sector_contexts || []
 
@@ -291,7 +294,7 @@ export default function CatalystTable() {
 
   // Stale warning: on a trading day a refresh older than ~2h means the
   // scheduled run likely isn't firing — pairs with the backend self-heal.
-  const ageMin = generatedAt ? (Date.now() / 1000 - generatedAt) / 60 : null
+  const ageMin = refreshedAt ? (Date.now() / 1000 - refreshedAt) / 60 : null
   const isStale = ageMin != null && ageMin > 120
 
   async function vote(ticker, md, verdict) {
@@ -392,7 +395,7 @@ export default function CatalystTable() {
     }
   }
 
-  const updatedText = generatedAt ? `updated ${timeAgo(generatedAt)}` : 'no data yet'
+  const updatedText = refreshedAt ? `updated ${timeAgo(refreshedAt)}` : 'no data yet'
   const showingAll = activeTags.size === ALL_TAGS.length
 
   return (
