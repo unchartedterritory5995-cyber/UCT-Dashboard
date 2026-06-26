@@ -23,6 +23,10 @@ beforeEach(() => {
         this.setPlaybackRate = vi.fn()
         this.mute = vi.fn()
         this.unMute = vi.fn()
+        this.loadModule = vi.fn()
+        this.unloadModule = vi.fn()
+        this.setOption = vi.fn()
+        this.getOption = () => []
         this.getCurrentTime = () => 20
         this.getDuration = () => 0
         lastPlayer = this
@@ -101,6 +105,40 @@ describe('GlobalVideoLayer', () => {
     fireEvent.click(screen.getByLabelText('Mute'))
     expect(lastPlayer.mute).toHaveBeenCalled()
     expect(screen.getByLabelText('Unmute')).toBeInTheDocument()
+  })
+
+  it('the captions button loads a caption track', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    fireEvent.click(screen.getByLabelText('Turn captions on'))
+    expect(lastPlayer.loadModule).toHaveBeenCalledWith('captions')
+    expect(lastPlayer.setOption).toHaveBeenCalledWith('captions', 'track', { languageCode: 'en' })
+    expect(screen.getByLabelText('Turn captions off')).toBeInTheDocument()
+  })
+
+  it('Space toggles play/pause via keyboard', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0)) // starts playing
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(lastPlayer.pauseVideo).toHaveBeenCalled()
+  })
+
+  it('ArrowRight skips forward 15s via keyboard', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0)) // getCurrentTime() = 20
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(lastPlayer.seekTo).toHaveBeenCalledWith(35, true)
+  })
+
+  it('keyboard shortcuts are ignored while typing in a field', () => {
+    renderLayer()
+    act(() => store.play(LIST, 0))
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(lastPlayer.pauseVideo).not.toHaveBeenCalled()
+    input.remove()
   })
 
   it('skip-forward seeks 15s ahead of the current time', () => {

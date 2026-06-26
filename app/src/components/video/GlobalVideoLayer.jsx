@@ -56,6 +56,7 @@ export default function GlobalVideoLayer() {
   const tickerRef = useRef(null)
   const curIdRef = useRef(null)
   const pipRef = useRef(null)
+  const kbRef = useRef({})
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -189,6 +190,29 @@ export default function GlobalVideoLayer() {
     return () => clearInterval(id)
   }, [ended, upNext])
 
+  // Keyboard shortcuts while a video is active (ignored while typing in a field).
+  // Handlers are read from kbRef (refreshed each render) to avoid stale closures.
+  useEffect(() => {
+    if (!active) return
+    const onKey = (e) => {
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      const k = kbRef.current
+      switch (e.key) {
+        case ' ':
+        case 'k': e.preventDefault(); k.togglePlay?.(); break
+        case 'ArrowLeft': e.preventDefault(); k.seekBy?.(-15); break
+        case 'ArrowRight': e.preventDefault(); k.seekBy?.(15); break
+        case 'f': case 'F': k.toggleFs?.(); break
+        case 'm': case 'M': k.toggleMute?.(); break
+        case 'Escape': k.escape?.(); break
+        default: break
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active])
+
   const onExpand = useCallback(() => {
     navigate('/desk?section=videos')
     storeExpand()
@@ -249,14 +273,29 @@ export default function GlobalVideoLayer() {
     try { (muted ? p.unMute : p.mute).call(p) } catch { /* ignore */ }
     setMuted(!muted)
   }
-  // Best-effort captions via the IFrame API (support varies by video).
+  // Captions via the IFrame API. The module is named 'captions' on some videos
+  // and 'cc' on others, so we drive both and pick the first available track —
+  // the closest we can get to "captions always work" from a custom control set.
   const toggleCc = () => {
     const p = player()
+    const want = !cc
     try {
-      if (!cc) { p?.loadModule?.('captions'); p?.setOption?.('captions', 'track', { languageCode: 'en' }) }
-      else { p?.setOption?.('captions', 'track', {}); p?.unloadModule?.('captions') }
+      if (want) {
+        p?.loadModule?.('captions')
+        p?.loadModule?.('cc')
+        let tracks = []
+        try { tracks = p?.getOption?.('captions', 'tracklist') || p?.getOption?.('cc', 'tracklist') || [] } catch { /* ignore */ }
+        const lang = (tracks[0] && tracks[0].languageCode) || 'en'
+        p?.setOption?.('captions', 'track', { languageCode: lang })
+        p?.setOption?.('cc', 'track', { languageCode: lang })
+      } else {
+        p?.setOption?.('captions', 'track', {})
+        p?.setOption?.('cc', 'track', {})
+        p?.unloadModule?.('captions')
+        p?.unloadModule?.('cc')
+      }
     } catch { /* ignore */ }
-    setCc(!cc)
+    setCc(want)
   }
   const toggleFs = () => {
     const el = hostElRef.current; if (!el) return
@@ -287,6 +326,15 @@ export default function GlobalVideoLayer() {
     }, { once: true })
   }
   const bringBack = () => { try { pipRef.current?.pip?.close?.() } catch { /* ignore */ } }
+
+  // Keep the keyboard handlers fresh for the keydown listener.
+  kbRef.current = {
+    togglePlay,
+    seekBy,
+    toggleFs,
+    toggleMute,
+    escape: () => (mode === 'docked' ? minimize() : storeClose()),
+  }
 
   const cls = [styles.host, mode === 'mini' ? styles.mini : styles.docked, dragPos ? styles.dragging : '']
     .filter(Boolean).join(' ')
