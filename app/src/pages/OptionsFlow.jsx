@@ -4760,7 +4760,7 @@ export default function OptionsFlowDashboard() {
                             <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
                           </div>
                           {/* Recheck toggle: subtle, sits below the 65% as a "what if" tool */}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
+                          <div className="of-chiprow-wrap" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
                             <span style={{ fontSize:9, color:P.dm, fontStyle:"italic" }}>recheck without:</span>
                             {[
                               { val:0, lbl:"none" },
