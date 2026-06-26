@@ -255,7 +255,20 @@ def _load_equity_series(
                 if series[-1]["date"] == today:
                     series[-1] = {"date": today, "equity": round(live_eq, 2)}
                 elif series[-1]["date"] < today:
-                    series.append({"date": today, "equity": round(live_eq, 2)})
+                    # Only carry the live edge onto today if the last snapshot is
+                    # recent. If sync has lapsed for days, appending today's equity
+                    # would attribute the whole multi-day net-liq move to a single
+                    # cell (a phantom spike) — better to end the series at the last
+                    # real snapshot until the next sync fills the gap.
+                    try:
+                        gap_days = (
+                            Date.fromisoformat(today)
+                            - Date.fromisoformat(series[-1]["date"])
+                        ).days
+                    except ValueError:
+                        gap_days = 0
+                    if gap_days <= 4:
+                        series.append({"date": today, "equity": round(live_eq, 2)})
         except Exception:
             pass
 

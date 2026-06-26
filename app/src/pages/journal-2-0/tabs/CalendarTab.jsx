@@ -44,9 +44,13 @@ export default function CalendarTab() {
   const basisPref = parsePref(prefs.j2_calendar_pnl_basis, 'account')
   const effectiveBasis = isBroker ? basisPref : 'closed'
 
-  const { days, totals, isLoading, error } = useJ2Calendar({
+  const { days, totals, basis: serverBasis, isLoading, error } = useJ2Calendar({
     view, year, month, week, accountId, basis: effectiveBasis,
   })
+  // The server downgrades account→closed when no broker snapshots exist. Cells
+  // key their $-display off the ACTUAL data basis (serverBasis); the header
+  // toggle keeps showing the user's chosen preference (effectiveBasis).
+  const dataBasis = serverBasis || effectiveBasis
 
   const setView = (newView) => {
     setSearchParams((prev) => {
@@ -99,13 +103,13 @@ export default function CalendarTab() {
       )}
 
       {view === 'month' && (
-        <MonthView year={year} month={month} days={days} mode={mode} basis={effectiveBasis} />
+        <MonthView year={year} month={month} days={days} mode={mode} basis={dataBasis} />
       )}
       {view === 'year' && (
         <YearView year={year} days={days} mode={mode} />
       )}
       {view === 'week' && (
-        <WeekView year={year} week={week || 1} days={days} mode={mode} basis={effectiveBasis} />
+        <WeekView year={year} week={week || 1} days={days} mode={mode} basis={dataBasis} />
       )}
 
       {isLoading && days.length === 0 && (

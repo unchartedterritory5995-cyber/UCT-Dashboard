@@ -578,6 +578,69 @@ def test_load_equity_series_sources_from_broker_snapshots(db_conn, monkeypatch):
     ]
 
 
+def test_load_equity_series_skips_live_edge_when_sync_lapsed():
+    """If the last broker snapshot is many days old, the live right-edge must
+    NOT be appended onto today — that would dump a multi-day net-liq move onto a
+    single calendar cell (phantom spike). The series ends at the last snapshot."""
+    import importlib, tempfile, os as _os
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    _os.environ["AUTH_DB_PATH"] = tmp.name
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    conn = sqlite3.connect(tmp.name)
+    conn.row_factory = sqlite3.Row
+    try:
+        import api.services.journal_two.calendar as cal
+        uid = "u-lapse"
+        _add_user(conn, uid, "lapse@example.com")
+        # Live equity present, but snapshots are ancient (2020) → gap >> 4 days.
+        acct_id = _add_broker_account(conn, uid, broker_total_equity=99999.0)
+        bkid = _map_broker_account(conn, uid, acct_id)
+        _add_equity_snapshot(conn, uid, bkid, "2020-01-02", 50000.0)
+        _add_equity_snapshot(conn, uid, bkid, "2020-01-03", 50500.0)
+        series = cal._load_equity_series(uid, acct_id, conn=conn)
+        assert series == [
+            {"date": "2020-01-02", "equity": 50000.0},
+            {"date": "2020-01-03", "equity": 50500.0},
+        ]
+    finally:
+        conn.close()
+        _os.unlink(tmp.name)
+
+
+def test_load_equity_series_appends_live_edge_when_recent():
+    """When the last snapshot is recent (yesterday), today's live broker equity
+    IS carried onto a new right-edge point so today's cell tracks intraday."""
+    import importlib, tempfile, os as _os
+    from datetime import date as _D, timedelta as _TD
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    _os.environ["AUTH_DB_PATH"] = tmp.name
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    conn = sqlite3.connect(tmp.name)
+    conn.row_factory = sqlite3.Row
+    try:
+        import api.services.journal_two.calendar as cal
+        from api.services.journal_two.broker.historical_equity import _et_today
+        today = _et_today()
+        yday = (_D.fromisoformat(today) - _TD(days=1)).isoformat()
+        uid = "u-recent"
+        _add_user(conn, uid, "recent@example.com")
+        acct_id = _add_broker_account(conn, uid, broker_total_equity=51234.0)
+        bkid = _map_broker_account(conn, uid, acct_id)
+        _add_equity_snapshot(conn, uid, bkid, yday, 51000.0)
+        series = cal._load_equity_series(uid, acct_id, conn=conn)
+        assert series[-1] == {"date": today, "equity": 51234.0}
+        assert len(series) == 2
+    finally:
+        conn.close()
+        _os.unlink(tmp.name)
+
+
 def test_account_equity_days_diffs_close_to_close():
     from api.services.journal_two.calendar import _account_equity_days
     series = [
