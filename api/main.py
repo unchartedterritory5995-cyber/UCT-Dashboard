@@ -2784,6 +2784,138 @@ async def _massive_rebuild_color(target_date: str = "6/26/2026"):
         return {"ok": False, "error": str(e)}
 
 
+@app.get("/api/admin/massive/color-debug")
+async def _massive_color_debug(target_date: str = "6/26/2026"):
+    """Diagnostic for why rebuild-color produced zero upgrades.
+
+    Returns:
+      - Per-row summary: rows scanned, Color distribution, Volume parse stats
+      - Top contracts by SUM(Volume) and their OI / cum/OI ratio
+      - 3 known-large contracts (MU PUT 1000 8/21, TSM PUT 400 9/18, BE CALL 420 12/18)
+        with their full row-by-row Volume + OI listing
+    """
+    import sqlite3
+    out = {"target_date": target_date}
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            cur = conn.cursor()
+            # 1. Row count + Color distribution
+            cur.execute("SELECT COUNT(*) FROM flow WHERE CreatedDate = ?", (target_date,))
+            out["total_rows"] = cur.fetchone()[0]
+
+            cur.execute(
+                "SELECT Color, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY Color",
+                (target_date,)
+            )
+            out["color_distribution"] = {(r[0] or "(blank)"): r[1] for r in cur.fetchall()}
+
+            # 2. Volume column parse stats — how many are blank/zero/positive?
+            cur.execute("""
+                SELECT
+                    SUM(CASE WHEN Volume IS NULL OR TRIM(Volume) = '' THEN 1 ELSE 0 END) AS blank_vol,
+                    SUM(CASE WHEN CAST(Volume AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_vol,
+                    SUM(CASE WHEN CAST(Volume AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_vol,
+                    SUM(CAST(Volume AS INTEGER)) AS total_volume,
+                    AVG(CAST(Volume AS REAL)) AS avg_volume,
+                    MAX(CAST(Volume AS INTEGER)) AS max_volume
+                FROM flow WHERE CreatedDate = ?
+            """, (target_date,))
+            r = cur.fetchone()
+            out["volume_stats"] = {
+                "blank": r[0], "zero": r[1], "positive": r[2],
+                "total_volume_sum": r[3], "avg_volume": round(r[4] or 0, 2),
+                "max_volume": r[5],
+            }
+
+            # 3. OI column parse stats
+            cur.execute("""
+                SELECT
+                    SUM(CASE WHEN OI IS NULL OR TRIM(OI) = '' THEN 1 ELSE 0 END) AS blank_oi,
+                    SUM(CASE WHEN CAST(OI AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_oi,
+                    SUM(CASE WHEN CAST(OI AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_oi
+                FROM flow WHERE CreatedDate = ?
+            """, (target_date,))
+            r = cur.fetchone()
+            out["oi_stats"] = {"blank": r[0], "zero": r[1], "positive": r[2]}
+
+            # 4. Source breakdown
+            cur.execute(
+                "SELECT source, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY source",
+                (target_date,)
+            )
+            out["source_distribution"] = {r[0]: r[1] for r in cur.fetchall()}
+
+            # 5. Top 10 contracts by SUM(Volume) — see if cum vol is actually meaningful
+            cur.execute("""
+                SELECT Symbol, CallPut, Strike, ExpirationDate,
+                       COUNT(*) AS n_rows,
+                       SUM(CAST(Volume AS INTEGER)) AS cum_vol,
+                       MAX(CAST(OI AS INTEGER)) AS oi_max,
+                       MIN(CAST(OI AS INTEGER)) AS oi_min
+                FROM flow
+                WHERE CreatedDate = ?
+                GROUP BY Symbol, CallPut, Strike, ExpirationDate
+                ORDER BY cum_vol DESC
+                LIMIT 15
+            """, (target_date,))
+            out["top_contracts_by_cum_volume"] = []
+            for r in cur.fetchall():
+                ratio = (r[5] / r[6]) if r[6] and r[6] > 0 else None
+                out["top_contracts_by_cum_volume"].append({
+                    "symbol": r[0], "cp": r[1], "strike": r[2], "exp": r[3],
+                    "n_rows": r[4], "cum_volume": r[5],
+                    "oi_max": r[6], "oi_min": r[7],
+                    "cum_over_oi_ratio": round(ratio, 3) if ratio is not None else None,
+                })
+
+            # 6. Inspect 3 known large-flow contracts row by row
+            samples = [
+                ("MU", "PUT", "1000", "8/21/2026"),
+                ("TSM", "PUT", "400", "9/18/2026"),
+                ("BE", "CALL", "420", "12/18/2026"),
+            ]
+            out["sample_contracts"] = {}
+            for sym, cp, strike, exp in samples:
+                key = f"{sym} {cp} {strike} {exp}"
+                cur.execute("""
+                    SELECT CreatedTime, Volume, OI, Color, Side, Type
+                    FROM flow
+                    WHERE CreatedDate = ?
+                      AND Symbol = ? AND CallPut = ?
+                      AND CAST(Strike AS REAL) = CAST(? AS REAL)
+                      AND ExpirationDate = ?
+                    ORDER BY CreatedTime
+                """, (target_date, sym, cp, strike, exp))
+                rows = cur.fetchall()
+                cum = 0
+                detail = []
+                for rr in rows:
+                    vol = 0
+                    try: vol = int(float(rr[1])) if rr[1] not in (None, "") else 0
+                    except: pass
+                    cum += vol
+                    oi = 0
+                    try: oi = int(float(rr[2])) if rr[2] not in (None, "") else 0
+                    except: pass
+                    detail.append({
+                        "time": rr[0], "vol": rr[1], "vol_int": vol, "cum": cum,
+                        "OI": rr[2], "color": rr[3], "side": rr[4], "type": rr[5],
+                    })
+                out["sample_contracts"][key] = {
+                    "n_rows": len(rows),
+                    "total_cum_volume": cum,
+                    "rows": detail,
+                }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        out["error"] = str(e)
+    return out
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
