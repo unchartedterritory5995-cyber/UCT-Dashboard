@@ -2754,6 +2754,36 @@ async def _massive_backfill_from_patches(patches_file: str = "patches-6-25.json"
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/rebuild-color")
+async def _massive_rebuild_color(target_date: str = "6/26/2026"):
+    """Recompute Color for rows that landed WHITE because OI was 0 at write time.
+
+    Production worker writes flow rows in real time; OI is fetched on-demand by
+    oi_fetch_manager and may lag the write by 20+s. Rows that land with OI=0
+    stay Color=WHITE forever, even if by EOD their OI has been backfilled AND
+    cumulative volume on the contract has long since exceeded OI.
+
+    This endpoint walks every row on target_date, groups by contract, sorts
+    chronologically, computes running cumulative volume, and upgrades Color:
+      cum >= 1.5 * OI  ->  MAGENTA
+      cum  >    OI     ->  YELLOW
+      otherwise         ->  WHITE (no change)
+
+    Idempotent: only upgrades (WHITE -> YELLOW/MAGENTA). Never downgrades.
+    Safe to re-run.
+
+    target_date: 'M/D/YYYY' format (e.g. '6/26/2026'). Required.
+    """
+    try:
+        from api.color_rebuild import run_color_rebuild
+        stats = run_color_rebuild(target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
