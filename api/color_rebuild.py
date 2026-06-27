@@ -122,17 +122,27 @@ def run_color_rebuild(target_date: str) -> dict:
 
         # Group by contract: (Symbol, CallPut, normalized Strike, ExpirationDate)
         # For each contract, sort by CreatedTime ascending and compute running cum.
+        # IMPORTANT: We use the MAX(OI) seen across the contract's rows as the
+        # canonical OI for evaluation, not the row's own OI. This is because
+        # production writes flow rows in real time and the on-demand OI lookup
+        # (Phase 1) takes 20+s to populate. Early rows for a contract may have
+        # OI=0 stored, while later rows for the SAME contract have the real OI.
+        # Using the MAX value ensures we evaluate against the true contract OI.
         by_contract = defaultdict(list)
+        contract_oi_max = defaultdict(int)
         for r in rows:
             (rid, sym, cp, strike, exp, t, vol_s, oi_s, color) = r
             key = (sym, cp, _normalize_strike(strike), exp)
+            row_oi = _safe_int(oi_s)
             by_contract[key].append({
                 "id": rid,
                 "time": t or "",
                 "volume": _safe_int(vol_s),
-                "oi": _safe_int(oi_s),
+                "row_oi": row_oi,
                 "color": (color or "WHITE").upper(),
             })
+            if row_oi > contract_oi_max[key]:
+                contract_oi_max[key] = row_oi
 
         stats["contracts_evaluated"] = len(by_contract)
         logger.info(f"[color_rebuild] {len(by_contract):,} unique contracts")
@@ -144,6 +154,9 @@ def run_color_rebuild(target_date: str) -> dict:
         for contract_key, entries in by_contract.items():
             # Sort by CreatedTime — TEXT format like "3:47:22 PM" needs proper parse
             entries.sort(key=lambda e: _time_key(e["time"]))
+            # Canonical OI for this contract (max across all rows; handles the
+            # OI=0-at-write-time case where Phase 1 later backfilled)
+            contract_oi = contract_oi_max[contract_key]
 
             cum = 0
             for e in entries:
@@ -151,13 +164,13 @@ def run_color_rebuild(target_date: str) -> dict:
                 # Only consider upgrading rows that are currently WHITE
                 if e["color"] != "WHITE":
                     continue
-                if e["oi"] <= 0:
+                if contract_oi <= 0:
                     continue
                 stats["rows_white_oi_pos"] += 1
 
-                if cum >= MAGENTA_MULTIPLIER * e["oi"]:
+                if cum >= MAGENTA_MULTIPLIER * contract_oi:
                     magenta_updates.append(e["id"])
-                elif cum > e["oi"]:
+                elif cum > contract_oi:
                     yellow_updates.append(e["id"])
                 else:
                     stats["no_change"] += 1
