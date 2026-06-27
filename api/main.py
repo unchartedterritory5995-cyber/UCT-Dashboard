@@ -2716,6 +2716,44 @@ async def _massive_backfill_ticktest(target_date: str = None):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/backfill-from-patches")
+async def _massive_backfill_from_patches(patches_file: str = "patches-6-25.json",
+                                          target_date: str = "6/25/2026"):
+    """Apply offline-computed patches to production FlowDB.
+
+    The patches JSON is generated offline by reprocessing raw OPRA with
+    Phase 2i (raw T-print tick test) for higher Side classification
+    accuracy (96% vs ~70% with event-to-event). The patches contain the
+    optimal Side and Color for each event, keyed by Symbol|CP|Strike|Exp|Time.
+
+    This endpoint reads the patches file from /app/api/ (committed to repo)
+    and applies updates to matching production rows within a 60-sec window.
+
+    Validated 6/25 offline: production page should jump from 210 confirmed
+    to ~2,400 confirmed after running this.
+
+    Idempotent: only upgrades Side/Color (never downgrades).
+
+    patches_file: filename within /app/api/ directory
+    target_date: 'M/D/YYYY' format
+    """
+    try:
+        import os
+        # Look for the patches file in api/ directory
+        api_dir = os.path.dirname(os.path.abspath(__file__))
+        full_path = os.path.join(api_dir, patches_file)
+        if not os.path.exists(full_path):
+            return {"ok": False, "error": f"patches file not found: {full_path}",
+                    "tip": "Commit the patches JSON to api/ directory in your repo"}
+        from api.backfill_from_patches import run_patches_backfill
+        stats = run_patches_backfill(full_path, target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
