@@ -9,6 +9,9 @@ from api.services.catalyst import engine, store
 
 @pytest.fixture
 def s(monkeypatch):
+    # Bypass the open-market-days-only guard so these pipeline tests run
+    # deterministically on any calendar day (incl. weekends/holidays).
+    monkeypatch.setenv("CATALYST_IGNORE_MARKET_CALENDAR", "1")
     with tempfile.TemporaryDirectory() as d:
         monkeypatch.setattr(store, "_DB_PATH", os.path.join(d, "catalysts.db"))
         store._init_db()

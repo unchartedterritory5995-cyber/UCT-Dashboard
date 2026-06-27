@@ -832,12 +832,38 @@ def _enrich_with_analyst_actions(top: list[dict]) -> None:
             c["analyst_meta"] = meta
 
 
+def _market_closed_today(now_et: Optional[dt.datetime] = None) -> tuple[bool, str]:
+    """True if today (ET) is NOT an open market day — a weekend or a NYSE full
+    closure. Reuses the maintained NYSE holiday set in bars_fetch so the catalyst
+    engine (and the Hunter) only runs on open market days. Bypass with
+    CATALYST_IGNORE_MARKET_CALENDAR=1 (testing / manual force)."""
+    now = now_et or dt.datetime.now(_ET)
+    if now.weekday() >= 5:
+        return True, "weekend"
+    try:
+        from api.services.bars_fetch import _is_nyse_holiday
+        if _is_nyse_holiday(int(now.strftime("%Y%m%d"))):
+            return True, "market holiday"
+    except Exception:
+        pass  # fail-open: if the holiday check breaks, don't block a weekday run
+    return False, ""
+
+
 def run_refresh() -> dict:
     """Single full pass. Returns summary dict for logging.
     Never raises — all errors swallowed + logged."""
     md = _today_market_date()
     summary = {"market_date": md, "candidates": 0, "scored": 0,
                "selected": 0, "synthesized": 0, "errors": []}
+
+    # Open-market-days-only guard: no-op on weekends + NYSE holidays so the
+    # engine + Hunter never spend on a closed day. Overridable for testing.
+    if os.environ.get("CATALYST_IGNORE_MARKET_CALENDAR", "").lower() not in ("1", "true", "yes"):
+        closed, why = _market_closed_today()
+        if closed:
+            logger.info("[catalyst-engine] skip refresh — %s (market closed)", why)
+            summary["skipped"] = why
+            return summary
 
     # Catalyst Hunter mode: deep on the first run of the day, light thereafter.
     # Per-date flag file in the catalysts.db dir marks that today's deep sweep ran.
