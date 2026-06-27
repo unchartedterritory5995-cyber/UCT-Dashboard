@@ -839,8 +839,29 @@ def run_refresh() -> dict:
     summary = {"market_date": md, "candidates": 0, "scored": 0,
                "selected": 0, "synthesized": 0, "errors": []}
 
+    # Catalyst Hunter mode: deep on the first run of the day, light thereafter.
+    # Per-date flag file in the catalysts.db dir marks that today's deep sweep ran.
+    hunter_mode = "deep"
+    existing_tickers = None
     try:
-        candidates = sources.collect_all()
+        _ddir = os.path.dirname(os.environ.get("CATALYST_DB_PATH", "/data/catalysts.db")) or "."
+        _flag = os.path.join(_ddir, f".hunter_deep_{md}")
+        if os.path.exists(_flag):
+            hunter_mode = "light"
+            existing_tickers = {(r.get("ticker") or "").upper()
+                                for r in store.get_for_date(md, ranked_only=False)
+                                if r.get("ticker")}
+        else:
+            try:
+                open(_flag, "w").close()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    try:
+        candidates = sources.collect_all(run_hunter=True, hunter_mode=hunter_mode,
+                                         existing_tickers=existing_tickers)
     except Exception as e:
         logger.exception("[catalyst-engine] source collection failed")
         summary["errors"].append(f"collect: {e}")
@@ -963,7 +984,12 @@ def run_refresh() -> dict:
         # grade / thesis / type without re-querying the store.
         c["grade"] = grade
         c["thesis_text"] = thesis.get("thesis_text")
-        c["catalyst_type"] = thesis.get("catalyst_type")
+        # Prefer the synthesizer's type; fall back to the hunter's so a
+        # hunter-sourced row still has a type even if the thesis omitted one.
+        c["catalyst_type"] = thesis.get("catalyst_type") or c.get("catalyst_type")
+        # pre_move: a confirmed catalyst whose stock hasn't reacted yet.
+        c["pre_move"] = 1 if (c.get("hunter_confirmed") and abs(c.get("gap_pct") or 0)
+                              < float(os.environ.get("CATALYST_PRE_MOVE_GAP", "2.0"))) else 0
         if hide_c and grade == "C":
             row_rank = None
             hidden_c += 1
@@ -991,8 +1017,9 @@ def run_refresh() -> dict:
                 "thesis_at": thesis["thesis_at"],
                 "thesis_sources": thesis["thesis_sources"],
                 "grade": grade,
-                "catalyst_type": thesis.get("catalyst_type"),
+                "catalyst_type": c.get("catalyst_type"),
                 "is_new": 1 if c.get("is_new") else 0,
+                "pre_move": c.get("pre_move", 0),
                 "signals_hash": thesis["signals_hash"],
                 "catalyst_at": catalyst_at,
                 "raw_signals": json.dumps({

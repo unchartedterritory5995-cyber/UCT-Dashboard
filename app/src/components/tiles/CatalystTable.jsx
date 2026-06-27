@@ -68,7 +68,21 @@ function GradeBadge({ grade }) {
 const TYPE_ICONS = {
   'M&A': 'link', 'FDA': 'pill', 'Analyst': 'equity', 'Contract': 'document', 'Guidance': 'patterns',
   'Product': 'rocket', 'Legal': 'scale', 'Insider': 'user', 'Index': 'flow', 'Offering': 'dollar',
-  'Earnings': 'breadth', 'Momentum': 'wave', 'Sector-wide': 'factory',
+  'Earnings': 'breadth', 'Momentum': 'wave', 'Sector-wide': 'factory', 'Halt': 'pause',
+}
+
+// PRE-MOVE: a Catalyst-Hunter-confirmed catalyst whose stock hasn't reacted yet.
+// Lets the trader scan movers first, early/not-yet-moving catalysts second.
+function PreMoveChip({ preMove }) {
+  if (!preMove) return null
+  return (
+    <span
+      className={styles.preMoveChip}
+      title="Confirmed catalyst — stock hasn't moved yet (early / pre-move)"
+    >
+      PRE-MOVE
+    </span>
+  )
 }
 
 function TypeChip({ type }) {
@@ -565,6 +579,7 @@ export default function CatalystTable() {
                     <td className={styles.colVol}>{fmtVolX(r.vol_x)}</td>
                     <td className={styles.colTag}>
                       <NewBadge isNew={r.is_new} />
+                      <PreMoveChip preMove={r.pre_move} />
                       <RowTagChip tag={r.tag} />
                       <GradeBadge grade={r.grade} />
                     </td>

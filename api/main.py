@@ -1982,7 +1982,7 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0"),
                 id="catalyst_premarket_health", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET + Catalyst Hunter deep-6AM/light-thereafter [CATALYST_HUNTER_ENABLED])")
 
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays

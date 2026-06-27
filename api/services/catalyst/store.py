@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS catalysts (
   catalyst_type   TEXT,
   is_new          INTEGER,
   refreshed_at    INTEGER,
+  pre_move        INTEGER,
   PRIMARY KEY (market_date, ticker)
 );
 CREATE INDEX IF NOT EXISTS idx_catalysts_date_rank  ON catalysts(market_date, rank);
@@ -129,7 +130,8 @@ def _init_db() -> None:
                           ("grade", "TEXT"),
                           ("catalyst_type", "TEXT"),
                           ("is_new", "INTEGER"),
-                          ("refreshed_at", "INTEGER")):
+                          ("refreshed_at", "INTEGER"),
+                          ("pre_move", "INTEGER")):
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -155,17 +157,17 @@ def upsert_catalyst(row: dict) -> None:
         # looked" timestamp the tile shows, so a quiet morning where the 9:10 /
         # 9:20 runs reuse the 6 AM thesis no longer reads as "3h ago · stale".
         row = {"grade": None, "catalyst_type": None, "is_new": None,
-               "refreshed_at": int(time.time()), **row}
+               "pre_move": None, "refreshed_at": int(time.time()), **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type, is_new, refreshed_at)
+                grade, catalyst_type, is_new, refreshed_at, pre_move)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type, :is_new, :refreshed_at)
+                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -185,7 +187,8 @@ def upsert_catalyst(row: dict) -> None:
                  grade          = excluded.grade,
                  catalyst_type  = excluded.catalyst_type,
                  is_new         = excluded.is_new,
-                 refreshed_at   = excluded.refreshed_at""",
+                 refreshed_at   = excluded.refreshed_at,
+                 pre_move       = excluded.pre_move""",
             row,
         )
         c.commit()

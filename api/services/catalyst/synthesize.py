@@ -68,7 +68,7 @@ def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
     signal_keys = ("tweets", "rss", "earnings_meta", "scanner_setup",
-                   "gap_pct", "vol_x", "price")
+                   "gap_pct", "vol_x", "price", "hunter_headline")
     payload = {k: candidate.get(k) for k in signal_keys}
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
@@ -137,6 +137,15 @@ def _format_market_cap(mc: float) -> str:
     return f"{mc:.0f}"
 
 
+def _format_hunter_block(c: dict) -> str:
+    """The Catalyst Hunter's confirmed catalyst (type + headline + source), if any."""
+    if not c.get("hunter_headline"):
+        return ""
+    ctype = c.get("catalyst_type") or "News"
+    url = c.get("hunter_source_url") or ""
+    return f"Hunter catalyst ({ctype}): \"{c['hunter_headline']}\"{(' - ' + url) if url else ''}"
+
+
 def format_prompt(c: dict) -> str:
     return f"""Synthesize a catalyst for {c['ticker']} ({c.get('company') or c['ticker']}).
 
@@ -157,7 +166,7 @@ Earnings: {_format_earnings_block(c.get('earnings_meta'))}
 UCT scanner: {_format_scanner_block(c.get('scanner_setup'))}
 
 Analyst action: {_format_analyst_block(c.get('analyst_meta'))}
-
+{_format_hunter_block(c)}
 Output the JSON now."""
 
 

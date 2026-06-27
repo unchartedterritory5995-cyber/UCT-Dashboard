@@ -673,10 +673,39 @@ def _pull_analyst_actions() -> dict[str, dict]:
         return {}
 
 
+def _merge_hunter_hits(by_ticker: dict, hits: list[dict]) -> list[dict]:
+    """Fold Catalyst-Hunter hits onto the candidate pool (keyed by ticker).
+    Enriches existing entries in place; creates a minimal new entry for an
+    unseen ticker. Returns the list of newly-created candidate dicts (so the
+    caller can snapshot-enrich them with price/volume). Pure + unit-testable."""
+    new_rows: list[dict] = []
+    for h in hits:
+        t = h.get("ticker")
+        if not t:
+            continue
+        c = by_ticker.get(t)
+        if c is None:
+            c = {"ticker": t}
+            by_ticker[t] = c
+            new_rows.append(c)
+        c["hunter_confirmed"] = True
+        c["catalyst_type"] = h.get("catalyst_type") or "News"
+        c["hunter_headline"] = h.get("headline")
+        c["hunter_source_url"] = h.get("source_url")
+        c["hunter_when"] = h.get("when")
+        c["moving_yet"] = bool(h.get("moving_yet"))
+    return new_rows
+
+
 # ── Orchestrator ────────────────────────────────────────────────────────
-def collect_all() -> list[dict]:
+def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
+                existing_tickers: Optional[set[str]] = None) -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
-    keyed by ticker. Returns list of candidates (one per ticker)."""
+    keyed by ticker. Returns list of candidates (one per ticker).
+
+    run_hunter: when True (run_refresh only — NOT the /explain path), also runs
+    the Opus Catalyst Hunter and folds its hits in. hunter_mode/existing_tickers
+    select the deep-vs-light sweep."""
     tasks = {
         "movers":     _pull_movers,
         "gap_scan":   _pull_gap_scan,
@@ -793,5 +822,46 @@ def collect_all() -> list[dict]:
 
     for c in candidates:
         c["sector_momentum_count"] = max(0, sector_counts.get(c.get("sector"), 0) - 1)
+
+    # ── Catalyst Hunter (Opus web-search discovery) — run_refresh only ──
+    # Runs sequentially after the fast deterministic pulls (it's slower). New
+    # tickers it finds get snapshot-enriched so they clear the quality gate.
+    if run_hunter:
+        try:
+            from api.services.catalyst import hunter as _hunter
+            hits = _hunter.run_hunt(mode=hunter_mode, existing_tickers=existing_tickers)
+        except Exception:
+            logger.exception("[catalyst-sources] hunter failed")
+            hits = []
+        _LAST_SOURCE_STATS["hunter"] = len(hits)
+        if hits:
+            by_ticker = {c["ticker"]: c for c in candidates}
+            new_rows = _merge_hunter_hits(by_ticker, hits)
+            if new_rows:
+                new_snap = _enrich_with_snapshot([r["ticker"] for r in new_rows])
+                for r in new_rows:
+                    s = new_snap.get(r["ticker"], {})
+                    chg = s.get("change_pct")
+                    r.update({
+                        "company": None,
+                        "price": s.get("price"),
+                        "gap_pct": float(chg) if chg is not None else 0.0,
+                        "vol_x": s.get("vol_x", 1.0),
+                        "market_cap": s.get("market_cap"),
+                        "avg_volume_30d": s.get("avg_volume_30d"),
+                        "today_volume": s.get("today_volume"),
+                        "sector": s.get("sector"),
+                        "near_52w_high": s.get("near_52w_high", False),
+                        "fifty_two_week_high": s.get("fifty_two_week_high"),
+                        "float_shares": s.get("float_shares"),
+                        "shares_outstanding": s.get("shares_outstanding"),
+                        "tweets": [], "rss": [], "earnings_meta": None,
+                        "earnings_reported_recently": False,
+                        "earnings_just_reported": False,
+                        "tweet_mention_count": 0, "rss_headline_count": 0,
+                        "scanner_setup": None, "from_gap_scan": False,
+                        "analyst_meta": None, "sector_momentum_count": 0,
+                    })
+                    candidates.append(r)
 
     return candidates

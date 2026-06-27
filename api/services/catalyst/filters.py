@@ -136,6 +136,12 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
         return True, None                              # UCT scanner flagged it
     if c.get("analyst_meta"):
         return True, None                              # analyst rating/PT change
+    if c.get("hunter_confirmed"):
+        return True, None                              # Catalyst Hunter confirmed a hard
+        #                                                catalyst — keep it even when the
+        #                                                stock hasn't moved yet (early /
+        #                                                pre-move detection). quality_gate
+        #                                                still drops untradeable junk.
 
     return False, (
         f"no real move (gap {gap_abs:.1f}% < {min_move:.0f}%, "

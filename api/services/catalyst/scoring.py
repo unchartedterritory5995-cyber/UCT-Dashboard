@@ -12,6 +12,23 @@ def _w(name: str, default: float) -> float:
     return float(raw) if raw else default
 
 
+# Per-category bonus for a Catalyst-Hunter-confirmed catalyst. Lets a real but
+# NOT-yet-moving name (0% gap) rank onto the board instead of sinking to ~0 in a
+# gap-dominated score. Decisive events (M&A/FDA/Halt) outweigh soft news.
+_HUNTER_BONUS = {
+    "M&A": 35.0, "FDA": 35.0, "Halt": 28.0, "Earnings": 20.0, "Guidance": 18.0,
+    "Analyst": 15.0, "Contract": 12.0, "Index": 12.0, "Offering": 8.0, "News": 8.0,
+}
+
+
+def _hunter_bonus(catalyst_type: str) -> float:
+    """Env-overridable per-type hunter bonus. Env key: CATALYST_SCORE_W_HUNTER_<TYPE>
+    where TYPE is uppercased with '&'→'' and non-alphanumerics→'_' (e.g. M&A→MA)."""
+    default = _HUNTER_BONUS.get(catalyst_type, _HUNTER_BONUS["News"])
+    key = "".join(ch if ch.isalnum() else "_" for ch in catalyst_type.upper().replace("&", ""))
+    return _w(f"HUNTER_{key}", default)
+
+
 def score(c: dict) -> float:
     """Composite score for a candidate. Higher = more interesting."""
     s = 0.0
@@ -69,5 +86,11 @@ def score(c: dict) -> float:
         s -= _w("PENNY_5_PENALTY", 20.0)
     if price < floor:
         s -= _w("PENNY_FLOOR_PENALTY", 30.0)
+
+    # Catalyst Hunter: a confirmed hard catalyst earns a per-category bonus so a
+    # not-yet-moving name surfaces onto the board. A mover keeps its gap/volume
+    # score and gets this on top, so movers still outrank equal-type flat names.
+    if c.get("hunter_confirmed"):
+        s += _hunter_bonus(c.get("catalyst_type") or "News")
 
     return s
