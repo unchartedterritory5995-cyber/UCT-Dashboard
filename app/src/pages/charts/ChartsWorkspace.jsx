@@ -7,7 +7,7 @@ import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
-import { findOpenSlot } from './findOpenSlot'
+import { findPlacement } from './findOpenSlot'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -205,15 +205,14 @@ export default function ChartsWorkspace() {
       const defaults = WIDGET_DEFAULTS[type]
       // Place into the first logical open spot (row-major scan), not column 0:
       // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
-      // widgets below the left column and overflows. Fall back to bottom-pack
-      // only when nothing fits in the viewport-locked grid.
-      const slot = findOpenSlot(prev.widgets, defaults.w, defaults.h, COLS.lg, FIXED_ROWS)
+      // widgets below the left column and overflows. findPlacement shrinks the
+      // widget toward its min size to squeeze into a smaller gap rather than
+      // falling off-screen; it bottom-packs only when the grid is genuinely full.
+      const { x, y, w, h } = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
       const newWidget = {
         id: `w-${type}-${Date.now()}`,
         type, color,
-        x: slot ? slot.x : 0,
-        y: slot ? slot.y : Infinity,  // null slot → RGL bottom-packs
-        w: defaults.w, h: defaults.h,
+        x, y, w, h,
         opts: {},
       }
       const next = { ...prev, widgets: [...prev.widgets, newWidget] }

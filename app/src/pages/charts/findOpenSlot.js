@@ -36,3 +36,28 @@ export function findOpenSlot(widgets, w, h, cols = 12, maxRows = 20) {
   }
   return null  // no w×h slot fits within maxRows
 }
+
+// findPlacement — pick where AND at what size to drop a new widget. Tries the
+// widget's default size first, then shrinks toward its min dimensions so it can
+// squeeze into a smaller open gap (width-first, then height) instead of falling
+// off-screen when the default size doesn't fit any remaining space. Returns
+// {x, y, w, h}; falls back to bottom-pack at default size only when the grid is
+// genuinely full.
+export function findPlacement(widgets, defaults, cols = 12, maxRows = 20) {
+  const w = defaults.w
+  const h = defaults.h
+  const mw = defaults.minW || w
+  const mh = defaults.minH || h
+  // Candidate sizes, largest → smallest; first that fits an open slot wins.
+  const candidates = [
+    [w, h],
+    [mw, h],
+    [w, mh],
+    [mw, mh],
+  ]
+  for (const [cw, ch] of candidates) {
+    const slot = findOpenSlot(widgets, cw, ch, cols, maxRows)
+    if (slot) return { x: slot.x, y: slot.y, w: cw, h: ch }
+  }
+  return { x: 0, y: Infinity, w, h }  // nothing fits → RGL bottom-packs
+}

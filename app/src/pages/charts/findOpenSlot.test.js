@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { findOpenSlot } from './findOpenSlot'
+import { findOpenSlot, findPlacement } from './findOpenSlot'
 
 const COLS = 12
 const ROWS = 20
@@ -49,5 +49,35 @@ describe('findOpenSlot', () => {
     const widgets = [{ x: 0, y: Infinity, w: 4, h: 10 }]
     // the phantom widget must not be treated as occupying row 0
     expect(findOpenSlot(widgets, 4, 10, COLS, ROWS)).toEqual({ x: 0, y: 0 })
+  })
+})
+
+describe('findPlacement (shrink-to-fit)', () => {
+  const scanner = { w: 4, h: 10, minW: 3, minH: 4 }
+
+  test('empty grid → default size at top-left', () => {
+    expect(findPlacement([], scanner, COLS, ROWS)).toEqual({ x: 0, y: 0, w: 4, h: 10 })
+  })
+
+  test('only a 3-wide gap remains → shrinks width to minW (the Scanner-off-screen bug)', () => {
+    // left 9 cols full height; right gap is exactly 3 cols wide × 10 tall
+    const widgets = [
+      { x: 0, y: 0, w: 9, h: 20 },   // left block full height
+      { x: 9, y: 0, w: 3, h: 10 },   // top-right occupied (e.g. themes)
+    ]
+    // scanner default w:4 can't fit the 3-wide gap → place at minW:3, full h:10
+    expect(findPlacement(widgets, scanner, COLS, ROWS)).toEqual({ x: 9, y: 10, w: 3, h: 10 })
+  })
+
+  test('full-width but short gap → shrinks height to minH', () => {
+    // everything occupied except a full-width 4-row band at the bottom (rows 16-19)
+    const widgets = [{ x: 0, y: 0, w: 12, h: 16 }]
+    // default h:10 can't fit the 4-row band; minH:4 does, full width
+    expect(findPlacement(widgets, scanner, COLS, ROWS)).toEqual({ x: 0, y: 16, w: 4, h: 4 })
+  })
+
+  test('grid completely full → fallback bottom-pack at default size', () => {
+    const widgets = [{ x: 0, y: 0, w: 12, h: 20 }]
+    expect(findPlacement(widgets, scanner, COLS, ROWS)).toEqual({ x: 0, y: Infinity, w: 4, h: 10 })
   })
 })
