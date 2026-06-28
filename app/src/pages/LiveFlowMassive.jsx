@@ -130,10 +130,29 @@ function MarketReadCard({ alerts }) {
 
   const [isCompact, setIsCompact] = useState(false);
   useEffect(() => {
-    // Threshold = "user has scrolled enough that they're focused on alerts,
-    // not the read". 200px feels right — past the hero's own height when
-    // expanded, so we don't flap between modes inside the card itself.
-    const onScroll = () => setIsCompact(window.scrollY > 200);
+    // Scroll listener with two flicker-prevention measures:
+    //   1. HYSTERESIS — different thresholds for collapse (250) vs expand (100).
+    //      When the card collapses, the content below shifts UP by ~270px.
+    //      Without hysteresis, that shift can move the scroll position back
+    //      under the collapse threshold, triggering re-expansion → re-collapse
+    //      → infinite loop. The 150px deadband absorbs the layout shift.
+    //   2. requestAnimationFrame — coalesces multiple scroll events per frame
+    //      into one state update. Scroll events fire dozens of times per
+    //      second; without this we'd queue dozens of setState calls.
+    let scheduled = false;
+    const onScroll = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        const y = window.scrollY;
+        setIsCompact(prev => {
+          if (!prev && y > 250) return true;   // expanded → collapse threshold
+          if (prev && y < 100) return false;   // collapsed → expand threshold
+          return prev;                          // inside deadband: no change
+        });
+      });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();  // initial check on mount
     return () => window.removeEventListener("scroll", onScroll);
