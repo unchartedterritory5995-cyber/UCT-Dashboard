@@ -43,6 +43,8 @@ def test_build_quarterly_takes_last_five_plus_next(monkeypatch, tmp_path):
                 for q in (1, 2, 3, 4)]
 
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+    # No FMP forward source → falls back to the single Finnhub next-earnings row.
+    monkeypatch.setattr(etmod.ee, "_fmp_get", lambda *a, **k: None)
     monkeypatch.setattr(etmod, "_next_earnings", lambda t: {"date": "2026-08-05", "eps_estimate": 0.58, "rev_estimate": 1.85e9})
     import calendar, time
     now = calendar.timegm(time.strptime("2026-07-01", "%Y-%m-%d"))
@@ -58,6 +60,45 @@ def test_build_quarterly_takes_last_five_plus_next(monkeypatch, tmp_path):
     labels = [r["label"] for r in reported]
     assert nxt[0]["label"] not in labels
     assert nxt[0]["label"] == "2027 Q1"   # last reported is 2026 Q4 -> roll to 2027 Q1
+
+
+def test_build_quarterly_four_forward_from_fmp(monkeypatch, tmp_path):
+    et = _mod(monkeypatch, tmp_path)
+    import api.services.earnings_table as etmod
+
+    def fake_year(ticker, year):
+        return [{"label": None, "quarter": q, "year": year, "date": f"{year}-0{q}-15",
+                 "eps_actual": q + 0.0, "eps_estimate": q - 0.1, "eps_surprise_pct": 5.0,
+                 "revenue_actual": 1e9 * q, "revenue_estimate": 0.9e9 * q, "revenue_surprise_pct": 4.0}
+                for q in (1, 2, 3, 4)]
+
+    # FMP analyst-estimates: a couple of past quarters (filtered out) + 4 future.
+    def fake_fmp(path, params, timeout=10):
+        assert "analyst-estimates" in path
+        return [
+            {"date": "2026-03-31", "epsAvg": 0.50, "revenueAvg": 1.0e9},   # past → dropped
+            {"date": "2026-09-30", "epsAvg": 0.60, "revenueAvg": 1.1e9},
+            {"date": "2026-12-31", "epsAvg": 0.70, "revenueAvg": 1.2e9},
+            {"date": "2027-03-31", "epsAvg": 0.80, "revenueAvg": 1.3e9},
+            {"date": "2027-06-30", "epsAvg": 0.90, "revenueAvg": 1.4e9},
+            {"date": "2027-09-30", "epsAvg": 1.00, "revenueAvg": 1.5e9},   # 5th → capped
+        ]
+
+    monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    import calendar, time
+    now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
+    q = et._build_quarterly("ZZF", now)
+    nxt = [r for r in q if not r["reported"]]
+    assert len(nxt) == 4                       # capped at _FWD_QUARTERS
+    assert nxt[0]["eps_estimate"] == 0.60      # earliest future quarter first
+    assert nxt[0]["rev_estimate"] == 1.1e9
+    assert nxt[-1]["eps_estimate"] == 0.90     # past quarter excluded
+    # Labels increment fiscally from the last reported (2026 Q4) with no dupes.
+    labels = [r["label"] for r in q if r["reported"]]
+    fwd_labels = [r["label"] for r in nxt]
+    assert fwd_labels == ["2027 Q1", "2027 Q2", "2027 Q3", "2027 Q4"]
+    assert not set(fwd_labels) & set(labels)
 
 
 def test_next_q_label_increment():
