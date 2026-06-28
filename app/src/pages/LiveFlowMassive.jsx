@@ -241,18 +241,20 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
     <div style={{
       display: "grid",
       // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | P/L | ALERT
-      // Widths chosen so HH:MM:SS PM doesn't wrap, no overlapping columns,
-      // ample breathing room between data clusters. Total fixed = 950px, ALERT takes the rest.
+      // All data columns center-aligned so content sits visually in the
+      // middle of its column — eliminates the uneven left/right alignment
+      // gaps from mixing right-aligned numbers with left-aligned text.
       gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
       gap: 8, padding: isAlpha ? "8px 12px" : "6px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
+      alignItems: "center",
       ...flashStyle,
     }}>
-      <span style={{ color: P.dm, whiteSpace: "nowrap" }}>
+      <span style={{ color: P.dm, whiteSpace: "nowrap", textAlign: "center" }}>
         {fmtTime(alert.timestamp)}
       </span>
-      <span style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
+      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
@@ -272,7 +274,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         )}
       </span>
       <span
-        style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "right", cursor: "pointer", whiteSpace: "nowrap" }}
+        style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "center", cursor: "pointer", whiteSpace: "nowrap" }}
         onClick={() => {
           if (alert.cp && alert.strike != null && alert.exp) {
             onClickContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
@@ -285,20 +287,20 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       <span style={{ color: cpColor, fontWeight: 700, textAlign: "center" }}>
         {alert.cp || "—"}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap" }}>
+      <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap", textAlign: "center" }}>
         {alert.exp || "—"}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
         {fmtPrice(alert.averageFillPrice)}
       </span>
       <span style={{
         color: isAlpha ? P.wh : P.dm,
-        fontSize: 11, textAlign: "right",
+        fontSize: 11, textAlign: "center",
         fontWeight: isAlpha ? 600 : 400,
       }}>
         {fmtCount(alert.tradeSize)}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
         {fmtCount(alert.priorOI)}
       </span>
       <span style={{
@@ -308,7 +310,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
       </span>
-      <span style={{ color: premColor, fontWeight: premWeight, textAlign: "right" }}>
+      <span style={{ color: premColor, fontWeight: premWeight, textAlign: "center" }}>
         {fmtPremium(alert.alertPremium)}
       </span>
       <span style={{
@@ -324,19 +326,16 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         {alert._side || "—"}
       </span>
       <span style={{
-        // P/L: stock % move since alert spot. Color green when the move
-        // agrees with the alert's direction (Bull + up = winning), red
-        // when it disagrees. Greyed out when current spot isn't available.
         ...(() => {
           const pl = computePL(alert, currentSpot);
           if (pl == null) {
-            return { color: P.mt, fontSize: 11, textAlign: "right" };
+            return { color: P.mt, fontSize: 11, textAlign: "center" };
           }
           const winning = (alert._direction === "Bull" && pl >= 0) ||
                           (alert._direction === "Bear" && pl <= 0);
           return {
             color: winning ? P.bu : P.be,
-            fontSize: 11, textAlign: "right",
+            fontSize: 11, textAlign: "center",
             fontWeight: Math.abs(pl) >= 2 ? 700 : 600,
           };
         })(),
@@ -556,20 +555,20 @@ function ColumnHeaders() {
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
       position: "sticky", top: 0, background: P.bg, zIndex: 5,
     }}>
-      <span>TIME</span>
-      <span>TICKER</span>
-      <span style={{ textAlign: "right" }}>STRIKE</span>
+      <span style={{ textAlign: "center" }}>TIME</span>
+      <span style={{ textAlign: "center" }}>TICKER</span>
+      <span style={{ textAlign: "center" }}>STRIKE</span>
       <span style={{ textAlign: "center" }}>C/P</span>
-      <span>EXP</span>
-      <span style={{ textAlign: "right" }}>PRICE</span>
-      <span style={{ textAlign: "right" }}>VOL</span>
-      <span style={{ textAlign: "right" }}>OI</span>
+      <span style={{ textAlign: "center" }}>EXP</span>
+      <span style={{ textAlign: "center" }}>PRICE</span>
+      <span style={{ textAlign: "center" }}>VOL</span>
+      <span style={{ textAlign: "center" }}>OI</span>
       <span style={{ textAlign: "center" }}>V/OI</span>
-      <span style={{ textAlign: "right" }}>PREMIUM</span>
+      <span style={{ textAlign: "center" }}>PREMIUM</span>
       <span style={{ textAlign: "center" }}>GR</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
-      <span style={{ textAlign: "right" }}>P/L</span>
-      <span>ALERT</span>
+      <span style={{ textAlign: "center" }}>P/L</span>
+      <span style={{ textAlign: "center" }}>ALERT</span>
     </div>
   );
 }
