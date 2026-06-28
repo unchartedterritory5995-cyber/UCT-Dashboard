@@ -205,25 +205,43 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
   const cpColor = dirIsBull ? P.bu : P.be;
+  const isAlpha = tier === "alpha";
+  const isSize = tier === "size";
 
   const flashStyle = isNew ? {
     animation: "flashRow 1.5s ease-out",
   } : {};
 
+  // Visual emphasis tiers:
+  //   • Alpha Gold — the rarest signal; full gold treatment, larger text,
+  //     subtle tinted background. Mirrors LiveFlow.jsx production styling.
+  //   • Size — also worth highlighting but less aggressively (slight tint
+  //     on the left border, bolder strike).
+  //   • Everything else — standard row.
+  const rowBg = isAlpha ? `${P.ac}0E` : P.cd;       // 0E ≈ 5% gold opacity
+  const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
+  const fontSize = isAlpha ? 13 : 12;
+  const strikeColor = isAlpha ? P.ac : cpColor;
+  const strikeWeight = isAlpha ? 700 : (isSize ? 600 : 400);
+  const premColor = isAlpha ? P.ac : P.wh;
+  const premWeight = isAlpha ? 700 : 600;
+  const tickerColor = isAlpha ? P.ac : P.wh;
+  const tickerWeight = isAlpha ? 700 : 600;
+
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | C/P | STRIKE | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | ALERT
-      gridTemplateColumns: "78px 85px 40px 65px 80px 60px 60px 60px 55px 80px 45px 50px 1fr",
-      gap: 6, padding: "6px 10px",
-      borderLeft: `3px solid ${meta.color}`,
-      background: P.cd, marginBottom: 2, fontSize: 12,
+      // TIME | TICKER+×N | C/P | STRIKE | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | ALERT
+      gridTemplateColumns: "78px 90px 40px 70px 80px 60px 60px 60px 55px 85px 45px 50px 1fr",
+      gap: 6, padding: isAlpha ? "8px 10px" : "6px 10px",
+      borderLeft: rowBorder,
+      background: rowBg, marginBottom: 2, fontSize: fontSize,
       ...flashStyle,
     }}>
       <span style={{ color: P.dm }}>{fmtTime(alert.timestamp)}</span>
       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <span
-          style={{ color: P.wh, fontWeight: 600, cursor: "pointer" }}
+          style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
           title={`Filter to ${alert.ticker}`}
         >
@@ -233,7 +251,7 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
           <span style={{
             fontSize: 9, fontWeight: 700,
             padding: "1px 4px", borderRadius: 3,
-            background: P.ac + "25", color: P.ac,
+            background: P.ac + "30", color: P.ac,
             flexShrink: 0,
           }} title={`${hitCount} hits on this contract today`}>
             ×{hitCount}
@@ -244,7 +262,7 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
         {alert.cp || "—"}
       </span>
       <span
-        style={{ color: cpColor, textAlign: "right", cursor: "pointer" }}
+        style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "right", cursor: "pointer" }}
         onClick={() => {
           if (alert.cp && alert.strike != null && alert.exp) {
             onClickContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
@@ -258,7 +276,11 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
       <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
         {fmtPrice(alert.averageFillPrice)}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+      <span style={{
+        color: isAlpha ? P.wh : P.dm,
+        fontSize: 11, textAlign: "right",
+        fontWeight: isAlpha ? 600 : 400,
+      }}>
         {fmtCount(alert.tradeSize)}
       </span>
       <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
@@ -271,14 +293,15 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
       </span>
-      <span style={{ color: P.wh, fontWeight: 600, textAlign: "right" }}>
+      <span style={{ color: premColor, fontWeight: premWeight, textAlign: "right" }}>
         {fmtPremium(alert.alertPremium)}
       </span>
       <span style={{
         color: alert.grade?.startsWith("A") ? P.ac :
                alert.grade === "B" ? P.bl :
                alert.grade === "C" ? P.dm : P.mt,
-        fontWeight: 600, textAlign: "center",
+        fontWeight: 700, textAlign: "center",
+        fontSize: isAlpha ? 13 : 12,
       }}>
         {alert.grade}
       </span>
@@ -288,11 +311,18 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
       <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
-          padding: "1px 5px", borderRadius: 3,
-          background: `${meta.color}25`, color: meta.color,
+          padding: isAlpha ? "2px 6px" : "1px 5px", borderRadius: 3,
+          background: isAlpha ? meta.color : `${meta.color}25`,
+          color: isAlpha ? P.bg : meta.color,
           textTransform: "uppercase", flexShrink: 0,
-        }}>{meta.label}</span>
-        <span style={{ color: P.dm, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        }}>
+          {isAlpha && "★ "}{meta.label}
+        </span>
+        <span style={{
+          color: isAlpha ? P.wh : P.dm,
+          fontWeight: isAlpha ? 600 : 400,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
           {alert.alertName}
         </span>
       </span>
@@ -481,10 +511,11 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "78px 85px 40px 65px 80px 60px 60px 60px 55px 80px 45px 50px 1fr",
+      gridTemplateColumns: "78px 90px 40px 70px 80px 60px 60px 60px 55px 85px 45px 50px 1fr",
       gap: 6, padding: "4px 10px",
       fontSize: 10, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
+      position: "sticky", top: 0, background: P.bg, zIndex: 5,
     }}>
       <span>TIME</span>
       <span>TICKER</span>
@@ -777,6 +808,51 @@ export default function LiveFlowMassive() {
       )}
 
       <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
+
+      {/* Bull / Bear premium summary — quick read of net positioning across
+          the currently-visible alerts. Premium-weighted (not count-weighted)
+          so a single $5M alert outweighs ten $50K alerts, matching how the
+          watchlist Market Read view reports it. */}
+      {visibleAlerts.length > 0 && (() => {
+        let bullPrem = 0, bearPrem = 0;
+        for (const a of visibleAlerts) {
+          if (a._direction === "Bull") bullPrem += a.alertPremium || 0;
+          else if (a._direction === "Bear") bearPrem += a.alertPremium || 0;
+        }
+        const total = bullPrem + bearPrem;
+        const bullPct = total > 0 ? (bullPrem / total) * 100 : 50;
+        const netLabel = bullPrem > bearPrem ? "BULLISH" : bearPrem > bullPrem ? "BEARISH" : "BALANCED";
+        const netColor = bullPrem > bearPrem ? P.bu : bearPrem > bullPrem ? P.be : P.dm;
+        return (
+          <div style={{
+            padding: "8px 12px", background: P.cd, marginBottom: 10,
+            borderRadius: 4, border: `1px solid ${P.bd}`,
+            display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+            fontSize: 12,
+          }}>
+            <span style={{ color: netColor, fontWeight: 700, letterSpacing: 0.5 }}>
+              {netLabel} {bullPct.toFixed(0)}% bull
+            </span>
+            <span style={{ color: P.bu, fontWeight: 600 }}>
+              Bull ${(bullPrem / 1e6).toFixed(2)}M
+            </span>
+            <span style={{ color: P.be, fontWeight: 600 }}>
+              Bear ${(bearPrem / 1e6).toFixed(2)}M
+            </span>
+            <span style={{ color: P.dm, fontSize: 11 }}>
+              across {visibleAlerts.length} alerts
+            </span>
+            {/* Inline progress bar */}
+            <div style={{
+              flex: 1, minWidth: 200, height: 6, background: P.bd,
+              borderRadius: 3, overflow: "hidden", display: "flex",
+            }}>
+              <div style={{ width: `${bullPct}%`, background: P.bu }} />
+              <div style={{ width: `${100 - bullPct}%`, background: P.be }} />
+            </div>
+          </div>
+        );
+      })()}
 
       <ColumnHeaders />
 
