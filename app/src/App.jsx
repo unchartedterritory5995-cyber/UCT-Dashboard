@@ -18,6 +18,7 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
+import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
@@ -131,6 +132,8 @@ export default function App() {
         <Suspense fallback={null}>
           <GlobalAddPositionProvider />
         </Suspense>
+        {/* Persistent Desk video player — one instance, survives all routing. */}
+        <GlobalVideoLayer />
         <RouteErrorBoundary>
           <Suspense fallback={
             <div style={{
