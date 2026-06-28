@@ -199,8 +199,17 @@ function FilterChips({ filters, onChange, counts }) {
   );
 }
 
+// ─── P/L helper ───────────────────────────────────────────────────────────
+// Stock % move since alert spot. Cheaper than option-price tracking — needs
+// one Schwab quote per ticker, not per contract. Direction-aligned coloring
+// (Bull alert + positive move = green; misaligned = red).
+function computePL(alert, currentSpot) {
+  if (!currentSpot || !alert.spot || alert.spot <= 0) return null;
+  return ((currentSpot - alert.spot) / alert.spot) * 100;
+}
+
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -231,15 +240,19 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | C/P | STRIKE | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | ALERT
-      gridTemplateColumns: "78px 90px 40px 70px 80px 60px 60px 60px 55px 85px 45px 50px 1fr",
-      gap: 6, padding: isAlpha ? "8px 10px" : "6px 10px",
+      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | P/L | ALERT
+      // Widths chosen so HH:MM:SS PM doesn't wrap, no overlapping columns,
+      // ample breathing room between data clusters. Total fixed = 950px, ALERT takes the rest.
+      gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
+      gap: 8, padding: isAlpha ? "8px 12px" : "6px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
       ...flashStyle,
     }}>
-      <span style={{ color: P.dm }}>{fmtTime(alert.timestamp)}</span>
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <span style={{ color: P.dm, whiteSpace: "nowrap" }}>
+        {fmtTime(alert.timestamp)}
+      </span>
+      <span style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
           onClick={() => onClickTicker(alert.ticker)}
@@ -258,11 +271,8 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
           </span>
         )}
       </span>
-      <span style={{ color: cpColor, fontWeight: 600, textAlign: "center" }}>
-        {alert.cp || "—"}
-      </span>
       <span
-        style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "right", cursor: "pointer" }}
+        style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "right", cursor: "pointer", whiteSpace: "nowrap" }}
         onClick={() => {
           if (alert.cp && alert.strike != null && alert.exp) {
             onClickContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
@@ -272,7 +282,12 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
       >
         {fmtStrike(alert.strike)}
       </span>
-      <span style={{ color: P.dm, fontSize: 11 }}>{alert.exp || "—"}</span>
+      <span style={{ color: cpColor, fontWeight: 700, textAlign: "center" }}>
+        {alert.cp || "—"}
+      </span>
+      <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap" }}>
+        {alert.exp || "—"}
+      </span>
       <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
         {fmtPrice(alert.averageFillPrice)}
       </span>
@@ -307,6 +322,30 @@ function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
       </span>
       <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
         {alert._side || "—"}
+      </span>
+      <span style={{
+        // P/L: stock % move since alert spot. Color green when the move
+        // agrees with the alert's direction (Bull + up = winning), red
+        // when it disagrees. Greyed out when current spot isn't available.
+        ...(() => {
+          const pl = computePL(alert, currentSpot);
+          if (pl == null) {
+            return { color: P.mt, fontSize: 11, textAlign: "right" };
+          }
+          const winning = (alert._direction === "Bull" && pl >= 0) ||
+                          (alert._direction === "Bear" && pl <= 0);
+          return {
+            color: winning ? P.bu : P.be,
+            fontSize: 11, textAlign: "right",
+            fontWeight: Math.abs(pl) >= 2 ? 700 : 600,
+          };
+        })(),
+      }}>
+        {(() => {
+          const pl = computePL(alert, currentSpot);
+          if (pl == null) return "—";
+          return (pl > 0 ? "+" : "") + pl.toFixed(2) + "%";
+        })()}
       </span>
       <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span style={{
@@ -511,16 +550,16 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "78px 90px 40px 70px 80px 60px 60px 60px 55px 85px 45px 50px 1fr",
-      gap: 6, padding: "4px 10px",
+      gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
+      gap: 8, padding: "4px 12px",
       fontSize: 10, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
       position: "sticky", top: 0, background: P.bg, zIndex: 5,
     }}>
       <span>TIME</span>
       <span>TICKER</span>
-      <span style={{ textAlign: "center" }}>C/P</span>
       <span style={{ textAlign: "right" }}>STRIKE</span>
+      <span style={{ textAlign: "center" }}>C/P</span>
       <span>EXP</span>
       <span style={{ textAlign: "right" }}>PRICE</span>
       <span style={{ textAlign: "right" }}>VOL</span>
@@ -529,6 +568,7 @@ function ColumnHeaders() {
       <span style={{ textAlign: "right" }}>PREMIUM</span>
       <span style={{ textAlign: "center" }}>GR</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
+      <span style={{ textAlign: "right" }}>P/L</span>
       <span>ALERT</span>
     </div>
   );
@@ -562,6 +602,11 @@ export default function LiveFlowMassive() {
   const [contractFilter, setContractFilter] = useState(new Set());
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
   const [oiFetchState, setOiFetchState] = useState({ loading: false, result: null });
+  // Current spot quotes for P/L column. Updated every 30s in a separate
+  // poll cycle (Schwab quote fetches cost API calls; spot moves slower
+  // than the 5s alert poll so this is the right cadence). Key: ticker → spot.
+  const [quotes, setQuotes] = useState({});
+  const [quotesFetchedAt, setQuotesFetchedAt] = useState(null);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -617,6 +662,54 @@ export default function LiveFlowMassive() {
       if (abort) abort.abort();
     };
   }, [sortBy, minGrade, targetDate]);
+
+  // Quotes polling — fetches current spot for unique tickers in the
+  // current alert set every 30s. Decoupled from alert polling (5s) since
+  // spot moves slower than alert flow and each Schwab call has a cost.
+  // Historical view (?date=YYYY-MM-DD): P/L column uses current spot,
+  // which compares historical alert spot to today's price — meaningful
+  // for a multi-day-old alert ("MU bear at $1100 strike — stock has since
+  // dropped 5%"), but interpret cautiously.
+  useEffect(() => {
+    let cancelled = false;
+    let timer;
+
+    async function pollQuotes() {
+      const uniqueTickers = [...new Set(alerts.map(a => a.ticker).filter(Boolean))];
+      if (uniqueTickers.length === 0) {
+        timer = setTimeout(pollQuotes, 30000);
+        return;
+      }
+      try {
+        const r = await fetch("/api/live/massive/current-quotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tickers: uniqueTickers }),
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        if (cancelled) return;
+        setQuotes(prev => ({ ...prev, ...(d.quotes || {}) }));
+        setQuotesFetchedAt(d.fetched_at);
+      } catch (e) {
+        // Soft failure: P/L column shows "—" for tickers without quote
+      } finally {
+        if (!cancelled) timer = setTimeout(pollQuotes, 30000);
+      }
+    }
+
+    // Trigger first quote fetch as soon as we have alerts, then every 30s
+    if (alerts.length > 0) pollQuotes();
+    else timer = setTimeout(pollQuotes, 5000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+    // alerts.length in dep array, not alerts itself — re-trigger only when
+    // we go from 0 alerts to having alerts, not on every alert update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts.length > 0]);
 
   // Apply client-side filters: tier chips, ticker, contract.
   // Tier filtering now happens here (was previously per-section); the
@@ -871,6 +964,7 @@ export default function LiveFlowMassive() {
             alert={a}
             isNew={newIdsRef.current.has(a.id)}
             hitCount={ck ? (hitCounts[ck] || 1) : 1}
+            currentSpot={quotes[a.ticker]}
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
           />
