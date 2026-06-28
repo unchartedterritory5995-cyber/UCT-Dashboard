@@ -43,8 +43,9 @@ def test_build_quarterly_takes_last_five_plus_next(monkeypatch, tmp_path):
                 for q in (1, 2, 3, 4)]
 
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
-    # No FMP forward source → falls back to the single Finnhub next-earnings row.
+    # No FMP nor yfinance forward source → falls back to single Finnhub next-earnings.
     monkeypatch.setattr(etmod.ee, "_fmp_get", lambda *a, **k: None)
+    monkeypatch.setattr(etmod, "_yf_forward_quarters", lambda t, limit: [])
     monkeypatch.setattr(etmod, "_next_earnings", lambda t: {"date": "2026-08-05", "eps_estimate": 0.58, "rev_estimate": 1.85e9})
     import calendar, time
     now = calendar.timegm(time.strptime("2026-07-01", "%Y-%m-%d"))
@@ -99,6 +100,32 @@ def test_build_quarterly_four_forward_from_fmp(monkeypatch, tmp_path):
     fwd_labels = [r["label"] for r in nxt]
     assert fwd_labels == ["2027 Q1", "2027 Q2", "2027 Q3", "2027 Q4"]
     assert not set(fwd_labels) & set(labels)
+
+
+def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
+    et = _mod(monkeypatch, tmp_path)
+    import api.services.earnings_table as etmod
+
+    def fake_year(ticker, year):
+        return [{"label": None, "quarter": q, "year": year, "date": f"{year}-0{q}-15",
+                 "eps_actual": q + 0.0, "eps_estimate": q - 0.1, "eps_surprise_pct": 5.0,
+                 "revenue_actual": 1e9 * q, "revenue_estimate": 0.9e9 * q, "revenue_surprise_pct": 4.0}
+                for q in (1, 2, 3, 4)]
+
+    monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+    # FMP empty (long-tail name) → yfinance backstop supplies the 2 near quarters.
+    monkeypatch.setattr(etmod.ee, "_fmp_get", lambda *a, **k: None)
+    monkeypatch.setattr(etmod, "_yf_forward_quarters",
+                        lambda t, limit: [{"date": None, "eps_estimate": 0.60, "rev_estimate": 1.1e9},
+                                          {"date": None, "eps_estimate": 0.70, "rev_estimate": 1.2e9}])
+    import calendar, time
+    now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
+    q = et._build_quarterly("ZZY", now)
+    nxt = [r for r in q if not r["reported"]]
+    assert len(nxt) == 2                                  # yfinance gives 2 near quarters
+    assert [r["label"] for r in nxt] == ["2027 Q1", "2027 Q2"]
+    assert nxt[0]["eps_estimate"] == 0.60
+    assert nxt[0]["report_date"] is None                 # Yahoo gives no report date
 
 
 def test_next_q_label_increment():

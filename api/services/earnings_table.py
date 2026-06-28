@@ -139,15 +139,50 @@ def _fmp_forward_quarters(ticker, limit):
     return fut[:limit]
 
 
-def _forward_quarters(ticker, limit):
-    """Forward-estimate quarters for the strip: FMP analyst-estimates (multi-
-    quarter) first, else the single next-earnings event from Finnhub."""
+def _yf_forward_quarters(ticker, limit):
+    """Up to 2 near forward quarters (current 0q + next +1q) of mean EPS &
+    revenue from yfinance — the broad-coverage US backstop for the long tail
+    where FMP analyst-estimates is empty. No report dates (Yahoo gives none)."""
     try:
-        fwd = _fmp_forward_quarters(ticker, limit)
+        import yfinance as yf
     except Exception:
-        fwd = []
-    if fwd:
-        return fwd
+        return []
+    out = []
+    try:
+        t = yf.Ticker(ticker)
+        eps_df = getattr(t, "earnings_estimate", None)
+        rev_df = getattr(t, "revenue_estimate", None)
+
+        def _avg(df, idx):
+            try:
+                if df is None or idx not in df.index:
+                    return None
+                return _num(df.loc[idx].get("avg"))
+            except Exception:
+                return None
+
+        for idx in ("0q", "+1q"):
+            eps = _avg(eps_df, idx)
+            rev = _avg(rev_df, idx)
+            if eps is None and rev is None:
+                continue
+            out.append({"date": None, "eps_estimate": eps, "rev_estimate": rev})
+    except Exception as exc:
+        _log.info("yfinance forward quarters failed for %s: %s", ticker, exc)
+    return out[:limit]
+
+
+def _forward_quarters(ticker, limit):
+    """Forward-estimate quarters for the strip, coverage-maximizing chain:
+    FMP analyst-estimates (depth, large caps) → yfinance (broad backstop, 2 near
+    quarters) → single Finnhub next-earnings event. First non-empty wins."""
+    for src in (_fmp_forward_quarters, _yf_forward_quarters):
+        try:
+            rows = src(ticker, limit)
+        except Exception:
+            rows = []
+        if rows:
+            return rows[:limit]
     try:
         nxt = _next_earnings(ticker)
     except Exception:
