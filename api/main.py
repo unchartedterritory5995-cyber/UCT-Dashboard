@@ -3048,6 +3048,127 @@ async def _massive_color_debug(target_date: str = "6/26/2026"):
     return out
 
 
+@app.post("/api/admin/ticker-types/sync")
+async def _ticker_types_sync(market: str = "stocks"):
+    """Sync ticker reference data from Massive into the local cache.
+
+    Pulls all active tickers for the given market (paginated), normalizes
+    each ticker's type to STOCK/ETF/INDEX/OTHER, and upserts into the
+    ticker_types table.
+
+    market: 'stocks' (default — includes CS, ETF, ETN, ADRC, etc.) or
+            'indices' (for SPX/NDX/RUT and other indices)
+
+    Run BOTH markets for full coverage:
+      POST /api/admin/ticker-types/sync?market=stocks
+      POST /api/admin/ticker-types/sync?market=indices
+
+    Idempotent — re-running updates existing rows with latest data.
+    Requires MASSIVE_API_KEY env var.
+    """
+    try:
+        from api.ticker_types import sync_from_massive
+        stats = sync_from_massive(market=market)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/admin/ticker-types/backfill")
+async def _ticker_types_backfill(target_date: str = None):
+    """Apply cached ticker classifications to existing flow rows.
+
+    Updates the `source` column on flow rows:
+      asset_type == ETF/INDEX  -> source = 'indexes'
+      asset_type == STOCK      -> source = 'stocks'
+
+    target_date: 'M/D/YYYY' to limit scope, or omit for all-time.
+
+    This is the migration that moves DRAM/AAL/etc. into their correct tabs
+    after the cache is populated by /api/admin/ticker-types/sync.
+
+    Idempotent — safe to re-run. Returns count of moved rows by direction.
+    """
+    try:
+        from api.ticker_types import backfill_flow_source
+        stats = backfill_flow_source(target_date=target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/admin/ticker-types/lookup")
+async def _ticker_types_lookup(ticker: str):
+    """Look up a single ticker's classification.
+
+    Returns the raw cache row including asset_type, raw_type, name, etc.
+    Useful for spot-checking the sync results or debugging misclassifications.
+    """
+    import sqlite3
+    try:
+        from api.ticker_types import DB_PATH, ensure_schema
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            ensure_schema(conn)
+            cur = conn.execute("""
+                SELECT ticker, asset_type, raw_type, name, primary_exchange,
+                       market, active, last_synced
+                FROM ticker_types WHERE ticker = ?
+            """, (ticker.upper().strip(),))
+            row = cur.fetchone()
+            if not row:
+                return {"ok": True, "ticker": ticker.upper(), "found": False,
+                        "asset_type": "UNKNOWN"}
+            return {
+                "ok": True, "found": True,
+                "ticker": row[0], "asset_type": row[1], "raw_type": row[2],
+                "name": row[3], "primary_exchange": row[4], "market": row[5],
+                "active": bool(row[6]), "last_synced": row[7],
+            }
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/admin/ticker-types/stats")
+async def _ticker_types_stats():
+    """Cache health: counts by asset_type + most recent sync time."""
+    import sqlite3
+    try:
+        from api.ticker_types import DB_PATH, ensure_schema
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            ensure_schema(conn)
+            cur = conn.execute("""
+                SELECT asset_type, COUNT(*) FROM ticker_types
+                GROUP BY asset_type ORDER BY COUNT(*) DESC
+            """)
+            by_type = {r[0]: r[1] for r in cur.fetchall()}
+            cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
+            last_synced = cur.fetchone()[0]
+            cur = conn.execute("SELECT COUNT(*) FROM ticker_types")
+            total = cur.fetchone()[0]
+            return {
+                "ok": True,
+                "total_tickers": total,
+                "by_asset_type": by_type,
+                "last_synced": last_synced,
+            }
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
