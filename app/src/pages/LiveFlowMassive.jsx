@@ -119,44 +119,13 @@ function fmtCount(n) {
 // Components: net direction headline + 4 stat cards + progress bar +
 // last-hour breakdown + top 3 bull / bear names + DTE expiration buckets.
 //
-// Sticky-positioned with two display modes:
-//   • Full mode (page at top): all sections visible, ~350px tall
-//   • Compact mode (scrolled): headline numbers + progress bar only, ~70px
-// The compact mode triggers via a scroll listener so a pinned hero card
-// doesn't dominate the viewport while scanning the alert feed below.
+// Always full-size and sticky-positioned. The earlier compact-on-scroll
+// behavior caused flicker due to layout shifts when the card resized
+// (content below shifts → scroll position shifts → threshold re-evaluates
+// → re-toggle). Stable layout > saved viewport pixels.
 function MarketReadCard({ alerts }) {
   const DIR_BULL = "#6BAA85";
   const DIR_BEAR = "#C26A6A";
-
-  const [isCompact, setIsCompact] = useState(false);
-  useEffect(() => {
-    // Scroll listener with two flicker-prevention measures:
-    //   1. HYSTERESIS — different thresholds for collapse (250) vs expand (100).
-    //      When the card collapses, the content below shifts UP by ~270px.
-    //      Without hysteresis, that shift can move the scroll position back
-    //      under the collapse threshold, triggering re-expansion → re-collapse
-    //      → infinite loop. The 150px deadband absorbs the layout shift.
-    //   2. requestAnimationFrame — coalesces multiple scroll events per frame
-    //      into one state update. Scroll events fire dozens of times per
-    //      second; without this we'd queue dozens of setState calls.
-    let scheduled = false;
-    const onScroll = () => {
-      if (scheduled) return;
-      scheduled = true;
-      requestAnimationFrame(() => {
-        scheduled = false;
-        const y = window.scrollY;
-        setIsCompact(prev => {
-          if (!prev && y > 250) return true;   // expanded → collapse threshold
-          if (prev && y < 100) return false;   // collapsed → expand threshold
-          return prev;                          // inside deadband: no change
-        });
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();  // initial check on mount
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // ─ Aggregate all the metrics in a single pass ──────────────────────────
   let bullPrem = 0, bearPrem = 0;
@@ -249,56 +218,49 @@ function MarketReadCard({ alerts }) {
       // card communicates direction without losing opacity.
       borderLeft: `5px solid ${netColor}`,
       boxShadow: `inset 4px 0 0 0 ${netColor}, 0 4px 12px ${P.bg}cc`,
-      padding: isCompact ? "10px 16px" : "16px 20px",
-      // Smooth transitions when direction flips or compact mode toggles.
-      transition: "border-left-color 0.4s ease, box-shadow 0.4s ease, padding 0.25s ease",
+      padding: "16px 20px",
+      // Direction-flip animation only — no size animations to avoid any
+      // layout-shift-induced flicker during scroll.
+      transition: "border-left-color 0.4s ease, box-shadow 0.4s ease",
     }}>
-      {/* HEADER ROW — hidden in compact (scrolled) mode */}
-      {!isCompact && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          marginBottom: 12,
+      {/* HEADER ROW */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        marginBottom: 12,
+      }}>
+        <span style={{
+          color: P.dm, fontSize: 10, fontWeight: 700,
+          letterSpacing: 1.5, textTransform: "uppercase",
         }}>
-          <span style={{
-            color: P.dm, fontSize: 10, fontWeight: 700,
-            letterSpacing: 1.5, textTransform: "uppercase",
-          }}>
-            ● LIVE MARKET READ
-          </span>
-          <span style={{ color: P.mt, fontSize: 10 }}>
-            (premium-weighted across {alerts.length} alerts)
-          </span>
-        </div>
-      )}
+          ● LIVE MARKET READ
+        </span>
+        <span style={{ color: P.mt, fontSize: 10 }}>
+          (premium-weighted across {alerts.length} alerts)
+        </span>
+      </div>
 
       {/* BIG STAT CARDS — direction headline, bull, bear, net */}
-      {/* Compact mode shrinks padding + font so the sticky card collapses
-          gracefully when scrolled. Numbers stay readable, just less hero-y. */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr 1fr 1fr",
-        gap: isCompact ? 8 : 12,
-        marginBottom: isCompact ? 8 : 14,
-        transition: "gap 0.25s ease, margin-bottom 0.25s ease",
+        gap: 12, marginBottom: 14,
       }}>
         {/* Direction headline */}
         <div style={{
-          padding: isCompact ? "6px 10px" : "10px 14px",
+          padding: "10px 14px",
           background: `${netColor}22`,
           borderRadius: 4, border: `1px solid ${netColor}80`,
-          transition: "padding 0.25s ease",
         }}>
           <div style={{
-            color: netColor, fontSize: isCompact ? 16 : 26, fontWeight: 800,
+            color: netColor, fontSize: 26, fontWeight: 800,
             letterSpacing: 0.5, lineHeight: 1.1,
-            transition: "color 0.3s ease, font-size 0.25s ease",
+            transition: "color 0.3s ease",
           }}>
             {netLabel}
           </div>
           <div style={{
-            color: netColor, fontSize: isCompact ? 12 : 16, fontWeight: 600,
-            marginTop: isCompact ? 2 : 4, opacity: 0.9,
-            transition: "font-size 0.25s ease",
+            color: netColor, fontSize: 16, fontWeight: 600,
+            marginTop: 4, opacity: 0.9,
           }}>
             {bullPct.toFixed(0)}% bull
           </div>
@@ -306,9 +268,8 @@ function MarketReadCard({ alerts }) {
 
         {/* Bull total */}
         <div style={{
-          padding: isCompact ? "6px 10px" : "10px 14px", background: P.cd,
+          padding: "10px 14px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
-          transition: "padding 0.25s ease",
         }}>
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
@@ -317,9 +278,8 @@ function MarketReadCard({ alerts }) {
             ▲ BULL FLOW
           </div>
           <div style={{
-            color: DIR_BULL, fontSize: isCompact ? 17 : 28, fontWeight: 800,
-            marginTop: isCompact ? 2 : 4, lineHeight: 1.1,
-            transition: "font-size 0.25s ease",
+            color: DIR_BULL, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
           }}>
             {fmtM(bullPrem)}
           </div>
@@ -327,9 +287,8 @@ function MarketReadCard({ alerts }) {
 
         {/* Bear total */}
         <div style={{
-          padding: isCompact ? "6px 10px" : "10px 14px", background: P.cd,
+          padding: "10px 14px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
-          transition: "padding 0.25s ease",
         }}>
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
@@ -338,9 +297,8 @@ function MarketReadCard({ alerts }) {
             ▼ BEAR FLOW
           </div>
           <div style={{
-            color: DIR_BEAR, fontSize: isCompact ? 17 : 28, fontWeight: 800,
-            marginTop: isCompact ? 2 : 4, lineHeight: 1.1,
-            transition: "font-size 0.25s ease",
+            color: DIR_BEAR, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
           }}>
             {fmtM(bearPrem)}
           </div>
@@ -348,9 +306,8 @@ function MarketReadCard({ alerts }) {
 
         {/* Net delta */}
         <div style={{
-          padding: isCompact ? "6px 10px" : "10px 14px", background: P.cd,
+          padding: "10px 14px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
-          transition: "padding 0.25s ease",
         }}>
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
@@ -359,9 +316,8 @@ function MarketReadCard({ alerts }) {
             NET (BULL − BEAR)
           </div>
           <div style={{
-            color: netColor, fontSize: isCompact ? 17 : 28, fontWeight: 800,
-            marginTop: isCompact ? 2 : 4, lineHeight: 1.1,
-            transition: "font-size 0.25s ease",
+            color: netColor, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
           }}>
             {netPrem >= 0 ? "+" : ""}{fmtM(netPrem)}
           </div>
@@ -383,47 +339,44 @@ function MarketReadCard({ alerts }) {
         }} />
       </div>
 
-      {/* LAST HOUR ROW — hidden in compact (scrolled) mode */}
-      {!isCompact && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 14,
-          padding: "6px 0", marginBottom: 12, fontSize: 12,
-          borderTop: `1px solid ${P.bd}`, paddingTop: 10,
+      {/* LAST HOUR ROW */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 14,
+        padding: "6px 0", marginBottom: 12, fontSize: 12,
+        borderTop: `1px solid ${P.bd}`, paddingTop: 10,
+      }}>
+        <span style={{
+          color: P.mt, fontSize: 10, fontWeight: 700,
+          letterSpacing: 1, textTransform: "uppercase",
         }}>
-          <span style={{
-            color: P.mt, fontSize: 10, fontWeight: 700,
-            letterSpacing: 1, textTransform: "uppercase",
-          }}>
-            ⏱ LAST HOUR
-          </span>
-          {total1h > 0 ? (
-            <>
-              <span style={{
-                color: bullPct1h >= 50 ? DIR_BULL : DIR_BEAR,
-                fontWeight: 700, fontSize: 13,
-              }}>
-                {bullPct1h.toFixed(0)}% bull
-              </span>
-              <span style={{ color: DIR_BULL, fontWeight: 600 }}>
-                ▲ {fmtMShort(bullPrem1h)}
-              </span>
-              <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
-                ▼ {fmtMShort(bearPrem1h)}
-              </span>
-              <span style={{ color: P.dm, fontSize: 11 }}>
-                · {count1h} alert{count1h === 1 ? "" : "s"}
-              </span>
-            </>
-          ) : (
-            <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
-              no alerts in the last 60 minutes
+          ⏱ LAST HOUR
+        </span>
+        {total1h > 0 ? (
+          <>
+            <span style={{
+              color: bullPct1h >= 50 ? DIR_BULL : DIR_BEAR,
+              fontWeight: 700, fontSize: 13,
+            }}>
+              {bullPct1h.toFixed(0)}% bull
             </span>
-          )}
-        </div>
-      )}
+            <span style={{ color: DIR_BULL, fontWeight: 600 }}>
+              ▲ {fmtMShort(bullPrem1h)}
+            </span>
+            <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
+              ▼ {fmtMShort(bearPrem1h)}
+            </span>
+            <span style={{ color: P.dm, fontSize: 11 }}>
+              · {count1h} alert{count1h === 1 ? "" : "s"}
+            </span>
+          </>
+        ) : (
+          <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
+            no alerts in the last 60 minutes
+          </span>
+        )}
+      </div>
 
-      {/* TOP NAMES + DTE BUCKETS side by side — hidden in compact mode */}
-      {!isCompact && (
+      {/* TOP NAMES + DTE BUCKETS side by side */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1.4fr",
@@ -534,7 +487,6 @@ function MarketReadCard({ alerts }) {
           </div>
         </div>
       </div>
-      )}
     </div>
   );
 }
