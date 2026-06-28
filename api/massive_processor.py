@@ -68,9 +68,25 @@ INDEX_SYMBOLS = frozenset({
 
 # Cancels / retractions -- DROP these trades entirely. They never actually
 # executed (or were broken/busted post-execution).
+#
+# 6/27/2026 update: added 202 and 204 after observing $607M of cancel-class
+# notional leaking through on 6/26. Bull Flow labels these "Cancelled" /
+# "Correction" in their UI; BBS filters them entirely. Example: CAPR CALL
+# $30 8/21 at 14:06:30 -- 5000 contracts @ $8.00 cond=204 = $4M phantom
+# trade (CAPR was at $26, OTM $30 call worth $1-2 -- 4x fair value, classic
+# busted print). Codenames below are inferred from OPRA spec; verify exact
+# names via https://api.massive.com/v3/reference/conditions when convenient.
+#
+# Note: cond=231 (SLFT) is NOT added here even though it appears in cancel
+# cascades, because it's also the marker for legitimate Single Leg Floor
+# Trades on clean contracts (~$700M/day of real flow). The contaminated-
+# contract pattern (231 on a contract that ALSO has 202/204) is handled
+# at EOD via apply_cancel_patches.py, where we know the full day's prints.
 CANCEL_CONDITIONS = frozenset({
     201,  # CANC -- Canceled
+    202,  # LATE -- Late report (inferred name; filter rationale: 6/26 data)
     203,  # CNCL -- Last and Canceled
+    204,  # LCAN -- Late Cancel (inferred name; filter rationale: 6/26 data)
     205,  # CNCO -- Opening Trade and Canceled
     207,  # CNOL -- Only Trade and Canceled
 })
