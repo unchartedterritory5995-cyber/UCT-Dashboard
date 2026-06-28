@@ -55,7 +55,15 @@ INDEX_TYPES = {"INDEX"}
 
 
 def normalize_type(raw_type: str, market: str = "stocks") -> str:
-    """Map Massive's raw type code to our STOCK/ETF/INDEX/OTHER classification."""
+    """Map Massive's raw type code to our STOCK/ETF/INDEX/OTHER classification.
+
+    Indices market: Massive returns indices with an empty `type` field — the
+    market='indices' query is itself the classifier. So if market=='indices'
+    we return 'INDEX' regardless of raw_type.
+    """
+    # market='indices' is dispositive — any ticker returned by that query is an INDEX
+    if market == "indices":
+        return "INDEX"
     if not raw_type:
         return "OTHER"
     t = raw_type.upper().strip()
@@ -63,7 +71,7 @@ def normalize_type(raw_type: str, market: str = "stocks") -> str:
         return "STOCK"
     if t in ETF_TYPES:
         return "ETF"
-    if t in INDEX_TYPES or market == "indices":
+    if t in INDEX_TYPES:
         return "INDEX"
     return "OTHER"
 
@@ -145,6 +153,18 @@ def sync_from_massive(market: str = "stocks", limit_per_page: int = 1000,
     conn.execute("PRAGMA journal_mode=WAL")
     try:
         ensure_schema(conn)
+
+        # One-time cleanup: remove stale 'I:'-prefixed rows that were stored
+        # before we started stripping the prefix. Safe to run every sync since
+        # post-fix the cache never contains I:-prefixed rows again.
+        if market == "indices":
+            cur = conn.execute("DELETE FROM ticker_types WHERE ticker LIKE 'I:%'")
+            stale_removed = cur.rowcount if cur.rowcount >= 0 else 0
+            if stale_removed > 0:
+                logger.info(f"[ticker_types] removed {stale_removed} stale I:-prefixed cache rows")
+                stats["stale_rows_removed"] = stale_removed
+            conn.commit()
+
         now_iso = datetime.datetime.utcnow().isoformat()
         params = {"market": market, "active": "true", "limit": limit_per_page}
         cursor_url = None
@@ -166,6 +186,13 @@ def sync_from_massive(market: str = "stocks", limit_per_page: int = 1000,
             rows = []
             for r in results:
                 ticker = (r.get("ticker") or "").strip().upper()
+                if not ticker:
+                    continue
+                # Massive returns indices with an 'I:' prefix (e.g. 'I:SPX')
+                # but FlowDB stores them as bare symbols ('SPX'). Strip the
+                # prefix so cache keys match how Symbol is stored in flow rows.
+                if ticker.startswith("I:"):
+                    ticker = ticker[2:]
                 if not ticker:
                     continue
                 raw = (r.get("type") or "").strip().upper()
