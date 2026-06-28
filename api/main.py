@@ -1898,24 +1898,6 @@ async def lifespan(app: FastAPI):
                 id="desk_daily_session_safety", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
-            # Session chapters/transcript backfill (separate from publish; the
-            # Zoom transcript arrives async). Fetch VTT → Opus → chapters +
-            # ticker-moments → trash the recording. Gated by its own flag.
-            from api.services import desk_session_insights as _dsi
-            if _dsi.is_enabled():
-                def _dds_insights():
-                    try:
-                        out = _dsi.process_pending_session_insights()
-                        acts = [r for r in out if r.get("action") == "generated"]
-                        if acts:
-                            print(f"[session-insights] generated chapters for {len(acts)} session(s)")
-                    except Exception as e:
-                        print(f"[session-insights] pass error (non-fatal): {e}")
-
-                _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="*/15"),
-                    id="desk_session_insights", max_instances=1, replace_existing=True)
-                print("[startup] Desk Session chapters/transcript backfill ENABLED")
-
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
         # mirroring the user's actual trading workflow. Everything outside
@@ -2727,6 +2709,48 @@ async def _massive_backfill_ticktest(target_date: str = None):
     try:
         from api.backfill_tick_test import run_backfill
         stats = run_backfill(target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/admin/massive/apply-cancel-patches")
+async def _massive_apply_cancel_patches(patches_file: str = "patches-6-26-cancels.json",
+                                         target_date: str = "6/26/2026"):
+    """Apply cancel-class patches to FlowDB — tag matching rows as Color='ARB'.
+
+    Companion to /backfill-from-patches but DISPOSITIVE: overwrites Color to
+    'ARB' regardless of current value, because the cancel pattern wins over
+    any prior WHITE/YELLOW/MAGENTA classification.
+
+    Patches file is generated offline by build_cancel_patches.py which scans
+    raw OPRA for:
+      - cond in {202, 204}: always cancel-class
+      - cond=231 on a contract that ALSO has cond=202/204: late report
+        cascade (per coaching: 'use 231 as late report')
+      - cond=231 on clean contracts (no 202/204 ever): preserved as BLOCK
+
+    Output of build run for 6/26: 305 patches covering 160 contaminated
+    contracts and ~$621M of cancel-class notional (including CAPR $4M
+    14:06:30 'Correction' and the XLV cancel cascade).
+
+    Matching: Symbol + CallPut + Strike (normalized) + ExpirationDate +
+    CreatedTime within ±60s of patch time. Idempotent.
+
+    patches_file: filename within /app/api/ directory (commit alongside repo)
+    target_date: 'M/D/YYYY' format
+    """
+    try:
+        import os
+        api_dir = os.path.dirname(os.path.abspath(__file__))
+        full_path = os.path.join(api_dir, patches_file)
+        if not os.path.exists(full_path):
+            return {"ok": False, "error": f"patches file not found: {full_path}",
+                    "tip": "Commit the patches JSON to api/ directory"}
+        from api.apply_cancel_patches import run_apply_cancel_patches
+        stats = run_apply_cancel_patches(full_path, target_date)
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
