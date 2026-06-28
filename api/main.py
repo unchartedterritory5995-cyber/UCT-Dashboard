@@ -1982,7 +1982,7 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0"),
                 id="catalyst_premarket_health", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET + Catalyst Hunter deep-6AM/light-thereafter [CATALYST_HUNTER_ENABLED])")
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
 
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
@@ -2777,6 +2777,42 @@ async def _massive_rebuild_color(target_date: str = "6/26/2026"):
     try:
         from api.color_rebuild import run_color_rebuild
         stats = run_color_rebuild(target_date)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/admin/massive/filter-arb")
+async def _massive_filter_arb(target_date: str = "6/26/2026"):
+    """Tag arbitrage clusters as Color='ARB'.
+
+    The rule: group rows by (Symbol, CreatedDate, CreatedTime [exact second]).
+    If a group has n>=4 events AND >=2 distinct (CallPut, Strike, Exp) combos,
+    every row in the group is tagged Color='ARB'.
+
+    Catches structured noise like:
+      - SPX box spreads ($1.1B at 11:35:15 — mixed CP across strikes)
+      - LULU multi-strike position management ($54M at 15:46:16, 5 PUT strikes)
+      - MU same-instant CALL/PUT structures ($386M at 12:28:19)
+
+    Preserves legitimate same-contract sweeps that fragment across exchange
+    venues — those have only ONE distinct (CP, Strike, Exp) tuple even at 8+
+    same-second prints (e.g. QQQ PUT $630 8/21 at 11:26:21).
+
+    Idempotent. Dispositive: overwrites prior YELLOW/MAGENTA classifications
+    since the cluster pattern wins over per-row volume vs OI.
+
+    Recommended order:
+      1. POST /api/admin/massive/filter-arb?target_date=X     (this endpoint)
+      2. POST /api/admin/massive/rebuild-color?target_date=X  (touches WHITE only)
+
+    target_date: 'M/D/YYYY' format. Required.
+    """
+    try:
+        from api.cluster_filter import run_cluster_filter
+        stats = run_cluster_filter(target_date)
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
