@@ -1,0 +1,28 @@
+/* app/src/pages/charts/widgets/FundamentalsWidget.module.css */
+.root { height: 100%; overflow: auto; padding: 8px 10px; font-size: 13px; color: var(--color-text, #e6e6e6); }
+.hint { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted, #8a8a8a); padding: 16px; text-align: center; }
+
+.annual { width: 100%; border-collapse: collapse; }
+.annual th { text-align: right; font-weight: 600; color: var(--color-text-muted, #9a9a9a); padding: 4px 6px; border-bottom: 1px solid var(--color-border, #2a2a2a); }
+.annual td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--color-border-subtle, #1d1d1d); font-variant-numeric: tabular-nums; }
+.left { text-align: left !important; }
+.estRow td { color: var(--color-text-muted, #b8b8b8); font-style: italic; }
+
+.pos { color: var(--color-success, #36c46a); }
+.neg { color: var(--color-danger, #e5534b); }
+.rev { font-size: 9px; margin-left: 3px; vertical-align: middle; }
+.revUp { color: var(--color-success, #36c46a); }
+.revDown { color: var(--color-danger, #e5534b); }
+
+.qStrip { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.qBlock { flex: 1 1 120px; min-width: 110px; border: 1px solid var(--color-border, #2a2a2a); border-radius: 6px; padding: 6px 8px; }
+.qNext { border-color: var(--color-gold, #c9a84c); }
+.qLabel { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
+.qNextDate { color: var(--color-gold, #c9a84c); font-size: 11px; margin-bottom: 4px; }
+.qRow { display: flex; gap: 6px; align-items: baseline; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Container-query collapse: hide the oldest quarter blocks as the WIDGET narrows
+   (root is inside .widgetBody which is container-type: inline-size). */
+@container (max-width: 520px) { .qBlock:nth-last-child(n+5) { display: none; } }
+@container (max-width: 380px) { .qBlock:nth-last-child(n+4) { display: none; } }
+@container (max-width: 280px) { .qBlock:nth-last-child(n+3) { display: none; } }
