@@ -80,10 +80,10 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
   // View choice persists per-widget through the workspace layout save path
-  // (same opts mechanism ChartWidget uses for its timeframe).
-  const view = opts?.view === 'quarterly' ? 'quarterly' : 'annual'
+  // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
+  const view = opts?.view === 'annual' ? 'annual' : 'quarterly'
   const setView = useCallback((next) => {
-    if (next === (opts?.view || 'annual')) return
+    if (next === (opts?.view || 'quarterly')) return
     onOptsChange?.({ ...(opts || {}), view: next })
   }, [opts, onOptsChange])
 
@@ -95,22 +95,12 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
 
   // Resolve the effective view: honor the toggle, but fall back to whichever
   // section actually has data so the panel is never blank.
-  const effectiveView = view === 'quarterly' ? (hasQ ? 'quarterly' : 'annual')
-    : (hasAnnual ? 'annual' : 'quarterly')
+  const effectiveView = view === 'annual' ? (hasAnnual ? 'annual' : 'quarterly')
+    : (hasQ ? 'quarterly' : 'annual')
 
   return (
     <div className={styles.root}>
       <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={effectiveView === 'annual'}
-          className={`${styles.toggleBtn} ${effectiveView === 'annual' ? styles.toggleBtnActive : ''}`}
-          onClick={() => setView('annual')}
-          disabled={!hasAnnual}
-        >
-          Annual
-        </button>
         <button
           type="button"
           role="tab"
@@ -120,6 +110,16 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
           disabled={!hasQ}
         >
           Quarterly
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveView === 'annual'}
+          className={`${styles.toggleBtn} ${effectiveView === 'annual' ? styles.toggleBtnActive : ''}`}
+          onClick={() => setView('annual')}
+          disabled={!hasAnnual}
+        >
+          Annual
         </button>
       </div>
 

@@ -34,45 +34,44 @@ const FULL_DATA = {
   ],
 }
 
-test('defaults to the annual view (quarterly hidden until toggled)', () => {
+test('defaults to the quarterly view (annual hidden until toggled)', () => {
   mockData.mockReturnValue(FULL_DATA)
   render(<Wrap />)
-  expect(screen.getByText('2024')).toBeInTheDocument()
-  expect(screen.getByText('2026 e')).toBeInTheDocument()   // estimate-year suffix
-  expect(screen.queryByText('2025 Q2')).not.toBeInTheDocument()
+  expect(screen.getByText('2025 Q2')).toBeInTheDocument()
+  expect(screen.queryByText('2024')).not.toBeInTheDocument()
 })
 
 test('annual rows render newest-first (forward estimate at top)', () => {
   mockData.mockReturnValue(FULL_DATA)
-  render(<Wrap />)
+  render(<Wrap initialOpts={{ view: 'annual' }} />)
   const yearCells = screen.getAllByRole('cell').filter(c => /^20\d{2}( e)?$/.test(c.textContent))
   expect(yearCells[0]).toHaveTextContent('2026 e')   // forward estimate leads
   expect(yearCells[yearCells.length - 1]).toHaveTextContent('2024')  // oldest at bottom
 })
 
-test('toggling to Quarterly swaps the visible section and persists the choice', () => {
+test('toggling to Annual swaps the visible section and persists the choice', () => {
   mockData.mockReturnValue(FULL_DATA)
   const onOpts = vi.fn()
   render(<Wrap onOpts={onOpts} />)
-  fireEvent.click(screen.getByRole('tab', { name: /quarterly/i }))
-  expect(screen.getByText('2025 Q2')).toBeInTheDocument()
-  expect(screen.queryByText('2024')).not.toBeInTheDocument()  // annual now hidden
-  expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'quarterly' }))
+  fireEvent.click(screen.getByRole('tab', { name: /annual/i }))
+  expect(screen.getByText('2024')).toBeInTheDocument()
+  expect(screen.queryByText('2025 Q2')).not.toBeInTheDocument()  // quarterly now hidden
+  expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'annual' }))
 })
 
-test('restores the persisted view from opts (quarterly on first render)', () => {
+test('restores the persisted view from opts (annual on first render)', () => {
   mockData.mockReturnValue(FULL_DATA)
-  render(<Wrap initialOpts={{ view: 'quarterly' }} />)
-  expect(screen.getByText('2025 Q2')).toBeInTheDocument()
-  expect(screen.queryByText('2024')).not.toBeInTheDocument()
+  render(<Wrap initialOpts={{ view: 'annual' }} />)
+  expect(screen.getByText('2024')).toBeInTheDocument()
+  expect(screen.queryByText('2025 Q2')).not.toBeInTheDocument()
 })
 
-test('falls back to quarterly when no annual data exists', () => {
-  mockData.mockReturnValue({ ...FULL_DATA, annual: [] })
+test('falls back to annual when no quarterly data exists', () => {
+  mockData.mockReturnValue({ ...FULL_DATA, quarterly: [] })
   render(<Wrap />)
-  // annual is the default but has no rows → effective view is quarterly
-  expect(screen.getByText('2025 Q2')).toBeInTheDocument()
-  expect(screen.getByRole('tab', { name: /annual/i })).toBeDisabled()
+  // quarterly is the default but has no rows → effective view is annual
+  expect(screen.getByText('2024')).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: /quarterly/i })).toBeDisabled()
 })
 
 test('shows pick-a-ticker prompt when no symbol', () => {
