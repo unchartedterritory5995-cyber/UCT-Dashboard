@@ -62,15 +62,60 @@ _FLOW_CACHE_HEADERS = {
 _RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
 _RESPONSE_CACHE_MAX = 8
 
+# Manual bump offset for in-place row updates (admin endpoints that mutate
+# Color, Side, source, etc. without changing total row count).
+#
+# Background: _current_version() returns DB row count, which works as a cache
+# key for inserts/deletes (uploads, pruning) but NOT for in-place updates.
+# When cluster_filter / apply_cancel_patches / rebuild_color set Color on
+# existing rows, row count is unchanged, so the version stays the same, so
+# _RESPONSE_CACHE happily serves the pre-update payload forever.
+#
+# Admin mutation endpoints call bump_data_version() after a successful update.
+# That increments this counter, which shifts the version up by 10M (well above
+# any realistic row count growth), guaranteeing a fresh build on next request.
+# Cache is also cleared explicitly so even with the same version offset, the
+# next request rebuilds.
+#
+# Process-local (matches the per-process in-memory cache design). If Railway
+# scales to multi-worker in the future, this would need to move to a shared
+# store (DB metadata table, file mtime, etc.).
+_FORCE_BUMP_OFFSET = 0
+
 
 def _current_version() -> int:
-    """DB row count — used as the cache invalidation key. Matches /version
-    endpoint so client-side and server-side caches invalidate in sync."""
+    """DB row count + manual bump offset — used as the cache invalidation key.
+    Row count handles inserts/deletes (uploads, prune). The bump offset handles
+    in-place updates from admin mutation endpoints. Matches /version endpoint
+    so client-side and server-side caches invalidate in sync."""
     try:
         stats = db.stats()
-        return stats.get("total_rows") or stats.get("count") or stats.get("rows") or 0
+        row_count = stats.get("total_rows") or stats.get("count") or stats.get("rows") or 0
+        return row_count + _FORCE_BUMP_OFFSET * 10_000_000
     except Exception:
-        return 0
+        return _FORCE_BUMP_OFFSET * 10_000_000
+
+
+def bump_data_version() -> int:
+    """Manually bump the data version and clear the in-memory response cache.
+
+    Call this from any admin endpoint that mutates rows in-place without
+    changing row count — e.g. apply-cancel-patches, filter-arb (cluster
+    filter), rebuild-color, ticker-types/backfill, backfill-from-patches.
+
+    Effects:
+      1. Increments _FORCE_BUMP_OFFSET → _current_version() returns a new
+         value → next /api/flow/version call returns the new value → client
+         re-fetches /api/flow/data with the new ?v=N → cache key changes
+         → fresh CSV is built.
+      2. Clears _RESPONSE_CACHE → even concurrent requests with the same
+         version key get a fresh build.
+
+    Returns the new version number (useful for endpoint responses)."""
+    global _FORCE_BUMP_OFFSET
+    _FORCE_BUMP_OFFSET += 1
+    _RESPONSE_CACHE.clear()
+    return _current_version()
 
 
 def _build_gzipped_csv(source: str, days) -> bytes:
@@ -236,6 +281,34 @@ async def get_version():
     except Exception as e:
         return JSONResponse(
             {"version": 0, "error": str(e)},
+            status_code=500,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+
+
+@flow_router.post("/bump-version")
+async def bump_version_endpoint():
+    """Manually bump the data version and clear in-memory response cache.
+
+    Useful when:
+      - You ran an admin mutation that didn't bump automatically
+      - You suspect stale cache and want to force-refresh all clients
+      - Testing / debugging cache behavior
+
+    The next /version call will return the new value, causing clients to
+    re-fetch /data with a new ?v=N (which bypasses both browser and CF
+    edge cache).
+
+    Safe to call repeatedly — idempotent-ish (just bumps the counter)."""
+    try:
+        new_version = bump_data_version()
+        return JSONResponse(
+            {"ok": True, "new_version": new_version},
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"ok": False, "error": str(e)},
             status_code=500,
             headers={"Cache-Control": "no-store, max-age=0"},
         )
