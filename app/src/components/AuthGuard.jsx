@@ -110,6 +110,17 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
+  // Live Flow pages — accessible via direct URL for any logged-in user during
+  // test/validation phase. Not in FREE_PAGES nav (deliberately no sidebar
+  // entry — discovered via URL only). Once test phase is complete and we
+  // wire NavBar links, this can move into FREE_PAGES or admin-only gating.
+  //
+  // /live-massive: TEST page that polls Massive WS via FlowDB
+  // /live-flow:    PRODUCTION page that polls Bullflow SSE (existing)
+  if (location.pathname === '/live-flow' || location.pathname === '/live-massive') {
+    return <Outlet />
+  }
+
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
 
   // isPaid = admin OR pro/premium/lifetime (single source of truth in AuthContext)
