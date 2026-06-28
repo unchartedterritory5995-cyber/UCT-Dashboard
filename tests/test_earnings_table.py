@@ -53,6 +53,20 @@ def test_build_quarterly_takes_last_five_plus_next(monkeypatch, tmp_path):
     assert len(nxt) == 1
     assert nxt[0]["report_date"] == "2026-08-05"
     assert reported[-1]["label"]   # labels are filled, e.g. "2026 Q2"
+    # The next-earnings row's label must be the increment of the last reported
+    # quarter (no duplicate label that collides with a reported one).
+    labels = [r["label"] for r in reported]
+    assert nxt[0]["label"] not in labels
+    assert nxt[0]["label"] == "2027 Q1"   # last reported is 2026 Q4 -> roll to 2027 Q1
+
+
+def test_next_q_label_increment():
+    import api.services.earnings_table as et
+    assert et._next_q_label("2026 Q3") == "2026 Q4"
+    assert et._next_q_label("2026 Q4") == "2027 Q1"
+    assert et._next_q_label("2025 Q1") == "2025 Q2"
+    assert et._next_q_label(None) is None
+    assert et._next_q_label("garbage") is None
 
 
 def test_get_earnings_table_shape(monkeypatch, tmp_path):

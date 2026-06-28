@@ -4,6 +4,7 @@ that collapses to 15 min around a ticker's earnings (the event fast-path)."""
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timezone
 
@@ -20,6 +21,22 @@ _SLOW_TTL = 21_600    # 6 h — normal cadence
 get_annual_financials_fn = get_annual_financials
 
 _Q_LABEL = lambda year, q: f"{year} Q{q}"
+
+
+def _next_q_label(label):
+    """Increment a 'YYYY Qn' fiscal-quarter label by one (Q4 rolls to next-year
+    Q1). Used to label the next (unreported) earnings row in sequence with the
+    reported quarters — avoids the calendar-derived label colliding with an
+    already-reported fiscal quarter (the duplicate '2026 Q3' bug)."""
+    m = re.match(r"(\d{4})\s*Q([1-4])$", str(label or "").strip())
+    if not m:
+        return None
+    y, q = int(m.group(1)), int(m.group(2))
+    q += 1
+    if q > 4:
+        q = 1
+        y += 1
+    return f"{y} Q{q}"
 
 
 def _parse_date(s):
@@ -109,9 +126,15 @@ def _build_quarterly(ticker, now):
         nxt = None
     if nxt and nxt.get("date"):
         nd = _parse_date(nxt["date"])
-        q = (nd.month - 1) // 3 + 1 if nd else None
+        # Label the next row in sequence with the reported quarters (increment of
+        # the last reported fiscal quarter) so it never duplicates a reported
+        # label. Fall back to the calendar quarter only when there's no history.
+        last_label = last5[-1]["label"] if last5 else None
+        next_label = _next_q_label(last_label)
+        if next_label is None and nd:
+            next_label = _Q_LABEL(nd.year, (nd.month - 1) // 3 + 1)
         out.append({
-            "label": _Q_LABEL(nd.year, q) if nd else None,
+            "label": next_label,
             "report_date": nxt["date"],
             "eps_estimate": nxt.get("eps_estimate"),
             "rev_estimate": nxt.get("rev_estimate"),
