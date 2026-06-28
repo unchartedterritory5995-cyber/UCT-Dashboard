@@ -147,6 +147,37 @@ def get_video_poster(video_id: int, _user: dict = Depends(require_paid)):
     return FileResponse(path, media_type="image/png")
 
 
+# ── Per-user timestamped video notes (jot at MM:SS, jump back) ───────────────────
+
+class VideoNoteIn(BaseModel):
+    youtube_id: str
+    t: int = 0          # playhead seconds
+    text: str
+
+
+@router.get("/video-notes")
+def list_video_notes(youtube_id: str, user: dict = Depends(require_paid)):
+    return {"notes": svc.list_video_notes(user["id"], youtube_id)}
+
+
+@router.post("/video-notes")
+def add_video_note(body: VideoNoteIn, user: dict = Depends(require_paid)):
+    yt = extract_youtube_id(body.youtube_id) or (body.youtube_id or "").strip()
+    if not (body.text or "").strip():
+        raise HTTPException(400, "text required")
+    note = svc.create_video_note(user["id"], yt, body.t, body.text)
+    if not note:
+        raise HTTPException(400, "Could not save note")
+    return note
+
+
+@router.delete("/video-notes/{note_id}")
+def remove_video_note(note_id: int, user: dict = Depends(require_paid)):
+    if not svc.delete_video_note(user["id"], note_id):
+        raise HTTPException(404, "Note not found")
+    return {"ok": True}
+
+
 # ── Writes (admin) ─────────────────────────────────────────────────────────────
 
 @router.post("/videos")

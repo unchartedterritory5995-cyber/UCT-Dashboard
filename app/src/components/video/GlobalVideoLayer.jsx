@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from '
 import { useNavigate } from 'react-router-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
-import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos } from './videoStore'
+import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter } from './videoStore'
 import { computeHostStyle } from './hostStyle'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { fmtTime, nextRate } from './playerUtils'
@@ -171,6 +171,16 @@ export default function GlobalVideoLayer() {
     }, 300)
     return () => clearInterval(id)
   }, [active])
+
+  // Expose the live playhead so other surfaces (e.g. "add note at current time")
+  // can read it on demand without re-rendering on every tick.
+  useEffect(() => {
+    registerTimeGetter(() => {
+      const p = playerRef.current
+      return p && p.getCurrentTime ? p.getCurrentTime() : 0
+    })
+    return () => registerTimeGetter(null)
+  }, [])
 
   // Honor seek requests from chapter rows / ticker-moment chips (videoStore.seekTo).
   useEffect(() => {
@@ -456,6 +466,8 @@ export default function GlobalVideoLayer() {
 
       {ended && upNext && (
         <div className={styles.nextCard} role="dialog" aria-label="Next up">
+          <img className={styles.endMark} src={brandMark} alt="" aria-hidden="true" />
+          <div className={styles.endBrand}>UCT INTELLIGENCE</div>
           <div className={styles.nextLabel}>Next up</div>
           <div className={styles.nextTitle}>{upNext.title}</div>
           <button className={styles.nextPlayBtn} onClick={() => storeNext()}>Play now</button>
@@ -464,7 +476,10 @@ export default function GlobalVideoLayer() {
       )}
       {ended && !upNext && (
         <div className={styles.nextCard}>
-          <div className={styles.nextLabel}>End of this section</div>
+          <img className={styles.endMark} src={brandMark} alt="" aria-hidden="true" />
+          <div className={styles.endBrand}>UCT INTELLIGENCE</div>
+          <div className={styles.nextLabel}>That’s a wrap</div>
+          <div className={styles.endTagline}>Navigate the market, effectively.</div>
           <button className={styles.nextPlayBtn} onClick={() => storeClose()}>Close</button>
         </div>
       )}

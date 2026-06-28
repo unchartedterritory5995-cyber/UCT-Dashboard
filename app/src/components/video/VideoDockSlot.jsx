@@ -9,9 +9,10 @@
 // When MINIMIZED (the user parked the player in the corner but is still on the
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
-import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
-import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand, seekTo } from './videoStore'
+import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react'
+import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
+import { useVideoNotes } from '../../hooks/useVideoNotes'
 import TickerPopup from '../TickerPopup'
 import styles from './VideoDockSlot.module.css'
 
@@ -36,6 +37,45 @@ export default function VideoDockSlot() {
   // non-session videos or before generation). Hook runs unconditionally.
   const { chapters, tickerMoments, headline, summary, posterUrl } =
     useVideoInsights(active ? list[index]?.id : null)
+  // Timestamped notes for the now-playing video (keyed by youtube_id).
+  const currentYt = active ? list[index]?.youtube_id : null
+  const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
+  const [draft, setDraft] = useState(null) // { t, text } while composing, else null
+  const [savingNb, setSavingNb] = useState('')
+
+  const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
+  const saveDraft = useCallback(async () => {
+    if (!draft || !draft.text.trim()) { setDraft(null); return }
+    await addNote(draft.t, draft.text)
+    setDraft(null)
+  }, [draft, addNote])
+
+  // Bundle all of a video's notes into a J2 Notebook entry (TipTap doc), with a
+  // timestamp prefix per line. Best-effort; surfaces a tiny status string.
+  const saveToNotebook = useCallback(async () => {
+    if (!notes.length) return
+    const title = (list[index]?.title || 'Video') + ' — Notes'
+    const content = notes.map((n) => ({
+      type: 'paragraph',
+      content: [
+        { type: 'text', marks: [{ type: 'bold' }], text: `[${fmtT(n.t_seconds)}] ` },
+        { type: 'text', text: n.text },
+      ],
+    }))
+    setSavingNb('saving')
+    try {
+      const r = await fetch('/api/j2/notes', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, bodyJson: { type: 'doc', content } }),
+      })
+      setSavingNb(r.ok ? 'saved' : 'error')
+    } catch {
+      setSavingNb('error')
+    }
+    setTimeout(() => setSavingNb(''), 2500)
+  }, [notes, list, index])
 
   const report = useCallback(() => {
     const el = boxRef.current
@@ -160,6 +200,57 @@ export default function VideoDockSlot() {
           </ol>
         </div>
       )}
+
+      {/* My notes — jot a thought at the current timestamp; click to jump back. */}
+      <div className={styles.notesWrap}>
+        <div className={styles.notesHead}>
+          <span className={styles.insHead}>My notes</span>
+          <button className={styles.noteAddBtn} onClick={startNote}>+ Note at {fmtT(getCurrentTime())}</button>
+        </div>
+        {draft && (
+          <div className={styles.noteComposer}>
+            <span className={styles.noteComposerT}>{fmtT(draft.t)}</span>
+            <textarea
+              className={styles.noteInput}
+              autoFocus
+              rows={2}
+              placeholder="What just happened? (saved at this timestamp)"
+              value={draft.text}
+              onChange={(e) => setDraft((d) => ({ ...d, text: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDraft()
+                if (e.key === 'Escape') setDraft(null)
+              }}
+            />
+            <div className={styles.noteComposerBtns}>
+              <button className={styles.noteSaveBtn} onClick={saveDraft}>Save</button>
+              <button className={styles.noteCancelBtn} onClick={() => setDraft(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {notes.length > 0 && (
+          <>
+            <ul className={styles.noteList}>
+              {notes.map((n) => (
+                <li key={n.id} className={styles.noteRow}>
+                  <button className={styles.noteTime} onClick={() => seekTo(n.t_seconds)} title="Jump to this moment">
+                    {fmtT(n.t_seconds)}
+                  </button>
+                  <span className={styles.noteText}>{n.text}</span>
+                  <button className={styles.noteDel} onClick={() => removeNote(n.id)} aria-label="Delete note">×</button>
+                </li>
+              ))}
+            </ul>
+            <button className={styles.notebookBtn} onClick={saveToNotebook} disabled={savingNb === 'saving'}>
+              {savingNb === 'saved' ? '✓ Saved to Notebook'
+                : savingNb === 'error' ? 'Couldn’t save — retry'
+                : savingNb === 'saving' ? 'Saving…'
+                : 'Save notes to Journal Notebook'}
+            </button>
+          </>
+        )}
+      </div>
+
       {upcoming.length > 0 && (
         <div className={styles.upNext}>
           <div className={styles.upNextHead}>Up next in this section</div>

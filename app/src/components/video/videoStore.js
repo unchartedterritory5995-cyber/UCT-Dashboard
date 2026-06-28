@@ -44,6 +44,15 @@ export function seekTo(sec) {
   set({ seekReq: { sec: s, nonce: ++_seekNonce } })
 }
 
+// GlobalVideoLayer registers a getter for the live playhead so other surfaces
+// (e.g. the "add note at current time" button) can read it without re-rendering
+// on every tick. Returns 0 when nothing is playing / not yet registered.
+let _timeGetter = null
+export function registerTimeGetter(fn) { _timeGetter = typeof fn === 'function' ? fn : null }
+export function getCurrentTime() {
+  try { return _timeGetter ? Math.max(0, _timeGetter() || 0) : 0 } catch { return 0 }
+}
+
 export function playIndex(i) {
   if (i < 0 || i >= state.list.length) return
   set({ index: i })

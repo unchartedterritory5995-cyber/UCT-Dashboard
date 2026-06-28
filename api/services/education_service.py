@@ -46,6 +46,17 @@ CREATE TABLE IF NOT EXISTS edu_video_progress (
   updated_at  INTEGER NOT NULL,
   PRIMARY KEY (user_id, youtube_id)
 );
+
+CREATE TABLE IF NOT EXISTS edu_video_notes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     TEXT    NOT NULL,
+  youtube_id  TEXT    NOT NULL,
+  t_seconds   INTEGER NOT NULL DEFAULT 0,    -- playhead the note was taken at
+  text        TEXT    NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_edu_video_notes_user_vid
+  ON edu_video_notes(user_id, youtube_id, t_seconds);
 """
 
 # Fields a client may set (id, created_at, updated_at managed here).
@@ -475,3 +486,50 @@ def videos_pending_insights(max_age_secs: int) -> list[dict]:
             (cutoff,),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# ── Per-user timestamped video notes ─────────────────────────────────────────────
+# Lightweight "jot a thought at MM:SS" notes for any video; click a note to jump
+# back. A separate "send to Notebook" action (frontend) bundles them into a J2 note.
+
+def list_video_notes(user_id: str, youtube_id: str) -> list[dict]:
+    yt = (youtube_id or "").strip()
+    if not user_id or not yt:
+        return []
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, youtube_id, t_seconds, text, created_at
+               FROM edu_video_notes
+               WHERE user_id = ? AND youtube_id = ?
+               ORDER BY t_seconds ASC, id ASC""",
+            (str(user_id), yt),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def create_video_note(user_id: str, youtube_id: str, t_seconds: int, text: str) -> Optional[dict]:
+    yt = (youtube_id or "").strip()
+    body = (text or "").strip()[:2000]
+    if not user_id or not yt or not body:
+        return None
+    now = int(time.time())
+    t = max(0, int(t_seconds or 0))
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            """INSERT INTO edu_video_notes (user_id, youtube_id, t_seconds, text, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (str(user_id), yt, t, body, now),
+        )
+        c.commit()
+        new_id = cur.lastrowid
+    return {"id": new_id, "youtube_id": yt, "t_seconds": t, "text": body, "created_at": now}
+
+
+def delete_video_note(user_id: str, note_id: int) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "DELETE FROM edu_video_notes WHERE id = ? AND user_id = ?",
+            (int(note_id), str(user_id)),
+        )
+        c.commit()
+        return cur.rowcount > 0

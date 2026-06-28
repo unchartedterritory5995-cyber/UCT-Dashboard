@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { subscribe, getSnapshot, hydrateFromServer } from '../../pages/desk/videoProgress'
 import { play as playVideo } from '../video/videoStore'
 import { GraduationIcon, PlayIcon } from '../../pages/education/icons'
+import BrandBadge from '../video/BrandBadge'
 import { buildRail } from './buildRail'
 import styles from './DeskVideoRail.module.css'
 
@@ -48,6 +49,7 @@ export default function DeskVideoRail() {
           >
             <span className={styles.thumbWrap}>
               <img className={styles.thumb} src={thumb(item.video.youtube_id)} alt="" loading="lazy" />
+              <BrandBadge />
               <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
               {item.resume && <span className={styles.resumePill}>Resume</span>}
               {item.pct > 0 && (

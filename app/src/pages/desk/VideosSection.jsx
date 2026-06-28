@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoDockSlot from '../../components/video/VideoDockSlot'
+import BrandBadge from '../../components/video/BrandBadge'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
@@ -250,6 +251,7 @@ export default function VideosSection() {
                   aria-label={`Play ${v.title}`}
                 >
                   <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
+                  <BrandBadge />
                   <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
                   {v.duration && <span className={styles.duration}>{v.duration}</span>}
                   {progress[v.youtube_id]?.done && (

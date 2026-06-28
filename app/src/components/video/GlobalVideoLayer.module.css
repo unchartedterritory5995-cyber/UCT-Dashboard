@@ -255,3 +255,25 @@
     border-radius: 8px;
   }
 }
+
+/* Branded end-card flourish (compass + wordmark + tagline). */
+.endMark {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 10px rgba(201, 168, 76, 0.45));
+}
+.endBrand {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  color: #c9a84c;
+  margin-bottom: 10px;
+}
+.endTagline {
+  font-style: italic;
+  font-size: 13px;
+  color: #d8d2c2;
+  margin: 4px 0 12px;
+}
