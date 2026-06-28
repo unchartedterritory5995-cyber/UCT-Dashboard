@@ -1,39 +1,46 @@
 """
-EOD Color rebuild — recomputes Color for flow rows whose Color was incorrectly
-WHITE because OI was 0 at write time (Phase 1 OI backfill hadn't populated yet).
+EOD Color rebuild — recompute Color per BBS-style conviction rules.
 
-Production Color rules (from massive_ws_worker.py / patches generator):
-  cum_volume_to_date >= 1.5 * OI  -> MAGENTA
-  cum_volume_to_date  >    OI     -> YELLOW
-  otherwise                        -> WHITE (no change)
+BBS official rules (from optionskey.pdf):
+  - WHITE   : Open Interest has not been exceeded
+  - YELLOW  : Open Interest exceeded in a SINGLE trade
+  - PURPLE  : Open Interest exceeded in MULTIPLE trades (cumulative, no single trade)
 
-This pass is needed because:
-  - Production worker writes rows in real time; OI for many contracts is
-    fetched on-demand by oi_fetch_manager which may lag the write by 20+ s.
-  - Rows that landed in FlowDB with OI=0 stay Color=WHITE forever, even if
-    by EOD their OI has been backfilled AND cumulative volume on the
-    contract has long since exceeded OI.
+We use the SAME rule but keep our existing color name mapping
+(MAGENTA = our existing higher-conviction tier, YELLOW = our lower tier):
+  - MAGENTA : MAX(single_trade_volume) for contract > contract_OI
+              (Equivalent to BBS's Yellow — one decisive sweep/block exceeded OI)
+  - YELLOW  : SUM(all_volume) for contract > contract_OI, but no single trade did
+              (Equivalent to BBS's Purple — took multiple trades to exceed OI)
+  - WHITE   : Neither condition met. Contract enters MONITORING state — check
+              tomorrow's OI for position-building over time.
 
-The rebuild walks every row on target_date with Color='WHITE' and OI>0, sorts
-its contract's rows by time, and re-evaluates Color using running cumulative
-volume up to and including that row.
+OI handling:
+  - Production writes flow rows in real time; Phase 1 OI lookup may lag the write
+    by 20+s. Rows that land with OI=0 don't necessarily mean the contract has no
+    OI — it means the lookup hadn't completed yet.
+  - We use MAX(OI) across all rows for a contract as the canonical OI for the
+    evaluation (the value that was true AT MARKET CLOSE, once Phase 1 backfilled).
+  - If MAX(OI) across all rows is 0, we can't evaluate; contract stays WHITE.
 
-Rules:
-  - IDEMPOTENT: only upgrades (WHITE -> YELLOW/MAGENTA). Never downgrades.
-  - Considers all rows on target_date regardless of source ('stocks'/'indexes').
-  - Skips rows where OI <= 0 (no information to evaluate against).
+Idempotent: only upgrades WHITE -> YELLOW/MAGENTA. Never downgrades. Safe to
+re-run any number of times.
 
 Endpoint: POST /api/admin/massive/rebuild-color?target_date=6/26/2026
 
 Returns:
 {
-  "target_date": "6/26/2026",
-  "rows_scanned": <int>,
-  "rows_white_oi_pos": <int>,        # candidates: WHITE color + OI > 0
-  "contracts_evaluated": <int>,
-  "yellow_upgraded": <int>,           # WHITE -> YELLOW
-  "magenta_upgraded": <int>,          # WHITE -> MAGENTA
-  "no_change": <int>                  # candidates that stayed WHITE
+  "target_date": "...",
+  "rows_scanned": int,
+  "contracts_evaluated": int,
+  "contracts_already_classified": int,    # had a single trade > OI at write time
+  "contracts_single_exceeded": int,        # MAX(single trade) > OI
+  "contracts_cum_exceeded": int,           # SUM > OI but no single trade did
+  "contracts_no_exceed": int,              # vol <= OI (MONITORING state)
+  "contracts_no_oi": int,                  # MAX(OI) = 0, can't evaluate
+  "rows_upgraded_to_magenta": int,
+  "rows_upgraded_to_yellow": int,
+  "rows_unchanged_white": int,
 }
 """
 import sqlite3
@@ -43,23 +50,17 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-# Default DB path matches the rest of the project; main.py mounts /data
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-
-# Color upgrade thresholds (production rules)
-MAGENTA_MULTIPLIER = 1.5  # cum >= 1.5 * OI -> MAGENTA
-# YELLOW threshold is implicitly cum > OI (anything between OI and 1.5*OI)
 
 
 def _safe_int(v) -> int:
-    """Parse Volume/OI which are stored as TEXT. Returns 0 on parse failure."""
+    """Parse Volume/OI stored as TEXT. Returns 0 on parse failure."""
     if v is None:
         return 0
     try:
         s = str(v).strip()
         if not s:
             return 0
-        # Strip commas / decimal point handling
         s = s.replace(",", "")
         return int(float(s))
     except (ValueError, TypeError):
@@ -67,35 +68,34 @@ def _safe_int(v) -> int:
 
 
 def _normalize_strike(s) -> str:
-    """Strike is stored as TEXT but written variably ('1300', '1300.0', '1300.5').
-    Normalize to canonical form for grouping by contract."""
+    """Strike stored as TEXT but written variably ('1300', '1300.0', '1300.5').
+    Normalize for grouping by contract."""
     try:
         f = float(s)
         if f == int(f):
             return str(int(f))
-        # Truncate trailing zeros
         return ("%g" % f)
     except (ValueError, TypeError):
         return str(s) if s is not None else ""
 
 
 def run_color_rebuild(target_date: str) -> dict:
-    """Rebuild Color for all candidate rows on target_date.
-
-    target_date: 'M/D/YYYY' format (e.g. '6/26/2026'), matches the
-                 CreatedDate TEXT column format produced by ingestion.
-    """
+    """Rebuild Color for all rows on target_date using BBS conviction rules."""
     if not target_date:
         raise ValueError("target_date is required (format 'M/D/YYYY')")
 
     stats = {
         "target_date": target_date,
         "rows_scanned": 0,
-        "rows_white_oi_pos": 0,
         "contracts_evaluated": 0,
-        "yellow_upgraded": 0,
-        "magenta_upgraded": 0,
-        "no_change": 0,
+        "contracts_already_classified": 0,
+        "contracts_single_exceeded": 0,
+        "contracts_cum_exceeded": 0,
+        "contracts_no_exceed": 0,
+        "contracts_no_oi": 0,
+        "rows_upgraded_to_magenta": 0,
+        "rows_upgraded_to_yellow": 0,
+        "rows_unchanged_white": 0,
     }
 
     conn = sqlite3.connect(DB_PATH, timeout=30)
@@ -104,11 +104,10 @@ def run_color_rebuild(target_date: str) -> dict:
     try:
         cur = conn.cursor()
 
-        # Pull ALL rows for target_date (we need full contract series for cum vol).
-        # Order so we walk contracts contiguously, time-sorted within contract.
+        # Pull all rows for target_date
         cur.execute("""
             SELECT id, Symbol, CallPut, Strike, ExpirationDate,
-                   CreatedTime, Volume, OI, Color
+                   Volume, OI, Color
             FROM flow
             WHERE CreatedDate = ?
         """, (target_date,))
@@ -120,89 +119,102 @@ def run_color_rebuild(target_date: str) -> dict:
         if not rows:
             return stats
 
-        # Group by contract: (Symbol, CallPut, normalized Strike, ExpirationDate)
-        # For each contract, sort by CreatedTime ascending and compute running cum.
-        # IMPORTANT: We use the MAX(OI) seen across the contract's rows as the
-        # canonical OI for evaluation, not the row's own OI. This is because
-        # production writes flow rows in real time and the on-demand OI lookup
-        # (Phase 1) takes 20+s to populate. Early rows for a contract may have
-        # OI=0 stored, while later rows for the SAME contract have the real OI.
-        # Using the MAX value ensures we evaluate against the true contract OI.
-        by_contract = defaultdict(list)
-        contract_oi_max = defaultdict(int)
+        # Build per-contract summaries:
+        #   - all_rows[key]: list of (id, vol, color)
+        #   - oi_max[key]:   max OI seen across the contract's rows (handles Phase 1 lag)
+        #   - vol_max[key]:  max single-trade volume on the contract
+        #   - vol_sum[key]:  cumulative volume across all trades
+        all_rows = defaultdict(list)
+        oi_max = defaultdict(int)
+        vol_max = defaultdict(int)
+        vol_sum = defaultdict(int)
+
         for r in rows:
-            (rid, sym, cp, strike, exp, t, vol_s, oi_s, color) = r
+            (rid, sym, cp, strike, exp, vol_s, oi_s, color) = r
             key = (sym, cp, _normalize_strike(strike), exp)
-            row_oi = _safe_int(oi_s)
-            by_contract[key].append({
-                "id": rid,
-                "time": t or "",
-                "volume": _safe_int(vol_s),
-                "row_oi": row_oi,
-                "color": (color or "WHITE").upper(),
-            })
-            if row_oi > contract_oi_max[key]:
-                contract_oi_max[key] = row_oi
+            vol = _safe_int(vol_s)
+            oi = _safe_int(oi_s)
+            current_color = (color or "WHITE").upper()
+            all_rows[key].append({"id": rid, "vol": vol, "color": current_color})
+            if oi > oi_max[key]:
+                oi_max[key] = oi
+            if vol > vol_max[key]:
+                vol_max[key] = vol
+            vol_sum[key] += vol
 
-        stats["contracts_evaluated"] = len(by_contract)
-        logger.info(f"[color_rebuild] {len(by_contract):,} unique contracts")
+        stats["contracts_evaluated"] = len(all_rows)
+        logger.info(f"[color_rebuild] {len(all_rows):,} unique contracts evaluated")
 
-        # Compute upgrades — collect (id, new_color) tuples
-        yellow_updates = []   # list of row ids -> YELLOW
-        magenta_updates = []  # list of row ids -> MAGENTA
+        # Decide target color per contract using BBS-aligned rules.
+        # OUR mapping (keeps our existing higher-conviction = MAGENTA):
+        #   MAGENTA if MAX(single trade volume) > OI  (BBS calls this Yellow)
+        #   YELLOW  if SUM(volumes) > OI and not MAGENTA  (BBS calls this Purple)
+        #   WHITE   otherwise (contract is in MONITORING state)
+        contract_target = {}
+        for key in all_rows:
+            oi = oi_max[key]
+            if oi <= 0:
+                contract_target[key] = None
+                stats["contracts_no_oi"] += 1
+                continue
+            if vol_max[key] > oi:
+                contract_target[key] = "MAGENTA"
+                stats["contracts_single_exceeded"] += 1
+            elif vol_sum[key] > oi:
+                contract_target[key] = "YELLOW"
+                stats["contracts_cum_exceeded"] += 1
+            else:
+                contract_target[key] = None
+                stats["contracts_no_exceed"] += 1
 
-        for contract_key, entries in by_contract.items():
-            # Sort by CreatedTime — TEXT format like "3:47:22 PM" needs proper parse
-            entries.sort(key=lambda e: _time_key(e["time"]))
-            # Canonical OI for this contract (max across all rows; handles the
-            # OI=0-at-write-time case where Phase 1 later backfilled)
-            contract_oi = contract_oi_max[contract_key]
-
-            cum = 0
+        # Apply: for each contract that should be classified, upgrade its WHITE
+        # rows to the target color. Skip rows that already have a color
+        # (we only ever upgrade WHITE; never overwrite a prior YELLOW/MAGENTA).
+        magenta_ids = []
+        yellow_ids = []
+        for key, entries in all_rows.items():
+            target = contract_target[key]
+            if target is None:
+                # Contract stays in MONITORING / unevaluable
+                for e in entries:
+                    if e["color"] == "WHITE":
+                        stats["rows_unchanged_white"] += 1
+                continue
+            # Contract has a known classification.
+            contract_has_prior_color = any(e["color"] != "WHITE" for e in entries)
+            if contract_has_prior_color:
+                stats["contracts_already_classified"] += 1
             for e in entries:
-                cum += max(0, e["volume"])
-                # Only consider upgrading rows that are currently WHITE
-                if e["color"] != "WHITE":
-                    continue
-                if contract_oi <= 0:
-                    continue
-                stats["rows_white_oi_pos"] += 1
+                if e["color"] == "WHITE":
+                    if target == "MAGENTA":
+                        magenta_ids.append(e["id"])
+                    elif target == "YELLOW":
+                        yellow_ids.append(e["id"])
 
-                if cum >= MAGENTA_MULTIPLIER * contract_oi:
-                    magenta_updates.append(e["id"])
-                elif cum > contract_oi:
-                    yellow_updates.append(e["id"])
-                else:
-                    stats["no_change"] += 1
-
-        # Apply updates in batches
-        if yellow_updates:
-            cur.executemany(
-                "UPDATE flow SET Color = 'YELLOW' WHERE id = ? AND Color = 'WHITE'",
-                [(rid,) for rid in yellow_updates]
-            )
-            stats["yellow_upgraded"] = cur.rowcount if cur.rowcount >= 0 else len(yellow_updates)
-
-        if magenta_updates:
+        if magenta_ids:
             cur.executemany(
                 "UPDATE flow SET Color = 'MAGENTA' WHERE id = ? AND Color = 'WHITE'",
-                [(rid,) for rid in magenta_updates]
+                [(rid,) for rid in magenta_ids]
             )
-            stats["magenta_upgraded"] = cur.rowcount if cur.rowcount >= 0 else len(magenta_updates)
+            stats["rows_upgraded_to_magenta"] = len(magenta_ids)
+
+        if yellow_ids:
+            cur.executemany(
+                "UPDATE flow SET Color = 'YELLOW' WHERE id = ? AND Color = 'WHITE'",
+                [(rid,) for rid in yellow_ids]
+            )
+            stats["rows_upgraded_to_yellow"] = len(yellow_ids)
 
         conn.commit()
-        # Re-query for accurate counts (executemany rowcount can be -1 on some sqlite builds)
-        stats["yellow_upgraded"] = len(yellow_updates)
-        stats["magenta_upgraded"] = len(magenta_updates)
-
         logger.info(
-            f"[color_rebuild] done: WHITE candidates={stats['rows_white_oi_pos']:,} "
-            f"-> YELLOW={stats['yellow_upgraded']:,}, MAGENTA={stats['magenta_upgraded']:,}, "
-            f"unchanged={stats['no_change']:,}"
+            f"[color_rebuild] done: "
+            f"upgraded MAGENTA={stats['rows_upgraded_to_magenta']:,}, "
+            f"YELLOW={stats['rows_upgraded_to_yellow']:,}, "
+            f"unchanged WHITE={stats['rows_unchanged_white']:,}"
         )
         return stats
 
-    except Exception as e:
+    except Exception:
         conn.rollback()
         logger.exception("[color_rebuild] failed")
         raise
@@ -210,39 +222,11 @@ def run_color_rebuild(target_date: str) -> dict:
         conn.close()
 
 
-def _time_key(t: str):
-    """Convert '3:47:22 PM' to a sortable tuple. Robust to empty / malformed."""
-    t = (t or "").strip().upper()
-    if not t:
-        return (0, 0, 0)
-    try:
-        # Format: 'H:MM:SS AM/PM' or 'HH:MM:SS AM/PM'
-        is_pm = t.endswith("PM")
-        is_am = t.endswith("AM")
-        if is_pm or is_am:
-            t = t[:-2].strip()
-        parts = t.split(":")
-        if len(parts) < 3:
-            return (0, 0, 0)
-        h = int(parts[0])
-        m = int(parts[1])
-        s = int(parts[2])
-        if is_pm and h != 12:
-            h += 12
-        elif is_am and h == 12:
-            h = 0
-        return (h, m, s)
-    except (ValueError, IndexError):
-        return (0, 0, 0)
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    import sys
-    import json
+    import sys, json
     target = sys.argv[1] if len(sys.argv) > 1 else None
     if not target:
         print("Usage: python color_rebuild.py 6/26/2026")
         sys.exit(1)
-    result = run_color_rebuild(target)
-    print(json.dumps(result, indent=2))
+    print(json.dumps(run_color_rebuild(target), indent=2))
