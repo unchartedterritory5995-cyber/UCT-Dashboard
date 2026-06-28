@@ -479,3 +479,71 @@ def diagnostic(target_date: str = Query(default=None)):
         "by_grade": grade_counts,
         "by_color": color_counts,
     }
+
+
+# ─── Current quotes endpoint (for P/L column) ─────────────────────────────
+# Frontend polls this every 30s with the unique tickers visible on the page.
+# Server uses the same Schwab quote service liveflow_worker uses, with a
+# 2-min TTL cache (so two pages polling the same tickers don't double-hit
+# Schwab). Returns a dict of ticker → current spot price.
+
+from pydantic import BaseModel
+
+# Reuse liveflow_worker's spot cache — same TTL, same source of truth.
+# Avoids duplicate Schwab calls from /live-flow + /live-massive both polling.
+_SPOT_CACHE_TTL = 120  # 2 min; matches liveflow_worker
+_quote_cache: dict = {}  # ticker → (price, cached_at_unix)
+
+
+class CurrentQuotesPayload(BaseModel):
+    tickers: list[str] = []
+
+
+async def _fetch_one_quote(ticker: str) -> float | None:
+    """Single ticker quote with 2-min cache. Lazy import of schwab_service
+    so we don't pull it on cold start when this endpoint isn't used."""
+    if not ticker or ticker.startswith("$") or "." in ticker:
+        return None
+    now = time.time()
+    cached = _quote_cache.get(ticker)
+    if cached and (now - cached[1]) < _SPOT_CACHE_TTL:
+        return cached[0]
+    try:
+        from api import schwab_service
+        price = await schwab_service.get_equity_quote(ticker)
+        if price:
+            _quote_cache[ticker] = (float(price), now)
+            return float(price)
+    except Exception:
+        # Quote unavailable for this ticker — likely index/unusual symbol or
+        # rate-limited. Returning None lets the frontend show "—" in P/L.
+        pass
+    return None
+
+
+@router.post("/current-quotes")
+async def current_quotes(payload: CurrentQuotesPayload):
+    """
+    Batch fetch current spot prices for a list of tickers. Used by the
+    frontend to compute P/L from alert spot → current spot. Polls less
+    frequently than /recent (spot moves slower than alert flow).
+
+    Body: {"tickers": ["MSFT", "MU", "NVDA", ...]}
+    Returns: {"quotes": {"MSFT": 388.50, "MU": 105.20, "NVDA": null}, "fetched_at": <unix>}
+    """
+    import asyncio
+    tickers = list(dict.fromkeys(payload.tickers or []))  # dedup, preserve order
+    if not tickers:
+        return {"quotes": {}, "fetched_at": time.time()}
+
+    # Cap to avoid abuse / huge bursts. 200 tickers per call is plenty
+    # (the live page maxes at 200 alerts which is typically <100 uniques).
+    tickers = tickers[:200]
+
+    # Fire all lookups concurrently. Schwab service handles its own rate
+    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
+    results = await asyncio.gather(
+        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
+    )
+    quotes = {t: p for t, p in zip(tickers, results) if p is not None}
+    return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
