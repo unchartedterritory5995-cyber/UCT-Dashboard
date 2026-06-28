@@ -2716,6 +2716,38 @@ async def _massive_backfill_ticktest(target_date: str = None):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/rollback-gap-fill")
+async def _massive_rollback_gap_fill(source: str = "indexes",
+                                      target_date: str = "6/26/2026"):
+    """Roll back rows previously inserted by /apply-gap-fill.
+
+    Targets rows with the gap-fill fingerprint: empty enrichment fields
+    (Spot=0, MktCap=0, Sector empty, OI=0). Worker writes always have at
+    least some enrichment populated, so the fingerprint cleanly identifies
+    gap-fill inserts without touching worker rows.
+
+    Use when offline aggregation produced different bucket boundaries than
+    the worker (especially on ultra-high-frequency contracts like SPX/SPXW
+    where aggregation timing can split a burst into different-sized events).
+
+    source: stocks or indexes
+    target_date: M/D/YYYY
+    """
+    try:
+        from api.rollback_gap_fill import run_rollback_gap_fill
+        stats = run_rollback_gap_fill(source, target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/admin/massive/apply-gap-fill")
 async def _massive_apply_gap_fill(fill_file: str = "fill-6-26-stocks.csv",
                                    source: str = "stocks"):
