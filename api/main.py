@@ -2751,6 +2751,11 @@ async def _massive_apply_cancel_patches(patches_file: str = "patches-6-26-cancel
                     "tip": "Commit the patches JSON to api/ directory"}
         from api.apply_cancel_patches import run_apply_cancel_patches
         stats = run_apply_cancel_patches(full_path, target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
@@ -2789,6 +2794,11 @@ async def _massive_backfill_from_patches(patches_file: str = "patches-6-25.json"
                     "tip": "Commit the patches JSON to api/ directory in your repo"}
         from api.backfill_from_patches import run_patches_backfill
         stats = run_patches_backfill(full_path, target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
@@ -2819,6 +2829,11 @@ async def _massive_rebuild_color(target_date: str = "6/26/2026"):
     try:
         from api.color_rebuild import run_color_rebuild
         stats = run_color_rebuild(target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
@@ -2855,6 +2870,11 @@ async def _massive_filter_arb(target_date: str = "6/26/2026"):
     try:
         from api.cluster_filter import run_cluster_filter
         stats = run_cluster_filter(target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
@@ -3136,6 +3156,11 @@ async def _ticker_types_backfill(target_date: str = None):
     try:
         from api.ticker_types import backfill_flow_source
         stats = backfill_flow_source(target_date=target_date)
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
         return {"ok": True, "stats": stats}
     except Exception as e:
         import traceback
