@@ -85,6 +85,7 @@ def test_build_quarterly_four_forward_from_fmp(monkeypatch, tmp_path):
             {"date": "2027-09-30", "epsAvg": 1.00, "revenueAvg": 1.5e9},   # 5th → capped
         ]
 
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")  # opt into the FMP depth path
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
     monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
     import calendar, time
@@ -113,11 +114,12 @@ def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
                 for q in (1, 2, 3, 4)]
 
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
-    # FMP empty (long-tail name) → yfinance backstop supplies the 2 near quarters.
-    monkeypatch.setattr(etmod.ee, "_fmp_get", lambda *a, **k: None)
+    # FMP analyst-estimates gated off (default) → yfinance backstop supplies 2.
     monkeypatch.setattr(etmod, "_yf_forward_quarters",
                         lambda t, limit: [{"date": None, "eps_estimate": 0.60, "rev_estimate": 1.1e9},
                                           {"date": None, "eps_estimate": 0.70, "rev_estimate": 1.2e9}])
+    # stable/earnings supplies the nearest quarter's real report date.
+    monkeypatch.setattr(etmod, "_next_report_date", lambda t: "2026-08-01")
     import calendar, time
     now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
     q = et._build_quarterly("ZZY", now)
@@ -125,7 +127,24 @@ def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
     assert len(nxt) == 2                                  # yfinance gives 2 near quarters
     assert [r["label"] for r in nxt] == ["2027 Q1", "2027 Q2"]
     assert nxt[0]["eps_estimate"] == 0.60
-    assert nxt[0]["report_date"] is None                 # Yahoo gives no report date
+    assert nxt[0]["report_date"] == "2026-08-01"          # nearest quarter stamped with real date
+    assert nxt[1]["report_date"] is None                  # only the nearest gets a date
+
+
+def test_fmp_analyst_estimates_gated_off_by_default(monkeypatch, tmp_path):
+    # With the env flag unset, the FMP analyst-estimates call is skipped entirely
+    # (no wasted round-trip) even if the endpoint would return data.
+    et = _mod(monkeypatch, tmp_path)
+    import api.services.earnings_table as etmod
+    called = {"n": 0}
+
+    def fake_fmp(path, params, timeout=10):
+        called["n"] += 1
+        return [{"date": "2099-09-30", "epsAvg": 1.0, "revenueAvg": 1.0e9}]
+
+    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    assert etmod._fmp_forward_quarters("ZZG", 4) == []
+    assert called["n"] == 0                                # no HTTP call made
 
 
 def test_zero_revenue_estimate_normalized_to_missing(monkeypatch, tmp_path):
@@ -137,6 +156,7 @@ def test_zero_revenue_estimate_normalized_to_missing(monkeypatch, tmp_path):
     def fake_fmp(path, params, timeout=10):
         return [{"date": "2099-09-30", "epsAvg": 0.76, "revenueAvg": 0}]
 
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
     monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
     rows = etmod._fmp_forward_quarters("ZZ0", 4)
     assert rows == [{"date": "2099-09-30", "eps_estimate": 0.76, "rev_estimate": None}]

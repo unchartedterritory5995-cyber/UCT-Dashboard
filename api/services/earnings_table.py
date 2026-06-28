@@ -4,6 +4,7 @@ that collapses to 15 min around a ticker's earnings (the event fast-path)."""
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -118,8 +119,15 @@ def _rev(v):
 def _fmp_forward_quarters(ticker, limit):
     """Up to `limit` upcoming quarters of analyst consensus (EPS + revenue) from
     FMP stable/analyst-estimates (period=quarter). Returns chronological
-    [{date, eps_estimate, rev_estimate}] for periods ending today-or-later; []
-    when the endpoint is unavailable on the plan (falls back to Finnhub next)."""
+    [{date, eps_estimate, rev_estimate}] for periods ending today-or-later.
+
+    GATED OFF by default: this endpoint returns nothing on the current FMP plan
+    (verified 2026-06-28 — yfinance backstop carries forward quarters), so the
+    call is a wasted round-trip on every load. Flip `FUNDAMENTALS_FMP_ANALYST_
+    ESTIMATES=1` to re-enable instantly if the plan is ever upgraded — the
+    4-quarter depth path then lights up with zero code changes."""
+    if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
+        return []
     data = ee._fmp_get("/stable/analyst-estimates",
                        {"symbol": ticker, "period": "quarter", "limit": 40})
     if not isinstance(data, list):
@@ -181,17 +189,52 @@ def _yf_forward_quarters(ticker, limit):
     return out[:limit]
 
 
+def _next_report_date(ticker):
+    """The next scheduled earnings report date. FMP stable/earnings carries the
+    upcoming report as a future row (epsActual null) with a real date and is on
+    the current plan — use its earliest future date; fall back to the Finnhub
+    calendar. Used to stamp a real date onto the nearest forward quarter when
+    the estimate source (yfinance) supplies none."""
+    try:
+        data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+        if isinstance(data, list):
+            from datetime import date
+            today = date.today().isoformat()
+            futures = sorted(
+                str(r.get("date") or "")[:10] for r in data
+                if r.get("epsActual") is None and r.get("revenueActual") is None
+                and str(r.get("date") or "")[:10] >= today
+            )
+            if futures:
+                return futures[0]
+    except Exception:
+        pass
+    try:
+        nxt = _next_earnings(ticker)
+        return nxt.get("date") if nxt else None
+    except Exception:
+        return None
+
+
 def _forward_quarters(ticker, limit):
     """Forward-estimate quarters for the strip, coverage-maximizing chain:
-    FMP analyst-estimates (depth, large caps) → yfinance (broad backstop, 2 near
-    quarters) → single Finnhub next-earnings event. First non-empty wins."""
+    FMP analyst-estimates (depth, gated off on current plan) → yfinance (broad
+    backstop, 2 near quarters) → single Finnhub next-earnings event. First
+    non-empty wins; the nearest quarter gets a real report date when missing."""
+    rows = []
     for src in (_fmp_forward_quarters, _yf_forward_quarters):
         try:
             rows = src(ticker, limit)
         except Exception:
             rows = []
         if rows:
-            return rows[:limit]
+            break
+    if rows:
+        if not rows[0].get("date"):
+            d = _next_report_date(ticker)
+            if d:
+                rows[0] = {**rows[0], "date": d}
+        return rows[:limit]
     try:
         nxt = _next_earnings(ticker)
     except Exception:
