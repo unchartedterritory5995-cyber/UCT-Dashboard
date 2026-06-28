@@ -547,3 +547,179 @@ async def current_quotes(payload: CurrentQuotesPayload):
     )
     quotes = {t: p for t, p in zip(tickers, results) if p is not None}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
+
+
+# ─── Day stats endpoint (for Market Read hero card) ────────────────────────
+# Returns aggregated bull/bear stats for ALL classifiable Y/M rows on the
+# target date, independent of any pagination/grade/tier filters. The frontend
+# uses this for the hero card so the macro Market Read is stable regardless
+# of the user's filter selections (a chip toggle shouldn't change what "the
+# market looks like today" — only what THEY are looking at).
+
+_day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
+_DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
+
+
+def _build_day_stats(today: str) -> dict:
+    """Compute aggregate stats for all Y/M classifiable stocks rows on `today`.
+    Heavy SQL + Python pass over potentially 5K-10K rows; cache the result
+    via the wrapper endpoint so repeated polls within 30s don't re-process."""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("""
+            SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                   Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                   Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Color IN ('MAGENTA', 'YELLOW')
+        """, (today,))
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    # Translate each row to an alert (includes direction + dte + ticker)
+    classified = []
+    for r in rows:
+        a = _row_to_alert(dict(r))
+        if a is not None:
+            classified.append(a)
+
+    # Aggregate everything in one pass
+    bull_prem = 0
+    bear_prem = 0
+    bull_count = 0
+    bear_count = 0
+    by_ticker = {}              # ticker → {bull, bear}
+    dte_buckets = {
+        "0-7":   {"label": "0-7d",   "bull": 0, "bear": 0, "count": 0},
+        "7-14":  {"label": "7-14d",  "bull": 0, "bear": 0, "count": 0},
+        "14-60": {"label": "14-60d", "bull": 0, "bear": 0, "count": 0},
+        "60+":   {"label": "60+d",   "bull": 0, "bear": 0, "count": 0},
+    }
+
+    # Last-hour window resolution differs by mode:
+    #   • If target_date == today (ET): rolling 60 min ending NOW (real-time)
+    #   • If target_date is historical: last hour of trading activity on that
+    #     date (max(timestamp) - 3600). Otherwise historical pages always
+    #     show "no alerts in last 60 minutes" which is useless.
+    now_et = datetime.now(ET)
+    try:
+        m, d, y = today.split("/")
+        target_date_obj = datetime(int(y), int(m), int(d)).date()
+    except (ValueError, AttributeError):
+        target_date_obj = None
+    is_today = (target_date_obj == now_et.date()) if target_date_obj else False
+
+    if is_today:
+        one_hour_threshold = time.time() - 3600
+    elif classified:
+        max_ts = max((a["timestamp"] for a in classified if a.get("timestamp")), default=0)
+        one_hour_threshold = max_ts - 3600 if max_ts > 0 else 0
+    else:
+        one_hour_threshold = 0
+
+    bull_prem_1h = 0
+    bear_prem_1h = 0
+    count_1h = 0
+
+    for a in classified:
+        prem = a["alertPremium"] or 0
+        direction = a.get("_direction")
+        is_bull = direction == "Bull"
+        is_bear = direction == "Bear"
+        if not (is_bull or is_bear):
+            continue
+
+        if is_bull:
+            bull_prem += prem
+            bull_count += 1
+        else:
+            bear_prem += prem
+            bear_count += 1
+
+        # Last hour
+        ts = a.get("timestamp") or 0
+        if one_hour_threshold > 0 and ts >= one_hour_threshold:
+            count_1h += 1
+            if is_bull:
+                bull_prem_1h += prem
+            else:
+                bear_prem_1h += prem
+
+        # Per-ticker rollup
+        t = a.get("ticker")
+        if t:
+            if t not in by_ticker:
+                by_ticker[t] = {"bull": 0, "bear": 0}
+            if is_bull:
+                by_ticker[t]["bull"] += prem
+            else:
+                by_ticker[t]["bear"] += prem
+
+        # DTE bucket
+        dte = a.get("dte") if a.get("dte") is not None else 999
+        if dte <= 7:
+            bucket = "0-7"
+        elif dte <= 14:
+            bucket = "7-14"
+        elif dte <= 60:
+            bucket = "14-60"
+        else:
+            bucket = "60+"
+        if is_bull:
+            dte_buckets[bucket]["bull"] += prem
+        else:
+            dte_buckets[bucket]["bear"] += prem
+        dte_buckets[bucket]["count"] += 1
+
+    # Top tickers by direction (top 5 each; frontend will trim if needed)
+    top_bull = sorted(
+        [{"ticker": t, "premium": v["bull"]} for t, v in by_ticker.items() if v["bull"] > 0],
+        key=lambda x: x["premium"], reverse=True,
+    )[:5]
+    top_bear = sorted(
+        [{"ticker": t, "premium": v["bear"]} for t, v in by_ticker.items() if v["bear"] > 0],
+        key=lambda x: x["premium"], reverse=True,
+    )[:5]
+
+    return {
+        "query_date": today,
+        "total_classified": len(classified),
+        "bull_premium": bull_prem,
+        "bear_premium": bear_prem,
+        "bull_count": bull_count,
+        "bear_count": bear_count,
+        "by_dte": list(dte_buckets.values()),  # ordered list for stable frontend rendering
+        "top_bull": top_bull,
+        "top_bear": top_bear,
+        "last_hour": {
+            "bull_premium": bull_prem_1h,
+            "bear_premium": bear_prem_1h,
+            "count": count_1h,
+            "is_today_target": is_today,
+        },
+    }
+
+
+@router.get("/day-stats")
+def day_stats(target_date: str = Query(default=None)):
+    """
+    Aggregated bull/bear stats for ALL classifiable Y/M stocks rows on the
+    target date. Independent of filters — gives the page's Market Read a
+    stable macro view that doesn't shift when user toggles tier chips or
+    min-grade selector.
+
+    Cached for 30s server-side per date. Historical dates never change so
+    cache hit rate is near-100% after first request.
+    """
+    today = target_date or _today_mdyyyy()
+    now = time.time()
+    cached = _day_stats_cache.get(today)
+    if cached and (now - cached[0]) < _DAY_STATS_TTL:
+        return cached[1]
+    payload = _build_day_stats(today)
+    _day_stats_cache[today] = (now, payload)
+    return payload
