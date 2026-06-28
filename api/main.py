@@ -88,6 +88,7 @@ from api.flow_summary import flow_summary_router
 from api.oi_snapshot_router import router as oi_snapshot_router
 from api.notable_flow_router import router as notable_flow_router
 from api.liveflow_router import router as liveflow_router
+from api.live_massive_router import router as live_massive_router
 from api.bullflow_mcp_probe import router as bullflow_mcp_probe_router
 from api.alert_tester import router as alert_tester_router
 from api.csv_ingest import router as csv_ingest_router
@@ -2508,6 +2509,7 @@ app.include_router(flow_summary_router)
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
+app.include_router(live_massive_router)
 app.include_router(bullflow_mcp_probe_router)
 app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
