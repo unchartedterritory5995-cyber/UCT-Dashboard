@@ -65,6 +65,7 @@ export default function GlobalVideoLayer() {
   const [prog, setProg] = useState({ t: 0, d: 0 })
   const [rate, setRate] = useState(1)
   const [muted, setMuted] = useState(false)
+  const [volume, setVolume] = useState(100)   // 0-100, YouTube scale
   const [cc, setCc] = useState(false)
   const [isFs, setIsFs] = useState(false)
   const [dragPos, setDragPos] = useState(null)
@@ -102,6 +103,13 @@ export default function GlobalVideoLayer() {
         start: resumeSeconds(startId) || undefined,
       },
       events: {
+        onReady: (e) => {
+          try {
+            const v = e.target.getVolume?.()
+            if (typeof v === 'number') setVolume(v)
+            setMuted(!!e.target.isMuted?.())
+          } catch { /* ignore */ }
+        },
         onStateChange: (e) => {
           if (e.data === 0) {
             markWatched(curIdRef.current)
@@ -298,6 +306,23 @@ export default function GlobalVideoLayer() {
     try { (muted ? p.unMute : p.mute).call(p) } catch { /* ignore */ }
     setMuted(!muted)
   }
+  // Set the player volume (0-100). Crossing 0 toggles mute so the icon + state
+  // stay coherent. Used by the slider AND the scroll-wheel handler.
+  const applyVolume = (v) => {
+    const nv = Math.round(Math.max(0, Math.min(100, v)))
+    const p = player()
+    try {
+      p?.setVolume?.(nv)
+      if (nv === 0) { p?.mute?.(); setMuted(true) }
+      else { p?.unMute?.(); setMuted(false) }
+    } catch { /* ignore */ }
+    setVolume(nv)
+  }
+  // Scroll up/down over the volume control to change volume (like YouTube).
+  const onVolWheel = (e) => {
+    e.preventDefault()
+    applyVolume((muted ? 0 : volume) + (e.deltaY < 0 ? 5 : -5))
+  }
   // Captions via the IFrame API. The module is named 'captions' on some videos
   // and 'cc' on others, so we drive both and pick the first available track —
   // the closest we can get to "captions always work" from a custom control set.
@@ -388,7 +413,7 @@ export default function GlobalVideoLayer() {
 
       {/* Top bar — UCT brand + title. Doubles as the drag handle in mini. */}
       <div
-        className={styles.topbar}
+        className={`${styles.topbar} ${docked ? styles.topbarCenter : ''}`}
         onPointerDown={mode === 'mini' ? startDrag : undefined}
         style={mode === 'mini' ? { cursor: 'grab' } : undefined}
       >
@@ -434,9 +459,24 @@ export default function GlobalVideoLayer() {
             </button>
           )}
           {docked && (
-            <button className={styles.cbtn} onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
-              {muted ? <MuteIcon /> : <VolumeIcon />}
-            </button>
+            <div className={styles.volWrap} onWheel={onVolWheel}>
+              <button className={styles.cbtn} onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+                {muted || volume === 0 ? <MuteIcon /> : <VolumeIcon />}
+              </button>
+              <div className={styles.volPop}>
+                <input
+                  className={styles.volSlider}
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={muted ? 0 : volume}
+                  onChange={(e) => applyVolume(Number(e.target.value))}
+                  aria-label="Volume"
+                  title="Scroll or drag to change volume"
+                />
+              </div>
+            </div>
           )}
           {docked && canPip && !pipOn && (
             <button className={styles.cbtn} onClick={popOut} aria-label="Pop out to a window">

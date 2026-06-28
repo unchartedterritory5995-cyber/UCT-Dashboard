@@ -53,6 +53,13 @@
   transition: opacity 0.18s ease;
   user-select: none;
 }
+/* Docked: center the brand + title cluster across the top bar. */
+.topbarCenter {
+  justify-content: center;
+}
+.topbarCenter .topTitle {
+  flex: 0 1 auto;
+}
 .brand {
   width: 18px;
   height: 18px;
@@ -276,4 +283,42 @@
   font-size: 13px;
   color: #d8d2c2;
   margin: 4px 0 12px;
+}
+
+/* ── Volume control: icon + hover-reveal vertical slider; scroll to adjust ── */
+.volWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.volPop {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%) scaleY(0.6);
+  transform-origin: bottom center;
+  background: rgba(8, 9, 8, 0.95);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 8px;
+  padding: 10px 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 5;
+}
+.volWrap:hover .volPop,
+.volWrap:focus-within .volPop {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) scaleY(1);
+}
+/* Vertical range: 0 at bottom → 100 at top, gold fill. */
+.volSlider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 6px;
+  height: 84px;
+  accent-color: #c9a84c;
+  cursor: pointer;
+  margin: 0;
 }

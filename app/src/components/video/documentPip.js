@@ -38,12 +38,21 @@ export async function openPip({ videoId, startSeconds = 0, width = 440, height =
   mount.style.cssText = 'width:100%;height:100vh;'
   b.appendChild(mount)
   const player = new window.YT.Player(mount, {
+    // The Document-PiP window is an `about:blank` document, so a YouTube embed
+    // mounted in it sends no valid referrer → YouTube rejects with Error 153
+    // ("video player configuration error"). Declaring origin + widget_referrer
+    // (our real https origin) gives the embed a valid identity regardless of the
+    // blank host document, which clears 153 + the embed-restriction check.
+    host: 'https://www.youtube.com',
     videoId,
     playerVars: {
       rel: 0,
       modestbranding: 1,
       playsinline: 1,
       autoplay: 1,
+      enablejsapi: 1,
+      origin: window.location.origin,
+      widget_referrer: window.location.href,
       start: Math.floor(startSeconds) || undefined,
     },
   })
