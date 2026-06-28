@@ -227,6 +227,44 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     return age > 30 * 3600
 
 
+# ── Deep-history request handling ────────────────────────────────────────────
+# The frontend paints a shallow window first (FIRST_PAINT_BARS = 600) for an
+# instant chart, then — when the user pans toward the oldest loaded bar —
+# re-requests the full depth (fullBarsFor, thousands of bars). We treat any
+# request above this threshold as a "give me everything available" backfill:
+#   • D/W/M → pull the yfinance pre-2003 IPO tail (Massive/Polygon's daily floor
+#     is 2003-09-10), merged under Massive's recent history (deep=True path).
+#   • intraday → the per-TF lookback ceiling already widens with max_bars.
+# 600 first-paint < 1200 < any backfill target, so this cleanly separates the
+# two request classes.
+_DEEP_REQUEST_THRESHOLD = 1200
+
+
+def _is_deep_request(bars: int) -> bool:
+    return bars >= _DEEP_REQUEST_THRESHOLD
+
+
+def _mark_history_complete(ticker: str, tf: str) -> None:
+    """Record that a full-history (deep) fetch has populated SQLite for this
+    (ticker, tf). Without this, a deep backfill whose requested count exceeds
+    the stock's actual available bar count (e.g. asking 20000 daily bars for a
+    name with only 6800 to its IPO) would fail the ``len >= bars*0.9`` cache
+    gate on EVERY poll and re-trigger a full yfinance/Massive fetch forever.
+    The marker says "this is all there is — serve it, only delta from here."
+    6h TTL so a long-open chart refreshes the full pull at most once per 6h."""
+    try:
+        cache.set(f"histfull_{ticker}_{tf}", True, ttl=21600)
+    except Exception:
+        pass
+
+
+def _history_complete(ticker: str, tf: str) -> bool:
+    try:
+        return cache.get(f"histfull_{ticker}_{tf}") is True
+    except Exception:
+        return False
+
+
 def _expected_latest_session_yyyymmdd(now=None) -> int:
     """ET date (YYYYMMDD int) of the most recent trading session that
     should have intraday bars available.
@@ -421,9 +459,14 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """
     multiplier = int(tf)  # 1, 5, 15, 30, 60
     # Lookback scales with max_bars. 16hr/day to account for extended hours.
-    # Caps: 1min keep tight (huge data), 5/15min ~3mo, 30/60min ~2yr.
+    # Massive/Polygon retains deep intraday (verified: 1-min back to >=2010,
+    # all TFs back as far as we ask). These are SAFETY CEILINGS only — the real
+    # depth knob is the requested `max_bars` (frontend fullBarsFor), bounded
+    # here so a runaway request can't pull a decade of 1-min in one shot.
+    # Per-TF ceilings (calendar days): 1m ~2mo, 5m ~1yr, 15m ~2.7yr,
+    # 30m/60m ~6yr (60m resamples from the 30m fetch, so 30's ceiling feeds it).
     bars_per_day = (16 * 60) // multiplier
-    max_lookback = {1: 10, 5: 90, 15: 90}.get(multiplier, 730)
+    max_lookback = {1: 60, 5: 365, 15: 1000, 30: 2200, 60: 2200}.get(multiplier, 2200)
     lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
@@ -1634,8 +1677,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # serve 10 rows because they're "fresh", leaving a huge gap on the chart).
     # Fall through to the stale-while-revalidate path when we have data but
     # less than requested — bg fetch will populate the missing depth.
-    if stored_rows and not _needs_fresh(last_ts, tf) and len(stored_rows) >= bars * 0.9:
-        # SQLite has enough fresh data — serve immediately, no API call.
+    if stored_rows and not _needs_fresh(last_ts, tf) and (
+        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+    ):
+        # SQLite has enough fresh data (or holds the full available history,
+        # which is < bars for stocks shorter-lived than the request) — serve
+        # immediately, no API call.
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
         return JSONResponse(
@@ -1671,7 +1718,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # to a full fetch so put_bars (INSERT OR REPLACE) actually fills the
         # gap. Symptom this fixes: warm-universe completed but NVDA/AAPL
         # only had 6 of 200 bars cached and never recovered.
-        is_partial = len(stored_rows) < bars * 0.9
+        # ...unless we've already pulled the full available history (the deep
+        # backfill of a stock with fewer bars than requested) — then it's NOT
+        # partial; only a delta is needed. Without this guard such a chart would
+        # re-run the full yfinance/Massive pull on every poll forever.
+        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf)
 
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
@@ -1699,19 +1750,27 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             # Full fetch — cache is missing historical depth.
                             # put_bars uses INSERT OR REPLACE so this merges
                             # with any existing rows instead of duplicating.
+                            # A deep backfill (bars above the first-paint window)
+                            # pulls the yfinance pre-2003 IPO tail for D/W/M.
+                            _deep = _is_deep_request(_bars)
                             if _tf in ("1", "5", "15", "30", "60"):
                                 new = _fetch_intraday(_sym, _tf, _bars)
                             elif _tf == "W":
-                                new = _fetch_weekly(_sym, _bars)
+                                new = _fetch_weekly(_sym, _bars, deep=_deep)
                             elif _tf == "M":
-                                new = _fetch_monthly(_sym, _bars)
+                                new = _fetch_monthly(_sym, _bars, deep=_deep)
                             else:
-                                new = _fetch_daily(_sym, _bars)
+                                new = _fetch_daily(_sym, _bars, deep=_deep)
                             # Mirror cold-fetch guard: don't persist stale
                             # intraday fallback (yfinance returning hours-old
                             # data) since it'd be served as fresh next time.
                             if new and (_dtf or not _is_intraday_stale(new)):
                                 _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
+                                # Mark full history loaded so a request larger
+                                # than the stock's lifetime doesn't re-fetch every
+                                # poll (the len>=bars*0.9 gate would never pass).
+                                if _deep:
+                                    _mark_history_complete(_sym, _tf)
                         else:
                             if _tf == "D":
                                 new = _delta_daily(_sym, _last_ts)
@@ -1846,14 +1905,17 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         else:
             # ── Full fetch: first time we see this ticker/tf ──────────────────
             try:
+                # A deep request (above the shallow first-paint window) wants the
+                # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
+                _deep = _is_deep_request(bars)
                 if tf in ("1", "5", "15", "30", "60"):
                     raw = _fetch_intraday(ticker_up, tf, bars)
                 elif tf == "W":
-                    raw = _fetch_weekly(ticker_up, bars)
+                    raw = _fetch_weekly(ticker_up, bars, deep=_deep)
                 elif tf == "M":
-                    raw = _fetch_monthly(ticker_up, bars)
+                    raw = _fetch_monthly(ticker_up, bars, deep=_deep)
                 else:
-                    raw = _fetch_daily(ticker_up, bars)
+                    raw = _fetch_daily(ticker_up, bars, deep=_deep)
 
                 if raw:
                     # Don't persist stale intraday fallback data to SQLite — it would
@@ -1861,6 +1923,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     # checks last_ts age, not data age.
                     if date_tf or not _is_intraday_stale(raw):
                         _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+                        if _deep:
+                            _mark_history_complete(ticker_up, tf)
                 # Slice to the requested count for the response. We stored ALL
                 # fetched bars in SQLite above (so future larger requests don't
                 # have to refetch), but the caller only needs `bars` count back.

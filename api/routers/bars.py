@@ -125,7 +125,7 @@ def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int =
 def get_bars(
     ticker: str,
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
-    bars: int = Query(default=200, ge=1, le=10000, description="Max bars to return"),
+    bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
@@ -462,6 +462,9 @@ def refresh_bars_all_endpoint(
     # In-memory cache.
     try:
         result["memory_keys_deleted"] = _mem.delete_prefix("bars_")
+        # Clear deep-history "complete" markers too — otherwise a wiped ticker
+        # would serve its (now empty) SQLite rows as if they were full history.
+        _mem.delete_prefix("histfull_")
     except Exception as e:
         result["memory_error"] = f"{type(e).__name__}: {e}"
 
@@ -512,6 +515,9 @@ def refresh_bars_endpoint(
     ticker_up = ticker.upper()
     mem_prefix = f"bars_{ticker_up}_{tf}_" if tf else f"bars_{ticker_up}_"
     mem_deleted = _mem.delete_prefix(mem_prefix)
+    # Also clear the deep-history "complete" marker so a re-fetch actually
+    # re-pulls full history instead of trusting the now-wiped SQLite rows.
+    _mem.delete_prefix(f"histfull_{ticker_up}_{tf}" if tf else f"histfull_{ticker_up}_")
 
     return {
         "ticker": ticker_up,
