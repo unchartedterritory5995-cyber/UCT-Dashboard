@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import styles from './FundamentalsWidget.module.css'
@@ -72,11 +72,17 @@ function QuarterBlock({ q }) {
   )
 }
 
-export default function FundamentalsWidget({ color }) {
+export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
-  const [view, setView] = useState('annual')
+  // View choice persists per-widget through the workspace layout save path
+  // (same opts mechanism ChartWidget uses for its timeframe).
+  const view = opts?.view === 'quarterly' ? 'quarterly' : 'annual'
+  const setView = useCallback((next) => {
+    if (next === (opts?.view || 'annual')) return
+    onOptsChange?.({ ...(opts || {}), view: next })
+  }, [opts, onOptsChange])
 
   if (!sym) return <div className={styles.hint}>Pick a ticker (link this widget to a chart by color).</div>
   if (!data) return <div className={styles.hint}>Loading {sym}…</div>

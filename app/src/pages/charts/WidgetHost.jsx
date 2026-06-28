@@ -20,7 +20,7 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'watchlist': return <WatchlistWidget color={widget.color} opts={widget.opts} />
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
-    case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} />
+    case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }

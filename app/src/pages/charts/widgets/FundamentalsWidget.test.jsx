@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
@@ -8,11 +9,15 @@ vi.mock('../../../hooks/useEarningsTable', () => ({
   default: () => ({ data: mockData() }),
 }))
 
-function Wrap({ color = 'A', sym = 'AAPL' }) {
+// Stateful wrapper that threads opts through onOptsChange, mirroring how the
+// workspace persists per-widget opts — so a toggle click actually updates view.
+function Wrap({ color = 'A', sym = 'AAPL', initialOpts = {}, onOpts }) {
+  const [opts, setOpts] = useState(initialOpts)
   const groupSyms = { A: null, B: null, C: null, D: null, [color]: sym }
+  const handle = (next) => { setOpts(next); onOpts?.(next) }
   return (
     <WorkspaceContext.Provider value={{ groupSyms, setGroupSym: () => {} }}>
-      <FundamentalsWidget color={color} opts={{}} />
+      <FundamentalsWidget color={color} opts={opts} onOptsChange={handle} />
     </WorkspaceContext.Provider>
   )
 }
@@ -37,12 +42,21 @@ test('defaults to the annual view (quarterly hidden until toggled)', () => {
   expect(screen.queryByText('2025 Q2')).not.toBeInTheDocument()
 })
 
-test('toggling to Quarterly swaps the visible section', () => {
+test('toggling to Quarterly swaps the visible section and persists the choice', () => {
   mockData.mockReturnValue(FULL_DATA)
-  render(<Wrap />)
+  const onOpts = vi.fn()
+  render(<Wrap onOpts={onOpts} />)
   fireEvent.click(screen.getByRole('tab', { name: /quarterly/i }))
   expect(screen.getByText('2025 Q2')).toBeInTheDocument()
   expect(screen.queryByText('2024')).not.toBeInTheDocument()  // annual now hidden
+  expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'quarterly' }))
+})
+
+test('restores the persisted view from opts (quarterly on first render)', () => {
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap initialOpts={{ view: 'quarterly' }} />)
+  expect(screen.getByText('2025 Q2')).toBeInTheDocument()
+  expect(screen.queryByText('2024')).not.toBeInTheDocument()
 })
 
 test('falls back to quarterly when no annual data exists', () => {
