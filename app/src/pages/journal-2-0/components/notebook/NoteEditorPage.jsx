@@ -103,14 +103,26 @@ export default function NoteEditorPage({ noteId, onBack }) {
   }, [note?.id])
 
   // Push fresh body into editor when note loads (one-shot per note).
+  // Depends on `editor` (not just note.id) so it re-runs once the editor
+  // instance is actually ready. When a content-bearing note opens, the editor
+  // is re-created (useEditor keyed on note.id) and for a tick `editor.commands`
+  // can throw "Cannot read properties of null (reading 'commands')" because the
+  // ProseMirror view/commandManager isn't mounted yet — that TypeError crashed
+  // the whole page (empty notes never hit it: their content already matches the
+  // empty editor so setContent is skipped). Guard + try/catch make it safe; the
+  // editor was already created with this content via useEditor's `content`
+  // option, so a swallowed first attempt still shows the note.
   useEffect(() => {
-    if (editor && note?.bodyJson && !editor.isFocused) {
+    if (!editor || editor.isDestroyed || !note?.bodyJson || editor.isFocused) return
+    try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(note.bodyJson)
       if (current !== fresh) editor.commands.setContent(note.bodyJson, false)
+    } catch {
+      /* editor view not mounted yet — content already loaded via useEditor */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id])
+  }, [note?.id, editor])
 
   const commitSave = async () => {
     if (!editor) return
