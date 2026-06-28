@@ -675,15 +675,16 @@ def _build_day_stats(today: str) -> dict:
             dte_buckets[bucket]["bear"] += prem
         dte_buckets[bucket]["count"] += 1
 
-    # Top tickers by direction (top 5 each; frontend will trim if needed)
+    # Top tickers by direction (top 10 each; frontend uses 3 for inline
+    # summary and up to 10 for click-to-expand drilldown)
     top_bull = sorted(
         [{"ticker": t, "premium": v["bull"]} for t, v in by_ticker.items() if v["bull"] > 0],
         key=lambda x: x["premium"], reverse=True,
-    )[:5]
+    )[:10]
     top_bear = sorted(
         [{"ticker": t, "premium": v["bear"]} for t, v in by_ticker.items() if v["bear"] > 0],
         key=lambda x: x["premium"], reverse=True,
-    )[:5]
+    )[:10]
 
     return {
         "query_date": today,
