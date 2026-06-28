@@ -624,6 +624,7 @@ def _build_day_stats(today: str) -> dict:
     bull_prem_1h = 0
     bear_prem_1h = 0
     count_1h = 0
+    by_ticker_1h: dict = {}  # ticker → {bull, bear} restricted to last-hour window
 
     for a in classified:
         prem = a["alertPremium"] or 0
@@ -648,6 +649,15 @@ def _build_day_stats(today: str) -> dict:
                 bull_prem_1h += prem
             else:
                 bear_prem_1h += prem
+            # Per-ticker rollup restricted to last-hour window
+            t1h = a.get("ticker")
+            if t1h:
+                if t1h not in by_ticker_1h:
+                    by_ticker_1h[t1h] = {"bull": 0, "bear": 0}
+                if is_bull:
+                    by_ticker_1h[t1h]["bull"] += prem
+                else:
+                    by_ticker_1h[t1h]["bear"] += prem
 
         # Per-ticker rollup
         t = a.get("ticker")
@@ -686,6 +696,25 @@ def _build_day_stats(today: str) -> dict:
         key=lambda x: x["premium"], reverse=True,
     )[:10]
 
+    # Top tickers active in the last-hour window (combined premium, max 5).
+    # Each entry carries bull/bear split so the frontend can color the amount
+    # by which side dominated for that ticker in that hour.
+    top_tickers_1h = []
+    for t, v in by_ticker_1h.items():
+        total = v["bull"] + v["bear"]
+        if total <= 0:
+            continue
+        top_tickers_1h.append({
+            "ticker": t,
+            "total": total,
+            "bull": v["bull"],
+            "bear": v["bear"],
+            "lean": "bull" if v["bull"] > v["bear"] else
+                    "bear" if v["bear"] > v["bull"] else "flat",
+        })
+    top_tickers_1h.sort(key=lambda x: x["total"], reverse=True)
+    top_tickers_1h = top_tickers_1h[:5]
+
     return {
         "query_date": today,
         "total_classified": len(classified),
@@ -701,6 +730,7 @@ def _build_day_stats(today: str) -> dict:
             "bear_premium": bear_prem_1h,
             "count": count_1h,
             "is_today_target": is_today,
+            "top_tickers": top_tickers_1h,
         },
     }
 
