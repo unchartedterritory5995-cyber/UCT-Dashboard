@@ -42,6 +42,14 @@ test('defaults to the annual view (quarterly hidden until toggled)', () => {
   expect(screen.queryByText('2025 Q2')).not.toBeInTheDocument()
 })
 
+test('annual rows render newest-first (forward estimate at top)', () => {
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap />)
+  const yearCells = screen.getAllByRole('cell').filter(c => /^20\d{2}( e)?$/.test(c.textContent))
+  expect(yearCells[0]).toHaveTextContent('2026 e')   // forward estimate leads
+  expect(yearCells[yearCells.length - 1]).toHaveTextContent('2024')  // oldest at bottom
+})
+
 test('toggling to Quarterly swaps the visible section and persists the choice', () => {
   mockData.mockReturnValue(FULL_DATA)
   const onOpts = vi.fn()

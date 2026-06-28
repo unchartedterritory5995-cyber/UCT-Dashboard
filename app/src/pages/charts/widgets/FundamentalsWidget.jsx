@@ -22,6 +22,9 @@ function RevisionMark({ dir }) {
 
 function AnnualTable({ rows }) {
   if (!rows?.length) return null
+  // Backend sends oldest→newest with forward estimates last; show newest first
+  // so the forward-estimate years lead and the oldest year sits at the bottom.
+  const ordered = rows.slice().reverse()
   return (
     <table className={styles.annual}>
       <thead>
@@ -32,7 +35,7 @@ function AnnualTable({ rows }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map(r => (
+        {ordered.map(r => (
           <tr key={r.year} className={r.estimate ? styles.estRow : ''}>
             <td className={styles.left}>{r.year}{r.estimate ? ' e' : ''}</td>
             <td>{fmtEps(r.eps)}</td>
