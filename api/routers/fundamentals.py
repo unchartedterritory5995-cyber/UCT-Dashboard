@@ -12,10 +12,12 @@ import os
 from typing import Any
 
 import requests
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
 
 from api.services.fundamentals import get_fundamentals
+from api.services.earnings_table import get_earnings_table
 from api.services.cache import cache
+from api.middleware.auth_middleware import get_current_user
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,6 +49,24 @@ def _fh_metric_get(ticker: str) -> dict[str, Any]:
     except Exception as e:
         _log.debug("Finnhub /stock/metric failed for %s: %s", ticker, e)
         return {}
+
+
+@router.get("/api/fundamentals/earnings-table")
+def get_earnings_table_endpoint(
+    sym: str = Query(...),
+    debug: int = Query(0),
+    user: dict = Depends(get_current_user),
+):
+    """Annual EPS/Sales table + quarterly actual-vs-estimate strip for `sym`.
+    Null-safe: unknown ticker returns empty arrays, never 500."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return {"ticker": "", "annual": [], "quarterly": []}
+    try:
+        return get_earnings_table(s, debug=bool(debug))
+    except Exception as e:
+        _log.warning("earnings-table failed for %s: %s", s, e)
+        return {"ticker": s, "annual": [], "quarterly": []}
 
 
 @router.get("/api/fundamentals/{ticker}")
