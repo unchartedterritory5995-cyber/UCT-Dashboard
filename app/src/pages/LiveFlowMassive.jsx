@@ -43,33 +43,37 @@ const MAX_ROWS = 200;
 // LiveFlow.jsx merges bearish into a separate tier by alertName parsing —
 // we just use _tierKey from the response directly.
 const TIER_META = {
+  // Tier descriptions kept intentionally high-level — they communicate
+  // signal QUALITY and how to use the tier, NOT the underlying rules
+  // (premium thresholds, V/OI ratios, DTE cutoffs, side classification).
+  // This is proprietary algo logic and shouldn't be exposed via tooltips.
   alpha: {
     label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14",
-    desc: "Top-tier directional conviction: ≥$1M premium, BTO (ask), DTE<180. MAGENTA (vol≥1.5× OI). Rarest signal.",
+    desc: "Highest-conviction directional flow. Top-tier signal — primary trading candidate.",
   },
   size: {
     label: "Size", color: "#c9a84c", bg: "#c9a84c14",
-    desc: "Big-money flow: ≥$500K premium, MAGENTA (cum vol ≥ 1.5× OI). Institutional-sized positioning.",
+    desc: "Institutional-sized positioning with strong conviction. High-tier signal.",
   },
   bullish: {
     label: "Bullish", color: "#4F8266", bg: "#4F826614",
-    desc: "Smaller MAGENTA/YELLOW with bullish direction (CALL+ASK or PUT+BID). Lower premium tier.",
+    desc: "Bullish-leaning conviction flow. Moderate signal strength.",
   },
   bearish: {
     label: "Bearish", color: "#8F4F4F", bg: "#8F4F4F14",
-    desc: "Smaller MAGENTA/YELLOW with bearish direction (CALL+BID or PUT+ASK). Lower premium tier.",
+    desc: "Bearish-leaning conviction flow. Moderate signal strength.",
   },
   leaps: {
     label: "LEAPS", color: "#6E5FA0", bg: "#6E5FA014",
-    desc: "Long-dated options, DTE ≥ 180. Strategic positioning or hedges. Direction still classified.",
+    desc: "Long-dated positioning. Often strategic / hedges rather than near-term directional plays.",
   },
   unusual: {
     label: "Unusual", color: "#4A7290", bg: "#4A729014",
-    desc: "MAGENTA with V/OI ≥ 5× at lower premium (<$500K). Heavy relative volume — watch list candidate.",
+    desc: "Heavy relative volume at smaller premium sizes. Watch-list candidate.",
   },
   algo: {
     label: "Algo", color: "#6B6B72", bg: "#6B6B7214",
-    desc: "Multi-leg / complex strategies (ML/). Non-directional, lowest conviction tier.",
+    desc: "Multi-leg / complex strategies. Non-directional — treat as background.",
   },
 };
 const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual", "algo"];
