@@ -149,16 +149,16 @@ function FilterChips({ filters, onChange, counts }) {
   return (
     <div style={{
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
-      padding: "8px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
+      padding: "10px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
     }}>
-      <span style={{ color: P.dm, fontSize: 11, marginRight: 4 }}>Show:</span>
+      <span style={{ color: P.dm, fontSize: 13, marginRight: 4 }}>Show:</span>
       <button
         onClick={handleShowAll}
         style={{
           background: allOn ? P.ac : "transparent",
           color: allOn ? P.bg : P.wh,
           border: `1px solid ${P.bd}`, borderRadius: 4,
-          padding: "4px 10px", cursor: "pointer", fontSize: 12,
+          padding: "5px 12px", cursor: "pointer", fontSize: 13,
         }}
       >
         {allOn ? "All ✓" : "Show all"}
@@ -177,8 +177,8 @@ function FilterChips({ filters, onChange, counts }) {
               background: on ? meta.color : "transparent",
               color: on ? P.bg : P.wh,
               border: `${isIsolated ? 2 : 1}px solid ${meta.color}`, borderRadius: 4,
-              padding: isIsolated ? "3px 9px" : "4px 10px",
-              cursor: "pointer", fontSize: 12,
+              padding: isIsolated ? "4px 11px" : "5px 12px",
+              cursor: "pointer", fontSize: 13,
               opacity: on ? 1 : 0.5,
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
@@ -186,8 +186,8 @@ function FilterChips({ filters, onChange, counts }) {
             {meta.label}
             {count > 0 && (
               <span style={{
-                fontSize: 10, fontWeight: 600,
-                padding: "1px 5px", borderRadius: 8,
+                fontSize: 11, fontWeight: 600,
+                padding: "1px 6px", borderRadius: 8,
                 background: on ? `${P.bg}80` : `${meta.color}30`,
                 color: on ? P.bg : meta.color,
               }}>{count}</span>
@@ -238,7 +238,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   // standard dark for everything else.
   const rowBg = isAlpha ? `${P.ac}0E` : (dirTint || P.cd);
   const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
-  const fontSize = isAlpha ? 13 : 12;
+  const fontSize = isAlpha ? 14 : 13;
+  const secondaryFontSize = 12;
   // Field coloring: alpha → gold, otherwise direction-based
   const tickerColor = isAlpha ? P.ac : dirColor;
   const tickerWeight = isAlpha ? 700 : 600;
@@ -252,9 +253,9 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | P/L | ALERT
-      gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
-      gap: 8, padding: isAlpha ? "8px 12px" : "6px 12px",
+      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 75px 1fr",
+      gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
       alignItems: "center",
@@ -273,8 +274,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         </span>
         {hitCount > 1 && (
           <span style={{
-            fontSize: 9, fontWeight: 700,
-            padding: "1px 4px", borderRadius: 3,
+            fontSize: 10, fontWeight: 700,
+            padding: "1px 5px", borderRadius: 3,
             background: P.ac + "30", color: P.ac,
             flexShrink: 0,
           }} title={`${hitCount} hits on this contract today`}>
@@ -296,25 +297,25 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       <span style={{ color: cpDisplayColor, fontWeight: 700, textAlign: "center" }}>
         {alert.cp || "—"}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap", textAlign: "center" }}>
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, whiteSpace: "nowrap", textAlign: "center" }}>
         {alert.exp || "—"}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
         {fmtPrice(alert.averageFillPrice)}
       </span>
       <span style={{
         color: isAlpha ? P.wh : P.dm,
-        fontSize: 11, textAlign: "center",
+        fontSize: secondaryFontSize, textAlign: "center",
         fontWeight: isAlpha ? 600 : 400,
       }}>
         {fmtCount(alert.tradeSize)}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
         {fmtCount(alert.priorOI)}
       </span>
       <span style={{
         color: alert.oiExceeded ? P.ac : P.dm,
-        fontSize: 11, textAlign: "center",
+        fontSize: secondaryFontSize, textAlign: "center",
         fontWeight: alert.oiExceeded ? 600 : 400,
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
@@ -327,24 +328,24 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
                alert.grade === "B" ? P.bl :
                alert.grade === "C" ? P.dm : P.mt,
         fontWeight: 700, textAlign: "center",
-        fontSize: isAlpha ? 13 : 12,
+        fontSize: isAlpha ? 14 : 13,
       }}>
         {alert.grade}
       </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
         {alert._side || "—"}
       </span>
       <span style={{
         ...(() => {
           const pl = computePL(alert, currentSpot);
           if (pl == null) {
-            return { color: P.mt, fontSize: 11, textAlign: "center" };
+            return { color: P.mt, fontSize: secondaryFontSize, textAlign: "center" };
           }
           const winning = (alert._direction === "Bull" && pl >= 0) ||
                           (alert._direction === "Bear" && pl <= 0);
           return {
             color: winning ? DIR_BULL : DIR_BEAR,
-            fontSize: 11, textAlign: "center",
+            fontSize: secondaryFontSize, textAlign: "center",
             fontWeight: Math.abs(pl) >= 2 ? 700 : 600,
           };
         })(),
@@ -355,10 +356,10 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           return (pl > 0 ? "+" : "") + pl.toFixed(2) + "%";
         })()}
       </span>
-      <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+      <span style={{ fontSize: secondaryFontSize, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
-          padding: isAlpha ? "2px 6px" : "1px 5px", borderRadius: 3,
+          fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+          padding: isAlpha ? "3px 7px" : "2px 6px", borderRadius: 3,
           background: isAlpha ? meta.color : `${meta.color}25`,
           color: isAlpha ? P.bg : meta.color,
           textTransform: "uppercase", flexShrink: 0,
@@ -558,9 +559,9 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
-      gap: 8, padding: "4px 12px",
-      fontSize: 10, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
+      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 75px 1fr",
+      gap: 8, padding: "6px 12px",
+      fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
       position: "sticky", top: 0, background: P.bg, zIndex: 5,
     }}>
@@ -574,7 +575,7 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>OI</span>
       <span style={{ textAlign: "center" }}>V/OI</span>
       <span style={{ textAlign: "center" }}>PREMIUM</span>
-      <span style={{ textAlign: "center" }}>GR</span>
+      <span style={{ textAlign: "center" }}>GRADE</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
       <span style={{ textAlign: "center" }}>P/L</span>
       <span style={{ textAlign: "left", paddingLeft: 4 }}>ALERT</span>
@@ -929,10 +930,10 @@ export default function LiveFlowMassive() {
         const netColor = bullPrem > bearPrem ? DIR_BULL : bearPrem > bullPrem ? DIR_BEAR : P.dm;
         return (
           <div style={{
-            padding: "8px 12px", background: P.cd, marginBottom: 10,
+            padding: "10px 14px", background: P.cd, marginBottom: 10,
             borderRadius: 4, border: `1px solid ${P.bd}`,
-            display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
-            fontSize: 12,
+            display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap",
+            fontSize: 13,
           }}>
             <span style={{ color: netColor, fontWeight: 700, letterSpacing: 0.5 }}>
               {netLabel} {bullPct.toFixed(0)}% bull
@@ -943,7 +944,7 @@ export default function LiveFlowMassive() {
             <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
               Bear ${(bearPrem / 1e6).toFixed(2)}M
             </span>
-            <span style={{ color: P.dm, fontSize: 11 }}>
+            <span style={{ color: P.dm, fontSize: 12 }}>
               across {visibleAlerts.length} alerts
             </span>
             {/* Inline progress bar */}
