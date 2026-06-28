@@ -43,13 +43,34 @@ const MAX_ROWS = 200;
 // LiveFlow.jsx merges bearish into a separate tier by alertName parsing —
 // we just use _tierKey from the response directly.
 const TIER_META = {
-  alpha:   { label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14" },
-  size:    { label: "Size",       color: "#c9a84c", bg: "#c9a84c14" },
-  bullish: { label: "Bullish",    color: "#4F8266", bg: "#4F826614" },
-  bearish: { label: "Bearish",    color: "#8F4F4F", bg: "#8F4F4F14" },
-  leaps:   { label: "LEAPS",      color: "#6E5FA0", bg: "#6E5FA014" },
-  unusual: { label: "Unusual",    color: "#4A7290", bg: "#4A729014" },
-  algo:    { label: "Algo",       color: "#6B6B72", bg: "#6B6B7214" },
+  alpha: {
+    label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14",
+    desc: "Top-tier directional conviction: ≥$1M premium, BTO (ask), DTE<180. MAGENTA (vol≥1.5× OI). Rarest signal.",
+  },
+  size: {
+    label: "Size", color: "#c9a84c", bg: "#c9a84c14",
+    desc: "Big-money flow: ≥$500K premium, MAGENTA (cum vol ≥ 1.5× OI). Institutional-sized positioning.",
+  },
+  bullish: {
+    label: "Bullish", color: "#4F8266", bg: "#4F826614",
+    desc: "Smaller MAGENTA/YELLOW with bullish direction (CALL+ASK or PUT+BID). Lower premium tier.",
+  },
+  bearish: {
+    label: "Bearish", color: "#8F4F4F", bg: "#8F4F4F14",
+    desc: "Smaller MAGENTA/YELLOW with bearish direction (CALL+BID or PUT+ASK). Lower premium tier.",
+  },
+  leaps: {
+    label: "LEAPS", color: "#6E5FA0", bg: "#6E5FA014",
+    desc: "Long-dated options, DTE ≥ 180. Strategic positioning or hedges. Direction still classified.",
+  },
+  unusual: {
+    label: "Unusual", color: "#4A7290", bg: "#4A729014",
+    desc: "MAGENTA with V/OI ≥ 5× at lower premium (<$500K). Heavy relative volume — watch list candidate.",
+  },
+  algo: {
+    label: "Algo", color: "#6B6B72", bg: "#6B6B7214",
+    desc: "Multi-leg / complex strategies (ML/). Non-directional, lowest conviction tier.",
+  },
 };
 const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual", "algo"];
 
@@ -127,11 +148,14 @@ function MarketReadCard({ stats }) {
   const DIR_BULL = "#6BAA85";
   const DIR_BEAR = "#C26A6A";
 
+  // Click-to-expand state for BULL/BEAR stat cards.
+  // null = collapsed, "bull" or "bear" = panel showing top 10 names for that side.
+  const [expandedSide, setExpandedSide] = useState(null);
+
   // Loading state — backend hasn't returned yet
   if (!stats) {
     return (
       <div style={{
-        position: "sticky", top: 0, zIndex: 10,
         background: P.cd, marginBottom: 12,
         borderRadius: 6, border: `1px solid ${P.bd}`,
         padding: "20px", textAlign: "center",
@@ -171,11 +195,8 @@ function MarketReadCard({ stats }) {
 
   return (
     <div style={{
-      // Sticky so the macro context stays pinned while scrolling alerts.
-      // z-index above column headers (which use z=5) so it sits on top.
-      // SOLID background required — sticky elements without an opaque
-      // background let underlying content bleed through during scroll.
-      position: "sticky", top: 0, zIndex: 10,
+      // Sticky handled by the parent wrapper that groups MarketReadCard +
+      // FilterChips + ColumnHeaders together. This card is just visual.
       background: P.cd, marginBottom: 12,
       borderRadius: 6, border: `1px solid ${P.bd}`,
       // Directional accent: thick left border + box-shadow tint so the
@@ -230,16 +251,29 @@ function MarketReadCard({ stats }) {
           </div>
         </div>
 
-        {/* Bull total */}
-        <div style={{
-          padding: "10px 14px", background: P.cd,
-          borderRadius: 4, border: `1px solid ${P.bd}`,
-        }}>
+        {/* Bull total — clickable to expand top-10 bull names */}
+        <div
+          onClick={() => setExpandedSide(expandedSide === "bull" ? null : "bull")}
+          style={{
+            padding: "10px 14px", background: P.cd,
+            borderRadius: 4,
+            border: expandedSide === "bull"
+              ? `1px solid ${DIR_BULL}`
+              : `1px solid ${P.bd}`,
+            cursor: "pointer", userSelect: "none",
+            transition: "border-color 0.2s ease",
+          }}
+          title="Click to show top 10 bullish tickers"
+        >
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
             letterSpacing: 1, textTransform: "uppercase",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            ▲ BULL FLOW
+            <span>▲ BULL FLOW</span>
+            <span style={{ color: DIR_BULL, fontSize: 12 }}>
+              {expandedSide === "bull" ? "▾" : "▸"}
+            </span>
           </div>
           <div style={{
             color: DIR_BULL, fontSize: 28, fontWeight: 800,
@@ -249,16 +283,29 @@ function MarketReadCard({ stats }) {
           </div>
         </div>
 
-        {/* Bear total */}
-        <div style={{
-          padding: "10px 14px", background: P.cd,
-          borderRadius: 4, border: `1px solid ${P.bd}`,
-        }}>
+        {/* Bear total — clickable to expand top-10 bear names */}
+        <div
+          onClick={() => setExpandedSide(expandedSide === "bear" ? null : "bear")}
+          style={{
+            padding: "10px 14px", background: P.cd,
+            borderRadius: 4,
+            border: expandedSide === "bear"
+              ? `1px solid ${DIR_BEAR}`
+              : `1px solid ${P.bd}`,
+            cursor: "pointer", userSelect: "none",
+            transition: "border-color 0.2s ease",
+          }}
+          title="Click to show top 10 bearish tickers"
+        >
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
             letterSpacing: 1, textTransform: "uppercase",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            ▼ BEAR FLOW
+            <span>▼ BEAR FLOW</span>
+            <span style={{ color: DIR_BEAR, fontSize: 12 }}>
+              {expandedSide === "bear" ? "▾" : "▸"}
+            </span>
           </div>
           <div style={{
             color: DIR_BEAR, fontSize: 28, fontWeight: 800,
@@ -287,6 +334,107 @@ function MarketReadCard({ stats }) {
           </div>
         </div>
       </div>
+
+      {/* EXPANDED TOP-10 PANEL — shown when user clicks BULL or BEAR card */}
+      {expandedSide && (() => {
+        const list = expandedSide === "bull"
+          ? (stats.top_bull || [])
+          : (stats.top_bear || []);
+        const color = expandedSide === "bull" ? DIR_BULL : DIR_BEAR;
+        const totalPrem = expandedSide === "bull" ? bullPrem : bearPrem;
+        return (
+          <div style={{
+            background: `${color}10`,
+            borderRadius: 4, border: `1px solid ${color}50`,
+            padding: "10px 14px", marginBottom: 12,
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 8,
+            }}>
+              <span style={{
+                color: color, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1, textTransform: "uppercase",
+              }}>
+                TOP 10 {expandedSide === "bull" ? "▲ BULLISH" : "▼ BEARISH"} TICKERS · day-scoped
+              </span>
+              <span
+                onClick={() => setExpandedSide(null)}
+                style={{
+                  color: P.dm, fontSize: 11, cursor: "pointer",
+                  padding: "2px 6px", borderRadius: 3,
+                }}
+                title="Close"
+              >
+                ✕ close
+              </span>
+            </div>
+            {/* Top 10 as a 5x2 grid — each entry shows ticker, premium,
+                and a tiny bar of relative size to the leading ticker.  */}
+            {list.length === 0 ? (
+              <div style={{ color: P.mt, fontSize: 11, fontStyle: "italic" }}>
+                no {expandedSide} flow on this date
+              </div>
+            ) : (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "4px 16px",
+              }}>
+                {list.map((item, i) => {
+                  const maxPrem = list[0].premium;
+                  const widthPct = (item.premium / maxPrem) * 100;
+                  const sharePct = totalPrem > 0
+                    ? (item.premium / totalPrem) * 100
+                    : 0;
+                  return (
+                    <div key={item.ticker} style={{
+                      display: "grid",
+                      // rank | ticker | bar | $ | %
+                      gridTemplateColumns: "22px 60px 1fr 70px 50px",
+                      gap: 8, alignItems: "center",
+                      fontSize: 12, padding: "3px 0",
+                    }}>
+                      <span style={{ color: P.mt, fontWeight: 700 }}>
+                        {i + 1}.
+                      </span>
+                      <span style={{
+                        color: P.wh, fontWeight: 600,
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {item.ticker}
+                      </span>
+                      <div style={{
+                        height: 5, background: P.bd, borderRadius: 2,
+                        overflow: "hidden",
+                      }}>
+                        <div style={{
+                          width: `${widthPct}%`, height: "100%",
+                          background: color,
+                        }} />
+                      </div>
+                      <span style={{
+                        color: color, fontWeight: 600,
+                        fontVariantNumeric: "tabular-nums",
+                        textAlign: "right",
+                      }}>
+                        {fmtMShort(item.premium)}
+                      </span>
+                      <span style={{
+                        color: P.dm, fontSize: 11,
+                        fontVariantNumeric: "tabular-nums",
+                        textAlign: "right",
+                      }}>
+                        {sharePct.toFixed(1)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* PROGRESS BAR */}
       <div style={{
@@ -398,11 +546,10 @@ function MarketReadCard({ stats }) {
           </div>
         </div>
 
-        {/* DTE buckets — horizontal stacked bars (Alt 1 layout):
-            each row shows label, % bull, bull/bear proportion bar,
-            split amounts, and total count. More info-dense than the
-            mini-card grid and visually consistent with the main progress
-            bar above. */}
+        {/* DTE buckets — compact 4-column grid. Each bucket is a vertical
+            mini-card showing: DTE label, %bull (large), proportion bar,
+            bull/bear $ inline, count. Roughly ½ the height of the previous
+            horizontal-bars layout while keeping all the data. */}
         <div style={{
           padding: "10px 12px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
@@ -414,73 +561,84 @@ function MarketReadCard({ stats }) {
           }}>
             BY EXPIRATION
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+            gap: 6,
+          }}>
             {dteBuckets.map(b => {
               const bTotal = b.bull + b.bear;
               const bPct = bTotal > 0 ? (b.bull / bTotal) * 100 : 50;
-              const isLeaning = bTotal > 0 && b.bull !== b.bear;
               const leadColor = b.bull > b.bear ? DIR_BULL :
                                 b.bear > b.bull ? DIR_BEAR : P.dm;
               return (
                 <div key={b.label} style={{
-                  display: "grid",
-                  // label | %bull | bar (flex) | bull$ | bear$ | count
-                  gridTemplateColumns: "52px 60px 1fr 80px 80px 50px",
-                  gap: 8, alignItems: "center",
-                  padding: "4px 0",
+                  padding: "6px 8px",
+                  background: bTotal > 0 ? `${leadColor}0E` : "transparent",
+                  borderRadius: 3,
+                  border: `1px solid ${bTotal > 0 ? leadColor + "40" : P.bd}`,
+                  display: "flex", flexDirection: "column", gap: 4,
                 }}>
-                  {/* DTE label */}
-                  <span style={{
-                    color: P.wh, fontSize: 12, fontWeight: 600,
-                    fontVariantNumeric: "tabular-nums",
-                  }}>
-                    {b.label}
-                  </span>
-                  {/* % bull, colored by lean */}
-                  <span style={{
-                    color: leadColor, fontSize: 12, fontWeight: 700,
-                    fontVariantNumeric: "tabular-nums",
-                  }}>
-                    {bTotal > 0 ? `${bPct.toFixed(0)}% B` : "—"}
-                  </span>
-                  {/* Stacked bull/bear proportion bar */}
+                  {/* Row 1: DTE label + count */}
                   <div style={{
-                    height: 8, background: P.bd, borderRadius: 2,
-                    overflow: "hidden", display: "flex",
-                    opacity: bTotal > 0 ? 1 : 0.3,
+                    display: "flex", justifyContent: "space-between",
+                    alignItems: "baseline",
                   }}>
-                    <div style={{
-                      width: `${bPct}%`, background: DIR_BULL,
-                      transition: "width 0.4s ease",
-                    }} />
-                    <div style={{
-                      width: `${100 - bPct}%`, background: DIR_BEAR,
-                      transition: "width 0.4s ease",
-                    }} />
+                    <span style={{
+                      color: P.wh, fontSize: 11, fontWeight: 700,
+                      letterSpacing: 0.5,
+                    }}>
+                      {b.label}
+                    </span>
+                    <span style={{
+                      color: P.dm, fontSize: 10,
+                      fontVariantNumeric: "tabular-nums",
+                    }}>
+                      ·{b.count.toLocaleString()}
+                    </span>
                   </div>
-                  {/* Bull premium (right-aligned) */}
-                  <span style={{
-                    color: b.bull > 0 ? DIR_BULL : P.mt,
-                    fontSize: 11, fontWeight: 600, textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
+                  {/* Row 2: %bull large + proportion bar */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
                   }}>
-                    {b.bull > 0 ? `▲ ${fmtMShort(b.bull)}` : "—"}
-                  </span>
-                  {/* Bear premium (right-aligned) */}
-                  <span style={{
-                    color: b.bear > 0 ? DIR_BEAR : P.mt,
-                    fontSize: 11, fontWeight: 600, textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
+                    <span style={{
+                      color: leadColor, fontSize: 13, fontWeight: 700,
+                      fontVariantNumeric: "tabular-nums",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {bTotal > 0 ? `${bPct.toFixed(0)}%` : "—"}
+                    </span>
+                    <div style={{
+                      flex: 1, height: 6, background: P.bd, borderRadius: 2,
+                      overflow: "hidden", display: "flex",
+                      opacity: bTotal > 0 ? 1 : 0.3,
+                    }}>
+                      <div style={{
+                        width: `${bPct}%`, background: DIR_BULL,
+                        transition: "width 0.4s ease",
+                      }} />
+                      <div style={{
+                        width: `${100 - bPct}%`, background: DIR_BEAR,
+                        transition: "width 0.4s ease",
+                      }} />
+                    </div>
+                  </div>
+                  {/* Row 3: bull/bear $ inline */}
+                  <div style={{
+                    display: "flex", justifyContent: "space-between",
+                    fontSize: 10, fontVariantNumeric: "tabular-nums",
                   }}>
-                    {b.bear > 0 ? `▼ ${fmtMShort(b.bear)}` : "—"}
-                  </span>
-                  {/* Count */}
-                  <span style={{
-                    color: P.dm, fontSize: 11, textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
-                  }}>
-                    ·{b.count}
-                  </span>
+                    <span style={{
+                      color: b.bull > 0 ? DIR_BULL : P.mt, fontWeight: 600,
+                    }}>
+                      ▲{b.bull > 0 ? fmtMShort(b.bull) : "—"}
+                    </span>
+                    <span style={{
+                      color: b.bear > 0 ? DIR_BEAR : P.mt, fontWeight: 600,
+                    }}>
+                      ▼{b.bear > 0 ? fmtMShort(b.bear) : "—"}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -549,7 +707,11 @@ function FilterChips({ filters, onChange, counts }) {
           <button
             key={tier}
             onClick={() => handleClick(tier)}
-            title={isIsolated ? "Click to restore all tiers" : `Show only ${meta.label}`}
+            title={
+              isIsolated
+                ? `Click to restore all tiers (currently isolated to ${meta.label})`
+                : `${meta.label}${meta.desc ? " — " + meta.desc : ""}\n\nClick to show only ${meta.label}`
+            }
             style={{
               background: on ? meta.color : "transparent",
               color: on ? P.bg : P.wh,
@@ -734,13 +896,16 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
         })()}
       </span>
       <span style={{ fontSize: secondaryFontSize, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-          padding: isAlpha ? "3px 7px" : "2px 6px", borderRadius: 3,
-          background: isAlpha ? meta.color : `${meta.color}25`,
-          color: isAlpha ? P.bg : meta.color,
-          textTransform: "uppercase", flexShrink: 0,
-        }}>
+        <span
+          title={meta.desc ? `${meta.label} — ${meta.desc}` : meta.label}
+          style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+            padding: isAlpha ? "3px 7px" : "2px 6px", borderRadius: 3,
+            background: isAlpha ? meta.color : `${meta.color}25`,
+            color: isAlpha ? P.bg : meta.color,
+            textTransform: "uppercase", flexShrink: 0,
+            cursor: "help",
+          }}>
           {isAlpha && "★ "}{meta.label}
         </span>
         <span style={{
@@ -1318,14 +1483,28 @@ export default function LiveFlowMassive() {
         </div>
       )}
 
-      {/* MARKET READ — sticky hero card with DAY-SCOPED aggregated bull/bear
-          positioning. Independent of tier chips / min-grade / ticker filters
-          so the macro context stays stable as the user explores the table. */}
-      <MarketReadCard stats={dayStats} />
+      {/* STICKY HEADER GROUP — Market Read + filter chips + column headers
+          all stay pinned together as the user scrolls through alerts.
+          Single sticky container (not three separate sticky elements) so they
+          stack predictably without z-index conflicts or "later element
+          overlaps earlier one" sticky-stacking bugs. */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10,
+        background: P.bg,  // must be opaque or scrolling alerts bleed through
+        // Negative side margin lets the sticky background extend to the
+        // page edges, matching the parent's 16px padding so there's no
+        // visible gap on either side as alerts scroll behind it.
+        marginLeft: -16, marginRight: -16,
+        paddingLeft: 16, paddingRight: 16,
+        paddingBottom: 4,
+      }}>
+        {/* MARKET READ — day-scoped aggregated bull/bear positioning */}
+        <MarketReadCard stats={dayStats} />
 
-      <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
+        <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
 
-      <ColumnHeaders />
+        <ColumnHeaders />
+      </div>
 
       {/* Flat feed — alerts in their natural sort order (recent/conviction/premium).
           Tier is indicated by the colored left border on each row, and the
