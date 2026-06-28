@@ -213,37 +213,46 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
-  const cpColor = dirIsBull ? P.bu : P.be;
+  const dirIsBear = alert._direction === "Bear";
   const isAlpha = tier === "alpha";
   const isSize = tier === "size";
+
+  // Direction palette — brighter than P.bu / P.be so non-alpha rows still
+  // have visual weight. Non-directional tiers (algo) keep neutral coloring.
+  const DIR_BULL = "#6BAA85";   // brighter green than P.bu
+  const DIR_BEAR = "#C26A6A";   // brighter red than P.be
+  const DIR_BULL_TINT = `${DIR_BULL}0E`;  // ≈5% opacity background tint
+  const DIR_BEAR_TINT = `${DIR_BEAR}0E`;
+  const dirColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.wh;
+  const dirTint  = dirIsBull ? DIR_BULL_TINT : dirIsBear ? DIR_BEAR_TINT : null;
 
   const flashStyle = isNew ? {
     animation: "flashRow 1.5s ease-out",
   } : {};
 
   // Visual emphasis tiers:
-  //   • Alpha Gold — the rarest signal; full gold treatment, larger text,
-  //     subtle tinted background. Mirrors LiveFlow.jsx production styling.
-  //   • Size — also worth highlighting but less aggressively (slight tint
-  //     on the left border, bolder strike).
-  //   • Everything else — standard row.
-  const rowBg = isAlpha ? `${P.ac}0E` : P.cd;       // 0E ≈ 5% gold opacity
+  //   • Alpha Gold — full gold treatment, overrides direction color
+  //   • Other tiers w/ Bull/Bear direction — green/red text on key fields
+  //   • Algo or unclassified direction — neutral white/gray
+  // Background tint: gold for alpha, subtle green/red for bull/bear,
+  // standard dark for everything else.
+  const rowBg = isAlpha ? `${P.ac}0E` : (dirTint || P.cd);
   const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
   const fontSize = isAlpha ? 13 : 12;
-  const strikeColor = isAlpha ? P.ac : cpColor;
-  const strikeWeight = isAlpha ? 700 : (isSize ? 600 : 400);
-  const premColor = isAlpha ? P.ac : P.wh;
-  const premWeight = isAlpha ? 700 : 600;
-  const tickerColor = isAlpha ? P.ac : P.wh;
+  // Field coloring: alpha → gold, otherwise direction-based
+  const tickerColor = isAlpha ? P.ac : dirColor;
   const tickerWeight = isAlpha ? 700 : 600;
+  const strikeColor = isAlpha ? P.ac : dirColor;
+  const strikeWeight = isAlpha ? 700 : (isSize ? 700 : 600);
+  const premColor = isAlpha ? P.ac : dirColor;
+  const premWeight = isAlpha ? 700 : 600;
+  const alertNameColor = isAlpha ? P.wh : (dirColor === P.wh ? P.dm : dirColor);
+  const cpDisplayColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.dm;
 
   return (
     <div style={{
       display: "grid",
       // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GR | SIDE | P/L | ALERT
-      // All data columns center-aligned so content sits visually in the
-      // middle of its column — eliminates the uneven left/right alignment
-      // gaps from mixing right-aligned numbers with left-aligned text.
       gridTemplateColumns: "92px 95px 75px 38px 92px 65px 65px 65px 55px 90px 40px 45px 70px 1fr",
       gap: 8, padding: isAlpha ? "8px 12px" : "6px 12px",
       borderLeft: rowBorder,
@@ -284,7 +293,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       >
         {fmtStrike(alert.strike)}
       </span>
-      <span style={{ color: cpColor, fontWeight: 700, textAlign: "center" }}>
+      <span style={{ color: cpDisplayColor, fontWeight: 700, textAlign: "center" }}>
         {alert.cp || "—"}
       </span>
       <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap", textAlign: "center" }}>
@@ -334,7 +343,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           const winning = (alert._direction === "Bull" && pl >= 0) ||
                           (alert._direction === "Bear" && pl <= 0);
           return {
-            color: winning ? P.bu : P.be,
+            color: winning ? DIR_BULL : DIR_BEAR,
             fontSize: 11, textAlign: "center",
             fontWeight: Math.abs(pl) >= 2 ? 700 : 600,
           };
@@ -346,7 +355,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           return (pl > 0 ? "+" : "") + pl.toFixed(2) + "%";
         })()}
       </span>
-      <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+      <span style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
           padding: isAlpha ? "2px 6px" : "1px 5px", borderRadius: 3,
@@ -357,8 +366,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           {isAlpha && "★ "}{meta.label}
         </span>
         <span style={{
-          color: isAlpha ? P.wh : P.dm,
-          fontWeight: isAlpha ? 600 : 400,
+          color: alertNameColor,
+          fontWeight: isAlpha ? 600 : 500,
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {alert.alertName}
@@ -568,7 +577,7 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>GR</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
       <span style={{ textAlign: "center" }}>P/L</span>
-      <span style={{ textAlign: "center" }}>ALERT</span>
+      <span style={{ textAlign: "left", paddingLeft: 4 }}>ALERT</span>
     </div>
   );
 }
@@ -913,8 +922,11 @@ export default function LiveFlowMassive() {
         }
         const total = bullPrem + bearPrem;
         const bullPct = total > 0 ? (bullPrem / total) * 100 : 50;
+        // Use the brighter direction palette so the summary matches row text
+        const DIR_BULL = "#6BAA85";
+        const DIR_BEAR = "#C26A6A";
         const netLabel = bullPrem > bearPrem ? "BULLISH" : bearPrem > bullPrem ? "BEARISH" : "BALANCED";
-        const netColor = bullPrem > bearPrem ? P.bu : bearPrem > bullPrem ? P.be : P.dm;
+        const netColor = bullPrem > bearPrem ? DIR_BULL : bearPrem > bullPrem ? DIR_BEAR : P.dm;
         return (
           <div style={{
             padding: "8px 12px", background: P.cd, marginBottom: 10,
@@ -925,10 +937,10 @@ export default function LiveFlowMassive() {
             <span style={{ color: netColor, fontWeight: 700, letterSpacing: 0.5 }}>
               {netLabel} {bullPct.toFixed(0)}% bull
             </span>
-            <span style={{ color: P.bu, fontWeight: 600 }}>
+            <span style={{ color: DIR_BULL, fontWeight: 600 }}>
               Bull ${(bullPrem / 1e6).toFixed(2)}M
             </span>
-            <span style={{ color: P.be, fontWeight: 600 }}>
+            <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
               Bear ${(bearPrem / 1e6).toFixed(2)}M
             </span>
             <span style={{ color: P.dm, fontSize: 11 }}>
@@ -939,8 +951,8 @@ export default function LiveFlowMassive() {
               flex: 1, minWidth: 200, height: 6, background: P.bd,
               borderRadius: 3, overflow: "hidden", display: "flex",
             }}>
-              <div style={{ width: `${bullPct}%`, background: P.bu }} />
-              <div style={{ width: `${100 - bullPct}%`, background: P.be }} />
+              <div style={{ width: `${bullPct}%`, background: DIR_BULL }} />
+              <div style={{ width: `${100 - bullPct}%`, background: DIR_BEAR }} />
             </div>
           </div>
         );
