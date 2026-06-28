@@ -861,6 +861,7 @@ function processFlowData(rows) {
     else if (cr === "MAGENTA" || cr === "PURPLE" || cr === "M") color = "MAGENTA";
     else if (cr === "ORANGE") color = "ORANGE";
     else if (cr === "RED" || cr === "#FF0000") color = "RED";
+    else if (cr === "ARB") color = "ARB";
     const expiry = parseExpiry(r.expiry);
     const dteParsed = parseInt(r.dte);
     const dte = !isNaN(dteParsed) && dteParsed >= 0 ? dteParsed : (expiry ? computeDTE(expiry) : -1);
@@ -1049,6 +1050,13 @@ function processFlowData(rows) {
   // Remove ORANGE (dark pool / delayed) from primary analysis but keep for reference
   const darkPool = filtered.filter(t => t.Co === "ORANGE");
   filtered = filtered.filter(t => t.Co !== "ORANGE");
+
+  // Remove ARB (backend cluster_filter flagged these as structured arbitrage
+  // noise — 4+ same-second multi-contract clusters on same ticker, e.g. LULU
+  // 5-strike PUT block at 15:46:16 = $54M of position management not signal).
+  // The backend tags them so we don't need to re-detect client-side; just
+  // exclude from all aggregation, leaderboards, sectors, and conviction scoring.
+  filtered = filtered.filter(t => t.Co !== "ARB");
 
   // Arb filter: deep ITM/OTM detection
   // Deep ITM = always arb/rebalancing (e.g. MU $210P when spot $413), filter ALL
