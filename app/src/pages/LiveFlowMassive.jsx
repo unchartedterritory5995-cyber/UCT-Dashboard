@@ -1061,13 +1061,24 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
             : `↻ fetch OI${nullOICount > 0 ? ` (${nullOICount})` : ""}`}
         </button>
         {oiFetchState?.result && (
-          <span style={{
-            fontSize: 11,
-            color: oiFetchState.result.error ? P.be : P.bu,
-          }}>
+          <span
+            style={{
+              fontSize: 11,
+              color: oiFetchState.result.error
+                ? P.be
+                : (oiFetchState.result.failedContracts?.length > 0 ? P.dm : P.bu),
+            }}
+            title={
+              oiFetchState.result.failedContracts?.length > 0
+                ? `Schwab returned no OI for:\n${oiFetchState.result.failedContracts.join("\n")}`
+                : ""
+            }
+          >
             {oiFetchState.result.error
               ? `error: ${oiFetchState.result.error}`
-              : `filled ${oiFetchState.result.filled}/${oiFetchState.result.total}`}
+              : oiFetchState.result.failedContracts?.length > 0
+                ? `filled ${oiFetchState.result.filled}/${oiFetchState.result.total} (${oiFetchState.result.failedContracts.length} missing ⓘ)`
+                : `filled ${oiFetchState.result.filled}/${oiFetchState.result.total}`}
           </span>
         )}
 
@@ -1423,9 +1434,28 @@ export default function LiveFlowMassive() {
         };
       }));
 
+      // Identify contracts that came back empty so we can surface them
+      const requestedKeys = contracts.map(c => `${c.ticker}|${c.cp}|${c.strike}|${c.exp}`);
+      const failedContracts = contracts.filter(c => {
+        const k = `${c.ticker}|${c.cp}|${c.strike}|${c.exp}`;
+        return !filledKeys.has(k) || oiMap[k] == null;
+      });
+      if (failedContracts.length > 0) {
+        console.warn(
+          `[OI fetch] ${failedContracts.length} contract(s) returned no OI:`,
+          failedContracts
+        );
+      }
+
       setOiFetchState({
         loading: false,
-        result: { filled: filledKeys.size, total: contracts.length },
+        result: {
+          filled: filledKeys.size,
+          total: contracts.length,
+          failedContracts: failedContracts.map(c =>
+            `${c.ticker} ${c.cp} $${c.strike} ${c.exp}`
+          ),
+        },
       });
     } catch (e) {
       console.error("OI bulk fetch failed:", e);
