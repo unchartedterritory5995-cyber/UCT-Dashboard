@@ -56,13 +56,48 @@ class ZoomClient:
             raise ZoomApiError(f"download too small ({total} bytes) ct={ct}")
         return dest_path
 
-    def delete_recording(self, meeting_uuid: str) -> None:
-        token = self._ensure_token()
-        # Double-encode the UUID per Zoom's rule if it contains / or //.
+    @staticmethod
+    def _encode_uuid(meeting_uuid: str) -> str:
+        # Zoom rule: double-URL-encode a meeting UUID if it contains / or starts with /.
         import urllib.parse as _u
         uid = meeting_uuid
         if "/" in uid or uid.startswith("/"):
             uid = _u.quote(_u.quote(uid, safe=""), safe="")
+        return uid
+
+    def get_recording_files(self, meeting_uuid: str):
+        """Fetch the recording's metadata (incl. recording_files[]). Returns the
+        JSON dict, or None if Zoom no longer has it (404 — already trashed). The
+        transcript is a recording_file with file_type 'TRANSCRIPT' (recording_type
+        'audio_transcript'), generated ASYNC — it may be absent on early calls."""
+        token = self._ensure_token()
+        uid = self._encode_uuid(meeting_uuid)
+        resp = httpx.get(f"{_API}/meetings/{uid}/recordings",
+            headers={"Authorization": f"Bearer {token}"}, timeout=20)
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise ZoomApiError(f"get recordings {resp.status_code}: {resp.text[:200]}")
+        return resp.json()
+
+    def download_text(self, download_url: str, max_bytes: int = 6_000_000) -> str:
+        """Fetch a small text recording file (e.g. the VTT transcript) using the
+        OAuth access token as Bearer. Bounded so a surprise large/binary file can't
+        blow up memory. Returns the decoded text ('' on any non-200/empty)."""
+        token = self._ensure_token()
+        resp = httpx.get(download_url, headers={"Authorization": f"Bearer {token}"},
+                         follow_redirects=True, timeout=60)
+        if resp.status_code != 200:
+            raise ZoomApiError(f"transcript download {resp.status_code}: {resp.text[:200]}")
+        data = resp.content[:max_bytes]
+        try:
+            return data.decode("utf-8", errors="replace")
+        except Exception:
+            return ""
+
+    def delete_recording(self, meeting_uuid: str) -> None:
+        token = self._ensure_token()
+        uid = self._encode_uuid(meeting_uuid)
         resp = httpx.delete(f"{_API}/meetings/{uid}/recordings",
             headers={"Authorization": f"Bearer {token}"},
             params={"action": "trash"}, timeout=20)

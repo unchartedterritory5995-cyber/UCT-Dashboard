@@ -39,3 +39,14 @@
 .track:hover .thumb {
   opacity: 1;
 }
+/* Chapter boundary tick marks sitting on the track. */
+.chapterMark {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  background: rgba(243, 239, 226, 0.7);
+  border-radius: 1px;
+  pointer-events: none;
+}

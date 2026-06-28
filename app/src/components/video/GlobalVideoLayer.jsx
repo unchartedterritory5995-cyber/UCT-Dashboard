@@ -12,6 +12,7 @@ import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
 import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos } from './videoStore'
 import { computeHostStyle } from './hostStyle'
+import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { fmtTime, nextRate } from './playerUtils'
 import { pauseOtherAudio } from './audioExclusivity'
 import { pipSupported, openPip } from './documentPip'
@@ -48,6 +49,7 @@ export default function GlobalVideoLayer() {
   const docked = mode === 'docked'
   const current = active ? list[index] : null
   const upNext = active && index + 1 < list.length ? list[index + 1] : null
+  const { chapters } = useVideoInsights(current?.id)
 
   const navigate = useNavigate()
   const hostElRef = useRef(null)
@@ -169,6 +171,19 @@ export default function GlobalVideoLayer() {
     }, 300)
     return () => clearInterval(id)
   }, [active])
+
+  // Honor seek requests from chapter rows / ticker-moment chips (videoStore.seekTo).
+  useEffect(() => {
+    const req = snap.seekReq
+    if (!req || !active) return
+    const p = playerRef.current
+    if (!p || !p.seekTo) return
+    try {
+      p.seekTo(req.sec, true)
+      p.playVideo && p.playVideo()
+      saveNow()
+    } catch { /* ignore */ }
+  }, [snap.seekReq, active, saveNow])
 
   // Track real fullscreen state (Esc, F11, etc).
   useEffect(() => {
@@ -375,7 +390,7 @@ export default function GlobalVideoLayer() {
 
       {/* Bottom control bar — our own scrubber + transport. */}
       <div className={styles.controls}>
-        <Scrubber current={prog.t} duration={prog.d} onSeek={seekFrac} />
+        <Scrubber current={prog.t} duration={prog.d} onSeek={seekFrac} chapters={chapters} />
         <div className={styles.btnrow}>
           <button className={styles.cbtn} onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
             {isPlaying ? <PauseIcon /> : <PlayIcon size={18} />}

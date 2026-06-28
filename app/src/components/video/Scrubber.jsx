@@ -3,9 +3,12 @@
 import { useRef } from 'react'
 import styles from './Scrubber.module.css'
 
-export default function Scrubber({ current = 0, duration = 0, onSeek }) {
+export default function Scrubber({ current = 0, duration = 0, onSeek, chapters = [] }) {
   const trackRef = useRef(null)
   const pct = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0
+  // Chapter tick marks along the track (skip t=0 — the very start).
+  const marks =
+    duration > 0 ? (chapters || []).filter((c) => c && c.t > 0 && c.t < duration) : []
 
   const seekAt = (clientX) => {
     const el = trackRef.current
@@ -36,6 +39,15 @@ export default function Scrubber({ current = 0, duration = 0, onSeek }) {
       <div className={styles.fill} style={{ width: `${pct}%` }}>
         <span className={styles.thumb} />
       </div>
+      {marks.map((c, i) => (
+        <span
+          key={i}
+          className={styles.chapterMark}
+          style={{ left: `${(c.t / duration) * 100}%` }}
+          title={c.title || ''}
+          aria-hidden="true"
+        />
+      ))}
     </div>
   )
 }

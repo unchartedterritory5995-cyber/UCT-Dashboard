@@ -35,6 +35,15 @@ export function play(list, index = 0) {
   set({ list, index: i, mode: 'docked', playing: true })
 }
 
+// Request the player seek to `sec` (used by chapter rows + ticker-moment chips).
+// GlobalVideoLayer watches `seekReq.nonce` and calls player.seekTo. The nonce
+// makes repeat-seeks to the same second still fire.
+let _seekNonce = 0
+export function seekTo(sec) {
+  const s = Math.max(0, Number(sec) || 0)
+  set({ seekReq: { sec: s, nonce: ++_seekNonce } })
+}
+
 export function playIndex(i) {
   if (i < 0 || i >= state.list.length) return
   set({ index: i })

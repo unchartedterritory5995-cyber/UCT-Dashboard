@@ -122,6 +122,14 @@ def get_categories(_user: dict = Depends(require_paid)):
     return {"categories": svc.list_categories()}
 
 
+@router.get("/videos/{video_id}/insights")
+def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
+    """AI chapters + ticker-moments for a video's player chrome (chapter rail,
+    scrubber markers, clickable ticker chips). Empty arrays when not generated
+    yet (or for non-session videos) — the client renders-or-skips cleanly."""
+    return svc.get_insights(video_id)
+
+
 # ── Writes (admin) ─────────────────────────────────────────────────────────────
 
 @router.post("/videos")

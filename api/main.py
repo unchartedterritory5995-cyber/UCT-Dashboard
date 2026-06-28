@@ -1898,6 +1898,24 @@ async def lifespan(app: FastAPI):
                 id="desk_daily_session_safety", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
+            # Session chapters/transcript backfill (separate from publish; the
+            # Zoom transcript arrives async). Fetch VTT → Opus → chapters +
+            # ticker-moments → trash the recording. Gated by its own flag.
+            from api.services import desk_session_insights as _dsi
+            if _dsi.is_enabled():
+                def _dds_insights():
+                    try:
+                        out = _dsi.process_pending_session_insights()
+                        acts = [r for r in out if r.get("action") == "generated"]
+                        if acts:
+                            print(f"[session-insights] generated chapters for {len(acts)} session(s)")
+                    except Exception as e:
+                        print(f"[session-insights] pass error (non-fatal): {e}")
+
+                _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="*/15"),
+                    id="desk_session_insights", max_instances=1, replace_existing=True)
+                print("[startup] Desk Session chapters/transcript backfill ENABLED")
+
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
         # Schedule v3 2026-05-27 evening (user-defined): two focused windows
         # mirroring the user's actual trading workflow. Everything outside

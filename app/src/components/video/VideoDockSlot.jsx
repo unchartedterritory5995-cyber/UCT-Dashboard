@@ -10,10 +10,20 @@
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
 import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
-import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand } from './videoStore'
+import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand, seekTo } from './videoStore'
+import { useVideoInsights } from '../../hooks/useVideoInsights'
 import styles from './VideoDockSlot.module.css'
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+
+const fmtT = (sec) => {
+  const s = Math.max(0, Math.floor(sec || 0))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = s % 60
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+           : `${m}:${String(ss).padStart(2, '0')}`
+}
 
 export default function VideoDockSlot() {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
@@ -21,6 +31,9 @@ export default function VideoDockSlot() {
   const active = mode !== 'closed' && list.length > 0
   const docked = mode === 'docked'
   const boxRef = useRef(null)
+  // Chapters + ticker-moments for the now-playing video (empty for non-session
+  // videos or before generation). Hook runs unconditionally (pre early-return).
+  const { chapters, tickerMoments } = useVideoInsights(active ? list[index]?.id : null)
 
   const report = useCallback(() => {
     const el = boxRef.current
@@ -77,6 +90,41 @@ export default function VideoDockSlot() {
         <div className={styles.title}>{current.title}</div>
         {current.description && <p className={styles.desc}>{current.description}</p>}
       </div>
+
+      {tickerMoments.length > 0 && (
+        <div className={styles.tickersWrap}>
+          <div className={styles.insHead}>Tickers covered</div>
+          <div className={styles.tickerRow}>
+            {tickerMoments.map((tm, i) => (
+              <button
+                key={`${tm.ticker}-${tm.t}-${i}`}
+                className={styles.tickerChip}
+                onClick={() => seekTo(tm.t)}
+                title={tm.note ? `${tm.note} — jump to ${fmtT(tm.t)}` : `Jump to ${fmtT(tm.t)}`}
+              >
+                <span className={styles.tickerSym}>{tm.ticker}</span>
+                <span className={styles.tickerTime}>{fmtT(tm.t)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {chapters.length > 0 && (
+        <div className={styles.chaptersWrap}>
+          <div className={styles.insHead}>Chapters</div>
+          <ol className={styles.chapterList}>
+            {chapters.map((c, i) => (
+              <li key={`${c.t}-${i}`}>
+                <button className={styles.chapterRow} onClick={() => seekTo(c.t)}>
+                  <span className={styles.chapterTime}>{fmtT(c.t)}</span>
+                  <span className={styles.chapterTitle}>{c.title}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       {upcoming.length > 0 && (
         <div className={styles.upNext}>
           <div className={styles.upNextHead}>Up next in this section</div>

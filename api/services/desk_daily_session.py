@@ -227,10 +227,24 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
                     "category": section, "sort_order": 0})
+            # Link the published video to its Zoom recording so the (async)
+            # transcript → chapters backfill can find it later.
             try:
-                zoom.delete_recording(uuid)
-            except Exception:
-                pass
+                row = education_service.get_video_by_youtube_id(vid)
+                if row:
+                    education_service.set_meeting_uuid(row["id"], uuid)
+            except Exception as me:
+                print(f"[desk-sessions] set_meeting_uuid failed (non-fatal): {me}")
+            # When chapters are enabled, DEFER the recording delete to the insights
+            # pass (it needs the transcript first, then trashes the recording —
+            # bounded by DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS). When disabled, keep
+            # the original immediate-delete behaviour.
+            from api.services import desk_session_insights
+            if not desk_session_insights.is_enabled():
+                try:
+                    zoom.delete_recording(uuid)
+                except Exception:
+                    pass
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
             if created_now:                 # alert once, only on a genuinely-new publish

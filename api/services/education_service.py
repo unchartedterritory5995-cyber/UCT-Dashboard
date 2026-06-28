@@ -60,12 +60,34 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+# Additive columns introduced after the original schema (Live Session chapters /
+# transcript / ticker-moments). SQLite has no "ADD COLUMN IF NOT EXISTS", so each
+# is ALTER-added on boot when missing. All nullable → old rows + non-session
+# videos are unaffected.
+_EXTRA_COLUMNS = (
+    ("meeting_uuid", "TEXT"),       # Zoom meeting_uuid (session videos only) → transcript source
+    ("transcript", "TEXT"),        # raw transcript text once captured
+    ("chapters", "TEXT"),          # JSON: [{t: seconds, title}]
+    ("ticker_moments", "TEXT"),    # JSON: [{ticker, t: seconds, note}]
+    ("insights_at", "INTEGER"),    # last insights attempt (epoch); set = stop retrying
+    ("zoom_cleaned", "INTEGER"),   # 1 once the Zoom cloud recording has been trashed
+)
+
+
+def _migrate_columns(c: sqlite3.Connection) -> None:
+    have = {r["name"] for r in c.execute("PRAGMA table_info(edu_videos)").fetchall()}
+    for name, decl in _EXTRA_COLUMNS:
+        if name not in have:
+            c.execute(f"ALTER TABLE edu_videos ADD COLUMN {name} {decl}")
+
+
 def _init_db() -> None:
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        _migrate_columns(c)
         c.commit()
 
 
@@ -320,3 +342,118 @@ def _migrate_seed_categories_once() -> None:
             f.write(_CATEGORY_MIGRATION_VERSION)
     except Exception:
         pass
+
+
+# ── Session insights (chapters / transcript / ticker-moments) ───────────────────
+# Powers the Live Trading Session chapter rail + scrubber markers + ticker chips.
+# All additive; non-session videos simply never get a meeting_uuid so they're
+# skipped by the backfill and these reads return empty.
+
+import json as _json  # local alias; module already minimal
+
+
+def get_video_by_youtube_id(youtube_id: str) -> Optional[dict]:
+    yt = (youtube_id or "").strip()
+    if not yt:
+        return None
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM edu_videos WHERE youtube_id = ? ORDER BY id ASC LIMIT 1",
+            (yt,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def set_meeting_uuid(video_id: int, meeting_uuid: str) -> None:
+    """Link a published video back to its Zoom recording (for transcript backfill)."""
+    mu = (meeting_uuid or "").strip()
+    if not mu:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE edu_videos SET meeting_uuid = ?, updated_at = ? WHERE id = ?",
+            (mu, int(time.time()), int(video_id)),
+        )
+        c.commit()
+
+
+def get_insights(video_id: int) -> dict:
+    """Chapters + ticker-moments for the player UI. Always returns the shape
+    {chapters: [...], ticker_moments: [...], has_transcript: bool} (empty when
+    none yet) so the frontend can render-or-skip without null juggling."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT chapters, ticker_moments, transcript FROM edu_videos WHERE id = ?",
+            (int(video_id),),
+        ).fetchone()
+    if not row:
+        return {"chapters": [], "ticker_moments": [], "has_transcript": False}
+
+    def _parse(s):
+        try:
+            v = _json.loads(s) if s else []
+            return v if isinstance(v, list) else []
+        except Exception:
+            return []
+    return {
+        "chapters": _parse(row["chapters"]),
+        "ticker_moments": _parse(row["ticker_moments"]),
+        "has_transcript": bool(row["transcript"]),
+    }
+
+
+def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
+                       chapters: Optional[list] = None,
+                       ticker_moments: Optional[list] = None) -> None:
+    """Store generated chapters / ticker-moments / transcript + stamp insights_at."""
+    sets = {"insights_at": int(time.time()), "updated_at": int(time.time())}
+    if transcript is not None:
+        sets["transcript"] = transcript
+    if chapters is not None:
+        sets["chapters"] = _json.dumps(chapters)
+    if ticker_moments is not None:
+        sets["ticker_moments"] = _json.dumps(ticker_moments)
+    clause = ", ".join(f"{k} = :{k}" for k in sets)
+    sets["id"] = int(video_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(f"UPDATE edu_videos SET {clause} WHERE id = :id", sets)
+        c.commit()
+
+
+def mark_insights_attempt(video_id: int) -> None:
+    """Stamp insights_at without storing chapters — the 'we tried, give up / wait'
+    marker (mirrors the catalysts_at idiom) so the backfill stops looping."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE edu_videos SET insights_at = ?, updated_at = ? WHERE id = ?",
+            (int(time.time()), int(time.time()), int(video_id)),
+        )
+        c.commit()
+
+
+def mark_zoom_cleaned(video_id: int) -> None:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE edu_videos SET zoom_cleaned = 1, updated_at = ? WHERE id = ?",
+            (int(time.time()), int(video_id)),
+        )
+        c.commit()
+
+
+def videos_pending_insights(max_age_secs: int) -> list[dict]:
+    """Session videos (have a meeting_uuid) whose Zoom recording hasn't been
+    cleaned yet and were published within max_age_secs — the backfill work-list.
+    Ordered oldest-first so we drain the queue deterministically."""
+    cutoff = int(time.time()) - int(max_age_secs)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, youtube_id, title, meeting_uuid, created_at, chapters,
+                      insights_at, zoom_cleaned
+               FROM edu_videos
+               WHERE meeting_uuid IS NOT NULL AND meeting_uuid != ''
+                 AND COALESCE(zoom_cleaned, 0) = 0
+                 AND created_at >= ?
+               ORDER BY created_at ASC""",
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
