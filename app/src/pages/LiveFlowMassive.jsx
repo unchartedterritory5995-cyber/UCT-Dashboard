@@ -115,72 +115,44 @@ function fmtCount(n) {
 }
 
 // ─── Market Read Card (hero) ──────────────────────────────────────────────
-// Big aggregated read of bull/bear positioning across visible alerts.
-// Components: net direction headline + 4 stat cards + progress bar +
-// last-hour breakdown + top 3 bull / bear names + DTE expiration buckets.
+// Big aggregated read of bull/bear positioning. Sourced from the backend's
+// /day-stats endpoint which aggregates ALL classifiable Y/M rows for the
+// target date — independent of any pagination/grade/tier filters applied
+// to the alert grid. Toggling chips changes WHAT YOU'RE LOOKING AT but
+// not the macro Market Read.
 //
 // Always full-size and sticky-positioned. The earlier compact-on-scroll
-// behavior caused flicker due to layout shifts when the card resized
-// (content below shifts → scroll position shifts → threshold re-evaluates
-// → re-toggle). Stable layout > saved viewport pixels.
-function MarketReadCard({ alerts }) {
+// behavior caused flicker due to layout shifts when the card resized.
+function MarketReadCard({ stats }) {
   const DIR_BULL = "#6BAA85";
   const DIR_BEAR = "#C26A6A";
 
-  // ─ Aggregate all the metrics in a single pass ──────────────────────────
-  let bullPrem = 0, bearPrem = 0;
-  let bullPrem1h = 0, bearPrem1h = 0;
-  let count1h = 0;
-  const nowSec = Date.now() / 1000;
-  const oneHourAgo = nowSec - 3600;
-  const byTicker = {};                  // ticker → { bull, bear }
-  const dteBuckets = {
-    "0-7":   { label: "0-7d",   bull: 0, bear: 0, count: 0 },
-    "7-14":  { label: "7-14d",  bull: 0, bear: 0, count: 0 },
-    "14-60": { label: "14-60d", bull: 0, bear: 0, count: 0 },
-    "60+":   { label: "60+d",   bull: 0, bear: 0, count: 0 },
-  };
-
-  for (const a of alerts) {
-    const prem = a.alertPremium || 0;
-    const isBull = a._direction === "Bull";
-    const isBear = a._direction === "Bear";
-
-    if (isBull) bullPrem += prem;
-    else if (isBear) bearPrem += prem;
-
-    // Last hour bucket (skipped in historical mode if alert timestamp is
-    // older than 1h — naturally evaluates to zero, which is correct).
-    if (a.timestamp && a.timestamp >= oneHourAgo) {
-      count1h++;
-      if (isBull) bullPrem1h += prem;
-      else if (isBear) bearPrem1h += prem;
-    }
-
-    // Per-ticker rollup for top-3 lists
-    if (a.ticker && (isBull || isBear)) {
-      if (!byTicker[a.ticker]) byTicker[a.ticker] = { bull: 0, bear: 0 };
-      if (isBull) byTicker[a.ticker].bull += prem;
-      else byTicker[a.ticker].bear += prem;
-    }
-
-    // DTE bucket — boundaries match the watchlist convention exactly
-    const dte = a.dte ?? 999;
-    let bucket;
-    if (dte <= 7) bucket = "0-7";
-    else if (dte <= 14) bucket = "7-14";
-    else if (dte <= 60) bucket = "14-60";
-    else bucket = "60+";
-    if (dteBuckets[bucket] && (isBull || isBear)) {
-      if (isBull) dteBuckets[bucket].bull += prem;
-      else dteBuckets[bucket].bear += prem;
-      dteBuckets[bucket].count++;
-    }
+  // Loading state — backend hasn't returned yet
+  if (!stats) {
+    return (
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10,
+        background: P.cd, marginBottom: 12,
+        borderRadius: 6, border: `1px solid ${P.bd}`,
+        padding: "20px", textAlign: "center",
+        color: P.dm, fontSize: 12,
+      }}>
+        Loading market read…
+      </div>
+    );
   }
 
+  // ─ Read pre-computed aggregates from the backend payload ───────────────
+  const bullPrem = stats.bull_premium || 0;
+  const bearPrem = stats.bear_premium || 0;
   const total = bullPrem + bearPrem;
   const bullPct = total > 0 ? (bullPrem / total) * 100 : 50;
   const netPrem = bullPrem - bearPrem;
+
+  const bullPrem1h = stats.last_hour?.bull_premium || 0;
+  const bearPrem1h = stats.last_hour?.bear_premium || 0;
+  const count1h    = stats.last_hour?.count || 0;
+  const isLiveWindow = !!stats.last_hour?.is_today_target;
   const total1h = bullPrem1h + bearPrem1h;
   const bullPct1h = total1h > 0 ? (bullPrem1h / total1h) * 100 : 50;
 
@@ -188,19 +160,11 @@ function MarketReadCard({ alerts }) {
                    bearPrem > bullPrem ? "BEARISH" : "BALANCED";
   const netColor = bullPrem > bearPrem ? DIR_BULL :
                    bearPrem > bullPrem ? DIR_BEAR : P.dm;
-  // Subtle directional tint — green wash for bull-dominant, red for bear
-  const cardBg = bullPrem > bearPrem ? `${DIR_BULL}08` :
-                 bearPrem > bullPrem ? `${DIR_BEAR}08` : P.cd;
 
-  // Top-3 bull / top-3 bear by per-ticker premium aggregate
-  const topBull = Object.entries(byTicker)
-    .filter(([_, v]) => v.bull > 0)
-    .sort((a, b) => b[1].bull - a[1].bull)
-    .slice(0, 3);
-  const topBear = Object.entries(byTicker)
-    .filter(([_, v]) => v.bear > 0)
-    .sort((a, b) => b[1].bear - a[1].bear)
-    .slice(0, 3);
+  // Top 3 each (backend returns up to 5)
+  const topBull = (stats.top_bull || []).slice(0, 3);
+  const topBear = (stats.top_bear || []).slice(0, 3);
+  const dteBuckets = stats.by_dte || [];
 
   const fmtM = (n) => `$${(n / 1e6).toFixed(2)}M`;
   const fmtMShort = (n) => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : `$${(n/1e3).toFixed(0)}K`;
@@ -232,10 +196,10 @@ function MarketReadCard({ alerts }) {
           color: P.dm, fontSize: 10, fontWeight: 700,
           letterSpacing: 1.5, textTransform: "uppercase",
         }}>
-          ● LIVE MARKET READ
+          ● {isLiveWindow ? "LIVE" : "HISTORICAL"} MARKET READ
         </span>
         <span style={{ color: P.mt, fontSize: 10 }}>
-          (premium-weighted across {alerts.length} alerts)
+          (premium-weighted · {stats.total_classified.toLocaleString()} alerts on {stats.query_date})
         </span>
       </div>
 
@@ -349,7 +313,7 @@ function MarketReadCard({ alerts }) {
           color: P.mt, fontSize: 10, fontWeight: 700,
           letterSpacing: 1, textTransform: "uppercase",
         }}>
-          ⏱ LAST HOUR
+          ⏱ {isLiveWindow ? "LAST HOUR" : "FINAL HOUR OF SESSION"}
         </span>
         {total1h > 0 ? (
           <>
@@ -371,7 +335,7 @@ function MarketReadCard({ alerts }) {
           </>
         ) : (
           <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
-            no alerts in the last 60 minutes
+            no alerts in window
           </span>
         )}
       </div>
@@ -401,12 +365,12 @@ function MarketReadCard({ alerts }) {
                 <span style={{ color: P.mt, fontSize: 11 }}>—</span>
               ) : (
                 <span style={{ color: P.wh, lineHeight: 1.5 }}>
-                  {topBull.map(([t, v], i) => (
-                    <span key={t}>
+                  {topBull.map((item, i) => (
+                    <span key={item.ticker}>
                       {i > 0 && <span style={{ color: P.mt }}> · </span>}
-                      <span style={{ fontWeight: 600 }}>{t}</span>
+                      <span style={{ fontWeight: 600 }}>{item.ticker}</span>
                       <span style={{ color: DIR_BULL, marginLeft: 4 }}>
-                        {fmtMShort(v.bull)}
+                        {fmtMShort(item.premium)}
                       </span>
                     </span>
                   ))}
@@ -419,12 +383,12 @@ function MarketReadCard({ alerts }) {
                 <span style={{ color: P.mt, fontSize: 11 }}>—</span>
               ) : (
                 <span style={{ color: P.wh, lineHeight: 1.5 }}>
-                  {topBear.map(([t, v], i) => (
-                    <span key={t}>
+                  {topBear.map((item, i) => (
+                    <span key={item.ticker}>
                       {i > 0 && <span style={{ color: P.mt }}> · </span>}
-                      <span style={{ fontWeight: 600 }}>{t}</span>
+                      <span style={{ fontWeight: 600 }}>{item.ticker}</span>
                       <span style={{ color: DIR_BEAR, marginLeft: 4 }}>
-                        {fmtMShort(v.bear)}
+                        {fmtMShort(item.premium)}
                       </span>
                     </span>
                   ))}
@@ -434,7 +398,11 @@ function MarketReadCard({ alerts }) {
           </div>
         </div>
 
-        {/* DTE buckets — 4 mini-cards */}
+        {/* DTE buckets — horizontal stacked bars (Alt 1 layout):
+            each row shows label, % bull, bull/bear proportion bar,
+            split amounts, and total count. More info-dense than the
+            mini-card grid and visually consistent with the main progress
+            bar above. */}
         <div style={{
           padding: "10px 12px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
@@ -442,45 +410,77 @@ function MarketReadCard({ alerts }) {
           <div style={{
             color: P.mt, fontSize: 10, fontWeight: 700,
             letterSpacing: 1, textTransform: "uppercase",
-            marginBottom: 6,
+            marginBottom: 8,
           }}>
             BY EXPIRATION
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr",
-            gap: 8,
-          }}>
-            {Object.values(dteBuckets).map(b => {
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {dteBuckets.map(b => {
               const bTotal = b.bull + b.bear;
               const bPct = bTotal > 0 ? (b.bull / bTotal) * 100 : 50;
-              const bDir = b.bull > b.bear ? DIR_BULL : b.bear > b.bull ? DIR_BEAR : P.dm;
-              const bArrow = b.bull > b.bear ? "▲" : b.bear > b.bull ? "▼" : "■";
+              const isLeaning = bTotal > 0 && b.bull !== b.bear;
+              const leadColor = b.bull > b.bear ? DIR_BULL :
+                                b.bear > b.bull ? DIR_BEAR : P.dm;
               return (
                 <div key={b.label} style={{
-                  padding: "6px 4px",
-                  background: bTotal > 0 ? `${bDir}10` : "transparent",
-                  borderRadius: 3,
-                  border: `1px solid ${bTotal > 0 ? bDir + "40" : P.bd}`,
-                  textAlign: "center",
+                  display: "grid",
+                  // label | %bull | bar (flex) | bull$ | bear$ | count
+                  gridTemplateColumns: "52px 60px 1fr 80px 80px 50px",
+                  gap: 8, alignItems: "center",
+                  padding: "4px 0",
                 }}>
-                  <div style={{
-                    color: P.dm, fontSize: 10, fontWeight: 700,
-                    letterSpacing: 0.5, marginBottom: 2,
+                  {/* DTE label */}
+                  <span style={{
+                    color: P.wh, fontSize: 12, fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
                   }}>
                     {b.label}
-                  </div>
-                  <div style={{
-                    color: bDir, fontSize: 14, fontWeight: 700,
-                    lineHeight: 1.1,
+                  </span>
+                  {/* % bull, colored by lean */}
+                  <span style={{
+                    color: leadColor, fontSize: 12, fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums",
                   }}>
-                    {bArrow} {bTotal > 0 ? bPct.toFixed(0) + "%" : "—"}
-                  </div>
+                    {bTotal > 0 ? `${bPct.toFixed(0)}% B` : "—"}
+                  </span>
+                  {/* Stacked bull/bear proportion bar */}
                   <div style={{
-                    color: P.dm, fontSize: 10, marginTop: 2,
+                    height: 8, background: P.bd, borderRadius: 2,
+                    overflow: "hidden", display: "flex",
+                    opacity: bTotal > 0 ? 1 : 0.3,
                   }}>
-                    {bTotal > 0 ? fmtMShort(bTotal) : "0"}
+                    <div style={{
+                      width: `${bPct}%`, background: DIR_BULL,
+                      transition: "width 0.4s ease",
+                    }} />
+                    <div style={{
+                      width: `${100 - bPct}%`, background: DIR_BEAR,
+                      transition: "width 0.4s ease",
+                    }} />
                   </div>
+                  {/* Bull premium (right-aligned) */}
+                  <span style={{
+                    color: b.bull > 0 ? DIR_BULL : P.mt,
+                    fontSize: 11, fontWeight: 600, textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    {b.bull > 0 ? `▲ ${fmtMShort(b.bull)}` : "—"}
+                  </span>
+                  {/* Bear premium (right-aligned) */}
+                  <span style={{
+                    color: b.bear > 0 ? DIR_BEAR : P.mt,
+                    fontSize: 11, fontWeight: 600, textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    {b.bear > 0 ? `▼ ${fmtMShort(b.bear)}` : "—"}
+                  </span>
+                  {/* Count */}
+                  <span style={{
+                    color: P.dm, fontSize: 11, textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    ·{b.count}
+                  </span>
                 </div>
               );
             })}
@@ -992,6 +992,10 @@ export default function LiveFlowMassive() {
   // than the 5s alert poll so this is the right cadence). Key: ticker → spot.
   const [quotes, setQuotes] = useState({});
   const [quotesFetchedAt, setQuotesFetchedAt] = useState(null);
+  // Day-scoped Market Read stats (aggregated over ALL classifiable Y/M rows
+  // for the target date, independent of filters). Polled every 30s — slower
+  // than alerts because the aggregate moves slower than individual events.
+  const [dayStats, setDayStats] = useState(null);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -1095,6 +1099,35 @@ export default function LiveFlowMassive() {
     // we go from 0 alerts to having alerts, not on every alert update
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alerts.length > 0]);
+
+  // Day-scoped Market Read polling — 30s cadence. Backend caches for 30s
+  // server-side too, so this is effectively cache-aligned. Re-triggers
+  // when targetDate changes (switching between dates in historical view).
+  useEffect(() => {
+    let cancelled = false;
+    let timer;
+
+    async function pollDayStats() {
+      try {
+        const params = new URLSearchParams();
+        if (targetDate) params.set("target_date", targetDate);
+        const r = await fetch(`/api/live/massive/day-stats?${params}`);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        if (!cancelled) setDayStats(d);
+      } catch {
+        // Soft failure — card will show "Loading market read…" or stale data
+      } finally {
+        if (!cancelled) timer = setTimeout(pollDayStats, 30000);
+      }
+    }
+
+    pollDayStats();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [targetDate]);
 
   // Apply client-side filters: tier chips, ticker, contract.
   // Tier filtering now happens here (was previously per-section); the
@@ -1285,10 +1318,10 @@ export default function LiveFlowMassive() {
         </div>
       )}
 
-      {/* MARKET READ — sticky hero card with aggregated bull/bear positioning,
-          top names, DTE buckets, and last-hour breakdown. Sits above filter
-          chips so the macro context is the first thing the eye lands on. */}
-      {visibleAlerts.length > 0 && <MarketReadCard alerts={visibleAlerts} />}
+      {/* MARKET READ — sticky hero card with DAY-SCOPED aggregated bull/bear
+          positioning. Independent of tier chips / min-grade / ticker filters
+          so the macro context stays stable as the user explores the table. */}
+      <MarketReadCard stats={dayStats} />
 
       <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
 
