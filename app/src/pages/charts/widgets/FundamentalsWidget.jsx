@@ -51,8 +51,8 @@ function QuarterBlock({ q }) {
       <div className={`${styles.qBlock} ${styles.qNext}`}>
         <div className={styles.qLabel}>{q.label || 'Next'}</div>
         <div className={styles.qNextDate}>{q.report_date}</div>
-        <div className={styles.qRow}><span>EPS Est.</span> <span className={styles.pos}>{q.eps_estimate ?? '—'}</span></div>
-        <div className={styles.qRow}><span>Sales Est.</span> <span className={styles.pos}>{fmtSales(q.rev_estimate)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>EPS Est.</span> <span className={styles.pos}>{fmtEps(q.eps_estimate)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>Sales Est.</span> <span className={styles.pos}>{fmtSales(q.rev_estimate)}</span></div>
       </div>
     )
   }
@@ -60,11 +60,11 @@ function QuarterBlock({ q }) {
     <div className={styles.qBlock}>
       <div className={styles.qLabel}>{q.label}</div>
       <div className={styles.qRow}>
-        <span>{fmtEps(q.eps_actual)}</span> vs <span>{fmtEps(q.eps_estimate)}</span>
+        <span>{fmtEps(q.eps_actual)}</span> <span className={styles.muted}>vs</span> <span>{fmtEps(q.eps_estimate)}</span>
         <span className={pctClass(q.eps_surprise_pct)}>{fmtPct(q.eps_surprise_pct)}</span>
       </div>
       <div className={styles.qRow}>
-        <span>{fmtSales(q.rev_actual)}</span> vs <span>{fmtSales(q.rev_estimate)}</span>
+        <span>{fmtSales(q.rev_actual)}</span> <span className={styles.muted}>vs</span> <span>{fmtSales(q.rev_estimate)}</span>
         <span className={pctClass(q.rev_surprise_pct)}>{fmtPct(q.rev_surprise_pct)}</span>
       </div>
     </div>
@@ -84,11 +84,19 @@ export default function FundamentalsWidget({ color }) {
 
   return (
     <div className={styles.root}>
-      {hasAnnual ? <AnnualTable rows={data.annual} /> : null}
+      {hasAnnual ? (
+        <>
+          <div className={styles.sectionLabel}>Annual · EPS &amp; Sales</div>
+          <AnnualTable rows={data.annual} />
+        </>
+      ) : null}
       {hasQ ? (
-        <div className={styles.qStrip}>
-          {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
-        </div>
+        <>
+          <div className={styles.sectionLabel}>Quarterly · Actual vs Est.</div>
+          <div className={styles.qStrip}>
+            {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
+          </div>
+        </>
       ) : null}
     </div>
   )

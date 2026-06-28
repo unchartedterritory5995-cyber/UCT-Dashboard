@@ -1,25 +1,85 @@
-/* app/src/pages/charts/widgets/FundamentalsWidget.module.css */
-.root { height: 100%; overflow: auto; padding: 8px 10px; font-size: 13px; color: var(--color-text, #e6e6e6); }
-.hint { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted, #8a8a8a); padding: 16px; text-align: center; }
+/* app/src/pages/charts/widgets/FundamentalsWidget.module.css
+   Uses the app's real design tokens from tokens.css (ut-, text-, bg-, border, font-sans). */
+.root {
+  height: 100%;
+  overflow: auto;
+  padding: 8px 10px 10px;
+  font-family: var(--font-sans);
+  font-size: var(--text-base, 12px);
+  color: var(--text);
+}
+.hint {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; padding: 16px; text-align: center;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  font-size: var(--text-sm, 11px);
+}
 
+.sectionLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 10px);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 2px 0 4px;
+}
+
+/* ── Annual table ───────────────────────────────────────────── */
 .annual { width: 100%; border-collapse: collapse; }
-.annual th { text-align: right; font-weight: 600; color: var(--color-text-muted, #9a9a9a); padding: 4px 6px; border-bottom: 1px solid var(--color-border, #2a2a2a); }
-.annual td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--color-border-subtle, #1d1d1d); font-variant-numeric: tabular-nums; }
+.annual th {
+  text-align: right;
+  font-weight: 600;
+  font-size: var(--text-xs, 10px);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.annual td {
+  text-align: right;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.annual tr:hover td { background: var(--bg-hover); }
 .left { text-align: left !important; }
-.estRow td { color: var(--color-text-muted, #b8b8b8); font-style: italic; }
+.estRow td { color: var(--text-muted); }
+.estRow .left { color: var(--ut-gold); font-weight: 600; }
 
-.pos { color: var(--color-success, #36c46a); }
-.neg { color: var(--color-danger, #e5534b); }
-.rev { font-size: 9px; margin-left: 3px; vertical-align: middle; }
-.revUp { color: var(--color-success, #36c46a); }
-.revDown { color: var(--color-danger, #e5534b); }
+.pos { color: var(--ut-green-bright); }
+.neg { color: var(--ut-red-bright); }
+.rev { font-size: 8px; margin-left: 3px; vertical-align: middle; }
+.revUp { color: var(--ut-green-bright); }
+.revDown { color: var(--ut-red-bright); }
 
-.qStrip { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.qBlock { flex: 1 1 120px; min-width: 110px; border: 1px solid var(--color-border, #2a2a2a); border-radius: 6px; padding: 6px 8px; }
-.qNext { border-color: var(--color-gold, #c9a84c); }
-.qLabel { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
-.qNextDate { color: var(--color-gold, #c9a84c); font-size: 11px; margin-bottom: 4px; }
-.qRow { display: flex; gap: 6px; align-items: baseline; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ── Quarterly strip ────────────────────────────────────────── */
+.qStrip { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.qBlock {
+  flex: 1 1 120px; min-width: 108px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.qNext { border-color: var(--ut-gold); background: var(--ut-gold-dim); }
+.qLabel {
+  font-weight: 700;
+  font-size: var(--text-sm, 11px);
+  color: var(--text-heading);
+  margin-bottom: 4px;
+}
+.qNextDate { color: var(--ut-gold); font-size: var(--text-xs, 10px); margin-bottom: 4px; }
+.qRow {
+  display: flex; gap: 6px; align-items: baseline;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-bright);
+  font-size: var(--text-sm, 11px);
+}
+.qRow .muted { color: var(--text-muted); }
 
 /* Container-query collapse: hide the oldest quarter blocks as the WIDGET narrows
    (root is inside .widgetBody which is container-type: inline-size). */
