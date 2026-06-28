@@ -55,6 +55,10 @@ export default function VideoDockSlot() {
   const saveToNotebook = useCallback(async () => {
     if (!notes.length) return
     const title = (list[index]?.title || 'Video') + ' — Notes'
+    const yt = list[index]?.youtube_id
+    // Carry the source video on the note so the Notebook hero renders an
+    // embedded player + link instead of the image picker.
+    const heroImageUrl = yt ? `https://www.youtube.com/watch?v=${yt}` : undefined
     const content = notes.map((n) => ({
       type: 'paragraph',
       content: [
@@ -68,7 +72,7 @@ export default function VideoDockSlot() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, bodyJson: { type: 'doc', content } }),
+        body: JSON.stringify({ title, heroImageUrl, bodyJson: { type: 'doc', content } }),
       })
       setSavingNb(r.ok ? 'saved' : 'error')
     } catch {

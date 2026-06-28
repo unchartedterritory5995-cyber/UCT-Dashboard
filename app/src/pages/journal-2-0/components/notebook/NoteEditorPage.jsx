@@ -7,6 +7,15 @@ import HeroImagePicker from './HeroImagePicker'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NoteEditorPage.module.css'
 
+// A note can carry its source video in heroImageUrl (set by the Desk "Save
+// notes to Journal Notebook" export). When it does, we render an embedded
+// player + link in the hero slot instead of the image picker.
+function parseYouTubeId(url) {
+  if (typeof url !== 'string') return null
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/)
+  return m ? m[1] : null
+}
+
 const AUTOSAVE_MS = 800
 // Backoff schedule for transient (5xx / network) save failures.
 // After the last entry, retries continue at the cap forever (or until the
@@ -286,11 +295,32 @@ export default function NoteEditorPage({ noteId, onBack }) {
       </header>
 
       <div className={styles.column}>
-        <HeroImagePicker
-          noteId={noteId}
-          value={note.heroImageUrl}
-          onChange={onHeroChange}
-        />
+        {parseYouTubeId(note.heroImageUrl) ? (
+          <div className={styles.videoHero}>
+            <div className={styles.videoHeroFrame}>
+              <iframe
+                src={`https://www.youtube.com/embed/${parseYouTubeId(note.heroImageUrl)}?rel=0&modestbranding=1&playsinline=1`}
+                title="Session video"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+            <a
+              className={styles.videoHeroLink}
+              href={note.heroImageUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Watch on YouTube ↗
+            </a>
+          </div>
+        ) : (
+          <HeroImagePicker
+            noteId={noteId}
+            value={note.heroImageUrl}
+            onChange={onHeroChange}
+          />
+        )}
 
         <input
           className={styles.titleInput}
