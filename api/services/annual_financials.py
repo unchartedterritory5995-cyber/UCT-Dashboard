@@ -1,0 +1,214 @@
+"""Annual EPS/Sales history + forward analyst estimates for the fundamentals
+widget. Actuals source chain: FMP stable/income-statement → yfinance annual
+income_stmt → roll-up of get_year_earnings quarters. Forward estimates: yfinance
+earnings_estimate/revenue_estimate (current FY + next FY). YoY % computed here;
+▲/▼ revision markers from the snapshot store."""
+from __future__ import annotations
+
+import logging
+import time
+from datetime import datetime, timezone
+
+from api.services import earnings_estimates as ee
+from api.services import fundamentals_estimates_store as store
+
+_log = logging.getLogger(__name__)
+
+
+def _pct_chg(cur, prev):
+    try:
+        c, p = float(cur), float(prev)
+    except (TypeError, ValueError):
+        return None
+    if p == 0:
+        return None
+    return round((c - p) / abs(p) * 100)
+
+
+# ── Actuals sources (mockable) ───────────────────────────────────────────────
+def _annual_actuals_from_fmp(ticker: str) -> dict[int, dict]:
+    """{year: {eps, sales}} from FMP stable/income-statement (annual)."""
+    data = ee._fmp_get("/stable/income-statement", {"symbol": ticker, "limit": 12})
+    out: dict[int, dict] = {}
+    if isinstance(data, list):
+        for row in data:
+            try:
+                y = int(str(row.get("date") or row.get("calendarYear") or "")[:4])
+            except (TypeError, ValueError):
+                continue
+            eps = row.get("epsdiluted") if row.get("epsdiluted") is not None else row.get("eps")
+            sales = row.get("revenue")
+            if eps is None and sales is None:
+                continue
+            out[y] = {"eps": _num(eps), "sales": _num(sales)}
+    return out
+
+
+def _annual_actuals_from_yf(ticker: str) -> dict[int, dict]:
+    """{year: {eps, sales}} from yfinance annual income statement (~4 fiscal years)."""
+    try:
+        import math
+        import yfinance as yf
+    except Exception:
+        return {}
+    try:
+        t = yf.Ticker(ticker)
+        df = getattr(t, "income_stmt", None)
+        if df is None or getattr(df, "empty", True):
+            return {}
+
+        def _row(names):
+            for n in names:
+                if n in df.index:
+                    return df.loc[n]
+            return None
+
+        rev = _row(["Total Revenue", "TotalRevenue", "Operating Revenue"])
+        eps = _row(["Diluted EPS", "DilutedEPS", "Basic EPS", "BasicEPS"])
+        out: dict[int, dict] = {}
+        for col in df.columns:
+            try:
+                y = int(col.year)
+            except Exception:
+                continue
+
+            def _v(series):
+                if series is None:
+                    return None
+                try:
+                    fv = float(series.get(col))
+                    return None if math.isnan(fv) else fv
+                except Exception:
+                    return None
+
+            ev, sv = _v(eps), _v(rev)
+            if ev is None and sv is None:
+                continue
+            out[y] = {"eps": ev, "sales": sv}
+        return out
+    except Exception as exc:
+        _log.info("yfinance annual income_stmt failed for %s: %s", ticker, exc)
+        return {}
+
+
+def _annual_rollup_from_quarters(ticker: str, years: list[int]) -> dict[int, dict]:
+    """{year: {eps, sales}} by summing get_year_earnings quarterly actuals.
+    Last-resort; reuses the multi-source merged quarterly data."""
+    out: dict[int, dict] = {}
+    for y in years:
+        rows = ee.get_year_earnings(ticker, y)
+        eps_vals = [r.get("eps_actual") for r in rows if r.get("eps_actual") is not None]
+        rev_vals = [r.get("revenue_actual") for r in rows if r.get("revenue_actual") is not None]
+        if not eps_vals and not rev_vals:
+            continue
+        out[y] = {
+            "eps": round(sum(eps_vals), 2) if eps_vals else None,
+            "sales": sum(rev_vals) if rev_vals else None,
+        }
+    return out
+
+
+# ── Forward estimates (mockable) ─────────────────────────────────────────────
+def _forward_estimates(ticker: str, now: float) -> list[dict]:
+    """Current FY (0y) + next FY (+1y) mean EPS & revenue from yfinance."""
+    try:
+        import yfinance as yf
+    except Exception:
+        return []
+    cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
+    out: list[dict] = []
+    try:
+        t = yf.Ticker(ticker)
+        eps_df = getattr(t, "earnings_estimate", None)
+        rev_df = getattr(t, "revenue_estimate", None)
+
+        def _avg(df, idx):
+            try:
+                if df is None or idx not in df.index:
+                    return None
+                v = float(df.loc[idx].get("avg"))
+                return v
+            except Exception:
+                return None
+
+        mapping = [("0y", cur_y), ("+1y", cur_y + 1)]
+        for idx, year in mapping:
+            eps = _avg(eps_df, idx)
+            sales = _avg(rev_df, idx)
+            if eps is None and sales is None:
+                continue
+            out.append({"year": year, "eps": eps, "sales": sales})
+    except Exception as exc:
+        _log.info("yfinance forward estimates failed for %s: %s", ticker, exc)
+    return out
+
+
+def _num(v):
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def get_annual_financials(ticker: str, years_back: int = 6, now: float | None = None) -> list[dict]:
+    now = time.time() if now is None else now
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return []
+    cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
+
+    # 1. Actuals — FMP, then yfinance fills gaps, then quarter roll-up fills the rest.
+    actuals = dict(_annual_actuals_from_fmp(ticker))
+    source = "fmp" if actuals else None
+    yf_a = _annual_actuals_from_yf(ticker)
+    for y, v in yf_a.items():
+        if y not in actuals:
+            actuals[y] = v
+            source = source or "yfinance"
+    wanted = list(range(cur_y - years_back, cur_y))
+    missing = [y for y in wanted if y not in actuals]
+    if missing:
+        roll = _annual_rollup_from_quarters(ticker, missing)
+        for y, v in roll.items():
+            actuals.setdefault(y, v)
+        if roll and source is None:
+            source = "rollup"
+
+    # Keep only closed years in the wanted window, ascending.
+    actual_years = sorted(y for y in actuals if y < cur_y and y >= cur_y - years_back)
+
+    # 2. Forward estimates (current FY + next FY).
+    fwd = _forward_estimates(ticker, now)
+
+    if not actual_years and not fwd:
+        return []
+
+    rows: list[dict] = []
+    prev = None
+    for y in actual_years:
+        v = actuals[y]
+        row = {
+            "year": y, "eps": v.get("eps"), "sales": v.get("sales"),
+            "eps_chg_pct": _pct_chg(v.get("eps"), prev.get("eps")) if prev else None,
+            "sales_chg_pct": _pct_chg(v.get("sales"), prev.get("sales")) if prev else None,
+            "estimate": False, "eps_revision": None, "sales_revision": None,
+            "_source": source or "unknown",
+        }
+        rows.append(row)
+        prev = v
+
+    for est in fwd:
+        rev = store.revision_for(ticker, est["year"], est.get("eps"), est.get("sales"), now=now)
+        store.record_snapshot(ticker, est["year"], est.get("eps"), est.get("sales"), now=now)
+        row = {
+            "year": est["year"], "eps": est.get("eps"), "sales": est.get("sales"),
+            "eps_chg_pct": _pct_chg(est.get("eps"), prev.get("eps")) if prev else None,
+            "sales_chg_pct": _pct_chg(est.get("sales"), prev.get("sales")) if prev else None,
+            "estimate": True,
+            "eps_revision": rev.get("eps"), "sales_revision": rev.get("sales"),
+            "_source": "estimate",
+        }
+        rows.append(row)
+        prev = est
+
+    return rows
