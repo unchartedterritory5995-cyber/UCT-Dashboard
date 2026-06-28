@@ -2,8 +2,8 @@ import { useState } from 'react'
 import WidgetHost from '../WidgetHost'
 import styles from '../ChartsWorkspace.module.css'
 
-const TYPE_LABEL = { chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner' }
-const ADD_TYPES = ['chart', 'watchlist', 'themes', 'scanner']
+const TYPE_LABEL = { chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner', fundamentals: 'Fundamentals' }
+const ADD_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals']
 
 /* MobileWorkspace — phone replacement for the react-grid-layout workspace.
  *

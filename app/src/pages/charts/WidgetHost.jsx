@@ -2,6 +2,7 @@ import ChartWidget from './widgets/ChartWidget'
 import WatchlistWidget from './widgets/WatchlistWidget'
 import ThemesWidget from './widgets/ThemesWidget'
 import ScannerWidget from './widgets/ScannerWidget'
+import FundamentalsWidget from './widgets/FundamentalsWidget'
 import WidgetHeader from './WidgetHeader'
 import styles from './ChartsWorkspace.module.css'
 
@@ -10,6 +11,7 @@ const TYPE_LABEL = {
   watchlist: 'Watchlist',
   themes: 'Themes',
   scanner: 'Scanner',
+  fundamentals: 'Fundamentals',
 }
 
 function WidgetBody({ widget, onOptsChange }) {
@@ -18,6 +20,7 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'watchlist': return <WatchlistWidget color={widget.color} opts={widget.opts} />
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
+    case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }

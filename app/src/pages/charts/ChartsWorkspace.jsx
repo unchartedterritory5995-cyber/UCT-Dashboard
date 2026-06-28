@@ -31,6 +31,7 @@ const WIDGET_DEFAULTS = {
   watchlist: { w: 3, h: 10, minW: 2, minH: 4 },
   themes:    { w: 3, h: 10, minW: 2, minH: 4 },
   scanner:   { w: 4, h: 10, minW: 3, minH: 4 },
+  fundamentals: { w: 4, h: 10, minW: 3, minH: 5 },
 }
 
 function parseLayout(raw) {
@@ -260,7 +261,7 @@ export default function ChartsWorkspace() {
             >+ Add Widget</button>
             {addMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
-                {['chart', 'watchlist', 'themes', 'scanner'].map(t => (
+                {['chart', 'watchlist', 'themes', 'scanner', 'fundamentals'].map(t => (
                   <button
                     key={t}
                     type="button"
