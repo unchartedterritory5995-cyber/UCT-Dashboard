@@ -96,9 +96,56 @@ function fmtStrike(s) {
   return "$" + s.toFixed(2);
 }
 
+// Contract price (averageFillPrice). Sub-$1 needs more precision than
+// strikes; $4.32 is typical, $0.05 should not display as "$0.05" (lost
+// precision) but as "$.05" or "0.05". Keep two decimals across the board.
+function fmtPrice(p) {
+  if (p == null || isNaN(p)) return "—";
+  return "$" + p.toFixed(2);
+}
+
+// Volume / OI as compact counts. Massive contracts hit 6-digit volume on
+// busy days; raw integers get unreadable. 1234 → "1.2K", 12345 → "12.3K".
+function fmtCount(n) {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 10_000) return (n / 1000).toFixed(0) + "K";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return String(n);
+}
+
 // ─── Filter chips ─────────────────────────────────────────────────────────
+// Click behavior:
+//   • Click a chip → isolate to that tier (all others off)
+//   • Click that same chip again → restore all tiers (all on)
+//   • Click "Show all" → restore all tiers
+// This is the click-to-focus pattern used by other dashboards (Bloomberg,
+// Twitter, etc.) — clicking always either isolates or restores, never the
+// confusing in-between multi-select state.
 function FilterChips({ filters, onChange, counts }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
+  const onlyOnTier = (() => {
+    const ons = TIER_ORDER.filter(t => filters[t]);
+    return ons.length === 1 ? ons[0] : null;
+  })();
+  const handleClick = (tier) => {
+    if (onlyOnTier === tier) {
+      // Already isolated to this tier → restore all
+      const next = {};
+      for (const t of TIER_ORDER) next[t] = true;
+      onChange(next);
+    } else {
+      // Isolate to just this tier
+      const next = {};
+      for (const t of TIER_ORDER) next[t] = (t === tier);
+      onChange(next);
+    }
+  };
+  const handleShowAll = () => {
+    const next = {};
+    for (const t of TIER_ORDER) next[t] = true;
+    onChange(next);
+  };
   return (
     <div style={{
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
@@ -106,11 +153,7 @@ function FilterChips({ filters, onChange, counts }) {
     }}>
       <span style={{ color: P.dm, fontSize: 11, marginRight: 4 }}>Show:</span>
       <button
-        onClick={() => {
-          const next = {};
-          for (const t of TIER_ORDER) next[t] = !allOn;
-          onChange(next);
-        }}
+        onClick={handleShowAll}
         style={{
           background: allOn ? P.ac : "transparent",
           color: allOn ? P.bg : P.wh,
@@ -123,19 +166,19 @@ function FilterChips({ filters, onChange, counts }) {
       {TIER_ORDER.map(tier => {
         const meta = TIER_META[tier];
         const on = filters[tier];
+        const isIsolated = onlyOnTier === tier;
         const count = counts?.[tier] || 0;
         return (
           <button
             key={tier}
-            onClick={() => {
-              const next = { ...filters, [tier]: !on };
-              onChange(next);
-            }}
+            onClick={() => handleClick(tier)}
+            title={isIsolated ? "Click to restore all tiers" : `Show only ${meta.label}`}
             style={{
               background: on ? meta.color : "transparent",
               color: on ? P.bg : P.wh,
-              border: `1px solid ${meta.color}`, borderRadius: 4,
-              padding: "4px 10px", cursor: "pointer", fontSize: 12,
+              border: `${isIsolated ? 2 : 1}px solid ${meta.color}`, borderRadius: 4,
+              padding: isIsolated ? "3px 9px" : "4px 10px",
+              cursor: "pointer", fontSize: 12,
               opacity: on ? 1 : 0.5,
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
@@ -157,10 +200,9 @@ function FilterChips({ filters, onChange, counts }) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, onClickTicker, onClickContract }) {
+function AlertRow({ alert, isNew, hitCount, onClickTicker, onClickContract }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
-  const isCall = alert.cp === "C";
   const dirIsBull = alert._direction === "Bull";
   const cpColor = dirIsBull ? P.bu : P.be;
 
@@ -171,19 +213,32 @@ function AlertRow({ alert, isNew, onClickTicker, onClickContract }) {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "85px 60px 50px 70px 95px 90px 75px 85px 65px 1fr",
+      // TIME | TICKER+×N | C/P | STRIKE | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | ALERT
+      gridTemplateColumns: "78px 85px 40px 65px 80px 60px 60px 60px 55px 80px 45px 50px 1fr",
       gap: 6, padding: "6px 10px",
       borderLeft: `3px solid ${meta.color}`,
       background: P.cd, marginBottom: 2, fontSize: 12,
       ...flashStyle,
     }}>
       <span style={{ color: P.dm }}>{fmtTime(alert.timestamp)}</span>
-      <span
-        style={{ color: P.wh, fontWeight: 600, cursor: "pointer" }}
-        onClick={() => onClickTicker(alert.ticker)}
-        title={`Filter to ${alert.ticker}`}
-      >
-        {alert.ticker}
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span
+          style={{ color: P.wh, fontWeight: 600, cursor: "pointer" }}
+          onClick={() => onClickTicker(alert.ticker)}
+          title={`Filter to ${alert.ticker}`}
+        >
+          {alert.ticker}
+        </span>
+        {hitCount > 1 && (
+          <span style={{
+            fontSize: 9, fontWeight: 700,
+            padding: "1px 4px", borderRadius: 3,
+            background: P.ac + "25", color: P.ac,
+            flexShrink: 0,
+          }} title={`${hitCount} hits on this contract today`}>
+            ×{hitCount}
+          </span>
+        )}
       </span>
       <span style={{ color: cpColor, fontWeight: 600, textAlign: "center" }}>
         {alert.cp || "—"}
@@ -200,6 +255,22 @@ function AlertRow({ alert, isNew, onClickTicker, onClickContract }) {
         {fmtStrike(alert.strike)}
       </span>
       <span style={{ color: P.dm, fontSize: 11 }}>{alert.exp || "—"}</span>
+      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+        {fmtPrice(alert.averageFillPrice)}
+      </span>
+      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+        {fmtCount(alert.tradeSize)}
+      </span>
+      <span style={{ color: P.dm, fontSize: 11, textAlign: "right" }}>
+        {fmtCount(alert.priorOI)}
+      </span>
+      <span style={{
+        color: alert.oiExceeded ? P.ac : P.dm,
+        fontSize: 11, textAlign: "center",
+        fontWeight: alert.oiExceeded ? 600 : 400,
+      }}>
+        {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
+      </span>
       <span style={{ color: P.wh, fontWeight: 600, textAlign: "right" }}>
         {fmtPremium(alert.alertPremium)}
       </span>
@@ -212,19 +283,18 @@ function AlertRow({ alert, isNew, onClickTicker, onClickContract }) {
         {alert.grade}
       </span>
       <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
-        {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
-      </span>
-      <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
         {alert._side || "—"}
       </span>
-      <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
           padding: "1px 5px", borderRadius: 3,
           background: `${meta.color}25`, color: meta.color,
           textTransform: "uppercase", flexShrink: 0,
         }}>{meta.label}</span>
-        <span style={{ color: P.dm }}>{alert.alertName}</span>
+        <span style={{ color: P.dm, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {alert.alertName}
+        </span>
       </span>
     </div>
   );
@@ -411,7 +481,7 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "85px 60px 50px 70px 95px 90px 75px 85px 65px 1fr",
+      gridTemplateColumns: "78px 85px 40px 65px 80px 60px 60px 60px 55px 80px 45px 50px 1fr",
       gap: 6, padding: "4px 10px",
       fontSize: 10, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -421,9 +491,12 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>C/P</span>
       <span style={{ textAlign: "right" }}>STRIKE</span>
       <span>EXP</span>
-      <span style={{ textAlign: "right" }}>PREMIUM</span>
-      <span style={{ textAlign: "center" }}>GRADE</span>
+      <span style={{ textAlign: "right" }}>PRICE</span>
+      <span style={{ textAlign: "right" }}>VOL</span>
+      <span style={{ textAlign: "right" }}>OI</span>
       <span style={{ textAlign: "center" }}>V/OI</span>
+      <span style={{ textAlign: "right" }}>PREMIUM</span>
+      <span style={{ textAlign: "center" }}>GR</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
       <span>ALERT</span>
     </div>
@@ -542,6 +615,18 @@ export default function LiveFlowMassive() {
     }
     const t = a._tierKey || "algo";
     if (tierCounts[t] !== undefined) tierCounts[t]++;
+  }
+
+  // Per-contract hit counts — same strike/exp/cp fired multiple times today.
+  // Computed across ALL alerts (not just visible) so a contract that fires
+  // 7x but only 3 are currently visible (e.g., min_grade=A filter) still
+  // shows ×7 on those 3 rows. Built keyed by the same contract key used in
+  // contractFilter so clicking can drill into all of them.
+  const hitCounts = {};
+  for (const a of alerts) {
+    if (a.cp == null || a.strike == null || !a.exp) continue;
+    const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+    hitCounts[k] = (hitCounts[k] || 0) + 1;
   }
 
   const handleClickTicker = (t) => {
@@ -700,15 +785,21 @@ export default function LiveFlowMassive() {
           filter chips above control which tiers appear in this flat list.
           This replaces the earlier tier-grouped layout (which was useful for
           end-of-day analysis but less suited for live tape-style viewing). */}
-      {visibleAlerts.map(a => (
-        <AlertRow
-          key={a.id}
-          alert={a}
-          isNew={newIdsRef.current.has(a.id)}
-          onClickTicker={handleClickTicker}
-          onClickContract={handleClickContract}
-        />
-      ))}
+      {visibleAlerts.map(a => {
+        const ck = (a.cp && a.strike != null && a.exp)
+          ? `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`
+          : null;
+        return (
+          <AlertRow
+            key={a.id}
+            alert={a}
+            isNew={newIdsRef.current.has(a.id)}
+            hitCount={ck ? (hitCounts[ck] || 1) : 1}
+            onClickTicker={handleClickTicker}
+            onClickContract={handleClickContract}
+          />
+        );
+      })}
 
       {visibleAlerts.length === 0 && !error && (
         <div style={{
