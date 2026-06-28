@@ -128,6 +128,20 @@ def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
     assert nxt[0]["report_date"] is None                 # Yahoo gives no report date
 
 
+def test_zero_revenue_estimate_normalized_to_missing(monkeypatch, tmp_path):
+    # A $0 forward revenue estimate (Yahoo for some utilities) → None, so the
+    # strip shows '—' not a misleading '$0'. EPS is kept.
+    et = _mod(monkeypatch, tmp_path)
+    import api.services.earnings_table as etmod
+
+    def fake_fmp(path, params, timeout=10):
+        return [{"date": "2099-09-30", "epsAvg": 0.76, "revenueAvg": 0}]
+
+    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    rows = etmod._fmp_forward_quarters("ZZ0", 4)
+    assert rows == [{"date": "2099-09-30", "eps_estimate": 0.76, "rev_estimate": None}]
+
+
 def test_next_q_label_increment():
     import api.services.earnings_table as et
     assert et._next_q_label("2026 Q3") == "2026 Q4"

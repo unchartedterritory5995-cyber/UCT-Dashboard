@@ -106,6 +106,15 @@ def _num(v):
         return None
 
 
+def _rev(v):
+    """A revenue estimate is never legitimately exactly 0 for an operating
+    company — some vendors (e.g. Yahoo for certain utilities) return 0/NaN when
+    they simply lack a quarterly revenue consensus. Treat 0 as missing so the
+    strip renders '—' instead of a misleading '$0'."""
+    n = _num(v)
+    return None if (n is None or n == 0) else n
+
+
 def _fmp_forward_quarters(ticker, limit):
     """Up to `limit` upcoming quarters of analyst consensus (EPS + revenue) from
     FMP stable/analyst-estimates (period=quarter). Returns chronological
@@ -131,7 +140,7 @@ def _fmp_forward_quarters(ticker, limit):
         if not d or d < today:
             continue
         eps = _pick(row, "epsAvg", "estimatedEpsAvg")
-        rev = _pick(row, "revenueAvg", "estimatedRevenueAvg")
+        rev = _rev(_pick(row, "revenueAvg", "estimatedRevenueAvg"))
         if eps is None and rev is None:
             continue
         fut.append({"date": d, "eps_estimate": eps, "rev_estimate": rev})
@@ -163,7 +172,7 @@ def _yf_forward_quarters(ticker, limit):
 
         for idx in ("0q", "+1q"):
             eps = _avg(eps_df, idx)
-            rev = _avg(rev_df, idx)
+            rev = _rev(_avg(rev_df, idx))
             if eps is None and rev is None:
                 continue
             out.append({"date": None, "eps_estimate": eps, "rev_estimate": rev})
