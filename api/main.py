@@ -2321,6 +2321,60 @@ async def lifespan(app: FastAPI):
 
         # Discord flow watchlist -- manual push only (no scheduled jobs)
 
+        # -- Fundamentals widget warm (densifies estimate-revision snapshots) --
+        # Daily 5:30 AM ET: warm the earnings table for user-tracked tickers +
+        # leadership so forward-estimate snapshots accrue (keeps the ▲/▼ revision
+        # markers accurate) and those stocks are pre-fresh during earnings season.
+        # The widget works fully without this -- load-driven freshness still
+        # covers every stock; this only densifies snapshot history. Best-effort.
+        if os.environ.get("FUNDAMENTALS_WARM_ENABLED", "").lower() in ("1", "true", "yes"):
+            def _fundamentals_warm_job():
+                import logging as _lg
+                import time as _t
+                log = _lg.getLogger("fundamentals.warm")
+                try:
+                    from api.services.earnings_table import get_earnings_table
+                    from api.services import fundamentals_estimates_store as _store
+                    syms: set[str] = set()
+                    # User-tracked tickers (watchlists + flagged), best-effort.
+                    try:
+                        from api.services.watchlist_service import all_tracked_symbols
+                        syms.update(all_tracked_symbols())
+                    except Exception:
+                        pass
+                    # Leadership (UCT20), best-effort.
+                    try:
+                        from api.services import engine as _engine
+                        for row in (_engine.get_leadership() or []):
+                            sym = (row.get("symbol") or row.get("ticker") or "").upper()
+                            if sym:
+                                syms.add(sym)
+                    except Exception:
+                        pass
+                    syms = {s for s in syms if s}
+                    log.info("fundamentals warm: %d tickers", len(syms))
+                    for s in sorted(syms):
+                        try:
+                            get_earnings_table(s)
+                        except Exception as e:
+                            log.debug("warm %s failed: %s", s, e)
+                        _t.sleep(0.25)  # polite to yfinance/FMP
+                    try:
+                        _store.prune()
+                    except Exception:
+                        pass
+                except Exception as e:
+                    log.warning("fundamentals warm job crashed: %s", e)
+
+            _scheduler.add_job(
+                _fundamentals_warm_job,
+                trigger=CronTrigger(hour=5, minute=30),
+                id="fundamentals_warm",
+                max_instances=1,
+                replace_existing=True,
+            )
+            print("[startup] Fundamentals warm scheduled -- daily at 5:30 AM ET")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
