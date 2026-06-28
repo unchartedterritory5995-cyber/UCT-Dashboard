@@ -2716,6 +2716,66 @@ async def _massive_backfill_ticktest(target_date: str = None):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/apply-gap-fill")
+async def _massive_apply_gap_fill(fill_file: str = "fill-6-26-stocks.csv",
+                                   source: str = "stocks"):
+    """Apply gap-fill CSV to FlowDB — insert events the worker missed.
+
+    Companion to build_gap_fill_csv.py. The script generates a BBS-format CSV
+    offline from Massive's T+1 flat file using the same aggregation logic as
+    the production worker. This endpoint reads that CSV and inserts only the
+    rows that aren't already in FlowDB (matched by Symbol + CP + Strike +
+    Exp + CreatedTime within ±60s).
+
+    Rationale: WebSocket disconnects during market hours cause permanent data
+    loss because Massive doesn't replay historical trades. A 30s disconnect
+    can drop 50-100 events on liquid tickers and entire bursts on illiquid
+    ones (e.g. the TWST 11:25 burst on 6/26 — $984K of bullish CALL flow
+    missed entirely). The T+1 flat file is the same OPRA tape, delivered as
+    a static file after close, and we can backfill from it.
+
+    Workflow:
+      1. Download T+1 flat file from Massive (~80MB gzipped)
+      2. Run: python build_gap_fill_csv.py raw.csv.gz YYYY-MM-DD out.csv
+         -> produces out-stocks.csv and out-indexes.csv
+      3. Commit both CSVs to api/ in the repo
+      4. POST this endpoint twice (source=stocks, source=indexes)
+      5. Run /rebuild-color and /apply-cancel-patches to enrich the new rows
+
+    New rows are inserted with empty Side and Color=WHITE — Phase 2i Side
+    classification (build_patches.py) and rebuild-color handle enrichment.
+
+    Idempotent: re-runs skip everything that's already there.
+
+    fill_file: filename within /app/api/ directory
+    source: 'stocks' or 'indexes' (use _stocks.csv with stocks, _indexes.csv with indexes)
+    """
+    try:
+        import os
+        api_dir = os.path.dirname(os.path.abspath(__file__))
+        full_path = os.path.join(api_dir, fill_file)
+        if not os.path.exists(full_path):
+            return {"ok": False, "error": f"fill file not found: {full_path}",
+                    "tip": "Commit the fill CSV to api/ directory"}
+        if source not in ("stocks", "indexes"):
+            return {"ok": False, "error": "source must be 'stocks' or 'indexes'"}
+        from api.apply_gap_fill import run_apply_gap_fill
+        stats = run_apply_gap_fill(full_path, source=source)
+        # Make the dates set JSON-serializable
+        if isinstance(stats.get("dates_touched"), set):
+            stats["dates_touched"] = sorted(list(stats["dates_touched"]))
+        try:
+            from api.flow_router import bump_data_version
+            stats["new_data_version"] = bump_data_version()
+        except Exception as bump_err:
+            stats["bump_warning"] = f"version bump failed: {bump_err}"
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/admin/massive/apply-cancel-patches")
 async def _massive_apply_cancel_patches(patches_file: str = "patches-6-26-cancels.json",
                                          target_date: str = "6/26/2026"):
