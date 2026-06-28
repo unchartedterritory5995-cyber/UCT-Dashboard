@@ -236,20 +236,20 @@ function MarketReadCard({ stats }) {
       }}>
         {/* Direction headline */}
         <div style={{
-          padding: "10px 14px",
+          padding: "8px 12px",
           background: `${netColor}22`,
           borderRadius: 4, border: `1px solid ${netColor}80`,
         }}>
           <div style={{
-            color: netColor, fontSize: 26, fontWeight: 800,
+            color: netColor, fontSize: 18, fontWeight: 800,
             letterSpacing: 0.5, lineHeight: 1.1,
             transition: "color 0.3s ease",
           }}>
             {netLabel}
           </div>
           <div style={{
-            color: netColor, fontSize: 16, fontWeight: 600,
-            marginTop: 4, opacity: 0.9,
+            color: netColor, fontSize: 12, fontWeight: 600,
+            marginTop: 3, opacity: 0.9,
           }}>
             {bullPct.toFixed(0)}% bull
           </div>
@@ -259,7 +259,7 @@ function MarketReadCard({ stats }) {
         <div
           onClick={() => setExpandedSide(expandedSide === "bull" ? null : "bull")}
           style={{
-            padding: "10px 14px", background: P.cd,
+            padding: "8px 12px", background: P.cd,
             borderRadius: 4,
             border: expandedSide === "bull"
               ? `1px solid ${DIR_BULL}`
@@ -275,13 +275,13 @@ function MarketReadCard({ stats }) {
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <span>▲ BULL FLOW</span>
-            <span style={{ color: DIR_BULL, fontSize: 12 }}>
+            <span style={{ color: DIR_BULL, fontSize: 11 }}>
               {expandedSide === "bull" ? "▾" : "▸"}
             </span>
           </div>
           <div style={{
-            color: DIR_BULL, fontSize: 28, fontWeight: 800,
-            marginTop: 4, lineHeight: 1.1,
+            color: DIR_BULL, fontSize: 20, fontWeight: 800,
+            marginTop: 3, lineHeight: 1.1,
           }}>
             {fmtM(bullPrem)}
           </div>
@@ -291,7 +291,7 @@ function MarketReadCard({ stats }) {
         <div
           onClick={() => setExpandedSide(expandedSide === "bear" ? null : "bear")}
           style={{
-            padding: "10px 14px", background: P.cd,
+            padding: "8px 12px", background: P.cd,
             borderRadius: 4,
             border: expandedSide === "bear"
               ? `1px solid ${DIR_BEAR}`
@@ -307,13 +307,13 @@ function MarketReadCard({ stats }) {
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <span>▼ BEAR FLOW</span>
-            <span style={{ color: DIR_BEAR, fontSize: 12 }}>
+            <span style={{ color: DIR_BEAR, fontSize: 11 }}>
               {expandedSide === "bear" ? "▾" : "▸"}
             </span>
           </div>
           <div style={{
-            color: DIR_BEAR, fontSize: 28, fontWeight: 800,
-            marginTop: 4, lineHeight: 1.1,
+            color: DIR_BEAR, fontSize: 20, fontWeight: 800,
+            marginTop: 3, lineHeight: 1.1,
           }}>
             {fmtM(bearPrem)}
           </div>
@@ -321,7 +321,7 @@ function MarketReadCard({ stats }) {
 
         {/* Net delta */}
         <div style={{
-          padding: "10px 14px", background: P.cd,
+          padding: "8px 12px", background: P.cd,
           borderRadius: 4, border: `1px solid ${P.bd}`,
         }}>
           <div style={{
@@ -331,8 +331,8 @@ function MarketReadCard({ stats }) {
             NET (BULL − BEAR)
           </div>
           <div style={{
-            color: netColor, fontSize: 28, fontWeight: 800,
-            marginTop: 4, lineHeight: 1.1,
+            color: netColor, fontSize: 20, fontWeight: 800,
+            marginTop: 3, lineHeight: 1.1,
           }}>
             {netPrem >= 0 ? "+" : ""}{fmtM(netPrem)}
           </div>
@@ -440,50 +440,62 @@ function MarketReadCard({ stats }) {
         );
       })()}
 
-      {/* PROGRESS BAR */}
-      <div style={{
-        height: 10, background: P.bd, borderRadius: 5,
-        overflow: "hidden", display: "flex", marginBottom: 10,
-      }}>
-        <div style={{
-          width: `${bullPct}%`, background: DIR_BULL,
-          transition: "width 0.4s ease",
-        }} />
-        <div style={{
-          width: `${100 - bullPct}%`, background: DIR_BEAR,
-          transition: "width 0.4s ease",
-        }} />
-      </div>
+      {/* No progress bar — direction is already conveyed by the BULLISH/
+          BEARISH headline card and the % numbers. Removed to save vertical
+          space in the sticky group. */}
 
-      {/* LAST HOUR ROW */}
+      {/* LAST HOUR ROW — shows which tickers caught flow in the final
+          hour window. Each ticker's amount is colored by which side
+          dominated for that name in that hour (bull = green, bear = red). */}
       <div style={{
         display: "flex", alignItems: "center", gap: 14,
         padding: "6px 0", marginBottom: 12, fontSize: 12,
         borderTop: `1px solid ${P.bd}`, paddingTop: 10,
+        flexWrap: "wrap",
       }}>
         <span style={{
           color: P.mt, fontSize: 10, fontWeight: 700,
           letterSpacing: 1, textTransform: "uppercase",
+          flexShrink: 0,
         }}>
           ⏱ {isLiveWindow ? "LAST HOUR" : "FINAL HOUR OF SESSION"}
         </span>
-        {total1h > 0 ? (
+        {count1h > 0 ? (
           <>
-            <span style={{
-              color: bullPct1h >= 50 ? DIR_BULL : DIR_BEAR,
-              fontWeight: 700, fontSize: 13,
-            }}>
-              {bullPct1h.toFixed(0)}% bull
+            <span style={{ color: P.dm, fontSize: 11, flexShrink: 0 }}>
+              · {count1h.toLocaleString()} alert{count1h === 1 ? "" : "s"}
             </span>
-            <span style={{ color: DIR_BULL, fontWeight: 600 }}>
-              ▲ {fmtMShort(bullPrem1h)}
-            </span>
-            <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
-              ▼ {fmtMShort(bearPrem1h)}
-            </span>
-            <span style={{ color: P.dm, fontSize: 11 }}>
-              · {count1h} alert{count1h === 1 ? "" : "s"}
-            </span>
+            {/* Top tickers active in the window */}
+            {(stats.last_hour?.top_tickers || []).length > 0 ? (
+              <span style={{
+                display: "flex", gap: 12, alignItems: "baseline",
+                flexWrap: "wrap",
+              }}>
+                {(stats.last_hour.top_tickers).map((tk, i) => {
+                  const tkColor = tk.lean === "bull" ? DIR_BULL :
+                                  tk.lean === "bear" ? DIR_BEAR : P.dm;
+                  return (
+                    <span key={tk.ticker} style={{
+                      display: "inline-flex", alignItems: "baseline", gap: 4,
+                    }}>
+                      <span style={{ color: P.wh, fontWeight: 600 }}>
+                        {tk.ticker}
+                      </span>
+                      <span style={{
+                        color: tkColor, fontWeight: 600,
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        {fmtMShort(tk.total)}
+                      </span>
+                    </span>
+                  );
+                })}
+              </span>
+            ) : (
+              <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
+                no notable tickers
+              </span>
+            )}
           </>
         ) : (
           <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
