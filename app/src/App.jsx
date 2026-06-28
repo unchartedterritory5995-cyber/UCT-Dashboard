@@ -18,7 +18,6 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
-import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
@@ -35,7 +34,7 @@ const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
-const AlertTester = lazy(() => import('./pages/AlertTester'))
+const LiveFlowMassive = lazy(() => import('./pages/LiveFlowMassive'))
 const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
@@ -132,8 +131,6 @@ export default function App() {
         <Suspense fallback={null}>
           <GlobalAddPositionProvider />
         </Suspense>
-        {/* Persistent Desk video player — one instance, survives all routing. */}
-        <GlobalVideoLayer />
         <RouteErrorBoundary>
           <Suspense fallback={
             <div style={{
@@ -171,8 +168,7 @@ export default function App() {
             <Route element={<AuthGuard />}>
               {/* LiveFlow has its own full-page layout — no sidebar/nav wrapper */}
               <Route path="/live-flow" element={<LiveFlow />} />
-              {/* AlertTester is admin-only tooling — full-page layout, no sidebar */}
-              <Route path="/alert-tester" element={<AlertTester />} />
+              <Route path="/live-massive" element={<LiveFlowMassive />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
