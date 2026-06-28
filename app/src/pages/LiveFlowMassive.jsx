@@ -97,13 +97,14 @@ function fmtStrike(s) {
 }
 
 // ─── Filter chips ─────────────────────────────────────────────────────────
-function FilterChips({ filters, onChange }) {
+function FilterChips({ filters, onChange, counts }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   return (
     <div style={{
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
       padding: "8px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
     }}>
+      <span style={{ color: P.dm, fontSize: 11, marginRight: 4 }}>Show:</span>
       <button
         onClick={() => {
           const next = {};
@@ -122,6 +123,7 @@ function FilterChips({ filters, onChange }) {
       {TIER_ORDER.map(tier => {
         const meta = TIER_META[tier];
         const on = filters[tier];
+        const count = counts?.[tier] || 0;
         return (
           <button
             key={tier}
@@ -135,9 +137,18 @@ function FilterChips({ filters, onChange }) {
               border: `1px solid ${meta.color}`, borderRadius: 4,
               padding: "4px 10px", cursor: "pointer", fontSize: 12,
               opacity: on ? 1 : 0.5,
+              display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
             {meta.label}
+            {count > 0 && (
+              <span style={{
+                fontSize: 10, fontWeight: 600,
+                padding: "1px 5px", borderRadius: 8,
+                background: on ? `${P.bg}80` : `${meta.color}30`,
+                color: on ? P.bg : meta.color,
+              }}>{count}</span>
+            )}
           </button>
         );
       })}
@@ -206,58 +217,42 @@ function AlertRow({ alert, isNew, onClickTicker, onClickContract }) {
       <span style={{ color: P.dm, fontSize: 11, textAlign: "center" }}>
         {alert._side || "—"}
       </span>
-      <span style={{ color: meta.color, fontSize: 11 }}>
-        {alert.alertName}
+      <span style={{ color: meta.color, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+          padding: "1px 5px", borderRadius: 3,
+          background: `${meta.color}25`, color: meta.color,
+          textTransform: "uppercase", flexShrink: 0,
+        }}>{meta.label}</span>
+        <span style={{ color: P.dm }}>{alert.alertName}</span>
       </span>
-    </div>
-  );
-}
-
-// ─── Tier section ─────────────────────────────────────────────────────────
-function TierSection({ tier, alerts, newIds, collapsed, onToggleCollapse,
-                       onClickTicker, onClickContract }) {
-  const meta = TIER_META[tier];
-  if (!meta) return null;
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div
-        onClick={onToggleCollapse}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "6px 10px", background: meta.bg,
-          borderLeft: `4px solid ${meta.color}`,
-          cursor: "pointer", marginBottom: 4,
-        }}
-      >
-        <span style={{ color: meta.color, fontWeight: 700, letterSpacing: 1 }}>
-          {meta.label.toUpperCase()}
-        </span>
-        <span style={{ color: P.dm, fontSize: 12 }}>
-          {alerts.length} {alerts.length === 1 ? "alert" : "alerts"}
-        </span>
-        <span style={{ marginLeft: "auto", color: P.dm, fontSize: 11 }}>
-          {collapsed ? "▶ click to expand" : "▼ click to collapse"}
-        </span>
-      </div>
-      {!collapsed && alerts.map(a => (
-        <AlertRow
-          key={a.id}
-          alert={a}
-          isNew={newIds.has(a.id)}
-          onClickTicker={onClickTicker}
-          onClickContract={onClickContract}
-        />
-      ))}
     </div>
   );
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
-                  tickerFilter, contractFilter, onClearFilters }) {
+                  tickerFilter, contractFilter, onClearFilters,
+                  targetDate, onDateChange, onOiFetch, oiFetchState,
+                  nullOICount }) {
   const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
+  // Convert M/D/YYYY ↔ YYYY-MM-DD for the native <input type="date"> field.
+  // Native input requires ISO format; our backend uses M/D/YYYY.
+  const dateInputValue = (() => {
+    if (!targetDate) return "";
+    const parts = targetDate.split("/");
+    if (parts.length !== 3) return "";
+    const [m, d, y] = parts;
+    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  })();
+  const handleDateInput = (e) => {
+    const v = e.target.value;  // YYYY-MM-DD
+    if (!v) { onDateChange(null); return; }
+    const [y, m, d] = v.split("-");
+    onDateChange(`${parseInt(m)}/${parseInt(d)}/${y}`);  // M/D/YYYY
+  };
   return (
     <div style={{
       padding: "12px 16px", background: P.cd, marginBottom: 16,
@@ -289,6 +284,34 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
+        <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
+        <input
+          type="date"
+          value={dateInputValue}
+          onChange={handleDateInput}
+          style={{
+            background: P.bg, color: P.wh,
+            border: `1px solid ${P.bd}`, borderRadius: 3,
+            padding: "3px 8px", fontSize: 11,
+            fontFamily: "inherit", colorScheme: "dark",
+          }}
+        />
+        {targetDate && (
+          <button
+            onClick={() => onDateChange(null)}
+            style={{
+              background: "transparent", color: P.ac,
+              border: `1px solid ${P.ac}`, borderRadius: 3,
+              padding: "3px 8px", cursor: "pointer", fontSize: 11,
+            }}
+            title="Return to live view (today)"
+          >
+            ← LIVE
+          </button>
+        )}
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
         <label style={{ color: P.dm, fontSize: 12 }}>Sort:</label>
         {["recent", "conviction", "premium"].map(opt => (
           <button
@@ -323,6 +346,40 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
             ≥{g}
           </button>
         ))}
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
+        <button
+          onClick={onOiFetch}
+          disabled={oiFetchState?.loading || nullOICount === 0}
+          title={
+            nullOICount === 0
+              ? "All contracts already have OI"
+              : `Fetch Schwab OI for ${nullOICount} unresolved contracts`
+          }
+          style={{
+            background: oiFetchState?.loading ? P.mt : (nullOICount > 0 ? P.ac + "14" : "transparent"),
+            color: oiFetchState?.loading ? P.bg : (nullOICount > 0 ? P.ac : P.mt),
+            border: `1px solid ${nullOICount > 0 ? P.ac : P.bd}`, borderRadius: 3,
+            padding: "3px 10px",
+            cursor: oiFetchState?.loading ? "wait" : (nullOICount > 0 ? "pointer" : "not-allowed"),
+            fontSize: 11, fontWeight: 600,
+          }}
+        >
+          {oiFetchState?.loading
+            ? "⟳ fetching…"
+            : `↻ fetch OI${nullOICount > 0 ? ` (${nullOICount})` : ""}`}
+        </button>
+        {oiFetchState?.result && (
+          <span style={{
+            fontSize: 11,
+            color: oiFetchState.result.error ? P.be : P.bu,
+          }}>
+            {oiFetchState.result.error
+              ? `error: ${oiFetchState.result.error}`
+              : `filled ${oiFetchState.result.filled}/${oiFetchState.result.total}`}
+          </span>
+        )}
 
         {(tickerFilter.size > 0 || contractFilter.size > 0) && (
           <>
@@ -376,13 +433,21 @@ function ColumnHeaders() {
 // ─── Main component ───────────────────────────────────────────────────────
 export default function LiveFlowMassive() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const targetDate = searchParams.get("date");  // optional ?date=M/D/YYYY override
+  // Date picker driven via ?date= URL param so views are bookmarkable
+  // and the page can deep-link to historical days (matches the existing
+  // history-mode convention used in LiveFlow.jsx for /live-flow).
+  const targetDate = searchParams.get("date") || null;
+  const setTargetDate = (dateStr) => {
+    const next = new URLSearchParams(searchParams);
+    if (dateStr) next.set("date", dateStr);
+    else next.delete("date");
+    setSearchParams(next, { replace: true });
+  };
 
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(loadFilters);
-  const [collapsedTiers, setCollapsedTiers] = useState({});
   const [sortBy, setSortBy] = useState(() =>
     localStorage.getItem(LS_KEY_SORT) || "recent"
   );
@@ -391,6 +456,8 @@ export default function LiveFlowMassive() {
   );
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
+  // OI fetch state: { loading: bool, result: "filled X of Y" | error }
+  const [oiFetchState, setOiFetchState] = useState({ loading: false, result: null });
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
 
@@ -447,8 +514,12 @@ export default function LiveFlowMassive() {
     };
   }, [sortBy, minGrade, targetDate]);
 
-  // Apply client-side ticker + contract filters
+  // Apply client-side filters: tier chips, ticker, contract.
+  // Tier filtering now happens here (was previously per-section); the
+  // remaining list goes straight into the flat chronological feed.
   const visibleAlerts = alerts.filter(a => {
+    const tier = a._tierKey || "algo";
+    if (!filters[tier]) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
     if (contractFilter.size > 0) {
       const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
@@ -457,12 +528,20 @@ export default function LiveFlowMassive() {
     return true;
   });
 
-  // Group by tier (using _tierKey from server — accurate direction-aware mapping)
-  const byTier = {};
-  for (const t of TIER_ORDER) byTier[t] = [];
-  for (const a of visibleAlerts) {
+  // Per-tier counts (for filter chip badges). Built from ALL alerts that
+  // pass the ticker/contract filter — independent of which tiers are toggled
+  // on — so the badges always show "if you turned this on, here's how many
+  // alerts you'd see".
+  const tierCounts = {};
+  for (const t of TIER_ORDER) tierCounts[t] = 0;
+  for (const a of alerts) {
+    if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) continue;
+    if (contractFilter.size > 0) {
+      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+      if (!contractFilter.has(k)) continue;
+    }
     const t = a._tierKey || "algo";
-    if (byTier[t]) byTier[t].push(a);
+    if (tierCounts[t] !== undefined) tierCounts[t]++;
   }
 
   const handleClickTicker = (t) => {
@@ -482,6 +561,87 @@ export default function LiveFlowMassive() {
   const handleClearFilters = () => {
     setTickerFilter(new Set());
     setContractFilter(new Set());
+  };
+
+  // OI fetch — same backend endpoint LiveFlow.jsx uses for /live-flow.
+  // POST /api/oi-snapshot/bulk-fetch checks the snapshot table first,
+  // then batch-fetches misses from Schwab. We dedup contracts so we
+  // don't hit Schwab multiple times for the same strike/exp.
+  //
+  // After OI fills in, alerts whose cum_volume > new OI should become
+  // MAGENTA/YELLOW on the next worker pass — but for THIS page we just
+  // merge OI back into local state so V/OI displays update immediately,
+  // matching LiveFlow.jsx's UX.
+  const handleOiFetch = async () => {
+    if (oiFetchState.loading) return;
+    const nullOIAlerts = alerts.filter(a => a.priorOI == null);
+    if (!nullOIAlerts.length) {
+      setOiFetchState({ loading: false, result: { filled: 0, total: 0 } });
+      return;
+    }
+    setOiFetchState({ loading: true, result: null });
+
+    // Dedup by contract (same strike/exp across multi-fire rows = one fetch)
+    const contractMap = new Map();
+    for (const a of nullOIAlerts) {
+      if (!a.ticker || !a.cp || a.strike == null || !a.exp) continue;
+      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+      if (!contractMap.has(k)) {
+        contractMap.set(k, {
+          ticker: a.ticker, cp: a.cp, strike: a.strike, exp: a.exp,
+        });
+      }
+    }
+    const contracts = Array.from(contractMap.values());
+
+    try {
+      const oiMap = {};
+      const CHUNK = 100;  // backend cap matches LiveFlow.jsx pattern
+      for (let i = 0; i < contracts.length; i += CHUNK) {
+        const chunk = contracts.slice(i, i + CHUNK);
+        const r = await fetch("/api/oi-snapshot/bulk-fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(chunk),
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        for (const row of (d.results || [])) {
+          const k = `${row.ticker}|${row.cp}|${row.strike}|${row.exp}`;
+          oiMap[k] = row.oi;
+        }
+      }
+
+      // Merge OI back into alerts locally so the V/OI column updates
+      // without waiting for the next poll cycle. Recompute volumeOIRatio
+      // and oiExceeded inline to match server-side logic.
+      const filledKeys = new Set(Object.keys(oiMap));
+      setAlerts(prev => prev.map(a => {
+        if (a.priorOI != null) return a;
+        const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+        if (!filledKeys.has(k)) return a;
+        const oi = oiMap[k];
+        const ts = a.tradeSize || 0;
+        const ratio = (oi > 0 && ts > 0) ? Math.round((ts / oi) * 100) / 100 : null;
+        return {
+          ...a,
+          priorOI: oi,
+          volumeOIRatio: ratio,
+          oiExceeded: ratio != null && ratio > 1.0,
+        };
+      }));
+
+      setOiFetchState({
+        loading: false,
+        result: { filled: filledKeys.size, total: contracts.length },
+      });
+    } catch (e) {
+      console.error("OI bulk fetch failed:", e);
+      setOiFetchState({
+        loading: false,
+        result: { filled: 0, total: contracts.length, error: e.message },
+      });
+    }
   };
 
   return (
@@ -506,6 +666,11 @@ export default function LiveFlowMassive() {
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
+        targetDate={targetDate}
+        onDateChange={setTargetDate}
+        onOiFetch={handleOiFetch}
+        oiFetchState={oiFetchState}
+        nullOICount={alerts.filter(a => a.priorOI == null).length}
       />
 
       {targetDate && (
@@ -526,27 +691,24 @@ export default function LiveFlowMassive() {
         </div>
       )}
 
-      <FilterChips filters={filters} onChange={setFilters} />
+      <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
 
       <ColumnHeaders />
 
-      {TIER_ORDER.map(tier => {
-        if (!filters[tier]) return null;
-        const tierAlerts = byTier[tier];
-        if (tierAlerts.length === 0) return null;
-        return (
-          <TierSection
-            key={tier}
-            tier={tier}
-            alerts={tierAlerts}
-            newIds={newIdsRef.current}
-            collapsed={!!collapsedTiers[tier]}
-            onToggleCollapse={() => setCollapsedTiers(p => ({ ...p, [tier]: !p[tier] }))}
-            onClickTicker={handleClickTicker}
-            onClickContract={handleClickContract}
-          />
-        );
-      })}
+      {/* Flat feed — alerts in their natural sort order (recent/conviction/premium).
+          Tier is indicated by the colored left border on each row, and the
+          filter chips above control which tiers appear in this flat list.
+          This replaces the earlier tier-grouped layout (which was useful for
+          end-of-day analysis but less suited for live tape-style viewing). */}
+      {visibleAlerts.map(a => (
+        <AlertRow
+          key={a.id}
+          alert={a}
+          isNew={newIdsRef.current.has(a.id)}
+          onClickTicker={handleClickTicker}
+          onClickContract={handleClickContract}
+        />
+      ))}
 
       {visibleAlerts.length === 0 && !error && (
         <div style={{
@@ -558,6 +720,16 @@ export default function LiveFlowMassive() {
                 ? "Waiting for live flow… (markets may be closed, or no Y/M conviction yet today)"
                 : "Worker idle. Check /api/massive/status or try ?date=6/26/2026 to view historical data.")
             : `No alerts match your filters. (${alerts.length} total alerts hidden)`}
+        </div>
+      )}
+
+      {visibleAlerts.length > 0 && (
+        <div style={{
+          padding: 10, color: P.dm, fontSize: 11, textAlign: "right",
+          borderTop: `1px solid ${P.bd}`, marginTop: 8,
+        }}>
+          showing {visibleAlerts.length} of {alerts.length} alerts
+          {alerts.length === MAX_ROWS && ` (limit ${MAX_ROWS})`}
         </div>
       )}
 
