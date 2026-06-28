@@ -2820,6 +2820,102 @@ async def _massive_filter_arb(target_date: str = "6/26/2026"):
         return {"ok": False, "error": str(e)}
 
 
+@app.get("/api/admin/massive/cluster-debug")
+async def _massive_cluster_debug(target_date: str = "6/26/2026",
+                                  symbol: str = "LULU",
+                                  hour: int = 15,
+                                  minute_start: int = 45,
+                                  minute_end: int = 47):
+    """Diagnostic for cluster_filter misses.
+
+    Dumps every flow row for `symbol` on `target_date` between
+    `hour:minute_start` and `hour:minute_end` so we can see exactly what
+    landed in FlowDB and why the cluster filter did or didn't catch it.
+
+    Default args reproduce the LULU 15:46 investigation.
+
+    Returns row-by-row CreatedTime/CallPut/Strike/Exp/Color/Volume so we
+    can manually verify the (Symbol, CreatedTime) grouping the filter uses.
+    """
+    import sqlite3
+    out = {"target_date": target_date, "symbol": symbol,
+           "window": f"{hour}:{minute_start:02d}-{hour}:{minute_end:02d}"}
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            cur = conn.cursor()
+            # Pull all rows for this symbol on this date
+            cur.execute("""
+                SELECT id, CreatedTime, CallPut, Strike, ExpirationDate,
+                       Color, Volume, OI, Side, Type, Premium
+                FROM flow
+                WHERE CreatedDate = ? AND Symbol = ?
+                ORDER BY CreatedTime, id
+            """, (target_date, symbol))
+
+            all_rows = []
+            for r in cur.fetchall():
+                t_str = r[1] or ""
+                # Try to parse hour from "H:MM:SS AM/PM"
+                try:
+                    parts = t_str.strip().split(":")
+                    h = int(parts[0])
+                    m = int(parts[1])
+                    is_pm = t_str.upper().endswith("PM")
+                    is_am = t_str.upper().endswith("AM")
+                    if is_pm and h != 12: h += 12
+                    elif is_am and h == 12: h = 0
+                except (ValueError, IndexError):
+                    h = -1
+                    m = -1
+                all_rows.append({
+                    "id": r[0], "time": t_str, "hour": h, "min": m,
+                    "cp": r[2], "strike": r[3], "exp": r[4],
+                    "color": r[5], "volume": r[6], "oi": r[7],
+                    "side": r[8], "type": r[9], "premium": r[10],
+                })
+
+            out["total_rows_on_date"] = len(all_rows)
+
+            # Filter to window
+            in_window = [r for r in all_rows
+                         if r["hour"] == hour
+                         and minute_start <= r["min"] <= minute_end]
+            out["rows_in_window"] = len(in_window)
+            out["window_detail"] = in_window
+
+            # Group by exact CreatedTime within the window and report cluster math
+            from collections import defaultdict
+            groups = defaultdict(list)
+            for r in in_window:
+                groups[r["time"]].append(r)
+            out["groups_in_window"] = []
+            for t, rows in sorted(groups.items()):
+                # Compute the cluster filter's distinct count
+                contracts = set()
+                for rr in rows:
+                    try:
+                        sk = float(rr["strike"]) if rr["strike"] else 0.0
+                    except (ValueError, TypeError):
+                        sk = 0.0
+                    contracts.add((rr["cp"], sk, rr["exp"]))
+                out["groups_in_window"].append({
+                    "time": t,
+                    "n_rows": len(rows),
+                    "n_distinct_contracts": len(contracts),
+                    "would_be_tagged_arb": len(rows) >= 4 and len(contracts) >= 2,
+                    "row_ids": [rr["id"] for rr in rows],
+                    "row_colors": [rr["color"] for rr in rows],
+                })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        out["error"] = str(e)
+    return out
+
+
 @app.get("/api/admin/massive/color-debug")
 async def _massive_color_debug(target_date: str = "6/26/2026"):
     """Diagnostic for why rebuild-color produced zero upgrades.
