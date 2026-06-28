@@ -51,6 +51,18 @@
       href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     />
 
+    <!-- ── YouTube: warm DNS/TLS for the Desk video library + player ──
+         Thumbnails come from i.ytimg.com; the IFrame Player API + embed come
+         from youtube.com (player assets from gstatic). Pre-connecting here so
+         the FIRST video play / gallery render doesn't pay a cold DNS+TLS
+         handshake on the critical path. (No ad/tracking domains — privacy.) -->
+    <link rel="preconnect" href="https://www.youtube.com" crossorigin />
+    <link rel="preconnect" href="https://i.ytimg.com" crossorigin />
+    <link rel="dns-prefetch" href="https://www.youtube.com" />
+    <link rel="dns-prefetch" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://www.gstatic.com" />
+    <link rel="dns-prefetch" href="https://yt3.ggpht.com" />
+
     <!-- ── JSON-LD: SoftwareApplication schema for rich search results ── -->
     <script type="application/ld+json">
     {
