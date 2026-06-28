@@ -12,6 +12,7 @@
 import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand, seekTo } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
+import TickerPopup from '../TickerPopup'
 import styles from './VideoDockSlot.module.css'
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
@@ -31,9 +32,10 @@ export default function VideoDockSlot() {
   const active = mode !== 'closed' && list.length > 0
   const docked = mode === 'docked'
   const boxRef = useRef(null)
-  // Chapters + ticker-moments for the now-playing video (empty for non-session
-  // videos or before generation). Hook runs unconditionally (pre early-return).
-  const { chapters, tickerMoments } = useVideoInsights(active ? list[index]?.id : null)
+  // Chapters + ticker-moments + recap for the now-playing video (empty for
+  // non-session videos or before generation). Hook runs unconditionally.
+  const { chapters, tickerMoments, headline, summary, posterUrl } =
+    useVideoInsights(active ? list[index]?.id : null)
 
   const report = useCallback(() => {
     const el = boxRef.current
@@ -88,23 +90,56 @@ export default function VideoDockSlot() {
       <div ref={boxRef} className={styles.dockBox} aria-label={`Now playing: ${current.title}`} />
       <div className={styles.meta}>
         <div className={styles.title}>{current.title}</div>
-        {current.description && <p className={styles.desc}>{current.description}</p>}
+        {headline && <p className={styles.headline}>{headline}</p>}
+        {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
       </div>
+
+      {(posterUrl || summary.length > 0) && (
+        <div className={styles.recapWrap}>
+          {posterUrl && (
+            <a
+              className={styles.posterLink}
+              href={posterUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open the full session recap poster"
+            >
+              <img className={styles.poster} src={posterUrl} alt="Session recap poster" />
+            </a>
+          )}
+          {summary.length > 0 && (
+            <div className={styles.recapBody}>
+              <div className={styles.insHead}>Key takeaways</div>
+              <ul className={styles.summaryList}>
+                {summary.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {tickerMoments.length > 0 && (
         <div className={styles.tickersWrap}>
           <div className={styles.insHead}>Tickers covered</div>
           <div className={styles.tickerRow}>
             {tickerMoments.map((tm, i) => (
-              <button
+              <span
                 key={`${tm.ticker}-${tm.t}-${i}`}
                 className={styles.tickerChip}
-                onClick={() => seekTo(tm.t)}
-                title={tm.note ? `${tm.note} — jump to ${fmtT(tm.t)}` : `Jump to ${fmtT(tm.t)}`}
+                title={tm.note || tm.ticker}
               >
-                <span className={styles.tickerSym}>{tm.ticker}</span>
-                <span className={styles.tickerTime}>{fmtT(tm.t)}</span>
-              </button>
+                {/* Click the symbol → open the chart; click the time → seek the video. */}
+                <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
+                  {tm.ticker}
+                </TickerPopup>
+                <button
+                  className={styles.tickerTime}
+                  onClick={() => seekTo(tm.t)}
+                  title={`Jump to ${fmtT(tm.t)} in the video`}
+                >
+                  {fmtT(tm.t)}
+                </button>
+              </span>
             ))}
           </div>
         </div>

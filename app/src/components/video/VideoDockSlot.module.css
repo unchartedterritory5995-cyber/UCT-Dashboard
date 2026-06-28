@@ -110,24 +110,96 @@
   border-radius: 999px;
   border: 1px solid rgba(201, 168, 76, 0.4);
   background: rgba(201, 168, 76, 0.08);
-  cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .tickerChip:hover {
   background: rgba(201, 168, 76, 0.18);
   border-color: rgba(201, 168, 76, 0.8);
 }
+/* Two click targets inside the chip: symbol → chart, time → seek video. */
 .tickerSym {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #c9a84c;
 }
+.tickerSym:hover {
+  text-decoration: underline;
+}
 .tickerTime {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
   font-size: 11px;
   color: var(--text-secondary, #a8a290);
   font-variant-numeric: tabular-nums;
+}
+.tickerTime:hover {
+  color: #c9a84c;
+}
+
+/* ── Recap: headline + poster + key takeaways ─────────────────────────────── */
+.headline {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary, #f3efe2);
+}
+.recapWrap {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  align-items: flex-start;
+}
+.posterLink {
+  flex: none;
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  line-height: 0;
+}
+.poster {
+  display: block;
+  width: 150px;
+  height: auto;
+}
+.recapBody {
+  flex: 1;
+  min-width: 0;
+}
+.summaryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.summaryList li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary, #f3efe2);
+}
+.summaryList li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a84c;
+}
+@media (max-width: 640px) {
+  .recapWrap { flex-direction: column; }
+  .poster { width: 100%; }
 }
 .chaptersWrap {
   margin-top: 14px;

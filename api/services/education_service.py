@@ -71,6 +71,9 @@ _EXTRA_COLUMNS = (
     ("ticker_moments", "TEXT"),    # JSON: [{ticker, t: seconds, note}]
     ("insights_at", "INTEGER"),    # last insights attempt (epoch); set = stop retrying
     ("zoom_cleaned", "INTEGER"),   # 1 once the Zoom cloud recording has been trashed
+    ("headline", "TEXT"),          # one-line AI recap headline
+    ("summary", "TEXT"),           # JSON: [str] key-takeaway bullets
+    ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
 )
 
 
@@ -378,16 +381,18 @@ def set_meeting_uuid(video_id: int, meeting_uuid: str) -> None:
 
 
 def get_insights(video_id: int) -> dict:
-    """Chapters + ticker-moments for the player UI. Always returns the shape
-    {chapters: [...], ticker_moments: [...], has_transcript: bool} (empty when
-    none yet) so the frontend can render-or-skip without null juggling."""
+    """Chapters + ticker-moments + recap (headline/summary/poster) for the player
+    UI. Always returns the full shape (empty when none yet) so the frontend can
+    render-or-skip without null juggling."""
     with contextlib.closing(_connect()) as c:
         row = c.execute(
-            "SELECT chapters, ticker_moments, transcript FROM edu_videos WHERE id = ?",
+            "SELECT chapters, ticker_moments, transcript, headline, summary, poster "
+            "FROM edu_videos WHERE id = ?",
             (int(video_id),),
         ).fetchone()
     if not row:
-        return {"chapters": [], "ticker_moments": [], "has_transcript": False}
+        return {"chapters": [], "ticker_moments": [], "has_transcript": False,
+                "headline": "", "summary": [], "has_poster": False}
 
     def _parse(s):
         try:
@@ -399,13 +404,20 @@ def get_insights(video_id: int) -> dict:
         "chapters": _parse(row["chapters"]),
         "ticker_moments": _parse(row["ticker_moments"]),
         "has_transcript": bool(row["transcript"]),
+        "headline": row["headline"] or "",
+        "summary": _parse(row["summary"]),
+        "has_poster": bool(row["poster"]),
     }
 
 
 def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        chapters: Optional[list] = None,
-                       ticker_moments: Optional[list] = None) -> None:
-    """Store generated chapters / ticker-moments / transcript + stamp insights_at."""
+                       ticker_moments: Optional[list] = None,
+                       headline: Optional[str] = None,
+                       summary: Optional[list] = None,
+                       poster: Optional[bool] = None) -> None:
+    """Store generated insights (chapters / ticker-moments / transcript / recap
+    headline + summary / poster flag) + stamp insights_at."""
     sets = {"insights_at": int(time.time()), "updated_at": int(time.time())}
     if transcript is not None:
         sets["transcript"] = transcript
@@ -413,6 +425,12 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
         sets["chapters"] = _json.dumps(chapters)
     if ticker_moments is not None:
         sets["ticker_moments"] = _json.dumps(ticker_moments)
+    if headline is not None:
+        sets["headline"] = headline
+    if summary is not None:
+        sets["summary"] = _json.dumps(summary)
+    if poster is not None:
+        sets["poster"] = 1 if poster else 0
     clause = ", ".join(f"{k} = :{k}" for k in sets)
     sets["id"] = int(video_id)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:

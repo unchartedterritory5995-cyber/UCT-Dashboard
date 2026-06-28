@@ -6,7 +6,8 @@ import useSWR from 'swr'
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
-const EMPTY = { chapters: [], ticker_moments: [], has_transcript: false }
+const EMPTY = { chapters: [], ticker_moments: [], has_transcript: false,
+  headline: '', summary: [], has_poster: false, poster_url: null }
 
 export function useVideoInsights(videoId) {
   const key = videoId != null ? `/api/education/videos/${videoId}/insights` : null
@@ -19,5 +20,8 @@ export function useVideoInsights(videoId) {
     chapters: Array.isArray(d.chapters) ? d.chapters : [],
     tickerMoments: Array.isArray(d.ticker_moments) ? d.ticker_moments : [],
     hasTranscript: !!d.has_transcript,
+    headline: d.headline || '',
+    summary: Array.isArray(d.summary) ? d.summary : [],
+    posterUrl: d.poster_url || null,
   }
 }

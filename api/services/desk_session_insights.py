@@ -90,6 +90,15 @@ def transcript_plain(cues: list[dict]) -> str:
     return "\n".join(c["text"] for c in cues)
 
 
+def _recap_date(title: str) -> str:
+    """Session titles are '{type} — {Month D, YYYY}'; pull the date tail for the
+    poster, falling back to the whole title."""
+    t = (title or "").strip()
+    if "—" in t:
+        return t.rsplit("—", 1)[-1].strip() or t
+    return t
+
+
 def _hhmmss(sec: int) -> str:
     sec = max(0, int(sec))
     h, rem = divmod(sec, 3600)
@@ -115,10 +124,15 @@ def _timestamped_block(cues: list[dict], max_chars: int = 600_000) -> str:
 _SYS = (
     "You are an editor for a stock-trading firm's video library. You are given a "
     "timestamped transcript of a live trading session / educational webinar. "
-    "Produce navigation aids as STRICT JSON only (no prose, no code fences):\n"
-    '{ "chapters": [ {"t": <int seconds>, "title": "<=60 chars} ], '
+    "Produce navigation aids + a recap as STRICT JSON only (no prose, no code fences):\n"
+    '{ "headline": "<=90 chars", "summary": ["<=140 chars", ...], '
+    '"chapters": [ {"t": <int seconds>, "title": "<=60 chars} ], '
     '"tickers": [ {"ticker": "AAPL", "t": <int seconds>, "note": "<=80 chars} ] }\n'
     "Rules:\n"
+    "- headline: one punchy sentence capturing the session's main thrust (the day's "
+    "thesis / what mattered). No date, no 'In this session'.\n"
+    "- summary: 3-5 key-takeaway bullets a trader would care about (the actionable "
+    "ideas, levels, lessons) — concise, specific, no fluff.\n"
     "- chapters: 6-15 segments spanning the whole session in time order; t is the "
     "START second of each segment (the first should be 0 or near it). Titles are "
     "specific (\"SPY game plan & key levels\", not \"Intro\").\n"
@@ -141,13 +155,13 @@ def _strip_json(s: str) -> str:
 
 
 def generate_insights(title: str, cues: list[dict]) -> dict:
-    """Call Opus to turn cues into {chapters, ticker_moments}. Returns
-    {"chapters": [...], "ticker_moments": [...]}; raises on hard LLM failure so
-    the caller can decide to retry (don't store / don't give up yet)."""
+    """Call Opus to turn cues into {headline, summary, chapters, ticker_moments}.
+    Raises on hard LLM failure so the caller can decide to retry (don't store /
+    don't give up yet)."""
     from api.services.engine import _get_anthropic_client
     block = _timestamped_block(cues)
     if not block:
-        return {"chapters": [], "ticker_moments": []}
+        return {"chapters": [], "ticker_moments": [], "headline": "", "summary": []}
     user = f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"
     client = _get_anthropic_client()
     msg = client.messages.create(
@@ -190,7 +204,17 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
         out.sort(key=lambda x: x["t"])
         return out
 
+    def _clean_summary(items):
+        out = []
+        for s in items or []:
+            t = str(s or "").strip()
+            if t:
+                out.append(t[:200])
+        return out[:6]
+
     return {
+        "headline": str(data.get("headline") or "").strip()[:200],
+        "summary": _clean_summary(data.get("summary")),
         "chapters": _clean_chapters(data.get("chapters")),
         "ticker_moments": _clean_tickers(data.get("tickers")),
     }
@@ -250,16 +274,36 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
                 cues = parse_vtt(vtt)
                 if cues:
                     ins = generate_insights(v.get("title") or "", cues)
+                    # Branded recap poster from the summary (best-effort — never
+                    # blocks storing the text insights if Pillow hiccups).
+                    poster_ok = False
+                    try:
+                        from api.services import desk_recap_poster
+                        desk_recap_poster.save_recap_poster(
+                            vid,
+                            title=v.get("title") or "Session Recap",
+                            date_text=_recap_date(v.get("title")),
+                            headline=ins.get("headline", ""),
+                            summary=ins.get("summary", []),
+                            tickers=[t["ticker"] for t in ins["ticker_moments"]],
+                        )
+                        poster_ok = True
+                    except Exception as pe:
+                        print(f"[session-insights] poster render failed (non-fatal): {pe}")
                     education_service.set_video_insights(
                         vid,
                         transcript=transcript_plain(cues),
                         chapters=ins["chapters"],
                         ticker_moments=ins["ticker_moments"],
+                        headline=ins.get("headline", ""),
+                        summary=ins.get("summary", []),
+                        poster=poster_ok,
                     )
                     has_chapters = True
                     results.append({"id": vid, "action": "generated",
                                     "chapters": len(ins["chapters"]),
-                                    "tickers": len(ins["ticker_moments"])})
+                                    "tickers": len(ins["ticker_moments"]),
+                                    "poster": poster_ok})
 
             # Clean up the Zoom recording once we've captured insights — or once
             # we've waited long enough that the transcript clearly isn't coming.

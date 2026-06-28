@@ -18,10 +18,12 @@ Routes:
 """
 from __future__ import annotations
 
+import os
 import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
@@ -124,10 +126,25 @@ def get_categories(_user: dict = Depends(require_paid)):
 
 @router.get("/videos/{video_id}/insights")
 def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
-    """AI chapters + ticker-moments for a video's player chrome (chapter rail,
-    scrubber markers, clickable ticker chips). Empty arrays when not generated
-    yet (or for non-session videos) — the client renders-or-skips cleanly."""
-    return svc.get_insights(video_id)
+    """AI chapters + ticker-moments + recap (headline/summary/poster) for a
+    video's player chrome. Empty when not generated yet (or for non-session
+    videos) — the client renders-or-skips cleanly."""
+    out = svc.get_insights(video_id)
+    out["poster_url"] = (
+        f"/api/education/videos/{video_id}/poster" if out.get("has_poster") else None
+    )
+    return out
+
+
+@router.get("/videos/{video_id}/poster")
+def get_video_poster(video_id: int, _user: dict = Depends(require_paid)):
+    """Serve the branded session-recap poster PNG (rendered from the transcript
+    summary). 404 until generated."""
+    from api.services import desk_recap_poster
+    path = desk_recap_poster.poster_path(video_id)
+    if not os.path.exists(path):
+        raise HTTPException(404, "No recap poster for this video")
+    return FileResponse(path, media_type="image/png")
 
 
 # ── Writes (admin) ─────────────────────────────────────────────────────────────
