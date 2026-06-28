@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import styles from './FundamentalsWidget.module.css'
@@ -75,6 +76,7 @@ export default function FundamentalsWidget({ color }) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
+  const [view, setView] = useState('annual')
 
   if (!sym) return <div className={styles.hint}>Pick a ticker (link this widget to a chart by color).</div>
   if (!data) return <div className={styles.hint}>Loading {sym}…</div>
@@ -82,22 +84,49 @@ export default function FundamentalsWidget({ color }) {
   const hasQ = data.quarterly?.length
   if (!hasAnnual && !hasQ) return <div className={styles.hint}>No fundamentals for {sym}.</div>
 
+  // Resolve the effective view: honor the toggle, but fall back to whichever
+  // section actually has data so the panel is never blank.
+  const effectiveView = view === 'quarterly' ? (hasQ ? 'quarterly' : 'annual')
+    : (hasAnnual ? 'annual' : 'quarterly')
+
   return (
     <div className={styles.root}>
-      {hasAnnual ? (
+      <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveView === 'annual'}
+          className={`${styles.toggleBtn} ${effectiveView === 'annual' ? styles.toggleBtnActive : ''}`}
+          onClick={() => setView('annual')}
+          disabled={!hasAnnual}
+        >
+          Annual
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveView === 'quarterly'}
+          className={`${styles.toggleBtn} ${effectiveView === 'quarterly' ? styles.toggleBtnActive : ''}`}
+          onClick={() => setView('quarterly')}
+          disabled={!hasQ}
+        >
+          Quarterly
+        </button>
+      </div>
+
+      {effectiveView === 'annual' ? (
         <>
           <div className={styles.sectionLabel}>Annual · EPS &amp; Sales</div>
           <AnnualTable rows={data.annual} />
         </>
-      ) : null}
-      {hasQ ? (
+      ) : (
         <>
           <div className={styles.sectionLabel}>Quarterly · Actual vs Est.</div>
           <div className={styles.qStrip}>
             {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
           </div>
         </>
-      ) : null}
+      )}
     </div>
   )
 }

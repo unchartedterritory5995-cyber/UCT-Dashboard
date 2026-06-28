@@ -25,6 +25,37 @@
   margin: 2px 0 4px;
 }
 
+/* ── Annual / Quarterly segmented toggle ────────────────────── */
+.toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  margin: 0 0 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.toggleBtn {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 10px);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.toggleBtn:hover:not(:disabled):not(.toggleBtnActive) { color: var(--text-bright); }
+.toggleBtn:disabled { opacity: 0.4; cursor: default; }
+.toggleBtnActive {
+  color: var(--bg-elevated);
+  background: var(--ut-gold);
+}
+
 /* ── Annual table ───────────────────────────────────────────── */
 .annual { width: 100%; border-collapse: collapse; }
 .annual th {
