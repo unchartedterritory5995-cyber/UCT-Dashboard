@@ -5415,6 +5415,26 @@ export default function StockChart({
     }
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
 
+  // Proactive deep-history warm (dwell-gated) — makes scroll-back INSTANT.
+  // The viewport-first first paint is shallow (FIRST_PAINT_BARS) for an instant
+  // open; the pan-backfill above then loads full history on demand, which costs
+  // ~1-3s the FIRST time a user scrolls back on a given stock. Here we remove
+  // that wait for daily/weekly/monthly: once a chart has been studied for ~2.5s
+  // (so we don't warm on quick ticker-flipping), we quietly bump to the full
+  // depth in the background. It reuses the exact same setFetchDepth path as the
+  // pan-backfill, so the same-ticker re-anchor holds the visible view (no jump)
+  // — by the time the user pans left, the deep history is already loaded. Server
+  // SQLite caches it once for everyone, so this is a one-time fetch per stock.
+  // Intraday is excluded: its deep windows are 20-30k bars, too heavy to load on
+  // every chart that's merely open — those stay on-demand via the pan backfill.
+  useEffect(() => {
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (fetchDepth >= _fullTarget) return undefined
+    if (!['D', 'W', 'M'].includes(resolvedTf)) return undefined
+    const id = setTimeout(() => setFetchDepth(_fullTarget), 2500)
+    return () => clearTimeout(id)
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
