@@ -114,6 +114,375 @@ function fmtCount(n) {
   return String(n);
 }
 
+// ─── Market Read Card (hero) ──────────────────────────────────────────────
+// Big aggregated read of bull/bear positioning across visible alerts.
+// Components: net direction headline + 4 stat cards + progress bar +
+// last-hour breakdown + top 3 bull / bear names + DTE expiration buckets.
+//
+// Sticky-positioned so the macro context stays visible while scrolling
+// through the alert feed. Sized to fit comfortably above the fold.
+function MarketReadCard({ alerts }) {
+  const DIR_BULL = "#6BAA85";
+  const DIR_BEAR = "#C26A6A";
+
+  // ─ Aggregate all the metrics in a single pass ──────────────────────────
+  let bullPrem = 0, bearPrem = 0;
+  let bullPrem1h = 0, bearPrem1h = 0;
+  let count1h = 0;
+  const nowSec = Date.now() / 1000;
+  const oneHourAgo = nowSec - 3600;
+  const byTicker = {};                  // ticker → { bull, bear }
+  const dteBuckets = {
+    "0-7":   { label: "0-7d",   bull: 0, bear: 0, count: 0 },
+    "7-14":  { label: "7-14d",  bull: 0, bear: 0, count: 0 },
+    "14-60": { label: "14-60d", bull: 0, bear: 0, count: 0 },
+    "60+":   { label: "60+d",   bull: 0, bear: 0, count: 0 },
+  };
+
+  for (const a of alerts) {
+    const prem = a.alertPremium || 0;
+    const isBull = a._direction === "Bull";
+    const isBear = a._direction === "Bear";
+
+    if (isBull) bullPrem += prem;
+    else if (isBear) bearPrem += prem;
+
+    // Last hour bucket (skipped in historical mode if alert timestamp is
+    // older than 1h — naturally evaluates to zero, which is correct).
+    if (a.timestamp && a.timestamp >= oneHourAgo) {
+      count1h++;
+      if (isBull) bullPrem1h += prem;
+      else if (isBear) bearPrem1h += prem;
+    }
+
+    // Per-ticker rollup for top-3 lists
+    if (a.ticker && (isBull || isBear)) {
+      if (!byTicker[a.ticker]) byTicker[a.ticker] = { bull: 0, bear: 0 };
+      if (isBull) byTicker[a.ticker].bull += prem;
+      else byTicker[a.ticker].bear += prem;
+    }
+
+    // DTE bucket — boundaries match the watchlist convention exactly
+    const dte = a.dte ?? 999;
+    let bucket;
+    if (dte <= 7) bucket = "0-7";
+    else if (dte <= 14) bucket = "7-14";
+    else if (dte <= 60) bucket = "14-60";
+    else bucket = "60+";
+    if (dteBuckets[bucket] && (isBull || isBear)) {
+      if (isBull) dteBuckets[bucket].bull += prem;
+      else dteBuckets[bucket].bear += prem;
+      dteBuckets[bucket].count++;
+    }
+  }
+
+  const total = bullPrem + bearPrem;
+  const bullPct = total > 0 ? (bullPrem / total) * 100 : 50;
+  const netPrem = bullPrem - bearPrem;
+  const total1h = bullPrem1h + bearPrem1h;
+  const bullPct1h = total1h > 0 ? (bullPrem1h / total1h) * 100 : 50;
+
+  const netLabel = bullPrem > bearPrem ? "BULLISH" :
+                   bearPrem > bullPrem ? "BEARISH" : "BALANCED";
+  const netColor = bullPrem > bearPrem ? DIR_BULL :
+                   bearPrem > bullPrem ? DIR_BEAR : P.dm;
+  // Subtle directional tint — green wash for bull-dominant, red for bear
+  const cardBg = bullPrem > bearPrem ? `${DIR_BULL}08` :
+                 bearPrem > bullPrem ? `${DIR_BEAR}08` : P.cd;
+
+  // Top-3 bull / top-3 bear by per-ticker premium aggregate
+  const topBull = Object.entries(byTicker)
+    .filter(([_, v]) => v.bull > 0)
+    .sort((a, b) => b[1].bull - a[1].bull)
+    .slice(0, 3);
+  const topBear = Object.entries(byTicker)
+    .filter(([_, v]) => v.bear > 0)
+    .sort((a, b) => b[1].bear - a[1].bear)
+    .slice(0, 3);
+
+  const fmtM = (n) => `$${(n / 1e6).toFixed(2)}M`;
+  const fmtMShort = (n) => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : `$${(n/1e3).toFixed(0)}K`;
+
+  return (
+    <div style={{
+      // Sticky so the macro context stays pinned while scrolling alerts.
+      // z-index above column headers (which use z=5) so it sits on top.
+      position: "sticky", top: 0, zIndex: 10,
+      background: cardBg, marginBottom: 12,
+      borderRadius: 6, border: `1px solid ${P.bd}`,
+      // Add a subtle directional left border to amplify the hero stat
+      borderLeft: `4px solid ${netColor}`,
+      padding: "16px 20px",
+      // Smooth transitions when direction flips during live polling
+      transition: "background 0.4s ease, border-left-color 0.4s ease",
+    }}>
+      {/* HEADER ROW */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        marginBottom: 12,
+      }}>
+        <span style={{
+          color: P.dm, fontSize: 10, fontWeight: 700,
+          letterSpacing: 1.5, textTransform: "uppercase",
+        }}>
+          ● LIVE MARKET READ
+        </span>
+        <span style={{ color: P.mt, fontSize: 10 }}>
+          (premium-weighted across {alerts.length} alerts)
+        </span>
+      </div>
+
+      {/* BIG STAT CARDS — direction headline, bull, bear, net */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+        gap: 12, marginBottom: 14,
+      }}>
+        {/* Direction headline */}
+        <div style={{
+          padding: "10px 14px", background: `${netColor}14`,
+          borderRadius: 4, border: `1px solid ${netColor}50`,
+        }}>
+          <div style={{
+            color: netColor, fontSize: 26, fontWeight: 800,
+            letterSpacing: 0.5, lineHeight: 1.1,
+            transition: "color 0.3s ease",
+          }}>
+            {netLabel}
+          </div>
+          <div style={{
+            color: netColor, fontSize: 16, fontWeight: 600,
+            marginTop: 4, opacity: 0.9,
+          }}>
+            {bullPct.toFixed(0)}% bull
+          </div>
+        </div>
+
+        {/* Bull total */}
+        <div style={{
+          padding: "10px 14px", background: P.cd,
+          borderRadius: 4, border: `1px solid ${P.bd}`,
+        }}>
+          <div style={{
+            color: P.mt, fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+          }}>
+            ▲ BULL FLOW
+          </div>
+          <div style={{
+            color: DIR_BULL, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
+          }}>
+            {fmtM(bullPrem)}
+          </div>
+        </div>
+
+        {/* Bear total */}
+        <div style={{
+          padding: "10px 14px", background: P.cd,
+          borderRadius: 4, border: `1px solid ${P.bd}`,
+        }}>
+          <div style={{
+            color: P.mt, fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+          }}>
+            ▼ BEAR FLOW
+          </div>
+          <div style={{
+            color: DIR_BEAR, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
+          }}>
+            {fmtM(bearPrem)}
+          </div>
+        </div>
+
+        {/* Net delta */}
+        <div style={{
+          padding: "10px 14px", background: P.cd,
+          borderRadius: 4, border: `1px solid ${P.bd}`,
+        }}>
+          <div style={{
+            color: P.mt, fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+          }}>
+            NET (BULL − BEAR)
+          </div>
+          <div style={{
+            color: netColor, fontSize: 28, fontWeight: 800,
+            marginTop: 4, lineHeight: 1.1,
+          }}>
+            {netPrem >= 0 ? "+" : ""}{fmtM(netPrem)}
+          </div>
+        </div>
+      </div>
+
+      {/* PROGRESS BAR */}
+      <div style={{
+        height: 10, background: P.bd, borderRadius: 5,
+        overflow: "hidden", display: "flex", marginBottom: 10,
+      }}>
+        <div style={{
+          width: `${bullPct}%`, background: DIR_BULL,
+          transition: "width 0.4s ease",
+        }} />
+        <div style={{
+          width: `${100 - bullPct}%`, background: DIR_BEAR,
+          transition: "width 0.4s ease",
+        }} />
+      </div>
+
+      {/* LAST HOUR ROW */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 14,
+        padding: "6px 0", marginBottom: 12, fontSize: 12,
+        borderTop: `1px solid ${P.bd}`, paddingTop: 10,
+      }}>
+        <span style={{
+          color: P.mt, fontSize: 10, fontWeight: 700,
+          letterSpacing: 1, textTransform: "uppercase",
+        }}>
+          ⏱ LAST HOUR
+        </span>
+        {total1h > 0 ? (
+          <>
+            <span style={{
+              color: bullPct1h >= 50 ? DIR_BULL : DIR_BEAR,
+              fontWeight: 700, fontSize: 13,
+            }}>
+              {bullPct1h.toFixed(0)}% bull
+            </span>
+            <span style={{ color: DIR_BULL, fontWeight: 600 }}>
+              ▲ {fmtMShort(bullPrem1h)}
+            </span>
+            <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
+              ▼ {fmtMShort(bearPrem1h)}
+            </span>
+            <span style={{ color: P.dm, fontSize: 11 }}>
+              · {count1h} alert{count1h === 1 ? "" : "s"}
+            </span>
+          </>
+        ) : (
+          <span style={{ color: P.dm, fontSize: 11, fontStyle: "italic" }}>
+            no alerts in the last 60 minutes
+          </span>
+        )}
+      </div>
+
+      {/* TOP NAMES + DTE BUCKETS side by side */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1.4fr",
+        gap: 14,
+      }}>
+        {/* Top names */}
+        <div style={{
+          padding: "10px 12px", background: P.cd,
+          borderRadius: 4, border: `1px solid ${P.bd}`,
+        }}>
+          <div style={{
+            color: P.mt, fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+            marginBottom: 6,
+          }}>
+            TOP NAMES
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ color: DIR_BULL, fontWeight: 700, minWidth: 36 }}>Bull:</span>
+              {topBull.length === 0 ? (
+                <span style={{ color: P.mt, fontSize: 11 }}>—</span>
+              ) : (
+                <span style={{ color: P.wh, lineHeight: 1.5 }}>
+                  {topBull.map(([t, v], i) => (
+                    <span key={t}>
+                      {i > 0 && <span style={{ color: P.mt }}> · </span>}
+                      <span style={{ fontWeight: 600 }}>{t}</span>
+                      <span style={{ color: DIR_BULL, marginLeft: 4 }}>
+                        {fmtMShort(v.bull)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ color: DIR_BEAR, fontWeight: 700, minWidth: 36 }}>Bear:</span>
+              {topBear.length === 0 ? (
+                <span style={{ color: P.mt, fontSize: 11 }}>—</span>
+              ) : (
+                <span style={{ color: P.wh, lineHeight: 1.5 }}>
+                  {topBear.map(([t, v], i) => (
+                    <span key={t}>
+                      {i > 0 && <span style={{ color: P.mt }}> · </span>}
+                      <span style={{ fontWeight: 600 }}>{t}</span>
+                      <span style={{ color: DIR_BEAR, marginLeft: 4 }}>
+                        {fmtMShort(v.bear)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* DTE buckets — 4 mini-cards */}
+        <div style={{
+          padding: "10px 12px", background: P.cd,
+          borderRadius: 4, border: `1px solid ${P.bd}`,
+        }}>
+          <div style={{
+            color: P.mt, fontSize: 10, fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+            marginBottom: 6,
+          }}>
+            BY EXPIRATION
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+            gap: 8,
+          }}>
+            {Object.values(dteBuckets).map(b => {
+              const bTotal = b.bull + b.bear;
+              const bPct = bTotal > 0 ? (b.bull / bTotal) * 100 : 50;
+              const bDir = b.bull > b.bear ? DIR_BULL : b.bear > b.bull ? DIR_BEAR : P.dm;
+              const bArrow = b.bull > b.bear ? "▲" : b.bear > b.bull ? "▼" : "■";
+              return (
+                <div key={b.label} style={{
+                  padding: "6px 4px",
+                  background: bTotal > 0 ? `${bDir}10` : "transparent",
+                  borderRadius: 3,
+                  border: `1px solid ${bTotal > 0 ? bDir + "40" : P.bd}`,
+                  textAlign: "center",
+                }}>
+                  <div style={{
+                    color: P.dm, fontSize: 10, fontWeight: 700,
+                    letterSpacing: 0.5, marginBottom: 2,
+                  }}>
+                    {b.label}
+                  </div>
+                  <div style={{
+                    color: bDir, fontSize: 14, fontWeight: 700,
+                    lineHeight: 1.1,
+                  }}>
+                    {bArrow} {bTotal > 0 ? bPct.toFixed(0) + "%" : "—"}
+                  </div>
+                  <div style={{
+                    color: P.dm, fontSize: 10, marginTop: 2,
+                  }}>
+                    {bTotal > 0 ? fmtMShort(bTotal) : "0"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Filter chips ─────────────────────────────────────────────────────────
 // Click behavior:
 //   • Click a chip → isolate to that tier (all others off)
@@ -563,7 +932,6 @@ function ColumnHeaders() {
       gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
-      position: "sticky", top: 0, background: P.bg, zIndex: 5,
     }}>
       <span style={{ textAlign: "center" }}>TIME</span>
       <span style={{ textAlign: "center" }}>TICKER</span>
@@ -909,55 +1277,12 @@ export default function LiveFlowMassive() {
         </div>
       )}
 
-      <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
+      {/* MARKET READ — sticky hero card with aggregated bull/bear positioning,
+          top names, DTE buckets, and last-hour breakdown. Sits above filter
+          chips so the macro context is the first thing the eye lands on. */}
+      {visibleAlerts.length > 0 && <MarketReadCard alerts={visibleAlerts} />}
 
-      {/* Bull / Bear premium summary — quick read of net positioning across
-          the currently-visible alerts. Premium-weighted (not count-weighted)
-          so a single $5M alert outweighs ten $50K alerts, matching how the
-          watchlist Market Read view reports it. */}
-      {visibleAlerts.length > 0 && (() => {
-        let bullPrem = 0, bearPrem = 0;
-        for (const a of visibleAlerts) {
-          if (a._direction === "Bull") bullPrem += a.alertPremium || 0;
-          else if (a._direction === "Bear") bearPrem += a.alertPremium || 0;
-        }
-        const total = bullPrem + bearPrem;
-        const bullPct = total > 0 ? (bullPrem / total) * 100 : 50;
-        // Use the brighter direction palette so the summary matches row text
-        const DIR_BULL = "#6BAA85";
-        const DIR_BEAR = "#C26A6A";
-        const netLabel = bullPrem > bearPrem ? "BULLISH" : bearPrem > bullPrem ? "BEARISH" : "BALANCED";
-        const netColor = bullPrem > bearPrem ? DIR_BULL : bearPrem > bullPrem ? DIR_BEAR : P.dm;
-        return (
-          <div style={{
-            padding: "10px 14px", background: P.cd, marginBottom: 10,
-            borderRadius: 4, border: `1px solid ${P.bd}`,
-            display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap",
-            fontSize: 13,
-          }}>
-            <span style={{ color: netColor, fontWeight: 700, letterSpacing: 0.5 }}>
-              {netLabel} {bullPct.toFixed(0)}% bull
-            </span>
-            <span style={{ color: DIR_BULL, fontWeight: 600 }}>
-              Bull ${(bullPrem / 1e6).toFixed(2)}M
-            </span>
-            <span style={{ color: DIR_BEAR, fontWeight: 600 }}>
-              Bear ${(bearPrem / 1e6).toFixed(2)}M
-            </span>
-            <span style={{ color: P.dm, fontSize: 12 }}>
-              across {visibleAlerts.length} alerts
-            </span>
-            {/* Inline progress bar */}
-            <div style={{
-              flex: 1, minWidth: 200, height: 6, background: P.bd,
-              borderRadius: 3, overflow: "hidden", display: "flex",
-            }}>
-              <div style={{ width: `${bullPct}%`, background: DIR_BULL }} />
-              <div style={{ width: `${100 - bullPct}%`, background: DIR_BEAR }} />
-            </div>
-          </div>
-        );
-      })()}
+      <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
 
       <ColumnHeaders />
 
