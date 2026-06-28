@@ -1,11 +1,17 @@
 // Best-effort Document Picture-in-Picture: pops the video into a separate
 // always-on-top OS window (Chrome/Edge) the user can drag to another monitor.
 //
-// Caveat: a YouTube <iframe> reloads when re-parented into another document, so
-// we spin up a FRESH player in the PiP window at the saved timestamp — i.e. a
-// brief restart-then-resume rather than a perfectly seamless handoff. The PiP
-// window uses YouTube's native controls (we don't re-render our React chrome
-// into a second document).
+// We load a PLAIN YouTube embed iframe (native controls) in the PiP window —
+// NOT the JS IFrame API. The JS API lives in the main window, so when its
+// player iframe is mounted in the detached PiP document the cross-window
+// origin/postMessage handshake can't be verified and YouTube rejects it with
+// Error 153 ("video player configuration error"). A bare /embed iframe has no
+// such handshake; it just loads from our origin and plays with YouTube's own
+// controls.
+//
+// Caveat: a plain embed exposes no playback API, so we can't read the exact
+// PiP position on close. We estimate it from wall-clock elapsed (assumes ~1x
+// continuous playback) — a close-enough resume rather than a perfect handoff.
 
 export function pipSupported() {
   return typeof window !== 'undefined' && 'documentPictureInPicture' in window
@@ -19,10 +25,12 @@ function copyStyles(pip) {
   } catch { /* ignore */ }
 }
 
-// Opens the PiP window and starts a fresh YT player at `startSeconds`.
-// Returns { pip, player } or null if unsupported / blocked.
+// Opens the PiP window with a plain YouTube embed at `startSeconds`.
+// Returns { pip, player } (player is a lightweight shim exposing
+// getCurrentTime()/destroy() so callers stay API-compatible) or null if
+// unsupported / blocked.
 export async function openPip({ videoId, startSeconds = 0, width = 440, height = 248 }) {
-  if (!pipSupported() || !window.YT || !window.YT.Player) return null
+  if (!pipSupported() || !videoId) return null
   let pip
   try {
     pip = await window.documentPictureInPicture.requestWindow({ width, height })
@@ -34,27 +42,30 @@ export async function openPip({ videoId, startSeconds = 0, width = 440, height =
   b.style.margin = '0'
   b.style.background = '#000'
   b.style.overflow = 'hidden'
-  const mount = pip.document.createElement('div')
-  mount.style.cssText = 'width:100%;height:100vh;'
-  b.appendChild(mount)
-  const player = new window.YT.Player(mount, {
-    // The Document-PiP window is an `about:blank` document, so a YouTube embed
-    // mounted in it sends no valid referrer → YouTube rejects with Error 153
-    // ("video player configuration error"). Declaring origin + widget_referrer
-    // (our real https origin) gives the embed a valid identity regardless of the
-    // blank host document, which clears 153 + the embed-restriction check.
-    host: 'https://www.youtube.com',
-    videoId,
-    playerVars: {
-      rel: 0,
-      modestbranding: 1,
-      playsinline: 1,
-      autoplay: 1,
-      enablejsapi: 1,
-      origin: window.location.origin,
-      widget_referrer: window.location.href,
-      start: Math.floor(startSeconds) || undefined,
-    },
+
+  const start = Math.max(0, Math.floor(startSeconds) || 0)
+  const params = new URLSearchParams({
+    autoplay: '1',
+    rel: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    fs: '1',
   })
+  if (start) params.set('start', String(start))
+
+  const iframe = pip.document.createElement('iframe')
+  iframe.src = `https://www.youtube.com/embed/${videoId}?${params.toString()}`
+  iframe.style.cssText = 'width:100%;height:100vh;border:0;display:block;'
+  iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
+  iframe.setAttribute('allowfullscreen', '')
+  b.appendChild(iframe)
+
+  // No playback API on a plain embed → estimate elapsed from wall-clock so the
+  // in-page player can resume near where PiP left off.
+  const openedAt = Date.now()
+  const player = {
+    getCurrentTime: () => start + (Date.now() - openedAt) / 1000,
+    destroy: () => { try { iframe.remove() } catch { /* ignore */ } },
+  }
   return { pip, player }
 }
