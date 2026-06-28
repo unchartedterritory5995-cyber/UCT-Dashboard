@@ -81,6 +81,9 @@ def debug_earnings_sources(sym: str):
         ("v3/historical/earning_calendar", f"https://financialmodelingprep.com/api/v3/historical/earning_calendar/{sym}?apikey={fmp_key}"),
         ("stable/earnings", f"https://financialmodelingprep.com/stable/earnings?symbol={sym}&limit=12&apikey={fmp_key}"),
         ("stable/historical-earning-calendar", f"https://financialmodelingprep.com/stable/historical-earning-calendar?symbol={sym}&limit=12&apikey={fmp_key}"),
+        ("stable/analyst-estimates?period=quarter", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={sym}&period=quarter&limit=8&apikey={fmp_key}"),
+        ("stable/analyst-estimates?period=annual", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={sym}&period=annual&limit=8&apikey={fmp_key}"),
+        ("v3/analyst-estimates", f"https://financialmodelingprep.com/api/v3/analyst-estimates/{sym}?period=quarter&limit=8&apikey={fmp_key}"),
     ]
     # Rich dump of the live stable/earnings endpoint (what get_year_earnings uses)
     # so we can confirm revenueActual is populated for PAST quarters, not just
