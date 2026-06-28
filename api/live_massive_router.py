@@ -47,10 +47,13 @@ ET = timezone(timedelta(hours=-4))
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
 # Lower priority number = higher quality signal. Matches Bullflow taxonomy.
+# bullish and bearish share priority 3 (same conviction weight, just opposite
+# direction — used for grouping in the UI).
 TIER_PRIORITY = {
     "alpha":   1,
     "size":    2,
     "bullish": 3,
+    "bearish": 3,
     "leaps":   4,
     "unusual": 5,
     "algo":    99,
@@ -125,6 +128,11 @@ def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
     is_leaps = dte >= 180
     side_is_ask = side in ("A", "AA")
 
+    # Direction-aware tier key: Bull → "bullish", Bear → "bearish".
+    # Both share priority 3 in TIER_PRIORITY, just rendered in different
+    # colored sections in LiveFlow.jsx (green vs red).
+    dir_tier = "bullish" if direction == "Bull" else "bearish"
+
     if color == "MAGENTA":
         # Alpha Gold — rarest, top tier
         if premium >= 1_000_000 and side_is_ask and not is_leaps:
@@ -139,13 +147,13 @@ def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
         if premium >= 500_000:
             return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
         # Regular bullish/bearish magenta
-        return (f"UCT {direction}ish", "bullish", TIER_PRIORITY["bullish"])
+        return (f"UCT {direction}ish", dir_tier, TIER_PRIORITY[dir_tier])
 
     if color == "YELLOW":
         if is_leaps:
             return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
         # YELLOW = cumulative accumulation
-        return (f"UCT {direction}ish Accumulation", "bullish", TIER_PRIORITY["bullish"])
+        return (f"UCT {direction}ish Accumulation", dir_tier, TIER_PRIORITY[dir_tier])
 
     # Shouldn't happen given query filter but defensive
     return ("Unusual", "unusual", TIER_PRIORITY["unusual"])
@@ -351,6 +359,7 @@ def recent_massive_alerts(
     limit: int = Query(default=200, ge=1, le=1000),
     min_grade: str = Query(default="D", description="Min letter grade A+/A/B/C/D"),
     target_date: str = Query(default=None, description="M/D/YYYY override (default=today)"),
+    sort_by: str = Query(default="recent", description="recent|conviction|premium"),
 ):
     """
     Return recent MAGENTA + YELLOW rows from FlowDB as alert objects shaped
@@ -361,6 +370,7 @@ def recent_massive_alerts(
       limit:       max rows to return (1-1000, default 200)
       min_grade:   filter out rows below this letter grade (A+/A/B/C/D)
       target_date: override date for testing (default = today in ET)
+      sort_by:     'recent' (default, id DESC) | 'conviction' | 'premium'
     """
     today = target_date or _today_mdyyyy()
 
@@ -371,8 +381,10 @@ def recent_massive_alerts(
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
-        # Fetch more than `limit` to allow for skips from unclassified Side
-        # and grade filtering. 3x cushion is sufficient for typical days.
+        # When sorting by something other than recency we need to consider
+        # ALL the day's rows. id DESC is fine for limit*3 cushion for recent;
+        # for conviction/premium we pull more upfront.
+        sql_limit = limit * 3 if sort_by == "recent" else 10000
         cur = conn.execute("""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -383,29 +395,36 @@ def recent_massive_alerts(
                AND Color IN ('MAGENTA', 'YELLOW')
              ORDER BY id DESC
              LIMIT ?
-        """, (today, limit * 3))
+        """, (today, sql_limit))
         rows = cur.fetchall()
     finally:
         conn.close()
 
-    alerts = []
+    # Translate all rows first (drop unclassified + low-grade), then sort + trim
+    all_alerts = []
     skipped_unclassified = 0
     skipped_low_grade = 0
     for r in rows:
-        if len(alerts) >= limit:
-            break
         a = _row_to_alert(dict(r))
         if a is None:
             skipped_unclassified += 1
             continue
-        a_grade_t = grade_threshold.get(a["grade"], 0)
-        if a_grade_t < min_threshold:
+        if grade_threshold.get(a["grade"], 0) < min_threshold:
             skipped_low_grade += 1
             continue
-        alerts.append(a)
+        all_alerts.append(a)
+
+    if sort_by == "conviction":
+        all_alerts.sort(key=lambda a: a["convictionScore"], reverse=True)
+    elif sort_by == "premium":
+        all_alerts.sort(key=lambda a: a["alertPremium"], reverse=True)
+    # "recent" already in id DESC order from SQL
+
+    alerts = all_alerts[:limit]
 
     status = _get_worker_status()
     status["query_date"] = today
+    status["sort_by"] = sort_by
     status["rows_scanned"] = len(rows)
     status["skipped_unclassified_side"] = skipped_unclassified
     status["skipped_below_min_grade"] = skipped_low_grade
