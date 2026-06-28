@@ -184,11 +184,15 @@
 
 /* Spans intentionally NOT overridden — engine semantic green/red/amber colors survive */
 
-/* Hide data metric blocks — show only the written narrative sections */
+/* Hide data metric blocks — show only the written narrative sections.
+   The "The Market Tone" header (rd-mtone-header) is hidden too: its data
+   blocks above are suppressed here, so the header would otherwise be orphaned
+   with nothing beneath it. The standalone wire HTML keeps both. */
 .rundownWrap :global(.rd-regime-banner),
 .rundownWrap :global(.rd-col),
 .rundownWrap :global(.rd-stockbee),
-.rundownWrap :global(.rd-exposure) {
+.rundownWrap :global(.rd-exposure),
+.rundownWrap :global(.rd-mtone-header) {
   display: none !important;
 }
 
