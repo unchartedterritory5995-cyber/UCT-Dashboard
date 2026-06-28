@@ -150,37 +150,60 @@ def _num(v):
         return None
 
 
-def get_annual_financials(ticker: str, years_back: int = 6, now: float | None = None) -> list[dict]:
+def _contiguous_recent(actuals: dict[int, dict], years_back: int) -> list[int]:
+    """The longest unbroken run of consecutive years ending at the latest year
+    present, capped to `years_back`. yfinance/FMP often return a sparse far-back
+    year plus a gap (e.g. 2020 alone, 2021 missing, then 2022-2025); walking back
+    from the newest year and stopping at the first hole drops the orphan + keeps
+    the YoY chain valid (each row's prior is exactly year-1)."""
+    if not actuals:
+        return []
+    latest = max(actuals)
+    run = [latest]
+    y = latest - 1
+    while y in actuals:
+        run.append(y)
+        y -= 1
+    return sorted(run)[-years_back:]
+
+
+def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = None) -> list[dict]:
     now = time.time() if now is None else now
     ticker = (ticker or "").upper().strip()
     if not ticker:
         return []
     cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
 
-    # 1. Actuals — FMP, then yfinance fills gaps, then quarter roll-up fills the rest.
+    # 1. Actuals — FMP (deepest), then yfinance fills gaps. These are REPORTED
+    #    fiscal years labeled by fiscal-year-end (e.g. AAPL FY2024 ended Sep 2024
+    #    → 2024); the latest one is the most recent COMPLETED fiscal year.
     actuals = dict(_annual_actuals_from_fmp(ticker))
     source = "fmp" if actuals else None
-    yf_a = _annual_actuals_from_yf(ticker)
-    for y, v in yf_a.items():
+    for y, v in _annual_actuals_from_yf(ticker).items():
         if y not in actuals:
             actuals[y] = v
             source = source or "yfinance"
-    wanted = list(range(cur_y - years_back, cur_y))
-    missing = [y for y in wanted if y not in actuals]
-    if missing:
-        roll = _annual_rollup_from_quarters(ticker, missing)
+
+    actual_years = _contiguous_recent(actuals, years_back)
+
+    # Last-resort: if no statement source resolved, roll up quarters for a recent
+    # calendar window, then re-derive the contiguous run.
+    if not actual_years:
+        roll = _annual_rollup_from_quarters(ticker, list(range(cur_y - years_back, cur_y + 1)))
         for y, v in roll.items():
             actuals.setdefault(y, v)
-        if roll and source is None:
-            source = "rollup"
+        if roll:
+            source = source or "rollup"
+        actual_years = _contiguous_recent(actuals, years_back)
 
-    # Keep only closed years in the wanted window, ascending.
-    actual_years = sorted(y for y in actuals if y < cur_y and y >= cur_y - years_back)
+    # 2. Forward estimates — VALUES in order [current FY (0y), next FY (+1y)].
+    #    Their fiscal years are assigned as last_actual+1 / +2 (NOT the calendar
+    #    year): that keeps non-December filers correct (NVDA's just-reported
+    #    FY actual stays an actual; its estimate lands on the right fiscal year)
+    #    and guarantees no collision with an actual year.
+    fwd_vals = _forward_estimates(ticker, now)
 
-    # 2. Forward estimates (current FY + next FY).
-    fwd = _forward_estimates(ticker, now)
-
-    if not actual_years and not fwd:
+    if not actual_years and not fwd_vals:
         return []
 
     rows: list[dict] = []
@@ -197,11 +220,13 @@ def get_annual_financials(ticker: str, years_back: int = 6, now: float | None = 
         rows.append(row)
         prev = v
 
-    for est in fwd:
-        rev = store.revision_for(ticker, est["year"], est.get("eps"), est.get("sales"), now=now)
-        store.record_snapshot(ticker, est["year"], est.get("eps"), est.get("sales"), now=now)
+    base_year = actual_years[-1] if actual_years else cur_y - 1
+    for i, est in enumerate(fwd_vals[:2]):
+        fy = base_year + 1 + i
+        rev = store.revision_for(ticker, fy, est.get("eps"), est.get("sales"), now=now)
+        store.record_snapshot(ticker, fy, est.get("eps"), est.get("sales"), now=now)
         row = {
-            "year": est["year"], "eps": est.get("eps"), "sales": est.get("sales"),
+            "year": fy, "eps": est.get("eps"), "sales": est.get("sales"),
             "eps_chg_pct": _pct_chg(est.get("eps"), prev.get("eps")) if prev else None,
             "sales_chg_pct": _pct_chg(est.get("sales"), prev.get("sales")) if prev else None,
             "estimate": True,
