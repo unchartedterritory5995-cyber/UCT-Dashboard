@@ -1359,13 +1359,16 @@ function qualifiesCurated(alert, thresholds) {
   const stack = thresholds?.stack || {};
   const premCaps = thresholds?.premium_by_cap?.[tier] || {};
   const band = _capBandFE(mktCap, thresholds?.cap_bands);
-  let signals = 0;
-  if (prem >= (premCaps[band] ?? 0)) signals++;
-  if (vOI >= (stack.vOI ?? 3.0)) signals++;
-  if (hitCount >= (stack.hit_count ?? 3)) signals++;
+  // HARD requirement: premium tier+cap floor
+  const premFloor = premCaps[band] ?? 0;
+  if (prem < premFloor) return false;
+  // Count quality signals (V/OI, hits, grade) — premium NOT counted here
+  let qualitySignals = 0;
+  if (vOI >= (stack.vOI ?? 3.0)) qualitySignals++;
+  if (hitCount >= (stack.hit_count ?? 3)) qualitySignals++;
   const minGradeN = _GRADE_NUMERIC_FE[stack.grade ?? "B"] ?? 2;
-  if ((_GRADE_NUMERIC_FE[grade] ?? 0) >= minGradeN) signals++;
-  return signals >= (stack.min_signals ?? 2);
+  if ((_GRADE_NUMERIC_FE[grade] ?? 0) >= minGradeN) qualitySignals++;
+  return qualitySignals >= (stack.min_signals ?? 1);
 }
 
 // ─── Tuning Panel (admin only, ?tune=1) ───────────────────────────────────
@@ -1473,10 +1476,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
       {/* Stacking criteria */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
-          STACKING SIGNALS — alert qualifies if ≥{" "}
+          QUALITY CONFIRMERS — beyond the premium floor (which is always required),
+          alert must also meet ≥{" "}
           <NumberInput value={thresholds.stack.min_signals}
-            onChange={v => setPath(["stack","min_signals"], v)} step={1} min={1} />
-          {" "}signals met (out of 4):
+            onChange={v => setPath(["stack","min_signals"], v)} step={1} min={0} />
+          {" "}of these 3:
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingLeft: 12 }}>
           <div><Label>V/OI ≥</Label>
@@ -1505,7 +1509,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
             </select>
           </div>
           <div style={{ color: P.dm, fontSize: 10, fontStyle: "italic" }}>
-            (premium threshold below also counts as a signal)
+            0 = premium alone OK · 1 = +1 confirmer · 3 = strictest
           </div>
         </div>
       </div>
@@ -1513,7 +1517,8 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
       {/* Premium by tier × cap band */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
-          PREMIUM FLOORS by tier × cap band (mid-small &lt; $10B, mega &gt; $200B):
+          PREMIUM FLOORS (HARD REQUIREMENT) by tier × cap band
+          (mid-small &lt; $10B, mega &gt; $200B):
         </div>
         <table style={{
           width: "100%", fontSize: 11, color: P.wh, borderCollapse: "collapse",
@@ -1569,13 +1574,149 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         </div>
       </div>
 
+      {/* Dormant tickers status + recompute control. Lives inside Unusual
+          section since it directly drives Unusual classification. */}
+      <DormantStatusPanel />
+
       <div style={{
         marginTop: 12, padding: "6px 10px", background: P.bg,
         borderRadius: 3, fontSize: 10, color: P.mt, fontStyle: "italic",
       }}>
-        Note: changes take effect on next 5s poll cycle after Save. Algo tier is
-        always excluded from Curated. True "Unusual name" (dormant-ticker)
-        detection is planned — current Unusual uses the V/OI rule only.
+        Note: threshold changes take effect on next 5s poll cycle after Save.
+        Algo tier is always excluded from Curated. Unusual now requires the
+        ticker to be DORMANT (no flow in past N trading days) — recompute the
+        dormant set above when needed. If no dormant data yet, classifier
+        falls back to legacy V/OI-only Unusual rule.
+      </div>
+    </div>
+  );
+}
+
+// ─── Dormant tickers status + recompute panel ─────────────────────────────
+// Embedded in the tuning panel. Shows when the dormant set was last computed,
+// active ticker count, lookback window. Has a "Recompute" button that fires
+// the backend admin endpoint. No terminal cron in user's workflow, so manual
+// trigger via this button is the standard cadence (run nightly after close).
+function DormantStatusPanel() {
+  const [status, setStatus] = useState(null);
+  const [lookback, setLookback] = useState(30);
+  const [busy, setBusy] = useState(false);
+
+  const fetchStatus = async () => {
+    try {
+      const r = await fetch("/api/live/massive/dormant-status");
+      const d = await r.json();
+      setStatus(d);
+    } catch (e) {
+      setStatus({ ok: false, message: `Status fetch failed: ${e.message}` });
+    }
+  };
+
+  useEffect(() => { fetchStatus(); }, []);
+
+  const handleRecompute = async () => {
+    if (!confirm(
+      `Recompute dormant tickers using a ${lookback} trading-day lookback?\n\n` +
+      `This scans the full FlowDB — takes 1-5s. Best run after market close.`
+    )) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/live/massive/recompute-dormant?lookback=${lookback}`, {
+        method: "POST",
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        alert(`Recompute failed: ${r.status} ${t}`);
+      } else {
+        const d = await r.json();
+        alert(
+          `Done. Found ${d.active_count} active tickers across ${d.lookback_trading_days} ` +
+          `trading days (${d.earliest_date} → ${d.today_date}). ` +
+          `${d.total_alerts_scanned} alerts scanned.`
+        );
+        fetchStatus();
+      }
+    } catch (e) {
+      alert(`Recompute error: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const computedAtStr = status?.computed_at
+    ? new Date(status.computed_at).toLocaleString()
+    : "(never)";
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 10, background: P.bg,
+      border: `1px solid ${P.bd}`, borderRadius: 4,
+    }}>
+      <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+        DORMANT TICKER DATA (powers Unusual classification)
+      </div>
+
+      {!status && (
+        <div style={{ color: P.mt, fontSize: 10 }}>Loading status…</div>
+      )}
+
+      {status && !status.has_data && (
+        <div style={{ color: P.dm, fontSize: 10, marginBottom: 8 }}>
+          ⚠ No dormant data yet. Unusual is using legacy V/OI-only fallback.
+          Click Recompute to build the active-tickers set.
+        </div>
+      )}
+
+      {status && status.has_data && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 10px",
+          fontSize: 10, color: P.dm, marginBottom: 8,
+        }}>
+          <div>Last computed:</div>
+          <div style={{ color: P.wh }}>{computedAtStr}</div>
+          <div>Lookback window:</div>
+          <div style={{ color: P.wh }}>
+            {status.lookback_trading_days} trading days
+            ({status.earliest_date} → {status.today_date})
+          </div>
+          <div>Active tickers:</div>
+          <div style={{ color: P.wh }}>
+            {status.active_count?.toLocaleString()}{" "}
+            <span style={{ color: P.mt }}>
+              (from {status.total_alerts_scanned?.toLocaleString()} alerts scanned)
+            </span>
+          </div>
+          <div>Sample:</div>
+          <div style={{ color: P.mt, fontFamily: "monospace", fontSize: 9 }}>
+            {(status.sample_active || []).slice(0, 20).join(", ")}
+            {(status.sample_active || []).length >= 20 && "…"}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <span style={{ color: P.dm, fontSize: 10 }}>Lookback:</span>
+        <input
+          type="number" value={lookback} min={1} max={365} step={1}
+          onChange={e => setLookback(parseInt(e.target.value, 10) || 30)}
+          style={{
+            width: 60, padding: "3px 6px", fontSize: 11,
+            background: P.cd, color: P.wh, border: `1px solid ${P.bd}`,
+            borderRadius: 3, fontFamily: "inherit",
+          }}
+        />
+        <span style={{ color: P.dm, fontSize: 10 }}>trading days</span>
+        <button
+          onClick={handleRecompute} disabled={busy}
+          style={{
+            padding: "4px 12px", fontSize: 11, fontWeight: 700,
+            background: busy ? P.mt : P.ac, color: P.bg,
+            border: "none", borderRadius: 3,
+            cursor: busy ? "wait" : "pointer",
+          }}
+        >
+          {busy ? "Computing…" : "Recompute now"}
+        </button>
       </div>
     </div>
   );
