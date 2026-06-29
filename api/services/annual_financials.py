@@ -6,8 +6,14 @@ earnings_estimate/revenue_estimate (current FY + next FY). YoY % computed here;
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
+
+# How many forward analyst-estimate years to surface in the annual table.
+# FMP analyst-estimates (Ultimate plan) supplies ~5 forward years; yfinance
+# backstop supplies 2. Capped here so the table stays readable.
+_FWD_YEARS = 4
 
 from api.services import earnings_estimates as ee
 from api.services import fundamentals_estimates_store as store
@@ -109,8 +115,39 @@ def _annual_rollup_from_quarters(ticker: str, years: list[int]) -> dict[int, dic
 
 
 # ── Forward estimates (mockable) ─────────────────────────────────────────────
-def _forward_estimates(ticker: str, now: float) -> list[dict]:
-    """Current FY (0y) + next FY (+1y) mean EPS & revenue from yfinance."""
+def _forward_estimates_fmp(ticker: str, now: float) -> list[dict]:
+    """Up to `_FWD_YEARS` forward fiscal-year estimates (mean EPS + revenue) from
+    FMP stable/analyst-estimates (period=annual). Returns chronological
+    [{eps, sales}] for fiscal years ending today-or-later — i.e. the current
+    in-progress FY plus the out-years. Empty when the endpoint is unavailable on
+    the plan (gated; quarterly/annual analyst-estimates are an FMP Ultimate
+    feature) so the yfinance backstop takes over."""
+    if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
+        return []
+    data = ee._fmp_get("/stable/analyst-estimates",
+                       {"symbol": ticker, "period": "annual", "limit": 20})
+    if not isinstance(data, list):
+        return []
+    today = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d")
+    fut = []
+    for row in data:
+        d = str(row.get("date") or "")[:10]
+        if not d or d < today:
+            continue
+        eps = _num(row.get("epsAvg"))
+        sales = _num(row.get("revenueAvg"))
+        if sales == 0:
+            sales = None
+        if eps is None and sales is None:
+            continue
+        fut.append((d, {"eps": eps, "sales": sales}))
+    fut.sort(key=lambda r: r[0])
+    return [v for _, v in fut[:_FWD_YEARS]]
+
+
+def _forward_estimates_yf(ticker: str, now: float) -> list[dict]:
+    """Current FY (0y) + next FY (+1y) mean EPS & revenue from yfinance —
+    the broad-coverage backstop when FMP analyst-estimates is gated/empty."""
     try:
         import yfinance as yf
     except Exception:
@@ -141,6 +178,22 @@ def _forward_estimates(ticker: str, now: float) -> list[dict]:
     except Exception as exc:
         _log.info("yfinance forward estimates failed for %s: %s", ticker, exc)
     return out
+
+
+def _forward_estimates(ticker: str, now: float) -> list[dict]:
+    """Forward annual estimates, depth-maximizing: FMP analyst-estimates
+    (~5 yrs, real consensus, FMP Ultimate) → yfinance (2 near FYs). First
+    non-empty wins. Values are returned in chronological order; the caller
+    assigns fiscal years as last_actual+1, +2, … so non-December filers stay
+    correct and no estimate collides with a reported actual."""
+    for src in (_forward_estimates_fmp, _forward_estimates_yf):
+        try:
+            rows = src(ticker, now)
+        except Exception:
+            rows = []
+        if rows:
+            return rows[:_FWD_YEARS]
+    return []
 
 
 def _num(v):
@@ -221,7 +274,7 @@ def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = 
         prev = v
 
     base_year = actual_years[-1] if actual_years else cur_y - 1
-    for i, est in enumerate(fwd_vals[:2]):
+    for i, est in enumerate(fwd_vals[:_FWD_YEARS]):
         fy = base_year + 1 + i
         rev = store.revision_for(ticker, fy, est.get("eps"), est.get("sales"), now=now)
         store.record_snapshot(ticker, fy, est.get("eps"), est.get("sales"), now=now)

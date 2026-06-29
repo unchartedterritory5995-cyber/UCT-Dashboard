@@ -126,3 +126,64 @@ def test_non_december_fiscal_keeps_latest_actual_and_labels_forward_fiscally(mon
     # Forward estimate values map onto the fiscal forward years in order.
     r2027 = next(r for r in rows if r["year"] == 2027)
     assert r2027["eps"] == 8.96 and r2027["estimate"] is True
+
+
+def test_forward_estimates_fmp_parses_caps_and_filters(monkeypatch, tmp_path):
+    # FMP analyst-estimates (annual): past rows dropped, future rows parsed from
+    # epsAvg/revenueAvg, 0-revenue normalized to None, capped to _FWD_YEARS.
+    af, _ = _mod(monkeypatch, tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+
+    def fake_fmp(path, params, timeout=10):
+        assert "analyst-estimates" in path and params.get("period") == "annual"
+        return [
+            {"date": "2025-09-30", "epsAvg": 6.0, "revenueAvg": 400e9},   # past → dropped
+            {"date": "2026-09-30", "epsAvg": 7.0, "revenueAvg": 420e9},
+            {"date": "2027-09-30", "epsAvg": 8.0, "revenueAvg": 450e9},
+            {"date": "2028-09-30", "epsAvg": 9.0, "revenueAvg": 0},        # 0 rev → None
+            {"date": "2029-09-30", "epsAvg": 10.0, "revenueAvg": 500e9},
+            {"date": "2030-09-30", "epsAvg": 11.0, "revenueAvg": 540e9},   # 5th future → capped
+        ]
+
+    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    out = af._forward_estimates_fmp("ZZF", now=1_782_000_000.0)  # now ≈ mid-2026
+    assert len(out) == af._FWD_YEARS == 4          # capped
+    assert out[0] == {"eps": 7.0, "sales": 420e9}  # earliest future first
+    assert out[2]["sales"] is None                 # 0 revenue normalized
+    assert [e["eps"] for e in out] == [7.0, 8.0, 9.0, 10.0]
+
+
+def test_forward_estimates_gated_off_by_default(monkeypatch, tmp_path):
+    # Flag unset → FMP analyst-estimates path skipped (no HTTP), yfinance backstop.
+    af, _ = _mod(monkeypatch, tmp_path)
+    called = {"n": 0}
+    monkeypatch.setattr(af.ee, "_fmp_get", lambda *a, **k: called.__setitem__("n", called["n"] + 1) or [])
+    assert af._forward_estimates_fmp("ZZG", now=1_782_000_000.0) == []
+    assert called["n"] == 0
+
+
+def test_annual_table_four_forward_years_from_fmp(monkeypatch, tmp_path):
+    # End-to-end: FMP analyst-estimates deepens the table to 4 forward fiscal
+    # years (2026e–2029e off the 2025 last-actual), preferred over yfinance.
+    af, _ = _mod(monkeypatch, tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {
+        2024: {"eps": 2.00, "sales": 6.0e9},
+        2025: {"eps": 2.50, "sales": 6.9e9},
+    })
+    monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
+
+    def fake_fmp(path, params, timeout=10):
+        return [
+            {"date": "2026-12-31", "epsAvg": 3.00, "revenueAvg": 7.8e9},
+            {"date": "2027-12-31", "epsAvg": 3.30, "revenueAvg": 8.6e9},
+            {"date": "2028-12-31", "epsAvg": 3.60, "revenueAvg": 9.4e9},
+            {"date": "2029-12-31", "epsAvg": 3.90, "revenueAvg": 10.2e9},
+            {"date": "2030-12-31", "epsAvg": 4.20, "revenueAvg": 11.0e9},  # capped out
+        ]
+
+    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    rows = af.get_annual_financials("ZZF", years_back=6, now=1_782_000_000.0)
+    est = [(r["year"], r["eps"]) for r in rows if r["estimate"]]
+    assert est == [(2026, 3.00), (2027, 3.30), (2028, 3.60), (2029, 3.90)]
