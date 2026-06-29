@@ -153,6 +153,33 @@ def debug_earnings_sources(sym: str):
         except Exception as e:
             out["anthropic"] = f"exception: {type(e).__name__}: {e}"
 
+    # Test FMP earnings-call transcript (FMP Ultimate) — shape probe
+    if fmp_key:
+        for name, url in [
+            ("fmp_transcript_dates", f"https://financialmodelingprep.com/stable/earning-call-transcript-dates?symbol={sym}&apikey={fmp_key}"),
+            ("fmp_transcript_latest", f"https://financialmodelingprep.com/stable/earning-call-transcript-latest?symbol={sym}&limit=1&apikey={fmp_key}"),
+        ]:
+            try:
+                r = requests.get(url, timeout=12)
+                if r.status_code != 200:
+                    out[name] = f"{r.status_code}: {r.text[:160]}"
+                    continue
+                data = r.json()
+                if isinstance(data, list) and data:
+                    first = data[0]
+                    if isinstance(first, dict):
+                        keys = list(first.keys())
+                        content = str(first.get("content") or "")
+                        out[name] = {"len": len(data), "keys": keys,
+                                     "content_chars": len(content),
+                                     "content_head": content[:300]}
+                    else:
+                        out[name] = f"list[{len(data)}] sample={str(first)[:200]}"
+                else:
+                    out[name] = f"OK type={type(data).__name__} {str(data)[:160]}"
+            except Exception as e:
+                out[name] = f"exception: {e}"
+
     # Test Finnhub transcript availability
     if fh_key:
         try:
