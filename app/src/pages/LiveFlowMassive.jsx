@@ -44,6 +44,7 @@ const ROW_LIMIT_OPTIONS = [200, 500, 1000, "All"];
 const ROW_LIMIT_DEFAULT = 500;
 const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
 const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v1";
+const LS_KEY_HIDE_ALGO = "uct_liveflow_massive_hidealgo_v1";
 
 // ─── Tier metadata (matches LiveFlow.jsx) ─────────────────────────────────
 // Two extra keys vs LiveFlow.jsx: "bearish" is its own tier in our endpoint
@@ -1018,6 +1019,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
+                  hideAlgo, onHideAlgoChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
@@ -1158,6 +1160,29 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
+        {/* Hide Algo toggle — when ON: (1) Algo rows filtered from the table,
+            (2) Algo premium excluded from the Market Read card aggregation.
+            Multi-leg trades aren't truly directional even when one leg prints
+            at ask, so this gives a cleaner "directional conviction only" read. */}
+        <button
+          onClick={() => onHideAlgoChange(!hideAlgo)}
+          title={hideAlgo
+            ? "Algo (multi-leg) tier currently HIDDEN from both the table and the bull/bear card math. Click to show again."
+            : "Hide Algo (multi-leg) tier from both the table and the bull/bear card math. Gives a pure-directional read."
+          }
+          style={{
+            background: hideAlgo ? P.ac : "transparent",
+            color: hideAlgo ? P.bg : P.wh,
+            border: `1px solid ${P.bd}`, borderRadius: 3,
+            padding: "3px 10px", cursor: "pointer", fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          {hideAlgo ? "✓ Algo hidden" : "Hide Algo"}
+        </button>
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
         <button
           onClick={onOiFetch}
           disabled={oiFetchState?.loading || nullOICount === 0}
@@ -1289,6 +1314,12 @@ export default function LiveFlowMassive() {
     const n = parseInt(v, 10);
     return ROW_LIMIT_OPTIONS.includes(n) ? n : ROW_LIMIT_DEFAULT;
   });
+  // Hide multi-leg/Algo tier from both the table AND the bull/bear card math.
+  // Multi-leg trades aren't truly directional even when one leg prints at ask,
+  // so the toggle gives a cleaner "directional conviction only" read.
+  const [hideAlgo, setHideAlgo] = useState(() =>
+    localStorage.getItem(LS_KEY_HIDE_ALGO) === "1"
+  );
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
@@ -1310,6 +1341,7 @@ export default function LiveFlowMassive() {
   useEffect(() => { localStorage.setItem(LS_KEY_SORT, sortBy); }, [sortBy]);
   useEffect(() => { localStorage.setItem(LS_KEY_MINGRADE, minGrade); }, [minGrade]);
   useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
+  useEffect(() => { localStorage.setItem(LS_KEY_HIDE_ALGO, hideAlgo ? "1" : "0"); }, [hideAlgo]);
 
   // Polling
   useEffect(() => {
@@ -1430,6 +1462,7 @@ export default function LiveFlowMassive() {
       try {
         const params = new URLSearchParams();
         if (targetDate) params.set("target_date", targetDate);
+        if (hideAlgo) params.set("exclude_algo", "true");
         const r = await fetch(`/api/live/massive/day-stats?${params}`);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -1446,13 +1479,14 @@ export default function LiveFlowMassive() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [targetDate]);
+  }, [targetDate, hideAlgo]);
 
-  // Apply client-side filters: tier chips, ticker, contract.
+  // Apply client-side filters: tier chips, ticker, contract, hideAlgo.
   // Tier filtering now happens here (was previously per-section); the
   // remaining list goes straight into the flat chronological feed.
   const visibleAlerts = alerts.filter(a => {
     const tier = a._tierKey || "algo";
+    if (hideAlgo && tier === "algo") return false;  // global Algo hide
     if (!filters[tier]) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
     if (contractFilter.size > 0) {
@@ -1630,6 +1664,8 @@ export default function LiveFlowMassive() {
         onMinGradeChange={setMinGrade}
         rowLimit={rowLimit}
         onRowLimitChange={setRowLimit}
+        hideAlgo={hideAlgo}
+        onHideAlgoChange={setHideAlgo}
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
