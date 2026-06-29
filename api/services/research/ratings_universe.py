@@ -59,8 +59,10 @@ def _load_universe() -> list[str]:
         return []
 
 
-def _compute_one(sym: str) -> dict | None:
-    """Compute one ticker's raw rankable metrics. Local bars + 1 yfinance call."""
+def _compute_one(sym: str, bulk_fund: dict | None = None) -> dict | None:
+    """Compute one ticker's raw rankable metrics. Local bars + fundamentals.
+    Uses the prefetched FMP bulk fundamentals map when provided, else makes the
+    per-ticker yfinance ``get_fundamentals`` call."""
     closes = vols = None
     try:
         rows = bars_sqlite.get_bars(sym, "D", 300)  # local, no network; oldest-first (ts,o,h,l,c,v)
@@ -74,12 +76,15 @@ def _compute_one(sym: str) -> dict | None:
     accdis_ratio = _accdis_ratio(closes, vols) if (closes and vols) else None
 
     fund: dict = {}
-    try:
-        fund = get_fundamentals(sym) or {}
-    except Exception:
-        fund = {}
-    if "error" in fund:
-        fund = {}
+    if bulk_fund is not None:
+        fund = bulk_fund
+    else:
+        try:
+            fund = get_fundamentals(sym) or {}
+        except Exception:
+            fund = {}
+        if "error" in fund:
+            fund = {}
 
     eps_g = fund.get("earnings_growth_pct")
     rev_g = fund.get("revenue_growth_pct")
@@ -125,16 +130,31 @@ def run_percentile_refresh(max_per_run: int | None = None, force: bool = False) 
         cap = max_per_run if max_per_run is not None else MAX_PER_RUN
         batch = stale[:cap]
 
+        # FMP bulk fundamentals (gated) — one whole-market pull so the per-ticker
+        # yfinance call (and its politeness sleep) is skipped for covered symbols.
+        # Optimization layer only: misses fall back to the per-ticker path.
+        bulk: dict = {}
+        if os.environ.get("FMP_BULK_ENABLED", "").lower() in ("1", "true", "yes"):
+            try:
+                from api.services.fmp_bulk import fetch_fundamentals_bulk
+                bulk = fetch_fundamentals_bulk()
+                _logger.info("ratings_universe: FMP bulk fundamentals loaded for %d symbols", len(bulk))
+            except Exception as e:
+                _logger.warning("ratings_universe: bulk pull failed, per-ticker fallback: %s", e)
+                bulk = {}
+
         processed = 0
         for sym in batch:
+            bulk_fund = bulk.get(sym)
             try:
-                m = run_in_pool(lambda s=sym: _compute_one(s), timeout=FETCH_TIMEOUT)
+                m = run_in_pool(lambda s=sym, bf=bulk_fund: _compute_one(s, bulk_fund=bf), timeout=FETCH_TIMEOUT)
             except Exception:
                 m = None
             if _has_data(m):
                 ratings_db.upsert_metrics(sym, m)
                 processed += 1
-            if SLEEP_SECONDS:
+            # Only the per-ticker yfinance path needs the politeness sleep.
+            if SLEEP_SECONDS and bulk_fund is None:
                 time.sleep(SLEEP_SECONDS)
 
         summary = ratings_db.rebuild_distributions()

@@ -113,3 +113,26 @@ def test_max_per_run_caps_batch(ru, monkeypatch):
     res = ru.run_percentile_refresh(max_per_run=15, force=True)
     assert res["processed"] == 15
     assert res["remaining"] == 35
+
+
+def test_compute_one_prefers_bulk_no_yf(ru, monkeypatch):
+    def _boom(sym):
+        raise AssertionError("get_fundamentals must NOT be called when bulk has the symbol")
+    monkeypatch.setattr(ru, "get_fundamentals", _boom)
+    monkeypatch.setattr(ru.bars_sqlite, "get_bars", lambda *a, **k: [])
+    bulk = {"earnings_growth_pct": 11.0, "revenue_growth_pct": 8.0, "roe_pct": 147.0,
+            "peg": 2.1, "pe_forward": 28.0, "operating_margin_pct": 30.0,
+            "held_pct_institutions": 60.0, "sector": "Technology"}
+    m = ru._compute_one("ZZAAPL", bulk_fund=bulk)
+    assert m["earnings_growth"] == 11.0 and m["roe"] == 147.0 and m["sector"] == "Technology"
+
+
+def test_compute_one_falls_back_when_no_bulk(ru, monkeypatch):
+    called = {"n": 0}
+    def _fake(sym):
+        called["n"] += 1
+        return {"earnings_growth_pct": 5.0, "revenue_growth_pct": 4.0, "roe_pct": 10.0}
+    monkeypatch.setattr(ru, "get_fundamentals", _fake)
+    monkeypatch.setattr(ru.bars_sqlite, "get_bars", lambda *a, **k: [])
+    m = ru._compute_one("ZZX", bulk_fund=None)
+    assert called["n"] == 1 and m["earnings_growth"] == 5.0
