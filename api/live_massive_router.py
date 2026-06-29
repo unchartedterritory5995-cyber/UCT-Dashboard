@@ -356,10 +356,11 @@ def _get_worker_status() -> dict:
 
 @router.get("/recent")
 def recent_massive_alerts(
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int = Query(default=200, ge=1, le=20000),
     min_grade: str = Query(default="D", description="Min letter grade A+/A/B/C/D"),
     target_date: str = Query(default=None, description="M/D/YYYY override (default=today)"),
     sort_by: str = Query(default="recent", description="recent|conviction|premium"),
+    tier: str = Query(default=None, description="Filter to one tier (alpha|size|bullish|bearish|leaps|unusual|algo). When set, common-tier alerts can't crowd out rare-tier ones — useful for 'show me all the day's Alpha Golds' even hours after they fired."),
 ):
     """
     Return recent MAGENTA + YELLOW rows from FlowDB as alert objects shaped
@@ -371,6 +372,9 @@ def recent_massive_alerts(
       min_grade:   filter out rows below this letter grade (A+/A/B/C/D)
       target_date: override date for testing (default = today in ET)
       sort_by:     'recent' (default, id DESC) | 'conviction' | 'premium'
+      tier:        if set, only return alerts of this tier. Lets the page
+                   show full-day history of rare tiers (Alpha Gold, Size)
+                   without being pushed out by common tiers like Algo.
     """
     today = target_date or _today_mdyyyy()
 
@@ -383,8 +387,13 @@ def recent_massive_alerts(
         conn.row_factory = sqlite3.Row
         # When sorting by something other than recency we need to consider
         # ALL the day's rows. id DESC is fine for limit*3 cushion for recent;
-        # for conviction/premium we pull more upfront.
-        sql_limit = limit * 3 if sort_by == "recent" else 10000
+        # for conviction/premium we pull more upfront. When a tier filter is
+        # active we also pull 20000 since the tier might be rare — limit*3
+        # won't have enough of that tier to satisfy `limit` post-filter.
+        if sort_by != "recent" or tier:
+            sql_limit = 20000
+        else:
+            sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
         cur = conn.execute("""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -400,10 +409,14 @@ def recent_massive_alerts(
     finally:
         conn.close()
 
-    # Translate all rows first (drop unclassified + low-grade), then sort + trim
+    # Translate all rows first (drop unclassified + low-grade + off-tier),
+    # then sort + trim. Tier filter applied here (not in SQL) because the
+    # tier is derived in _row_to_alert based on premium/side/dte/color logic
+    # that's easier in Python than translating into SQL conditions.
     all_alerts = []
     skipped_unclassified = 0
     skipped_low_grade = 0
+    skipped_off_tier = 0
     for r in rows:
         a = _row_to_alert(dict(r))
         if a is None:
@@ -411,6 +424,9 @@ def recent_massive_alerts(
             continue
         if grade_threshold.get(a["grade"], 0) < min_threshold:
             skipped_low_grade += 1
+            continue
+        if tier and a.get("_tierKey") != tier:
+            skipped_off_tier += 1
             continue
         all_alerts.append(a)
 
@@ -425,9 +441,11 @@ def recent_massive_alerts(
     status = _get_worker_status()
     status["query_date"] = today
     status["sort_by"] = sort_by
+    status["tier_filter"] = tier
     status["rows_scanned"] = len(rows)
     status["skipped_unclassified_side"] = skipped_unclassified
     status["skipped_below_min_grade"] = skipped_low_grade
+    status["skipped_off_tier"] = skipped_off_tier
     status["returned"] = len(alerts)
 
     return {
