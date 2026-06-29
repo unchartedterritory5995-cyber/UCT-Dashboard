@@ -8,6 +8,9 @@ const mockData = vi.fn()
 vi.mock('../../../hooks/useEarningsTable', () => ({
   default: () => ({ data: mockData() }),
 }))
+vi.mock('../../../components/fundamentals/AnalystPanel', () => ({
+  default: ({ sym }) => <div data-testid="analyst-panel">{sym}</div>,
+}))
 
 // Stateful wrapper that threads opts through onOptsChange, mirroring how the
 // workspace persists per-widget opts — so a toggle click actually updates view.
@@ -47,6 +50,18 @@ test('forward estimate quarter shows YoY growth % on EPS and Sales estimates', (
   // forward block (2026 Q2) carries YoY growth alongside the estimates
   expect(screen.getByText('-9.4%')).toBeInTheDocument()
   expect(screen.getByText('+8%')).toBeInTheDocument()
+})
+
+test('Analyst tab renders the AnalystPanel for the ticker', () => {
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap initialOpts={{ view: 'analyst' }} />)
+  expect(screen.getByTestId('analyst-panel')).toHaveTextContent('AAPL')
+})
+
+test('Analyst tab renders even when earnings data is empty', () => {
+  mockData.mockReturnValue(null)
+  render(<Wrap initialOpts={{ view: 'analyst' }} />)
+  expect(screen.getByTestId('analyst-panel')).toHaveTextContent('AAPL')
 })
 
 test('annual rows render newest-first (forward estimate at top)', () => {

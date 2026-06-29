@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import useEarningsTable from '../../../hooks/useEarningsTable'
+import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import styles from './FundamentalsWidget.module.css'
 
 function fmtSales(v) {
@@ -81,22 +82,28 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const { data } = useEarningsTable(sym)
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
-  const view = opts?.view === 'annual' ? 'annual' : 'quarterly'
+  const view = ['annual', 'quarterly', 'analyst'].includes(opts?.view) ? opts.view : 'quarterly'
   const setView = useCallback((next) => {
     if (next === (opts?.view || 'quarterly')) return
     onOptsChange?.({ ...(opts || {}), view: next })
   }, [opts, onOptsChange])
 
   if (!sym) return <div className={styles.hint}>Pick a ticker (link this widget to a chart by color).</div>
-  if (!data) return <div className={styles.hint}>Loading {sym}…</div>
-  const hasAnnual = data.annual?.length
-  const hasQ = data.quarterly?.length
-  if (!hasAnnual && !hasQ) return <div className={styles.hint}>No fundamentals for {sym}.</div>
 
-  // Resolve the effective view: honor the toggle, but fall back to whichever
-  // section actually has data so the panel is never blank.
-  const effectiveView = view === 'annual' ? (hasAnnual ? 'annual' : 'quarterly')
+  const hasAnnual = data?.annual?.length
+  const hasQ = data?.quarterly?.length
+
+  // Resolve the effective view. Analyst is always available (its own data source);
+  // the earnings-table views fall back to whichever section actually has data.
+  const effectiveView = view === 'analyst' ? 'analyst'
+    : view === 'annual' ? (hasAnnual ? 'annual' : 'quarterly')
     : (hasQ ? 'quarterly' : 'annual')
+
+  // Earnings-table views need the earnings fetch; the Analyst view does not.
+  if (effectiveView !== 'analyst') {
+    if (!data) return <div className={styles.hint}>Loading {sym}…</div>
+    if (!hasAnnual && !hasQ) return <div className={styles.hint}>No fundamentals for {sym}.</div>
+  }
 
   return (
     <div className={styles.root}>
@@ -121,9 +128,20 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
         >
           Annual
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveView === 'analyst'}
+          className={`${styles.toggleBtn} ${effectiveView === 'analyst' ? styles.toggleBtnActive : ''}`}
+          onClick={() => setView('analyst')}
+        >
+          Analyst
+        </button>
       </div>
 
-      {effectiveView === 'annual' ? (
+      {effectiveView === 'analyst' ? (
+        <AnalystPanel sym={sym} />
+      ) : effectiveView === 'annual' ? (
         <>
           <div className={styles.sectionLabel}>Annual · EPS &amp; Sales</div>
           <AnnualTable rows={data.annual} />

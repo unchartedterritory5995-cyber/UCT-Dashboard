@@ -8,6 +8,7 @@ import useTickerTweets from '../../hooks/useTickerTweets'
 import { timeAgo } from '../../utils/timeAgo'
 import FundamentalsStrip from '../calendar/FundamentalsStrip'
 import CallRecapSection from '../calendar/CallRecapSection'
+import AnalystPanel from '../fundamentals/AnalystPanel'
 import SentimentGauge from '../calendar/SentimentGauge'
 import useFilings from '../../hooks/useFilings'
 import useCallRecap from '../../hooks/useCallRecap'
@@ -87,8 +88,6 @@ export default function EarningsModal({ row, label, onClose }) {
   const navigate = useNavigate()
   const { isPaid } = useAuth()
   const [gap, setGap]                       = useState(null)
-  const [intel, setIntel]                   = useState(null)
-  const [grades, setGrades]                 = useState(null)
   const [aiState, setAiState]               = useState({ loading: true, data: null })
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
@@ -108,23 +107,13 @@ export default function EarningsModal({ row, label, onClose }) {
     return () => { document.body.style.overflow = prev }
   }, [])
 
-  // Live gap % + Earnings intel (analyst consensus + price targets)
+  // Live gap % (analyst consensus/PT now rendered by <AnalystPanel>)
   useEffect(() => {
     if (!row) return
     setGap(null)
-    setIntel(null)
-    setGrades(null)
     fetch(`/api/snapshot/${row.sym}`)
       .then(r => r.json())
       .then(d => { if (d.change_pct != null) setGap(d.change_pct) })
-      .catch(() => {})
-    fetch(`/api/earnings/intel/${row.sym}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setIntel(d))
-      .catch(() => {})
-    fetch(`/api/earnings/analyst-grades/${row.sym}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setGrades(d))
       .catch(() => {})
   }, [row?.sym])
 
@@ -366,51 +355,8 @@ export default function EarningsModal({ row, label, onClose }) {
           </div>
         )}
 
-        {/* ── Analyst consensus + price target ─────────────────────────── */}
-        {intel && (intel.consensus || intel.price_target) && (
-          <div className={styles.intelStrip}>
-            {intel.consensus && (
-              <div className={styles.intelItem}>
-                <span className={styles.intelLabel}>ANALYST</span>
-                <span className={styles.pos}>{(intel.consensus.buy || 0) + (intel.consensus.strongBuy || 0)} Buy</span>
-                <span className={styles.muted}>{intel.consensus.hold || 0} Hold</span>
-                <span className={styles.neg}>{(intel.consensus.sell || 0) + (intel.consensus.strongSell || 0)} Sell</span>
-              </div>
-            )}
-            {intel.price_target && (
-              <div className={styles.intelItem}>
-                <span className={styles.intelLabel}>TARGET</span>
-                <span className={styles.muted}>${intel.price_target.targetLow?.toFixed(0)}</span>
-                <span>—</span>
-                <span className={styles.pos}>${intel.price_target.targetMean?.toFixed(0)}</span>
-                <span>—</span>
-                <span className={styles.muted}>${intel.price_target.targetHigh?.toFixed(0)}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Recent analyst rating changes (FMP Ultimate) ─────────────── */}
-        {grades && grades.recent_actions && grades.recent_actions.length > 0 && (
-          <div className={styles.intelStrip}>
-            <div className={styles.intelItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-              <span className={styles.intelLabel}>RATING CHANGES</span>
-              {grades.recent_actions.slice(0, 4).map((a, i) => {
-                const act = a.action || ''
-                const cls = /up|init|overweight|buy|outperform|positive/.test(act) ? styles.pos
-                  : /down|underweight|sell|underperform|negative/.test(act) ? styles.neg : styles.muted
-                return (
-                  <div key={`${a.date}-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}>
-                    <span className={styles.muted} style={{ minWidth: 74 }}>{a.date}</span>
-                    <span style={{ minWidth: 116 }}>{a.company}</span>
-                    <span className={styles.muted}>{a.from_grade ? `${a.from_grade} → ` : ''}<b>{a.to_grade || '—'}</b></span>
-                    {act && <span className={cls} style={{ textTransform: 'uppercase', fontSize: 10, letterSpacing: 0.5 }}>{act}</span>}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        {/* ── Analyst (consensus · price target · upgrades/downgrades) ──── */}
+        <AnalystPanel sym={row.sym} />
 
         {/* ── C1: Fundamentals strip ───────────────────────────────────── */}
         <FundamentalsStrip ticker={row.sym} />

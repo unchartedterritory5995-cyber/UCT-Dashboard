@@ -14,6 +14,7 @@ import styles from './TickerPopup.module.css'
 
 const StockChart = lazy(() => import('./StockChart'))
 const FundamentalSnapshot = lazy(() => import('./FundamentalSnapshot'))
+const AnalystPanel = lazy(() => import('./fundamentals/AnalystPanel'))
 
 const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Monthly']
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
@@ -153,6 +154,14 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 >
                   Fundamentals
                 </button>
+                <button
+                  className={`${styles.modalModeBtn} ${view === 'analyst' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('analyst')}
+                  role="tab"
+                  aria-selected={view === 'analyst'}
+                >
+                  Analyst
+                </button>
               </div>
               {view === 'chart' && (
                 <div className={styles.modalTabs}>
@@ -182,6 +191,10 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                     compareSymbol={compareSymbol || null}
                     onCompareChange={setCompareSymbol}
                   />
+                </Suspense>
+              ) : view === 'analyst' ? (
+                <Suspense fallback={<div className={styles.chartLoading}>Loading analyst…</div>}>
+                  <AnalystPanel sym={sym} />
                 </Suspense>
               ) : (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
