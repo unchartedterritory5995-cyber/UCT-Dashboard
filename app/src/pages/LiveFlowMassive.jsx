@@ -45,6 +45,7 @@ const ROW_LIMIT_DEFAULT = 500;
 const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
 const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v1";
 const LS_KEY_HIDE_ALGO = "uct_liveflow_massive_hidealgo_v1";
+const LS_KEY_CURATED   = "uct_liveflow_massive_curated_v1";
 
 // ─── Tier metadata (matches LiveFlow.jsx) ─────────────────────────────────
 // Two extra keys vs LiveFlow.jsx: "bearish" is its own tier in our endpoint
@@ -1020,6 +1021,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
                   hideAlgo, onHideAlgoChange,
+                  curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
@@ -1097,6 +1099,41 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
             ← LIVE
           </button>
         )}
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
+        {/* CURATED / ALL FLOW — primary mode toggle. Curated default = best
+            setups only (stacked criteria). All Flow = firehose for power
+            users. Cards stay day-scoped to full classifiable flow either way. */}
+        <div style={{
+          display: "inline-flex", borderRadius: 4, overflow: "hidden",
+          border: `1px solid ${P.bd}`,
+        }}>
+          <button
+            onClick={() => onCuratedChange(true)}
+            title="Curated mode — show only alerts that meet stacked criteria (premium + V/OI + hits + grade). Best setups only."
+            style={{
+              padding: "5px 14px", border: "none",
+              background: curated ? P.ac : "transparent",
+              color: curated ? P.bg : P.wh,
+              cursor: "pointer", fontSize: 11, fontWeight: 700,
+            }}
+          >
+            ★ CURATED
+          </button>
+          <button
+            onClick={() => onCuratedChange(false)}
+            title="All Flow — show every classifiable alert (firehose). Use to find missed signals or audit."
+            style={{
+              padding: "5px 14px", border: "none",
+              background: !curated ? P.ac : "transparent",
+              color: !curated ? P.bg : P.wh,
+              cursor: "pointer", fontSize: 11, fontWeight: 700,
+            }}
+          >
+            ALL FLOW
+          </button>
+        </div>
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
@@ -1292,6 +1329,258 @@ function ColumnHeaders() {
   );
 }
 
+// ─── Curated qualification (client-side, mirrors backend) ─────────────────
+// Used by the tuning panel's live preview. Must match backend
+// _qualifies_curated() exactly so the preview count matches what would
+// actually show after save.
+const _GRADE_NUMERIC_FE = { "A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0 };
+
+function _capBandFE(mktCap, capBands) {
+  const mc = Number(mktCap) || 0;
+  if (mc <= 0) return "mid_small";
+  if (mc < (capBands?.mid_small_max ?? 10e9)) return "mid_small";
+  if (mc < (capBands?.large_max ?? 200e9)) return "large";
+  return "mega";
+}
+
+function qualifiesCurated(alert, thresholds) {
+  const tier = alert._tierKey || "";
+  if (tier === "algo") return false;
+  const prem = alert.alertPremium || 0;
+  const vOI = alert.volumeOIRatio || 0;
+  const hitCount = alert._hitCount || 1;
+  const grade = alert.grade || "";
+  const mktCap = alert._mktCap || 0;
+  if (tier === "unusual") {
+    const u = thresholds?.unusual || {};
+    return prem >= (u.min_premium ?? 100000) && vOI >= (u.vOI ?? 5.0);
+  }
+  if (!["alpha","size","leaps","bullish","bearish"].includes(tier)) return false;
+  const stack = thresholds?.stack || {};
+  const premCaps = thresholds?.premium_by_cap?.[tier] || {};
+  const band = _capBandFE(mktCap, thresholds?.cap_bands);
+  let signals = 0;
+  if (prem >= (premCaps[band] ?? 0)) signals++;
+  if (vOI >= (stack.vOI ?? 3.0)) signals++;
+  if (hitCount >= (stack.hit_count ?? 3)) signals++;
+  const minGradeN = _GRADE_NUMERIC_FE[stack.grade ?? "B"] ?? 2;
+  if ((_GRADE_NUMERIC_FE[grade] ?? 0) >= minGradeN) signals++;
+  return signals >= (stack.min_signals ?? 2);
+}
+
+// ─── Tuning Panel (admin only, ?tune=1) ───────────────────────────────────
+// Renders all Curated-mode threshold controls + live-preview math against
+// the current alert window. Hidden from non-admin users; gated by URL param
+// rather than auth because this is internal-only.
+function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
+  if (!thresholds) {
+    return (
+      <div style={{
+        margin: "12px 0", padding: 12, background: P.cd,
+        border: `1px solid ${P.bd}`, borderRadius: 6, color: P.dm,
+      }}>
+        Loading thresholds…
+      </div>
+    );
+  }
+
+  // Helper to mutate a nested path in thresholds
+  const setPath = (path, value) => {
+    const next = JSON.parse(JSON.stringify(thresholds));
+    let cur = next;
+    for (let i = 0; i < path.length - 1; i++) cur = cur[path[i]];
+    cur[path[path.length - 1]] = value;
+    onChange(next);
+  };
+
+  // Live preview — count how many of current alerts would pass Curated
+  const previewPass = alerts.filter(a => qualifiesCurated(a, thresholds)).length;
+  const previewTotal = alerts.length;
+
+  const NumberInput = ({ value, onChange, step = 50000, min = 0, suffix = "" }) => (
+    <input
+      type="number" value={value} step={step} min={min}
+      onChange={e => onChange(Number(e.target.value))}
+      style={{
+        width: 90, padding: "3px 6px", fontSize: 11,
+        background: P.bg, color: P.wh, border: `1px solid ${P.bd}`,
+        borderRadius: 3, fontFamily: "inherit",
+      }}
+    />
+  );
+
+  const Label = ({ children, w = 90 }) => (
+    <span style={{ color: P.dm, fontSize: 11, minWidth: w, display: "inline-block" }}>
+      {children}
+    </span>
+  );
+
+  return (
+    <div style={{
+      margin: "12px 0", padding: 14,
+      background: P.cd, border: `2px dashed ${P.ac}`, borderRadius: 6,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 10,
+      }}>
+        <div style={{
+          color: P.ac, fontSize: 12, fontWeight: 800, letterSpacing: 1,
+        }}>
+          🔧 ADMIN: CURATED TUNING PANEL
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span style={{
+            color: dirty ? P.ac : P.dm, fontSize: 11, fontStyle: "italic",
+          }}>
+            {dirty ? "● unsaved changes" : "saved"}
+          </span>
+          <button
+            onClick={onSave} disabled={!dirty}
+            style={{
+              padding: "4px 12px", fontSize: 11, fontWeight: 700,
+              background: dirty ? P.ac : "transparent",
+              color: dirty ? P.bg : P.dm,
+              border: `1px solid ${dirty ? P.ac : P.bd}`,
+              borderRadius: 3, cursor: dirty ? "pointer" : "not-allowed",
+            }}
+          >
+            Save defaults
+          </button>
+          <button
+            onClick={onReset}
+            style={{
+              padding: "4px 12px", fontSize: 11,
+              background: "transparent", color: P.wh,
+              border: `1px solid ${P.bd}`, borderRadius: 3, cursor: "pointer",
+            }}
+          >
+            Reset to factory
+          </button>
+        </div>
+      </div>
+
+      {/* Preview ribbon */}
+      <div style={{
+        padding: "6px 10px", background: P.bg, borderRadius: 3,
+        marginBottom: 12, fontSize: 11, color: P.dm,
+      }}>
+        Live preview: <span style={{ color: P.ac, fontWeight: 700 }}>
+          {previewPass} of {previewTotal}
+        </span> visible alerts would pass Curated with current settings.
+      </div>
+
+      {/* Stacking criteria */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          STACKING SIGNALS — alert qualifies if ≥{" "}
+          <NumberInput value={thresholds.stack.min_signals}
+            onChange={v => setPath(["stack","min_signals"], v)} step={1} min={1} />
+          {" "}signals met (out of 4):
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingLeft: 12 }}>
+          <div><Label>V/OI ≥</Label>
+            <NumberInput value={thresholds.stack.vOI}
+              onChange={v => setPath(["stack","vOI"], v)} step={0.5} />
+            <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
+          </div>
+          <div><Label>Hit count ≥</Label>
+            <NumberInput value={thresholds.stack.hit_count}
+              onChange={v => setPath(["stack","hit_count"], v)} step={1} min={1} />
+            <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>fires</span>
+          </div>
+          <div><Label>Grade ≥</Label>
+            <select value={thresholds.stack.grade}
+              onChange={e => setPath(["stack","grade"], e.target.value)}
+              style={{
+                padding: "3px 6px", fontSize: 11, background: P.bg,
+                color: P.wh, border: `1px solid ${P.bd}`, borderRadius: 3,
+                fontFamily: "inherit",
+              }}>
+              <option value="A+">A+</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </div>
+          <div style={{ color: P.dm, fontSize: 10, fontStyle: "italic" }}>
+            (premium threshold below also counts as a signal)
+          </div>
+        </div>
+      </div>
+
+      {/* Premium by tier × cap band */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          PREMIUM FLOORS by tier × cap band (mid-small &lt; $10B, mega &gt; $200B):
+        </div>
+        <table style={{
+          width: "100%", fontSize: 11, color: P.wh, borderCollapse: "collapse",
+          marginLeft: 12,
+        }}>
+          <thead>
+            <tr style={{ color: P.dm, textAlign: "left" }}>
+              <th style={{ padding: "3px 6px", fontWeight: 600 }}>Tier</th>
+              <th style={{ padding: "3px 6px", fontWeight: 600 }}>Mid-Small</th>
+              <th style={{ padding: "3px 6px", fontWeight: 600 }}>Large</th>
+              <th style={{ padding: "3px 6px", fontWeight: 600 }}>Mega</th>
+            </tr>
+          </thead>
+          <tbody>
+            {["alpha","size","leaps","bullish","bearish"].map(t => (
+              <tr key={t}>
+                <td style={{
+                  padding: "3px 6px", color: TIER_META[t]?.color || P.wh,
+                  fontWeight: 700, textTransform: "uppercase",
+                }}>
+                  {TIER_META[t]?.label || t}
+                </td>
+                {["mid_small","large","mega"].map(band => (
+                  <td key={band} style={{ padding: "3px 6px" }}>
+                    <NumberInput
+                      value={thresholds.premium_by_cap[t]?.[band] || 0}
+                      onChange={v => setPath(["premium_by_cap",t,band], v)}
+                      step={50000} min={0}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Unusual tier — own path */}
+      <div>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          UNUSUAL TIER (cap-agnostic — own path, no stacking):
+        </div>
+        <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center" }}>
+          <div><Label>Min premium</Label>
+            <NumberInput value={thresholds.unusual.min_premium}
+              onChange={v => setPath(["unusual","min_premium"], v)} step={25000} />
+          </div>
+          <div><Label>V/OI ≥</Label>
+            <NumberInput value={thresholds.unusual.vOI}
+              onChange={v => setPath(["unusual","vOI"], v)} step={0.5} />
+            <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 12, padding: "6px 10px", background: P.bg,
+        borderRadius: 3, fontSize: 10, color: P.mt, fontStyle: "italic",
+      }}>
+        Note: changes take effect on next 5s poll cycle after Save. Algo tier is
+        always excluded from Curated. True "Unusual name" (dormant-ticker)
+        detection is planned — current Unusual uses the V/OI rule only.
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────
 export default function LiveFlowMassive() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1332,6 +1621,21 @@ export default function LiveFlowMassive() {
   const [hideAlgo, setHideAlgo] = useState(() =>
     localStorage.getItem(LS_KEY_HIDE_ALGO) === "1"
   );
+  // Curated mode — show only alerts that meet stacked criteria (best-of-best).
+  // Default ON for product mode; admin can flip to "All Flow" for the firehose.
+  // Cards stay day-scoped to FULL classifiable flow regardless — only the
+  // table changes.
+  const [curated, setCurated] = useState(() =>
+    localStorage.getItem(LS_KEY_CURATED) !== "0"  // default ON
+  );
+  // Admin tuning panel — visible only when ?tune=1 is in the URL.
+  // Surfaces threshold controls + live-preview math against current alerts.
+  const isTuneMode = typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("tune") === "1";
+  // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
+  // tuning panel mutate this state for preview; "Save" POSTs back to backend.
+  const [thresholds, setThresholds] = useState(null);
+  const [thresholdsDirty, setThresholdsDirty] = useState(false);
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
@@ -1354,6 +1658,66 @@ export default function LiveFlowMassive() {
   useEffect(() => { localStorage.setItem(LS_KEY_MINGRADE, minGrade); }, [minGrade]);
   useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
   useEffect(() => { localStorage.setItem(LS_KEY_HIDE_ALGO, hideAlgo ? "1" : "0"); }, [hideAlgo]);
+  useEffect(() => { localStorage.setItem(LS_KEY_CURATED, curated ? "1" : "0"); }, [curated]);
+
+  // Load thresholds when entering tuning mode. Only fetches once per page
+  // visit. Editing in the panel mutates local `thresholds` (preview),
+  // saving POSTs back to backend.
+  useEffect(() => {
+    if (!isTuneMode) return;
+    let cancelled = false;
+    fetch("/api/live/massive/thresholds")
+      .then(r => r.json())
+      .then(d => {
+        if (!cancelled && d.thresholds) {
+          setThresholds(d.thresholds);
+          setThresholdsDirty(false);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isTuneMode]);
+
+  // Tuning panel handlers. Edit→dirty; Save POSTs to backend; Reset wipes
+  // the saved file (factory defaults) and reloads.
+  const handleThresholdsChange = (next) => {
+    setThresholds(next);
+    setThresholdsDirty(true);
+  };
+  const handleThresholdsSave = async () => {
+    try {
+      const r = await fetch("/api/live/massive/thresholds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(thresholds),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        alert(`Save failed: ${r.status} ${t}`);
+        return;
+      }
+      const d = await r.json();
+      if (d.thresholds) setThresholds(d.thresholds);
+      setThresholdsDirty(false);
+    } catch (e) {
+      alert(`Save error: ${e.message || e}`);
+    }
+  };
+  const handleThresholdsReset = async () => {
+    if (!confirm("Reset to factory defaults? This wipes any saved overrides.")) return;
+    try {
+      const r = await fetch("/api/live/massive/thresholds/reset", { method: "POST" });
+      if (!r.ok) {
+        alert(`Reset failed: ${r.status}`);
+        return;
+      }
+      const d = await r.json();
+      if (d.thresholds) setThresholds(d.thresholds);
+      setThresholdsDirty(false);
+    } catch (e) {
+      alert(`Reset error: ${e.message || e}`);
+    }
+  };
 
   // Polling
   useEffect(() => {
@@ -1382,6 +1746,7 @@ export default function LiveFlowMassive() {
           return ons.length === 1 ? ons[0] : null;
         })();
         if (isolatedTier) params.set("tier", isolatedTier);
+        if (curated) params.set("curated", "true");
         const r = await fetch(`/api/live/massive/recent?${params}`, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -1413,7 +1778,7 @@ export default function LiveFlowMassive() {
       if (timer) clearTimeout(timer);
       if (abort) abort.abort();
     };
-  }, [sortBy, minGrade, targetDate, rowLimit, filters]);
+  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated]);
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
@@ -1686,6 +2051,8 @@ export default function LiveFlowMassive() {
         onRowLimitChange={setRowLimit}
         hideAlgo={hideAlgo}
         onHideAlgoChange={setHideAlgo}
+        curated={curated}
+        onCuratedChange={setCurated}
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
@@ -1736,6 +2103,19 @@ export default function LiveFlowMassive() {
 
         <ColumnHeaders />
       </div>
+
+      {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
+          sticky header group (NOT inside it) so it doesn't follow scroll. */}
+      {isTuneMode && (
+        <TuningPanel
+          thresholds={thresholds}
+          onChange={handleThresholdsChange}
+          onSave={handleThresholdsSave}
+          onReset={handleThresholdsReset}
+          dirty={thresholdsDirty}
+          alerts={visibleAlerts}
+        />
+      )}
 
       {/* Flat feed — alerts in their natural sort order (recent/conviction/premium).
           Tier is indicated by the colored left border on each row, and the
