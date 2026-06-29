@@ -227,7 +227,7 @@ function Card({ children, title, sub }) {
   );
 }
 
-function TT({ rows, priceFn, onRowClick, panelFn }) {
+function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
@@ -253,9 +253,13 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
           const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
           const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
           const isExpanded = expandedKey === rowKey;
+          // fadeOnStale: subtle fade for rows where live OI is below the
+          // snapshot OI — net closing activity since the trade printed. Used
+          // by the Search tab to visually de-emphasize stale conviction.
+          const isStale = fadeOnStale && dOI < 0;
           return (
             <Fragment key={i}>
-            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer" }}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer", opacity:isStale?0.55:1 }} title={isStale?"Live OI is below snapshot OI — net closing activity":undefined}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
@@ -923,7 +927,12 @@ function processFlowData(rows) {
 
   // Fix BBS misclassifications — these are stocks, not ETFs/indexes
   const ETF_BLACKLIST = new Set(["AAL"]);
-  rawTrades.forEach(t => { if (ETF_BLACKLIST.has(t.S)) t.stocketf = "STOCK"; });
+  // Fix BBS misclassifications — these are ETFs, not stocks
+  const STOCK_BLACKLIST = new Set(["DRAM"]);
+  rawTrades.forEach(t => {
+    if (ETF_BLACKLIST.has(t.S)) t.stocketf = "STOCK";
+    if (STOCK_BLACKLIST.has(t.S)) t.stocketf = "ETF";
+  });
 
   // ML/ Volume Matching: when an ML/ trade has the same volume as a BLOCK/SWEEP
   // at the same ticker+strike+exp, it means the original position was closed/rolled
@@ -7203,6 +7212,51 @@ export default function OptionsFlowDashboard() {
               const total = ccB + ccR;
               const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
+
+              // ─── STILL-OPEN computation ────────────────────────────────
+              // Per-contract attribution of "how much of this period's
+              // directional flow is still open today, vs already closed out".
+              // Groups trades by contract, computes ΔOI = liveOI - earliestOI,
+              // derives an openFraction = clamp(0,1, ΔOI / V_total). Apply
+              // uniformly to all trades on that contract. This is the best we
+              // can do without per-trade time-stamped OI history: we know how
+              // much NET position-building happened on the contract, not which
+              // specific trades stayed open vs closed.
+              //
+              // openFraction = 0 → all positions closed since
+              // openFraction = 1 → all volume net-added to OI (full retention)
+              // computable = at least one contract had usable live OI data
+              let ccBOpen = 0, ccROpen = 0;
+              let openContractsPriced = 0, openContractsTotal = 0;
+              {
+                const byCt = {};
+                ccTrades.forEach(t => {
+                  const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+                  if (!byCt[k]) byCt[k] = { trades:[], V_total:0, minOI:Infinity };
+                  byCt[k].trades.push(t);
+                  byCt[k].V_total += (t.V||0);
+                  if ((t.OI||0) > 0) byCt[k].minOI = Math.min(byCt[k].minOI, t.OI);
+                });
+                Object.entries(byCt).forEach(([k, g]) => {
+                  openContractsTotal++;
+                  const [s, cp, kK, e] = k.split("|");
+                  const px = getPrice(s, cp, parseFloat(kK), e);
+                  // Need live OI + a baseline OI + nonzero volume to attribute.
+                  if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
+                  openContractsPriced++;
+                  const deltaOI = px.oi - g.minOI;
+                  const openFrac = Math.max(0, Math.min(1, deltaOI / g.V_total));
+                  g.trades.forEach(t => {
+                    if (t.D==="BULL") ccBOpen += (t.P||0) * openFrac;
+                    else if (t.D==="BEAR") ccROpen += (t.P||0) * openFrac;
+                  });
+                });
+              }
+              const stillOpenComputable = openContractsPriced > 0;
+              const totalOpen = ccBOpen + ccROpen;
+              const netOpen = ccBOpen - ccROpen;
+              const dirOpen = totalOpen===0?"NEUTRAL":netOpen>0?"BULL":"BEAR";
+
               // DTE counts for pills
               const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
               const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
@@ -7235,6 +7289,19 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
+                      {/* Still-open net direction — shows if the net read
+                          flips once you account for closures. */}
+                      {stillOpenComputable && (
+                        <div style={{ fontSize:9, color:P.dm, marginTop:6, paddingTop:6, borderTop:"1px dashed "+P.bd }}>
+                          Still open:{" "}
+                          <span style={{ color:dirOpen==="BULL"?P.bu:dirOpen==="BEAR"?P.be:P.dm, fontWeight:700 }}>
+                            {dirOpen}
+                          </span>
+                          {dirOpen !== dir && total > 0 && (
+                            <span style={{ marginLeft:4, color:P.ac, fontWeight:700 }} title="Net direction flips once closures are accounted for">⚠ flipped</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
@@ -7242,12 +7309,43 @@ export default function OptionsFlowDashboard() {
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccB/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                       </div>
+                      {/* Still-open bull premium — what's actually still on
+                          the books after subtracting closures. Greyed out
+                          until live OI is fetched for at least one contract. */}
+                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                        Still open:{" "}
+                        {stillOpenComputable ? (
+                          <>
+                            <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccBOpen)}</span>
+                            <span style={{ marginLeft:4 }}>
+                              ({ccB > 0 ? Math.round(ccBOpen/ccB*100) : 0}%
+                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} priced`})
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ fontStyle:"italic" }}>Fetch Live OI to compute</span>
+                        )}
+                      </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccR)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccR/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
+                      </div>
+                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                        Still open:{" "}
+                        {stillOpenComputable ? (
+                          <>
+                            <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccROpen)}</span>
+                            <span style={{ marginLeft:4 }}>
+                              ({ccR > 0 ? Math.round(ccROpen/ccR*100) : 0}%
+                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} priced`})
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ fontStyle:"italic" }}>Fetch Live OI to compute</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -7270,7 +7368,7 @@ export default function OptionsFlowDashboard() {
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
