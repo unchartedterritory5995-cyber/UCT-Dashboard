@@ -7226,7 +7226,16 @@ export default function OptionsFlowDashboard() {
               // openFraction = 0 → all positions closed since
               // openFraction = 1 → all volume net-added to OI (full retention)
               // computable = at least one contract had usable live OI data
+              //
+              // We track BOTH total bull/bear premium AND priced bull/bear
+              // premium separately. The % displayed alongside "Still open"
+              // uses the PRICED subset as denominator — otherwise the %
+              // gets dragged down by unpriced contracts (which contribute
+              // to total but not to the still-open numerator), which would
+              // mislead users into thinking more positions closed than
+              // actually did.
               let ccBOpen = 0, ccROpen = 0;
+              let pricedBullPrem = 0, pricedBearPrem = 0;
               let openContractsPriced = 0, openContractsTotal = 0;
               {
                 const byCt = {};
@@ -7244,6 +7253,12 @@ export default function OptionsFlowDashboard() {
                   // Need live OI + a baseline OI + nonzero volume to attribute.
                   if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
                   openContractsPriced++;
+                  // Accumulate this contract's premium into the "priced"
+                  // bucket so we can compute an honest % later.
+                  g.trades.forEach(t => {
+                    if (t.D==="BULL") pricedBullPrem += (t.P||0);
+                    else if (t.D==="BEAR") pricedBearPrem += (t.P||0);
+                  });
                   const deltaOI = px.oi - g.minOI;
                   const openFrac = Math.max(0, Math.min(1, deltaOI / g.V_total));
                   g.trades.forEach(t => {
@@ -7310,16 +7325,17 @@ export default function OptionsFlowDashboard() {
                         <div style={{ width:(total>0?(ccB/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                       </div>
                       {/* Still-open bull premium — what's actually still on
-                          the books after subtracting closures. Greyed out
-                          until live OI is fetched for at least one contract. */}
+                          the books after subtracting closures. % is computed
+                          against PRICED bull premium (not total), so the
+                          metric stays honest when coverage is partial. */}
                       <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
                           <>
                             <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccBOpen)}</span>
                             <span style={{ marginLeft:4 }}>
-                              ({ccB > 0 ? Math.round(ccBOpen/ccB*100) : 0}%
-                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} priced`})
+                              ({pricedBullPrem > 0 ? Math.round(ccBOpen/pricedBullPrem*100) : 0}% of priced
+                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} contracts`})
                             </span>
                           </>
                         ) : (
@@ -7339,8 +7355,8 @@ export default function OptionsFlowDashboard() {
                           <>
                             <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccROpen)}</span>
                             <span style={{ marginLeft:4 }}>
-                              ({ccR > 0 ? Math.round(ccROpen/ccR*100) : 0}%
-                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} priced`})
+                              ({pricedBearPrem > 0 ? Math.round(ccROpen/pricedBearPrem*100) : 0}% of priced
+                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} contracts`})
                             </span>
                           </>
                         ) : (
@@ -7351,9 +7367,26 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <button onClick={()=>{
+                      // Send ALL unique directional contracts for the ticker to
+                      // Schwab, not just the top-10 visible + consolidated.
+                      // Without this, "Still open" % was capped by tiny coverage
+                      // (e.g., 14/106 contracts). Schwab batches dynamically so
+                      // 100+ contracts still completes in a few seconds.
+                      const seen = new Set();
                       const contracts = [];
-                      (tk.t||[]).forEach(r => contracts.push({sym:r.S,cp:r.CP,strike:r.K,exp:r.E}));
-                      (tk.c||[]).forEach(r => contracts.push({sym:r.S,cp:r.CP,strike:r.K,exp:r.E}));
+                      const pushUnique = (S, CP, K, E) => {
+                        const key = S+"|"+CP+"|"+K+"|"+E;
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        contracts.push({sym:S, cp:CP, strike:K, exp:E});
+                      };
+                      // ccAll = all directional trades for this ticker
+                      // (unfiltered by DTE; user might switch DTE later and
+                      // we want priced data ready regardless)
+                      ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                      // Also include consolidated rows in case any aren't
+                      // covered by trade-level data
+                      (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
                       fetchPrices(contracts);
                     }} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
