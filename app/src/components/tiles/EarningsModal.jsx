@@ -88,6 +88,7 @@ export default function EarningsModal({ row, label, onClose }) {
   const { isPaid } = useAuth()
   const [gap, setGap]                       = useState(null)
   const [intel, setIntel]                   = useState(null)
+  const [grades, setGrades]                 = useState(null)
   const [aiState, setAiState]               = useState({ loading: true, data: null })
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
@@ -112,6 +113,7 @@ export default function EarningsModal({ row, label, onClose }) {
     if (!row) return
     setGap(null)
     setIntel(null)
+    setGrades(null)
     fetch(`/api/snapshot/${row.sym}`)
       .then(r => r.json())
       .then(d => { if (d.change_pct != null) setGap(d.change_pct) })
@@ -119,6 +121,10 @@ export default function EarningsModal({ row, label, onClose }) {
     fetch(`/api/earnings/intel/${row.sym}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => setIntel(d))
+      .catch(() => {})
+    fetch(`/api/earnings/analyst-grades/${row.sym}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setGrades(d))
       .catch(() => {})
   }, [row?.sym])
 
@@ -381,6 +387,28 @@ export default function EarningsModal({ row, label, onClose }) {
                 <span className={styles.muted}>${intel.price_target.targetHigh?.toFixed(0)}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Recent analyst rating changes (FMP Ultimate) ─────────────── */}
+        {grades && grades.recent_actions && grades.recent_actions.length > 0 && (
+          <div className={styles.intelStrip}>
+            <div className={styles.intelItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <span className={styles.intelLabel}>RATING CHANGES</span>
+              {grades.recent_actions.slice(0, 4).map((a, i) => {
+                const act = a.action || ''
+                const cls = /up|init|overweight|buy|outperform|positive/.test(act) ? styles.pos
+                  : /down|underweight|sell|underperform|negative/.test(act) ? styles.neg : styles.muted
+                return (
+                  <div key={`${a.date}-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12 }}>
+                    <span className={styles.muted} style={{ minWidth: 74 }}>{a.date}</span>
+                    <span style={{ minWidth: 116 }}>{a.company}</span>
+                    <span className={styles.muted}>{a.from_grade ? `${a.from_grade} → ` : ''}<b>{a.to_grade || '—'}</b></span>
+                    {act && <span className={cls} style={{ textTransform: 'uppercase', fontSize: 10, letterSpacing: 0.5 }}>{act}</span>}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
