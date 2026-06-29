@@ -77,6 +77,7 @@ from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
+from api.routers import analyst as analyst_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
 from api.routers import earnings_intel as earnings_intel_router
@@ -2644,6 +2645,7 @@ app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
+app.include_router(analyst_router.router)
 app.include_router(filings_router.router)
 app.include_router(research_router.router)
 app.include_router(earnings_intel_router.router)
