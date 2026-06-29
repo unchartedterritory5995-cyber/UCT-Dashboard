@@ -157,8 +157,6 @@ def debug_earnings_sources(sym: str):
     if fmp_key:
         for name, url in [
             ("fmp_transcript_dates", f"https://financialmodelingprep.com/stable/earning-call-transcript-dates?symbol={sym}&apikey={fmp_key}"),
-            ("fmp_transcript_2025q2", f"https://financialmodelingprep.com/stable/earning-call-transcript?symbol={sym}&year=2025&quarter=2&apikey={fmp_key}"),
-            ("fmp_transcript_2025q3", f"https://financialmodelingprep.com/stable/earning-call-transcript?symbol={sym}&year=2025&quarter=3&apikey={fmp_key}"),
         ]:
             try:
                 r = requests.get(url, timeout=12)

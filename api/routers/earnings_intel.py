@@ -22,6 +22,7 @@ from api.services.call_recap import (
 )
 from api.services.earnings_audio import get_audio
 from api.services.av_transcripts import get_transcript
+from api.services.fmp_transcripts import get_transcript as get_fmp_transcript
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -95,10 +96,11 @@ def transcript_endpoint(
     quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
     user: dict = Depends(get_current_user),
 ):
-    """Verbatim earnings call transcript via AlphaVantage.
+    """Verbatim earnings call transcript.
 
-    Lazy / on-demand only to respect the 25 req/day free-tier quota.
-    Results are cached 24h; throttle responses are short-cached 5 min.
+    Primary source = FMP (Ultimate plan): unlimited, 83+ quarters of history,
+    cached 30d. Falls back to AlphaVantage (lazy, 25 req/day, cached 24h) only
+    when FMP has no transcript for the ticker/quarter.
 
     Returns:
         {symbol, quarter, segments: [{speaker, title, content, sentiment}], resolved}
@@ -108,6 +110,14 @@ def transcript_endpoint(
     sym = (ticker or "").upper().strip()
     if not sym:
         return None
+    # FMP first — uncapped on Ultimate, so no quota discipline needed.
+    try:
+        res = get_fmp_transcript(sym, quarter=quarter or None)
+        if res and res.get("segments"):
+            return res
+    except Exception as e:
+        _log.warning("[earnings_intel] fmp transcript failed for %s: %s", sym, e)
+    # AlphaVantage fallback (rate-limited) only when FMP came up empty.
     try:
         return get_transcript(sym, quarter=quarter or None)
     except Exception as e:
