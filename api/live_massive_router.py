@@ -663,28 +663,74 @@ def _today_mdyyyy() -> str:
 
 
 def _get_worker_status() -> dict:
-    """Try to read massive_ws_worker status; gracefully degrade if unavailable."""
+    """Worker liveness derived from FlowDB write recency.
+
+    IMPORTANT: the web service and the Massive WS worker run in SEPARATE
+    Railway services and don't share memory. Importing
+    `from api.massive_ws_worker import get_status` works (same code) but
+    returns the WEB service's copy of `_state`, which is never updated by
+    the actual worker process. So `connected` would be permanently False
+    even when the worker is healthy.
+
+    Instead: query FlowDB for the most-recent stocks row. The worker writes
+    rows continuously during market hours; if the latest row's timestamp
+    is within `_STALE_THRESHOLD_SEC`, the worker is alive. Otherwise idle.
+    Database is the shared substrate between the two services, so this
+    avoids the cross-process state visibility problem entirely.
+    """
     try:
-        from api.massive_ws_worker import get_status
-        s = get_status()
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        try:
+            cur = conn.execute("""
+                SELECT id, CreatedDate, CreatedTime
+                  FROM flow
+                 WHERE source = 'stocks'
+                 ORDER BY id DESC LIMIT 1
+            """)
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return {
+                "connected": False, "source": "massive",
+                "last_event_at": None, "last_event_age_sec": None,
+                "max_id": None,
+                "note": "No rows in FlowDB yet — worker has not written any data.",
+            }
+        max_id, created_date, created_time = row
+        latest_ts = _ts_from_row(created_date, created_time)
+        if not latest_ts:
+            return {
+                "connected": False, "source": "massive",
+                "last_event_at": None, "last_event_age_sec": None,
+                "max_id": max_id,
+                "note": "Latest FlowDB row has unparseable timestamp.",
+            }
+        now = time.time()
+        age = now - latest_ts
+        connected = age < _STALE_THRESHOLD_SEC
         return {
-            "connected": bool(s.get("connected", False)),
+            "connected": connected,
             "source": "massive",
-            "last_event_at": s.get("last_trade_ts_iso") or s.get("last_write_ts_iso"),
-            "started_at": s.get("started_at"),
-            "reconnect_count": s.get("reconnect_count", 0),
-            "total_trades_today": s.get("trades_added_today") or s.get("trades_added", 0),
-            "last_error": s.get("last_error"),
+            "last_event_at": datetime.fromtimestamp(latest_ts, tz=timezone.utc).isoformat(),
+            "last_event_age_sec": round(age, 1),
+            "max_id": max_id,
+            "stale_threshold_sec": _STALE_THRESHOLD_SEC,
         }
     except Exception as e:
         return {
-            "connected": False,
-            "source": "massive",
-            "last_event_at": None,
-            "started_at": None,
-            "reconnect_count": 0,
-            "last_error": f"worker status unavailable: {e}",
+            "connected": False, "source": "massive",
+            "last_event_at": None, "last_event_age_sec": None,
+            "last_error": f"FlowDB status query failed: {e}",
         }
+
+
+# How recent the most-recent FlowDB row must be for the worker to be
+# considered "live". Massive sends thousands of events per minute during
+# market hours, so a 2-minute gap is a strong signal something is wrong.
+# Outside market hours legitimate gaps occur; the indicator will show
+# IDLE which is accurate.
+_STALE_THRESHOLD_SEC = 120
 
 
 @router.get("/recent")
