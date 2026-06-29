@@ -1539,8 +1539,16 @@ async def _run_session(ws):
             unresolved = sum(1 for _, oi in results if oi is None or oi == 0)
             today_iso = date.today().isoformat()
             if resolved:
+                # record_batch is sync SQLite — under WAL contention with the
+                # web service reading, this can take 100s of ms or briefly
+                # stall. Offload to thread so the asyncio loop stays
+                # responsive (NBBO freshness depends on Q events flowing
+                # through the event loop with minimal latency).
                 try:
-                    record_batch(resolved, today_iso)
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        None, record_batch, resolved, today_iso
+                    )
                 except Exception as e:
                     logger.warning(
                         "[massive-ws] OI snapshot persist failed: %s", e
@@ -1640,10 +1648,80 @@ async def _run_session(ws):
                 len(batch), len(resolved), unresolved
             )
 
+    async def stale_connection_watchdog():
+        """Force-close the WS if no T events received for STALE_THRESHOLD_SEC
+        during market hours. Recovers from the "half-open socket" failure
+        mode where the connection appears alive (no FIN/RST received) but
+        no data is flowing.
+
+        Background on the failure mode this fixes:
+          - websockets library's ping_interval=20/ping_timeout=20 is supposed
+            to detect dead connections, but in practice has been observed to
+            silently stop firing pings under certain conditions (NAT/firewall
+            connection tracking quirks, kernel-level socket weirdness)
+          - When that happens, `async for msg in ws:` blocks forever waiting
+            for data that will never arrive
+          - Container shows "online" because the Python process is alive,
+            just stuck on a dead socket
+          - Manual restart is required to recover, losing minutes of data
+
+        Watchdog logic:
+          - Only active during market hours (9:30 AM - 4:00 PM ET, weekdays).
+            Outside market hours, no events are EXPECTED to flow, so no
+            stale detection. Returns early on weekends/after-hours.
+          - Grace period after connect: only triggers if last_trade_ts has
+            been set at least once (i.e. session was healthy at some point).
+            Avoids false trigger during initial connection establishment.
+          - On stale: closes the WS, which triggers the outer reconnect loop
+            in run_consumer() to establish a fresh connection.
+        """
+        STALE_THRESHOLD_SEC = 60.0  # tune via experience
+        CHECK_INTERVAL_SEC = 10.0
+        ET_TZ = ZoneInfo("America/New_York")
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=CHECK_INTERVAL_SEC)
+            except asyncio.TimeoutError:
+                pass
+            else:
+                break  # stop_event fired
+
+            # Market-hours gate
+            now_et = datetime.now(ET_TZ)
+            if now_et.weekday() >= 5:
+                continue  # weekend
+            mo = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+            mc = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+            if not (mo <= now_et <= mc):
+                continue  # outside market hours
+
+            last_ts = _state.get("last_trade_ts")
+            if last_ts is None:
+                # Session just started, no events yet — give it time
+                continue
+            age = time.time() - last_ts
+            if age > STALE_THRESHOLD_SEC:
+                logger.warning(
+                    "[massive-ws] WATCHDOG: no T events received in %.1fs "
+                    "during market hours — forcing WS close to reconnect.", age
+                )
+                _state["watchdog_force_reconnects"] = (
+                    _state.get("watchdog_force_reconnects", 0) + 1
+                )
+                _state["last_error"] = (
+                    f"watchdog: stale connection, no events in {age:.0f}s"
+                )
+                try:
+                    await ws.close(code=1001, reason="watchdog: stale connection")
+                except Exception as e:
+                    logger.debug("[massive-ws] WATCHDOG ws.close error: %s", e)
+                return  # exit watchdog; outer loop will reconnect
+
     flusher_task = asyncio.create_task(flusher())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
     oi_mgr_task = asyncio.create_task(oi_fetch_manager())
     spot_mgr_task = asyncio.create_task(spot_fetch_manager())
+    watchdog_task = asyncio.create_task(stale_connection_watchdog())
 
     try:
         async for msg in ws:
@@ -1731,6 +1809,11 @@ async def _run_session(ws):
         try:
             await spot_mgr_task
         except Exception:
+            pass
+        try:
+            watchdog_task.cancel()
+            await watchdog_task
+        except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect
         agg.flush_all()
