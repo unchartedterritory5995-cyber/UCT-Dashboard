@@ -38,6 +38,24 @@ else:
 
 _refresh_task = None
 
+# Module-level concurrency primitives
+# -----------------------------------------------------------------------------
+# _CHAIN_SEMAPHORE caps the number of concurrent Schwab option-chain requests
+# across ALL callers (oi_snapshots, daily_tracker, gex_service, OptionsFlow,
+# the worker's on-demand OI fetch, etc.). 20 is comfortable headroom under
+# Schwab's retail OAuth rate limit (~120 req/min) while still letting big
+# OI batches finish within the 10s outer wait_for that oi_snapshots wraps.
+#
+# Constructed at module level: asyncio.Semaphore() defers loop binding until
+# first acquire (Python 3.10+), so this is safe at import time regardless of
+# which loop ends up using it.
+_CHAIN_SEMAPHORE = asyncio.Semaphore(20)
+
+# _TOKEN_REFRESH_LOCK prevents refresh-storms when many parallel chain calls
+# all 401 at the same moment (token expired mid-batch). Single-flight: one
+# task does the refresh, the rest read the freshly-saved token from disk.
+_TOKEN_REFRESH_LOCK = asyncio.Lock()
+
 
 # ─── Token Management ────────────────────────────────────────────────────────────
 def _get_basic_auth():
@@ -149,6 +167,35 @@ async def get_valid_token() -> str | None:
     return tokens.get("access_token")
 
 
+async def _refresh_if_stale(stale_token: str) -> str | None:
+    """
+    Single-flight token refresh used by parallel chain fetches that 401.
+
+    If `stale_token` is still the saved token on disk, this task does the
+    refresh and returns the new access token. If another task has already
+    refreshed while we were waiting for the lock, we return that fresh
+    token without hitting Schwab again — preventing refresh storms when
+    20 concurrent chain calls all 401 at the same moment.
+
+    Returns the current valid access token, or None on failure.
+    """
+    async with _TOKEN_REFRESH_LOCK:
+        # Compare-and-swap on the persisted token. load_tokens() does sync
+        # file I/O but the file is tiny (<1KB JSON) and we're inside a lock,
+        # so any micro-stall is bounded.
+        current = load_tokens()
+        if current:
+            saved = current.get("access_token")
+            if saved and saved != stale_token:
+                # Another task refreshed while we waited; use theirs.
+                return saved
+        # Our turn to refresh.
+        new_tokens = await refresh_access_token()
+        if new_tokens:
+            return new_tokens.get("access_token")
+        return None
+
+
 # ─── Option Chain Quotes ─────────────────────────────────────────────────────────
 async def get_option_quote(symbol: str, strike: float, exp_date: str, cp: str) -> dict | None:
     """
@@ -258,17 +305,127 @@ async def get_option_quote(symbol: str, strike: float, exp_date: str, cp: str) -
         return {"error": f"No contract found for {symbol} {strike}{cp} near {exp_date}"}
 
 
+async def _fetch_one_chain(
+    client: httpx.AsyncClient,
+    symbol: str,
+    sym_contracts: list[dict],
+    initial_token: str,
+) -> dict:
+    """
+    Fetch one symbol's option chain and parse all contracts into a flat
+    {symbol|cp|strike|expDate: quote_data} dict. Returns {} on failure
+    (rather than raising) so a single bad symbol doesn't poison the gather.
+
+    Bounded by _CHAIN_SEMAPHORE so we cap total concurrent Schwab chain
+    calls across all callers. Handles one 401 retry via single-flight
+    refresh (_refresh_if_stale).
+    """
+    from datetime import datetime as dt, timedelta
+
+    # Build date range across all contracts for this symbol
+    all_dates = []
+    for c in sym_contracts:
+        try:
+            all_dates.append(dt.strptime(c["expDate"], "%Y-%m-%d"))
+        except Exception:
+            pass
+    if not all_dates:
+        return {}
+
+    from_date = (min(all_dates) - timedelta(days=5)).strftime("%Y-%m-%d")
+    to_date = (max(all_dates) + timedelta(days=5)).strftime("%Y-%m-%d")
+
+    cps = set(c["cp"].upper() for c in sym_contracts)
+    contract_type = "ALL" if len(cps) > 1 else ("CALL" if "C" in cps else "PUT")
+
+    params = {
+        "symbol": symbol,
+        "contractType": contract_type,
+        "fromDate": from_date,
+        "toDate": to_date,
+        "includeUnderlyingQuote": "true",
+    }
+
+    token = initial_token
+
+    async with _CHAIN_SEMAPHORE:
+        try:
+            resp = await client.get(
+                CHAINS_URL,
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+            )
+            if resp.status_code == 401:
+                refreshed = await _refresh_if_stale(token)
+                if not refreshed:
+                    logger.warning("Chain fetch 401 for %s and refresh failed", symbol)
+                    return {}
+                token = refreshed
+                resp = await client.get(
+                    CHAINS_URL,
+                    headers={"Authorization": f"Bearer {token}"},
+                    params=params,
+                )
+            if resp.status_code != 200:
+                logger.warning("Chain fetch failed for %s: %s", symbol, resp.status_code)
+                return {}
+            data = resp.json()
+        except Exception as e:
+            logger.warning("Chain fetch error for %s: %s", symbol, e)
+            return {}
+
+    # Parse outside the semaphore — HTTP slot freed, JSON parsing is local.
+    underlying = data.get("underlyingPrice", 0)
+    out: dict = {}
+    for chain_key in ["callExpDateMap", "putExpDateMap"]:
+        cp_letter = "C" if "call" in chain_key else "P"
+        exp_map = data.get(chain_key, {})
+        for exp_key, strikes in exp_map.items():
+            exp_date_str = exp_key.split(":")[0] if ":" in exp_key else exp_key
+            for strike_key, contract_list in strikes.items():
+                if contract_list and len(contract_list) > 0:
+                    c = contract_list[0]
+                    strike_val = float(strike_key)
+                    k = f"{symbol}|{cp_letter}|{strike_val}|{exp_date_str}"
+                    out[k] = {
+                        "symbol": symbol,
+                        "strike": strike_val,
+                        "expDate": exp_date_str,
+                        "cp": cp_letter,
+                        "bid": c.get("bid", 0),
+                        "ask": c.get("ask", 0),
+                        "last": c.get("last", 0),
+                        "mark": c.get("mark", 0),
+                        "volume": c.get("totalVolume", 0),
+                        "openInterest": c.get("openInterest", 0),
+                        "iv": c.get("volatility", 0),
+                        "delta": c.get("delta", 0),
+                        "gamma": c.get("gamma", 0),
+                        "theta": c.get("theta", 0),
+                        "underlyingPrice": underlying,
+                    }
+    return out
+
+
 async def get_batch_option_quotes(contracts: list[dict]) -> list[dict]:
     """
-    FAST batch: groups contracts by symbol, fetches ONE chain per symbol,
-    extracts all matching contracts from the response.
-    20 contracts across 5 tickers = 5 API calls instead of 20.
+    FAST batch: groups contracts by symbol, fetches one chain per symbol
+    in PARALLEL (bounded by _CHAIN_SEMAPHORE), extracts all matching
+    contracts from the responses.
+
+    Previously this serialized chain calls per-symbol — a 30-symbol OI sweep
+    took 15-60s and routinely got cancelled by oi_snapshots'
+    asyncio.wait_for(timeout=10.0) outer wrapper, causing the entire batch
+    to return None. With gather + 20-way parallelism, a 30-symbol batch
+    now completes in ~1-2s wallclock instead of the sum of per-call times.
+
+    20 contracts across 5 tickers = 5 API calls, all concurrent.
     """
     token = await get_valid_token()
     if not token:
         return [{"error": "Not authenticated"}] * len(contracts)
 
-    from datetime import datetime as dt, timedelta
+    from datetime import datetime as dt
     from collections import defaultdict
 
     today = dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -287,92 +444,29 @@ async def get_batch_option_quotes(contracts: list[dict]) -> list[dict]:
             continue
         by_symbol[c["symbol"].upper()].append(c)
 
-    # Fetch one chain per symbol
-    results_map = {}  # key: "SYM|CP|STRIKE|EXPDATE" -> quote data
-
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        for symbol, sym_contracts in by_symbol.items():
-            # Find date range across all contracts for this symbol
-            all_dates = []
-            for c in sym_contracts:
-                try:
-                    d = dt.strptime(c["expDate"], "%Y-%m-%d")
-                    all_dates.append(d)
-                except Exception:
-                    pass
-            if not all_dates:
-                continue
-            from_date = (min(all_dates) - timedelta(days=5)).strftime("%Y-%m-%d")
-            to_date = (max(all_dates) + timedelta(days=5)).strftime("%Y-%m-%d")
-
-            # Determine if we need calls, puts, or both
-            cps = set(c["cp"].upper() for c in sym_contracts)
-            contract_type = "ALL" if len(cps) > 1 else ("CALL" if "C" in cps else "PUT")
-
-            try:
-                resp = await client.get(
-                    CHAINS_URL,
-                    headers={"Authorization": f"Bearer {token}"},
-                    params={
-                        "symbol": symbol,
-                        "contractType": contract_type,
-                        "fromDate": from_date,
-                        "toDate": to_date,
-                        "includeUnderlyingQuote": "true",
-                    },
-                )
-                if resp.status_code == 401:
-                    new_tokens = await refresh_access_token()
-                    if new_tokens:
-                        token = new_tokens["access_token"]
-                        resp = await client.get(
-                            CHAINS_URL,
-                            headers={"Authorization": f"Bearer {token}"},
-                            params={
-                                "symbol": symbol,
-                                "contractType": contract_type,
-                                "fromDate": from_date,
-                                "toDate": to_date,
-                                "includeUnderlyingQuote": "true",
-                            },
-                        )
-                if resp.status_code != 200:
-                    logger.warning("Chain fetch failed for %s: %s", symbol, resp.status_code)
-                    continue
-
-                data = resp.json()
-                underlying = data.get("underlyingPrice", 0)
-
-                # Parse all contracts from the chain into a flat lookup
-                for chain_key in ["callExpDateMap", "putExpDateMap"]:
-                    cp_letter = "C" if "call" in chain_key else "P"
-                    exp_map = data.get(chain_key, {})
-                    for exp_key, strikes in exp_map.items():
-                        exp_date_str = exp_key.split(":")[0] if ":" in exp_key else exp_key
-                        for strike_key, contract_list in strikes.items():
-                            if contract_list and len(contract_list) > 0:
-                                c = contract_list[0]
-                                strike_val = float(strike_key)
-                                k = f"{symbol}|{cp_letter}|{strike_val}|{exp_date_str}"
-                                results_map[k] = {
-                                    "symbol": symbol,
-                                    "strike": strike_val,
-                                    "expDate": exp_date_str,
-                                    "cp": cp_letter,
-                                    "bid": c.get("bid", 0),
-                                    "ask": c.get("ask", 0),
-                                    "last": c.get("last", 0),
-                                    "mark": c.get("mark", 0),
-                                    "volume": c.get("totalVolume", 0),
-                                    "openInterest": c.get("openInterest", 0),
-                                    "iv": c.get("volatility", 0),
-                                    "delta": c.get("delta", 0),
-                                    "gamma": c.get("gamma", 0),
-                                    "theta": c.get("theta", 0),
-                                    "underlyingPrice": underlying,
-                                }
-            except Exception as e:
-                logger.warning("Chain fetch error for %s: %s", symbol, e)
+    # Fetch all chains in parallel (bounded by _CHAIN_SEMAPHORE).
+    #
+    # Inner per-request timeout = 8s (tightened from 15s). Rationale:
+    # oi_snapshots wraps this call with asyncio.wait_for(timeout=10.0).
+    # An inner timeout >= the outer was unreachable — the outer always
+    # won and cancelled the entire batch. At 8s, a single slow chain
+    # call times out individually (returning {} for that symbol) while
+    # the rest of the batch keeps its results. 2s headroom is plenty
+    # for the gather collection + match loop afterwards.
+    results_map: dict = {}
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        chain_results = await asyncio.gather(
+            *[
+                _fetch_one_chain(client, symbol, sym_contracts, token)
+                for symbol, sym_contracts in by_symbol.items()
+            ],
+            return_exceptions=True,
+        )
+    for r in chain_results:
+        if isinstance(r, dict):
+            results_map.update(r)
+        elif isinstance(r, Exception):
+            logger.warning("Chain gather exception: %s", r)
 
     # Match requested contracts to chain data (fuzzy date match ±5 days)
     results = []
