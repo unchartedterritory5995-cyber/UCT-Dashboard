@@ -7327,7 +7327,12 @@ export default function OptionsFlowDashboard() {
                       {/* Still-open bull premium — what's actually still on
                           the books after subtracting closures. % is computed
                           against PRICED bull premium (not total), so the
-                          metric stays honest when coverage is partial. */}
+                          metric stays honest when coverage is partial. The
+                          "missing OI" suffix is the gap between contracts we
+                          tried to price vs contracts where Schwab returned
+                          usable open interest — typically 0 once a fresh
+                          fetch completes for all data; larger when corp
+                          actions / expired contracts return quote without OI. */}
                       <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
@@ -7335,7 +7340,7 @@ export default function OptionsFlowDashboard() {
                             <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccBOpen)}</span>
                             <span style={{ marginLeft:4 }}>
                               ({pricedBullPrem > 0 ? Math.round(ccBOpen/pricedBullPrem*100) : 0}% of priced
-                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} contracts`})
+                              {openContractsPriced < openContractsTotal && `, ${openContractsTotal - openContractsPriced} missing OI`})
                             </span>
                           </>
                         ) : (
@@ -7356,7 +7361,7 @@ export default function OptionsFlowDashboard() {
                             <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccROpen)}</span>
                             <span style={{ marginLeft:4 }}>
                               ({pricedBearPrem > 0 ? Math.round(ccROpen/pricedBearPrem*100) : 0}% of priced
-                              {openContractsPriced < openContractsTotal && `, ${openContractsPriced}/${openContractsTotal} contracts`})
+                              {openContractsPriced < openContractsTotal && `, ${openContractsTotal - openContractsPriced} missing OI`})
                             </span>
                           </>
                         ) : (
