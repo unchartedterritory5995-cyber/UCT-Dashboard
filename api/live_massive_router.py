@@ -1592,3 +1592,100 @@ def contract_debug(
         debug["errors"].append(f"top-level: {type(e).__name__}: {e}")
         debug["traceback"] = traceback.format_exc().split("\n")[-15:]
         return {"error": str(e), "debug": debug}
+
+
+@router.get("/side-diagnostic")
+def side_diagnostic(target_date: str = Query(default=None, description="Trading date M/D/YYYY (default today)")):
+    """Diagnose unclassified-Side rate. Returns breakdown of Side values
+    across today's MAGENTA/YELLOW rows + sample of unclassified rows for
+    pattern detection. Useful for investigating "skipped_unclassified_side"
+    metric on /recent responses.
+
+    Common reasons a row has empty/unclassifiable Side:
+      - Trade printed at mid-market (Lee-Ready can't decide)
+      - NBBO data stale / Q subscription not yet active for the contract
+      - Raw print history empty (first trade on the contract today)
+      - Worker was warming up and hadn't subscribed to this contract yet
+    """
+    today = target_date or _today_mdyyyy()
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+        # Counts by Side value across today's classifiable color rows
+        cur = conn.execute("""
+            SELECT COALESCE(Side, '') AS s, COUNT(*) AS n
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Color IN ('MAGENTA', 'YELLOW')
+             GROUP BY s
+             ORDER BY n DESC
+        """, (today,))
+        side_counts = [(r["s"] or "(empty)", r["n"]) for r in cur.fetchall()]
+        total = sum(n for _, n in side_counts)
+        classified = sum(n for s, n in side_counts if s in ("A", "AA", "B", "BB"))
+        unclassified = total - classified
+
+        # Sample of unclassified rows for pattern detection
+        cur = conn.execute("""
+            SELECT CreatedTime, Symbol, Type, CallPut, Strike, Spot,
+                   Premium, Color, OI, Volume, Side, ExpirationDate
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Color IN ('MAGENTA', 'YELLOW')
+               AND (Side IS NULL OR Side = '' OR Side NOT IN ('A','AA','B','BB'))
+             ORDER BY id DESC
+             LIMIT 25
+        """, (today,))
+        sample_unclassified = [dict(r) for r in cur.fetchall()]
+
+        # Pattern: which tickers have the most unclassified
+        cur = conn.execute("""
+            SELECT Symbol, COUNT(*) AS n
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Color IN ('MAGENTA', 'YELLOW')
+               AND (Side IS NULL OR Side = '' OR Side NOT IN ('A','AA','B','BB'))
+             GROUP BY Symbol
+             ORDER BY n DESC
+             LIMIT 20
+        """, (today,))
+        top_unclassified_tickers = [(r["Symbol"], r["n"]) for r in cur.fetchall()]
+
+        # Pattern: by Type (sweep vs block vs ML vs regular)
+        cur = conn.execute("""
+            SELECT COALESCE(Type, '') AS t, COUNT(*) AS n
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Color IN ('MAGENTA', 'YELLOW')
+               AND (Side IS NULL OR Side = '' OR Side NOT IN ('A','AA','B','BB'))
+             GROUP BY t
+             ORDER BY n DESC
+             LIMIT 10
+        """, (today,))
+        unclassified_by_type = [(r["t"] or "(empty)", r["n"]) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    return {
+        "query_date": today,
+        "summary": {
+            "total_my_rows": total,
+            "classified_count": classified,
+            "unclassified_count": unclassified,
+            "unclassified_pct": round(100.0 * unclassified / total, 1) if total else 0,
+        },
+        "side_distribution": dict(side_counts),
+        "top_unclassified_tickers": dict(top_unclassified_tickers),
+        "unclassified_by_type": dict(unclassified_by_type),
+        "sample_unclassified": sample_unclassified,
+        "interpretation": (
+            f"{unclassified} of {total} MAGENTA/YELLOW rows have no usable Side. "
+            "Common causes: trades printing mid-market (Lee-Ready can't decide), "
+            "NBBO data stale, Q subscription not active, or first trade on a "
+            "contract before raw print history existed."
+        ),
+    }
