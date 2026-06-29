@@ -32,12 +32,13 @@ Why this lives separately:
   2. The Bullflow worker (liveflow_worker.py) and this router can coexist
   3. Once validated, swap LiveFlow.jsx data source URL — no other changes needed
 """
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, HTTPException
 from datetime import date, datetime, timezone, timedelta
 import sqlite3
 import os
 import time
 import re
+import json
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
@@ -58,6 +59,335 @@ TIER_PRIORITY = {
     "unusual": 5,
     "algo":    99,
 }
+
+
+# ─── Curated mode thresholds + qualification ────────────────────────────────
+# Curated mode is the "best of the best" view — only alerts that meet stacked
+# criteria show up. The thresholds are admin-tunable via /thresholds endpoint
+# and persisted to a JSON file so values stick across deploys.
+#
+# Stacking model:
+#   Tiers {alpha, size, leaps, bullish, bearish}:
+#     1. Premium MUST meet tier+cap-band floor (HARD requirement)
+#     2. AND must meet ≥ stack.min_signals of these 3 quality confirmers:
+#          - V/OI ≥ stack.vOI
+#          - Hit count (same-contract repeats) ≥ stack.hit_count
+#          - Grade ≥ stack.grade
+#     min_signals=0 → premium alone qualifies (loose)
+#     min_signals=1 → premium + 1 confirmer (default)
+#     min_signals=2 → premium + 2 confirmers
+#     min_signals=3 → premium + all 3 confirmers (strictest)
+#
+#   Tier 'unusual' (cap-agnostic, own path):
+#     Show if premium >= unusual.min_premium AND v_oi >= unusual.vOI.
+#     The signal IS the V/OI anomaly on a normally-quiet name — no stacking.
+#     NOTE: True "unusual name" detection (dormant ticker lookup over past N
+#     trading days) is planned for after-hours build. For now, the existing
+#     V/OI-based Unusual tier rule applies.
+#
+#   Tier 'algo': always excluded from Curated.
+
+_THRESHOLDS_PATH = os.environ.get("CURATED_THRESHOLDS_PATH", "/data/curated_thresholds.json")
+_thresholds_cache = None
+
+DEFAULT_THRESHOLDS = {
+    "stack": {
+        "min_signals": 1,         # min quality confirmers (out of 3); premium always required
+        "vOI": 3.0,
+        "hit_count": 3,
+        "grade": "B",
+    },
+    "premium_by_cap": {
+        # premium $ floor by tier and cap band
+        "alpha":   {"mid_small": 1_000_000, "large": 1_000_000, "mega": 1_000_000},
+        "size":    {"mid_small":   500_000, "large":   750_000, "mega": 1_000_000},
+        "leaps":   {"mid_small":   500_000, "large":   750_000, "mega": 1_000_000},
+        "bullish": {"mid_small":   250_000, "large":   500_000, "mega":   750_000},
+        "bearish": {"mid_small":   250_000, "large":   500_000, "mega":   750_000},
+    },
+    "unusual": {
+        "min_premium": 100_000,
+        "vOI": 5.0,
+    },
+    "cap_bands": {
+        # in $ market cap. Below mid_small_max = "mid_small";
+        # mid_small_max to large_max = "large"; above large_max = "mega"
+        "mid_small_max":  10_000_000_000,    # <$10B = mid/small cap
+        "large_max":     200_000_000_000,    # $10B-$200B = large; >$200B = mega
+    },
+}
+
+_GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
+
+
+def _deep_merge_thresholds(defaults: dict, saved: dict) -> dict:
+    """Merge saved values into defaults so missing keys fall back gracefully
+    when the saved file pre-dates a new threshold being added."""
+    out = json.loads(json.dumps(defaults))  # deep copy
+    for k, v in saved.items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = _deep_merge_thresholds(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def _load_thresholds() -> dict:
+    """Load thresholds from disk, falling back to defaults. Cached in-memory
+    after first read; cache invalidates on _save_thresholds()."""
+    global _thresholds_cache
+    if _thresholds_cache is not None:
+        return _thresholds_cache
+    try:
+        if os.path.exists(_THRESHOLDS_PATH):
+            with open(_THRESHOLDS_PATH) as f:
+                saved = json.load(f)
+            _thresholds_cache = _deep_merge_thresholds(DEFAULT_THRESHOLDS, saved)
+        else:
+            _thresholds_cache = json.loads(json.dumps(DEFAULT_THRESHOLDS))
+    except Exception as e:
+        print(f"[curated] Failed to load thresholds ({e}), using defaults")
+        _thresholds_cache = json.loads(json.dumps(DEFAULT_THRESHOLDS))
+    return _thresholds_cache
+
+
+def _save_thresholds(thresholds: dict) -> bool:
+    """Persist thresholds to disk. Refresh cache on success."""
+    global _thresholds_cache
+    try:
+        merged = _deep_merge_thresholds(DEFAULT_THRESHOLDS, thresholds)
+        os.makedirs(os.path.dirname(_THRESHOLDS_PATH), exist_ok=True)
+        tmp = _THRESHOLDS_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(merged, f, indent=2)
+        os.replace(tmp, _THRESHOLDS_PATH)  # atomic swap
+        _thresholds_cache = merged
+        return True
+    except Exception as e:
+        print(f"[curated] Failed to save thresholds: {e}")
+        return False
+
+
+def _cap_band_key(mkt_cap, cap_bands: dict) -> str:
+    """Classify a ticker's market cap into 'mid_small', 'large', or 'mega'."""
+    mc = mkt_cap if isinstance(mkt_cap, (int, float)) else _parse_int(mkt_cap)
+    if not mc or mc <= 0:
+        return "mid_small"   # default to most permissive when unknown
+    if mc < cap_bands.get("mid_small_max", 10_000_000_000):
+        return "mid_small"
+    if mc < cap_bands.get("large_max", 200_000_000_000):
+        return "large"
+    return "mega"
+
+
+def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
+    """Apply Curated-mode filter to a single alert.
+    Returns True if the alert should be visible in Curated mode.
+
+    Rule (for alpha/size/leaps/bullish/bearish tiers):
+      1. Premium MUST meet tier+cap floor (HARD requirement, no skip)
+      2. AND ≥ stack.min_signals of these 3 quality signals must also pass:
+            - V/OI ≥ stack.vOI
+            - hit count ≥ stack.hit_count
+            - grade ≥ stack.grade
+         min_signals=0 → premium alone qualifies
+         min_signals=1 → premium + 1 confirmer (recommended default)
+         min_signals=3 → premium + all confirmers (strictest)
+
+    Rule (for unusual tier): own path — premium + V/OI thresholds only
+    Rule (for algo tier): always excluded
+    """
+    tier = alert.get("_tierKey", "")
+
+    if tier == "algo":
+        return False
+
+    prem = alert.get("alertPremium") or 0
+    v_oi = alert.get("volumeOIRatio") or 0
+    hit_count = alert.get("_hitCount") or 1
+    grade = alert.get("grade", "")
+    mkt_cap = alert.get("_mktCap") or 0
+
+    # Unusual: own path. V/OI anomaly + small premium IS the signal.
+    if tier == "unusual":
+        u = thresholds.get("unusual", {})
+        return (prem >= u.get("min_premium", 100_000) and
+                v_oi >= u.get("vOI", 5.0))
+
+    if tier not in ("alpha", "size", "leaps", "bullish", "bearish"):
+        return False
+
+    stack = thresholds.get("stack", {})
+    prem_caps = thresholds.get("premium_by_cap", {}).get(tier, {})
+    cap_bands = thresholds.get("cap_bands", {})
+
+    # ─── HARD requirement: premium tier+cap floor ─────────────────────
+    band = _cap_band_key(mkt_cap, cap_bands)
+    prem_floor = prem_caps.get(band, 0)
+    if prem < prem_floor:
+        return False
+
+    # ─── Count quality signals (V/OI, hits, grade) ────────────────────
+    quality_signals = 0
+    if v_oi >= stack.get("vOI", 3.0):
+        quality_signals += 1
+    if hit_count >= stack.get("hit_count", 3):
+        quality_signals += 1
+    min_grade_n = _GRADE_NUMERIC.get(stack.get("grade", "B"), 2)
+    if _GRADE_NUMERIC.get(grade, 0) >= min_grade_n:
+        quality_signals += 1
+
+    return quality_signals >= stack.get("min_signals", 1)
+
+
+# ─── Dormant ticker tracking (true "Unusual name" detection) ──────────────
+# A ticker is "dormant" if it has NOT produced any classifiable MAGENTA/
+# YELLOW alert in the past N trading days. The Unusual tier promotes a
+# dormant ticker that suddenly shows up with high V/OI flow — the canonical
+# "name that doesn't normally trade flow is suddenly trading" signal.
+#
+# Storage model:
+#   /data/dormant_tickers.json — JSON file written by the recompute job.
+#   Contains the ACTIVE set (smaller than universe of all tickers).
+#   Lookup: ticker IN active_set → not dormant. NOT IN → dormant.
+#
+# Performance model:
+#   File loaded into a frozenset at module level. Membership check is O(1).
+#   Cache invalidates on file mtime change (so manual recompute takes effect
+#   without restart).
+#
+# Graceful fallback:
+#   If dormant data hasn't been computed yet (initial deploy, missing file),
+#   _has_dormant_data() returns False and the classifier falls back to the
+#   legacy V/OI-only Unusual rule. This means the system works seamlessly
+#   pre- and post-precompute without manual coordination.
+
+_DORMANT_PATH = os.environ.get("DORMANT_TICKERS_PATH", "/data/dormant_tickers.json")
+_dormant_cache = None         # full JSON object (for status display)
+_dormant_active_set = None    # frozenset(active_tickers) for fast lookup
+_dormant_loaded_mtime = 0     # mtime when we last loaded (for cache invalidation)
+
+
+def _load_dormant_tickers():
+    """Load dormant tickers data from disk into module cache. Re-reads if
+    file mtime is newer than our cached load time (so manual recomputes
+    take effect without process restart). Safe to call on every request."""
+    global _dormant_cache, _dormant_active_set, _dormant_loaded_mtime
+    try:
+        if not os.path.exists(_DORMANT_PATH):
+            # Reset caches if file was deleted
+            if _dormant_cache is not None:
+                _dormant_cache = None
+                _dormant_active_set = None
+                _dormant_loaded_mtime = 0
+            return
+        mtime = os.path.getmtime(_DORMANT_PATH)
+        if _dormant_cache is not None and mtime <= _dormant_loaded_mtime:
+            return  # cache still valid
+        with open(_DORMANT_PATH) as f:
+            data = json.load(f)
+        _dormant_cache = data
+        _dormant_active_set = frozenset(data.get("active_tickers", []))
+        _dormant_loaded_mtime = mtime
+    except Exception as e:
+        print(f"[dormant] load error: {e}")
+        # Don't clobber existing cache on error — better to use stale than empty
+        if _dormant_cache is None:
+            _dormant_cache = {}
+            _dormant_active_set = frozenset()
+
+
+def _has_dormant_data() -> bool:
+    """True if precompute has been run and active-tickers set is loaded.
+    When False, classifier should fall back to legacy V/OI Unusual rule."""
+    _load_dormant_tickers()
+    return _dormant_active_set is not None and len(_dormant_active_set) > 0
+
+
+def _is_dormant_ticker(symbol: str) -> bool:
+    """True if ticker is NOT in the active-tickers set (i.e. dormant).
+    Returns False if no precompute data — caller should check _has_dormant_data()
+    first to decide which classification path to take."""
+    _load_dormant_tickers()
+    if _dormant_active_set is None:
+        return False
+    return symbol not in _dormant_active_set
+
+
+def _trading_days_back(n: int, end_date: date = None) -> list:
+    """Return the last N trading days as date objects, ending at `end_date`
+    (default: today). Weekends excluded. Holidays NOT excluded (over-includes
+    by 5-9 calendar days per year, harmless for "dormancy in N trading days").
+    """
+    end = end_date or datetime.now(ET).date()
+    dates = []
+    d = end
+    while len(dates) < n:
+        if d.weekday() < 5:  # 0-4 = Mon-Fri
+            dates.append(d)
+        d -= timedelta(days=1)
+    return dates
+
+
+def _compute_active_tickers(lookback_days: int = 30) -> dict:
+    """Scan FlowDB for distinct tickers with at least one classifiable
+    MAGENTA/YELLOW alert in the past N trading days. Returns dict matching
+    the JSON file schema. Heavy operation — full DB scan, can take 1-5s."""
+    trading_dates = _trading_days_back(lookback_days)
+    earliest = trading_dates[-1]
+    today = trading_dates[0]
+    date_strs = [f"{d.month}/{d.day}/{d.year}" for d in trading_dates]
+
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    try:
+        placeholders = ",".join("?" for _ in date_strs)
+        cur = conn.execute(f"""
+            SELECT Symbol, COUNT(*) AS hits
+              FROM flow
+             WHERE source = 'stocks'
+               AND Color IN ('MAGENTA', 'YELLOW')
+               AND CreatedDate IN ({placeholders})
+             GROUP BY Symbol
+        """, date_strs)
+        rows = cur.fetchall()
+        active = sorted([r[0] for r in rows if r[0]])
+        total_hits = sum(r[1] for r in rows)
+    finally:
+        conn.close()
+
+    return {
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "lookback_trading_days": lookback_days,
+        "earliest_date": f"{earliest.month}/{earliest.day}/{earliest.year}",
+        "today_date": f"{today.month}/{today.day}/{today.year}",
+        "active_tickers": active,
+        "active_count": len(active),
+        "total_alerts_scanned": total_hits,
+    }
+
+
+def _is_unusual_classification(symbol: str, v_oi: float, premium: int) -> bool:
+    """Should this alert be classified as Unusual tier?
+
+    Two modes depending on whether dormant precompute data is available:
+
+    Dormant mode (preferred — when precompute has been run):
+      Symbol must be DORMANT (not in active set) +
+      V/OI >= 5.0 + premium >= $100K.
+      This catches "quiet name suddenly waking up" — the canonical Unusual.
+      AAPL/NVDA/TSLA will NEVER qualify because they trade every day.
+
+    Legacy mode (fallback — pre-precompute):
+      V/OI >= 5.0 + premium < $500K.
+      Preserved so the system works seamlessly during initial deploy before
+      the dormant precompute has been triggered.
+    """
+    if v_oi < 5.0:
+        return False
+    if _has_dormant_data():
+        return _is_dormant_ticker(symbol) and premium >= 100_000
+    # Legacy fallback
+    return premium < 500_000
 
 
 def _parse_int(s, default=0):
@@ -140,9 +470,12 @@ def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
         # LEAPS
         if is_leaps:
             return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
-        # Unusual (high V/OI even at lower premium)
-        if v_oi >= 5.0 and premium < 500_000:
-            return ("UCT Unusual Vol>OI", "unusual", TIER_PRIORITY["unusual"])
+        # Unusual — dormant ticker (per past N trading days) waking up with
+        # high V/OI flow. When precompute data unavailable, falls back to
+        # legacy V/OI-only rule. See _is_unusual_classification() for full
+        # explanation.
+        if _is_unusual_classification(row["Symbol"], v_oi, premium):
+            return ("UCT Unusual Name", "unusual", TIER_PRIORITY["unusual"])
         # Size — big premium magenta
         if premium >= 500_000:
             return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
@@ -361,6 +694,7 @@ def recent_massive_alerts(
     target_date: str = Query(default=None, description="M/D/YYYY override (default=today)"),
     sort_by: str = Query(default="recent", description="recent|conviction|premium"),
     tier: str = Query(default=None, description="Filter to one tier (alpha|size|bullish|bearish|leaps|unusual|algo). When set, common-tier alerts can't crowd out rare-tier ones — useful for 'show me all the day's Alpha Golds' even hours after they fired."),
+    curated: bool = Query(default=False, description="Apply Curated-mode stacking filter: tiers like Size/Alpha need ≥N stacked signals (premium/V-OI/hits/grade), Unusual needs its own dedicated criteria, Algo always excluded. Thresholds are tunable via /thresholds endpoint."),
 ):
     """
     Return recent MAGENTA + YELLOW rows from FlowDB as alert objects shaped
@@ -436,16 +770,47 @@ def recent_massive_alerts(
         all_alerts.sort(key=lambda a: a["alertPremium"], reverse=True)
     # "recent" already in id DESC order from SQL
 
+    # ─── Hit count per contract ─────────────────────────────────────────────
+    # Count how many times each contract (ticker|cp|strike|exp) fires across
+    # the day's classified alerts. Used both for the ×N hit badge in the UI
+    # and for the Curated-mode stacking criterion. Computed over the WHOLE
+    # classified set (post-grade-filter, pre-limit) so the hit count reflects
+    # the true day's activity, not just what made the visible window.
+    hit_counts = {}
+    for a in all_alerts:
+        k = f"{a.get('ticker')}|{a.get('cp')}|{a.get('strike')}|{a.get('exp')}"
+        hit_counts[k] = hit_counts.get(k, 0) + 1
+    for a in all_alerts:
+        k = f"{a.get('ticker')}|{a.get('cp')}|{a.get('strike')}|{a.get('exp')}"
+        a["_hitCount"] = hit_counts.get(k, 1)
+
+    # ─── Curated filter ─────────────────────────────────────────────────────
+    # When ?curated=true, apply the stacking + Unusual logic. Algo always
+    # excluded. Filter happens AFTER hit-count computation so hits is one
+    # of the stacking signals.
+    skipped_curated = 0
+    if curated:
+        thresholds = _load_thresholds()
+        kept = []
+        for a in all_alerts:
+            if _qualifies_curated(a, thresholds):
+                kept.append(a)
+            else:
+                skipped_curated += 1
+        all_alerts = kept
+
     alerts = all_alerts[:limit]
 
     status = _get_worker_status()
     status["query_date"] = today
     status["sort_by"] = sort_by
     status["tier_filter"] = tier
+    status["curated"] = curated
     status["rows_scanned"] = len(rows)
     status["skipped_unclassified_side"] = skipped_unclassified
     status["skipped_below_min_grade"] = skipped_low_grade
     status["skipped_off_tier"] = skipped_off_tier
+    status["skipped_curated"] = skipped_curated
     status["returned"] = len(alerts)
 
     return {
@@ -788,3 +1153,133 @@ def day_stats(
     payload = _build_day_stats(today, exclude_algo=exclude_algo)
     _day_stats_cache[cache_key] = (now, payload)
     return payload
+
+
+# ─── Curated thresholds endpoints (admin tuning panel) ────────────────────
+# Used by the in-page tuning panel (`?tune=1` on /live-massive). The frontend
+# fetches current thresholds, lets admin adjust sliders + preview the impact
+# against the latest /recent payload, then POSTs the final values back.
+
+@router.get("/thresholds")
+def get_thresholds():
+    """Return the current Curated-mode thresholds. Defaults if file missing."""
+    return {
+        "thresholds": _load_thresholds(),
+        "defaults": DEFAULT_THRESHOLDS,
+        "path": _THRESHOLDS_PATH,
+    }
+
+
+@router.post("/thresholds")
+async def save_thresholds(request: Request):
+    """Admin: persist new Curated-mode thresholds. Validates shape lightly
+    then atomic-swaps the JSON file. Invalidates server-side cache so the
+    next /recent poll picks up the new values."""
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(400, f"Invalid JSON: {e}")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Body must be a JSON object")
+    # Basic shape validation — top-level keys we accept
+    allowed_top = {"stack", "premium_by_cap", "unusual", "cap_bands"}
+    bad_keys = set(body.keys()) - allowed_top
+    if bad_keys:
+        raise HTTPException(400, f"Unknown keys: {sorted(bad_keys)}")
+    if not _save_thresholds(body):
+        raise HTTPException(500, "Failed to save thresholds")
+    return {"ok": True, "thresholds": _load_thresholds()}
+
+
+@router.post("/thresholds/reset")
+def reset_thresholds():
+    """Admin: revert to compiled-in defaults (wipes the saved file)."""
+    try:
+        if os.path.exists(_THRESHOLDS_PATH):
+            os.remove(_THRESHOLDS_PATH)
+        global _thresholds_cache
+        _thresholds_cache = None
+        return {"ok": True, "thresholds": _load_thresholds()}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to reset: {e}")
+
+
+# ─── Dormant ticker admin endpoints ───────────────────────────────────────
+# Used to manage the dormant-ticker precompute that powers the true Unusual
+# classification. Trigger from browser address bar / fetch() in console —
+# no terminal cron in user's workflow, so manual trigger is the norm. Aim
+# for once-nightly cadence; data is stable through the trading day.
+
+@router.get("/dormant-status")
+def dormant_status():
+    """Show metadata about the current dormant-ticker dataset."""
+    _load_dormant_tickers()
+    if _dormant_cache is None or not _dormant_active_set:
+        return {
+            "ok": False,
+            "has_data": False,
+            "message": (
+                "No dormant data computed yet. Unusual classification is using "
+                "legacy V/OI-only fallback. Run POST /recompute-dormant to build it."
+            ),
+            "path": _DORMANT_PATH,
+        }
+    return {
+        "ok": True,
+        "has_data": True,
+        "computed_at": _dormant_cache.get("computed_at"),
+        "lookback_trading_days": _dormant_cache.get("lookback_trading_days"),
+        "earliest_date": _dormant_cache.get("earliest_date"),
+        "today_date": _dormant_cache.get("today_date"),
+        "active_count": _dormant_cache.get("active_count"),
+        "total_alerts_scanned": _dormant_cache.get("total_alerts_scanned"),
+        "sample_active": _dormant_cache.get("active_tickers", [])[:30],
+        "path": _DORMANT_PATH,
+    }
+
+
+@router.post("/recompute-dormant")
+def recompute_dormant(
+    lookback: int = Query(default=30, ge=1, le=365, description="Trading days to look back"),
+):
+    """Admin: scan FlowDB and recompute the active-tickers set. Writes the
+    result to /data/dormant_tickers.json (atomic swap) and invalidates the
+    in-memory cache so the next classification picks up new values.
+
+    Heavy operation — does a full DB scan over the lookback window. Expected
+    runtime: 1-5 seconds depending on FlowDB size. Safe to call during
+    market hours but ideally run nightly after close.
+    """
+    try:
+        data = _compute_active_tickers(lookback_days=lookback)
+    except Exception as e:
+        raise HTTPException(500, f"Compute failed: {e}")
+
+    try:
+        os.makedirs(os.path.dirname(_DORMANT_PATH), exist_ok=True)
+        tmp = _DORMANT_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.replace(tmp, _DORMANT_PATH)  # atomic swap
+    except Exception as e:
+        raise HTTPException(500, f"Failed to write dormant file: {e}")
+
+    # Invalidate cache so next read picks up new file
+    global _dormant_cache, _dormant_active_set, _dormant_loaded_mtime
+    _dormant_cache = None
+    _dormant_active_set = None
+    _dormant_loaded_mtime = 0
+
+    # Force reload to populate cache with new data
+    _load_dormant_tickers()
+
+    return {
+        "ok": True,
+        "computed_at": data["computed_at"],
+        "lookback_trading_days": data["lookback_trading_days"],
+        "earliest_date": data["earliest_date"],
+        "today_date": data["today_date"],
+        "active_count": data["active_count"],
+        "total_alerts_scanned": data["total_alerts_scanned"],
+        "sample_active": data["active_tickers"][:30],
+    }
