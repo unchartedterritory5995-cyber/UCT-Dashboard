@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import os
 import sqlite3
 import threading
@@ -131,7 +132,8 @@ def _init_db() -> None:
                           ("catalyst_type", "TEXT"),
                           ("is_new", "INTEGER"),
                           ("refreshed_at", "INTEGER"),
-                          ("pre_move", "INTEGER")):
+                          ("pre_move", "INTEGER"),
+                          ("rating_change", "TEXT")):  # display-only analyst action JSON
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -157,17 +159,18 @@ def upsert_catalyst(row: dict) -> None:
         # looked" timestamp the tile shows, so a quiet morning where the 9:10 /
         # 9:20 runs reuse the 6 AM thesis no longer reads as "3h ago · stale".
         row = {"grade": None, "catalyst_type": None, "is_new": None,
-               "pre_move": None, "refreshed_at": int(time.time()), **row}
+               "pre_move": None, "rating_change": None,
+               "refreshed_at": int(time.time()), **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type, is_new, refreshed_at, pre_move)
+                grade, catalyst_type, is_new, refreshed_at, pre_move, rating_change)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move)
+                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move, :rating_change)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -188,7 +191,8 @@ def upsert_catalyst(row: dict) -> None:
                  catalyst_type  = excluded.catalyst_type,
                  is_new         = excluded.is_new,
                  refreshed_at   = excluded.refreshed_at,
-                 pre_move       = excluded.pre_move""",
+                 pre_move       = excluded.pre_move,
+                 rating_change  = excluded.rating_change""",
             row,
         )
         c.commit()
@@ -323,7 +327,19 @@ def get_for_date(market_date: str, ranked_only: bool = True) -> list[dict]:
         sql += " AND rank IS NOT NULL"
     sql += " ORDER BY rank ASC NULLS LAST, score DESC"
     with contextlib.closing(_connect()) as c:
-        return [dict(r) for r in c.execute(sql, (market_date,)).fetchall()]
+        return [_deserialize_row(dict(r)) for r in c.execute(sql, (market_date,)).fetchall()]
+
+
+def _deserialize_row(row: dict) -> dict:
+    """Parse JSON-text columns (rating_change) back into objects for API consumers.
+    Best-effort: a malformed value becomes None rather than breaking the row."""
+    rc = row.get("rating_change")
+    if isinstance(rc, str) and rc:
+        try:
+            row["rating_change"] = json.loads(rc)
+        except Exception:
+            row["rating_change"] = None
+    return row
 
 
 def recent_ranked_tickers(market_date: str, days: int = 3) -> set[str]:
@@ -368,7 +384,7 @@ def get_ticker_for_date(ticker: str, market_date: str) -> Optional[dict]:
             "SELECT * FROM catalysts WHERE market_date = ? AND ticker = ?",
             (market_date, ticker),
         ).fetchone()
-        return dict(row) if row else None
+        return _deserialize_row(dict(row)) if row else None
 
 
 def clear_ranks_for_date(market_date: str) -> None:

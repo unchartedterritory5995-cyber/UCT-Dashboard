@@ -95,6 +95,24 @@ function TypeChip({ type }) {
   )
 }
 
+// Recent analyst upgrade/downgrade (FMP Ultimate; gated CATALYST_RATINGS_SIGNAL_
+// ENABLED on the backend). Display-only context — green for an upgrade, red for a
+// downgrade. `rc` = {action, company, from_grade, to_grade, date} or null.
+function RatingChangeChip({ rc }) {
+  if (!rc || !rc.action) return null
+  const act = String(rc.action).toLowerCase()
+  const cls = act === 'upgrade' ? styles.ratingUp
+    : act === 'downgrade' ? styles.ratingDown : styles.ratingFlat
+  const arrow = act === 'upgrade' ? '▲' : act === 'downgrade' ? '▼' : '•'
+  const transition = rc.from_grade ? `${rc.from_grade} → ${rc.to_grade || '—'}` : (rc.to_grade || '')
+  const title = `${rc.company || 'Analyst'} ${act} ${transition}${rc.date ? ` · ${rc.date}` : ''}`
+  return (
+    <span className={`${styles.ratingChip} ${cls}`} title={title}>
+      {arrow} {act.toUpperCase()}{rc.company ? ` · ${rc.company}` : ''}
+    </span>
+  )
+}
+
 function FeedbackButtons({ ticker, marketDate, verdict, onVote }) {
   return (
     <span className={styles.feedbackWrap}>
@@ -596,6 +614,7 @@ export default function CatalystTable() {
                               title={isExp ? 'Collapse' : 'Show full catalyst'}
                             >
                               <TypeChip type={r.catalyst_type} />
+                              <RatingChangeChip rc={r.rating_change} />
                               {!isExp && (
                                 <span className={styles.thesisHeadline}>
                                   {thesisHeadline(r.thesis_text)}
