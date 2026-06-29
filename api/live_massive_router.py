@@ -1331,129 +1331,217 @@ def recompute_dormant(
     }
 
 
+
 @router.get("/contract-debug")
 def contract_debug(
     ticker: str = Query(..., description="Underlying symbol, e.g. 'SNDK'"),
     cp: str = Query(..., description="'C' or 'P' (case-insensitive)"),
-    strike: float = Query(..., description="Strike price as number"),
+    strike: str = Query(..., description="Strike price (any reasonable format)"),
     exp: str = Query(..., description="Expiration date M/D/YYYY"),
     target_date: str = Query(default=None, description="Trading date M/D/YYYY (default today)"),
 ):
     """Diagnostic: return ALL FlowDB rows for a specific contract on a given
-    day, regardless of Color (MAGENTA / YELLOW / WHITE). Use this to answer
-    "why didn't I see X on /live-massive" — usually one of:
-      - Color=WHITE (cum_vol/OI didn't trigger classification)
-      - Side unclassifiable (worker can't determine ASK vs BID)
-      - Not captured at all (worker was idle / Bullflow saw something Massive didn't)
+    day, regardless of Color. Hardened to never 500 — wraps each row's
+    classification in try/except and reports diagnostics for any failure.
 
-    Returns raw rows + summary of how the row would have been classified.
+    Use case: "why didn't I see X on /live-massive?" Returns enough raw
+    detail to answer that without needing to query the DB directly.
     """
-    today = target_date or _today_mdyyyy()
-    cp_norm = (cp or "").strip().upper()
-    if cp_norm not in ("C", "P", "CALL", "PUT"):
-        raise HTTPException(400, "cp must be C, P, CALL, or PUT")
-    cp_long = "CALL" if cp_norm in ("C", "CALL") else "PUT"
-
-    # Strike stored as TEXT — match flexibly (some rows have '$2050', some '2050',
-    # some '2050.0'). Normalize the input then test multiple representations.
-    strike_int = int(strike) if float(strike).is_integer() else None
-    strike_candidates = [str(strike), f"${strike}"]
-    if strike_int is not None:
-        strike_candidates += [str(strike_int), f"${strike_int}", f"{strike_int}.0"]
-
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    debug = {"stage": "init", "errors": []}
     try:
-        conn.row_factory = sqlite3.Row
-        placeholders = ",".join("?" for _ in strike_candidates)
-        cur = conn.execute(f"""
-            SELECT id, CreatedDate, CreatedTime, Symbol, Type, Volume, Price,
-                   Side, CallPut, Strike, Spot, Premium, ExpirationDate, Color,
-                   Dte, MktCap, OI
-              FROM flow
-             WHERE source = 'stocks'
-               AND CreatedDate = ?
-               AND Symbol = ?
-               AND CallPut = ?
-               AND Strike IN ({placeholders})
-               AND ExpirationDate = ?
-             ORDER BY id ASC
-        """, (today, ticker.upper(), cp_long, *strike_candidates, exp))
-        rows = [dict(r) for r in cur.fetchall()]
-    finally:
-        conn.close()
+        today = target_date or _today_mdyyyy()
+        debug["query_date"] = today
 
-    # Classify each row + summarize what would have happened
-    summary = {
-        "total_rows": len(rows),
-        "by_color": {},
-        "by_side": {},
-        "would_be_classified_count": 0,
-        "would_be_unclassified_count": 0,
-        "tier_distribution": {},
-        "total_volume": 0,
-        "total_premium": 0,
-        "max_oi_seen": 0,
-    }
-    detailed = []
-    for r in rows:
-        color = r["Color"] or "(none)"
-        side = r["Side"] or "(none)"
-        summary["by_color"][color] = summary["by_color"].get(color, 0) + 1
-        summary["by_side"][side] = summary["by_side"].get(side, 0) + 1
-        summary["total_volume"] += _parse_int(r["Volume"])
-        summary["total_premium"] += _parse_int(r["Premium"])
-        summary["max_oi_seen"] = max(summary["max_oi_seen"], _parse_int(r["OI"]))
-
-        # Try to classify exactly as /recent would
-        a = _row_to_alert(r)
-        classified = a is not None
-        if classified:
-            summary["would_be_classified_count"] += 1
-            t = a.get("_tierKey", "?")
-            summary["tier_distribution"][t] = summary["tier_distribution"].get(t, 0) + 1
+        # Normalize cp
+        cp_norm = (cp or "").strip().upper()
+        if cp_norm in ("C", "CALL"):
+            cp_long = "CALL"
+        elif cp_norm in ("P", "PUT"):
+            cp_long = "PUT"
         else:
-            summary["would_be_unclassified_count"] += 1
+            return {"error": f"cp must be C/CALL/P/PUT, got {cp!r}", "debug": debug}
 
-        detailed.append({
-            "id": r["id"],
-            "time": r["CreatedTime"],
-            "color": r["Color"],
-            "side": r["Side"],
-            "volume": _parse_int(r["Volume"]),
-            "price": r["Price"],
-            "premium": _parse_int(r["Premium"]),
-            "oi": _parse_int(r["OI"]),
-            "v_oi": round(_parse_int(r["Volume"]) / _parse_int(r["OI"]), 2)
-                if _parse_int(r["OI"]) > 0 else None,
-            "spot": r["Spot"],
-            "type": r["Type"],
-            "would_classify_as_tier": a.get("_tierKey") if a else None,
-            "would_classify_as_grade": a.get("grade") if a else None,
-            "would_show_in_live_massive": classified and r["Color"] in ("MAGENTA", "YELLOW"),
-            "why_filtered": (
-                None if classified and r["Color"] in ("MAGENTA", "YELLOW")
-                else "Color=WHITE (cum_vol/OI ratio < 1.0)" if r["Color"] == "WHITE"
-                else "Color missing/other" if r["Color"] not in ("MAGENTA","YELLOW","WHITE")
-                else "Side unclassifiable (not A/AA/B/BB)"
-            ),
-        })
+        # Build many strike candidates — DB stores Strike as TEXT in various
+        # formats depending on source ("$2050", "2050.0", "2050", etc.)
+        strike_str = str(strike).strip().lstrip("$").strip()
+        try:
+            strike_float = float(strike_str)
+        except ValueError:
+            return {"error": f"strike not parseable: {strike!r}", "debug": debug}
+        is_whole = strike_float.is_integer()
+        strike_int = int(strike_float) if is_whole else None
 
-    return {
-        "query": {
-            "date": today,
-            "ticker": ticker.upper(),
-            "cp": cp_long,
-            "strike": strike,
-            "exp": exp,
-        },
-        "summary": summary,
-        "rows": detailed,
-        "interpretation": (
-            "No rows found — worker did not capture this contract today. "
-            "Possible causes: worker was idle, contract isn't in the Massive "
-            "subscription, or symbol/date mismatch."
-            if not rows else
-            "Rows found. See `summary.by_color` and `would_show_in_live_massive` "
-            "per row to understand why specific events did or didn't surface."
-        ),
-    }
+        candidates = set()
+        candidates.add(strike_str)
+        candidates.add(f"${strike_str}")
+        candidates.add(str(strike_float))
+        candidates.add(f"${strike_float}")
+        if strike_int is not None:
+            candidates.add(str(strike_int))
+            candidates.add(f"${strike_int}")
+            candidates.add(f"{strike_int}.0")
+            candidates.add(f"${strike_int}.0")
+        candidates = list(candidates)
+        debug["strike_candidates"] = candidates
+
+        debug["stage"] = "sql_query"
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            conn.row_factory = sqlite3.Row
+            placeholders = ",".join("?" for _ in candidates)
+            cur = conn.execute(f"""
+                SELECT id, CreatedDate, CreatedTime, Symbol, Type, Volume, Price,
+                       Side, CallPut, Strike, Spot, Premium, ExpirationDate, Color,
+                       Dte, MktCap, OI
+                  FROM flow
+                 WHERE source = 'stocks'
+                   AND CreatedDate = ?
+                   AND Symbol = ?
+                   AND CallPut = ?
+                   AND Strike IN ({placeholders})
+                   AND ExpirationDate = ?
+                 ORDER BY id ASC
+            """, [today, ticker.upper(), cp_long, *candidates, exp])
+            rows = [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+        debug["row_count_strict"] = len(rows)
+
+        # If strict match returns nothing, do a forgiving second query: same
+        # symbol + cp + date, no strike/exp filter. Helps diagnose strike-
+        # format mismatches and shows what IS in the DB for that ticker.
+        loose_rows = []
+        if not rows:
+            debug["stage"] = "sql_loose_query"
+            conn = sqlite3.connect(DB_PATH, timeout=10)
+            try:
+                conn.row_factory = sqlite3.Row
+                cur = conn.execute("""
+                    SELECT id, CreatedTime, Symbol, CallPut, Strike, ExpirationDate,
+                           Color, Side, Volume, Premium, OI
+                      FROM flow
+                     WHERE source = 'stocks'
+                       AND CreatedDate = ?
+                       AND Symbol = ?
+                       AND CallPut = ?
+                     ORDER BY id ASC
+                     LIMIT 50
+                """, [today, ticker.upper(), cp_long])
+                loose_rows = [dict(r) for r in cur.fetchall()]
+            finally:
+                conn.close()
+            debug["row_count_loose_same_ticker_cp"] = len(loose_rows)
+
+        # Per-row classification (try/except so one bad row doesn't kill it)
+        debug["stage"] = "classify_rows"
+        summary = {
+            "total_rows": len(rows),
+            "by_color": {},
+            "by_side": {},
+            "would_show_in_live_massive_count": 0,
+            "max_oi_seen": 0,
+            "total_volume": 0,
+            "total_premium": 0,
+        }
+        detailed = []
+        for r in rows:
+            try:
+                color = r.get("Color") or "(none)"
+                side = r.get("Side") or "(none)"
+                summary["by_color"][color] = summary["by_color"].get(color, 0) + 1
+                summary["by_side"][side] = summary["by_side"].get(side, 0) + 1
+                vol = _parse_int(r.get("Volume"))
+                prem = _parse_int(r.get("Premium"))
+                oi = _parse_int(r.get("OI"))
+                summary["total_volume"] += vol
+                summary["total_premium"] += prem
+                if oi > summary["max_oi_seen"]:
+                    summary["max_oi_seen"] = oi
+                v_oi = round(vol / oi, 2) if oi > 0 else None
+
+                # Try classify
+                a = None
+                tier = grade = None
+                try:
+                    a = _row_to_alert(r)
+                    if a:
+                        tier = a.get("_tierKey")
+                        grade = a.get("grade")
+                except Exception as e:
+                    debug["errors"].append(f"row {r.get('id')} classify error: {e}")
+
+                in_live_massive = (a is not None) and color in ("MAGENTA", "YELLOW")
+                if in_live_massive:
+                    summary["would_show_in_live_massive_count"] += 1
+
+                why_filtered = None
+                if not in_live_massive:
+                    if color == "WHITE":
+                        why_filtered = "Color=WHITE (cum_vol/OI ratio < 1.0)"
+                    elif color not in ("MAGENTA", "YELLOW", "WHITE"):
+                        why_filtered = f"Color={color!r}"
+                    elif a is None:
+                        why_filtered = "Side unclassifiable or unknown direction"
+
+                detailed.append({
+                    "id": r.get("id"),
+                    "time": r.get("CreatedTime"),
+                    "color": r.get("Color"),
+                    "side": r.get("Side"),
+                    "volume": vol,
+                    "price": r.get("Price"),
+                    "premium": prem,
+                    "oi": oi,
+                    "v_oi": v_oi,
+                    "spot": r.get("Spot"),
+                    "type": r.get("Type"),
+                    "strike_in_db": r.get("Strike"),
+                    "tier": tier,
+                    "grade": grade,
+                    "would_show_in_live_massive": in_live_massive,
+                    "why_filtered": why_filtered,
+                })
+            except Exception as e:
+                debug["errors"].append(f"row {r.get('id')} outer error: {e}")
+
+        debug["stage"] = "done"
+
+        # Interpretation hint
+        if not rows and not loose_rows:
+            interp = "No rows for this ticker+cp+date at all. Worker did not capture, or symbol/date mismatch."
+        elif not rows and loose_rows:
+            interp = (
+                "Strike/exp filter excluded all rows BUT the ticker+cp DOES have rows today. "
+                "See `loose_match_sample` for actual Strike/ExpirationDate values stored — "
+                "your input likely has a format mismatch."
+            )
+        else:
+            mag_yel = sum(summary["by_color"].get(c, 0) for c in ("MAGENTA", "YELLOW"))
+            white = summary["by_color"].get("WHITE", 0)
+            if summary["would_show_in_live_massive_count"] > 0:
+                interp = f"Yes, {summary['would_show_in_live_massive_count']} rows would show in /live-massive."
+            elif white > 0 and mag_yel == 0:
+                interp = (
+                    f"Captured {white} rows but all classified Color=WHITE. The cum_vol/OI "
+                    f"ratio never reached 1.0× — Massive's classifier filters these out."
+                )
+            else:
+                interp = "Captured but filtered. See per-row why_filtered."
+
+        return {
+            "query": {
+                "date": today, "ticker": ticker.upper(), "cp": cp_long,
+                "strike": strike, "exp": exp,
+            },
+            "summary": summary,
+            "rows": detailed,
+            "loose_match_sample": loose_rows[:20] if not rows else None,
+            "interpretation": interp,
+            "debug": debug,
+        }
+
+    except Exception as e:
+        import traceback
+        debug["errors"].append(f"top-level: {type(e).__name__}: {e}")
+        debug["traceback"] = traceback.format_exc().split("\n")[-15:]
+        return {"error": str(e), "debug": debug}
