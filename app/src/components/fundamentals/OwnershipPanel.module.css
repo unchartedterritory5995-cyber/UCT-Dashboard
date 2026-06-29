@@ -1,0 +1,18 @@
+/* app/src/components/fundamentals/OwnershipPanel.module.css — real design tokens, no emoji */
+.root { height: 100%; overflow: auto; padding: 8px 10px; font-family: var(--font-sans); font-size: var(--text-base, 12px); color: var(--text); }
+.hint { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--text-muted); font-size: var(--text-sm, 11px); }
+.header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; color: var(--text-bright); }
+.sectionLabel { font-size: var(--text-xs, 10px); letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin: 6px 0 4px; }
+.tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tbl td { padding: 3px 6px; border-bottom: 1px solid var(--border); text-align: right; color: var(--text-bright); white-space: nowrap; }
+.holder { text-align: left !important; color: var(--text-bright); font-weight: 600; }
+.muted { color: var(--text-muted); }
+.pos { color: var(--ut-green-bright); }
+.neg { color: var(--ut-red-bright); }
+.chip { font-size: var(--text-xs, 10px); padding: 1px 5px; border-radius: 8px; font-weight: 700; }
+.chipUp { background: var(--gain-bg); color: var(--ut-green-bright); }
+.chipDown { background: var(--loss-bg); color: var(--ut-red-bright); }
+.chipFlat { color: var(--text-muted); }
+.flow { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+.flowCol { flex: 1 1 130px; min-width: 120px; }
+.flowRow { display: flex; justify-content: space-between; gap: 10px; font-size: var(--text-sm, 11px); font-variant-numeric: tabular-nums; }
