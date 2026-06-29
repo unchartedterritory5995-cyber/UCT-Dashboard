@@ -1575,6 +1575,37 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         </div>
       </div>
 
+      {/* Premium Override — rescues high-conviction WHITE rows that
+          Massive's V/OI classifier missed due to OI=0 (fresh strikes). */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          PREMIUM OVERRIDE — rescue big sweeps/blocks when OI is unknown:
+        </div>
+        <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, color: P.wh, fontSize: 11, cursor: "pointer" }}>
+            <input type="checkbox"
+              checked={thresholds.premium_override?.enabled ?? true}
+              onChange={e => setPath(["premium_override","enabled"], e.target.checked)} />
+            Enabled
+          </label>
+          <div><Label>Min premium</Label>
+            <NumberInput value={thresholds.premium_override?.min_premium ?? 1000000}
+              onChange={v => setPath(["premium_override","min_premium"], v)} step={100000} />
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, color: P.wh, fontSize: 11, cursor: "pointer" }}>
+            <input type="checkbox"
+              checked={thresholds.premium_override?.require_sweep_or_block ?? true}
+              onChange={e => setPath(["premium_override","require_sweep_or_block"], e.target.checked)} />
+            Require SWEEP/BLOCK type
+          </label>
+        </div>
+        <div style={{ paddingLeft: 12, marginTop: 6, color: P.mt, fontSize: 10, fontStyle: "italic" }}>
+          WHITE rows ≥ this premium get promoted to MAGENTA classification so
+          they surface in /live-massive. Without this, fresh strikes with OI=0
+          get filtered out even if they're institutional sweeps.
+        </div>
+      </div>
+
       {/* Dormant tickers status + recompute control. Lives inside Unusual
           section since it directly drives Unusual classification. */}
       <DormantStatusPanel />
