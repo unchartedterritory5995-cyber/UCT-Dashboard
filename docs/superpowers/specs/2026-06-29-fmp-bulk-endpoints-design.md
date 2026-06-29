@@ -12,17 +12,20 @@ key-metrics / grades for the entire market), cutting thousands of per-ticker
 yfinance/Finnhub/FMP calls per run down to a handful. Backend-only; no UI. Gated
 behind a flag with the existing per-ticker path kept as a verified fallback.
 
-## Target jobs (confirm exact files during implementation)
-1. **Ratings-percentile universe gather** — the nightly `cap_universe`
-   percentile job (`ratings_universe.py` / `ratings_db.py`) that fetches
-   fundamentals + RS/AccDis per ticker to build `/data/research_ratings.db`
-   distributions (~3,700 tickers, ~1 yfinance call each = the slow part).
-2. **Screener-universe snapshot** — the nightly precompute that builds
-   `/data/screener.db` (descriptive/fundamental fields per ticker).
+## Target job (confirmed)
+**Ratings-percentile universe gather** — `api/services/research/ratings_universe.py`.
+`_compute_one(sym)` uses local bars (RS/AccDis, zero-network) **plus exactly one
+yfinance `.info` call** via `get_fundamentals(sym)` for `earnings_growth /
+rev_growth / roe`. That yfinance call is the bottleneck: run through a bounded
+pool with a politeness `SLEEP_SECONDS`, capped at `MAX_PER_RUN` (~800) per night,
+so the full ~3,700 universe takes ~5 nights to cycle. Replacing the per-ticker
+`get_fundamentals` with an FMP bulk fundamentals pull lets the whole universe
+refresh in one run.
 
-Both currently iterate the universe with bounded pools + polite sleeps because
-the per-ticker vendors rate-limit. A single bulk pull removes that constraint for
-the fields FMP provides.
+**NOT a target:** the screener snapshot builder (`api/services/screener/
+snapshot_builder.py`) is already **zero-network** — it reads only local stores
+(Massive bars, local fundamentals, ratings) and makes no per-ticker vendor calls.
+Bulk endpoints don't help it; leave it unchanged.
 
 ## Architecture
 
