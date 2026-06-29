@@ -34,7 +34,16 @@ const P = {
 };
 
 const POLL_INTERVAL_MS = 5000;
-const MAX_ROWS = 200;
+// Default cap on alerts in the live feed. Backend supports up to 20000.
+// 500 covers ~8-15 minutes of market-open activity (initial flood ~100/min
+// settling to 30-50/min). User can change via selector in the toolbar.
+// "All" sends a very high limit (20000) — returns the full day. Note: the
+// BULL/BEAR/NET cards are day-scoped via a separate endpoint, so they
+// ALWAYS include every classifiable alert regardless of this setting.
+const ROW_LIMIT_OPTIONS = [200, 500, 1000, "All"];
+const ROW_LIMIT_DEFAULT = 500;
+const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
+const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v1";
 
 // ─── Tier metadata (matches LiveFlow.jsx) ─────────────────────────────────
 // Two extra keys vs LiveFlow.jsx: "bearish" is its own tier in our endpoint
@@ -119,6 +128,48 @@ function fmtStrike(s) {
   if (s == null) return "—";
   if (s >= 100) return "$" + s.toFixed(0);
   return "$" + s.toFixed(2);
+}
+
+// ─── Trade type classifier (OPRA condition codes from Massive) ────────────
+// Maps the raw `_type` field (set by the worker from OPRA condition codes)
+// to a compact display label + color. Worker writes values like "ML/" for
+// multi-leg complex strategies; other condition codes get surfaced here too.
+//
+// Patterns are heuristic — based on common OPRA condition code conventions
+// (ISO for intermarket sweep, ML for multi-leg auto, BLOCK or BLK for block
+// trades, AUCT for auctions). If a specific Massive condition code isn't
+// matched here, the column shows "—" (regular trade).
+//
+// Returns null for regular/unknown so the column shows a dash, or an object
+// { code, label, color } for known classifications.
+function tradeTypeLabel(rawType) {
+  if (!rawType) return null;
+  const t = String(rawType).toUpperCase().trim();
+  if (!t || t === "REGULAR" || t === "RGLM") return null;
+
+  // Multi-leg complex strategies — same color as Algo tier for consistency
+  if (t.startsWith("ML") || t === "MULTI_LEG_AUTO" || t === "MULTILEG") {
+    return { code: "ML", label: "Multi-leg auto", color: "#6B6B72" };
+  }
+  // Intermarket sweep
+  if (t.includes("SWEEP") || t.startsWith("ISO") || t.startsWith("SW")
+      || t === "S/" || t === "IS" || t === "INTERMARKET") {
+    return { code: "SWEEP", label: "Intermarket sweep — routed to multiple venues to fill quickly", color: "#E8A547" };
+  }
+  // Block trade (negotiated large size)
+  if (t.includes("BLOCK") || t.startsWith("BLK") || t === "B/"
+      || t === "BL" || t === "BT") {
+    return { code: "BLOCK", label: "Block trade — negotiated large size", color: "#7AB0E0" };
+  }
+  // Single-leg auction
+  if (t.includes("AUCT") || t.startsWith("AUC") || t === "SLAN") {
+    return { code: "AUCT", label: "Auction", color: "#A88FE0" };
+  }
+  // Cross trade
+  if (t.includes("CROSS") || t === "CR" || t === "SLC") {
+    return { code: "CROSS", label: "Cross trade", color: "#8F8F8F" };
+  }
+  return null;
 }
 
 // Contract price (averageFillPrice). Sub-$1 needs more precision than
@@ -808,8 +859,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 75px 1fr",
+      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
@@ -890,6 +941,34 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
         {alert._side || "—"}
       </span>
+      {/* TYPE — derived from OPRA condition code (SWEEP, BLOCK, ML, etc).
+          Regular trades show "—". Hover reveals the full label. */}
+      {(() => {
+        const t = tradeTypeLabel(alert._type);
+        if (!t) {
+          return (
+            <span style={{ color: P.mt, fontSize: secondaryFontSize, textAlign: "center" }}>
+              —
+            </span>
+          );
+        }
+        return (
+          <span style={{ textAlign: "center" }}>
+            <span
+              title={t.label}
+              style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: 0.3,
+                padding: "2px 5px", borderRadius: 3,
+                background: `${t.color}25`, color: t.color,
+                textTransform: "uppercase", cursor: "help",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.code}
+            </span>
+          </span>
+        );
+      })()}
       <span style={{
         ...(() => {
           const pl = computePL(alert, currentSpot);
@@ -938,6 +1017,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
 
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
+                  rowLimit, onRowLimitChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
@@ -1055,6 +1135,29 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
+        <label style={{ color: P.dm, fontSize: 12 }}>Show:</label>
+        {ROW_LIMIT_OPTIONS.map(n => (
+          <button
+            key={n}
+            onClick={() => onRowLimitChange(n)}
+            title={
+              n === "All"
+                ? "Show every classifiable alert for the day. Cards are always day-scoped so this only affects the table below. Note: large tables can slow scrolling — pick 1000 or less if it feels sluggish."
+                : `Keep up to ${n} recent alerts in the feed (cards are always day-scoped)`
+            }
+            style={{
+              background: rowLimit === n ? P.ac : "transparent",
+              color: rowLimit === n ? P.bg : P.wh,
+              border: `1px solid ${P.bd}`, borderRadius: 3,
+              padding: "3px 10px", cursor: "pointer", fontSize: 11,
+            }}
+          >
+            {n}
+          </button>
+        ))}
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
         <button
           onClick={onOiFetch}
           disabled={oiFetchState?.loading || nullOICount === 0}
@@ -1128,7 +1231,7 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 75px 1fr",
+      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -1145,6 +1248,7 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>PREMIUM</span>
       <span style={{ textAlign: "center" }}>GRADE</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
+      <span style={{ textAlign: "center" }}>TYPE</span>
       <span style={{ textAlign: "center" }}>P/L</span>
       <span style={{ textAlign: "left", paddingLeft: 4 }}>ALERT</span>
     </div>
@@ -1175,6 +1279,16 @@ export default function LiveFlowMassive() {
   const [minGrade, setMinGrade] = useState(() =>
     localStorage.getItem(LS_KEY_MINGRADE) || "D"
   );
+  // How many recent alerts to keep in the feed. Defaults to 500 (~8-15 min
+  // of market-open activity); user can bump to 1000 or "All" (full day). The
+  // BULL/BEAR cards are always day-scoped and unaffected by this setting.
+  // Persisted in localStorage as either a number string or "All".
+  const [rowLimit, setRowLimit] = useState(() => {
+    const v = localStorage.getItem(LS_KEY_ROW_LIMIT) || "";
+    if (v === "All") return "All";
+    const n = parseInt(v, 10);
+    return ROW_LIMIT_OPTIONS.includes(n) ? n : ROW_LIMIT_DEFAULT;
+  });
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
@@ -1195,6 +1309,7 @@ export default function LiveFlowMassive() {
   useEffect(() => { saveFilters(filters); }, [filters]);
   useEffect(() => { localStorage.setItem(LS_KEY_SORT, sortBy); }, [sortBy]);
   useEffect(() => { localStorage.setItem(LS_KEY_MINGRADE, minGrade); }, [minGrade]);
+  useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
 
   // Polling
   useEffect(() => {
@@ -1205,12 +1320,24 @@ export default function LiveFlowMassive() {
     async function poll() {
       try {
         abort = new AbortController();
+        const numericLimit = rowLimit === "All" ? ROW_LIMIT_ALL_VALUE : rowLimit;
         const params = new URLSearchParams({
-          limit: String(MAX_ROWS),
+          limit: String(numericLimit),
           sort_by: sortBy,
           min_grade: minGrade,
         });
         if (targetDate) params.set("target_date", targetDate);
+        // When user has isolated a single tier (e.g. Alpha Gold only),
+        // ask backend to filter to that tier. This way the rowLimit slot
+        // is spent on alerts of that tier exclusively, letting rare tiers
+        // (Alpha Gold, Size) show full-day history even hours after
+        // they fired. Without this, common tiers (Algo, Bullish) crowd out
+        // the rare ones in the "latest N" window.
+        const isolatedTier = (() => {
+          const ons = TIER_ORDER.filter(t => filters[t]);
+          return ons.length === 1 ? ons[0] : null;
+        })();
+        if (isolatedTier) params.set("tier", isolatedTier);
         const r = await fetch(`/api/live/massive/recent?${params}`, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -1242,7 +1369,7 @@ export default function LiveFlowMassive() {
       if (timer) clearTimeout(timer);
       if (abort) abort.abort();
     };
-  }, [sortBy, minGrade, targetDate]);
+  }, [sortBy, minGrade, targetDate, rowLimit, filters]);
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
@@ -1501,6 +1628,8 @@ export default function LiveFlowMassive() {
         onSortChange={setSortBy}
         minGrade={minGrade}
         onMinGradeChange={setMinGrade}
+        rowLimit={rowLimit}
+        onRowLimitChange={setRowLimit}
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
@@ -1593,7 +1722,7 @@ export default function LiveFlowMassive() {
           borderTop: `1px solid ${P.bd}`, marginTop: 8,
         }}>
           showing {visibleAlerts.length} of {alerts.length} alerts
-          {alerts.length === MAX_ROWS && ` (limit ${MAX_ROWS})`}
+          {rowLimit !== "All" && alerts.length === rowLimit && ` (limit ${rowLimit} — change in toolbar to see more)`}
         </div>
       )}
 
