@@ -429,8 +429,11 @@ def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
         key = dt.isocalendar()[:2]  # (year, week)
         if key not in weeks:
+            # Date by the week's CLOSE (Friday of the ISO week) — see
+            # _resample_weekly_iso for the stable-key rationale.
+            friday = datetime.fromisocalendar(key[0], key[1], 5)
             weeks[key] = {
-                "dt": dt, "o": bar["o"], "h": bar["h"],
+                "dt": friday, "o": bar["o"], "h": bar["h"],
                 "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
             }
         else:
@@ -1224,8 +1227,15 @@ def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
             continue
         key = dt.isocalendar()[:2]
         if key not in weeks:
+            # Date the weekly candle by the week's CLOSE (Friday of the ISO
+            # week), not its first trading day. Friday is a STABLE per-week
+            # key — an in-progress week keeps one fixed timestamp as Mon..Fri
+            # bars land, so daily updates REPLACE the candle instead of
+            # minting a new key and duplicating it. (Holiday weeks still key
+            # to the calendar Friday; it's a label, not a traded session.)
+            friday = datetime.fromisocalendar(key[0], key[1], 5)
             weeks[key] = {
-                "dt": dt, "o": bar["o"], "h": bar["h"],
+                "dt": friday, "o": bar["o"], "h": bar["h"],
                 "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
             }
         else:

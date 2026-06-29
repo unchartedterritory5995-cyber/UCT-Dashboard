@@ -338,13 +338,15 @@ def fetch_canonical_bars(ticker: str, tf: str, bars: int) -> tuple[list[dict], s
                 # Polygon anchors weekly bars at the SUNDAY before the
                 # trading week (e.g. Sun 5/5/2024 represents the Mon-Fri
                 # 5/6-5/10 trading week). The cache (_resample_weekly /
-                # _resample_weekly_iso) anchors at the first daily bar of
-                # the ISO week, which is the Monday of the trading week
-                # in normal weeks. Shift Sunday -> Monday so the audit
-                # diff aligns the same logical week. Without this the
-                # audit reports bars_compared:0 on every weekly even when
-                # the OHLC values would match exactly.
-                dt = dt + timedelta(days=1)
+                # _resample_weekly_iso) dates each weekly candle at the
+                # FRIDAY of its ISO week. Shift the Sunday anchor into that
+                # trading week's ISO calendar (+1 day -> Monday) and take
+                # the Friday so the audit diff aligns the same logical week.
+                # Without this the audit reports bars_compared:0 on every
+                # weekly — or worse, the reconciler deletes correct rows as
+                # "diverged" because the keys never line up.
+                _iso = (dt + timedelta(days=1)).isocalendar()
+                dt = datetime.fromisocalendar(_iso[0], _iso[1], 5)
             elif tf == "M":
                 # Polygon's monthly bar timestamp is the FIRST trading
                 # day of the month. Cache uses the 1st calendar day of

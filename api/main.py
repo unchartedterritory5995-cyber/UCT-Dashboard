@@ -1256,6 +1256,72 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] intraday_heal_v3_60day error (non-fatal): {e}")
 
+    # ── Weekly close-date heal (one-shot, gated by flag) ───────────────────────
+    # Weekly candles were re-dated from the week's OPEN (first trading day of
+    # the ISO week, usually Monday) to its CLOSE (Friday of the ISO week) so the
+    # latest weekly bar reads e.g. 2026-06-19 for the 6/15-6/19 week instead of
+    # the confusing 6/15. The bar's date IS its SQLite primary key (ts), so every
+    # already-stored weekly row sits at the OLD Monday key. New fetches write the
+    # Friday key → both would coexist and the chart would show TWO candles per
+    # week until the stale rows age out. Surgical heal: drop ALL weekly rows once;
+    # the next weekly chart load on each ticker repopulates clean under the new
+    # Friday keys. Daily/intraday/monthly are untouched (monthly dating unchanged).
+    # Browser IndexedDB self-heals separately: the D/W/M fetch path is always a
+    # full no-`since` fetch that OVERWRITES the cached weekly array with the
+    # authoritative server response, so no client-side cache bump is needed.
+    try:
+        _heal_flag_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), ".weekly_close_date_heal_v1")
+        if not os.path.exists(_heal_flag_wk):
+            import sqlite3 as _heal_sqlite_wk
+            db_path_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+            if os.path.exists(db_path_wk):
+                conn = _heal_sqlite_wk.connect(db_path_wk, timeout=30)
+                try:
+                    conn.execute("PRAGMA busy_timeout=30000")
+                    cur = conn.execute("DELETE FROM ohlcv WHERE tf = 'W'")
+                    deleted_wk = cur.rowcount
+                    conn.commit()
+                    print(f"[startup] weekly_close_date_heal: removed {deleted_wk} weekly rows; next chart load on each ticker refills with Friday-dated candles")
+                finally:
+                    conn.close()
+                try:
+                    from api.services import bars_sqlite as _heal_bs_wk
+                    _heal_bs_wk.bump_db_epoch()
+                except Exception:
+                    pass
+                # Clear in-memory + disk JSON caches for weekly so they don't keep
+                # serving the old Monday-dated payload until SQLite repopulates.
+                try:
+                    from api.services.cache import cache as _heal_mem_wk
+                    _heal_mem_wk.delete_prefix("bars_")
+                except Exception:
+                    pass
+                try:
+                    _disk_dir_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                    if os.path.isdir(_disk_dir_wk):
+                        _dn_wk = 0
+                        for _fn in os.listdir(_disk_dir_wk):
+                            if not _fn.endswith(".json"):
+                                continue
+                            _parts = _fn[:-5].split("_")
+                            # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
+                            if len(_parts) >= 2 and _parts[1] == "W":
+                                try:
+                                    os.remove(os.path.join(_disk_dir_wk, _fn))
+                                    _dn_wk += 1
+                                except OSError:
+                                    pass
+                        print(f"[startup] weekly_close_date_heal: removed {_dn_wk} weekly disk-cache files")
+                except Exception:
+                    pass
+            try:
+                with open(_heal_flag_wk, "w") as _f:
+                    _f.write("done")
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"[startup] weekly_close_date_heal error (non-fatal): {e}")
+
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
     print(
@@ -1265,6 +1331,7 @@ async def lifespan(app: FastAPI):
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
         "delta_intraday_filter=>= idb_cache_logic_version=4 "
+        "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
     )
 

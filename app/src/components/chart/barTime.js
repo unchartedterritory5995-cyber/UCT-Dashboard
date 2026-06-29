@@ -19,7 +19,7 @@ export const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 
  * that LW Charts uses as the bar's `time`:
  *   - Intraday (1/5/15/30/60): number — period-floor in UTC, +ET_OFFSET
  *   - Daily ('D'): "YYYY-MM-DD" string in ET
- *   - Weekly ('W'): "YYYY-MM-DD" of the Monday of the ET week
+ *   - Weekly ('W'): "YYYY-MM-DD" of the Friday (close) of the ET week
  *   - Monthly ('M'): "YYYY-MM-01" of the ET month
  */
 export function computeBarTime(tf, tickTimeSec) {
@@ -29,10 +29,13 @@ export function computeBarTime(tf, tickTimeSec) {
     })
   }
   if (tf === 'W') {
+    // Date the weekly bar by the week's CLOSE (Friday), matching the backend
+    // resample. Walk to Monday first, then +4 days = Friday. Stable per-week
+    // key so live ticks update the same candle instead of creating a new one.
     const d = new Date(tickTimeSec * 1000)
     const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
     const day = et.getDay()
-    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1))
+    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1) + 4)
     return et.toISOString().split('T')[0]
   }
   if (tf === 'M') {

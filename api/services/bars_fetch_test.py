@@ -898,3 +898,62 @@ class TestFmtSqliteBarsGarbageGuard:
         ]
         out = _fmt_sqlite_bars(rows, "D")
         assert [b["t"] for b in out] == ["2026-06-10", "2026-06-12"]
+
+
+class TestResampleWeeklyClosingDate:
+    """Weekly candles are dated by the week's CLOSE (Friday of the ISO
+    week), not its open. Dating by the first trading day (the old behavior)
+    made the latest weekly bar read e.g. 2026-06-15 for the Mon-Fri
+    6/15-6/19 week — confusingly ~a week behind the data it actually
+    contains. The key MUST be the stable Friday of the ISO week (not the
+    last trading day SEEN) so an in-progress week keeps one fixed key as
+    daily bars land through the week — otherwise each new day would mint a
+    new key and the cache would accumulate duplicate intra-week candles."""
+
+    def test_iso_complete_week_dated_friday(self):
+        from api.services.bars_fetch import _resample_weekly_iso
+        daily = [
+            {"t": "2026-06-15", "o": 12.0, "h": 12.5, "l": 11.8, "c": 12.3, "v": 100},
+            {"t": "2026-06-16", "o": 12.3, "h": 12.4, "l": 11.5, "c": 11.7, "v": 200},
+            {"t": "2026-06-17", "o": 11.7, "h": 11.9, "l": 11.0, "c": 11.2, "v": 150},
+            {"t": "2026-06-18", "o": 11.2, "h": 11.6, "l": 10.9, "c": 11.5, "v": 120},
+            {"t": "2026-06-19", "o": 11.5, "h": 12.0, "l": 11.3, "c": 11.9, "v": 180},
+        ]
+        out = _resample_weekly_iso(daily)
+        assert len(out) == 1
+        bar = out[0]
+        assert bar["t"] == "2026-06-19"  # Friday of ISO week 25, not Monday 6/15
+        assert bar["o"] == 12.0  # first day's open
+        assert bar["c"] == 11.9  # last day's close
+        assert bar["h"] == 12.5  # week high
+        assert bar["l"] == 10.9  # week low
+        assert bar["v"] == 750   # summed volume
+
+    def test_iso_partial_week_uses_stable_friday_key(self):
+        from api.services.bars_fetch import _resample_weekly_iso
+        # In-progress week: only Mon-Wed of the 6/22-6/26 trading week.
+        daily = [
+            {"t": "2026-06-22", "o": 11.0, "h": 11.4, "l": 10.8, "c": 11.3, "v": 100},
+            {"t": "2026-06-23", "o": 11.3, "h": 11.3, "l": 10.9, "c": 11.2, "v": 110},
+            {"t": "2026-06-24", "o": 11.2, "h": 11.3, "l": 10.3, "c": 10.5, "v": 120},
+        ]
+        out = _resample_weekly_iso(daily)
+        assert len(out) == 1
+        # Friday of ISO week 26 even though Friday hasn't traded yet — a
+        # stable key so Thu/Fri bars REPLACE this candle, not duplicate it.
+        assert out[0]["t"] == "2026-06-26"
+        assert out[0]["c"] == 10.5  # last day seen so far
+
+    def test_ms_variant_dated_friday(self):
+        from api.services.bars_fetch import _resample_weekly
+        import calendar
+        # _resample_weekly takes Massive raw (t = unix ms, UTC).
+        def ms(yyyy, mm, dd):
+            return calendar.timegm((yyyy, mm, dd, 0, 0, 0, 0, 0, 0)) * 1000
+        daily = [
+            {"t": ms(2026, 6, 15), "o": 12.0, "h": 12.5, "l": 11.8, "c": 12.3, "v": 100},
+            {"t": ms(2026, 6, 19), "o": 11.5, "h": 12.0, "l": 11.3, "c": 11.9, "v": 180},
+        ]
+        out = _resample_weekly(daily)
+        assert len(out) == 1
+        assert out[0]["t"] == "2026-06-19"

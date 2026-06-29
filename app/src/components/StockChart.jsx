@@ -252,11 +252,12 @@ function computeBarTime(tf, tickTimeSec) {
       .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   }
   if (tf === 'W') {
-    // Weekly: Monday of current week in ET
+    // Weekly: Friday (close) of current week in ET — matches the backend
+    // resample + chart/barTime.js. Walk to Monday, then +4 days = Friday.
     const d = new Date(tickTimeSec * 1000)
     const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
     const day = et.getDay()
-    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1))
+    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1) + 4)
     return et.toISOString().split('T')[0]
   }
   if (tf === 'M') {
