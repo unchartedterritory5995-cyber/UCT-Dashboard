@@ -429,7 +429,31 @@ async def _fetch_oi_all_async(
     ]
 
     try:
-        response = await options_quotes_batch(payload)
+        # Schwab API calls have been observed to hang silently (no timeout,
+        # no exception) during certain network or rate-limit conditions.
+        # When that happens with await + no wait_for, the oi_fetch_manager
+        # task blocks forever. Worse, if options_quotes_batch() is async
+        # but internally uses sync I/O (requests vs httpx), the await blocks
+        # the entire event loop — causing the WS read loop to stop receiving
+        # events. This was the suspected root cause of the silent-hang
+        # incidents on 6/29 where the worker container stayed alive but
+        # stopped writing rows.
+        #
+        # 10s is generous; a healthy Schwab batch call returns in 1-3s.
+        # If it does time out, we return None for all contracts in this
+        # batch (they get fetched on the next 20s cycle); the watchdog in
+        # massive_ws_worker.py is the second line of defense for the WS
+        # event loop itself.
+        response = await asyncio.wait_for(
+            options_quotes_batch(payload), timeout=10.0
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "[oi-snapshot] Schwab batch call timed out (>10s, %d contracts) — "
+            "returning None for all; will retry on next OI fetch cycle.",
+            len(payload),
+        )
+        return [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
     except Exception as e:
         logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
         # All-failure fallback
