@@ -115,6 +115,16 @@ DEFAULT_THRESHOLDS = {
         "mid_small_max":  10_000_000_000,    # <$10B = mid/small cap
         "large_max":     200_000_000_000,    # $10B-$200B = large; >$200B = mega
     },
+    # Big sweeps/blocks on fresh strikes (OI=0) get classified WHITE because
+    # Massive's V/OI classifier can't compute a ratio without OI. This rule
+    # promotes those rows to MAGENTA-equivalent classification so they
+    # surface in /live-massive. Catches institutional sweeps Massive would
+    # otherwise miss (Bullflow surfaces them via different criteria).
+    "premium_override": {
+        "enabled": True,
+        "min_premium": 1_000_000,
+        "require_sweep_or_block": True,
+    },
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -436,8 +446,9 @@ def _derive_direction(cp: str, side: str):
     return None
 
 
-def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
-    """Returns (alertName, tier_key, tier_priority).
+def _derive_alert_name(row: dict, direction: str):
+    """Returns (alertName, tier_key, tier_priority), or None if the row
+    is a WHITE color that didn't qualify for premium-override promotion.
 
     Mapping aligns to LiveFlow.jsx deriveTier() so the existing UI groups
     Massive rows into the right colored sections without modification.
@@ -462,6 +473,30 @@ def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
     # Both share priority 3 in TIER_PRIORITY, just rendered in different
     # colored sections in LiveFlow.jsx (green vs red).
     dir_tier = "bullish" if direction == "Bull" else "bearish"
+
+    # ─── Premium override (rescue high-conviction WHITE rows) ──────────
+    # Massive's classifier assigns Color = WHITE when cum_vol/OI < 1.0.
+    # If OI is unknown (e.g. fresh strike, Schwab snapshot miss), the
+    # ratio defaults to 0 → WHITE → row filtered out of /live-massive.
+    # But a $3M ASK sweep is institutional-grade regardless of what OI
+    # says. This rule promotes those rows to MAGENTA-equivalent classify-
+    # ation so they surface. Tunable via thresholds.premium_override.
+    if color == "WHITE":
+        try:
+            override = _load_thresholds().get("premium_override", {})
+        except Exception:
+            override = {}
+        if override.get("enabled", True):
+            min_prem = override.get("min_premium", 1_000_000)
+            require_sb = override.get("require_sweep_or_block", True)
+            type_up = type_.upper().strip().strip("/")
+            is_sweep_or_block = (
+                "SWEEP" in type_up or "ISO" in type_up or "BLOCK" in type_up
+                or type_up in ("BLK", "B", "BL", "BT", "S", "SW", "IS")
+            )
+            if premium >= min_prem and (is_sweep_or_block or not require_sb):
+                # Promote — fall through to MAGENTA branch below.
+                color = "MAGENTA"
 
     if color == "MAGENTA":
         # Alpha Gold — rarest, top tier
@@ -488,8 +523,9 @@ def _derive_alert_name(row: dict, direction: str) -> tuple[str, str, int]:
         # YELLOW = cumulative accumulation
         return (f"UCT {direction}ish Accumulation", dir_tier, TIER_PRIORITY[dir_tier])
 
-    # Shouldn't happen given query filter but defensive
-    return ("Unusual", "unusual", TIER_PRIORITY["unusual"])
+    # WHITE rows that reached here didn't qualify for premium-override
+    # promotion (premium too low, or wrong type). Skip — caller filters None.
+    return None
 
 
 def _moneyness(strike: float, spot: float, cp: str):
@@ -595,7 +631,10 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
-    alert_name, tier_key, tier_priority = _derive_alert_name(row, direction)
+    result = _derive_alert_name(row, direction)
+    if result is None:
+        return None  # WHITE row that didn't qualify for premium override
+    alert_name, tier_key, tier_priority = result
     is_leaps = dte >= 180
 
     score, grade = _compute_conviction(
@@ -774,6 +813,13 @@ def recent_massive_alerts(
             sql_limit = 20000
         else:
             sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
+        # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
+        # override threshold so they get a chance at promotion in
+        # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
+        # volume); we use a conservative absolute floor of $500K which is
+        # below any reasonable premium_override.min_premium setting.
+        override_cfg = _load_thresholds().get("premium_override", {})
+        override_sql_floor = 500_000  # absolute SQL floor; refined in Python
         cur = conn.execute("""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -781,10 +827,11 @@ def recent_massive_alerts(
               FROM flow
              WHERE source = 'stocks'
                AND CreatedDate = ?
-               AND Color IN ('MAGENTA', 'YELLOW')
+               AND (Color IN ('MAGENTA', 'YELLOW')
+                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
              ORDER BY id DESC
              LIMIT ?
-        """, (today, sql_limit))
+        """, (today, override_sql_floor, sql_limit))
         rows = cur.fetchall()
     finally:
         conn.close()
@@ -1228,7 +1275,7 @@ async def save_thresholds(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, "Body must be a JSON object")
     # Basic shape validation — top-level keys we accept
-    allowed_top = {"stack", "premium_by_cap", "unusual", "cap_bands"}
+    allowed_top = {"stack", "premium_by_cap", "unusual", "cap_bands", "premium_override"}
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
         raise HTTPException(400, f"Unknown keys: {sorted(bad_keys)}")
@@ -1390,9 +1437,9 @@ def contract_debug(
             conn.row_factory = sqlite3.Row
             placeholders = ",".join("?" for _ in candidates)
             cur = conn.execute(f"""
-                SELECT id, CreatedDate, CreatedTime, Symbol, Type, Volume, Price,
+                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price,
                        Side, CallPut, Strike, Spot, Premium, ExpirationDate, Color,
-                       Dte, MktCap, OI
+                       Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
                   FROM flow
                  WHERE source = 'stocks'
                    AND CreatedDate = ?
