@@ -578,10 +578,16 @@ _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
 _DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
 
 
-def _build_day_stats(today: str) -> dict:
+def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     """Compute aggregate stats for all Y/M classifiable stocks rows on `today`.
     Heavy SQL + Python pass over potentially 5K-10K rows; cache the result
-    via the wrapper endpoint so repeated polls within 30s don't re-process."""
+    via the wrapper endpoint so repeated polls within 30s don't re-process.
+
+    When exclude_algo=True, alerts classified as Algo tier (multi-leg complex
+    strategies) are skipped during aggregation. Multi-leg trades aren't truly
+    directional even when one leg happens to print at ask, so excluding them
+    gives a cleaner "directional conviction only" read.
+    """
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -645,6 +651,9 @@ def _build_day_stats(today: str) -> dict:
     by_ticker_1h: dict = {}  # ticker → {bull, bear} restricted to last-hour window
 
     for a in classified:
+        # Skip multi-leg/Algo alerts when caller requested directional-only.
+        if exclude_algo and a.get("_tierKey") == "algo":
+            continue
         prem = a["alertPremium"] or 0
         direction = a.get("_direction")
         is_bull = direction == "Bull"
@@ -754,7 +763,10 @@ def _build_day_stats(today: str) -> dict:
 
 
 @router.get("/day-stats")
-def day_stats(target_date: str = Query(default=None)):
+def day_stats(
+    target_date: str = Query(default=None),
+    exclude_algo: bool = Query(default=False, description="Exclude multi-leg/Algo tier from the bull/bear/DTE/top-tickers aggregation. Useful for a 'pure directional' read since multi-leg trades aren't truly directional even when one leg prints at ask."),
+):
     """
     Aggregated bull/bear stats for ALL classifiable Y/M stocks rows on the
     target date. Independent of filters — gives the page's Market Read a
@@ -763,12 +775,16 @@ def day_stats(target_date: str = Query(default=None)):
 
     Cached for 30s server-side per date. Historical dates never change so
     cache hit rate is near-100% after first request.
+
+    When exclude_algo=true, the Algo tier (multi-leg complex strategies) is
+    skipped during aggregation. Single-leg directional alerts only.
     """
     today = target_date or _today_mdyyyy()
     now = time.time()
-    cached = _day_stats_cache.get(today)
+    cache_key = (today, bool(exclude_algo))
+    cached = _day_stats_cache.get(cache_key)
     if cached and (now - cached[0]) < _DAY_STATS_TTL:
         return cached[1]
-    payload = _build_day_stats(today)
-    _day_stats_cache[today] = (now, payload)
+    payload = _build_day_stats(today, exclude_algo=exclude_algo)
+    _day_stats_cache[cache_key] = (now, payload)
     return payload
