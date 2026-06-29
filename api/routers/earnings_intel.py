@@ -23,6 +23,7 @@ from api.services.call_recap import (
 from api.services.earnings_audio import get_audio
 from api.services.av_transcripts import get_transcript
 from api.services.fmp_transcripts import get_transcript as get_fmp_transcript
+from api.services.analyst_grades import get_analyst_grades
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -122,4 +123,19 @@ def transcript_endpoint(
         return get_transcript(sym, quarter=quarter or None)
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
+        return None
+
+
+@router.get("/api/earnings/analyst-grades/{ticker}")
+def analyst_grades_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+    """Analyst ratings consensus + price targets + recent upgrade/downgrade
+    actions + rating-bucket trend (FMP Ultimate). Returns null when unavailable.
+    Never raises."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        return get_analyst_grades(sym)
+    except Exception as e:
+        _log.warning("[earnings_intel] analyst grades failed for %s: %s", sym, e)
         return None
