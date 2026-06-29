@@ -55,8 +55,8 @@ function QuarterBlock({ q }) {
       <div className={`${styles.qBlock} ${styles.qNext}`}>
         <div className={styles.qLabel}>{q.label || 'Next'}</div>
         <div className={styles.qNextDate}>{q.report_date}</div>
-        <div className={styles.qRow}><span className={styles.muted}>EPS Est.</span> <span className={styles.pos}>{fmtEps(q.eps_estimate)}</span></div>
-        <div className={styles.qRow}><span className={styles.muted}>Sales Est.</span> <span className={styles.pos}>{fmtSales(q.rev_estimate)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>EPS Est.</span> <span>{fmtEps(q.eps_estimate)}</span> <span className={pctClass(q.eps_est_chg_pct)}>{fmtPct(q.eps_est_chg_pct)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>Sales Est.</span> <span>{fmtSales(q.rev_estimate)}</span> <span className={pctClass(q.rev_est_chg_pct)}>{fmtPct(q.rev_est_chg_pct)}</span></div>
       </div>
     )
   }

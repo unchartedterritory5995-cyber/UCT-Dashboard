@@ -30,7 +30,7 @@ const FULL_DATA = {
   ],
   quarterly: [
     { label: '2025 Q2', eps_actual: 0.64, eps_estimate: 0.57, eps_surprise_pct: 12, rev_actual: 1.63e9, rev_estimate: 1.43e9, rev_surprise_pct: 14, reported: true },
-    { label: '2026 Q2', report_date: '2026-08-05', eps_estimate: 0.58, reported: false },
+    { label: '2026 Q2', report_date: '2026-08-05', eps_estimate: 0.58, rev_estimate: 1.5e9, eps_est_chg_pct: -9.4, rev_est_chg_pct: 8.0, reported: false },
   ],
 }
 
@@ -39,6 +39,14 @@ test('defaults to the quarterly view (annual hidden until toggled)', () => {
   render(<Wrap />)
   expect(screen.getByText('2025 Q2')).toBeInTheDocument()
   expect(screen.queryByText('2024')).not.toBeInTheDocument()
+})
+
+test('forward estimate quarter shows YoY growth % on EPS and Sales estimates', () => {
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap />)
+  // forward block (2026 Q2) carries YoY growth alongside the estimates
+  expect(screen.getByText('-9.4%')).toBeInTheDocument()
+  expect(screen.getByText('+8%')).toBeInTheDocument()
 })
 
 test('annual rows render newest-first (forward estimate at top)', () => {

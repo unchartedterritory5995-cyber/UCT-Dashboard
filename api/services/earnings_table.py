@@ -40,6 +40,15 @@ def _next_q_label(label):
     return f"{y} Q{q}"
 
 
+def _yoy_label(label):
+    """The same fiscal quarter one year earlier ('2027 Q1' → '2026 Q1'). Used to
+    find the prior-year actual for a forward estimate quarter's YoY growth %."""
+    m = re.match(r"(\d{4})\s*Q([1-4])$", str(label or "").strip())
+    if not m:
+        return None
+    return f"{int(m.group(1)) - 1} Q{int(m.group(2))}"
+
+
 def _parse_date(s):
     try:
         return datetime.strptime(str(s)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -264,6 +273,9 @@ def _build_quarterly(ticker, now):
                 "reported": True,
             })
     reported.sort(key=lambda r: r["_sort"])
+    # Lookup of ALL available actuals by label (not just the displayed 5) so a
+    # forward estimate quarter can compute YoY growth vs the year-ago actual.
+    actual_by_label = {r["label"]: r for r in reported}
     last5 = reported[-5:]
     for r in last5:
         r.pop("_sort", None)
@@ -279,13 +291,18 @@ def _build_quarterly(ticker, now):
         if next_label is None:
             qd = _parse_date(q.get("date"))
             next_label = _Q_LABEL(qd.year, (qd.month - 1) // 3 + 1) if qd else None
+        # YoY growth %: estimate vs the same fiscal quarter a year ago (actual).
+        # ee._surprise_pct(a, e) = (a-e)/|e| — exactly the YoY growth of `a` over `e`.
+        ya = actual_by_label.get(_yoy_label(next_label))
+        eps_yoy = ee._surprise_pct(q.get("eps_estimate"), ya.get("eps_actual")) if ya else None
+        rev_yoy = ee._surprise_pct(q.get("rev_estimate"), ya.get("rev_actual")) if ya else None
         out.append({
             "label": next_label,
             "report_date": q.get("date"),
             "eps_estimate": q.get("eps_estimate"),
             "rev_estimate": q.get("rev_estimate"),
-            "eps_est_chg_pct": None,
-            "rev_est_chg_pct": None,
+            "eps_est_chg_pct": eps_yoy,
+            "rev_est_chg_pct": rev_yoy,
             "reported": False,
         })
         label = next_label

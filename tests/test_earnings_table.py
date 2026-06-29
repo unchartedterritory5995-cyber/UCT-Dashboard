@@ -103,6 +103,43 @@ def test_build_quarterly_four_forward_from_fmp(monkeypatch, tmp_path):
     assert not set(fwd_labels) & set(labels)
 
 
+def test_forward_quarters_have_yoy_growth(monkeypatch, tmp_path):
+    # Each forward ESTIMATE quarter should carry YoY growth % = estimate vs the
+    # same fiscal quarter one year earlier (a reported actual).
+    et = _mod(monkeypatch, tmp_path)
+    import api.services.earnings_table as etmod
+
+    def fake_year(ticker, year):
+        # 2026 actuals: Q1 eps 1.0/rev 1e9, Q2 2.0/2e9, Q3 3.0/3e9, Q4 4.0/4e9.
+        return [{"label": None, "quarter": q, "year": year, "date": f"{year}-0{q}-15",
+                 "eps_actual": q + 0.0, "eps_estimate": q - 0.1, "eps_surprise_pct": 5.0,
+                 "revenue_actual": 1e9 * q, "revenue_estimate": 0.9e9 * q, "revenue_surprise_pct": 4.0}
+                for q in (1, 2, 3, 4)]
+
+    def fake_fmp(path, params, timeout=10):
+        return [
+            {"date": "2026-09-30", "epsAvg": 0.60, "revenueAvg": 1.1e9},
+            {"date": "2026-12-31", "epsAvg": 0.70, "revenueAvg": 1.2e9},
+            {"date": "2027-03-31", "epsAvg": 0.80, "revenueAvg": 1.3e9},
+            {"date": "2027-06-30", "epsAvg": 0.90, "revenueAvg": 1.4e9},
+        ]
+
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+    monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    import calendar, time
+    now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
+    q = et._build_quarterly("ZZYOY", now)
+    nxt = [r for r in q if not r["reported"]]
+    assert [r["label"] for r in nxt] == ["2027 Q1", "2027 Q2", "2027 Q3", "2027 Q4"]
+    # 2027 Q1 est 0.60 vs 2026 Q1 actual 1.0 → (0.60-1.0)/1.0 = -40.0%
+    assert nxt[0]["eps_est_chg_pct"] == -40.0
+    # rev 1.1e9 vs 1.0e9 → +10.0%
+    assert nxt[0]["rev_est_chg_pct"] == 10.0
+    # 2027 Q2 est 0.70 vs 2026 Q2 actual 2.0 → -65.0%
+    assert nxt[1]["eps_est_chg_pct"] == -65.0
+
+
 def test_build_quarterly_yfinance_fallback(monkeypatch, tmp_path):
     et = _mod(monkeypatch, tmp_path)
     import api.services.earnings_table as etmod
