@@ -252,8 +252,9 @@ function MarketReadCard({ stats }) {
 
   return (
     <div style={{
-      // Sticky handled by the parent wrapper that groups MarketReadCard +
-      // FilterChips + ColumnHeaders together. This card is just visual.
+      // Scrolls naturally (NOT sticky) so the macro view doesn't consume
+      // alert-table real estate. Only the chips + column headers below
+      // stay pinned to the top.
       background: P.cd, marginBottom: 12,
       borderRadius: 6, border: `1px solid ${P.bd}`,
       // Directional accent: thick left border + box-shadow tint so the
@@ -2222,11 +2223,15 @@ export default function LiveFlowMassive() {
         </div>
       )}
 
-      {/* STICKY HEADER GROUP — Market Read + filter chips + column headers
-          all stay pinned together as the user scrolls through alerts.
-          Single sticky container (not three separate sticky elements) so they
-          stack predictably without z-index conflicts or "later element
-          overlaps earlier one" sticky-stacking bugs. */}
+      {/* MARKET READ — day-scoped macro positioning. Scrolls naturally
+          (NOT sticky) so it doesn't consume scroll real estate. Users
+          who want to see it again scroll back to top of the alert list. */}
+      <MarketReadCard stats={dayStats} />
+
+      {/* STICKY HEADER GROUP — only the essential controls follow scroll:
+          tier-filter chips + column headers. The Market Read above scrolls
+          out of view as the user moves through alerts, freeing ~250px of
+          viewport for visible rows. */}
       <div style={{
         position: "sticky", top: 0, zIndex: 10,
         background: P.bg,  // must be opaque or scrolling alerts bleed through
@@ -2235,11 +2240,8 @@ export default function LiveFlowMassive() {
         // visible gap on either side as alerts scroll behind it.
         marginLeft: -16, marginRight: -16,
         paddingLeft: 16, paddingRight: 16,
-        paddingBottom: 4,
+        paddingTop: 4, paddingBottom: 4,
       }}>
-        {/* MARKET READ — day-scoped aggregated bull/bear positioning */}
-        <MarketReadCard stats={dayStats} />
-
         <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
 
         <ColumnHeaders />
