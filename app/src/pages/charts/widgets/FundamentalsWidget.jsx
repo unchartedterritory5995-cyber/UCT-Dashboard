@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
+import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import styles from './FundamentalsWidget.module.css'
 
 function fmtSales(v) {
@@ -82,7 +83,7 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const { data } = useEarningsTable(sym)
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
-  const view = ['annual', 'quarterly', 'analyst'].includes(opts?.view) ? opts.view : 'quarterly'
+  const view = ['annual', 'quarterly', 'analyst', 'ownership'].includes(opts?.view) ? opts.view : 'quarterly'
   const setView = useCallback((next) => {
     if (next === (opts?.view || 'quarterly')) return
     onOptsChange?.({ ...(opts || {}), view: next })
@@ -93,14 +94,16 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const hasAnnual = data?.annual?.length
   const hasQ = data?.quarterly?.length
 
-  // Resolve the effective view. Analyst is always available (its own data source);
-  // the earnings-table views fall back to whichever section actually has data.
-  const effectiveView = view === 'analyst' ? 'analyst'
+  // Resolve the effective view. Analyst/Ownership have their own data sources and
+  // are always available; the earnings-table views fall back to whichever section
+  // actually has data.
+  const isPanelView = view === 'analyst' || view === 'ownership'
+  const effectiveView = isPanelView ? view
     : view === 'annual' ? (hasAnnual ? 'annual' : 'quarterly')
     : (hasQ ? 'quarterly' : 'annual')
 
-  // Earnings-table views need the earnings fetch; the Analyst view does not.
-  if (effectiveView !== 'analyst') {
+  // Earnings-table views need the earnings fetch; the panel views do not.
+  if (!isPanelView) {
     if (!data) return <div className={styles.hint}>Loading {sym}…</div>
     if (!hasAnnual && !hasQ) return <div className={styles.hint}>No fundamentals for {sym}.</div>
   }
@@ -137,10 +140,21 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
         >
           Analyst
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveView === 'ownership'}
+          className={`${styles.toggleBtn} ${effectiveView === 'ownership' ? styles.toggleBtnActive : ''}`}
+          onClick={() => setView('ownership')}
+        >
+          Ownership
+        </button>
       </div>
 
       {effectiveView === 'analyst' ? (
         <AnalystPanel sym={sym} />
+      ) : effectiveView === 'ownership' ? (
+        <OwnershipPanel sym={sym} />
       ) : effectiveView === 'annual' ? (
         <>
           <div className={styles.sectionLabel}>Annual · EPS &amp; Sales</div>

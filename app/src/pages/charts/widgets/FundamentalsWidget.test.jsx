@@ -11,6 +11,9 @@ vi.mock('../../../hooks/useEarningsTable', () => ({
 vi.mock('../../../components/fundamentals/AnalystPanel', () => ({
   default: ({ sym }) => <div data-testid="analyst-panel">{sym}</div>,
 }))
+vi.mock('../../../components/fundamentals/OwnershipPanel', () => ({
+  default: ({ sym }) => <div data-testid="ownership-panel">{sym}</div>,
+}))
 
 // Stateful wrapper that threads opts through onOptsChange, mirroring how the
 // workspace persists per-widget opts — so a toggle click actually updates view.
@@ -62,6 +65,12 @@ test('Analyst tab renders even when earnings data is empty', () => {
   mockData.mockReturnValue(null)
   render(<Wrap initialOpts={{ view: 'analyst' }} />)
   expect(screen.getByTestId('analyst-panel')).toHaveTextContent('AAPL')
+})
+
+test('Ownership tab renders the OwnershipPanel (even with no earnings data)', () => {
+  mockData.mockReturnValue(null)
+  render(<Wrap initialOpts={{ view: 'ownership' }} />)
+  expect(screen.getByTestId('ownership-panel')).toHaveTextContent('AAPL')
 })
 
 test('annual rows render newest-first (forward estimate at top)', () => {

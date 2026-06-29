@@ -9,6 +9,7 @@ import { timeAgo } from '../../utils/timeAgo'
 import FundamentalsStrip from '../calendar/FundamentalsStrip'
 import CallRecapSection from '../calendar/CallRecapSection'
 import AnalystPanel from '../fundamentals/AnalystPanel'
+import OwnershipPanel from '../fundamentals/OwnershipPanel'
 import SentimentGauge from '../calendar/SentimentGauge'
 import useFilings from '../../hooks/useFilings'
 import useCallRecap from '../../hooks/useCallRecap'
@@ -357,6 +358,9 @@ export default function EarningsModal({ row, label, onClose }) {
 
         {/* ── Analyst (consensus · price target · upgrades/downgrades) ──── */}
         <AnalystPanel sym={row.sym} />
+
+        {/* ── Institutional ownership (13F) ────────────────────────────── */}
+        <OwnershipPanel sym={row.sym} />
 
         {/* ── C1: Fundamentals strip ───────────────────────────────────── */}
         <FundamentalsStrip ticker={row.sym} />
