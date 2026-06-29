@@ -83,6 +83,12 @@ def debug_earnings_sources(sym: str):
         ("stable/historical-earning-calendar", f"https://financialmodelingprep.com/stable/historical-earning-calendar?symbol={sym}&limit=12&apikey={fmp_key}"),
         ("stable/analyst-estimates?period=quarter", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={sym}&period=quarter&limit=8&apikey={fmp_key}"),
         ("stable/analyst-estimates?period=annual", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={sym}&period=annual&limit=8&apikey={fmp_key}"),
+        ("stable/grades", f"https://financialmodelingprep.com/stable/grades?symbol={sym}&limit=8&apikey={fmp_key}"),
+        ("stable/grades-consensus", f"https://financialmodelingprep.com/stable/grades-consensus?symbol={sym}&apikey={fmp_key}"),
+        ("stable/grades-historical", f"https://financialmodelingprep.com/stable/grades-historical?symbol={sym}&limit=4&apikey={fmp_key}"),
+        ("stable/price-target-consensus", f"https://financialmodelingprep.com/stable/price-target-consensus?symbol={sym}&apikey={fmp_key}"),
+        ("stable/price-target-summary", f"https://financialmodelingprep.com/stable/price-target-summary?symbol={sym}&apikey={fmp_key}"),
+        ("stable/price-target-news", f"https://financialmodelingprep.com/stable/price-target-news?symbol={sym}&limit=5&apikey={fmp_key}"),
         ("v3/analyst-estimates", f"https://financialmodelingprep.com/api/v3/analyst-estimates/{sym}?period=quarter&limit=8&apikey={fmp_key}"),
     ]
     # Rich dump of the live stable/earnings endpoint (what get_year_earnings uses)
