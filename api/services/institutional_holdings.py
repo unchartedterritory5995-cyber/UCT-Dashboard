@@ -78,3 +78,99 @@ def get_institutional_holders(ticker: str, top_n: int = 10) -> dict[str, Any]:
     }
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result
+
+
+# ── 13F ownership with position-change deltas (FMP Ultimate first) ──────────
+_OWN_TTL = 21_600  # 6h
+
+
+def _classify_change(cur, prior):
+    """new / added / reduced / sold_out / flat from current vs prior shares."""
+    c = cur or 0
+    p = prior
+    if p is None or p == 0:
+        return "new" if c > 0 else "flat"
+    if c == 0:
+        return "sold_out"
+    if c > p:
+        return "added"
+    if c < p:
+        return "reduced"
+    return "flat"
+
+
+def _fmp_ownership(ticker):
+    """FMP Ultimate institutional ownership rows (current + prior-quarter shares).
+    Exact path/fields verified live; returns [] on any failure."""
+    from api.services import earnings_estimates as ee
+    try:
+        data = ee._fmp_get("/stable/institutional-ownership/symbol-ownership",
+                           {"symbol": ticker, "limit": 20})
+    except Exception:
+        return []
+    rows = data if isinstance(data, list) else []
+    out = []
+    for r in rows:
+        out.append({
+            "holder": r.get("investorName") or r.get("holder"),
+            "shares": r.get("sharesNumber") or r.get("shares"),
+            "prior_shares": r.get("lastSharesNumber") or r.get("prior_shares"),
+            "pct_out": r.get("ownershipPercent") or r.get("pct_out"),
+            "value": r.get("marketValue") or r.get("value"),
+            "date": str(r.get("date") or "")[:10] or None,
+        })
+    return [r for r in out if r.get("holder")]
+
+
+def get_ownership(ticker, debug=False):
+    """Top institutional holders + position-change deltas (new/added/reduced/
+    sold_out) + biggest buyers/sellers. FMP first, yfinance fallback (no deltas)."""
+    ticker = (ticker or "").upper().strip()
+    empty = {"ticker": ticker, "inst_pct": None, "inst_holders_count": None, "as_of": None,
+             "top_holders": [], "biggest_buyers": [], "biggest_sellers": []}
+    if not ticker:
+        return empty
+    ckey = f"ownership::{ticker}"
+    if not debug:
+        hit = _CACHE.get(ckey)
+        if hit is not None:
+            return dict(hit)
+
+    rows = _fmp_ownership(ticker)
+    if rows:
+        holders = []
+        for r in rows:
+            shares = r.get("shares")
+            prior = r.get("prior_shares")
+            ch = _classify_change(shares, prior)
+            holders.append({"holder": r["holder"], "shares": shares, "pct_out": r.get("pct_out"),
+                            "value": r.get("value"), "change": ch,
+                            "change_shares": (None if shares is None or prior is None else shares - prior)})
+        holders.sort(key=lambda h: (h.get("shares") or 0), reverse=True)
+        deltas = [h for h in holders if h.get("change_shares") is not None]
+        buyers = sorted([h for h in deltas if h["change_shares"] > 0], key=lambda h: h["change_shares"], reverse=True)[:5]
+        sellers = sorted([h for h in deltas if h["change_shares"] < 0], key=lambda h: h["change_shares"])[:5]
+        as_of = next((r.get("date") for r in rows if r.get("date")), None)
+        result = {"ticker": ticker, "inst_pct": None, "inst_holders_count": len(holders),
+                  "as_of": as_of, "top_holders": holders[:15],
+                  "biggest_buyers": buyers, "biggest_sellers": sellers, "_source": "fmp"}
+    else:
+        yf_data = get_institutional_holders(ticker, top_n=15) or {}
+        raw = yf_data.get("top_holders") or []
+        if ("error" in yf_data) and not raw:
+            result = dict(empty, **{"_source": "yfinance"})
+        else:
+            holders = [{"holder": h.get("holder"), "shares": h.get("shares"), "pct_out": h.get("pct_out"),
+                        "value": h.get("value_usd") if h.get("value_usd") is not None else h.get("value"),
+                        "change": None, "change_shares": None} for h in raw]
+            as_of = next((h.get("date_reported") for h in raw if h.get("date_reported")), None)
+            result = {"ticker": ticker, "inst_pct": yf_data.get("held_by_institutions_pct"),
+                      "inst_holders_count": yf_data.get("top_holders_count") or len(holders),
+                      "as_of": as_of, "top_holders": holders,
+                      "biggest_buyers": [], "biggest_sellers": [], "_source": "yfinance"}
+
+    if debug:
+        return result
+    out = {k: v for k, v in result.items() if k != "_source"}
+    _CACHE.set(ckey, dict(out), _OWN_TTL)
+    return out
