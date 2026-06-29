@@ -11,6 +11,7 @@ import math
 
 from api.services.cache import cache
 from api.services.yfinance_pool import run_in_pool
+from api.services.analyst_grades import get_analyst_grades
 
 _logger = logging.getLogger(__name__)
 
@@ -135,6 +136,29 @@ def get_estimates(sym):
         "forward": _forward(raw.get("eps_est"), raw.get("rev_est")),
         "revisions": _revisions(raw.get("eps_trend"), raw.get("eps_rev")),
         "rating_changes": _rating_changes(raw.get("ud")),
+        "consensus": None,
+        "price_target": None,
     }
+
+    # Enrich with FMP Ultimate analyst data: sell-side consensus buckets, price
+    # targets, and a richer/more-reliable rating-change feed (override yfinance's
+    # upgrades_downgrades only when FMP actually returns actions).
+    try:
+        grades = get_analyst_grades(sym)
+    except Exception:
+        grades = None
+    if grades:
+        out["consensus"] = grades.get("consensus")
+        out["price_target"] = grades.get("price_target")
+        acts = grades.get("recent_actions") or []
+        if acts:
+            out["rating_changes"] = [{
+                "date": a.get("date"),
+                "firm": a.get("company"),
+                "from_grade": a.get("from_grade"),
+                "to_grade": a.get("to_grade"),
+                "action": a.get("action"),
+            } for a in acts]
+
     cache.set(ck, out, _CACHE_TTL)
     return out
