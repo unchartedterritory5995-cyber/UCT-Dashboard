@@ -1,0 +1,21 @@
+/* app/src/components/fundamentals/AnalystPanel.module.css — real design tokens, no emoji */
+.root { height: 100%; overflow: auto; padding: 8px 10px; font-family: var(--font-sans); font-size: var(--text-base, 12px); color: var(--text); }
+.hint { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--text-muted); font-size: var(--text-sm, 11px); }
+.block { margin-bottom: 12px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.rating { font-weight: 700; color: var(--text-heading); font-size: var(--text-md, 13px); }
+.counts { display: flex; gap: 8px; }
+.sectionLabel { font-size: var(--text-xs, 10px); letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-elevated); }
+.barBuy { background: var(--ut-green-bright); }
+.barHold { background: var(--ut-gold); }
+.barSell { background: var(--ut-red-bright); }
+.ptAvg { font-weight: 700; color: var(--text-heading); }
+.pos { color: var(--ut-green-bright); }
+.neg { color: var(--ut-red-bright); }
+.muted { color: var(--text-muted); }
+.action { display: flex; gap: 6px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm, 11px); white-space: nowrap; }
+.glyph { font-size: 9px; }
+.firm { color: var(--text-bright); font-weight: 600; }
+.grades { color: var(--text-muted); }
+.date { margin-left: auto; color: var(--text-muted); font-size: var(--text-xs, 10px); }
