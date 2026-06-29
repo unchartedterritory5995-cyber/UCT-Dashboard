@@ -1100,11 +1100,23 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
-        <label style={{ color: P.dm, fontSize: 12 }}>Sort:</label>
+        <label
+          style={{ color: P.dm, fontSize: 12 }}
+          title="Selects WHICH alerts the page shows. The feed is always displayed in time order regardless of which option you pick — these just change the criterion for what gets included in the top-N window."
+        >
+          Filter by:
+        </label>
         {["recent", "conviction", "premium"].map(opt => (
           <button
             key={opt}
             onClick={() => onSortChange(opt)}
+            title={
+              opt === "recent"
+                ? "Show the most recent N alerts (latest first)"
+                : opt === "conviction"
+                  ? "Show the top N by conviction score — displayed in time order"
+                  : "Show the top N by premium dollar size — displayed in time order"
+            }
             style={{
               background: sortBy === opt ? P.ac : "transparent",
               color: sortBy === opt ? P.bg : P.wh,
@@ -1484,17 +1496,25 @@ export default function LiveFlowMassive() {
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo.
   // Tier filtering now happens here (was previously per-section); the
   // remaining list goes straight into the flat chronological feed.
-  const visibleAlerts = alerts.filter(a => {
-    const tier = a._tierKey || "algo";
-    if (hideAlgo && tier === "algo") return false;  // global Algo hide
-    if (!filters[tier]) return false;
-    if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
-    if (contractFilter.size > 0) {
-      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
-      if (!contractFilter.has(k)) return false;
-    }
-    return true;
-  });
+  //
+  // Final sort is ALWAYS by timestamp descending — even when the backend
+  // returned alerts ranked by conviction or premium. The sort criterion
+  // selects WHICH alerts the page sees (top N by conviction, etc.) but
+  // they're always displayed chronologically so the trader can scan the
+  // session's flow in real time order.
+  const visibleAlerts = alerts
+    .filter(a => {
+      const tier = a._tierKey || "algo";
+      if (hideAlgo && tier === "algo") return false;  // global Algo hide
+      if (!filters[tier]) return false;
+      if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
+      if (contractFilter.size > 0) {
+        const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+        if (!contractFilter.has(k)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
   // Per-tier counts (for filter chip badges). Built from ALL alerts that
   // pass the ticker/contract filter — independent of which tiers are toggled
