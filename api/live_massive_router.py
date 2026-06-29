@@ -1329,3 +1329,131 @@ def recompute_dormant(
         "total_alerts_scanned": data["total_alerts_scanned"],
         "sample_active": data["active_tickers"][:30],
     }
+
+
+@router.get("/contract-debug")
+def contract_debug(
+    ticker: str = Query(..., description="Underlying symbol, e.g. 'SNDK'"),
+    cp: str = Query(..., description="'C' or 'P' (case-insensitive)"),
+    strike: float = Query(..., description="Strike price as number"),
+    exp: str = Query(..., description="Expiration date M/D/YYYY"),
+    target_date: str = Query(default=None, description="Trading date M/D/YYYY (default today)"),
+):
+    """Diagnostic: return ALL FlowDB rows for a specific contract on a given
+    day, regardless of Color (MAGENTA / YELLOW / WHITE). Use this to answer
+    "why didn't I see X on /live-massive" — usually one of:
+      - Color=WHITE (cum_vol/OI didn't trigger classification)
+      - Side unclassifiable (worker can't determine ASK vs BID)
+      - Not captured at all (worker was idle / Bullflow saw something Massive didn't)
+
+    Returns raw rows + summary of how the row would have been classified.
+    """
+    today = target_date or _today_mdyyyy()
+    cp_norm = (cp or "").strip().upper()
+    if cp_norm not in ("C", "P", "CALL", "PUT"):
+        raise HTTPException(400, "cp must be C, P, CALL, or PUT")
+    cp_long = "CALL" if cp_norm in ("C", "CALL") else "PUT"
+
+    # Strike stored as TEXT — match flexibly (some rows have '$2050', some '2050',
+    # some '2050.0'). Normalize the input then test multiple representations.
+    strike_int = int(strike) if float(strike).is_integer() else None
+    strike_candidates = [str(strike), f"${strike}"]
+    if strike_int is not None:
+        strike_candidates += [str(strike_int), f"${strike_int}", f"{strike_int}.0"]
+
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+        placeholders = ",".join("?" for _ in strike_candidates)
+        cur = conn.execute(f"""
+            SELECT id, CreatedDate, CreatedTime, Symbol, Type, Volume, Price,
+                   Side, CallPut, Strike, Spot, Premium, ExpirationDate, Color,
+                   Dte, MktCap, OI
+              FROM flow
+             WHERE source = 'stocks'
+               AND CreatedDate = ?
+               AND Symbol = ?
+               AND CallPut = ?
+               AND Strike IN ({placeholders})
+               AND ExpirationDate = ?
+             ORDER BY id ASC
+        """, (today, ticker.upper(), cp_long, *strike_candidates, exp))
+        rows = [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    # Classify each row + summarize what would have happened
+    summary = {
+        "total_rows": len(rows),
+        "by_color": {},
+        "by_side": {},
+        "would_be_classified_count": 0,
+        "would_be_unclassified_count": 0,
+        "tier_distribution": {},
+        "total_volume": 0,
+        "total_premium": 0,
+        "max_oi_seen": 0,
+    }
+    detailed = []
+    for r in rows:
+        color = r["Color"] or "(none)"
+        side = r["Side"] or "(none)"
+        summary["by_color"][color] = summary["by_color"].get(color, 0) + 1
+        summary["by_side"][side] = summary["by_side"].get(side, 0) + 1
+        summary["total_volume"] += _parse_int(r["Volume"])
+        summary["total_premium"] += _parse_int(r["Premium"])
+        summary["max_oi_seen"] = max(summary["max_oi_seen"], _parse_int(r["OI"]))
+
+        # Try to classify exactly as /recent would
+        a = _row_to_alert(r)
+        classified = a is not None
+        if classified:
+            summary["would_be_classified_count"] += 1
+            t = a.get("_tierKey", "?")
+            summary["tier_distribution"][t] = summary["tier_distribution"].get(t, 0) + 1
+        else:
+            summary["would_be_unclassified_count"] += 1
+
+        detailed.append({
+            "id": r["id"],
+            "time": r["CreatedTime"],
+            "color": r["Color"],
+            "side": r["Side"],
+            "volume": _parse_int(r["Volume"]),
+            "price": r["Price"],
+            "premium": _parse_int(r["Premium"]),
+            "oi": _parse_int(r["OI"]),
+            "v_oi": round(_parse_int(r["Volume"]) / _parse_int(r["OI"]), 2)
+                if _parse_int(r["OI"]) > 0 else None,
+            "spot": r["Spot"],
+            "type": r["Type"],
+            "would_classify_as_tier": a.get("_tierKey") if a else None,
+            "would_classify_as_grade": a.get("grade") if a else None,
+            "would_show_in_live_massive": classified and r["Color"] in ("MAGENTA", "YELLOW"),
+            "why_filtered": (
+                None if classified and r["Color"] in ("MAGENTA", "YELLOW")
+                else "Color=WHITE (cum_vol/OI ratio < 1.0)" if r["Color"] == "WHITE"
+                else "Color missing/other" if r["Color"] not in ("MAGENTA","YELLOW","WHITE")
+                else "Side unclassifiable (not A/AA/B/BB)"
+            ),
+        })
+
+    return {
+        "query": {
+            "date": today,
+            "ticker": ticker.upper(),
+            "cp": cp_long,
+            "strike": strike,
+            "exp": exp,
+        },
+        "summary": summary,
+        "rows": detailed,
+        "interpretation": (
+            "No rows found — worker did not capture this contract today. "
+            "Possible causes: worker was idle, contract isn't in the Massive "
+            "subscription, or symbol/date mismatch."
+            if not rows else
+            "Rows found. See `summary.by_color` and `would_show_in_live_massive` "
+            "per row to understand why specific events did or didn't surface."
+        ),
+    }
