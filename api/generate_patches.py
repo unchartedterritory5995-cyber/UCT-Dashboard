@@ -130,9 +130,12 @@ def generate_patches(input_path: str, output_path: str,
             strike_str = str(int(strike))
         else:
             strike_str = f"{strike:g}"
-        cp_letter = 'C' if parsed['cp'] == 'CALL' else 'P'
+        # FlowDB's CallPut column stores "CALL"/"PUT" (long form), not C/P.
+        # backfill_from_patches.py groups production rows by raw CallPut value,
+        # so patches must use the long form to match.
+        cp_long = parsed['cp']   # 'CALL' or 'PUT'
         exp_str = parsed['expiry'].strftime('%-m/%-d/%Y')  # "8/21/2026"
-        contract_key = f"{parsed['root']}|{cp_letter}|{strike_str}|{exp_str}"
+        contract_key = f"{parsed['root']}|{cp_long}|{strike_str}|{exp_str}"
         by_contract[contract_key].append(evt)
 
     if skipped_parse:
