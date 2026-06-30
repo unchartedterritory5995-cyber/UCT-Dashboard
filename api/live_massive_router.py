@@ -1345,7 +1345,12 @@ async def save_thresholds(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, "Body must be a JSON object")
     # Basic shape validation — top-level keys we accept
-    allowed_top = {"stack", "premium_by_cap", "unusual", "cap_bands", "premium_override"}
+    allowed_top = {
+        "stack", "premium_by_cap", "unusual", "cap_bands", "premium_override",
+        # Alpha Gold quality gates (added 6/29-6/30)
+        "alpha_max_itm_pct",        # deep-ITM filter threshold
+        "alpha_min_vol_oi_ratio",   # vol > OI fresh-positioning gate
+    }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
         raise HTTPException(400, f"Unknown keys: {sorted(bad_keys)}")
