@@ -988,11 +988,16 @@ def _load_spot_for_events(events: list) -> dict:
     """Phase 2b: synchronous spot lookup with background fetch queue.
 
     For each unique symbol in the batch:
-    - If cached and fresh, return cached spot
-    - Otherwise queue the symbol for background fetch
+    - If cached, return the cached value (even if past TTL — slightly
+      stale spot is OK for moneyness, but null spot leaves SPOT and
+      %ITM/OTM columns blank in the UI which was breaking repeat-fire
+      visibility, fix added 6/30 evening)
+    - If cache is stale (past TTL), ALSO queue for refresh so the next
+      batch gets a fresher value
+    - If no cache at all, queue for fetch and omit from output (the
+      "first event on a brand-new symbol" case — caller treats as spot=0)
 
-    Returns {symbol: spot_price}. Symbols not in cache get omitted (caller
-    treats as spot=0 -- same as pre-Phase-2b behavior).
+    Returns {symbol: spot_price}. Symbols with no cache at all are omitted.
     """
     if not events:
         return {}
@@ -1003,10 +1008,20 @@ def _load_spot_for_events(events: list) -> dict:
         if not sym or sym in out:
             continue
         cached = _SPOT_CACHE.get(sym)
-        if cached and (now - cached[1]) < _SPOT_TTL_SEC:
+        if cached:
+            # Always use cached spot, even if past TTL. The underlying
+            # stock price doesn't move much in a few minutes; better to
+            # show slightly stale value than null.
             out[sym] = cached[0]
+            cache_age = now - cached[1]
+            if cache_age >= _SPOT_TTL_SEC:
+                # Past TTL -- queue refresh so subsequent batches see
+                # a fresher value. Doesn't block this batch.
+                if sym and not sym[-1].isdigit() and sym not in _spot_fetch_seen:
+                    _spot_fetch_queue.append(sym)
+                    _spot_fetch_seen.add(sym)
         else:
-            # Queue for background fetch
+            # No cache at all -- queue for fetch
             if sym and not sym[-1].isdigit() and sym not in _spot_fetch_seen:
                 _spot_fetch_queue.append(sym)
                 _spot_fetch_seen.add(sym)
