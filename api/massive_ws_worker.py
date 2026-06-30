@@ -144,15 +144,19 @@ _oi_fetch_seen: set = set()   # contracts we've already queued this session (ded
 MAX_Q_SUBSCRIPTIONS = 950
 
 # How fresh an NBBO needs to be (vs trade timestamp) to use for Side
-# classification. Stale quotes give wrong sides. 5 seconds is generous
-# for liquid contracts where quotes update every few hundred ms.
-NBBO_STALENESS_NS = 60_000_000_000  # 60s -- accommodates illiquid contracts
-                                      # whose NBBO updates may be 10-30+ sec
-                                      # between quotes. The market doesn't
-                                      # reverse on illiquid contracts in 60s,
-                                      # so Side classification stays directionally
-                                      # valid. Original was 5s -- too tight for
-                                      # the long tail of contracts Massive sees.
+# classification. Stale quotes give wrong sides -- particularly in trending
+# regimes where the bid/ask shifts faster than the staleness window allows.
+#
+# Phase 1 audit (6/29): the prior 60s threshold was too lenient for the
+# liquid contracts that dominate Alpha Gold tier (BE, MU, AMD, MRVL, etc.).
+# NBBO on those updates many times per second, so 60s effectively meant
+# "use any NBBO we have, no matter how stale" -- which produced 30% Side
+# disagreement vs BBS+Bullflow on the BE bid-stack accumulation pattern.
+#
+# Tightened to 5s. Trades on a contract whose latest NBBO is >5s old will
+# fall through to tick-test (or stay unclassified). This is the right
+# tradeoff: lower classification rate, but the ones we classify are right.
+NBBO_STALENESS_NS = 5_000_000_000  # 5s -- tightened from 60s in Phase 1 audit
 
 
 def _classify_side(trade_price: float, nbbo: tuple) -> str:
@@ -552,16 +556,21 @@ def _classify_events_side(events: list) -> None:
                     nbbo_classified = True
                 else:
                     mid_market += 1
-                    # MID-MARKET FIX (post-deploy 6/26): originally we marked
-                    # mid-market as nbbo_classified=True which blocked tick
-                    # test fallback. But for illiquid contracts with wide
-                    # spreads, MOST trades print mid-market via Lee-Ready --
-                    # we observed 5 of 6 fresh-NBBO events were mid-market
-                    # in production batches, costing ~40% of potential
-                    # classifications. Now we leave nbbo_classified=False
-                    # so tick test can give directional signal. The cost is
-                    # occasionally classifying a genuinely-undirected mid
-                    # print as A or B, but tick momentum is a fair proxy.
+                    # MID-MARKET REVERT (Phase 1 audit, 6/29):
+                    # Earlier we set nbbo_classified=False here to let tick
+                    # test classify mid-market trades. That recovered ~40%
+                    # more classifications but at high cost: mid-market means
+                    # NEUTRAL (no aggressor) by definition. Routing those
+                    # trades to tick test manufactures direction from price
+                    # momentum -- in a trending tape, every mid trade became
+                    # A or AA, creating systematic uptrend bias. Audit vs
+                    # BBS+Bullflow confirmed this was the primary source of
+                    # bid-stack misclassifications on BE/MU/MRVL today.
+                    #
+                    # Restored: mid-market stays as no-side (empty string).
+                    # Cost: lower classification rate. Benefit: no manufactured
+                    # direction from neutral trades.
+                    nbbo_classified = True
 
         # ====== TIER 2: Tick test fallback ======
         # Only runs if NBBO didn't classify (missing, stale, or never set).
@@ -588,12 +597,19 @@ def _classify_events_side(events: list) -> None:
                         break
                 if last_price is not None and last_price > 0:
                     diff_pct = (evt.avg_price - last_price) / last_price * 100
-                    if diff_pct > 5:
-                        evt.side = "AA"; classified += 1; classified_tick += 1
-                    elif diff_pct > 0.5:
+                    # Phase 1 audit (6/29): removed AA/BB tier from tick test.
+                    # Tick test only knows "price moved up or down from last
+                    # print" -- it CANNOT know whether the trade was above
+                    # the contemporaneous ask (AA) or below the bid (BB).
+                    # Those subdivisions require fresh NBBO comparison.
+                    # Returning AA/BB from a 5% tick move manufactures false
+                    # confidence -- a 5% move in a stacked-bid uptrend is
+                    # not "above ask," it's just "next print up the ladder."
+                    #
+                    # Tick test now produces A/B only. NBBO path retains
+                    # the full AA/A/B/BB vocabulary.
+                    if diff_pct > 0.5:
                         evt.side = "A"; classified += 1; classified_tick += 1
-                    elif diff_pct < -5:
-                        evt.side = "BB"; classified += 1; classified_tick += 1
                     elif diff_pct < -0.5:
                         evt.side = "B"; classified += 1; classified_tick += 1
                     elif prev_diff_price is not None and prev_diff_price > 0:
