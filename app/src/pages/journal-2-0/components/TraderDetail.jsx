@@ -10,7 +10,7 @@
 import { useMemo } from 'react'
 import StatsGrid from './StatsGrid'
 import { summaryStats, dateShort, percent, rMultiple as fmtR, holdDaysDisplay } from '../../../lib/journal-2-0'
-import useLivePrices from '../../../hooks/useLivePrices'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import styles from './TraderDetail.module.css'
 
 function resultBadge(result) {
@@ -61,7 +61,7 @@ export default function TraderDetail({ trader, trades, openPositions = [], onBac
     () => openPositions.map((p) => p.symbol),
     [openPositions],
   )
-  const { prices } = useLivePrices(positionSymbols)
+  const { prices } = useRealtimePrices(positionSymbols)
 
   // summaryStats consumes Trade shape with pnlDollar — shared trades don't
   // have that field (stripped for privacy). Synthesize pnlDollar = 0 since
