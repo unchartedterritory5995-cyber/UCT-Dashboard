@@ -428,57 +428,129 @@ async def _fetch_oi_all_async(
         for sym, cp, strike, exp in contracts
     ]
 
+    # Schwab API calls have been observed to hang silently (no timeout,
+    # no exception) during certain network or rate-limit conditions.
+    # When that happens with await + no wait_for, the oi_fetch_manager
+    # task blocks forever. Worse, if options_quotes_batch() is async
+    # but internally uses sync I/O (requests vs httpx), the await blocks
+    # the entire event loop — causing the WS read loop to stop receiving
+    # events. This was the suspected root cause of the silent-hang
+    # incidents on 6/29 where the worker container stayed alive but
+    # stopped writing rows.
+    #
+    # 10s is generous; a healthy Schwab batch call returns in 1-3s.
+    # If it does time out, we fall through to Massive fallback below;
+    # the watchdog in massive_ws_worker.py is the second line of defense
+    # for the WS event loop itself.
+    response = None
     try:
-        # Schwab API calls have been observed to hang silently (no timeout,
-        # no exception) during certain network or rate-limit conditions.
-        # When that happens with await + no wait_for, the oi_fetch_manager
-        # task blocks forever. Worse, if options_quotes_batch() is async
-        # but internally uses sync I/O (requests vs httpx), the await blocks
-        # the entire event loop — causing the WS read loop to stop receiving
-        # events. This was the suspected root cause of the silent-hang
-        # incidents on 6/29 where the worker container stayed alive but
-        # stopped writing rows.
-        #
-        # 10s is generous; a healthy Schwab batch call returns in 1-3s.
-        # If it does time out, we return None for all contracts in this
-        # batch (they get fetched on the next 20s cycle); the watchdog in
-        # massive_ws_worker.py is the second line of defense for the WS
-        # event loop itself.
         response = await asyncio.wait_for(
             options_quotes_batch(payload), timeout=10.0
         )
     except asyncio.TimeoutError:
         logger.warning(
             "[oi-snapshot] Schwab batch call timed out (>10s, %d contracts) — "
-            "returning None for all; will retry on next OI fetch cycle.",
+            "falling through to Massive fallback.",
             len(payload),
         )
-        return [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
+        response = None
     except Exception as e:
         logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
-        # All-failure fallback
-        return [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
+        response = None
 
-    # Response shape: {"quotes": [...]}, parallel to input
+    # Build results from Schwab response (or all-None if Schwab failed).
+    # The Massive fallback block below handles either case — it fills in
+    # any None entries.
     quotes = response.get("quotes", []) if isinstance(response, dict) else []
 
     results: List[Tuple[str, Optional[int]]] = []
-    for orig, quote in zip(contracts, quotes):
-        sym, cp, strike, exp = orig
-        ck = make_key(sym, cp, strike, exp)
-        if not isinstance(quote, dict) or quote.get("error") or quote.get("expired"):
-            results.append((ck, None))
-            continue
-        oi = quote.get("openInterest")
-        # Schwab returns 0 for "no data" as well as legit 0-OI contracts.
-        # Treat 0 as None for snapshot purposes — we want signal, not noise.
-        if oi is None or oi == 0:
-            results.append((ck, None))
-        else:
-            try:
-                results.append((ck, int(oi)))
-            except (ValueError, TypeError):
+    if quotes:
+        for orig, quote in zip(contracts, quotes):
+            sym, cp, strike, exp = orig
+            ck = make_key(sym, cp, strike, exp)
+            if not isinstance(quote, dict) or quote.get("error") or quote.get("expired"):
                 results.append((ck, None))
+                continue
+            oi = quote.get("openInterest")
+            # Schwab returns 0 for "no data" as well as legit 0-OI contracts.
+            # Treat 0 as None for snapshot purposes — we want signal, not noise.
+            if oi is None or oi == 0:
+                results.append((ck, None))
+            else:
+                try:
+                    results.append((ck, int(oi)))
+                except (ValueError, TypeError):
+                    results.append((ck, None))
+    else:
+        # Schwab failed entirely (timeout/exception/empty). All-None
+        # baseline; Massive fallback below will try to fill these in.
+        results = [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
+
+    # ─── Massive fallback for Schwab misses (added 6/30 evening) ──────────
+    # Schwab has known coverage gaps (~7-13%) on deep-OTM strikes, small/
+    # mid-cap names, and freshly-listed weeklies. Massive's chain snapshot
+    # endpoint often has them since it's sourced from the same OPRA feed
+    # as the trade stream.
+    #
+    # Adding fallback HERE in _fetch_oi_all_async means every caller of
+    # this function automatically benefits:
+    #   - WS worker's oi_fetch_manager (live alerts)
+    #   - 5:30 AM daily_snapshot_job (cron)
+    #   - fetch_and_persist_one_oi (single-contract on-demand)
+    #   - "fetch OI" admin button on /live-massive dashboard
+    #
+    # Schwab still runs first. Massive only fills gaps. Schwab successes
+    # are never overwritten.
+    #
+    # Cost: one Massive chain call per unique underlying among the
+    # unresolved contracts. For a batch where Schwab missed 30 contracts
+    # spread across 5 tickers, that's 5 Massive calls not 30.
+    #
+    # Kill switch: set env var MASSIVE_OI_FALLBACK_DISABLED=1 to skip
+    # Massive without redeploying.
+    import os
+    massive_disabled = os.environ.get(
+        "MASSIVE_OI_FALLBACK_DISABLED", "0"
+    ).lower() in ("1", "true", "yes")
+    unresolved_idx = [i for i, (_, oi) in enumerate(results) if oi is None]
+    if unresolved_idx and not massive_disabled:
+        massive_batch = [contracts[i] for i in unresolved_idx]
+        try:
+            from api.massive_oi_snapshots import (
+                _fetch_oi_all_async as _fetch_oi_massive
+            )
+            massive_results = await asyncio.wait_for(
+                _fetch_oi_massive(massive_batch), timeout=12.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[oi-snapshot] Massive OI fallback timed out (>12s, %d contracts)",
+                len(massive_batch),
+            )
+            massive_results = []
+        except Exception as e:
+            logger.warning("[oi-snapshot] Massive OI fallback failed: %s", e)
+            massive_results = []
+
+        # Merge: only overwrite None entries; never demote a Schwab success.
+        massive_by_ck = {
+            ck: oi for ck, oi in massive_results
+            if oi is not None and oi > 0
+        }
+        massive_filled = 0
+        for i in unresolved_idx:
+            ck = results[i][0]
+            if ck in massive_by_ck:
+                results[i] = (ck, massive_by_ck[ck])
+                massive_filled += 1
+        if massive_filled:
+            unique_underlyings = len({c[0] for c in massive_batch})
+            logger.info(
+                "[oi-snapshot] Massive fallback: %d of %d Schwab misses "
+                "resolved (%d underlyings queried)",
+                massive_filled, len(unresolved_idx), unique_underlyings
+            )
+
     return results
 
 
