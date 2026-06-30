@@ -162,6 +162,23 @@ DEFAULT_THRESHOLDS = {
     # the freshness criterion without known OI. Those rows fall through
     # to Size tier where the requirement doesn't apply.
     "alpha_min_vol_oi_ratio": 1.0,
+    # Block-type exclusion for Alpha Gold (added 6/30 morning).
+    #
+    # BLOCK trades are pre-negotiated off-exchange single transactions.
+    # When a single BLOCK has huge volume (>OI), it LOOKS like dominant
+    # fresh positioning -- but the V/OI dominance can be artifact of a
+    # multi-leg structure (delta-neutral spread, stock-hedge pair, etc.)
+    # where the apparent directional signal is offset by the other leg.
+    #
+    # Until next-day settled OI confirms the directional exposure was
+    # real, a BLOCK with high V/OI is suggestive but not high-conviction.
+    # Exclude BLOCKs from Alpha Gold entirely; they fall through to Size
+    # tier where they're still surfaced but not treated as top conviction.
+    #
+    # SWEEPs are NOT excluded -- they're inherently multi-venue aggressive
+    # liquidity-takers, not negotiable, and V/OI dominance is a cleaner
+    # signal for sweeps than for blocks.
+    "alpha_exclude_block_type": True,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -552,6 +569,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 thresholds = DEFAULT_THRESHOLDS
             deep_itm_threshold = thresholds.get("alpha_max_itm_pct", 25.0)
             min_vol_oi_ratio = thresholds.get("alpha_min_vol_oi_ratio", 1.0)
+            exclude_blocks = thresholds.get("alpha_exclude_block_type", True)
 
             # Gate 1 — Deep-ITM filter (added 6/29 audit):
             # Deep in-the-money calls/puts are delta-exposure plays
@@ -569,7 +587,20 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             # OI (>0); Schwab misses fail this gate.
             vol_exceeds_oi = (oi > 0 and v_oi > min_vol_oi_ratio)
 
-            if not is_deep_itm and vol_exceeds_oi:
+            # Gate 3 — Block-type exclusion (added 6/30 morning):
+            # BLOCK trades are pre-negotiated single transactions. High
+            # V/OI on a block can be artifact of a multi-leg structure
+            # (delta-neutral spread, stock-hedge pair) where the apparent
+            # directional signal is offset by the other leg. Until
+            # next-day settled OI confirms real exposure, blocks don't
+            # earn Alpha Gold conviction. SWEEPs are still allowed --
+            # they're inherently aggressive liquidity-takers and the
+            # V/OI signal is cleaner for them.
+            type_up_g = (type_ or "").upper().strip().strip("/")
+            is_block = ("BLOCK" in type_up_g) or type_up_g in ("BLK", "BL", "BT")
+            block_disqualifies = exclude_blocks and is_block
+
+            if not is_deep_itm and vol_exceeds_oi and not block_disqualifies:
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
             # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
         # LEAPS
@@ -1348,8 +1379,9 @@ async def save_thresholds(request: Request):
     allowed_top = {
         "stack", "premium_by_cap", "unusual", "cap_bands", "premium_override",
         # Alpha Gold quality gates (added 6/29-6/30)
-        "alpha_max_itm_pct",        # deep-ITM filter threshold
-        "alpha_min_vol_oi_ratio",   # vol > OI fresh-positioning gate
+        "alpha_max_itm_pct",         # deep-ITM filter threshold
+        "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
+        "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
