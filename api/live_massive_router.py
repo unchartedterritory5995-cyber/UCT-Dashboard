@@ -233,6 +233,27 @@ DEFAULT_THRESHOLDS = {
     # When False, falls back to legacy behavior (B and BB both treated
     # as bid-side, no distinction).
     "derive_strict_bid_only_bb": True,
+    # Fresh-strike promotion threshold (added 6/30 evening).
+    #
+    # When OI is explicitly known to be zero (Schwab confirmed: no
+    # settled OI yesterday — usually a brand new strike that opened
+    # today), AND today's volume is at least this threshold, treat the
+    # contract as PASSING the V/OI gate (any V/OI test reads as
+    # "freshly established institutional position").
+    #
+    # This is the canonical fresh-strike pattern: someone opens a new
+    # strike and immediately builds a meaningful position. Every contract
+    # of today's volume is brand-new exposure. Highest-conviction signal
+    # possible.
+    #
+    # Critically, this only applies when OI is EXPLICITLY zero from
+    # Schwab. When OI is null/empty (Schwab fetch failed, status unknown),
+    # the gate still rejects -- we don't know if it's a fresh strike or
+    # a transient API failure. Erring conservative on data quality.
+    #
+    # Default 100 contracts: high enough to filter out random tiny
+    # opening prints, low enough to catch real institutional bets.
+    "fresh_strike_min_volume": 100,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -515,6 +536,47 @@ def _parse_int(s, default=0):
         return default
 
 
+def _oi_status(raw):
+    """Distinguish 'OI explicitly known to be zero' (fresh strike, no
+    settled positions yesterday) from 'OI unknown' (Schwab couldn't
+    retrieve data for this contract).
+
+    Both return integer 0 from _parse_int, but they're semantically
+    different: a real fresh strike with active volume is high-conviction
+    institutional positioning (every contract today is new exposure),
+    while unknown OI is just missing data.
+
+    Returns one of:
+      ("known", int)  — Schwab returned a positive integer value
+      ("zero", 0)     — Schwab explicitly returned "0" (real fresh strike)
+      ("unknown", 0)  — Schwab returned null/empty (failed fetch)
+    """
+    if raw is None:
+        return ("unknown", 0)
+    if isinstance(raw, str):
+        raw_s = raw.strip()
+        if raw_s == "":
+            return ("unknown", 0)
+        if raw_s == "0":
+            return ("zero", 0)
+        try:
+            val = int(raw_s)
+            if val > 0:
+                return ("known", val)
+            if val == 0:
+                return ("zero", 0)
+            return ("unknown", 0)  # negative is weird, treat as unknown
+        except ValueError:
+            return ("unknown", 0)
+    if isinstance(raw, (int, float)):
+        if raw > 0:
+            return ("known", int(raw))
+        if raw == 0:
+            return ("zero", 0)
+        return ("unknown", 0)
+    return ("unknown", 0)
+
+
 def _parse_float(s, default=0.0):
     try:
         return float(s) if s else default
@@ -624,6 +686,23 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     oi = _parse_int(row["OI"])
     v_oi = (volume / oi) if oi > 0 else 0
 
+    # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
+    # OI" (Schwab fetch failed). _parse_int collapses both to 0 for math,
+    # but the gates need the distinction to handle fresh strikes correctly.
+    oi_status, _ = _oi_status(row.get("OI"))
+    # oi_status is one of: "known", "zero", "unknown"
+
+    try:
+        fresh_strike_min_vol = _load_thresholds().get(
+            "fresh_strike_min_volume", 100)
+    except Exception:
+        fresh_strike_min_vol = 100
+    # A row counts as "fresh-strike-with-volume" when Schwab confirmed
+    # zero OI yesterday AND today's volume crosses the threshold.
+    # Every contract trading today is brand-new exposure -- the strongest
+    # possible "fresh positioning" signal.
+    is_fresh_strike = (oi_status == "zero" and volume >= fresh_strike_min_vol)
+
     # Multi-leg complex strategies → Algo (non-directional, low priority)
     if type_ == "ML/":
         return ("Algo", "algo", TIER_PRIORITY["algo"])
@@ -699,9 +778,20 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             # Alpha Gold requires fresh institutional positioning -- new
             # exposure being created, not adjustments to existing positions.
             # Volume strictly greater than OI means today's flow is larger
-            # than the entire prior accumulated position. Requires KNOWN
-            # OI (>0); Schwab misses fail this gate.
-            vol_exceeds_oi = (oi > 0 and v_oi > min_vol_oi_ratio)
+            # than the entire prior accumulated position. That's new
+            # conviction, not noise.
+            #
+            # Two pass conditions (added 6/30 evening, for fresh strikes):
+            #   1. Normal: oi > 0 AND v_oi > min_vol_oi_ratio
+            #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+            #      fresh_strike_min_volume floor.
+            #
+            # Schwab MISSES (oi unknown / fetch failed) still fail this
+            # gate -- we don't have the data to evaluate freshness.
+            vol_exceeds_oi = (
+                (oi > 0 and v_oi > min_vol_oi_ratio)
+                or is_fresh_strike
+            )
 
             # Gate 3 — Block-type exclusion (added 6/30 morning):
             # BLOCK trades are pre-negotiated single transactions. High
@@ -730,15 +820,21 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             return ("UCT Unusual Name", "unusual", TIER_PRIORITY["unusual"])
         # Size — big premium magenta
         # Size tier V/OI gate (added 6/30 evening): like Alpha Gold,
-        # Size now requires fresh institutional positioning (vol > OI).
-        # Schwab snapshot misses (oi=0) fail this gate and fall through
-        # to bullish/bearish tier where the requirement doesn't apply.
+        # Size now requires fresh institutional positioning. Two pass
+        # conditions:
+        #   1. Normal: oi > 0 AND v_oi > size_min_vol_oi_ratio
+        #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+        #      fresh_strike_min_volume floor (added 6/30 evening).
+        # Schwab misses (oi unknown) fall through to bullish/bearish.
         if premium >= 500_000:
             try:
                 size_min_voi = _load_thresholds().get("size_min_vol_oi_ratio", 1.0)
             except Exception:
                 size_min_voi = 1.0
-            size_vol_exceeds_oi = (oi > 0 and v_oi > size_min_voi)
+            size_vol_exceeds_oi = (
+                (oi > 0 and v_oi > size_min_voi)
+                or is_fresh_strike
+            )
             if size_vol_exceeds_oi:
                 return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
             # V/OI gate failed → fall through to bullish/bearish
@@ -1512,6 +1608,7 @@ async def save_thresholds(request: Request):
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
+        "fresh_strike_min_volume",   # min volume to promote OI=0 fresh strikes
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
