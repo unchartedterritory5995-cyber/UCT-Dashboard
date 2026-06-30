@@ -179,6 +179,25 @@ DEFAULT_THRESHOLDS = {
     # liquidity-takers, not negotiable, and V/OI dominance is a cleaner
     # signal for sweeps than for blocks.
     "alpha_exclude_block_type": True,
+    # Global deep-ITM filter (added 6/30 morning).
+    #
+    # Trades deeper than this threshold are "synthetic stock substitute"
+    # plays -- the trader is using deep-ITM options as a leveraged stock
+    # exposure, not making a directional bet on the option itself. They
+    # have no informational value as flow signals and clutter the feed.
+    #
+    # When a trade is deeper than this threshold, it is REJECTED entirely
+    # from the alert feed -- not just demoted to a lower tier. The row
+    # does not appear in /live-massive at all.
+    #
+    # Two-tier ITM logic:
+    #   - alpha_max_itm_pct (25%): demote from Alpha Gold, keep in Size
+    #   - max_itm_pct (50%): drop entirely from feed
+    #
+    # 25-50% ITM range still surfaces as Size/Bullish/Bearish (these
+    # can be legitimate aggressive ITM directional bets). 50%+ is
+    # consensus deep-ITM and suppressed.
+    "max_itm_pct": 50.0,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -524,6 +543,19 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     # Multi-leg complex strategies → Algo (non-directional, low priority)
     if type_ == "ML/":
         return ("Algo", "algo", TIER_PRIORITY["algo"])
+
+    # ─── Global deep-ITM rejection (added 6/30 morning) ──────────────
+    # Trades deeper than max_itm_pct% ITM are synthetic-stock-substitute
+    # plays with no flow-signal value. Reject entirely -- the row will
+    # not appear in /live-massive at all. Distinct from the Alpha-tier-
+    # only filter (alpha_max_itm_pct, typically 25%) which only demotes.
+    # This rejects across ALL tiers above the higher threshold (50%).
+    try:
+        max_itm = _load_thresholds().get("max_itm_pct", 50.0)
+    except Exception:
+        max_itm = 50.0
+    if money_pct is not None and money_pct > max_itm:
+        return None
 
     is_leaps = dte >= 180
     side_is_ask = side in ("A", "AA")
@@ -1379,9 +1411,10 @@ async def save_thresholds(request: Request):
     allowed_top = {
         "stack", "premium_by_cap", "unusual", "cap_bands", "premium_override",
         # Alpha Gold quality gates (added 6/29-6/30)
-        "alpha_max_itm_pct",         # deep-ITM filter threshold
+        "alpha_max_itm_pct",         # deep-ITM filter threshold (Alpha only)
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
         "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
+        "max_itm_pct",               # global deep-ITM filter (drops entirely)
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
