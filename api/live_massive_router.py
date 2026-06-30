@@ -213,6 +213,26 @@ DEFAULT_THRESHOLDS = {
     # requires KNOWN OI (>0); Schwab snapshot misses fail this gate
     # and fall through to bullish/bearish tier.
     "size_min_vol_oi_ratio": 1.0,
+    # Strict directional rule (added 6/30 evening, after audit).
+    #
+    # When True (default), only the unambiguously-aggressive sides
+    # produce Bull/Bear direction classification:
+    #   - A   (at ask)        Bull on calls / Bear on puts
+    #   - AA  (above ask)     Bull on calls / Bear on puts
+    #   - BB  (below bid)     Bear on calls / Bull on puts
+    #
+    # Side=B (at bid only) is dropped from directional classification.
+    # Bid-side fills can be closing trades, covered call writes, dealer
+    # hedges, or aggressive selling -- the mechanics don't tell us which.
+    # Without intent signal, calling them directional generates noise.
+    #
+    # Today's audit (6/30) showed most Size-tier disagreements between
+    # UCT and BBS/Bullflow were on bid-side BLOCK trades where all three
+    # sources guessed differently because the trade itself was ambiguous.
+    #
+    # When False, falls back to legacy behavior (B and BB both treated
+    # as bid-side, no distinction).
+    "derive_strict_bid_only_bb": True,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -520,11 +540,60 @@ def _ts_from_row(created_date: str, created_time: str) -> float:
 
 
 def _derive_direction(cp: str, side: str):
-    """Bull/Bear from Side+CP. None when Side is empty (unclassified)."""
+    """Bull/Bear from Side+CP. Returns None when the side classification
+    is too ambiguous to call directional.
+
+    Refined rule (added 6/30 evening, after audit analysis showed bid-side
+    blocks are unreliable directional signals):
+
+      Aggressive sides (kept as directional):
+        - A   (at ask)        — buyer aggression
+        - AA  (above ask)     — strong buyer aggression
+        - BB  (below bid)     — strong seller aggression
+
+      Ambiguous side (dropped — return None):
+        - B   (at bid)        — can be closing trade, covered call write,
+                                dealer hedge, or genuine seller aggression.
+                                Without more context, not a clean direction
+                                signal. Trader can still see these in
+                                uncurated mode.
+        - Mid / blank         — no signal at all
+
+    Tunable via thresholds.derive_strict_bid_only_bb. When False, falls back
+    to legacy behavior treating B and BB identically (pre-6/30 logic).
+
+    For PUT contracts, direction maps inversely as before.
+    """
     if not side:
         return None
-    side_is_ask = side in ("A", "AA")
-    side_is_bid = side in ("B", "BB")
+    side_norm = side.strip().upper()
+
+    # Check tunable mode (default: strict)
+    try:
+        thresholds = _load_thresholds()
+        strict = thresholds.get("derive_strict_bid_only_bb", True)
+    except Exception:
+        strict = True
+
+    # Aggressive ask-side (always directional)
+    if side_norm in ("A", "AA"):
+        side_is_ask = True
+        side_is_bid = False
+    elif side_norm == "BB":
+        # Below-bid: unambiguous seller aggression, always directional
+        side_is_ask = False
+        side_is_bid = True
+    elif side_norm == "B":
+        if strict:
+            # Strict mode: at-bid alone is ambiguous, drop
+            return None
+        # Legacy mode: treat B same as BB
+        side_is_ask = False
+        side_is_bid = True
+    else:
+        # Unknown side string
+        return None
+
     if cp == "CALL":
         if side_is_ask: return "Bull"
         if side_is_bid: return "Bear"
@@ -1442,6 +1511,7 @@ async def save_thresholds(request: Request):
         "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
+        "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
