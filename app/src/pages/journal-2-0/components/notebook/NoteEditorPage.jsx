@@ -1,9 +1,11 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import HeroImagePicker from './HeroImagePicker'
+import NoteVideoHero from './NoteVideoHero'
+import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NoteEditorPage.module.css'
 
@@ -80,9 +82,17 @@ export default function NoteEditorPage({ noteId, onBack }) {
     }
   }
 
+  const ytId = parseYouTubeId(note?.heroImageUrl)
+  // When the note carries a YouTube hero, upgrade any legacy bold "[MM:SS]"
+  // text prefixes into clickable videoTimestamp chips before the editor sees them.
+  const bodyForEditor = useMemo(
+    () => (ytId && note?.bodyJson ? linkifyTimestamps(note.bodyJson) : note?.bodyJson),
+    [ytId, note?.bodyJson],
+  )
+
   const editor = useEditor({
     extensions: buildExtensions(),
-    content: note?.bodyJson || { type: 'doc', content: [] },
+    content: bodyForEditor || { type: 'doc', content: [] },
     editorProps: {
       attributes: { class: styles.proseEditor },
       handlePaste(view, event) {
@@ -125,8 +135,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
     if (!editor || editor.isDestroyed || !note?.bodyJson || editor.isFocused) return
     try {
       const current = JSON.stringify(editor.getJSON())
-      const fresh = JSON.stringify(note.bodyJson)
-      if (current !== fresh) editor.commands.setContent(note.bodyJson, false)
+      const fresh = JSON.stringify(bodyForEditor)
+      if (current !== fresh) editor.commands.setContent(bodyForEditor, false)
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
@@ -295,25 +305,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
       </header>
 
       <div className={styles.column}>
-        {parseYouTubeId(note.heroImageUrl) ? (
-          <div className={styles.videoHero}>
-            <div className={styles.videoHeroFrame}>
-              <iframe
-                src={`https://www.youtube.com/embed/${parseYouTubeId(note.heroImageUrl)}?rel=0&modestbranding=1&playsinline=1`}
-                title="Session video"
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-            <a
-              className={styles.videoHeroLink}
-              href={note.heroImageUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Watch on YouTube ↗
-            </a>
-          </div>
+        {ytId ? (
+          <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
         ) : (
           <HeroImagePicker
             noteId={noteId}
