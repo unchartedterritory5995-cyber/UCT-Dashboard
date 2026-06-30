@@ -214,10 +214,12 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     [showShares, positions, optionRows],
   )
 
+  const priceMap = useMemo(
+    () => Object.fromEntries(Object.entries(prices).map(([sym, v]) => [sym, v?.price])),
+    [prices],
+  )
+
   const aggregates = useMemo(() => {
-    const priceMap = Object.fromEntries(
-      Object.entries(prices).map(([sym, v]) => [sym, v?.price]),
-    )
     const base = portfolioAggregates(positions, priceMap, accountSize)
     if (optionRows.length === 0) return base
     // Fold options into Value / Unrealized / count (Risk/Heat: options add none).
@@ -232,15 +234,22 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       unrealized,
       invested: accountSize ? value / accountSize : base.invested,
     }
-  }, [positions, optionRows, prices, accountSize])
+  }, [positions, optionRows, priceMap, accountSize])
 
-  const priceMap = useMemo(
-    () => Object.fromEntries(Object.entries(prices).map(([sym, v]) => [sym, v?.price])),
-    [prices],
+  // BrokerAccountHero's non-live base value is portfolio-wide (sum across ALL
+  // connected broker accounts), but the live override below is computed for
+  // only the selected account. With 2+ broker accounts, applying a single
+  // account's live net-liq over the portfolio total would visibly understate
+  // the headline the moment the stream connects — so only live-override when
+  // there's exactly one broker account (no ambiguity, single-account math is
+  // already correct).
+  const brokerAccountCount = useMemo(
+    () => accounts.filter((a) => a?.balanceSource === 'broker' && a?.brokerTotalEquity != null).length,
+    [accounts],
   )
   const liveEquity = useMemo(
-    () => brokerLiveEquity(selectedAccount, positions, priceMap),
-    [selectedAccount, positions, priceMap],
+    () => (brokerAccountCount <= 1 ? brokerLiveEquity(selectedAccount, positions, priceMap) : null),
+    [brokerAccountCount, selectedAccount, positions, priceMap],
   )
 
   const pickerBtnRef = useRef(null)
@@ -263,7 +272,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         account={selectedAccount}
         aggregates={aggregates}
         liveEquity={liveEquity}
-        isLive={isStreaming}
+        isLive={isStreaming && liveEquity?.liveValue != null}
       />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}
