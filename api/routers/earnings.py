@@ -90,6 +90,10 @@ def debug_earnings_sources(sym: str):
         ("stable/price-target-summary", f"https://financialmodelingprep.com/stable/price-target-summary?symbol={sym}&apikey={fmp_key}"),
         ("stable/price-target-news", f"https://financialmodelingprep.com/stable/price-target-news?symbol={sym}&limit=5&apikey={fmp_key}"),
         ("v3/analyst-estimates", f"https://financialmodelingprep.com/api/v3/analyst-estimates/{sym}?period=quarter&limit=8&apikey={fmp_key}"),
+        ("inst/positions-summary-2026q1", f"https://financialmodelingprep.com/stable/institutional-ownership/symbol-positions-summary?symbol={sym}&year=2026&quarter=1&apikey={fmp_key}"),
+        ("inst/positions-summary-2025q4", f"https://financialmodelingprep.com/stable/institutional-ownership/symbol-positions-summary?symbol={sym}&year=2025&quarter=4&apikey={fmp_key}"),
+        ("inst/holder-analytics-2025q4", f"https://financialmodelingprep.com/stable/institutional-ownership/extract-analytics/holder?symbol={sym}&year=2025&quarter=4&page=0&limit=3&apikey={fmp_key}"),
+        ("inst/latest", f"https://financialmodelingprep.com/stable/institutional-ownership/latest?page=0&limit=2&apikey={fmp_key}"),
     ]
     # Rich dump of the live stable/earnings endpoint (what get_year_earnings uses)
     # so we can confirm revenueActual is populated for PAST quarters, not just
