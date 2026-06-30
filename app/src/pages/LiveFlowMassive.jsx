@@ -182,6 +182,23 @@ function fmtPrice(p) {
   return "$" + p.toFixed(2);
 }
 
+// Spot is the underlying stock price at alert time (snapshot, not live).
+// Same formatting as fmtPrice — two decimals, dollar sign.
+function fmtSpot(s) {
+  if (s == null || isNaN(s) || s <= 0) return "—";
+  return "$" + s.toFixed(2);
+}
+
+// Moneyness as a compact display: "12.5% ITM", "3.2% OTM", or "ATM".
+// pct sign convention from backend _moneyness(): positive when ITM,
+// negative when OTM, ~0 when ATM (with label="ATM" applied below 1%).
+// Display uses |pct| paired with the label so the sign info is implicit.
+function fmtMoneyness(pct, label) {
+  if (pct == null || label == null) return "—";
+  if (label === "ATM") return "ATM";
+  return `${Math.abs(pct).toFixed(1)}% ${label}`;
+}
+
 // Volume / OI as compact counts. Massive contracts hit 6-digit volume on
 // busy days; raw integers get unreadable. 1234 → "1.2K", 12345 → "12.3K".
 function fmtCount(n) {
@@ -862,8 +879,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | STRIKE | C/P | EXP | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
@@ -892,6 +909,15 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           </span>
         )}
       </span>
+      {/* Spot column (added 6/29): underlying price at alert time, snapshot */}
+      <span style={{
+        color: P.dm,
+        fontSize: secondaryFontSize,
+        textAlign: "center",
+        whiteSpace: "nowrap",
+      }}>
+        {fmtSpot(alert.spot)}
+      </span>
       <span
         style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "center", cursor: "pointer", whiteSpace: "nowrap" }}
         onClick={() => {
@@ -908,6 +934,24 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       </span>
       <span style={{ color: P.dm, fontSize: secondaryFontSize, whiteSpace: "nowrap", textAlign: "center" }}>
         {alert.exp || "—"}
+      </span>
+      {/* %ITM/OTM column (added 6/29): moneyness from backend _moneyness().
+          Bold when ITM > 25% to flag deep-ITM trades that would NOT
+          qualify for Alpha Gold tier under the new router filter. */}
+      <span style={{
+        color: P.dm,
+        fontSize: secondaryFontSize,
+        textAlign: "center",
+        whiteSpace: "nowrap",
+        fontWeight: (alert.moneynessLabel === "ITM"
+                     && alert.moneynessPct != null
+                     && alert.moneynessPct > 25) ? 700 : 400,
+      }} title={
+        alert.spot != null && alert.strike != null
+          ? `Spot $${Number(alert.spot).toFixed(2)} · Strike ${fmtStrike(alert.strike)} · ${fmtMoneyness(alert.moneynessPct, alert.moneynessLabel)}`
+          : ""
+      }>
+        {fmtMoneyness(alert.moneynessPct, alert.moneynessLabel)}
       </span>
       <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
         {fmtPrice(alert.averageFillPrice)}
@@ -1306,16 +1350,19 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "98px 100px 80px 42px 100px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
       <span style={{ textAlign: "center" }}>TIME</span>
       <span style={{ textAlign: "center" }}>TICKER</span>
+      <span style={{ textAlign: "center" }}>SPOT</span>
       <span style={{ textAlign: "center" }}>STRIKE</span>
       <span style={{ textAlign: "center" }}>C/P</span>
       <span style={{ textAlign: "center" }}>EXP</span>
+      <span style={{ textAlign: "center" }}>%ITM/OTM</span>
       <span style={{ textAlign: "center" }}>PRICE</span>
       <span style={{ textAlign: "center" }}>VOL</span>
       <span style={{ textAlign: "center" }}>OI</span>
