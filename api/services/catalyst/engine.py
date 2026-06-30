@@ -832,6 +832,46 @@ def _enrich_with_analyst_actions(top: list[dict]) -> None:
             c["analyst_meta"] = meta
 
 
+def _enrich_with_rating_changes(top: list[dict]) -> None:
+    """DISPLAY-ONLY analyst rating-change signal (gated CATALYST_RATINGS_SIGNAL_
+    ENABLED, default OFF). Attaches a recent upgrade/downgrade/initiate to each
+    selected row as `rating_change` (from the FMP-Ultimate analyst_grades service,
+    cached 6h) so the tile can show the sell-side action. **Never fed to synthesis
+    or the skip-if-stable hash** → zero thesis-cache impact, zero cost spike,
+    zero behavior change when off. Bounded to the selected set; best-effort."""
+    if os.environ.get("CATALYST_RATINGS_SIGNAL_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return
+    try:
+        from api.services.analyst_grades import get_analyst_grades
+    except Exception:
+        return
+    today = dt.date.today()
+    for c in top:
+        try:
+            data = get_analyst_grades(c.get("ticker") or "")
+        except Exception:
+            data = None
+        if not data:
+            continue
+        for a in (data.get("recent_actions") or []):  # newest-first
+            if (a.get("action") or "").lower() not in ("upgrade", "downgrade", "initiate"):
+                continue
+            d = str(a.get("date") or "")[:10]
+            try:
+                if (today - dt.date.fromisoformat(d)).days > 14:
+                    continue  # only the last two weeks counts as a live catalyst
+            except Exception:
+                continue
+            c["rating_change"] = {
+                "action":     a.get("action"),
+                "company":    a.get("company"),
+                "from_grade": a.get("from_grade"),
+                "to_grade":   a.get("to_grade"),
+                "date":       d,
+            }
+            break
+
+
 def _market_closed_today(now_et: Optional[dt.datetime] = None) -> tuple[bool, str]:
     """True if today (ET) is NOT an open market day — a weekend or a NYSE full
     closure. Reuses the maintained NYSE holiday set in bars_fetch so the catalyst
@@ -964,6 +1004,10 @@ def run_refresh() -> dict:
     # Analyst-action enrichment: catch analyst-driven movers pre-wire-push.
     _enrich_with_analyst_actions(top_12)
 
+    # Display-only analyst rating-change signal (gated, default OFF). Does NOT
+    # feed synthesis or the skip-if-stable hash — purely decorates the row.
+    _enrich_with_rating_changes(top_12)
+
     # Free per-mover "why" fetch: pull Google News for THIN candidates first
     # so the paid Perplexity zero-signal fallback below fires less often.
     _enrich_with_ticker_news(top_12)
@@ -1054,6 +1098,9 @@ def run_refresh() -> dict:
                     "earnings_meta": c.get("earnings_meta"),
                     "scanner_setup": c.get("scanner_setup"),
                 }, default=str),
+                # Display-only; intentionally NOT part of raw_signals/signals_hash.
+                "rating_change": json.dumps(c["rating_change"], default=str)
+                                 if c.get("rating_change") else None,
             })
             summary["synthesized"] += 1
         except Exception as e:

@@ -399,6 +399,33 @@
   border: 1px solid rgba(201, 168, 76, 0.45);
 }
 
+/* Analyst rating-change chip — recent upgrade/downgrade context (display-only) */
+.ratingChip {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  vertical-align: middle;
+}
+.ratingUp {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--ut-green-bright);
+  border: 1px solid rgba(74, 222, 128, 0.40);
+}
+.ratingDown {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--ut-red-bright);
+  border: 1px solid rgba(248, 113, 113, 0.40);
+}
+.ratingFlat {
+  background: rgba(160, 160, 160, 0.14);
+  color: var(--text-muted);
+  border: 1px solid rgba(160, 160, 160, 0.35);
+}
+
 /* Catalyst type chip — small label leading the thesis text */
 .typeChip {
   display: inline-block;
