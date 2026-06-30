@@ -539,16 +539,23 @@ def _classify_events_side(events: list) -> None:
             in_pool += 1
 
         # ====== TIER 1: NBBO classification (preferred) ======
-        nbbo = _nbbo_table.get(sym)
+        # Phase 2 (6/29 audit): look up the NBBO in force AT the trade's
+        # timestamp via _nbbo_at(), not the current NBBO from _nbbo_table.
+        # The old approach compared trades to whatever NBBO was latest at
+        # batch-flush time, which for active contracts could be seconds
+        # newer than the trade -- producing systematic misclassification
+        # on bid-stack accumulation patterns where the bid was rising
+        # between the trade and the next-observed quote update.
+        nbbo = _nbbo_at(sym, evt.first_ts_ns)
         nbbo_classified = False
         if nbbo:
             have_nbbo += 1
-            bid, ask, ts_ms = nbbo
-            nbbo_ts_ns = ts_ms * 1_000_000
-            age_ns = abs(evt.first_ts_ns - nbbo_ts_ns)
+            bid, ask, nbbo_ts_ns = nbbo
+            age_ns = evt.first_ts_ns - nbbo_ts_ns  # always >= 0 (_nbbo_at filters)
             if age_ns <= NBBO_STALENESS_NS:
                 fresh_nbbo += 1
-                side = _classify_side(evt.avg_price, nbbo)
+                # _classify_side expects (bid, ask, ts_ms) format
+                side = _classify_side(evt.avg_price, (bid, ask, nbbo_ts_ns // 1_000_000))
                 if side:
                     evt.side = side
                     classified += 1
@@ -838,6 +845,58 @@ _TICK_TEST_CACHE: dict = {}
 from collections import deque
 _RAW_T_HISTORY: dict = {}  # sym -> deque[(ts_ns, price)]
 _RAW_T_MAX = 50            # keep last 50 prints per contract
+
+
+# Phase 2 (6/29 audit): per-contract NBBO history with time-aligned lookup.
+#
+# Background: prior to this, _nbbo_table stored only the CURRENT NBBO per
+# contract. When trades were classified in batches (which can span seconds
+# of wall-clock time, especially under aggregator congestion), the
+# comparison was against whatever NBBO was latest at batch-flush time --
+# NOT what the NBBO was at the moment of the actual trade. For active
+# contracts where bid/ask moves multiple times per second, this produced
+# systematic misclassification on bid-stack accumulation patterns.
+#
+# 6/29 audit: 21 of 86 Alpha Gold fires disagreed with BBS+Bullflow on
+# Side direction (BE/MRVL/MU/AMD/LLY/NVDA/AMZN) -- all consistent with
+# stale-NBBO-at-classify-time root cause.
+#
+# Fix: maintain a bounded deque of (ts_ns, bid, ask) tuples per contract,
+# appended on every Q event. At classify time, _nbbo_at() walks backward
+# to find the snapshot in force at the trade's timestamp.
+#
+# Memory: 950 contracts (Q subscription cap) * 1000 snapshots * 24 bytes
+# = ~23 MB worst case. In practice most contracts have <100 snapshots
+# per session for the time window relevant to classification.
+_NBBO_HISTORY: dict = {}    # sym -> deque[(ts_ns, bid, ask)]
+_NBBO_HISTORY_MAX = 1000    # keep last 1000 NBBO snapshots per contract
+
+
+def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
+    """
+    Find the latest NBBO snapshot at or before ts_ns for this contract.
+
+    Returns (bid, ask, q_ts_ns) -- the most recent NBBO update whose
+    timestamp is <= ts_ns. Returns None if no such entry exists.
+
+    Does NOT enforce staleness -- caller is responsible for checking
+    age vs NBBO_STALENESS_NS. This separation keeps the helper pure
+    and lets the classifier do its own telemetry.
+
+    Walks newest-to-oldest. For typical batches the answer is in the
+    first few iterations (event being classified is recent, NBBO history
+    has many entries after it), so amortized cost is small despite
+    worst-case O(n).
+    """
+    hist = _NBBO_HISTORY.get(sym)
+    if not hist:
+        return None
+    for q_ts_ns, bid, ask in reversed(hist):
+        if q_ts_ns <= ts_ns:
+            return (bid, ask, q_ts_ns)
+    # No quote at or before this trade -- trade is older than any quote
+    # we have in history for this contract.
+    return None
 
 
 # Phase 2g: ER (earnings) flag enrichment. BBS rows include ER='T' for
@@ -1292,6 +1351,12 @@ async def _run_session(ws):
     # Phase 2i: clear raw T print history on session start. Same reasoning
     # as tick cache -- stale prices across disconnects can mis-classify.
     _RAW_T_HISTORY.clear()
+
+    # Phase 2 (6/29 audit): clear NBBO history on session start. Same
+    # reasoning -- stale quotes from before the disconnect would mis-classify
+    # the first events of the new session. Active contracts rebuild the
+    # history within seconds as Q events stream in post-reconnect.
+    _NBBO_HISTORY.clear()
 
     # Phase 2c.1: warm-start the Q subscription pool with historically-active
     # contracts BEFORE the message loop starts. Without this, the first
@@ -1802,6 +1867,15 @@ async def _run_session(ws):
                     except (KeyError, ValueError, TypeError):
                         continue
                     _nbbo_table[sym] = (bid, ask, ts_ms)
+                    # Phase 2 (6/29 audit): append to per-contract NBBO history
+                    # for proper time-aligned classification. The current-only
+                    # _nbbo_table is kept for diagnostics/status endpoints but
+                    # is no longer the source of truth for Side classification.
+                    nh = _NBBO_HISTORY.get(sym)
+                    if nh is None:
+                        nh = deque(maxlen=_NBBO_HISTORY_MAX)
+                        _NBBO_HISTORY[sym] = nh
+                    nh.append((ts_ms * 1_000_000, bid, ask))
                     _state["quotes_received"] += 1
                 elif ev_type == "status":
                     logger.info("[massive-ws] status: %s", evt)
