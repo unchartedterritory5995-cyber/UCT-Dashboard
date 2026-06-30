@@ -219,6 +219,40 @@ export const portfolioAggregates = (openPositions, prices, accountSize) => {
   }
 }
 
+/**
+ * Live mark-to-market for a BROKER account headline.
+ *
+ * Starts from the broker's authoritative net-liq (`account.brokerTotalEquity`)
+ * and adds ONLY the price drift since the last sync. At sync time
+ * (livePrice === brokerPrice) liveDelta is 0, so liveValue reconciles EXACTLY
+ * to the broker's reported number; intraday it drifts with the market.
+ *
+ *   liveDelta = Σ over equity positions of (livePrice − brokerPrice) × signedShares
+ *   signedShares: Short ⇒ −shares, else +shares
+ *
+ * A position contributes 0 when it is an option, or when its live price, broker
+ * mark, or share count is missing/non-finite.
+ *
+ * @param {{brokerTotalEquity?: number|null}} account
+ * @param {Array<{symbol:string, shares:number, side?:string, brokerPrice?:number, isOption?:boolean}>} positions
+ * @param {Record<string, number>} prices  symbol → live price (number)
+ * @returns {{liveValue: number|null, liveDelta: number}}
+ */
+export const brokerLiveEquity = (account, positions, prices) => {
+  const base = account?.brokerTotalEquity
+  if (base == null || !Number.isFinite(base)) return { liveValue: null, liveDelta: 0 }
+  let liveDelta = 0
+  for (const p of positions || []) {
+    if (p?.isOption) continue
+    const live = prices?.[p.symbol]
+    const mark = p?.brokerPrice
+    if (!Number.isFinite(live) || !Number.isFinite(mark) || !Number.isFinite(p?.shares)) continue
+    const signed = p.side === 'Short' ? -p.shares : p.shares
+    liveDelta += (live - mark) * signed
+  }
+  return { liveValue: base + liveDelta, liveDelta }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.5 Trade-level
 // ───────────────────────────────────────────────────────────────────────────

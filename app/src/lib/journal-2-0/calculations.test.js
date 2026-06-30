@@ -29,6 +29,7 @@ import {
   holdDays,
   tradeResult,
   summaryStats,
+  brokerLiveEquity,
 } from './calculations.js'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -799,5 +800,44 @@ describe('summaryStats', () => {
     const s = summaryStats([mkT('Win', 100), mkT('Win', 250), mkT('Loss', -80)])
     expect(s.largestWin).toBe(250)
     expect(s.largestLoss).toBe(-80)
+  })
+})
+
+describe('brokerLiveEquity', () => {
+  const acct = { brokerTotalEquity: 10000 }
+
+  it('reconciles to brokerTotalEquity when live === broker mark', () => {
+    const positions = [{ symbol: 'AAPL', shares: 10, side: 'Long', brokerPrice: 100 }]
+    expect(brokerLiveEquity(acct, positions, { AAPL: 100 }))
+      .toEqual({ liveValue: 10000, liveDelta: 0 })
+  })
+
+  it('adds signed drift for a long position', () => {
+    const positions = [{ symbol: 'AAPL', shares: 10, side: 'Long', brokerPrice: 100 }]
+    const r = brokerLiveEquity(acct, positions, { AAPL: 102 })
+    expect(r.liveDelta).toBe(20)        // (102 - 100) * 10
+    expect(r.liveValue).toBe(10020)
+  })
+
+  it('flips sign for a short position', () => {
+    const positions = [{ symbol: 'TSLA', shares: 5, side: 'Short', brokerPrice: 200 }]
+    const r = brokerLiveEquity(acct, positions, { TSLA: 210 })
+    expect(r.liveDelta).toBe(-50)       // (210 - 200) * -5
+    expect(r.liveValue).toBe(9950)
+  })
+
+  it('ignores options and missing-price positions', () => {
+    const positions = [
+      { symbol: 'NVDA Oct $5C', shares: 2, side: 'Long', brokerPrice: 3, isOption: true },
+      { symbol: 'MSFT', shares: 4, side: 'Long' },                 // no brokerPrice
+      { symbol: 'AMD', shares: 1, side: 'Long', brokerPrice: 50 }, // no live price
+    ]
+    expect(brokerLiveEquity(acct, positions, { MSFT: 400 }))
+      .toEqual({ liveValue: 10000, liveDelta: 0 })
+  })
+
+  it('returns null liveValue when brokerTotalEquity is missing', () => {
+    expect(brokerLiveEquity({ brokerTotalEquity: null }, [], {}))
+      .toEqual({ liveValue: null, liveDelta: 0 })
   })
 })
