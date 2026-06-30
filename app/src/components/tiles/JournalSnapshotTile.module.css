@@ -64,6 +64,15 @@
   text-shadow: 0 1px 14px rgba(201, 168, 76, 0.12);
 }
 
+.liveBadge {
+  margin-left: 6px;
+  font-size: 0.4em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gain, #22c55e);
+  vertical-align: middle;
+}
+
 .perfRow {
   display: flex;
   flex-wrap: wrap;

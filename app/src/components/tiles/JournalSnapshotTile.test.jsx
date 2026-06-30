@@ -23,8 +23,8 @@ vi.mock('swr', () => ({
   useSWRConfig: () => ({ mutate: () => {} }),
 }))
 
-vi.mock('../../hooks/useLivePrices', () => ({
-  default: () => ({ prices: h.prices, isLoading: false, error: null, refresh: () => {} }),
+vi.mock('../../hooks/useRealtimePrices', () => ({
+  default: () => ({ prices: h.prices, isLoading: false, isStreaming: true, staleSymbols: new Set() }),
 }))
 
 import JournalSnapshotTile from './JournalSnapshotTile'

@@ -21,11 +21,12 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
-import useLivePrices from '../../hooks/useLivePrices'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
 import {
   portfolioAggregates,
   positionPnlDollar,
+  brokerLiveEquity,
   money,
   moneySigned,
   percent,
@@ -119,7 +120,7 @@ export default function JournalSnapshotTile() {
   const brokerConnected = !!brokerData?.connected || hasBroker
 
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
-  const { prices } = useLivePrices(symbols)
+  const { prices, isStreaming } = useRealtimePrices(symbols)
 
   const priceMap = useMemo(
     () => Object.fromEntries(
@@ -130,6 +131,15 @@ export default function JournalSnapshotTile() {
   const agg = useMemo(
     () => portfolioAggregates(positions, priceMap, 0),
     [positions, priceMap],
+  )
+
+  // Portfolio-wide live broker value — folds intraday drift (live price vs each
+  // position's last-synced broker mark) into the broker hero's net-liq headline.
+  const brokerBase = perf?.endEquity
+    ?? brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0)
+  const brokerLive = useMemo(
+    () => brokerLiveEquity({ brokerTotalEquity: brokerBase }, positions, priceMap),
+    [brokerBase, positions, priceMap],
   )
   const manualToday = useMemo(() => {
     let s = 0
@@ -204,7 +214,7 @@ export default function JournalSnapshotTile() {
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} brokerAccounts={brokerAccounts} positions={positions} strategies={strategies} />
+              ? <BrokerHero perf={perf} brokerAccounts={brokerAccounts} positions={positions} strategies={strategies} brokerLive={brokerLive} isStreaming={isStreaming} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
             <div className={styles.rows}>
@@ -241,10 +251,11 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, brokerAccounts, positions, strategies }) {
+function BrokerHero({ perf, brokerAccounts, positions, strategies, brokerLive, isStreaming }) {
   const series = perf?.equitySeries || []
   const sumEquity = brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0)
-  const value = perf?.endEquity ?? (sumEquity || null)
+  const brokerBase = perf?.endEquity ?? (sumEquity || null)
+  const value = brokerLive?.liveValue ?? brokerBase
 
   // Today = change across the last two REAL (non-estimated) snapshots.
   const real = series.filter((p) => !p.estimated)
@@ -262,7 +273,10 @@ function BrokerHero({ perf, brokerAccounts, positions, strategies }) {
 
   return (
     <div className={styles.hero}>
-      <div className={styles.heroValue}>{money(value)}</div>
+      <div className={styles.heroValue}>
+        {money(value)}
+        {isStreaming && <span className={styles.liveBadge}> LIVE</span>}
+      </div>
       <div className={styles.perfRow}>
         {todayChange != null && <PerfFigure label="Today" dollar={todayChange} pct={todayPct} />}
         {periodPnl != null && <PerfFigure label={BROKER_PERIOD} dollar={periodPnl} pct={periodPct} />}
