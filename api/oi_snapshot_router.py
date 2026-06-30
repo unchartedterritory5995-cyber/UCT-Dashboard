@@ -351,11 +351,82 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
             except Exception as e:
                 logger.warning(f"[oi-snapshot bulk-fetch] persist failed: {e}")
 
+            # CRITICAL: Also UPDATE the OI column on today's flow rows for
+            # these contracts. Without this step, contract_oi_snapshots has
+            # the new OI value but the live_massive page still reads OI
+            # from the flow row directly — which is still empty for trades
+            # that were written BEFORE OI was resolved. This is the same
+            # backfill the worker does in _color_refresh_sync after live
+            # OI fetches resolve.
+            rows_updated = _backfill_flow_oi(to_persist)
+            if rows_updated:
+                logger.info(
+                    f"[oi-snapshot bulk-fetch] backfilled OI on "
+                    f"{rows_updated} flow rows"
+                )
+
     return BulkFetchOIResponse(
         results=results,
         cache_hits=cache_hits,
         schwab_calls=schwab_calls,
     )
+
+
+def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
+    """Update flow.OI column on today's rows for contracts with newly-
+    resolved OI. Mirrors what the worker's _color_refresh_sync does after
+    on-demand OI fetches.
+
+    resolved_contracts: [(contract_key, oi, source), ...]
+        contract_key format: 'SYM|C/P|float_strike|M/D/YYYY'
+
+    Returns total number of flow rows updated.
+    """
+    import sqlite3
+    from api.flow_db import FlowDB
+    today = date.today()
+    today_mdY = f"{today.month}/{today.day}/{today.year}"
+    db = FlowDB()
+    rows_updated = 0
+    try:
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            for ck, oi, _src in resolved_contracts:
+                try:
+                    sym, cp_letter, strike_str, exp_mdy = ck.split("|", 3)
+                    strike = float(strike_str)
+                except (ValueError, AttributeError):
+                    continue
+                cp_full = 'CALL' if cp_letter == 'C' else 'PUT'
+                # Try multiple strike formats since flow.Strike may be
+                # stored as '290' or '290.0' depending on how it was
+                # originally inserted. The worker had the same issue and
+                # used the same workaround.
+                strike_strs = []
+                if strike == int(strike):
+                    strike_strs.append(str(int(strike)))
+                strike_strs.append(str(float(strike)))
+                strike_strs.append(f"{strike:.1f}")
+                seen = set()
+                strike_strs = [
+                    s for s in strike_strs if not (s in seen or seen.add(s))
+                ]
+                for strike_str in strike_strs:
+                    upd = conn.execute(
+                        "UPDATE flow SET OI=? WHERE Symbol=? AND "
+                        "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                        "CreatedDate=? AND (OI='0' OR OI='' OR OI IS NULL)",
+                        (str(oi), sym, cp_full, strike_str, exp_mdy,
+                         today_mdY),
+                    )
+                    if upd.rowcount > 0:
+                        rows_updated += upd.rowcount
+                        break  # found a matching strike format, done
+            conn.commit()
+    except Exception as e:
+        logger.warning(
+            f"[oi-snapshot bulk-fetch] flow.OI backfill failed: {e}"
+        )
+    return rows_updated
 
 
 # ── Diagnostic endpoint for Massive OI integration ───────────────────────
