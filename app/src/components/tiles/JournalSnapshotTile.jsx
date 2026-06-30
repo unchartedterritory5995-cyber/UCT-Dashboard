@@ -12,7 +12,7 @@
  *     number is always populated and never collapses to $0.00 when the live
  *     price feed lags or the market is closed.
  *   - MANUAL accounts → live mark-to-market of open equity positions
- *     (portfolioAggregates over useLivePrices) + Today + Open P&L.
+ *     (portfolioAggregates over useRealtimePrices) + Today + Open P&L.
  *
  * Plus a short open-positions list (equity + options) and an onboarding empty
  * state. Zero new backend — reuses existing J2 endpoints + helpers.
