@@ -262,6 +262,12 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
         else:
             schwab_needed.append((c, ck, exp_mdy))
 
+    logger.info(
+        "[oi-snapshot bulk-fetch] in: %d contracts, cache_hits: %d, "
+        "schwab_needed: %d",
+        len(contracts), cache_hits, len(schwab_needed)
+    )
+
     # Stage 2: Schwab batch fetch for misses
     schwab_calls = 0
     if schwab_needed:
@@ -275,6 +281,17 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
             return BulkFetchOIResponse(
                 results=results, cache_hits=cache_hits, schwab_calls=0
             )
+
+        # Diagnostic: log what came back from _fetch_oi_all_async
+        # (which now includes Massive fallback automatically)
+        resolved_count = sum(
+            1 for _, oi in schwab_results if oi is not None and oi > 0
+        )
+        logger.info(
+            "[oi-snapshot bulk-fetch] _fetch_oi_all_async returned: "
+            "%d resolved of %d requested",
+            resolved_count, len(schwab_results)
+        )
 
         # Persist + accumulate
         to_persist = []
@@ -300,3 +317,83 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
         cache_hits=cache_hits,
         schwab_calls=schwab_calls,
     )
+
+
+# ── Diagnostic endpoint for Massive OI integration ───────────────────────
+# Hits Massive's snapshot endpoint directly and returns the raw response
+# (truncated). Use to verify URL/auth/response shape when troubleshooting
+# why the Massive fallback isn't filling Schwab gaps.
+#
+# Usage from browser:
+#   /api/oi-snapshot/test-massive/QCOM
+@router.get("/test-massive/{ticker}")
+async def test_massive_oi(ticker: str):
+    """Diagnostic: directly hit Massive's snapshot endpoint and return
+    the raw response. Bypasses all integration code so we can see exactly
+    what Massive returns without parser/integration layers in the way.
+
+    Returns:
+      - url: exact URL called
+      - status_code: HTTP response code
+      - body_preview: first 3000 chars of response body
+      - parsed_top_level_keys: top-level JSON keys (if parseable)
+      - parsed_results_count: number of entries in 'results' array
+      - parsed_oi_present_count: how many had 'open_interest' field
+      - first_contract_sample: full first entry (so we see schema)
+    """
+    import os
+    api_key = os.environ.get("MASSIVE_API_KEY", "").strip()
+    if not api_key:
+        return {"error": "MASSIVE_API_KEY env var not set"}
+
+    base_url = os.environ.get(
+        "MASSIVE_REST_BASE", "https://api.massive.com"
+    ).rstrip("/")
+    url = f"{base_url}/v3/snapshot/options/{ticker}"
+
+    try:
+        import httpx
+    except ImportError:
+        return {"error": "httpx not installed"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15.0,
+            )
+    except Exception as e:
+        return {
+            "url": url,
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+
+    body_text = resp.text
+    result = {
+        "url": url,
+        "status_code": resp.status_code,
+        "body_length": len(body_text),
+        "body_preview": body_text[:3000],
+    }
+
+    # Try to parse JSON and extract diagnostic info
+    try:
+        data = resp.json()
+        results_list = data.get("results", []) if isinstance(data, dict) else []
+        oi_present = sum(
+            1 for r in results_list
+            if isinstance(r, dict) and r.get("open_interest") is not None
+        )
+        result["parsed_top_level_keys"] = (
+            list(data.keys()) if isinstance(data, dict) else None
+        )
+        result["parsed_results_count"] = len(results_list)
+        result["parsed_oi_present_count"] = oi_present
+        if results_list:
+            result["first_contract_sample"] = results_list[0]
+    except Exception as e:
+        result["parse_error"] = str(e)
+
+    return result
