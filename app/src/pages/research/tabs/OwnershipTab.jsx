@@ -18,6 +18,16 @@ function fmtMoney(v) {
   return `$${v.toFixed(0)}`
 }
 function fmtPct(v) { return v == null ? '—' : `${v}%` }
+function fmtNum(v) { return v == null ? '—' : Math.round(v).toLocaleString() }
+function fmtChgPp(v) {  // ownership-percent change, in percentage points
+  if (v == null) return null
+  return `${v > 0 ? '+' : ''}${v.toFixed(2)}pp`
+}
+function fmtChgInt(v) {
+  if (v == null) return null
+  return `${v > 0 ? '+' : ''}${Math.round(v).toLocaleString()}`
+}
+function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
 
 export default function OwnershipTab({ sym }) {
   const { data, isLoading } = useOwnership(sym)
@@ -30,7 +40,9 @@ export default function OwnershipTab({ sym }) {
   const inst = o.institutional || {}
   const sh = o.short || {}
   const insider = o.insider || []
-  const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null && inst.pct_held == null
+  const tf = o.thirteen_f || null
+  const tfs = tf?.summary || {}
+  const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null && inst.pct_held == null && !tf
 
   return (
     <div className={styles.finWrap}>
@@ -66,6 +78,59 @@ export default function OwnershipTab({ sym }) {
           <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sh.shares_outstanding)}</b></div>
         </section>
       </div>
+
+      {tf && (
+        <section className={styles.card}>
+          <div className={styles.ct}>Form 13F · institutional activity <span className={styles.muted}>· {tf.quarter}</span></div>
+          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 10 }}>
+            <div>
+              <div className={styles.muted}>Institutional ownership</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>
+                {tfs.ownership_pct != null ? `${tfs.ownership_pct.toFixed(1)}%` : '—'}
+                {fmtChgPp(tfs.ownership_change) && <span className={chgClass(tfs.ownership_change)} style={{ fontSize: 12, marginLeft: 6 }}>{fmtChgPp(tfs.ownership_change)}</span>}
+              </div>
+            </div>
+            <div>
+              <div className={styles.muted}>Investors holding</div>
+              <div>{fmtNum(tfs.investors_holding)} {fmtChgInt(tfs.investors_change) && <span className={chgClass(tfs.investors_change)} style={{ fontSize: 12 }}>{fmtChgInt(tfs.investors_change)}</span>}</div>
+            </div>
+            <div>
+              <div className={styles.muted}>Total invested</div>
+              <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={chgClass(tfs.total_invested_change)} style={{ fontSize: 12 }}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
+            </div>
+          </div>
+          {/* Position flow this quarter */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 4 }}>
+            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.new_positions)}</b> new</span>
+            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.increased_positions)}</b> increased</span>
+            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.reduced_positions)}</b> reduced</span>
+            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.closed_positions)}</b> closed</span>
+          </div>
+
+          {!!tf.holders?.length && (
+            <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
+              <table className={styles.fgrid}>
+                <thead><tr><th>Top holder</th><th>Shares</th><th>Δ Shares</th><th>% Own</th><th>Value</th></tr></thead>
+                <tbody>
+                  {tf.holders.map((h, i) => (
+                    <tr key={`${h.name}-${i}`}>
+                      <td className={`${styles.fperiod} ${styles.holderName}`}>
+                        {h.name}
+                        {h.is_new && <span className={styles.up} style={{ fontSize: 9, marginLeft: 5 }}>NEW</span>}
+                        {h.is_sold_out && <span className={styles.down} style={{ fontSize: 9, marginLeft: 5 }}>SOLD</span>}
+                      </td>
+                      <td>{fmtShares(h.shares)}</td>
+                      <td className={chgClass(h.change_shares)}>{h.change_shares != null ? fmtShares(h.change_shares) : '—'}</td>
+                      <td>{h.ownership != null ? `${h.ownership.toFixed(1)}%` : '—'}</td>
+                      <td>{fmtMoney(h.market_value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {!!insider.length && (
         <section className={styles.card}>
