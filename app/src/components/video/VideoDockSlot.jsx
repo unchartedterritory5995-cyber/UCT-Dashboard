@@ -62,8 +62,8 @@ export default function VideoDockSlot() {
     const content = notes.map((n) => ({
       type: 'paragraph',
       content: [
-        { type: 'text', marks: [{ type: 'bold' }], text: `[${fmtT(n.t_seconds)}] ` },
-        { type: 'text', text: n.text },
+        { type: 'videoTimestamp', attrs: { seconds: n.t_seconds } },
+        { type: 'text', text: ' ' + n.text },
       ],
     }))
     setSavingNb('saving')
