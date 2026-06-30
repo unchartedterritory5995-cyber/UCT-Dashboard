@@ -8,6 +8,8 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
+import { VideoTimestamp } from './videoTimestampNode'
+import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
   return [
@@ -23,6 +25,7 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     }),
     Placeholder.configure({ placeholder }),
     SlashMenuExtension,
+    VideoTimestamp,
   ]
 }
 
@@ -54,6 +57,7 @@ export function extractPlainText(doc) {
   const walk = (node) => {
     if (!node || typeof node !== 'object') return
     if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
+    if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
     for (const child of node.content || []) walk(child)
   }
   walk(doc)
