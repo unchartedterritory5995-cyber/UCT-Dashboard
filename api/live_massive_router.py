@@ -145,6 +145,23 @@ DEFAULT_THRESHOLDS = {
     # Threshold of 25% means: calls with strike < 80% of spot (or puts
     # with strike > 125% of spot) are blocked from Alpha Gold.
     "alpha_max_itm_pct": 25.0,
+    # Vol/OI gate for Alpha Gold tier (added 6/30 morning).
+    #
+    # Alpha Gold should require FRESH institutional positioning -- new
+    # exposure being created, not adjustments to yesterday's positions.
+    # Volume exceeding open interest is the canonical signal for this:
+    # today's flow on this contract is larger than the entire prior
+    # accumulated position. That's new conviction, not noise.
+    #
+    # Default 1.0 = vol must strictly exceed OI (the literal "vol > oi"
+    # reading). Set higher (e.g. 1.5) for stricter "fresh and dominant"
+    # positioning. Set to 0 to disable this gate.
+    #
+    # Contracts with unknown OI (Schwab snapshot misses, fresh strikes
+    # with no OI history) are REJECTED at this gate -- we can't verify
+    # the freshness criterion without known OI. Those rows fall through
+    # to Size tier where the requirement doesn't apply.
+    "alpha_min_vol_oi_ratio": 1.0,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -526,22 +543,35 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     if color == "MAGENTA":
         # Alpha Gold — rarest, top tier
         if premium >= 1_000_000 and side_is_ask and not is_leaps:
-            # Deep-ITM filter (added 6/29 audit):
+            # ─── Alpha Gold quality gates (ALL must pass) ──────────────
+            # Each gate is independent. Failing any gate falls through
+            # to the Size / Unusual / Bullish-Bearish tier below.
+            try:
+                thresholds = _load_thresholds()
+            except Exception:
+                thresholds = DEFAULT_THRESHOLDS
+            deep_itm_threshold = thresholds.get("alpha_max_itm_pct", 25.0)
+            min_vol_oi_ratio = thresholds.get("alpha_min_vol_oi_ratio", 1.0)
+
+            # Gate 1 — Deep-ITM filter (added 6/29 audit):
             # Deep in-the-money calls/puts are delta-exposure plays
             # (essentially synthetic stock with leverage), not directional
             # conviction. A $1M+ ask-side fire on a 60% ITM call is
             # mechanical positioning -- the trader is buying stock
             # exposure, not making a conviction directional bet.
-            # When deeper than threshold, fall through to Size tier
-            # (still high-conviction premium signal, just not Alpha).
-            try:
-                deep_itm_threshold = _load_thresholds().get("alpha_max_itm_pct", 25.0)
-            except Exception:
-                deep_itm_threshold = 25.0
             is_deep_itm = (money_pct is not None and money_pct > deep_itm_threshold)
-            if not is_deep_itm:
+
+            # Gate 2 — Volume-exceeds-OI gate (added 6/30 morning):
+            # Alpha Gold requires fresh institutional positioning -- new
+            # exposure being created, not adjustments to existing positions.
+            # Volume strictly greater than OI means today's flow is larger
+            # than the entire prior accumulated position. Requires KNOWN
+            # OI (>0); Schwab misses fail this gate.
+            vol_exceeds_oi = (oi > 0 and v_oi > min_vol_oi_ratio)
+
+            if not is_deep_itm and vol_exceeds_oi:
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
-            # Deep ITM → fall through to Size / Unusual / Bullish-Bearish below
+            # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
         # LEAPS
         if is_leaps:
             return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
