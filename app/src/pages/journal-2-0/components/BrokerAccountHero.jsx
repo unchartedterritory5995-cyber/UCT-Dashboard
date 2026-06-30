@@ -37,7 +37,7 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function BrokerAccountHero({ account, aggregates }) {
+export default function BrokerAccountHero({ account, aggregates, liveEquity = null, isLive = false }) {
   const [range, setRange] = useState(RANGES[1]) // default 3M
   const [scrub, setScrub] = useState(null)       // hovered/dragged data index
   const wrapRef = useRef(null)
@@ -89,8 +89,17 @@ export default function BrokerAccountHero({ account, aggregates }) {
 
   // Scrub state → what the headline shows.
   const scrubbing = scrub != null && model && series[scrub]
-  // Headline = portfolio total across all brokers (endEquity), or the scrub point.
-  const headValue = scrubbing ? series[scrub].value : (data?.endEquity ?? account.brokerTotalEquity)
+  // Headline = portfolio total across all brokers (endEquity), or the scrub
+  // point, or — when not scrubbing — the live mark-to-market value.
+  const baseValue = data?.endEquity ?? account.brokerTotalEquity
+  const liveVal = liveEquity?.liveValue
+  const headValue = scrubbing
+    ? series[scrub].value
+    : (liveVal != null ? liveVal : baseValue)
+  // Today's change, with live drift since last sync folded in.
+  const liveDelta = liveEquity?.liveDelta ?? 0
+  const liveToday = model && model.todayChange != null ? model.todayChange + liveDelta : null
+  const liveTodayUp = (liveToday ?? 0) >= 0
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
   const scrubUp = (scrubChange ?? 0) >= 0
@@ -109,7 +118,10 @@ export default function BrokerAccountHero({ account, aggregates }) {
     <section className={styles.hero} aria-label="Account summary">
       <header className={styles.top}>
         <div className={styles.valueBlock}>
-          <div className={styles.label}>Account Value</div>
+          <div className={styles.label}>
+            Account Value
+            {isLive && <span className={styles.liveBadge}> LIVE</span>}
+          </div>
           <div className={styles.value}>{money(headValue)}</div>
           <div className={styles.changes}>
             {scrubbing ? (
@@ -120,9 +132,9 @@ export default function BrokerAccountHero({ account, aggregates }) {
               </span>
             ) : (
               <>
-                {model && model.todayChange != null && (
-                  <span className={`${styles.change} ${model.todayUp ? styles.pos : styles.neg}`}>
-                    {model.todayUp ? '▲' : '▼'} {moneySigned(model.todayChange)}
+                {model && liveToday != null && (
+                  <span className={`${styles.change} ${liveTodayUp ? styles.pos : styles.neg}`}>
+                    {liveTodayUp ? '▲' : '▼'} {moneySigned(liveToday)}
                     {model.todayPct != null && <>{' '}({percent(model.todayPct, { signed: true, dp: 1, isRatio: true })})</>}
                     <span className={styles.changeLabel}> Today</span>
                   </span>

@@ -10,6 +10,14 @@
 }
 .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .label { font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); }
+.liveBadge {
+  margin-left: 6px;
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gain, #3cb868);
+  vertical-align: middle;
+}
 .value { font-size: 38px; font-weight: 700; line-height: 1.05; color: var(--text-bright); margin-top: 2px; }
 .changes { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
 .change { font-size: 14px; font-weight: 600; }

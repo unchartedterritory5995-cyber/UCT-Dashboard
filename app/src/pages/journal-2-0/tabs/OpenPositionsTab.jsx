@@ -19,7 +19,7 @@ import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
-import useLivePrices from '../../../hooks/useLivePrices'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
@@ -34,6 +34,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import {
   portfolioAggregates,
+  brokerLiveEquity,
   money,
   moneySigned,
   percent,
@@ -120,7 +121,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   } = useJ2ColumnPrefs(COLUMN_STORAGE_KEY, POSITIONS_COLUMNS)
 
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
-  const { prices } = useLivePrices(symbols)
+  const { prices, isStreaming } = useRealtimePrices(symbols)
   const { mutate } = useSWRConfig()
   const { warming, broker: warmingBroker } = useBrokerWarming()
 
@@ -233,6 +234,15 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     }
   }, [positions, optionRows, prices, accountSize])
 
+  const priceMap = useMemo(
+    () => Object.fromEntries(Object.entries(prices).map(([sym, v]) => [sym, v?.price])),
+    [prices],
+  )
+  const liveEquity = useMemo(
+    () => brokerLiveEquity(selectedAccount, positions, priceMap),
+    [selectedAccount, positions, priceMap],
+  )
+
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -249,7 +259,12 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
       <BrokerSyncStatus onSynced={() => { refreshPositions(); refreshOptions() }} />
-      <BrokerAccountHero account={selectedAccount} aggregates={aggregates} />
+      <BrokerAccountHero
+        account={selectedAccount}
+        aggregates={aggregates}
+        liveEquity={liveEquity}
+        isLive={isStreaming}
+      />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}
       <div className={styles.statsBar}>

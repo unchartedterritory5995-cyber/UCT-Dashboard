@@ -100,4 +100,18 @@ describe('BrokerAccountHero', () => {
       <BrokerAccountHero account={{ balanceSource: 'manual' }} aggregates={aggregates} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('shows the live mark-to-market value when liveEquity is provided', () => {
+    const account = { balanceSource: 'broker', brokerTotalEquity: 10000, brokerCash: 2000 }
+    render(
+      <BrokerAccountHero
+        account={account}
+        aggregates={{ unrealized: 0, invested: 0.8, count: 1, value: 8000 }}
+        liveEquity={{ liveValue: 10020, liveDelta: 20 }}
+        isLive
+      />,
+    )
+    expect(screen.getByText('$10,020.00')).toBeInTheDocument()
+    expect(screen.getByText(/LIVE/i)).toBeInTheDocument()
+  })
 })
