@@ -357,80 +357,137 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
 
 
 # ---------------------------------------------------------------------------
-# Evening (Evening Update from TSDR) — super-sampled twilight editorial card
+# Evening (Evening Update from TSDR) — cinematic dusk skyline
 # ---------------------------------------------------------------------------
 
+_SKY_STOPS = [
+    (0.0, (24, 16, 52)), (0.32, (74, 30, 76)), (0.54, (170, 72, 72)),
+    (0.65, (226, 130, 60)), (0.70, (252, 206, 124)), (0.715, (150, 80, 52)),
+    (1.0, (16, 9, 14)),
+]
+_SKY_SEEDH = [0.55, 0.80, 0.42, 0.92, 0.6, 0.5, 0.86, 0.46, 0.72, 0.96, 0.58,
+              0.66, 0.82, 0.43, 0.76, 0.5, 0.9, 0.6, 0.7, 0.46, 0.84, 0.54,
+              0.92, 0.62, 0.5, 0.78, 0.44, 0.86, 0.66, 0.58]
+
+
+def _sky_gradient(stops: list, size: tuple) -> Image.Image:
+    """Multi-stop vertical gradient (the dusk sunset sky)."""
+    img = Image.new("RGB", size)
+    dr = ImageDraw.Draw(img)
+    w, h = size
+
+    def col(t):
+        for i in range(len(stops) - 1):
+            p0, c0 = stops[i]
+            p1, c1 = stops[i + 1]
+            if p0 <= t <= p1:
+                f = (t - p0) / max(1e-6, (p1 - p0))
+                return tuple(int(c0[k] + (c1[k] - c0[k]) * f) for k in range(3))
+        return stops[-1][1]
+
+    for y in range(h):
+        dr.line([(0, y), (w, y)], fill=col(y / h))
+    return img
+
+
+def _skyline(img: Image.Image, horizon: int, color=(6, 5, 12)) -> list:
+    """Dark city silhouette with scattered lit windows; returns rooftop points."""
+    d = ImageDraw.Draw(img, "RGBA")
+    tops = []
+    xs = list(range(-20, _W + 60, 46))
+    for i, x in enumerate(xs):
+        wdt = 46
+        hf = _SKY_SEEDH[i % len(_SKY_SEEDH)]
+        top = horizon - int((_H - horizon) * hf * 0.9) - int(hf * 60)
+        d.rectangle([x, top, x + wdt - 4, _H], fill=(*color, 255))
+        tops.append((x + wdt // 2, top))
+        for wy in range(top + 14, _H - 10, 22):
+            for wx in range(x + 8, x + wdt - 10, 14):
+                if ((i * 7 + wy * 3 + wx) % 5) == 0:
+                    d.rectangle([wx, wy, wx + 4, wy + 6], fill=(245, 205, 120, 170))
+    return tops
+
+
+def _gold_center(base: Image.Image, cx: int, y: int, text: str,
+                 font: ImageFont.FreeTypeFont) -> None:
+    """Centered metallic-gold headline with a soft drop shadow."""
+    d = ImageDraw.Draw(base)
+    w = int(d.textlength(text, font=font))
+    asc, desc = font.getmetrics()
+    h = asc + desc
+    x = int(cx - w / 2)
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).text((x, y + max(3, h // 18)), text, font=font, fill=(0, 0, 0, 210))
+    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(max(4, h // 12))))
+    grad = Image.new("RGB", (max(1, w), h))
+    gd = ImageDraw.Draw(grad)
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        gd.line([(0, yy), (w, yy)],
+                fill=tuple(int(_GOLD_HI[k] + (_GOLD_LO[k] - _GOLD_HI[k]) * t) for k in range(3)))
+    mask = Image.new("L", (max(1, w), h), 0)
+    ImageDraw.Draw(mask).text((0, 0), text, font=font, fill=255)
+    base.paste(grad, (x, int(y)), mask)
+
+
+def _shadow_center(base: Image.Image, cx: int, y: int, text: str,
+                   font: ImageFont.FreeTypeFont, fill: tuple, tracking: int) -> None:
+    """Centered tracked text with a soft shadow so it reads over the skyline."""
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    _draw_tracked_center(ImageDraw.Draw(sh), cx, y + 3, text, font, (0, 0, 0, 200), tracking)
+    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(5)))
+    _draw_tracked_center(ImageDraw.Draw(base), cx, y, text, font, fill, tracking)
+
+
 def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
-    S = 2                                   # super-sample factor
-    W, H = _W * S, _H * S
-    size = (W, H)
+    cx = _W // 2
+    img = _sky_gradient(_SKY_STOPS, _SIZE).convert("RGBA")
+    horizon = int(_H * 0.70)
+    img = Image.alpha_composite(img, _radial(cx, horizon, 380, (255, 198, 98), 150))  # sun
+    tops = _skyline(img, horizon)
 
-    def s(v):
-        return int(round(v * S))
+    # Subtle glowing gold uptrend tracing the rising rooftops (markets motif).
+    pts = [p for p in tops if 60 < p[0] < _W - 60]
+    rise = [(pts[i][0], min(p[1] for p in pts[max(0, i - 1):i + 2])) for i in range(len(pts))]
+    line = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(line).line(rise, fill=(252, 226, 150, 150), width=4, joint="curve")
+    img = Image.alpha_composite(img, line.filter(ImageFilter.GaussianBlur(6)))
+    img = Image.alpha_composite(img, line)
 
-    # Twilight sky: cool light upper-left, warm dusk lower-right.
-    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
-    img = Image.alpha_composite(img, _radial(s(330), s(240), s(540), (64, 104, 180), 58, size))
-    img = Image.alpha_composite(img, _radial(s(1000), s(560), s(600), (214, 132, 52), 60, size))
-    img = Image.alpha_composite(img, _vignette(0.5, size))
+    # Darken the top band so the headline reads cleanly over the sky.
+    ov = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    od = ImageDraw.Draw(ov)
+    for y in range(0, 310):
+        od.line([(0, y), (_W, y)], fill=(6, 4, 14, int(165 * (1 - y / 310))))
+    img = Image.alpha_composite(img, ov)
 
-    # Glowing gold candlestick uptrend on the right (the "markets" hero graphic),
-    # kept inside the right margin so the last candle isn't clipped.
-    img = _draw_uptrend(img, s(720), s(206), s(1168), s(556))
-
-    draw = ImageDraw.Draw(img)
-    g = theme.rule
-    LX = s(96)
-
-    mark = _compass(s(50))
+    mark = _compass(64)
     if mark is not None:
-        img.paste(mark, (LX, s(54)), mark)
+        img.alpha_composite(mark, (70, 42))
     draw = ImageDraw.Draw(img)
-    _draw_tracked(draw, LX + s(66), s(68), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 21 * S),
-                  theme.wordmark, 6 * S)
+    _draw_tracked(draw, 150, 64, _WORDMARK, _font("DejaVuSans-Bold.ttf", 26), (246, 238, 230), 7)
 
-    # Kicker tab — filled gold pill with dark text.
-    kf = _font("DejaVuSerif-Bold.ttf", 21 * S)
-    ktext = "THE EVENING BRIEFING"
-    kw = _tracked_w(draw, ktext, kf, 4 * S)
-    draw.rounded_rectangle([LX, s(124), LX + kw + s(36), s(168)], radius=s(8), fill=g)
-    _draw_tracked(draw, LX + s(18), s(133), ktext, kf, theme.bg_bottom, 4 * S)
-
-    # Hero headline = the eyebrow with "FROM TSDR" stripped (that goes in the
-    # subline) — metallic gold serif, auto-fit, balanced over (up to) two lines.
-    head = (eyebrow_label or "").upper().replace("FROM TSDR", "").strip(" -—·")
-    if not head:
-        head = "EVENING UPDATE"
-    lines = _balanced_two_lines(head)
-    avail = s(590)
-    size_pt = 96
-    while size_pt > 52:
-        f = _font("DejaVuSerif-Bold.ttf", size_pt * S)
-        if max(draw.textlength(ln, font=f) for ln in lines) <= avail:
+    # Headline = eyebrow minus "FROM TSDR" (that goes in the subline), auto-fit.
+    head = (eyebrow_label or "").upper().replace("FROM TSDR", "").strip(" -—·") or "EVENING UPDATE"
+    size_pt = 116
+    while size_pt > 60:
+        f = _font("DejaVuSerif-Bold.ttf", size_pt)
+        if draw.textlength(head, font=f) <= _W - 80:
             break
         size_pt -= 2
-    f_title = _font("DejaVuSerif-Bold.ttf", size_pt * S)
-    asc, desc = f_title.getmetrics()
-    lh = int((asc + desc) * 0.95)
-    ty = s(208)
-    draw.rectangle([LX, ty + s(10), LX + s(7), ty + lh * len(lines) - s(8)], fill=g)
-    for ln in lines:
-        _hero_line_left(img, LX + s(30), ty, ln, f_title)
-        ty += lh
+    _gold_center(img, cx, 140, head, _font("DejaVuSerif-Bold.ttf", size_pt))
+
+    _shadow_center(img, cx, 298, "FROM TSDR", _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
+
     draw = ImageDraw.Draw(img)
+    df = _font("DejaVuSans-Bold.ttf", 30)
+    dt = date_text.upper()
+    dw = _tracked_w(draw, dt, df, 3)
+    draw.rounded_rectangle([cx - dw / 2 - 22, 362, cx + dw / 2 + 22, 412],
+                           radius=25, fill=(0, 0, 0, 130), outline=(250, 212, 132), width=2)
+    _draw_tracked_center(draw, cx, 372, dt, df, (251, 234, 202), 3)
 
-    # Subline: FROM TSDR · DATE + small gold underline.
-    f_sub = _font("DejaVuSerif-Bold.ttf", 36 * S)
-    sub = f"FROM TSDR   ·   {date_text.upper()}"
-    dy = ty + s(22)
-    _draw_tracked(draw, LX + s(30), dy, sub, f_sub, theme.date, 2 * S)
-    sw = _tracked_w(draw, sub, f_sub, 2 * S)
-    draw.rectangle([LX + s(30), dy + s(52), LX + s(30) + min(sw, s(440)), dy + s(56)], fill=g)
-
-    # Tagline, foot.
-    _draw_center(draw, W // 2, H - s(64), _TAGLINE, _font("DejaVuSerif.ttf", 25 * S), theme.tagline)
-
-    return img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return img.convert("RGB")
 
 
 def render_session_thumbnail(

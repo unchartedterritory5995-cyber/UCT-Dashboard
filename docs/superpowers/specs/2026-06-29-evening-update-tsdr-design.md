@@ -1,7 +1,8 @@
 # Evening Update from TSDR — design
 
 **Date:** 2026-06-29
-**Status:** approved (thumbnail B · Editorial Dusk picked; website link; reuse existing `DISCORD_WEBHOOK_URL`)
+**Status:** approved (thumbnail = **cinematic dusk skyline**, round-2 redesign over
+the initial editorial-dusk card; website link; reuse existing `DISCORD_WEBHOOK_URL`)
 
 ## Goal
 
@@ -22,14 +23,14 @@ Extend, don't rebuild. Everything routes through the proven
   `_THEMES["evening"]`.
 - `_resolve_theme` returns it when the eyebrow contains `"evening"` (mirrors the
   existing `"thought"` → emerald rule). Explicit `variant="evening"` also works.
-- New `_render_evening(theme, date_text, eyebrow_label)` — the approved
-  "Editorial Dusk" layout: 2× super-sampled, twilight navy card (cool light
-  upper-left, warm dusk lower-right), gold **THE EVENING BRIEFING** kicker pill,
-  metallic-gold auto-fit headline (eyebrow with "FROM TSDR" stripped) on a gold
-  spine, `FROM TSDR · {DATE}` subline, a glowing gold candlestick uptrend on the
-  right, compass mark + locked tagline. Reuses the existing `_draw_uptrend`,
-  `_gradient_bg`, `_radial`, `_vignette`, `_compass`, `_balanced_two_lines`,
-  `_tracked*` helpers.
+- New `_render_evening(theme, date_text, eyebrow_label)` — **cinematic dusk
+  skyline**: a multi-stop sunset sky (`_sky_gradient` / `_SKY_STOPS`, indigo →
+  magenta → orange → warm gold horizon), a warm sun `_radial`, a dark city
+  silhouette with scattered lit windows (`_skyline`), a subtle glowing gold
+  uptrend tracing the rising rooftops (markets motif), a top-darkening band for
+  legibility, the compass + wordmark, a bold centered metallic-gold headline
+  (`_gold_center`, eyebrow with "FROM TSDR" stripped, auto-fit), a shadowed
+  `FROM TSDR` subline (`_shadow_center`), and a gold-outlined date chip.
 - `render_session_thumbnail` dispatches `layout == "evening"` → `_render_evening`.
 
 ### 2. Routing (`api/services/desk_daily_session.py`)
