@@ -198,6 +198,21 @@ DEFAULT_THRESHOLDS = {
     # can be legitimate aggressive ITM directional bets). 50%+ is
     # consensus deep-ITM and suppressed.
     "max_itm_pct": 50.0,
+    # Size tier V/OI gate (added 6/30 evening).
+    #
+    # Size tier ($500K-$1M+ premium MAGENTA, not Alpha-Gold-quality)
+    # was previously promoted purely on premium. That surfaced large
+    # institutional positioning but also a lot of low-V/OI rows that
+    # represent adjustments to existing positions rather than fresh
+    # conviction flow. Adding a V/OI floor narrows Size tier to trades
+    # where today's volume is dominating prior OI -- same "fresh
+    # positioning" principle as the Alpha Gold gate, just looser.
+    #
+    # Default 1.0 = vol must strictly exceed OI. Set to 0 to disable
+    # (recover previous behavior). Like the Alpha Gold gate, this
+    # requires KNOWN OI (>0); Schwab snapshot misses fail this gate
+    # and fall through to bullish/bearish tier.
+    "size_min_vol_oi_ratio": 1.0,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -645,8 +660,19 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         if _is_unusual_classification(row["Symbol"], v_oi, premium):
             return ("UCT Unusual Name", "unusual", TIER_PRIORITY["unusual"])
         # Size — big premium magenta
+        # Size tier V/OI gate (added 6/30 evening): like Alpha Gold,
+        # Size now requires fresh institutional positioning (vol > OI).
+        # Schwab snapshot misses (oi=0) fail this gate and fall through
+        # to bullish/bearish tier where the requirement doesn't apply.
         if premium >= 500_000:
-            return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
+            try:
+                size_min_voi = _load_thresholds().get("size_min_vol_oi_ratio", 1.0)
+            except Exception:
+                size_min_voi = 1.0
+            size_vol_exceeds_oi = (oi > 0 and v_oi > size_min_voi)
+            if size_vol_exceeds_oi:
+                return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
+            # V/OI gate failed → fall through to bullish/bearish
         # Regular bullish/bearish magenta
         return (f"UCT {direction}ish", dir_tier, TIER_PRIORITY[dir_tier])
 
@@ -1415,6 +1441,7 @@ async def save_thresholds(request: Request):
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
         "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
+        "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
