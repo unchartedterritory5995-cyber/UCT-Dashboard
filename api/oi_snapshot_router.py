@@ -211,15 +211,40 @@ class BulkFetchOIResponse(BaseModel):
 
 
 def _iso_to_mdy(exp_iso: str) -> Optional[str]:
-    if not exp_iso or "-" not in exp_iso:
+    """Normalize expiration date to M/D/YYYY format (what snapshot keys use).
+
+    Accepts multiple input formats since the frontend may send either:
+      - ISO: '2026-08-07'
+      - MDY: '8/7/2026' or '08/07/2026'
+      - Short MDY: '8/7/26' (assumes 20xx)
+    """
+    if not exp_iso:
         return None
-    parts = exp_iso.split("-")
-    if len(parts) != 3:
-        return None
-    try:
-        return f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
-    except (ValueError, IndexError):
-        return None
+    s = exp_iso.strip()
+    # Already MDY format with slashes
+    if "/" in s:
+        parts = s.split("/")
+        if len(parts) != 3:
+            return None
+        try:
+            m = int(parts[0])
+            d = int(parts[1])
+            y = int(parts[2])
+            if y < 100:  # '26' -> '2026'
+                y += 2000
+            return f"{m}/{d}/{y}"
+        except (ValueError, IndexError):
+            return None
+    # ISO format with dashes
+    if "-" in s:
+        parts = s.split("-")
+        if len(parts) != 3:
+            return None
+        try:
+            return f"{int(parts[1])}/{int(parts[2])}/{int(parts[0])}"
+        except (ValueError, IndexError):
+            return None
+    return None
 
 
 @router.post("/bulk-fetch", response_model=BulkFetchOIResponse)
@@ -245,11 +270,18 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
     results: List[BulkFetchOIResult] = []
     schwab_needed: List[tuple] = []  # [(c, ck, exp_mdy), ...]
     cache_hits = 0
+    dropped_bad_format = 0
+    dropped_examples = []  # capture first few for diagnosis
 
     # Stage 1: DB-first lookup
     for c in contracts:
         exp_mdy = _iso_to_mdy(c.exp)
         if not exp_mdy:
+            dropped_bad_format += 1
+            if len(dropped_examples) < 3:
+                dropped_examples.append(
+                    f"{c.ticker} {c.cp}{c.strike} exp={c.exp!r}"
+                )
             continue
         ck = oi_snapshots.make_key(c.ticker, c.cp, c.strike, exp_mdy)
         existing = oi_snapshots.get_snapshot(ck, today_iso)
@@ -262,10 +294,17 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
         else:
             schwab_needed.append((c, ck, exp_mdy))
 
+    if dropped_bad_format:
+        logger.warning(
+            "[oi-snapshot bulk-fetch] dropped %d contracts due to "
+            "unparseable exp format. Examples: %s",
+            dropped_bad_format, "; ".join(dropped_examples)
+        )
+
     logger.info(
         "[oi-snapshot bulk-fetch] in: %d contracts, cache_hits: %d, "
-        "schwab_needed: %d",
-        len(contracts), cache_hits, len(schwab_needed)
+        "schwab_needed: %d, dropped: %d",
+        len(contracts), cache_hits, len(schwab_needed), dropped_bad_format
     )
 
     # Stage 2: Schwab batch fetch for misses
