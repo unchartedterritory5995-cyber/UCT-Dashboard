@@ -125,6 +125,26 @@ DEFAULT_THRESHOLDS = {
         "min_premium": 1_000_000,
         "require_sweep_or_block": True,
     },
+    # Deep-ITM filter for Alpha Gold tier (added 6/29 audit).
+    #
+    # Background: deep in-the-money calls/puts are typically delta-exposure
+    # tools (essentially synthetic stock with leverage) rather than direct-
+    # ional conviction bets. A $1M+ ask-side buy on a 60% ITM call is
+    # mechanical positioning, not a high-conviction signal worth surfacing
+    # at the top tier. MRVL 6/29 example: $170C with spot ~$277 (62.9%
+    # ITM) qualified for Alpha Gold under the old rules despite being a
+    # synthetic-stock substitute.
+    #
+    # When an otherwise-Alpha-eligible row is deeper than this % ITM, the
+    # tier classifier falls through to the Size tier check ($500K-$1M+
+    # premium depending on cap band) so the institutional positioning
+    # still surfaces -- just not at the Alpha Gold conviction tier.
+    #
+    # Moneyness pct is measured as (spot - strike) / strike * 100 for
+    # calls, with sign flipped for puts so positive = ITM consistently.
+    # Threshold of 25% means: calls with strike < 80% of spot (or puts
+    # with strike > 125% of spot) are blocked from Alpha Gold.
+    "alpha_max_itm_pct": 25.0,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -446,12 +466,17 @@ def _derive_direction(cp: str, side: str):
     return None
 
 
-def _derive_alert_name(row: dict, direction: str):
+def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
     Mapping aligns to LiveFlow.jsx deriveTier() so the existing UI groups
     Massive rows into the right colored sections without modification.
+
+    money_pct (optional): signed moneyness percentage (positive = ITM,
+    negative = OTM) from _moneyness(). When provided, deep-ITM rows are
+    blocked from Alpha Gold tier and fall through to Size tier instead.
+    See thresholds.alpha_max_itm_pct for the cutoff (default 25%).
     """
     color = row["Color"]
     type_ = row["Type"] or ""
@@ -501,7 +526,22 @@ def _derive_alert_name(row: dict, direction: str):
     if color == "MAGENTA":
         # Alpha Gold — rarest, top tier
         if premium >= 1_000_000 and side_is_ask and not is_leaps:
-            return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
+            # Deep-ITM filter (added 6/29 audit):
+            # Deep in-the-money calls/puts are delta-exposure plays
+            # (essentially synthetic stock with leverage), not directional
+            # conviction. A $1M+ ask-side fire on a 60% ITM call is
+            # mechanical positioning -- the trader is buying stock
+            # exposure, not making a conviction directional bet.
+            # When deeper than threshold, fall through to Size tier
+            # (still high-conviction premium signal, just not Alpha).
+            try:
+                deep_itm_threshold = _load_thresholds().get("alpha_max_itm_pct", 25.0)
+            except Exception:
+                deep_itm_threshold = 25.0
+            is_deep_itm = (money_pct is not None and money_pct > deep_itm_threshold)
+            if not is_deep_itm:
+                return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
+            # Deep ITM → fall through to Size / Unusual / Bullish-Bearish below
         # LEAPS
         if is_leaps:
             return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
@@ -631,7 +671,7 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
-    result = _derive_alert_name(row, direction)
+    result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
