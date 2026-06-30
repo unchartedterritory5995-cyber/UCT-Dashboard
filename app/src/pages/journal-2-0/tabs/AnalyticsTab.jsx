@@ -16,7 +16,7 @@ import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
-import useLivePrices from '../../../hooks/useLivePrices'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   fmtSignedDollar,
   fmtSignedPct,
@@ -351,7 +351,7 @@ function EquitySection({ equity }) {
     () => (showLive ? positions.map((p) => p.symbol) : []),
     [positions, showLive],
   )
-  const { prices } = useLivePrices(symbols)
+  const { prices } = useRealtimePrices(symbols)
 
   // Unrealized P&L from currently open positions (single account only)
   const liveUnrealized = useMemo(() => {
