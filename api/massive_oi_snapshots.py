@@ -70,6 +70,17 @@ HTTP_TIMEOUT_SEC = float(os.environ.get("MASSIVE_OI_TIMEOUT", "12.0"))
 # significant concurrency, but being polite avoids rate limit surprises.
 MAX_CONCURRENCY = int(os.environ.get("MASSIVE_OI_CONCURRENCY", "8"))
 
+# Per-page limit. Massive's default page size is only 10 contracts —
+# unusable for full-chain fetches (QCOM has 500+ strikes across all
+# expirations). Setting to 250 (Massive's API max) reduces page count
+# by 25x. A typical liquid ticker (QCOM, NVDA, AMD) returns 800-2000
+# contracts in the full chain, so 4-8 pages at 250.
+MASSIVE_PAGE_LIMIT = int(os.environ.get("MASSIVE_OI_PAGE_LIMIT", "250"))
+
+# Pagination cap. With limit=250, 40 pages = 10,000 contracts which
+# covers SPY/QQQ-sized chains. For most tickers we finish in 3-8 pages.
+MAX_PAGES = int(os.environ.get("MASSIVE_OI_MAX_PAGES", "40"))
+
 # Per-underlying response cache (within a single function call). Avoids
 # refetching the same chain if multiple contracts on the same ticker
 # appear in the batch.
@@ -155,40 +166,46 @@ async def _fetch_chain_for_ticker(client, ticker: str) -> dict:
     if MASSIVE_API_KEY:
         headers["Authorization"] = f"Bearer {MASSIVE_API_KEY}"
 
-    url = f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
+    # Use ?limit=250 to get 25x more per page than Massive's default of 10.
+    # Without this, full chain fetches require 50+ pages and almost never
+    # complete within the 12s timeout for liquid tickers.
+    url = (f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
+           f"?limit={MASSIVE_PAGE_LIMIT}")
     combined: dict = {}
     page = 0
-    max_pages = 10  # safety against runaway pagination
+    total_results_seen = 0
 
-    while url and page < max_pages:
+    while url and page < MAX_PAGES:
         try:
             resp = await client.get(url, headers=headers,
                                     timeout=HTTP_TIMEOUT_SEC)
         except Exception as e:
-            logger.debug("[massive-oi] %s page %d request failed: %s",
-                         ticker, page, e)
+            logger.warning("[massive-oi] %s page %d request failed: %s",
+                           ticker, page, e)
             break
 
         if resp.status_code != 200:
-            logger.debug("[massive-oi] %s page %d status=%d",
-                         ticker, page, resp.status_code)
+            logger.warning("[massive-oi] %s page %d status=%d",
+                           ticker, page, resp.status_code)
             break
 
         try:
             data = resp.json()
         except Exception as e:
-            logger.debug("[massive-oi] %s page %d JSON parse failed: %s",
-                         ticker, page, e)
+            logger.warning("[massive-oi] %s page %d JSON parse failed: %s",
+                           ticker, page, e)
             break
 
         results = data.get("results") or []
+        total_results_seen += len(results)
         if results:
             combined.update(_build_index_from_response(results))
 
         # Follow pagination if present
         next_url = data.get("next_url")
         if next_url:
-            # Massive's next_url is sometimes relative, sometimes absolute
+            # Massive's next_url is sometimes relative, sometimes absolute.
+            # Either way it carries the cursor; append our auth via header.
             if next_url.startswith("http"):
                 url = next_url
             else:
@@ -197,6 +214,10 @@ async def _fetch_chain_for_ticker(client, ticker: str) -> dict:
         else:
             url = None
 
+    logger.info(
+        "[massive-oi] %s: %d pages, %d total results, %d indexed with OI>0",
+        ticker, page + 1, total_results_seen, len(combined)
+    )
     _PER_CALL_CACHE[ticker] = combined
     return combined
 
