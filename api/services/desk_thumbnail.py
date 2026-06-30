@@ -74,18 +74,37 @@ _EMERALD_THEME = Theme(
 _GOLD_HI = (252, 238, 186)
 _GOLD_LO = (198, 158, 84)
 
+# "Evening Update from TSDR" — a twilight navy->dusk editorial card so the daily
+# evening show reads as unmistakably *evening* and distinct from the daytime
+# Live Trading Session card. Same gold + compass + tagline brand kit.
+_EVENING_THEME = Theme(
+    bg_top=(22, 32, 60),
+    bg_bottom=(5, 7, 14),
+    glow=_GOLD,
+    wordmark=(228, 219, 236),
+    eyebrow=_GOLD,
+    date=(238, 230, 216),
+    rule=_GOLD,
+    tagline=(198, 190, 206),
+    layout="evening",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
     "thoughts": _EMERALD_THEME,
     "emerald": _EMERALD_THEME,
+    "evening": _EVENING_THEME,
 }
 
 
 def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     if variant:
         return _THEMES.get(variant.lower().strip(), _DEFAULT_THEME)
-    if "thought" in (eyebrow_label or "").lower():
+    low = (eyebrow_label or "").lower()
+    if "evening" in low:
+        return _EVENING_THEME
+    if "thought" in low:
         return _EMERALD_THEME
     return _DEFAULT_THEME
 
@@ -337,6 +356,83 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
     return img.convert("RGB").resize(_SIZE, Image.LANCZOS)
 
 
+# ---------------------------------------------------------------------------
+# Evening (Evening Update from TSDR) — super-sampled twilight editorial card
+# ---------------------------------------------------------------------------
+
+def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+    S = 2                                   # super-sample factor
+    W, H = _W * S, _H * S
+    size = (W, H)
+
+    def s(v):
+        return int(round(v * S))
+
+    # Twilight sky: cool light upper-left, warm dusk lower-right.
+    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
+    img = Image.alpha_composite(img, _radial(s(330), s(240), s(540), (64, 104, 180), 58, size))
+    img = Image.alpha_composite(img, _radial(s(1000), s(560), s(600), (214, 132, 52), 60, size))
+    img = Image.alpha_composite(img, _vignette(0.5, size))
+
+    # Glowing gold candlestick uptrend on the right (the "markets" hero graphic),
+    # kept inside the right margin so the last candle isn't clipped.
+    img = _draw_uptrend(img, s(720), s(206), s(1168), s(556))
+
+    draw = ImageDraw.Draw(img)
+    g = theme.rule
+    LX = s(96)
+
+    mark = _compass(s(50))
+    if mark is not None:
+        img.paste(mark, (LX, s(54)), mark)
+    draw = ImageDraw.Draw(img)
+    _draw_tracked(draw, LX + s(66), s(68), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 21 * S),
+                  theme.wordmark, 6 * S)
+
+    # Kicker tab — filled gold pill with dark text.
+    kf = _font("DejaVuSerif-Bold.ttf", 21 * S)
+    ktext = "THE EVENING BRIEFING"
+    kw = _tracked_w(draw, ktext, kf, 4 * S)
+    draw.rounded_rectangle([LX, s(124), LX + kw + s(36), s(168)], radius=s(8), fill=g)
+    _draw_tracked(draw, LX + s(18), s(133), ktext, kf, theme.bg_bottom, 4 * S)
+
+    # Hero headline = the eyebrow with "FROM TSDR" stripped (that goes in the
+    # subline) — metallic gold serif, auto-fit, balanced over (up to) two lines.
+    head = (eyebrow_label or "").upper().replace("FROM TSDR", "").strip(" -—·")
+    if not head:
+        head = "EVENING UPDATE"
+    lines = _balanced_two_lines(head)
+    avail = s(590)
+    size_pt = 96
+    while size_pt > 52:
+        f = _font("DejaVuSerif-Bold.ttf", size_pt * S)
+        if max(draw.textlength(ln, font=f) for ln in lines) <= avail:
+            break
+        size_pt -= 2
+    f_title = _font("DejaVuSerif-Bold.ttf", size_pt * S)
+    asc, desc = f_title.getmetrics()
+    lh = int((asc + desc) * 0.95)
+    ty = s(208)
+    draw.rectangle([LX, ty + s(10), LX + s(7), ty + lh * len(lines) - s(8)], fill=g)
+    for ln in lines:
+        _hero_line_left(img, LX + s(30), ty, ln, f_title)
+        ty += lh
+    draw = ImageDraw.Draw(img)
+
+    # Subline: FROM TSDR · DATE + small gold underline.
+    f_sub = _font("DejaVuSerif-Bold.ttf", 36 * S)
+    sub = f"FROM TSDR   ·   {date_text.upper()}"
+    dy = ty + s(22)
+    _draw_tracked(draw, LX + s(30), dy, sub, f_sub, theme.date, 2 * S)
+    sw = _tracked_w(draw, sub, f_sub, 2 * S)
+    draw.rectangle([LX + s(30), dy + s(52), LX + s(30) + min(sw, s(440)), dy + s(56)], fill=g)
+
+    # Tagline, foot.
+    _draw_center(draw, W // 2, H - s(64), _TAGLINE, _font("DejaVuSerif.ttf", 25 * S), theme.tagline)
+
+    return img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+
+
 def render_session_thumbnail(
     date_text: str,
     eyebrow_label: str = "LIVE TRADING SESSION",
@@ -344,7 +440,9 @@ def render_session_thumbnail(
     variant: str | None = None,
 ) -> bytes:
     theme = _resolve_theme(variant, eyebrow_label)
-    if theme.layout == "editorial":
+    if theme.layout == "evening":
+        img = _render_evening(theme, date_text, eyebrow_label)
+    elif theme.layout == "editorial":
         img = _render_editorial(theme, date_text, eyebrow_label)
     else:
         img = _render_classic(theme, date_text, eyebrow_label)

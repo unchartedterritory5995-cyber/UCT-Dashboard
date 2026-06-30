@@ -33,6 +33,7 @@ const CATEGORY_ORDER = [
   'Workshops & Fireside Chats',
   'Interviews',
   'Post-Market Recaps',
+  'Evening Update',
   'Live Sessions',
 ]
 const orderRank = (name) => {

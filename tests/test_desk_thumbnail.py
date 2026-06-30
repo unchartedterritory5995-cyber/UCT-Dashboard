@@ -50,3 +50,25 @@ def test_explicit_variant_overrides_eyebrow():
                                          variant="thoughts")
     tr, tg, tb = _top_left_pixel(emerald)
     assert tg > tr and tg > tb
+
+
+def test_evening_update_uses_distinct_twilight_theme():
+    # "Evening Update from TSDR" gets its own twilight navy card: the top-left
+    # background is blue-dominant, unlike the near-black Live card and the
+    # emerald Thoughts card.
+    evening = t.render_session_thumbnail("June 29, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    default = t.render_session_thumbnail("June 29, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert Image.open(io.BytesIO(evening)).size == (1280, 720)
+    assert evening != default                         # visually distinct bytes
+
+    er, eg, eb = _top_left_pixel(evening)
+    assert eb > er and eb > eg                         # twilight navy background
+
+
+def test_evening_resolves_by_eyebrow_and_explicit_variant():
+    # Eyebrow keyword routes to the evening layout; explicit variant also works.
+    assert t._resolve_theme(None, "EVENING UPDATE FROM TSDR").layout == "evening"
+    assert t._resolve_theme("evening", "anything").layout == "evening"
+    # Untouched: live stays classic, thoughts stays editorial.
+    assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
+    assert t._resolve_theme(None, "THOUGHTS ON THE MARKET").layout == "editorial"

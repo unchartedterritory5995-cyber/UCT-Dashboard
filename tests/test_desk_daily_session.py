@@ -228,15 +228,17 @@ def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeyp
 
 def test_process_notifies_on_new_publish(edu_db, jobs_db, monkeypatch):
     calls = []
-    monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append((title, vid)))
+    monkeypatch.setattr(dds, "_notify_published",
+                        lambda title, vid, section=None: calls.append((title, vid, section)))
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
-    assert calls == [("Live Trading Session — June 24, 2026", "VIDX")]
+    assert calls == [("Live Trading Session — June 24, 2026", "VIDX", "Live Trading Sessions")]
 
 
 def test_process_does_not_notify_on_idempotent_rerun(edu_db, jobs_db, monkeypatch):
     calls = []
-    monkeypatch.setattr(dds, "_notify_published", lambda title, vid: calls.append(vid))
+    monkeypatch.setattr(dds, "_notify_published",
+                        lambda title, vid, section=None: calls.append(vid))
     edu.create_video({"youtube_id": "VIDX", "title": "x",
                       "category": "Live Trading Sessions", "sort_order": 0})
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
@@ -254,9 +256,38 @@ def test_route_known_auto_and_default():
     assert dds._route("") == ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 
 
+def test_route_evening_update_from_tsdr():
+    # The new daily show: section "Evening Update", title "Evening Update", and an
+    # eyebrow that keeps "FROM TSDR" so the thumbnail's evening theme + subline fire.
+    assert dds._route("Evening Update from TSDR") == (
+        "Evening Update", "Evening Update", "EVENING UPDATE FROM TSDR")
+
+
 def test_process_routes_by_webinar_name(edu_db, jobs_db):
     jobs_db.enqueue("U2", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
     assert v["title"] == "Post Market Recap — June 24, 2026"
     assert v["category"] == "Post Market Recap"
+
+
+def test_process_evening_update_publishes_with_section(edu_db, jobs_db):
+    jobs_db.enqueue("U3", "Evening Update from TSDR", "2026-06-29T21:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    v = edu.list_videos()[0]
+    assert v["title"] == "Evening Update — June 29, 2026"
+    assert v["category"] == "Evening Update"
+
+
+def test_notify_published_embeds_thumbnail_and_section(monkeypatch):
+    # The Discord announcement carries the video thumbnail, the show title, the
+    # section name, and a website Watch link.
+    sent = {}
+    monkeypatch.setattr("api.services.discord_notify._send_webhook",
+                        lambda embed: sent.update(embed))
+    monkeypatch.setattr(dds, "_alert_recipients", lambda: [])   # skip email path
+    dds._notify_published("Evening Update — June 29, 2026", "VIDXYZ", "Evening Update")
+    assert "VIDXYZ" in sent["image"]["url"]
+    assert "Evening Update — June 29, 2026" in sent["title"]
+    assert "Evening Update" in sent["description"]
+    assert "uctintelligence.com" in sent["description"]

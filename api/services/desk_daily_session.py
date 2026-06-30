@@ -28,6 +28,9 @@ def _category() -> str:
 _RULES = [
     ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
     ("thoughts on the market", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
+    # "Evening Update from TSDR" — daily evening recap. The eyebrow keeps "FROM
+    # TSDR" so the thumbnail's evening theme + "from TSDR" subline both trigger.
+    ("evening update", "Evening Update", "Evening Update", "EVENING UPDATE FROM TSDR"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 
@@ -128,6 +131,9 @@ def _alert_owner(now: datetime, kind: str = "missing") -> None:
 
 
 _DESK_VIDEOS_URL = "https://uctintelligence.com/desk?section=videos"
+# hqdefault always exists immediately after upload (no maxres processing lag);
+# our dark thumbnails hide its letterbox bars. Used in the Discord announcement.
+_YT_THUMB = "https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
 
 
 def _alert_recipients() -> list[str]:
@@ -136,24 +142,29 @@ def _alert_recipients() -> list[str]:
     return [e.strip() for e in raw.split(",") if e.strip()]
 
 
-def _notify_published(title: str, video_id: str) -> None:
-    """Fire a success alert (Discord + email) when a session posts to The Desk.
+def _notify_published(title: str, video_id: str, section: str = "Videos") -> None:
+    """Announce a freshly-published video (Discord + email) when it posts to The
+    Desk. Audience-facing: gold embed with the video thumbnail + a Watch link to
+    the website. Works for any show (Live Trading Session, Evening Update, …) —
+    the header is the video's own title, the body names its section.
     Best-effort — never raises (must not break the processor)."""
     try:
         from api.services import discord_notify
         discord_notify._send_webhook({
-            "title": "✅ Live Trading Session posted",
-            "description": f"**{title}** is now live in The Desk → Videos.\n"
-                           f"[Open The Desk]({_DESK_VIDEOS_URL})",
-            "color": 0x4ADE80,
+            "title": f"🎬 {title}",
+            "url": _DESK_VIDEOS_URL,
+            "description": f"Now live in **The Desk → Videos → {section}**.\n"
+                           f"[Watch ▶]({_DESK_VIDEOS_URL})",
+            "image": {"url": _YT_THUMB.format(vid=video_id)},
+            "color": 0xC9A84C,  # brand gold
         })
     except Exception:
         pass
     try:
         from api.services import email_service
         html = (f"<p style='font-size:16px'><b>{title}</b> is now live in "
-                f"<b>The Desk → Videos → Live Trading Sessions</b>.</p>"
-                f"<p><a href='{_DESK_VIDEOS_URL}' style='color:#c9a84c'>Open The Desk →</a></p>")
+                f"<b>The Desk → Videos → {section}</b>.</p>"
+                f"<p><a href='{_DESK_VIDEOS_URL}' style='color:#c9a84c'>Watch on The Desk →</a></p>")
         for to in _alert_recipients():
             email_service.send_email(to, f"✅ {title} is posted to The Desk", html)
     except Exception:
@@ -248,7 +259,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             desk_session_jobs.mark_done(uuid, vid)
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
             if created_now:                 # alert once, only on a genuinely-new publish
-                _notify_published(title, vid)
+                _notify_published(title, vid, section)
         except Exception as e:
             desk_session_jobs.mark_error(uuid, e)
         finally:
