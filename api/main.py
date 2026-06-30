@@ -1629,6 +1629,39 @@ async def lifespan(app: FastAPI):
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
 
+    # ── Warm dashboard caches after a deploy ────────────────────────────────
+    # Every Railway deploy spins up a fresh container with an empty in-memory
+    # TTLCache, so the FIRST user to hit /dashboard would otherwise pay the
+    # full cold-compute cost on every tile at once (news ~3-4s, theme-perf
+    # rebuild, snapshot/movers fetches, leadership). This pre-populates those
+    # caches in the background so that first post-deploy load is warm. Fully
+    # best-effort — any failure is swallowed and the endpoints just compute
+    # lazily as before.
+    def _warm_dashboard_caches():
+        import time as _wt
+        _wt.sleep(8)  # let the rest of startup settle first
+        from api.services import engine as _eng
+        from api.services import theme_performance as _tp
+        from api.services import massive as _mv
+        warmers = [
+            ("snapshot", _mv.get_snapshot),
+            ("movers", _mv.get_movers),
+            ("news", _eng.get_news),
+            ("theme-performance", _tp.get_theme_performance),
+            ("leadership", _eng.get_leadership),
+            ("breadth", _eng.get_breadth),
+            ("earnings", _eng.get_earnings),
+        ]
+        for name, fn in warmers:
+            try:
+                fn()
+                print(f"[warm] dashboard cache warmed: {name}")
+            except Exception as e:
+                print(f"[warm] {name} warm failed (non-fatal): {e}")
+
+    threading.Thread(target=_warm_dashboard_caches, daemon=True,
+                     name="dashboard-cache-warm").start()
+
     try:
         from api.services.voice_kb_service import seed_on_startup as _kb_seed
         import threading as _t

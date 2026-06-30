@@ -1628,7 +1628,57 @@ def _check_sym_cap(sym: str) -> tuple[str, bool]:
         return sym, True
 
 
+# ── News: stale-while-revalidate so a user never blocks on the 2-4s rebuild ──
+_news_stale: dict = {"value": None}   # last GOOD payload, outlives the TTL
+_news_refresh_lock = _threading.Lock()
+_news_refreshing = False
+
+
+def _store_news(result: list, ttl: float) -> None:
+    """Write the fresh-cache entry and (if it's a real payload) the stale copy."""
+    cache.set("news", result, ttl=ttl)
+    # Only keep a successful payload as the stale fallback — never let an error
+    # placeholder become the value served to every user for the next window.
+    if result and not result[0].get("error"):
+        _news_stale["value"] = result
+
+
+def _kick_news_refresh() -> None:
+    """Refresh the news cache in the background (deduped — one at a time)."""
+    global _news_refreshing
+    with _news_refresh_lock:
+        if _news_refreshing:
+            return
+        _news_refreshing = True
+
+    def _bg():
+        global _news_refreshing
+        try:
+            _compute_news()
+        except Exception:
+            pass
+        finally:
+            with _news_refresh_lock:
+                _news_refreshing = False
+
+    _threading.Thread(target=_bg, daemon=True, name="news-refresh").start()
+
+
 def get_news() -> list:
+    """Fast path. Fresh cache → return. Else serve the last good payload and
+    refresh in the background. Only the very first cold call (no stale value
+    yet) pays the full fetch cost — and startup warming covers even that."""
+    cached = cache.get("news")
+    if cached:
+        return cached
+    stale = _news_stale["value"]
+    if stale is not None:
+        _kick_news_refresh()
+        return stale
+    return _compute_news()
+
+
+def _compute_news() -> list:
     cached = cache.get("news")
     if cached:
         return cached
@@ -1639,7 +1689,7 @@ def get_news() -> list:
                    "time": "", "category": "GENERAL", "sentiment": "neutral",
                    "tickers": [], "change_pct": None,
                    "error": "ALPHAVANTAGE_API_KEY not set"}]
-        cache.set("news", result, ttl=120)
+        _store_news(result, ttl=120)
         return result
 
     try:
@@ -1852,7 +1902,7 @@ def get_news() -> list:
 
     # Use longer TTL when AV worked (preserve quota); shorter when RSS fallback used
     _ttl = 1800 if (result and not result[0].get("error")) else 600
-    cache.set("news", result, ttl=_ttl)
+    _store_news(result, ttl=_ttl)
     return result
 
 

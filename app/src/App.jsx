@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense } from 'react'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
 // retry that hard-reloads the page instead of hanging on a missing chunk.
@@ -6,14 +6,6 @@ import lazy from './utils/lazyWithRetry'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
-import { useVoice } from './context/VoiceContext'
-import useRealtimeSession from './hooks/useRealtimeSession'
-import useWakeWord from './hooks/useWakeWord'
-import AudioPlayerBar from './components/voice/AudioPlayerBar'
-import FloatingOrb from './components/voice/FloatingOrb'
-import TranscriptBubble from './components/voice/TranscriptBubble'
-import usePushToTalkHotkey from './hooks/usePushToTalkHotkey'
-import useProactiveVoice from './hooks/useProactiveVoice'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -66,47 +58,21 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const VerifyPending = lazy(() => import('./pages/VerifyPending'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
-/** Global voice UI — must render inside VoiceProvider */
-function VoiceMounts() {
-  const { wakeEnabled } = useVoice()
-  const { connect } = useRealtimeSession()
-  usePushToTalkHotkey({ context: 'global' })
-  useWakeWord({ enabled: wakeEnabled, onWake: () => connect('global') })
-  // P4-A: Compass speaks proactive alerts when the user has opted in
-  // (Compass Settings → "Compass can speak proactive alerts"). The hook
-  // is a no-op when the toggle is off; backend gates the unspoken queue.
-  useProactiveVoice()
-  // Batch 10a: when an agent emits route_to_agent, start a fresh session
-  // in the target agent's context.
-  useEffect(() => {
-    const onSwitch = (e) => {
-      const target = e?.detail?.agent_id
-      if (target) {
-        setTimeout(() => connect(target), 300)
-      }
-    }
-    window.addEventListener('uct:voice:switch-agent', onSwitch)
-    return () => window.removeEventListener('uct:voice:switch-agent', onSwitch)
-  }, [connect])
-  return (
-    <>
-      <FloatingOrb context="global" />
-      <TranscriptBubble />
-    </>
-  )
-}
+/** Heavy voice/audio layer (wake-word wasm, realtime session, audio player).
+ *  Lazily code-split so its ~MB of deps stay out of the entry bundle and are
+ *  only fetched once the user is confirmed paid (see GlobalVoiceGate). */
+const GlobalVoiceLayer = lazy(() => import('./components/voice/GlobalVoiceLayer'))
 
-/** Global voice/audio UI — paid-only. Returning null before VoiceMounts
- *  renders means its cost-incurring hooks (wake word mic, proactive-voice
- *  polling, realtime session) never run for free users. */
-function GlobalVoiceLayer() {
+/** Paid-only gate for the voice layer. The dynamic import (and thus the
+ *  voice/wasm chunk) only fires for paid users — free users never download
+ *  any of it. Returns null until auth resolves and the user is paid. */
+function GlobalVoiceGate() {
   const { isPaid } = useAuth()
   if (!isPaid) return null
   return (
-    <>
-      <VoiceMounts />
-      <AudioPlayerBar />
-    </>
+    <Suspense fallback={null}>
+      <GlobalVoiceLayer />
+    </Suspense>
   )
 }
 
@@ -212,7 +178,7 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
-        <GlobalVoiceLayer />
+        <GlobalVoiceGate />
         </VoiceProvider>
       </AuthProvider>
     </BrowserRouter>

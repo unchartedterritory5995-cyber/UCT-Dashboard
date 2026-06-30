@@ -46,6 +46,12 @@ _ROTATION_CACHE_KEY = "theme_rotation"
 _ROTATION_CACHE_TTL = 900  # 15 min rotation signals cache
 _LIVE_1D_KEY = "theme_live_1d_map"
 _LIVE_1D_TTL = 30         # 30s live intraday overlay
+# Fully overlaid + taxonomy-enriched response, memoized for the live-overlay
+# window. The live-1d map only refreshes every _LIVE_1D_TTL seconds, so the
+# enriched output is byte-identical within that window — caching it avoids
+# rebuilding the ~345KB structure + re-walking the taxonomy on EVERY request
+# (and every 30s SWR poll from every connected client).
+_OVERLAID_KEY = "theme_performance_overlaid"
 _MAX_WORKERS = 6          # conservative — keeps Railway memory safe
 _BAR_DAYS = 420           # ~14 months → ≥252 trading days for 1Y
 _EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
@@ -189,6 +195,7 @@ def _run_computation() -> None:
             result = {"themes": [], "status": "ok",
                       "generated_at": datetime.now(timezone.utc).isoformat()}
             cache.set(_CACHE_KEY, result, ttl=60)
+            cache.invalidate(_OVERLAID_KEY)
             _save_to_disk(result)
             return
 
@@ -263,6 +270,7 @@ def _run_computation() -> None:
         }
         # Write to in-memory cache and persist to volume
         cache.set(_CACHE_KEY, result, ttl=_CACHE_TTL)
+        cache.invalidate(_OVERLAID_KEY)
         _save_to_disk(result)
         print(f"[theme-perf] Computation done — {len(themes_out)} themes persisted to disk")
 
@@ -414,16 +422,26 @@ def get_theme_performance() -> dict:
     """
     global _computing
 
-    # 1. In-memory cache hit (fast path) — overlay live 1d before returning
+    # 0. Fully overlaid + enriched response cache (short TTL == live window).
+    #    Collapses thousands of redundant ~345KB rebuilds into one per window.
+    overlaid = cache.get(_OVERLAID_KEY)
+    if overlaid is not None:
+        return overlaid
+
+    # 1. In-memory cache hit (fast path) — overlay live 1d, enrich, memoize
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        return _enrich_with_taxonomy(_apply_live_returns(cached))
+        out = _enrich_with_taxonomy(_apply_live_returns(cached))
+        cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
+        return out
 
-    # 2. Disk hit — load into memory cache and return with live 1d overlay
+    # 2. Disk hit — load into memory cache, overlay, enrich, memoize
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        return _enrich_with_taxonomy(_apply_live_returns(disk_data))
+        out = _enrich_with_taxonomy(_apply_live_returns(disk_data))
+        cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
+        return out
 
     # 3. Cache cold — trigger background computation if not already running
     with _compute_lock:
