@@ -254,6 +254,27 @@ DEFAULT_THRESHOLDS = {
     # Default 100 contracts: high enough to filter out random tiny
     # opening prints, low enough to catch real institutional bets.
     "fresh_strike_min_volume": 100,
+    # V/OI gate for Bullish/Bearish catchall tier (added 6/30 evening).
+    #
+    # The catchall directional tier was previously gateless -- any MAGENTA
+    # row with premium and a direction landed in Bullish or Bearish. Today's
+    # audit showed 36% direction-disagreement on Bearish vs BBS/Bullflow,
+    # mostly because the tier admitted noisy low-V/OI reads.
+    #
+    # Applying the same V/OI > 1.0 floor as Size/Alpha narrows the tier to
+    # only fresh positioning. Failed rows drop from curated entirely
+    # (uncurated still shows them).
+    #
+    # Set to 0 to disable (recover previous behavior — risky, catches lots
+    # of noise).
+    "bullish_bearish_min_vol_oi_ratio": 1.0,
+    # V/OI gate for LEAPS tier (added 6/30 evening).
+    #
+    # Same principle as Bullish/Bearish. LEAPS gate is independent so it
+    # can be tuned looser if institutional position-building on long-dated
+    # contracts consistently shows low same-day V/OI. Default starts at
+    # the same 1.0 as other tiers; adjust based on observed flow patterns.
+    "leaps_min_vol_oi_ratio": 1.0,
 }
 
 _GRADE_NUMERIC = {"A+ 🚀": 4, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
@@ -810,8 +831,24 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
             # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
         # LEAPS
+        # V/OI gate (added 6/30 evening): LEAPS now requires fresh
+        # positioning OR fresh-strike with volume. Long-dated contracts
+        # that fail the gate (e.g. low V/OI on stale OI) get dropped
+        # from curated entirely. Trade still exists in raw feed.
         if is_leaps:
-            return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
+            try:
+                leaps_min_voi = _load_thresholds().get(
+                    "leaps_min_vol_oi_ratio", 1.0)
+            except Exception:
+                leaps_min_voi = 1.0
+            leaps_vol_exceeds_oi = (
+                (oi > 0 and v_oi > leaps_min_voi)
+                or is_fresh_strike
+            )
+            if leaps_vol_exceeds_oi:
+                return (f"UCT {direction} LEAPS", "leaps", TIER_PRIORITY["leaps"])
+            # V/OI gate failed → drop from curated
+            return None
         # Unusual — dormant ticker (per past N trading days) waking up with
         # high V/OI flow. When precompute data unavailable, falls back to
         # legacy V/OI-only rule. See _is_unusual_classification() for full
@@ -839,7 +876,25 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 return (f"UCT Size {direction}s", "size", TIER_PRIORITY["size"])
             # V/OI gate failed → fall through to bullish/bearish
         # Regular bullish/bearish magenta
-        return (f"UCT {direction}ish", dir_tier, TIER_PRIORITY[dir_tier])
+        # V/OI gate (added 6/30 evening): catchall tier now requires
+        # vol > OI before classifying as Bullish/Bearish. Without it,
+        # noisy stale-OI directional reads (V/OI 0.01-0.20) clutter
+        # the curated feed. Today's audit (6/30) confirmed this pattern
+        # produced 36% direction-disagreement vs BBS/Bullflow on the
+        # Bearish tier.
+        try:
+            bull_bear_min_voi = _load_thresholds().get(
+                "bullish_bearish_min_vol_oi_ratio", 1.0)
+        except Exception:
+            bull_bear_min_voi = 1.0
+        bull_bear_vol_exceeds_oi = (
+            (oi > 0 and v_oi > bull_bear_min_voi)
+            or is_fresh_strike
+        )
+        if bull_bear_vol_exceeds_oi:
+            return (f"UCT {direction}ish", dir_tier, TIER_PRIORITY[dir_tier])
+        # V/OI gate failed → drop from curated entirely
+        return None
 
     if color == "YELLOW":
         if is_leaps:
@@ -1609,6 +1664,8 @@ async def save_thresholds(request: Request):
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
         "fresh_strike_min_volume",   # min volume to promote OI=0 fresh strikes
+        "bullish_bearish_min_vol_oi_ratio",  # V/OI gate for catchall tier
+        "leaps_min_vol_oi_ratio",    # V/OI gate for LEAPS tier
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
