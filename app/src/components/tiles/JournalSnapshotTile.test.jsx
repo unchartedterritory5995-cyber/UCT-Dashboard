@@ -131,6 +131,32 @@ test('broker account: hero uses real net-liq balance, never $0.00 when live feed
   expect(screen.getByText(/synced/)).toBeInTheDocument()
 })
 
+test('broker account with no equity basis yet shows the placeholder, never $0.00', () => {
+  // Freshly-connected broker: perf has no equity-snapshot history yet
+  // (endEquity null) and no account has synced a brokerTotalEquity yet
+  // (pre-first-sync) — but BrokerHero still renders because perf.brokerCount
+  // signals a connected broker. The old unguarded `reduce()` over an empty
+  // brokerAccounts array yielded 0 (not null), which brokerLiveEquity treated
+  // as a real basis (Number.isFinite(0) === true) and rendered $0.00.
+  h.positions = {
+    positions: [
+      { id: 'p1', symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 100, stopPrice: 90 },
+    ],
+  }
+  h.options = { strategies: [] }
+  h.accounts = { accounts: [{ id: 'a1', balanceSource: 'broker', brokerTotalEquity: null }] }
+  h.perf = { endEquity: null, brokerCount: 1, equitySeries: [] }
+  h.prices = {}
+
+  renderWithProviders(<JournalSnapshotTile />)
+
+  expect(screen.getByText('AAPL')).toBeInTheDocument()
+  expect(screen.queryByText('$0.00')).toBeNull()
+  expect(screen.queryByText(/\$NaN/)).toBeNull()
+  const hero = document.querySelector('[class*="heroValue"]')
+  expect(hero).toHaveTextContent('—')
+})
+
 test('includes open option strategies with broker value', () => {
   h.positions = { positions: [] }
   h.options = {

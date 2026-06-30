@@ -135,8 +135,14 @@ export default function JournalSnapshotTile() {
 
   // Portfolio-wide live broker value — folds intraday drift (live price vs each
   // position's last-synced broker mark) into the broker hero's net-liq headline.
+  // The `|| null` guard matters: when perf.endEquity is null (fresh broker, no
+  // equity-snapshot history yet) AND no account carries a brokerTotalEquity yet
+  // (pre-first-sync), the reduce() yields 0 — and brokerLiveEquity() treats 0 as
+  // a real basis (Number.isFinite(0) === true), so the hero would render $0.00
+  // instead of the no-data placeholder. Coercing that empty-sum 0 to null lets
+  // brokerLiveEquity's own null check take over correctly.
   const brokerBase = perf?.endEquity
-    ?? brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0)
+    ?? (brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0) || null)
   const brokerLive = useMemo(
     () => brokerLiveEquity({ brokerTotalEquity: brokerBase }, positions, priceMap),
     [brokerBase, positions, priceMap],
@@ -214,7 +220,7 @@ export default function JournalSnapshotTile() {
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} brokerAccounts={brokerAccounts} positions={positions} strategies={strategies} brokerLive={brokerLive} isStreaming={isStreaming} />
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isStreaming={isStreaming} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
             <div className={styles.rows}>
@@ -251,10 +257,8 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, brokerAccounts, positions, strategies, brokerLive, isStreaming }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isStreaming }) {
   const series = perf?.equitySeries || []
-  const sumEquity = brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0)
-  const brokerBase = perf?.endEquity ?? (sumEquity || null)
   const value = brokerLive?.liveValue ?? brokerBase
 
   // Today = change across the last two REAL (non-estimated) snapshots.
