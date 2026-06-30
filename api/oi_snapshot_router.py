@@ -349,7 +349,7 @@ async def test_massive_oi(ticker: str):
     base_url = os.environ.get(
         "MASSIVE_REST_BASE", "https://api.massive.com"
     ).rstrip("/")
-    url = f"{base_url}/v3/snapshot/options/{ticker}"
+    url = f"{base_url}/v3/snapshot/options/{ticker}?limit=250"
 
     try:
         import httpx
