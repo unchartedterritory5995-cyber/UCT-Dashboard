@@ -669,7 +669,11 @@ def register_pattern_vision_jobs(scheduler):
         except Exception as e:
             print(f"[scheduler] pattern_vision job error: {e}")
 
-    scheduler.add_job(_run, trigger=CronTrigger(minute=0),
+    # Cost tightening: only judge during regular market hours on weekdays
+    # (was hourly, 24x/day → most runs happened overnight/weekends when charts
+    # don't change). Scheduler TZ is America/New_York, so 9-16 = 9am-4pm ET.
+    scheduler.add_job(_run,
+                      trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute=0),
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
     return True
