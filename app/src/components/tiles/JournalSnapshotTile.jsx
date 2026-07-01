@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
+import useMarketOpen from '../../hooks/useMarketOpen'
 import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
 import {
   portfolioAggregates,
@@ -143,9 +144,16 @@ export default function JournalSnapshotTile() {
   // brokerLiveEquity's own null check take over correctly.
   const brokerBase = perf?.endEquity
     ?? (brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0) || null)
+  // Only apply live mark-to-market drift during a real trading session. Off
+  // hours the feed is thin/stale — drift would be phantom and would make this
+  // tile's headline disagree with the Open Positions hero (each samples the
+  // feed at a different moment). Closed ⇒ show the clean reconciled broker
+  // net-liq (= brokerBase) so both surfaces match exactly. Mirrors OpenPositionsTab.
+  const { isOpen, isPremarket, isExtended } = useMarketOpen()
+  const liveSession = isOpen || isPremarket || isExtended
   const brokerLive = useMemo(
-    () => brokerLiveEquity({ brokerTotalEquity: brokerBase }, positions, priceMap),
-    [brokerBase, positions, priceMap],
+    () => (liveSession ? brokerLiveEquity({ brokerTotalEquity: brokerBase }, positions, priceMap) : null),
+    [liveSession, brokerBase, positions, priceMap],
   )
   const manualToday = useMemo(() => {
     let s = 0
@@ -220,7 +228,7 @@ export default function JournalSnapshotTile() {
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isStreaming={isStreaming} />
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && liveSession} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
             <div className={styles.rows}>
@@ -257,7 +265,7 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isStreaming }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive }) {
   const series = perf?.equitySeries || []
   const value = brokerLive?.liveValue ?? brokerBase
 
@@ -279,7 +287,7 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isStr
     <div className={styles.hero}>
       <div className={styles.heroValue}>
         {money(value)}
-        {isStreaming && <span className={styles.liveBadge}> LIVE</span>}
+        {isLive && <span className={styles.liveBadge}> LIVE</span>}
       </div>
       <div className={styles.perfRow}>
         {todayChange != null && <PerfFigure label="Today" dollar={todayChange} pct={todayPct} />}

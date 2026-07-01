@@ -20,6 +20,7 @@ import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
+import useMarketOpen from '../../../hooks/useMarketOpen'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
@@ -254,9 +255,19 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     () => accounts.filter((a) => a?.balanceSource === 'broker' && a?.brokerTotalEquity != null).length,
     [accounts],
   )
+  // Only mark the headline to market during a real trading session. When the
+  // market is closed the live feed serves thin/stale prices that would add
+  // phantom drift to the net-liq — and, because two surfaces sample it at
+  // different moments, make the account value look inconsistent between the
+  // Open Positions hero and the Dashboard tile. Off-session ⇒ show the clean,
+  // reconciled broker net-liq (drift 0) so both surfaces agree exactly.
+  const { isOpen, isPremarket, isExtended } = useMarketOpen()
+  const liveSession = isOpen || isPremarket || isExtended
   const liveEquity = useMemo(
-    () => (brokerAccountCount <= 1 ? brokerLiveEquity(selectedAccount, positions, priceMap) : null),
-    [brokerAccountCount, selectedAccount, positions, priceMap],
+    () => (brokerAccountCount <= 1 && liveSession
+      ? brokerLiveEquity(selectedAccount, positions, priceMap)
+      : null),
+    [brokerAccountCount, liveSession, selectedAccount, positions, priceMap],
   )
 
   const pickerBtnRef = useRef(null)
@@ -279,7 +290,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         account={selectedAccount}
         aggregates={aggregates}
         liveEquity={liveEquity}
-        isLive={isStreaming && liveEquity?.liveValue != null}
+        isLive={isStreaming && liveSession && liveEquity?.liveValue != null}
       />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}

@@ -6,6 +6,7 @@ import { positionTodayDollar } from './JournalSnapshotTile'
 // vi.mock factories run.
 const h = vi.hoisted(() => ({
   positions: null, options: null, prices: {}, broker: null, accounts: null, perf: null,
+  market: { isOpen: true, isPremarket: false, isExtended: false },
 }))
 
 // useSWR is keyed by URL — return the matching slice. Order matters:
@@ -27,6 +28,8 @@ vi.mock('../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: h.prices, isLoading: false, isStreaming: true, staleSymbols: new Set() }),
 }))
 
+vi.mock('../../hooks/useMarketOpen', () => ({ default: () => h.market }))
+
 import JournalSnapshotTile from './JournalSnapshotTile'
 
 beforeEach(() => {
@@ -36,6 +39,7 @@ beforeEach(() => {
   h.broker = null
   h.accounts = null
   h.perf = null
+  h.market = { isOpen: true, isPremarket: false, isExtended: false }
 })
 
 test('positionTodayDollar derives today $ from live snapshot', () => {
@@ -176,6 +180,45 @@ test('includes open option strategies with broker value', () => {
   renderWithProviders(<JournalSnapshotTile />)
   expect(screen.getByText(/1 option/)).toBeInTheDocument()
   expect(screen.getByText('$650.00')).toBeInTheDocument()
+})
+
+test('broker headline marks to market during a session (live drift applied)', () => {
+  // brokerTotalEquity 10000; SPY 10 @ mark 100, live 110 → drift +100 → 10100.
+  h.positions = {
+    positions: [
+      { id: 'p1', symbol: 'SPY', side: 'Long', shares: 10, entryPrice: 100, stopPrice: 90, brokerPrice: 100 },
+    ],
+  }
+  h.options = { strategies: [] }
+  h.accounts = { accounts: [{ id: 'a1', balanceSource: 'broker', brokerTotalEquity: 10000 }] }
+  h.perf = { endEquity: 10000, brokerCount: 1, equitySeries: [] }
+  h.prices = { SPY: { price: 110 } }
+  h.market = { isOpen: true, isPremarket: false, isExtended: false }
+
+  renderWithProviders(<JournalSnapshotTile />)
+  const hero = document.querySelector('[class*="heroValue"]')
+  expect(hero).toHaveTextContent('$10,100.00')   // base + live drift
+  expect(hero).toHaveTextContent('LIVE')
+})
+
+test('broker headline shows clean net-liq when the market is closed (no phantom drift)', () => {
+  // Same position + live price, but market closed: the thin/stale live price
+  // must NOT drift the headline — it shows the reconciled broker net-liq.
+  h.positions = {
+    positions: [
+      { id: 'p1', symbol: 'SPY', side: 'Long', shares: 10, entryPrice: 100, stopPrice: 90, brokerPrice: 100 },
+    ],
+  }
+  h.options = { strategies: [] }
+  h.accounts = { accounts: [{ id: 'a1', balanceSource: 'broker', brokerTotalEquity: 10000 }] }
+  h.perf = { endEquity: 10000, brokerCount: 1, equitySeries: [] }
+  h.prices = { SPY: { price: 110 } }
+  h.market = { isOpen: false, isPremarket: false, isExtended: false }
+
+  renderWithProviders(<JournalSnapshotTile />)
+  const hero = document.querySelector('[class*="heroValue"]')
+  expect(hero).toHaveTextContent('$10,000.00')   // clean broker net-liq, no drift
+  expect(hero).not.toHaveTextContent('LIVE')     // no live badge off-session
 })
 
 test('populated tile links into the journal positions tab', () => {
