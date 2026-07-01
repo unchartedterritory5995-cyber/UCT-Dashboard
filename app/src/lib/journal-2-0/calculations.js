@@ -310,7 +310,18 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     if (Number.isFinite(live)) {
       const openedToday =
         todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
-      const ref = openedToday ? p.entryPrice : prices?.[p.symbol]?.prev_close
+      // Reference price for Today: the entry (fill) if opened today, else the
+      // previous close — the `prev_close` field when present, otherwise derived
+      // from `change_pct` (price / (1 + pct/100)), since the live feed doesn't
+      // always carry prev_close. Mirrors positionTodayDollar's proven approach.
+      let ref
+      if (openedToday) {
+        ref = p.entryPrice
+      } else {
+        const snap = prices?.[p.symbol]
+        if (Number.isFinite(snap?.prev_close)) ref = snap.prev_close
+        else if (Number.isFinite(snap?.change_pct)) ref = live / (1 + snap.change_pct / 100)
+      }
       if (Number.isFinite(ref)) today += signed * (live - ref)
     }
   }

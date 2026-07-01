@@ -897,6 +897,15 @@ describe('brokerLiveSummary', () => {
     expect(r.todayPct).toBeCloseTo(-0.1, 6)
   })
 
+  it('derives prevClose from change_pct when prev_close is absent from the feed', () => {
+    const acct = { brokerCash: 0 }
+    // live 90, change_pct −10 → derived prevClose = 90/(1−0.10) = 100 → today = 10*(90−100) = −100
+    const positions = [{ symbol: 'AAPL', side: 'Long', shares: 10, brokerPrice: 90 }]
+    const prices = { AAPL: { price: 90, change_pct: -10 } }   // NO prev_close
+    const r = brokerLiveSummary(acct, positions, [], prices, '2026-07-01')
+    expect(r.today).toBeCloseTo(-100, 4)
+  })
+
   it('a position opened TODAY measures Today from entry (fill), not prev close', () => {
     const acct = { brokerCash: 0 }
     // bought today at 95, now 98 → today = 3*... use shares 4: 4*(98−95)=12 (NOT 4*(98−prevClose))
