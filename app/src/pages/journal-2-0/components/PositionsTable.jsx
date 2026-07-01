@@ -19,6 +19,7 @@ import {
   positionBeSellShares,
   positionInvestedPercent,
   positionRiskAccountPercent,
+  currentPriceFor,
   money,
   moneySigned,
   percent,
@@ -35,7 +36,7 @@ export const POSITIONS_COLUMNS = [
   { key: 'date', label: 'Date', align: 'left', tooltip: 'Entry date.' },
   { key: 'sharesCol', label: 'Shares', align: 'right', tooltip: 'Current remaining shares.' },
   { key: 'entry', label: 'Entry', align: 'right', tooltip: 'Weighted-average entry price.' },
-  { key: 'current', label: 'Current', align: 'right', tooltip: 'Live price. — if feed is stale > 5 min.' },
+  { key: 'current', label: 'Current', align: 'right', tooltip: 'Live price when the market is open; the broker’s last-synced mark after hours. — if unavailable.' },
   { key: 'stop', label: 'Stop', align: 'right', tooltip: 'Active stop (breakevenStop when raise-to-BE is on, else original stop).' },
   { key: 'pnlDollar', label: 'P&L $', align: 'right', tooltip: '(current − entry) × shares for Long. Sign-flipped for Short.' },
   { key: 'pnlPercent', label: 'P&L %', align: 'right', tooltip: '(current − entry) / entry. Long; inverted for Short.' },
@@ -421,7 +422,7 @@ export default function PositionsTable({
             <Row
               key={p.id}
               position={p}
-              current={prices?.[p.symbol]?.price}
+              current={currentPriceFor(p, prices)}
               accountSize={accountSize}
               visibleColumns={visibleColumns}
               onEdit={onEdit}

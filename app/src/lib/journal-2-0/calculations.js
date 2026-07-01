@@ -253,6 +253,23 @@ export const brokerLiveEquity = (account, positions, prices) => {
   return { liveValue: base + liveDelta, liveDelta }
 }
 
+/**
+ * Resolve the CURRENT price for a position: the live tick when present, else the
+ * broker's last-synced mark (`brokerPrice`) so broker-imported equity rows show
+ * a real price + P&L after hours / when the live feed is quiet (matching the
+ * Dashboard snapshot tile). Manual positions (no `brokerPrice`) return
+ * `undefined` so callers render "—".
+ *
+ * @param {{symbol: string, brokerPrice?: number}} position
+ * @param {Record<string, {price?: number}>} prices  live snapshot map (sym → {price})
+ * @returns {number|undefined}
+ */
+export const currentPriceFor = (position, prices) => {
+  const live = prices?.[position?.symbol]?.price
+  if (Number.isFinite(live)) return live
+  return Number.isFinite(position?.brokerPrice) ? position.brokerPrice : undefined
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.5 Trade-level
 // ───────────────────────────────────────────────────────────────────────────
