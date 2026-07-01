@@ -37,7 +37,7 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function BrokerAccountHero({ account, aggregates, liveEquity = null, isLive = false }) {
+export default function BrokerAccountHero({ account, aggregates, liveSummary = null, isLive = false }) {
   const [range, setRange] = useState(RANGES[1]) // default 3M
   const [scrub, setScrub] = useState(null)       // hovered/dragged data index
   const wrapRef = useRef(null)
@@ -89,16 +89,18 @@ export default function BrokerAccountHero({ account, aggregates, liveEquity = nu
 
   // Scrub state → what the headline shows.
   const scrubbing = scrub != null && model && series[scrub]
-  // Headline = portfolio total across all brokers (endEquity), or the scrub
-  // point, or — when not scrubbing — the live mark-to-market value.
+  // Headline = the live net-liq (cash + live market value of holdings — the
+  // Robinhood-accurate number), or the scrub point, or the portfolio perf base
+  // as a fallback (multi-broker / cash unavailable).
   const baseValue = data?.endEquity ?? account.brokerTotalEquity
-  const liveVal = liveEquity?.liveValue
+  const netLiqVal = liveSummary?.netLiq
   const headValue = scrubbing
     ? series[scrub].value
-    : (liveVal != null ? liveVal : baseValue)
-  // Today's change, with live drift since last sync folded in.
-  const liveDelta = liveEquity?.liveDelta ?? 0
-  const liveToday = model && model.todayChange != null ? model.todayChange + liveDelta : null
+    : (netLiqVal != null ? netLiqVal : baseValue)
+  // Today's change from the live summary (Σ position move vs previous close),
+  // falling back to the daily-snapshot delta when there's no live summary.
+  const liveToday = liveSummary != null ? liveSummary.today : (model ? model.todayChange : null)
+  const liveTodayPct = liveSummary != null ? liveSummary.todayPct : (model ? model.todayPct : null)
   const liveTodayUp = (liveToday ?? 0) >= 0
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
@@ -132,10 +134,10 @@ export default function BrokerAccountHero({ account, aggregates, liveEquity = nu
               </span>
             ) : (
               <>
-                {model && liveToday != null && (
+                {liveToday != null && (
                   <span className={`${styles.change} ${liveTodayUp ? styles.pos : styles.neg}`}>
                     {liveTodayUp ? '▲' : '▼'} {moneySigned(liveToday)}
-                    {model.todayPct != null && <>{' '}({percent(model.todayPct, { signed: true, dp: 1, isRatio: true })})</>}
+                    {liveTodayPct != null && <>{' '}({percent(liveTodayPct, { signed: true, dp: 1, isRatio: true })})</>}
                     <span className={styles.changeLabel}> Today</span>
                   </span>
                 )}

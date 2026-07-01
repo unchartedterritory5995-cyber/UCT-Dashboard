@@ -22,12 +22,11 @@ import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../TileCard'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
-import useMarketOpen from '../../hooks/useMarketOpen'
 import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
 import {
   portfolioAggregates,
   positionPnlDollar,
-  brokerLiveEquity,
+  brokerLiveSummary,
   money,
   moneySigned,
   percent,
@@ -134,26 +133,28 @@ export default function JournalSnapshotTile() {
     [positions, priceMap],
   )
 
-  // Portfolio-wide live broker value — folds intraday drift (live price vs each
-  // position's last-synced broker mark) into the broker hero's net-liq headline.
-  // The `|| null` guard matters: when perf.endEquity is null (fresh broker, no
-  // equity-snapshot history yet) AND no account carries a brokerTotalEquity yet
-  // (pre-first-sync), the reduce() yields 0 — and brokerLiveEquity() treats 0 as
-  // a real basis (Number.isFinite(0) === true), so the hero would render $0.00
-  // instead of the no-data placeholder. Coercing that empty-sum 0 to null lets
-  // brokerLiveEquity's own null check take over correctly.
+  // Fallback base (perf endEquity, else Σ broker total equity, else null so a
+  // fresh broker renders the "—" placeholder rather than $0.00). The `|| null`
+  // coercion matters: an empty reduce() yields 0, which would render $0.00.
   const brokerBase = perf?.endEquity
     ?? (brokerAccounts.reduce((s, a) => s + (a.brokerTotalEquity || 0), 0) || null)
-  // Only apply live mark-to-market drift during a real trading session. Off
-  // hours the feed is thin/stale — drift would be phantom and would make this
-  // tile's headline disagree with the Open Positions hero (each samples the
-  // feed at a different moment). Closed ⇒ show the clean reconciled broker
-  // net-liq (= brokerBase) so both surfaces match exactly. Mirrors OpenPositionsTab.
-  const { isOpen, isPremarket, isExtended } = useMarketOpen()
-  const liveSession = isOpen || isPremarket || isExtended
+  // Live net-liq the Robinhood way: portfolio cash + live market value of
+  // holdings. Matches the broker's real number and reflects today's move
+  // (the broker-reported total equity is stale for some brokers). Both this
+  // tile and the Open Positions hero compute it identically from the shared
+  // price feed, so they agree. Cash null (fresh broker) ⇒ netLiq null ⇒
+  // headline falls back to brokerBase.
+  const etToday = useMemo(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
+    [],
+  )
+  const brokerCashTotal = useMemo(() => {
+    const withCash = brokerAccounts.filter((a) => Number.isFinite(a.brokerCash))
+    return withCash.length ? withCash.reduce((s, a) => s + a.brokerCash, 0) : null
+  }, [brokerAccounts])
   const brokerLive = useMemo(
-    () => (liveSession ? brokerLiveEquity({ brokerTotalEquity: brokerBase }, positions, priceMap) : null),
-    [liveSession, brokerBase, positions, priceMap],
+    () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices, etToday),
+    [brokerCashTotal, positions, strategies, prices, etToday],
   )
   const manualToday = useMemo(() => {
     let s = 0
@@ -190,8 +191,10 @@ export default function JournalSnapshotTile() {
     return strategies
       .map((s) => {
         const dte = computeDaysToExpiration(s.legs)
-        const brokerVal = Number.isFinite(s.broker_current_value)
-          ? s.broker_current_value
+        // Serializer emits camelCase `brokerCurrentValue` (was read as snake
+        // `broker_current_value` → always null → option value never showed).
+        const brokerVal = Number.isFinite(s.brokerCurrentValue)
+          ? s.brokerCurrentValue
           : null
         return {
           kind: 'option',
@@ -228,7 +231,7 @@ export default function JournalSnapshotTile() {
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && liveSession} />
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
             <div className={styles.rows}>
@@ -267,16 +270,22 @@ function CountLine({ positions, strategies, suffix }) {
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
 function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive }) {
   const series = perf?.equitySeries || []
-  const value = brokerLive?.liveValue ?? brokerBase
+  const value = brokerLive?.netLiq ?? brokerBase
 
-  // Today = change across the last two REAL (non-estimated) snapshots.
-  const real = series.filter((p) => !p.estimated)
+  // Today = live Σ position move vs previous close (Robinhood-accurate); falls
+  // back to the daily-snapshot delta when there's no live net-liq.
   let todayChange = null
   let todayPct = null
-  if (real.length >= 2) {
-    const prev = real[real.length - 2].value
-    todayChange = real[real.length - 1].value - prev
-    todayPct = prev ? todayChange / Math.abs(prev) : null
+  if (brokerLive?.netLiq != null) {
+    todayChange = brokerLive.today
+    todayPct = brokerLive.todayPct
+  } else {
+    const real = series.filter((p) => !p.estimated)
+    if (real.length >= 2) {
+      const prev = real[real.length - 2].value
+      todayChange = real[real.length - 1].value - prev
+      todayPct = prev ? todayChange / Math.abs(prev) : null
+    }
   }
   const periodPnl = perf?.dollarPnl
   const periodPct = perf?.timeWeighted

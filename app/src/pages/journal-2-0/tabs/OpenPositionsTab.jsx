@@ -20,7 +20,6 @@ import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
-import useMarketOpen from '../../../hooks/useMarketOpen'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
@@ -35,7 +34,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import Toast from '../components/Toast'
 import {
   portfolioAggregates,
-  brokerLiveEquity,
+  brokerLiveSummary,
   currentPriceFor,
   money,
   moneySigned,
@@ -244,30 +243,25 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     }
   }, [positions, optionRows, priceMap, accountSize])
 
-  // BrokerAccountHero's non-live base value is portfolio-wide (sum across ALL
-  // connected broker accounts), but the live override below is computed for
-  // only the selected account. With 2+ broker accounts, applying a single
-  // account's live net-liq over the portfolio total would visibly understate
-  // the headline the moment the stream connects — so only live-override when
-  // there's exactly one broker account (no ambiguity, single-account math is
-  // already correct).
+  // Net-liq computed the Robinhood way — cash + live market value of holdings —
+  // so it matches the broker's real number and reflects today's intraday move,
+  // instead of anchoring on the broker-reported total equity (which SnapTrade
+  // serves stale/near-previous-close for some brokers, hiding today's move).
+  // Single-broker only: `positions` are that account's book. Multi-broker falls
+  // back to the portfolio perf base inside BrokerAccountHero.
   const brokerAccountCount = useMemo(
     () => accounts.filter((a) => a?.balanceSource === 'broker' && a?.brokerTotalEquity != null).length,
     [accounts],
   )
-  // Only mark the headline to market during a real trading session. When the
-  // market is closed the live feed serves thin/stale prices that would add
-  // phantom drift to the net-liq — and, because two surfaces sample it at
-  // different moments, make the account value look inconsistent between the
-  // Open Positions hero and the Dashboard tile. Off-session ⇒ show the clean,
-  // reconciled broker net-liq (drift 0) so both surfaces agree exactly.
-  const { isOpen, isPremarket, isExtended } = useMarketOpen()
-  const liveSession = isOpen || isPremarket || isExtended
-  const liveEquity = useMemo(
-    () => (brokerAccountCount <= 1 && liveSession
-      ? brokerLiveEquity(selectedAccount, positions, priceMap)
+  const etToday = useMemo(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
+    [],
+  )
+  const liveSummary = useMemo(
+    () => (brokerAccountCount <= 1
+      ? brokerLiveSummary(selectedAccount, positions, optionStrategies, prices, etToday)
       : null),
-    [brokerAccountCount, liveSession, selectedAccount, positions, priceMap],
+    [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday],
   )
 
   const pickerBtnRef = useRef(null)
@@ -289,8 +283,8 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       <BrokerAccountHero
         account={selectedAccount}
         aggregates={aggregates}
-        liveEquity={liveEquity}
-        isLive={isStreaming && liveSession && liveEquity?.liveValue != null}
+        liveSummary={liveSummary}
+        isLive={isStreaming && liveSummary?.netLiq != null}
       />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}

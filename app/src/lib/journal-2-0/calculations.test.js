@@ -31,6 +31,7 @@ import {
   summaryStats,
   brokerLiveEquity,
   currentPriceFor,
+  brokerLiveSummary,
 } from './calculations.js'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -864,5 +865,71 @@ describe('currentPriceFor', () => {
   it('ignores a non-finite live price and uses the broker mark', () => {
     const p = { symbol: 'AAPL', brokerPrice: 100 }
     expect(currentPriceFor(p, { AAPL: { price: Number.NaN } })).toBe(100)
+  })
+})
+
+describe('brokerLiveSummary', () => {
+  it('net-liq = cash + live market value of holdings (matches the broker number)', () => {
+    // cash −18,000; DELL 10 @ 434.75 = 4347.50; RXT 800 @ 6.85 = 5480; CRMG 1000 @ 4.49 = 4490
+    // option value 990 → MV = 15307.50; netLiq = −2692.50... use simpler numbers:
+    const acct = { brokerCash: 2000 }
+    const positions = [
+      { symbol: 'AAPL', side: 'Long', shares: 10, brokerPrice: 90 },
+      { symbol: 'TSLA', side: 'Short', shares: 5, brokerPrice: 200 },
+    ]
+    const opts = [{ brokerCurrentValue: 300 }]
+    const prices = { AAPL: { price: 100, prev_close: 100 }, TSLA: { price: 210, prev_close: 210 } }
+    const r = brokerLiveSummary(acct, positions, opts, prices, '2026-07-01')
+    // MV = 100*10 + (-5)*210 + 300 = 1000 − 1050 + 300 = 250; netLiq = 2000 + 250 = 2250
+    expect(r.marketValue).toBe(250)
+    expect(r.netLiq).toBe(2250)
+  })
+
+  it('Today = Σ signedShares × (live − prevClose), % vs previous-close equity', () => {
+    const acct = { brokerCash: 0 }
+    // one long: 10 sh, prevClose 100, live 90 → today = 10*(90−100) = −100
+    const positions = [{ symbol: 'AAPL', side: 'Long', shares: 10, brokerPrice: 90 }]
+    const prices = { AAPL: { price: 90, prev_close: 100 } }
+    const r = brokerLiveSummary(acct, positions, [], prices, '2026-07-01')
+    expect(r.netLiq).toBe(900)          // 0 + 90*10
+    expect(r.today).toBe(-100)
+    // todayPct = -100 / (900 − (−100)) = -100/1000 = -0.10
+    expect(r.todayPct).toBeCloseTo(-0.1, 6)
+  })
+
+  it('a position opened TODAY measures Today from entry (fill), not prev close', () => {
+    const acct = { brokerCash: 0 }
+    // bought today at 95, now 98 → today = 3*... use shares 4: 4*(98−95)=12 (NOT 4*(98−prevClose))
+    const positions = [
+      { symbol: 'NVDA', side: 'Long', shares: 4, brokerPrice: 95, entryPrice: 95, entryDate: '2026-07-01' },
+    ]
+    const prices = { NVDA: { price: 98, prev_close: 80 } }
+    const r = brokerLiveSummary(acct, positions, [], prices, '2026-07-01')
+    expect(r.today).toBe(12)            // 4*(98−95), NOT 4*(98−80)=72
+  })
+
+  it('short position flips today sign; options contribute 0 to Today', () => {
+    const acct = { brokerCash: 0 }
+    const positions = [{ symbol: 'TSLA', side: 'Short', shares: 5, brokerPrice: 200 }]
+    const prices = { TSLA: { price: 210, prev_close: 200 } }
+    const opts = [{ brokerCurrentValue: 500 }]
+    const r = brokerLiveSummary(acct, positions, opts, prices, '2026-07-01')
+    expect(r.today).toBe(-50)           // short up 10 → −5*(210−200)
+    expect(r.marketValue).toBe(-5 * 210 + 500) // −550
+  })
+
+  it('missing live price → uses broker mark for value, contributes 0 to Today', () => {
+    const acct = { brokerCash: 1000 }
+    const positions = [{ symbol: 'BE', side: 'Long', shares: 5, brokerPrice: 100 }]
+    const r = brokerLiveSummary(acct, positions, [], {}, '2026-07-01')
+    expect(r.marketValue).toBe(500)     // 100*5 via broker mark
+    expect(r.today).toBe(0)             // no live tick → no Today
+    expect(r.netLiq).toBe(1500)
+  })
+
+  it('null netLiq when cash is missing (caller falls back to broker total)', () => {
+    const r = brokerLiveSummary({ brokerCash: null }, [{ symbol: 'X', side: 'Long', shares: 1, brokerPrice: 10 }], [], { X: { price: 10 } }, '2026-07-01')
+    expect(r.netLiq).toBeNull()
+    expect(r.marketValue).toBe(10)
   })
 })

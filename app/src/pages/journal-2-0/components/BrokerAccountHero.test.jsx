@@ -101,17 +101,18 @@ describe('BrokerAccountHero', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows the live mark-to-market value when liveEquity is provided', () => {
+  it('shows the live net-liq value + Today when a liveSummary is provided', () => {
     const account = { balanceSource: 'broker', brokerTotalEquity: 10000, brokerCash: 2000 }
     render(
       <BrokerAccountHero
         account={account}
         aggregates={{ unrealized: 0, invested: 0.8, count: 1, value: 8000 }}
-        liveEquity={{ liveValue: 10020, liveDelta: 20 }}
+        liveSummary={{ netLiq: 10020, marketValue: 8020, today: -50, todayPct: -0.005 }}
         isLive
       />,
     )
-    expect(screen.getByText('$10,020.00')).toBeInTheDocument()
+    expect(screen.getByText('$10,020.00')).toBeInTheDocument()   // net-liq headline
     expect(screen.getByText(/LIVE/i)).toBeInTheDocument()
+    expect(screen.getByText(/-\$50\.00/)).toBeInTheDocument()    // Today $ (down)
   })
 })

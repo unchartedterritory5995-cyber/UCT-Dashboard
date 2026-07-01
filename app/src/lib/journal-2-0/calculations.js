@@ -270,6 +270,63 @@ export const currentPriceFor = (position, prices) => {
   return Number.isFinite(position?.brokerPrice) ? position.brokerPrice : undefined
 }
 
+/**
+ * Live broker net-liquidation summary, computed the way Robinhood does — cash
+ * plus the live market value of holdings — so it matches the broker's actual
+ * number and reflects today's intraday move. This SUPERSEDES anchoring on the
+ * broker-reported `brokerTotalEquity` (which SnapTrade serves stale / near
+ * previous close for some brokers, hiding today's move).
+ *
+ *   marketValue = Σ_equity (currentPrice × signedShares) + Σ_option (brokerCurrentValue)
+ *   netLiq      = brokerCash + marketValue
+ *
+ * "Today" per equity position is measured vs its reference price: the entry
+ * (fill) price when the position was OPENED TODAY (Robinhood measures same-day
+ * entries from your fill, starting ~$0 — not the overnight gap), otherwise the
+ * previous close (`prev_close` from the live snapshot). Options contribute ~0 to
+ * Today (no live option quote — broker mark only). Today % uses the
+ * previous-close equity as the denominator (`today / (netLiq − today)`).
+ *
+ * Prices missing for a position fall back to its `brokerPrice` for market value
+ * (stable off-session), but only a real live tick contributes to Today.
+ *
+ * @param {{brokerCash?: number}} account
+ * @param {Array<{symbol,shares,side?,brokerPrice?,entryPrice?,entryDate?}>} positions
+ * @param {Array<{brokerCurrentValue?: number}>} optionStrategies
+ * @param {Record<string,{price?:number, prev_close?:number}>} prices
+ * @param {string} [todayIso]  today's date as 'YYYY-MM-DD' (ET); enables same-day-entry handling
+ * @returns {{netLiq: number|null, marketValue: number, today: number, todayPct: number|null}}
+ */
+export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso) => {
+  let marketValue = 0
+  let today = 0
+  for (const p of positions || []) {
+    if (!Number.isFinite(p?.shares)) continue
+    const live = prices?.[p.symbol]?.price
+    const px = Number.isFinite(live) ? live : p?.brokerPrice
+    if (!Number.isFinite(px)) continue
+    const signed = p.side === 'Short' ? -p.shares : p.shares
+    marketValue += px * signed
+    if (Number.isFinite(live)) {
+      const openedToday =
+        todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
+      const ref = openedToday ? p.entryPrice : prices?.[p.symbol]?.prev_close
+      if (Number.isFinite(ref)) today += signed * (live - ref)
+    }
+  }
+  for (const s of optionStrategies || []) {
+    const bcv = s?.brokerCurrentValue
+    if (Number.isFinite(bcv)) marketValue += bcv
+    // options contribute ~0 to Today (no live option quote — broker mark only)
+  }
+  const cash = account?.brokerCash
+  const netLiq = Number.isFinite(cash) ? cash + marketValue : null
+  const prevCloseEquity = netLiq != null ? netLiq - today : null
+  const todayPct =
+    prevCloseEquity != null && prevCloseEquity !== 0 ? today / prevCloseEquity : null
+  return { netLiq, marketValue, today, todayPct }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.5 Trade-level
 // ───────────────────────────────────────────────────────────────────────────
