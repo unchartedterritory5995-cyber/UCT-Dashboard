@@ -89,6 +89,30 @@ def _start_prewarmer():
     threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
 
+def _start_massive_ws():
+    """Start the Massive WebSocket flow consumer thread.
+
+    Massive enforces ONE concurrent WS connection per account (see comment
+    in api.main lifespan). As of 2026-07-01 this moved from api.main's
+    FastAPI lifespan to this worker entry point so that main.py edits
+    (which restart the web service on every backend push once watch paths
+    are cleared) no longer interrupt live flow ingest.
+
+    Gated by MASSIVE_WS_ENABLED env var inside massive_ws_worker.start().
+    REQUIRED: set MASSIVE_WS_ENABLED=0 on the WEB service before deploying
+    this change. Otherwise both pods race for the single Massive connection
+    and one kicks the other off in a loop.
+    """
+    try:
+        from api.massive_ws_worker import start as _ws_start
+        if _ws_start():
+            log.info("Massive WS consumer started")
+        else:
+            log.info("Massive WS consumer not started (MASSIVE_WS_ENABLED=0 or no MASSIVE_API_KEY)")
+    except Exception as e:
+        log.exception(f"Massive WS consumer failed to start (non-fatal): {e}")
+
+
 def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
@@ -298,6 +322,7 @@ def main():
         sys.exit(1)
 
     _start_prewarmer()
+    _start_massive_ws()
     _start_uploader()
     _start_keepwarm()
     _start_memwatch()
