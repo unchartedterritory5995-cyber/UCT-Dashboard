@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SWRConfig } from 'swr'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
 // retry that hard-reloads the page instead of hanging on a missing chunk.
@@ -85,9 +86,25 @@ function PublicOnly({ children }) {
   return children
 }
 
+// Global SWR defaults. The library defaults (revalidateOnFocus:true,
+// dedupingInterval:2000) caused a refetch STORM on every page navigation and
+// every window-focus regain — the "switching tabs is slow" symptom. Live data
+// stays fresh via each hook's own refreshInterval (prices 2s, catalysts 30s,
+// alerts 60s, etc.), which these defaults do NOT touch — so turning off
+// focus/reconnect revalidation and widening the dedup window is safe and cuts
+// redundant requests app-wide. Per-hook options still override these. (2026-07-01)
+const SWR_CONFIG = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  dedupingInterval: 8000,
+  focusThrottleInterval: 10000,
+  errorRetryCount: 3,
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <SWRConfig value={SWR_CONFIG}>
       <AuthProvider>
         <VoiceProvider>
         {/* Cinematic intro overlay — plays once per session on first dashboard
@@ -181,6 +198,7 @@ export default function App() {
         <GlobalVoiceGate />
         </VoiceProvider>
       </AuthProvider>
+      </SWRConfig>
     </BrowserRouter>
   )
 }

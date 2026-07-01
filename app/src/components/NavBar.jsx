@@ -37,12 +37,14 @@ export default function NavBar() {
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
 
   // P5-C unification: Compass unread count on the Journal nav link.
-  // Polls /api/voice/insights/pending every 30s. Quietly silent when
-  // the user isn't authenticated or doesn't have voice access.
+  // Polls /api/voice/insights/pending every 30s. Voice/Compass is paid-only
+  // (mirrors GlobalVoiceGate's isPaid check), so only poll for paid users —
+  // the badge is meaningless without voice access, and this was firing on
+  // every page for every logged-in user otherwise. (2026-07-01 perf pass)
   const { data: pending } = useSWR(
-    user ? '/api/voice/insights/pending' : null,
+    isPaid ? '/api/voice/insights/pending' : null,
     fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: true },
+    { refreshInterval: 30_000 },
   )
   const compassUnread = pending?.insights?.length || 0
 
