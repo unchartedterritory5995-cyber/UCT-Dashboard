@@ -235,9 +235,6 @@ export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anc
               hideWatermark
               subtleSeparator
               modelBookLook
-              boldCandles={false}
-              markVolumeExtremes={false}
-              volumeMa={0}
               hideLegend
               leftBarPad={3}
               priceScaleTopMargin={0.06}
