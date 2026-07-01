@@ -269,6 +269,7 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
 
     results: List[BulkFetchOIResult] = []
     schwab_needed: List[tuple] = []  # [(c, ck, exp_mdy), ...]
+    cache_hit_persist: List[tuple] = []  # [(ck, oi, source), ...] for backfill
     cache_hits = 0
     dropped_bad_format = 0
     dropped_examples = []  # capture first few for diagnosis
@@ -291,6 +292,10 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
                 oi=existing[0],
             ))
             cache_hits += 1
+            # Queue for flow.OI backfill even for cache hits — the OI
+            # value is in contract_oi_snapshots but the flow.OI column
+            # on today's alert rows may still be empty.
+            cache_hit_persist.append((ck, existing[0], "cache"))
         else:
             schwab_needed.append((c, ck, exp_mdy))
 
@@ -307,8 +312,11 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
         len(contracts), cache_hits, len(schwab_needed), dropped_bad_format
     )
 
-    # Stage 2: Schwab batch fetch for misses
-    schwab_calls = 0
+    # Backfill flow.OI for ALL resolved contracts (both cache-hit and
+    # freshly-fetched). Without this, the /api/live/massive/recent
+    # endpoint reads flow.OI directly and sees the old empty values,
+    # causing the "appear then disappear" UI flicker.
+    all_to_backfill = list(cache_hit_persist)
     if schwab_needed:
         payload = [(c.ticker, c.cp, c.strike, exp_mdy)
                    for c, _, exp_mdy in schwab_needed]
@@ -317,6 +325,9 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
             schwab_calls = len(payload)
         except Exception as e:
             logger.exception(f"[oi-snapshot bulk-fetch] Schwab call failed: {e}")
+            # Still backfill cache hits before returning
+            if all_to_backfill:
+                _backfill_flow_oi(all_to_backfill)
             return BulkFetchOIResponse(
                 results=results, cache_hits=cache_hits, schwab_calls=0
             )
@@ -350,20 +361,16 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
                 )
             except Exception as e:
                 logger.warning(f"[oi-snapshot bulk-fetch] persist failed: {e}")
+            all_to_backfill.extend(to_persist)
 
-            # CRITICAL: Also UPDATE the OI column on today's flow rows for
-            # these contracts. Without this step, contract_oi_snapshots has
-            # the new OI value but the live_massive page still reads OI
-            # from the flow row directly — which is still empty for trades
-            # that were written BEFORE OI was resolved. This is the same
-            # backfill the worker does in _color_refresh_sync after live
-            # OI fetches resolve.
-            rows_updated = _backfill_flow_oi(to_persist)
-            if rows_updated:
-                logger.info(
-                    f"[oi-snapshot bulk-fetch] backfilled OI on "
-                    f"{rows_updated} flow rows"
-                )
+    # Final step: backfill flow.OI on today's rows for all resolved contracts
+    if all_to_backfill:
+        rows_updated = _backfill_flow_oi(all_to_backfill)
+        if rows_updated:
+            logger.info(
+                f"[oi-snapshot bulk-fetch] backfilled OI on "
+                f"{rows_updated} flow rows"
+            )
 
     return BulkFetchOIResponse(
         results=results,
@@ -388,6 +395,8 @@ def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
     today_mdY = f"{today.month}/{today.day}/{today.year}"
     db = FlowDB()
     rows_updated = 0
+    per_contract_log = []  # for diagnostic
+
     try:
         with sqlite3.connect(db.db_path, timeout=10) as conn:
             for ck, oi, _src in resolved_contracts:
@@ -397,35 +406,70 @@ def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
                 except (ValueError, AttributeError):
                     continue
                 cp_full = 'CALL' if cp_letter == 'C' else 'PUT'
-                # Try multiple strike formats since flow.Strike may be
-                # stored as '290' or '290.0' depending on how it was
-                # originally inserted. The worker had the same issue and
-                # used the same workaround.
-                strike_strs = []
+
+                # Try multiple strike formats since flow.Strike is stored
+                # as various strings depending on original insertion path
+                # (Massive vs backfill vs manual upload).
+                strike_candidates = set()
                 if strike == int(strike):
-                    strike_strs.append(str(int(strike)))
-                strike_strs.append(str(float(strike)))
-                strike_strs.append(f"{strike:.1f}")
-                seen = set()
-                strike_strs = [
-                    s for s in strike_strs if not (s in seen or seen.add(s))
-                ]
-                for strike_str in strike_strs:
-                    upd = conn.execute(
-                        "UPDATE flow SET OI=? WHERE Symbol=? AND "
-                        "CallPut=? AND Strike=? AND ExpirationDate=? AND "
-                        "CreatedDate=? AND (OI='0' OR OI='' OR OI IS NULL)",
-                        (str(oi), sym, cp_full, strike_str, exp_mdy,
-                         today_mdY),
+                    strike_candidates.add(str(int(strike)))         # '290'
+                    strike_candidates.add(f"{int(strike)}.0")        # '290.0'
+                strike_candidates.add(str(float(strike)))            # '290.0'
+                strike_candidates.add(f"{strike:.1f}")               # '290.0'
+                strike_candidates.add(f"{strike:.2f}")               # '290.00'
+                strike_candidates.add(f"{strike:g}")                 # '290'
+
+                # Also try multiple exp formats
+                exp_candidates = {exp_mdy}
+                # Normalized MDY: '8/7/2026' vs '08/07/2026'
+                try:
+                    m, d, y = exp_mdy.split("/")
+                    exp_candidates.add(f"{int(m):02d}/{int(d):02d}/{y}")
+                    exp_candidates.add(f"{int(m)}/{int(d)}/{y}")
+                    # ISO format: '2026-08-07'
+                    exp_candidates.add(f"{y}-{int(m):02d}-{int(d):02d}")
+                except ValueError:
+                    pass
+
+                contract_updated = 0
+                for strike_s in strike_candidates:
+                    for exp_s in exp_candidates:
+                        upd = conn.execute(
+                            "UPDATE flow SET OI=? WHERE Symbol=? AND "
+                            "CallPut=? AND Strike=? AND ExpirationDate=? AND "
+                            "CreatedDate=? AND (OI='0' OR OI='' OR OI IS NULL)",
+                            (str(oi), sym, cp_full, strike_s, exp_s,
+                             today_mdY),
+                        )
+                        if upd.rowcount > 0:
+                            contract_updated += upd.rowcount
+
+                if contract_updated == 0:
+                    # Diagnostic: capture what we tried so we can see the
+                    # mismatch pattern in logs
+                    per_contract_log.append(
+                        f"{sym} {cp_letter}{strike} {exp_mdy}: 0 rows "
+                        f"(tried strikes={list(strike_candidates)}, "
+                        f"exps={list(exp_candidates)})"
                     )
-                    if upd.rowcount > 0:
-                        rows_updated += upd.rowcount
-                        break  # found a matching strike format, done
+                rows_updated += contract_updated
+
             conn.commit()
     except Exception as e:
         logger.warning(
             f"[oi-snapshot bulk-fetch] flow.OI backfill failed: {e}"
         )
+        return 0
+
+    # Log unmatched contracts for diagnosis (first 3 only)
+    if per_contract_log:
+        logger.warning(
+            "[oi-snapshot bulk-fetch] %d contracts did not match any "
+            "flow rows. Samples: %s",
+            len(per_contract_log),
+            " | ".join(per_contract_log[:3])
+        )
+
     return rows_updated
 
 
