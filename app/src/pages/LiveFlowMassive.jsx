@@ -33,7 +33,10 @@ const P = {
   mt: "#6a6660",
 };
 
-const POLL_INTERVAL_MS = 5000;
+// Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
+// (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
+// /api/live/massive/recent returns to sub-second on the DB side.
+const POLL_INTERVAL_MS = 20000;
 // Default cap on alerts in the live feed. Backend supports up to 20000.
 // 500 covers ~8-15 minutes of market-open activity (initial flood ~100/min
 // settling to 30-50/min). User can change via selector in the toolbar.
