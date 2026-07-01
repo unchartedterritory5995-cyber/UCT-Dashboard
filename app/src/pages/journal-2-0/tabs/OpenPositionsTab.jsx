@@ -5,6 +5,8 @@
  * Stats header + positions table + columns picker + Add Position
  * button. Phase 3 is read-only; Add/Edit/Close arrive in Phase 4,
  * so those buttons are disabled stubs here.
+ *
+ * Robinhood-style live net-liq (Phase 1a) — build-rev p1a.2
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
