@@ -256,11 +256,13 @@ def test_route_known_auto_and_default():
     assert dds._route("") == ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 
 
-def test_route_evening_update_from_tsdr():
-    # The new daily show: section "Evening Update", title "Evening Update", and an
-    # eyebrow that keeps "FROM TSDR" so the thumbnail's evening theme + subline fire.
+def test_route_evening_update_is_host_aware():
+    # Any "Evening Update from <host>" shares the "Evening Update" section; the host
+    # rides in the title prefix + the thumbnail eyebrow (which trips the evening theme).
     assert dds._route("Evening Update from TSDR") == (
-        "Evening Update", "Evening Update", "EVENING UPDATE FROM TSDR")
+        "Evening Update", "Evening Update from TSDR", "EVENING UPDATE FROM TSDR")
+    assert dds._route("Evening Update from Bracco") == (
+        "Evening Update", "Evening Update from Bracco", "EVENING UPDATE FROM BRACCO")
 
 
 def test_process_routes_by_webinar_name(edu_db, jobs_db):
@@ -272,10 +274,12 @@ def test_process_routes_by_webinar_name(edu_db, jobs_db):
 
 
 def test_process_evening_update_publishes_with_section(edu_db, jobs_db):
-    jobs_db.enqueue("U3", "Evening Update from TSDR", "2026-06-29T21:30:00Z", "http://dl", "tok")
+    # A second host (Bracco) lands in the shared "Evening Update" section with the
+    # host in the title.
+    jobs_db.enqueue("U3", "Evening Update from Bracco", "2026-06-29T21:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
-    assert v["title"] == "Evening Update — June 29, 2026"
+    assert v["title"] == "Evening Update from Bracco — June 29, 2026"
     assert v["category"] == "Evening Update"
 
 

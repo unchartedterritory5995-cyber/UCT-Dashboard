@@ -33,14 +33,16 @@ Extend, don't rebuild. Everything routes through the proven
   `FROM TSDR` subline (`_shadow_center`), and a gold-outlined date chip.
 - `render_session_thumbnail` dispatches `layout == "evening"` → `_render_evening`.
 
-### 2. Routing (`api/services/desk_daily_session.py`)
-- Add a `_RULES` entry **before** the auto-derive fallback:
-  `("evening update", "Evening Update", "Evening Update", "EVENING UPDATE FROM TSDR")`
-  → section **"Evening Update"**, title prefix **"Evening Update"**, thumbnail
-  eyebrow **"EVENING UPDATE FROM TSDR"** (which trips the evening theme).
-- Result: a Zoom webinar named "Evening Update from TSDR" → video titled
-  `Evening Update — {Month D, YYYY}` in the "Evening Update" section with the
-  evening thumbnail.
+### 2. Routing (`api/services/desk_daily_session.py`) — HOST-AWARE
+- `_route` special-cases `"evening update"`: **any** `Evening Update from <host>`
+  (TSDR, Bracco, …) → shared section **"Evening Update"**, title prefix = the full
+  webinar name (so the host is in the title), eyebrow = `NAME.upper()` (trips the
+  evening theme + carries the host into the thumbnail's "FROM <host>" subline).
+- Result: `Evening Update from Bracco` → video titled `Evening Update from Bracco —
+  {Month D, YYYY}` in the "Evening Update" section with the evening thumbnail reading
+  **FROM BRACCO**. One template + one section serve every host; no per-host code.
+- The thumbnail splits the eyebrow on `" FROM "` → headline (hero) + `FROM <host>`
+  subline, so the host name is data, not hardcoded.
 
 ### 3. Website section (no code beyond the route)
 - `category = "Evening Update"` is a free-form `edu_videos.category` — the Videos

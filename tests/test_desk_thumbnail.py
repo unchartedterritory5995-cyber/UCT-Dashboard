@@ -72,3 +72,12 @@ def test_evening_resolves_by_eyebrow_and_explicit_variant():
     # Untouched: live stays classic, thoughts stays editorial.
     assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
     assert t._resolve_theme(None, "THOUGHTS ON THE MARKET").layout == "editorial"
+
+
+def test_evening_is_host_aware():
+    # The same evening template serves any host — the "FROM <host>" line changes,
+    # so TSDR and Bracco render distinct cards, both at the right size.
+    tsdr = t.render_session_thumbnail("June 30, 2026", "EVENING UPDATE FROM TSDR")
+    bracco = t.render_session_thumbnail("June 30, 2026", "EVENING UPDATE FROM BRACCO")
+    assert Image.open(io.BytesIO(bracco)).size == (1280, 720)
+    assert tsdr != bracco

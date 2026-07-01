@@ -28,9 +28,6 @@ def _category() -> str:
 _RULES = [
     ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
     ("thoughts on the market", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
-    # "Evening Update from TSDR" — daily evening recap. The eyebrow keeps "FROM
-    # TSDR" so the thumbnail's evening theme + "from TSDR" subline both trigger.
-    ("evening update", "Evening Update", "Evening Update", "EVENING UPDATE FROM TSDR"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 
@@ -39,6 +36,11 @@ def _route(topic: str | None) -> tuple[str, str, str]:
     """(section, title_prefix, eyebrow_label) for a recording's webinar name."""
     t = (topic or "").strip()
     low = t.lower()
+    # "Evening Update" is HOST-AWARE: any "Evening Update from <host>" (TSDR,
+    # Bracco, …) shares the "Evening Update" section; the host rides in the title
+    # and the thumbnail eyebrow, so one template + one section serve every host.
+    if "evening update" in low:
+        return "Evening Update", t, t.upper()
     for kw, section, prefix, eyebrow in _RULES:
         if kw in low:
             return section, prefix, eyebrow
