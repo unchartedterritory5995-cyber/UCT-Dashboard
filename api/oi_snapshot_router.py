@@ -374,11 +374,237 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
                 f"{rows_updated} flow rows"
             )
 
+        # Also backfill Spot on the same rows if empty. Spot is the
+        # underlying price AT THE TIME OF THE TRADE (not current), so
+        # we need Massive's minute-bar aggregates for each ticker and
+        # match trade times to the appropriate bar.
+        try:
+            spot_updated = await _backfill_flow_spot(all_to_backfill)
+            if spot_updated:
+                logger.info(
+                    f"[oi-snapshot bulk-fetch] backfilled Spot on "
+                    f"{spot_updated} flow rows"
+                )
+        except Exception as e:
+            logger.warning(
+                f"[oi-snapshot bulk-fetch] spot backfill failed: {e}"
+            )
+
     return BulkFetchOIResponse(
         results=results,
         cache_hits=cache_hits,
         schwab_calls=schwab_calls,
     )
+
+
+# ── Spot price backfill via Massive minute-bar aggregates ───────────────
+# When flow rows are missing Spot (the underlying price at trade time), we
+# fetch 1-minute bars from Massive's aggregates endpoint and match each
+# row's trade time to the appropriate bar's close price.
+#
+# One API call per unique ticker gets all today's bars in one response.
+
+
+async def _fetch_minute_bars_from_massive(
+    client, ticker: str, date_str: str
+) -> list:
+    """Fetch 1-minute bars for one ticker for one day from Massive.
+
+    ticker: 'COST', 'NKTR', etc.
+    date_str: 'YYYY-MM-DD'
+
+    Returns list of bar dicts sorted by timestamp ascending:
+      [{'t': ms_epoch, 'o': open, 'h': high, 'l': low, 'c': close, ...}, ...]
+
+    Returns empty list on any error.
+    """
+    import os
+    api_key = os.environ.get("MASSIVE_API_KEY", "").strip()
+    if not api_key:
+        return []
+    base_url = os.environ.get(
+        "MASSIVE_REST_BASE", "https://api.massive.com"
+    ).rstrip("/")
+    url = (f"{base_url}/v2/aggs/ticker/{ticker}/range/1/minute/"
+           f"{date_str}/{date_str}?adjusted=true&sort=asc&limit=50000")
+
+    try:
+        resp = await client.get(
+            url,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=12.0,
+        )
+    except Exception as e:
+        logger.warning("[massive-bars] %s request failed: %s", ticker, e)
+        return []
+
+    if resp.status_code != 200:
+        logger.warning(
+            "[massive-bars] %s status=%d body=%s",
+            ticker, resp.status_code, resp.text[:200]
+        )
+        return []
+
+    try:
+        data = resp.json()
+    except Exception as e:
+        logger.warning("[massive-bars] %s JSON parse failed: %s", ticker, e)
+        return []
+
+    results = data.get("results") or []
+    return sorted(results, key=lambda b: b.get("t") or 0)
+
+
+def _find_bar_for_time(bars: list, target_ms: int) -> Optional[float]:
+    """Find close price of the bar containing target_ms timestamp.
+    Uses bisect for O(log n) lookup. Returns None if no match.
+
+    A minute bar's 't' is the START of the minute. Match if:
+      bar.t <= target_ms < bar.t + 60000
+    """
+    if not bars or target_ms is None:
+        return None
+    import bisect
+    timestamps = [b.get("t") or 0 for b in bars]
+    idx = bisect.bisect_right(timestamps, target_ms) - 1
+    if idx < 0:
+        return None
+    bar = bars[idx]
+    bar_start = bar.get("t") or 0
+    if bar_start <= target_ms < bar_start + 60_000:
+        return bar.get("c")
+    return None
+
+
+async def _backfill_flow_spot(resolved_contracts: List[tuple]) -> int:
+    """Update flow.Spot column on today's rows using Massive minute bars.
+
+    Strategy: for each unique ticker, fetch all of today's 1-min bars
+    from Massive in one call. For each flow row with empty Spot on that
+    ticker today, find the bar containing the trade timestamp and use
+    its close price.
+
+    Returns total number of flow rows updated.
+    """
+    import sqlite3
+    from api.flow_db import FlowDB
+
+    # ET date for CreatedDate matching (server is UTC)
+    try:
+        from zoneinfo import ZoneInfo
+        et_now = datetime.now(ZoneInfo('America/New_York'))
+        et_tz = ZoneInfo('America/New_York')
+    except ImportError:
+        et_now = datetime.utcnow() + timedelta(hours=-4)
+        et_tz = None
+    today_mdY = f"{et_now.month}/{et_now.day}/{et_now.year}"
+    today_iso = f"{et_now.year:04d}-{et_now.month:02d}-{et_now.day:02d}"
+
+    # Extract unique tickers from resolved contracts
+    tickers = set()
+    for ck, _, _ in resolved_contracts:
+        try:
+            sym = ck.split("|", 1)[0]
+            if sym:
+                tickers.add(sym)
+        except (ValueError, AttributeError):
+            continue
+
+    if not tickers:
+        return 0
+
+    try:
+        import httpx
+    except ImportError:
+        logger.warning("[massive-bars] httpx not installed")
+        return 0
+
+    # Fetch bars for all tickers in parallel
+    import asyncio
+    bars_by_ticker: dict = {}
+    async with httpx.AsyncClient() as client:
+        tasks = {
+            t: _fetch_minute_bars_from_massive(client, t, today_iso)
+            for t in tickers
+        }
+        results_list = await asyncio.gather(
+            *tasks.values(), return_exceptions=True
+        )
+        for ticker, res in zip(tasks.keys(), results_list):
+            if isinstance(res, Exception):
+                logger.warning(
+                    "[massive-bars] %s fetch exception: %s", ticker, res
+                )
+                bars_by_ticker[ticker] = []
+            else:
+                bars_by_ticker[ticker] = res
+
+    logger.info(
+        "[massive-bars] fetched bars for %d tickers: %s",
+        len(bars_by_ticker),
+        ", ".join(f"{t}={len(b)}" for t, b in list(bars_by_ticker.items())[:5])
+    )
+
+    db = FlowDB()
+    rows_updated = 0
+
+    def parse_et_time_to_ms(created_time_str: str) -> Optional[int]:
+        """Convert '2:49:26 PM' + today's ET date to UTC millis epoch."""
+        try:
+            time_dt = datetime.strptime(created_time_str.strip(),
+                                        '%I:%M:%S %p')
+        except (ValueError, AttributeError):
+            return None
+        try:
+            if et_tz:
+                combined = datetime(
+                    et_now.year, et_now.month, et_now.day,
+                    time_dt.hour, time_dt.minute, time_dt.second,
+                    tzinfo=et_tz
+                )
+                return int(combined.timestamp() * 1000)
+            else:
+                combined = datetime(
+                    et_now.year, et_now.month, et_now.day,
+                    time_dt.hour, time_dt.minute, time_dt.second,
+                )
+                return int((combined.timestamp() + 4 * 3600) * 1000)
+        except Exception:
+            return None
+
+    try:
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            conn.row_factory = sqlite3.Row
+            for ticker, bars in bars_by_ticker.items():
+                if not bars:
+                    continue
+                cursor = conn.execute(
+                    "SELECT rowid, CreatedTime FROM flow WHERE "
+                    "Symbol=? AND CreatedDate=? AND "
+                    "(Spot='' OR Spot IS NULL OR Spot='0' OR Spot='0.0')",
+                    (ticker, today_mdY)
+                )
+                rows = cursor.fetchall()
+                for row in rows:
+                    trade_ms = parse_et_time_to_ms(row["CreatedTime"])
+                    if trade_ms is None:
+                        continue
+                    spot_close = _find_bar_for_time(bars, trade_ms)
+                    if spot_close is None:
+                        continue
+                    conn.execute(
+                        "UPDATE flow SET Spot=? WHERE rowid=?",
+                        (str(spot_close), row["rowid"])
+                    )
+                    rows_updated += 1
+            conn.commit()
+    except Exception as e:
+        logger.warning(
+            f"[oi-snapshot bulk-fetch] Spot backfill DB error: {e}"
+        )
+        return rows_updated
+
+    return rows_updated
 
 
 def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
@@ -564,4 +790,71 @@ async def test_massive_oi(ticker: str):
     except Exception as e:
         result["parse_error"] = str(e)
 
+    return result
+
+
+# Diagnostic: fetch today's 1-min bars for a ticker via Massive aggregates.
+# Verifies your plan has stock aggregates access before we rely on it for
+# spot backfill. Usage: /api/oi-snapshot/test-massive-bars/COST
+@router.get("/test-massive-bars/{ticker}")
+async def test_massive_bars(ticker: str):
+    """Diagnostic for Massive 1-minute aggregates endpoint.
+    Fetches today's bars for the ticker and returns diagnostic info.
+    """
+    import os
+    api_key = os.environ.get("MASSIVE_API_KEY", "").strip()
+    if not api_key:
+        return {"error": "MASSIVE_API_KEY env var not set"}
+
+    try:
+        from zoneinfo import ZoneInfo
+        et_now = datetime.now(ZoneInfo('America/New_York'))
+    except ImportError:
+        et_now = datetime.utcnow() + timedelta(hours=-4)
+    today_iso = f"{et_now.year:04d}-{et_now.month:02d}-{et_now.day:02d}"
+
+    base_url = os.environ.get(
+        "MASSIVE_REST_BASE", "https://api.massive.com"
+    ).rstrip("/")
+    url = (f"{base_url}/v2/aggs/ticker/{ticker}/range/1/minute/"
+           f"{today_iso}/{today_iso}?adjusted=true&sort=asc&limit=50000")
+
+    try:
+        import httpx
+    except ImportError:
+        return {"error": "httpx not installed"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15.0,
+            )
+    except Exception as e:
+        return {
+            "url": url,
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
+
+    body_text = resp.text
+    result = {
+        "url": url,
+        "status_code": resp.status_code,
+        "body_length": len(body_text),
+        "body_preview": body_text[:1500],
+    }
+    try:
+        data = resp.json()
+        results_list = data.get("results") or []
+        result["parsed_top_level_keys"] = (
+            list(data.keys()) if isinstance(data, dict) else None
+        )
+        result["parsed_bars_count"] = len(results_list)
+        if results_list:
+            result["first_bar"] = results_list[0]
+            result["last_bar"] = results_list[-1]
+    except Exception as e:
+        result["parse_error"] = str(e)
     return result
