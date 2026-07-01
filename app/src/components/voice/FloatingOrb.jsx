@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVoice } from '../../context/VoiceContext'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
@@ -10,6 +10,7 @@ import useScrollLocked from '../../hooks/useScrollLocked'
 import styles from './FloatingOrb.module.css'
 
 const POS_KEY = 'voice.orb.position'
+const COACHMARK_KEY = 'voice.orb.coachmarkSeen'
 const DRAG_THRESHOLD_PX = 5
 const EDGE_PADDING_PX = 8
 
@@ -63,6 +64,15 @@ export default function FloatingOrb({ context = 'global' }) {
   const dragRef = useRef({ active: false, captured: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
   const [pos, setPos] = useState(loadPos)
   const [dragging, setDragging] = useState(false)
+  // One-time discoverability coach-mark for new (paid) users — the orb is
+  // otherwise a mystery. Shown once, dismissed on first tap or "Got it".
+  const [showCoachmark, setShowCoachmark] = useState(() => {
+    try { return !localStorage.getItem(COACHMARK_KEY) } catch { return false }
+  })
+  const dismissCoachmark = useCallback(() => {
+    setShowCoachmark(false)
+    try { localStorage.setItem(COACHMARK_KEY, '1') } catch { /* noop */ }
+  }, [])
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
@@ -134,6 +144,7 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const onClick = () => {
     if (consumeDragClick()) return
+    if (showCoachmark) dismissCoachmark()
     inSession ? disconnect() : connect(context)
   }
   const onTrainClick = () => {
@@ -246,6 +257,40 @@ export default function FloatingOrb({ context = 'global' }) {
       )}
       {inSession && voice.sessionContext && voice.sessionContext !== 'global' && voice.sessionContext !== 'train_me' && (
         <div className={styles.agentBadge}>{voice.sessionContext.replace('_', ' ')}</div>
+      )}
+      {showCoachmark && !inSession && !tucked && !dragging && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            right: 0,
+            marginBottom: 10,
+            width: 224,
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: 'rgba(20,20,24,0.97)',
+            border: '1px solid rgba(201,168,76,0.4)',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.45)',
+            color: '#f4f4f5',
+            font: '12.5px/1.45 Instrument Sans, system-ui, sans-serif',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ fontWeight: 600, color: '#e8d59a', marginBottom: 2 }}>Meet Compass</div>
+          Tap to talk to your trading coach — markets, setups, and your journal, all by voice.
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); dismissCoachmark() }}
+            style={{
+              display: 'block', marginTop: 8, marginLeft: 'auto',
+              background: 'transparent', border: 'none', color: '#a1a1aa',
+              cursor: 'pointer', fontSize: 12,
+            }}
+          >
+            Got it
+          </button>
+        </div>
       )}
     </div>
   )
