@@ -146,6 +146,25 @@ describe('PositionsTable — YSS reference render (§14.7)', () => {
     expect(dashes.length).toBeGreaterThan(0)
   })
 
+  it('falls back to the broker mark for Current + P&L when the live feed is quiet', () => {
+    // Broker-imported position, no live price but a last-synced brokerPrice.
+    // Entry 100 → mark 110 over 10 shares = Current $110.00, P&L +$100.00.
+    const brokerPos = {
+      ...YSS, id: 'brk-1', symbol: 'BRK', entryPrice: 100, stopPrice: 90,
+      shares: 10, originalShares: 10, brokerPrice: 110, source: 'broker',
+    }
+    render(
+      <PositionsTable
+        positions={[brokerPos]}
+        prices={{}}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(screen.getByText('$110.00')).toBeInTheDocument()      // Current from broker mark
+    expect(screen.getByText('+$100.00')).toBeInTheDocument()     // (110 − 100) × 10
+  })
+
   it('hides non-visible columns', () => {
     const onlySymbolAndSide = POSITIONS_COLUMNS.filter((c) =>
       ['symbol', 'side', 'actions'].includes(c.key),

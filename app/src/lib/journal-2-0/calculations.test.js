@@ -30,6 +30,7 @@ import {
   tradeResult,
   summaryStats,
   brokerLiveEquity,
+  currentPriceFor,
 } from './calculations.js'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -839,5 +840,29 @@ describe('brokerLiveEquity', () => {
   it('returns null liveValue when brokerTotalEquity is missing', () => {
     expect(brokerLiveEquity({ brokerTotalEquity: null }, [], {}))
       .toEqual({ liveValue: null, liveDelta: 0 })
+  })
+})
+
+describe('currentPriceFor', () => {
+  it('returns the live tick price when present', () => {
+    const p = { symbol: 'AAPL', brokerPrice: 100 }
+    expect(currentPriceFor(p, { AAPL: { price: 105 } })).toBe(105)
+  })
+
+  it('falls back to the broker mark when there is no live price', () => {
+    const p = { symbol: 'AAPL', brokerPrice: 100 }
+    expect(currentPriceFor(p, {})).toBe(100)
+    expect(currentPriceFor(p, { AAPL: {} })).toBe(100)
+    expect(currentPriceFor(p, { AAPL: { price: null } })).toBe(100)
+  })
+
+  it('returns undefined when neither a live price nor a broker mark exists', () => {
+    expect(currentPriceFor({ symbol: 'AAPL' }, {})).toBeUndefined()
+    expect(currentPriceFor({ symbol: 'AAPL' }, { AAPL: {} })).toBeUndefined()
+  })
+
+  it('ignores a non-finite live price and uses the broker mark', () => {
+    const p = { symbol: 'AAPL', brokerPrice: 100 }
+    expect(currentPriceFor(p, { AAPL: { price: Number.NaN } })).toBe(100)
   })
 })

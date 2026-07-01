@@ -35,6 +35,7 @@ import Toast from '../components/Toast'
 import {
   portfolioAggregates,
   brokerLiveEquity,
+  currentPriceFor,
   money,
   moneySigned,
   percent,
@@ -214,10 +215,16 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     [showShares, positions, optionRows],
   )
 
-  const priceMap = useMemo(
-    () => Object.fromEntries(Object.entries(prices).map(([sym, v]) => [sym, v?.price])),
-    [prices],
-  )
+  // Current price per position: live tick when present, else the broker's
+  // last-synced mark — so broker rows keep a real price + P&L (and the Value/
+  // Unrealized stats + reconciled hero stay correct) after hours when the live
+  // feed is quiet. Built over positions (not the live feed) so a position with
+  // no live entry at all still resolves its broker mark.
+  const priceMap = useMemo(() => {
+    const m = {}
+    for (const p of positions) m[p.symbol] = currentPriceFor(p, prices)
+    return m
+  }, [positions, prices])
 
   const aggregates = useMemo(() => {
     const base = portfolioAggregates(positions, priceMap, accountSize)
