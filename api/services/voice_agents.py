@@ -446,6 +446,57 @@ def _compass_tool_union() -> set[str]:
     return out
 
 
+# ── Latency A1: lean realtime tool set ──────────────────────────────────────
+# The full ~130-tool union forces the OpenAI Realtime model to re-plan over
+# every option on EVERY turn, which dominates per-reply latency (~10-13s even
+# on a no-tool reply). This lean core keeps the mentor's real powers (live
+# data, TA/patterns, regime/breadth, journal + analytics, sizing/risk/verdict,
+# writes, watchlist, knowledge/research/memory, briefings, proactive) and
+# leaves the niche long tail (forex/crypto/dividends/splits/social/13F/short-
+# interest/insider/backtest/stress/econ-series/thefly/discord/etc.) out of the
+# realtime session. Reversible instantly via COMPASS_LEAN_TOOLS=0.
+_COMPASS_CORE_TOOLS: set[str] = {
+    # Live market data + TA lens (primary)
+    "get_quote", "get_movers", "get_breadth", "get_regime", "get_sector_strength",
+    "get_sector_rotation_state", "get_ticker_details", "get_news", "search_news",
+    "get_bar_summary", "get_pattern_detection", "find_patterns_on_ticker",
+    "scan_active_patterns", "get_theme_status", "get_theme_holdings",
+    # Ideas / catalysts / earnings / fundamentals (complementary)
+    "get_scanner_candidates", "get_uct20_picks", "get_top_catalysts",
+    "get_earnings_today", "get_earnings_this_week", "classify_catalyst",
+    "get_fundamentals",
+    # Journal reads + analytics (self-awareness)
+    "find_my_trades", "get_my_setup_performance", "get_my_pnl",
+    "get_my_psychology", "get_my_recent_mistakes", "get_my_calendar",
+    "get_my_account_balance", "list_my_accounts",
+    # Sizing / risk / verdict / discipline
+    "calc_position_size", "validate_trade", "get_market_context", "detect_drift",
+    # Writes (confirm-gated)
+    "create_position", "close_position", "update_position",
+    "add_daily_note", "log_mistake", "confirm_action",
+    # Watchlist / actions / navigation
+    "flag_ticker", "tag_ticker", "set_price_alert", "open_ticker",
+    "open_page", "read_aloud",
+    # Knowledge / research / memory
+    "lookup_trading_principle", "deep_research", "web_search",
+    "remember", "recall_relevant", "note_write", "note_read",
+    # Briefings / proactive
+    "morning_briefing", "closing_briefing", "plan_my_day",
+    "whats_my_focus_today", "what_compass_noticed",
+}
+
+
+def _compass_active_tools() -> set[str]:
+    """Compass realtime tool set. Lean by default (latency); COMPASS_LEAN_TOOLS=0
+    restores the full ~130-tool union for an instant env-flip rollback. Always
+    intersected with the real union so only registered tool names are used."""
+    import os
+    full = _compass_tool_union()
+    if os.environ.get("COMPASS_LEAN_TOOLS", "1") == "0":
+        return full
+    return full & _COMPASS_CORE_TOOLS
+
+
 def _compass_system_prompt() -> str:
     """Lazy-load the unified Compass voice prompt to avoid circular imports."""
     from api.services.voice_prompts.compass import build_compass_voice_prompt
@@ -466,7 +517,7 @@ AGENTS["compass"] = {
     # Resolved lazily — the system_prompt key is read in voice.py via
     # agent_def["system_prompt"], so we use a property-like accessor below.
     "_system_prompt_loader": _compass_system_prompt,
-    "tool_allowlist": _compass_tool_union(),
+    "tool_allowlist": _compass_active_tools(),
 }
 
 

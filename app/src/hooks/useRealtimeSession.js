@@ -174,6 +174,8 @@ export default function useRealtimeSession() {
   const handledCallsRef = useRef(new Set())
   // Log each never-before-seen event type once so a future API rename is visible.
   const loggedUnknownRef = useRef(new Set())
+  // Latency probe: user-done-speaking -> assistant starts replying (model think time).
+  const turnStartRef = useRef(0)
 
   const cleanup = useCallback(async () => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
@@ -313,9 +315,15 @@ export default function useRealtimeSession() {
       case 'user_transcript':
         voice.realtimeUserTurn(parsed.text)
         sendTranscriptToServer('user', parsed.text)
+        turnStartRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now())
         resetSilenceTimer()
         break
       case 'assistant_transcript_delta':
+        if (turnStartRef.current) {
+          const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+          console.debug('[realtime] time-to-first-reply:', Math.round(now - turnStartRef.current), 'ms')
+          turnStartRef.current = 0
+        }
         voice.realtimeAssistantPartial(parsed.delta)
         resetSilenceTimer()
         break
