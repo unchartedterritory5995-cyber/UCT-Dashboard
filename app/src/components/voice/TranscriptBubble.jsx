@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVoice } from '../../context/VoiceContext'
 import UIcon from '../ui/UIcon'
 import styles from './TranscriptBubble.module.css'
@@ -96,6 +96,7 @@ function FeedbackButtons({ turnText, sessionId }) {
 export default function TranscriptBubble() {
   const voice = useVoice()
   const [visible, setVisible] = useState(false)
+  const bubbleRef = useRef(null)
 
   useEffect(() => {
     if (!voice.mode) {
@@ -107,9 +108,17 @@ export default function TranscriptBubble() {
       setVisible(true)
       return
     }
-    const t = setTimeout(() => setVisible(false), 2000)
+    // Keep the last exchange readable after the session ends — was 2s, which
+    // erased the spoken answer before the trader could read it.
+    const t = setTimeout(() => setVisible(false), 15000)
     return () => clearTimeout(t)
   }, [voice.mode, voice.status])
+
+  // Auto-scroll to the newest turn so the latest reply is always in view.
+  useEffect(() => {
+    const el = bubbleRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [voice.rollingTranscript, voice.partialAssistant, voice.narration, voice.transcript])
 
   if (!visible) return null
   if (!voice.mode) return null
@@ -123,7 +132,7 @@ export default function TranscriptBubble() {
 
   if (voice.mode === 'b') {
     return (
-      <div className={styles.bubble} role="status" aria-live="polite">
+      <div ref={bubbleRef} className={styles.bubble} role="status" aria-live="polite">
         {showListening && <div className={styles.listening}>Listening…</div>}
         {showThinking && <div className={styles.thinking}>Thinking…</div>}
         {voice.transcript && (
@@ -142,9 +151,9 @@ export default function TranscriptBubble() {
   }
 
   // Mode C — rolling conversation
-  const recent = voice.rollingTranscript?.slice(-3) || []
+  const recent = voice.rollingTranscript?.slice(-6) || []
   return (
-    <div className={styles.bubble} role="status" aria-live="polite">
+    <div ref={bubbleRef} className={styles.bubble} role="status" aria-live="polite">
       {showListening && !recent.length && <div className={styles.listening}>Listening…</div>}
       {showThinking && <div className={styles.thinking}>Connecting…</div>}
       {recent.map((turn, i) => (
