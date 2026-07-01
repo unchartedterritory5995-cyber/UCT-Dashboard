@@ -67,6 +67,15 @@
   .seek { flex-basis: 100px; min-width: 60px; }
 }
 
+/* Keep the player ABOVE the mobile bottom tab bar (shown ≤1024px) instead of
+   overlapping it whenever Compass speaks. Mirrors the FloatingOrb's safe-area
+   offset so controls stay tappable on phones/tablets. */
+@media (max-width: 1024px) {
+  .bar {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .speedSel {
   background: rgba(255, 255, 255, 0.06);
   color: inherit;

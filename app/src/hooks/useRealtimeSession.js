@@ -16,6 +16,8 @@ import {
 
 const SILENCE_TIMEOUT_MS = 60_000
 const HEARTBEAT_MS = 30_000
+// Fail a stuck handshake to a retryable error instead of hanging on "Connecting…".
+const CONNECT_TIMEOUT_MS = 12_000
 
 /**
  * Open a Realtime conversation: mic in, model audio out, function calls in,
@@ -176,10 +178,14 @@ export default function useRealtimeSession() {
   const loggedUnknownRef = useRef(new Set())
   // Latency probe: user-done-speaking -> assistant starts replying (model think time).
   const turnStartRef = useRef(0)
+  // Connect watchdog + a one-shot guard so a drop/timeout only errors once.
+  const connectTimerRef = useRef(null)
+  const droppedRef = useRef(false)
 
   const cleanup = useCallback(async () => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
     if (heartbeatTimerRef.current) { clearInterval(heartbeatTimerRef.current); heartbeatTimerRef.current = null }
+    if (connectTimerRef.current) { clearTimeout(connectTimerRef.current); connectTimerRef.current = null }
     handledCallsRef.current.clear()
     try { dcRef.current?.close?.() } catch {}
     try { pcRef.current?.close?.() } catch {}
@@ -427,8 +433,21 @@ export default function useRealtimeSession() {
     }
     localStreamRef.current = stream
 
+    droppedRef.current = false
     const pc = new RTCPeerConnection()
     pcRef.current = pc
+
+    // A terminal connection failure becomes a visible, retryable error rather
+    // than a silent death. Only 'failed' (not the often-transient
+    // 'disconnected'), and only once per session.
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed' && !droppedRef.current) {
+        droppedRef.current = true
+        voice.realtimeError('Connection dropped. Try again.')
+        cleanup()
+        endSessionOnServer()
+      }
+    }
 
     pc.ontrack = (event) => {
       const [remoteStream] = event.streams
@@ -444,6 +463,7 @@ export default function useRealtimeSession() {
     const dc = pc.createDataChannel('oai-events')
     dcRef.current = dc
     dc.addEventListener('open', () => {
+      if (connectTimerRef.current) { clearTimeout(connectTimerRef.current); connectTimerRef.current = null }
       voice.realtimeConnected({
         sessionId: tokenResp.session_id,
         openaiSessionId: tokenResp.openai_session_id,
@@ -454,6 +474,16 @@ export default function useRealtimeSession() {
     dc.addEventListener('close', () => {
       console.log('[realtime] data channel closed')
     })
+    // Watchdog: if the channel never opens, fail to a retryable error instead
+    // of leaving the user staring at a spinning "Connecting…".
+    connectTimerRef.current = setTimeout(() => {
+      if (dcRef.current?.readyState !== 'open' && !droppedRef.current) {
+        droppedRef.current = true
+        voice.realtimeError('Voice took too long to connect. Try again.')
+        cleanup()
+        endSessionOnServer()
+      }
+    }, CONNECT_TIMEOUT_MS)
 
     try {
       const offer = await pc.createOffer()
