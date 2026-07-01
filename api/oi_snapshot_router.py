@@ -16,7 +16,7 @@ Integration in main.py:
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime, timedelta
 import threading
 import logging
 from api import oi_snapshots
@@ -312,6 +312,8 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
         len(contracts), cache_hits, len(schwab_needed), dropped_bad_format
     )
 
+    schwab_calls = 0
+
     # Backfill flow.OI for ALL resolved contracts (both cache-hit and
     # freshly-fetched). Without this, the /api/live/massive/recent
     # endpoint reads flow.OI directly and sees the old empty values,
@@ -391,8 +393,20 @@ def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
     """
     import sqlite3
     from api.flow_db import FlowDB
-    today = date.today()
-    today_mdY = f"{today.month}/{today.day}/{today.year}"
+
+    # CRITICAL: use ET date, not UTC. Railway runs in UTC. After 8pm ET
+    # (midnight UTC), date.today() returns tomorrow's date. But flow.CreatedDate
+    # is stored as ET date. So we'd search for CreatedDate='7/1/2026' when
+    # the rows have CreatedDate='6/30/2026'. Zero matches.
+    try:
+        from zoneinfo import ZoneInfo
+        et_now = datetime.now(ZoneInfo('America/New_York'))
+    except ImportError:
+        # Fallback: approximate ET as UTC-4 (EDT). Off during winter but
+        # close enough for the CreatedDate matching to work.
+        et_now = datetime.utcnow() + timedelta(hours=-4)
+    today_mdY = f"{et_now.month}/{et_now.day}/{et_now.year}"
+
     db = FlowDB()
     rows_updated = 0
     per_contract_log = []  # for diagnostic
