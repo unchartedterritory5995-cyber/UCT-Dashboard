@@ -265,6 +265,13 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       : null),
     [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday],
   )
+  // Σ option market value (broker mark) — flat contribution to the intraday curve.
+  const optionMarketValue = useMemo(
+    () => (optionStrategies || []).reduce(
+      (s, o) => s + (Number.isFinite(o?.brokerCurrentValue) ? o.brokerCurrentValue : 0), 0,
+    ),
+    [optionStrategies],
+  )
 
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -287,6 +294,9 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         aggregates={aggregates}
         liveSummary={liveSummary}
         isLive={isStreaming && liveSummary?.netLiq != null}
+        positions={positions}
+        prices={prices}
+        optionMarketValue={optionMarketValue}
       />
       <BrokerReviewNudge onReview={() => onTradeWritten?.()} />
       {/* §7.1 — stats header */}

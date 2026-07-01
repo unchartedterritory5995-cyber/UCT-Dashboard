@@ -14,13 +14,19 @@
 import { useMemo, useRef, useState } from 'react'
 import { money, moneySigned, percent } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
+import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
 import styles from './BrokerAccountHero.module.css'
 
+// Robinhood range tabs. 1D is an intraday reconstruction (bars); the rest come
+// from the daily broker-performance equity series.
 const RANGES = [
+  { label: '1D', period: '1D' },
+  { label: '1W', period: '1W' },
   { label: '1M', period: '1M' },
   { label: '3M', period: '3M' },
+  { label: 'YTD', period: 'YTD' },
   { label: '1Y', period: '1Y' },
-  { label: 'All', period: 'ALL' },
+  { label: 'ALL', period: 'ALL' },
 ]
 
 /** Map a 0..1 pointer fraction across the chart to a clamped data index. */
@@ -37,15 +43,39 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function BrokerAccountHero({ account, aggregates, liveSummary = null, isLive = false }) {
-  const [range, setRange] = useState(RANGES[1]) // default 3M
+// Label for a series point — intraday points carry `t` (unix seconds, shown as
+// an ET clock time), daily points carry `date` (ISO).
+function pointLabel(p) {
+  if (!p) return ''
+  if (typeof p.t === 'number') {
+    return new Date(p.t * 1000).toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
+    })
+  }
+  return fmtDate(p.date)
+}
+
+export default function BrokerAccountHero({
+  account, aggregates, liveSummary = null, isLive = false,
+  positions = [], prices = {}, optionMarketValue = 0,
+}) {
+  const [range, setRange] = useState(RANGES[0]) // default 1D (Robinhood default)
   const [scrub, setScrub] = useState(null)       // hovered/dragged data index
   const wrapRef = useRef(null)
-  // Portfolio curve across ALL connected brokers (sum of each broker's real
-  // reported net-liq) — accurate, not per-selected-account.
-  const { data, isLoading } = useJ2BrokerPerformance(null, range.period, { portfolio: true })
 
-  const series = data?.equitySeries || []
+  const isIntraday = range.period === '1D'
+  // Daily equity curve across ALL brokers for the multi-day ranges; for 1D we
+  // reconstruct an intraday curve from each holding's bars (still fetch a light
+  // perf window so endEquity/fallbacks stay available).
+  const { data, isLoading: perfLoading } = useJ2BrokerPerformance(
+    null, isIntraday ? '1W' : range.period, { portfolio: true },
+  )
+  const { series: intradaySeries, loading: intraLoading } = useIntradayEquityCurve({
+    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0, enabled: isIntraday,
+  })
+
+  const series = isIntraday ? (intradaySeries || []) : (data?.equitySeries || [])
+  const isLoading = isIntraday ? intraLoading : perfLoading
 
   const model = useMemo(() => {
     if (series.length < 2) return null
@@ -60,48 +90,41 @@ export default function BrokerAccountHero({ account, aggregates, liveSummary = n
     }))
     const line = coords.map((c, i) => `${i ? 'L' : 'M'}${c.x.toFixed(2)} ${c.y.toFixed(2)}`).join(' ')
     const area = `${line} L100 100 L0 100 Z`
-    const real = series.filter((p) => !p.estimated)
-    let todayChange = null
-    let todayPct = null
-    if (real.length >= 2) {
-      const prev = real[real.length - 2].value
-      todayChange = real[real.length - 1].value - prev
-      todayPct = prev ? todayChange / Math.abs(prev) : null
-    }
-    const up = (data?.timeWeighted ?? data?.dollarPnl ?? 0) >= 0
-    return {
-      line, area, up, coords,
-      baselineY: coords[0].y,
-      todayChange, todayPct, todayUp: (todayChange ?? 0) >= 0,
-      estimated: series.some((p) => p.estimated),
-    }
-  }, [series, data])
+    // Robinhood line color: green if the window ended up, red if down.
+    const up = series[n - 1].value >= series[0].value
+    return { line, area, up, coords, baselineY: coords[0].y, estimated: series.some((p) => p.estimated) }
+  }, [series])
 
   const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   if (!isBroker) return null
 
   const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
-  const periodPnl = data?.dollarPnl
-  const periodPct = data?.timeWeighted
-  // Vibrant green/red by direction — the app's real tokens (the old
-  // --color-success/-danger were undefined → the line rendered black).
   const curveColor = model && !model.up ? 'var(--loss, #e74c3c)' : 'var(--gain, #3cb868)'
 
   // Scrub state → what the headline shows.
   const scrubbing = scrub != null && model && series[scrub]
   // Headline = the live net-liq (cash + live market value of holdings — the
-  // Robinhood-accurate number), or the scrub point, or the portfolio perf base
-  // as a fallback (multi-broker / cash unavailable).
+  // Robinhood-accurate number), or the scrub point, or the portfolio perf base.
   const baseValue = data?.endEquity ?? account.brokerTotalEquity
   const netLiqVal = liveSummary?.netLiq
   const headValue = scrubbing
     ? series[scrub].value
     : (netLiqVal != null ? netLiqVal : baseValue)
-  // Today's change from the live summary (Σ position move vs previous close),
-  // falling back to the daily-snapshot delta when there's no live summary.
-  const liveToday = liveSummary != null ? liveSummary.today : (model ? model.todayChange : null)
-  const liveTodayPct = liveSummary != null ? liveSummary.todayPct : (model ? model.todayPct : null)
-  const liveTodayUp = (liveToday ?? 0) >= 0
+
+  // ONE change line that rebaselines to the selected range (Robinhood behavior):
+  // 1D = today's move (prefer the live summary), else the change over the window
+  // (last − first of the series).
+  const first = series[0]?.value
+  const last = series[series.length - 1]?.value
+  let rangeChange = (Number.isFinite(first) && Number.isFinite(last)) ? last - first : null
+  let rangePct = (rangeChange != null && first) ? rangeChange / Math.abs(first) : null
+  if (isIntraday && liveSummary?.today != null) {
+    rangeChange = liveSummary.today
+    rangePct = liveSummary.todayPct
+  }
+  const rangeUp = (rangeChange ?? 0) >= 0
+  const rangeLabel = isIntraday ? 'Today' : range.label
+
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
   const scrubUp = (scrubChange ?? 0) >= 0
@@ -130,25 +153,16 @@ export default function BrokerAccountHero({ account, aggregates, liveSummary = n
               <span className={`${styles.change} ${scrubUp ? styles.pos : styles.neg}`}>
                 {scrubUp ? '▲' : '▼'} {moneySigned(scrubChange)}
                 {scrubPct != null && <>{' '}({percent(scrubPct, { signed: true, dp: 1, isRatio: true })})</>}
-                <span className={styles.changeLabel}> {fmtDate(series[scrub].date)}</span>
+                <span className={styles.changeLabel}> {pointLabel(series[scrub])}</span>
               </span>
             ) : (
-              <>
-                {liveToday != null && (
-                  <span className={`${styles.change} ${liveTodayUp ? styles.pos : styles.neg}`}>
-                    {liveTodayUp ? '▲' : '▼'} {moneySigned(liveToday)}
-                    {liveTodayPct != null && <>{' '}({percent(liveTodayPct, { signed: true, dp: 1, isRatio: true })})</>}
-                    <span className={styles.changeLabel}> Today</span>
-                  </span>
-                )}
-                {periodPnl != null && (
-                  <span className={`${styles.change} ${periodPnl >= 0 ? styles.pos : styles.neg}`}>
-                    {periodPnl >= 0 ? '▲' : '▼'} {moneySigned(periodPnl)}
-                    {periodPct != null && <>{' '}({percent(periodPct, { signed: true, dp: 1, isRatio: true })})</>}
-                    <span className={styles.changeLabel}> · {range.label}{model?.estimated ? ' · est.' : ''}</span>
-                  </span>
-                )}
-              </>
+              rangeChange != null && (
+                <span className={`${styles.change} ${rangeUp ? styles.pos : styles.neg}`}>
+                  {rangeUp ? '▲' : '▼'} {moneySigned(rangeChange)}
+                  {rangePct != null && <>{' '}({percent(rangePct, { signed: true, dp: 1, isRatio: true })})</>}
+                  <span className={styles.changeLabel}> {rangeLabel}{model?.estimated ? ' · est.' : ''}</span>
+                </span>
+              )
             )}
           </div>
         </div>
@@ -214,8 +228,8 @@ export default function BrokerAccountHero({ account, aggregates, liveSummary = n
             {isLoading && <span className={styles.loading}>…</span>}
           </div>
           <div className={styles.dateAxis}>
-            <span>{fmtDate(series[0].date)}</span>
-            <span>{fmtDate(series[series.length - 1].date)}</span>
+            <span>{pointLabel(series[0])}</span>
+            <span>{pointLabel(series[series.length - 1])}</span>
           </div>
         </>
       )}

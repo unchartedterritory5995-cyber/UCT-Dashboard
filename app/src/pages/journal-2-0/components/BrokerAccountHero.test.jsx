@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+
+// Select a daily (non-1D) range so the mocked broker-performance equitySeries
+// drives the curve (the default 1D range reconstructs from intraday bars).
+const selectDailyRange = () => fireEvent.click(screen.getByRole('tab', { name: '3M' }))
 
 let mockPerf = {
   data: {
@@ -59,26 +63,27 @@ function resetPerf() {
 describe('BrokerAccountHero', () => {
   beforeEach(resetPerf)
 
-  it('renders account value, the equity curve, Today P&L, and margin used', () => {
+  it('renders account value, the daily equity curve, range change, and margin used', () => {
     const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    selectDailyRange()
     expect(screen.getByText('$14,632.18')).toBeInTheDocument()      // account value
     expect(container.querySelector('svg')).toBeInTheDocument()      // the curve
-    expect(screen.getByText('Today')).toBeInTheDocument()           // 2 real points → Today shows
+    // 3M change = last − first = 14632.18 − 12000 = +$2,632.18 (est. history)
+    expect(screen.getByText(/\+\$2,632\.18/)).toBeInTheDocument()
     expect(screen.getByText('Margin Used')).toBeInTheDocument()
     expect(screen.getByText('$12,053.04')).toBeInTheDocument()      // = -brokerCash
   })
 
   it('draws the curve from estimated history even with no real snapshots yet', () => {
     // Freshly connected: only estimated points (from trade history), 0 real
-    // snapshots. The curve must STILL render (the bug we are fixing), and
-    // Today is hidden until ≥2 real daily snapshots exist.
+    // snapshots. The curve must STILL render (the bug we are fixing).
     mockPerf.data.equitySeries = [
       { date: '2026-04-01', value: 12000, estimated: true },
       { date: '2026-05-01', value: 14632.18, estimated: true },
     ]
     const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    selectDailyRange()
     expect(container.querySelector('svg')).toBeInTheDocument()      // curve shows
-    expect(screen.queryByText('Today')).not.toBeInTheDocument()     // no Today yet
     expect(screen.getByText('$14,632.18')).toBeInTheDocument()
   })
 
@@ -91,6 +96,7 @@ describe('BrokerAccountHero', () => {
       { date: '2026-06-17', value: 14632.18, estimated: true },
     ]
     const { container } = render(<BrokerAccountHero account={brokerAccount} aggregates={aggregates} />)
+    selectDailyRange()
     expect(container.querySelector('svg')).toBeInTheDocument()      // curve renders
     expect(screen.getByText('$14,632.18')).toBeInTheDocument()      // account value
   })
