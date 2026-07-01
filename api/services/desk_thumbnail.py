@@ -467,8 +467,16 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
     draw = ImageDraw.Draw(img)
     _draw_tracked(draw, 150, 64, _WORDMARK, _font("DejaVuSans-Bold.ttf", 26), (246, 238, 230), 7)
 
-    # Headline = eyebrow minus "FROM TSDR" (that goes in the subline), auto-fit.
-    head = (eyebrow_label or "").upper().replace("FROM TSDR", "").strip(" -—·") or "EVENING UPDATE"
+    # Host-aware: split "<headline> FROM <host>" so the same template serves any
+    # host (TSDR, Bracco, …). Headline is the hero; "FROM <host>" is the subline.
+    eb = (eyebrow_label or "").upper()
+    if " FROM " in eb:
+        head, host = eb.split(" FROM ", 1)
+        head = head.strip(" -—·") or "EVENING UPDATE"
+        sub = "FROM " + host.strip(" -—·")
+    else:
+        head = eb.strip(" -—·") or "EVENING UPDATE"
+        sub = ""
     size_pt = 116
     while size_pt > 60:
         f = _font("DejaVuSerif-Bold.ttf", size_pt)
@@ -477,7 +485,8 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
         size_pt -= 2
     _gold_center(img, cx, 140, head, _font("DejaVuSerif-Bold.ttf", size_pt))
 
-    _shadow_center(img, cx, 298, "FROM TSDR", _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
+    if sub:
+        _shadow_center(img, cx, 298, sub, _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
 
     draw = ImageDraw.Draw(img)
     df = _font("DejaVuSans-Bold.ttf", 30)
