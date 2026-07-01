@@ -49,6 +49,40 @@ describe('parseRealtimeEvent', () => {
     const out = parseRealtimeEvent({ type: 'error', error: { message: 'rate limit' } })
     expect(out).toEqual({ kind: 'error', message: 'rate limit' })
   })
+
+  // --- GA (general-availability) Realtime API compatibility -----------------
+  // The GA API renamed the assistant transcript events with an `output_`
+  // prefix and can deliver a finished tool call as an output item. The parser
+  // must accept BOTH the beta and GA shapes so the beta→GA migration (which
+  // silently broke voice) can never recur.
+
+  it('parses GA assistant transcript delta/done (output_ prefix)', () => {
+    expect(parseRealtimeEvent({ type: 'response.output_audio_transcript.delta', delta: 'NVDA' }))
+      .toEqual({ kind: 'assistant_transcript_delta', delta: 'NVDA' })
+    expect(parseRealtimeEvent({ type: 'response.output_audio_transcript.done', transcript: 'NVDA is at 487' }))
+      .toEqual({ kind: 'assistant_transcript_done', text: 'NVDA is at 487' })
+  })
+
+  it('parses a function_call delivered via response.output_item.done', () => {
+    const out = parseRealtimeEvent({
+      type: 'response.output_item.done',
+      item: { type: 'function_call', call_id: 'call_7', name: 'get_breadth', arguments: '{}' },
+    })
+    expect(out).toEqual({
+      kind: 'function_call', call_id: 'call_7', name: 'get_breadth', arguments_json: '{}',
+    })
+  })
+
+  it('ignores a non-function output item', () => {
+    expect(parseRealtimeEvent({
+      type: 'response.output_item.done', item: { type: 'message', role: 'assistant' },
+    }).kind).toBe('unknown')
+  })
+
+  it('returns the raw type on unknown events so they can be logged', () => {
+    expect(parseRealtimeEvent({ type: 'response.output_audio.delta' }))
+      .toEqual({ kind: 'unknown', type: 'response.output_audio.delta' })
+  })
 })
 
 describe('functionCallOutputEvent', () => {

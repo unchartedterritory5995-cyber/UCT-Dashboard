@@ -170,10 +170,15 @@ export default function useRealtimeSession() {
   const sessionRef = useRef({ id: null, openaiId: null, startedAt: 0 })
   const silenceTimerRef = useRef(null)
   const heartbeatTimerRef = useRef(null)
+  // A finished tool call can arrive on more than one Realtime event; run once.
+  const handledCallsRef = useRef(new Set())
+  // Log each never-before-seen event type once so a future API rename is visible.
+  const loggedUnknownRef = useRef(new Set())
 
   const cleanup = useCallback(async () => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
     if (heartbeatTimerRef.current) { clearInterval(heartbeatTimerRef.current); heartbeatTimerRef.current = null }
+    handledCallsRef.current.clear()
     try { dcRef.current?.close?.() } catch {}
     try { pcRef.current?.close?.() } catch {}
     if (localStreamRef.current) {
@@ -319,16 +324,31 @@ export default function useRealtimeSession() {
         sendTranscriptToServer('assistant', parsed.text)
         resetSilenceTimer()
         break
-      case 'function_call':
+      case 'function_call': {
+        // The finished tool call can arrive on more than one event
+        // (function_call_arguments.done and/or output_item.done) — run once.
+        const cid = parsed.call_id
+        if (cid && handledCallsRef.current.has(cid)) break
+        if (cid) handledCallsRef.current.add(cid)
         handleFunctionCall(parsed).catch((e) => console.error('[function_call] failed', e))
         resetSilenceTimer()
         break
+      }
       case 'error':
         console.error('[realtime] error event', parsed.message)
         voice.realtimeError(parsed.message)
         break
-      default:
+      default: {
+        // Surface genuinely-unrecognized event types once each, so a future
+        // OpenAI event rename can't silently break voice again the way the
+        // beta→GA rename did. Deduped → at most a few debug lines per session.
+        const et = parsed.type
+        if (et && !loggedUnknownRef.current.has(et)) {
+          loggedUnknownRef.current.add(et)
+          console.debug('[realtime] unhandled event type (first seen):', et)
+        }
         break
+      }
     }
   }, [voice, handleFunctionCall, resetSilenceTimer, sendTranscriptToServer])
 

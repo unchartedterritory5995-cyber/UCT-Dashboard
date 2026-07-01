@@ -90,7 +90,11 @@ def run_tool(
     # Tools may return {"ok": False, "narration": ...} on graceful failures
     # (e.g. "no such ticker"). Surface that into the audit + envelope so the
     # model and the dashboard can both see the failure rate accurately.
-    inner_ok = bool(result.get("ok", True)) if isinstance(result, dict) else True
+    # A dict carrying an `error` key but no explicit `ok` is a FAILURE — several
+    # read tools signal failure that way. This previously defaulted to True, so
+    # those failures were logged as successes and never got a recovery hint,
+    # leaving the model to go vague or silent instead of trying another source.
+    inner_ok = bool(result.get("ok", "error" not in result)) if isinstance(result, dict) else True
     inner_err = result.get("error") if isinstance(result, dict) else None
 
     _audit(user_id, tool_name, safe_args, inner_ok, inner_err,
