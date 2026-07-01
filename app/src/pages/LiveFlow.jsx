@@ -39,7 +39,10 @@ const P = {
   mt: "#6a6660",
 };
 
-const POLL_INTERVAL_MS = 5000;
+// Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
+// (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
+// /api/live/massive/recent returns to sub-second on the DB side.
+const POLL_INTERVAL_MS = 20000;
 const MAX_ROWS = 200;
 // 2026-06-17 v3: bumped v2→v3 because tier structure expanded from 3 tiers
 // (bullish/bearish/algo) to 6 (alpha/bullish/bearish/leaps/unusual/algo).
