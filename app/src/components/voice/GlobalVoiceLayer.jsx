@@ -7,6 +7,7 @@ import useProactiveVoice from '../../hooks/useProactiveVoice'
 import AudioPlayerBar from './AudioPlayerBar'
 import FloatingOrb from './FloatingOrb'
 import TranscriptBubble from './TranscriptBubble'
+import VoiceErrorBanner from './VoiceErrorBanner'
 
 /** Global voice UI — must render inside VoiceProvider.
  *
@@ -16,8 +17,8 @@ import TranscriptBubble from './TranscriptBubble'
  *  App.jsx (`GlobalVoiceGate`) so free users never download any of it — this
  *  keeps ~MB of voice/wasm code out of the entry bundle for everyone. */
 function VoiceMounts() {
-  const { wakeEnabled } = useVoice()
-  const { connect } = useRealtimeSession()
+  const { wakeEnabled, sessionContext } = useVoice()
+  const { connect, disconnect } = useRealtimeSession()
   usePushToTalkHotkey({ context: 'global' })
   useWakeWord({ enabled: wakeEnabled, onWake: () => connect('global') })
   // P4-A: Compass speaks proactive alerts when the user has opted in
@@ -40,6 +41,10 @@ function VoiceMounts() {
     <>
       <FloatingOrb context="global" />
       <TranscriptBubble />
+      <VoiceErrorBanner
+        onRetry={() => connect(sessionContext || 'global')}
+        onDismiss={disconnect}
+      />
     </>
   )
 }

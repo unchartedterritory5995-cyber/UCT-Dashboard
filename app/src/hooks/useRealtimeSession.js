@@ -396,17 +396,18 @@ export default function useRealtimeSession() {
         body: JSON.stringify({ context, page_hint: pageHint }),
       })
       if (!r.ok) {
-        if (r.status === 402) alert('Voice features require a paid plan.')
-        else if (r.status === 429) alert('Monthly conversation cap reached.')
-        else if (r.status === 503) alert('Voice service is misconfigured (server log will explain).')
-        else console.error('[realtime] token fetch returned', r.status)
-        voice.realtimeDisconnect()
+        const msg =
+          r.status === 402 ? 'Voice needs a paid plan.'
+          : r.status === 429 ? "You've hit this month's voice limit."
+          : r.status === 503 ? 'Voice is briefly unavailable — try again in a moment.'
+          : `Couldn't start voice (error ${r.status}). Try again.`
+        voice.realtimeError(msg)
         return
       }
       tokenResp = await r.json()
     } catch (e) {
       console.error('[realtime] token fetch failed', e)
-      voice.realtimeDisconnect()
+      voice.realtimeError('Could not reach the voice service. Check your connection and try again.')
       return
     }
 
@@ -420,8 +421,7 @@ export default function useRealtimeSession() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch (err) {
-      alert('Microphone permission is required.')
-      voice.realtimeDisconnect()
+      voice.realtimeError('I need microphone access to hear you — enable it in your browser, then try again.')
       await endSessionOnServer()
       return
     }
@@ -489,7 +489,7 @@ export default function useRealtimeSession() {
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
     } catch (e) {
       console.error('[realtime] SDP exchange failed', e)
-      voice.realtimeError(e.message || 'connection failed')
+      voice.realtimeError('Lost the connection to voice. Try again.')
       await cleanup()
       await endSessionOnServer()
       return
