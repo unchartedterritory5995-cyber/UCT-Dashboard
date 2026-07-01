@@ -61,10 +61,16 @@ Extend, don't rebuild. Everything routes through the proven
 - Reuses the existing `discord_notify._send_webhook` and the single
   `DISCORD_WEBHOOK_URL` (operator chose to reuse, not add a separate webhook).
 
+## Test-recording skip (added 2026-07-01)
+- `_is_test_recording(topic)` (`^\s*(test|demo)`) — a webinar whose name starts with
+  "test"/"demo" is a dry run and is **skipped, never published** (no upload, no Desk
+  record, no Discord/email). The job ends in a terminal **`skipped`** status
+  (`desk_session_jobs.mark_skipped`, shows in the diagnostics endpoint) so it isn't
+  re-processed. This is the one intentional exception to "no allowlist".
+
 ## Out of scope / non-goals
 - No separate public webhook env var (operator chose to reuse the existing one).
 - No new DB tables, no schema change (category is free-form text).
-- No allowlist change — the pipeline still auto-posts every cloud recording by name.
 
 ## Risks / invariants preserved
 - Thumbnail render stays **non-fatal** (try/except in the processor) — a bug in

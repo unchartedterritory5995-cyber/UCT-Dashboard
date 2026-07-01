@@ -8,6 +8,7 @@ education_service.
 from __future__ import annotations
 
 import os
+import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -30,6 +31,16 @@ _RULES = [
     ("thoughts on the market", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+
+# Recordings whose webinar name starts with "test"/"demo" are dry runs — never
+# published (skipped like the broker mirror skips, not posted). Guards against a
+# stray test recording auto-posting (there's otherwise no allowlist).
+_SKIP_TOPIC_RE = re.compile(r"^\s*(test|demo)", re.I)
+
+
+def _is_test_recording(topic: str | None) -> bool:
+    return bool(_SKIP_TOPIC_RE.match(topic or ""))
 
 
 def _route(topic: str | None) -> tuple[str, str, str]:
@@ -218,7 +229,12 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
         if not job:
             break
         uuid = job["meeting_uuid"]
-        section, title_prefix, eyebrow = _route(job.get("topic"))
+        topic = job.get("topic")
+        if _is_test_recording(topic):     # dry run -> skip, never publish/alert
+            print(f"[desk-sessions] skipping test recording: {topic!r}")
+            desk_session_jobs.mark_skipped(uuid, f"test recording: {topic}")
+            continue
+        section, title_prefix, eyebrow = _route(topic)
         date_text = _session_date_text(job.get("start_time"))
         title = f"{title_prefix} — {date_text}"
         vid = (job.get("youtube_id") or "").strip()

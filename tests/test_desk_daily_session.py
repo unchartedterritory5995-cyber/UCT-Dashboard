@@ -283,6 +283,25 @@ def test_process_evening_update_publishes_with_section(edu_db, jobs_db):
     assert v["category"] == "Evening Update"
 
 
+def test_is_test_recording():
+    assert dds._is_test_recording("TEST")
+    assert dds._is_test_recording("test recording")
+    assert dds._is_test_recording("  Demo run")
+    assert not dds._is_test_recording("Evening Update from TSDR")
+    assert not dds._is_test_recording("Latest Market Update")   # 'Lat…' != 'test'
+    assert not dds._is_test_recording("")
+
+
+def test_process_skips_test_recording(edu_db, jobs_db):
+    # A webinar named "TEST" is a dry run: nothing published, no alert, and the job
+    # ends terminal ('skipped') so it's never re-processed.
+    jobs_db.enqueue("UT", "TEST", "2026-06-30T21:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert edu.list_videos() == []
+    assert jobs_db.count_status("skipped") == 1
+    assert jobs_db.count_status("done") == 0
+
+
 def test_notify_published_embeds_thumbnail_and_section(monkeypatch):
     # The Discord announcement carries the video thumbnail, the show title, the
     # section name, and a website Watch link.

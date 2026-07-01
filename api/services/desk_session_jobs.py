@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS desk_session_jobs (
   start_time    TEXT,
   download_url  TEXT NOT NULL,
   download_token TEXT,
-  status        TEXT NOT NULL DEFAULT 'pending',  -- pending|processing|done|error
+  status        TEXT NOT NULL DEFAULT 'pending',  -- pending|processing|done|error|skipped
   youtube_id    TEXT,
   attempts      INTEGER NOT NULL DEFAULT 0,
   error         TEXT,
@@ -74,6 +74,14 @@ def mark_uploaded(meeting_uuid, youtube_id):
         c.execute("UPDATE desk_session_jobs SET youtube_id=?, updated_at=? "
                   "WHERE meeting_uuid=?",
                   (youtube_id, int(time.time()), meeting_uuid)); c.commit()
+
+def mark_skipped(meeting_uuid, reason=""):
+    """Terminal 'skipped' status — job is intentionally not published (e.g. a test
+    recording). Never re-claimed; the reason shows in the diagnostics endpoint."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE desk_session_jobs SET status='skipped', error=?, "
+                  "updated_at=? WHERE meeting_uuid=?",
+                  (str(reason)[:500], int(time.time()), meeting_uuid)); c.commit()
 
 def mark_error(meeting_uuid, error):
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
