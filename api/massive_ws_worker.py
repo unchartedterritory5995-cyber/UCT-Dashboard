@@ -1673,12 +1673,21 @@ async def _run_session(ws):
                 def _color_refresh_sync(resolved_contracts):
                     import sqlite3
                     from api.flow_db import FlowDB
+                    from api.oi_snapshots import parse_key
                     today_mdY = f"{date.today().month}/{date.today().day}/{date.today().year}"
                     db = FlowDB()
                     rows_updated = 0
                     try:
                         with sqlite3.connect(db.db_path, timeout=10) as conn:
-                            for (sym, cp_letter, strike, exp_mdy), oi, _src in resolved_contracts:
+                            # Each item is (contract_key, oi, source) where
+                            # contract_key is a pipe-delimited string
+                            # "SYM|C|STRIKE|M/D/YYYY" (see oi_snapshots.make_key),
+                            # NOT a 4-tuple. Parse it into its fields; iterating
+                            # the raw string used to raise "too many values to
+                            # unpack (expected 4)" every OI batch, so this whole
+                            # color backfill silently never ran. (2026-07-01.)
+                            for ck, oi, _src in resolved_contracts:
+                                sym, cp_letter, strike, exp_mdy = parse_key(ck)
                                 cp_full = 'CALL' if cp_letter == 'C' else 'PUT'
                                 strike_strs = []
                                 if strike == int(strike):

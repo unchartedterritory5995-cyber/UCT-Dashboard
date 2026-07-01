@@ -4,12 +4,35 @@ Pure business logic, no HTTP concerns.
 """
 
 import uuid
+import time
 import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
 from api.services.auth_db import get_connection
+
+
+# ── last_login_at write throttle ─────────────────────────────────────────────
+# validate_session() runs on EVERY authenticated request. Writing last_login_at
+# + commit on every call is a serialized SQLite write on the universal auth path;
+# under concurrent load these writes contend on the auth.db write lock, each
+# holding an anyio threadpool thread through the wait, which exhausts the pool and
+# stalls the whole app (the 2026-07-01 Cloudflare-524 incident). last_login_at is
+# display-only, so a coarse write cadence is fine. This in-process guard collapses
+# the per-request write to at most once per user per interval.
+_LAST_LOGIN_WRITE: dict[str, float] = {}
+_LAST_LOGIN_MIN_INTERVAL = 300.0  # seconds (5 min)
+
+
+def _should_write_last_login(user_id: str, now: float | None = None) -> bool:
+    """Return True (and record the write time) at most once per interval per user."""
+    now = time.time() if now is None else now
+    prev = _LAST_LOGIN_WRITE.get(user_id)
+    if prev is not None and (now - prev) < _LAST_LOGIN_MIN_INTERVAL:
+        return False
+    _LAST_LOGIN_WRITE[user_id] = now
+    return True
 
 
 # ── User management ──────────────────────────────────────────────────────────
@@ -112,12 +135,15 @@ def validate_session(token: str) -> dict | None:
             return None
         user_id = row["user_id"]
 
-        # Update last login timestamp (fire-and-forget, don't block)
-        try:
-            conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
-            conn.commit()
-        except:
-            pass
+        # Update last login timestamp — throttled to at most once per user per
+        # interval so this universal-path write doesn't serialize under load
+        # (see _should_write_last_login + the 2026-07-01 incident note above).
+        if _should_write_last_login(user_id):
+            try:
+                conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+                conn.commit()
+            except:
+                pass
 
         return {
             "id": user_id,

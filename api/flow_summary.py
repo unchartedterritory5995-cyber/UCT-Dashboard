@@ -34,6 +34,8 @@ import time
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+import anyio
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -358,8 +360,14 @@ async def top_conviction(request: Request):
         limit = 10
     limit = max(1, min(20, limit))
     try:
+        # get_top_conviction() opens flow.db and, on a cold cache, does ~6-13s
+        # of disk I/O + Python aggregation. This handler is `async`, so running
+        # it inline would block the whole event loop (stalling every request, not
+        # just this one). Offload to a worker thread. Steady-state this is a
+        # ~80ms cached read; the thread hop is negligible. (2026-07-01 incident.)
+        payload = await anyio.to_thread.run_sync(get_top_conviction, limit)
         return JSONResponse(
-            get_top_conviction(limit),
+            payload,
             headers={"Cache-Control": "public, max-age=60"},
         )
     except Exception as e:  # never 500 a dashboard tile
