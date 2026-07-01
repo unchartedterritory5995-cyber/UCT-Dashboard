@@ -186,6 +186,56 @@ def _start_uploader():
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
 
 
+# ── Down-alert: the worker watches the public site and pings the owner ───────
+# The keep-warm loop already hits https://uctintelligence.com/api/health every
+# ~60s from a SEPARATE always-on process (the worker). That's the ideal probe:
+# it goes through Cloudflare (catches 502/524 origin failures) and keeps working
+# even when the web pod is dead. We turn that probe into a down-alert: fire a
+# Discord ping on DOWN (after N consecutive failures, to ignore blips) and again
+# on recovery, with a re-nag cooldown while it stays down. Pure decision fn below
+# is unit-tested. (2026-07-01)
+DOWN_ALERT_FAILS = 2            # consecutive bad probes before declaring DOWN
+DOWN_ALERT_RENAG_SECONDS = 1800  # re-nag every 30 min while still down
+DOWN_ALERT_SLOW_MS = 12000      # a 200 slower than this counts as a (soft) failure
+
+
+def _down_alert_decision(prev, ok, now, *, down_after=DOWN_ALERT_FAILS,
+                         renag_s=DOWN_ALERT_RENAG_SECONDS):
+    """Pure state machine for the down-alert.
+
+    prev/return state: {"fails": int, "down": bool, "last_alert_at": float|None}.
+    Returns (new_state, event) where event ∈ {None, "down", "still_down", "up"}.
+    """
+    fails = 0 if ok else prev.get("fails", 0) + 1
+    down = prev.get("down", False)
+    last = prev.get("last_alert_at")
+    event = None
+    if not down and fails >= down_after:
+        down, event, last = True, "down", now
+    elif down and ok:
+        down, event, last = False, "up", now
+    elif down and not ok and (last is None or now - last >= renag_s):
+        event, last = "still_down", now
+    return {"fails": fails, "down": down, "last_alert_at": last}, event
+
+
+def _post_discord(webhook, content):
+    """Best-effort Discord webhook post. Never raises."""
+    try:
+        import json as _json
+        import urllib.request as _u
+        data = _json.dumps({"content": content}).encode()
+        req = _u.Request(webhook, data=data,
+                         headers={"Content-Type": "application/json",
+                                  "User-Agent": "uct-worker-alert/1"})
+        with _u.urlopen(req, timeout=10) as r:
+            r.read(64)
+        return True
+    except Exception as e:
+        log.warning(f"down-alert Discord post failed: {type(e).__name__}: {e}")
+        return False
+
+
 def _start_keepwarm():
     """Ping the web pod's /api/health on a fixed cadence so Railway never
     idle-spins it down.
@@ -233,15 +283,50 @@ def _start_keepwarm():
     # cost savings is retained either way.
     _market_hours_only = os.environ.get("KEEPWARM_MARKET_HOURS_ONLY") == "1"
 
+    # Down-alert config: reuse the same probe to notify the owner via Discord.
+    _alert_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    _alert_enabled = bool(_alert_webhook) and os.environ.get("DOWN_ALERT_ENABLED", "1") == "1"
+    _alert_site = base  # public URL the user actually visits
+    _alert_state = {"fails": 0, "down": False, "last_alert_at": None}
+    if _alert_enabled:
+        log.info(f"down-alert enabled -> Discord (site {_alert_site})")
+
+    def _probe():
+        """Return (ok, detail). ok=False on exception, non-200, or slow response."""
+        start = time.monotonic()
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                status = getattr(r, "status", 200)
+                r.read(64)  # drain a little so the conn closes cleanly
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            if status != 200:
+                return False, f"HTTP {status} in {elapsed_ms}ms"
+            if elapsed_ms > DOWN_ALERT_SLOW_MS:
+                return False, f"slow: {elapsed_ms}ms (>{DOWN_ALERT_SLOW_MS}ms)"
+            return True, f"{elapsed_ms}ms"
+        except Exception as e:
+            return False, f"{type(e).__name__}: {e}"
+
     def loop():
         while True:
             if (not _market_hours_only) or _ds.in_active_data_window():
-                try:
-                    req = urllib.request.Request(url, headers={"User-Agent": "uct-worker-keepwarm/1"})
-                    with urllib.request.urlopen(req, timeout=20) as r:
-                        r.read(64)  # drain a little so the conn closes cleanly
-                except Exception as e:
-                    log.warning(f"keep-warm ping failed ({url}): {type(e).__name__}: {e}")
+                ok, detail = _probe()
+                if not ok:
+                    log.warning(f"keep-warm ping failed ({url}): {detail}")
+                if _alert_enabled:
+                    new_state, event = _down_alert_decision(_alert_state, ok, time.time())
+                    _alert_state.update(new_state)
+                    if event == "down":
+                        _post_discord(_alert_webhook,
+                                      f"🔴 **UCT Intelligence is DOWN** — {_alert_site} is not responding "
+                                      f"({detail}). I'll ping again when it recovers.")
+                    elif event == "still_down":
+                        _post_discord(_alert_webhook,
+                                      f"🔴 Still down — {_alert_site} ({detail}).")
+                    elif event == "up":
+                        _post_discord(_alert_webhook,
+                                      f"🟢 **Recovered** — {_alert_site} is back up ({detail}).")
             time.sleep(interval)
 
     log.info(f"starting keep-warm pinger -> {url} every {interval}s")
