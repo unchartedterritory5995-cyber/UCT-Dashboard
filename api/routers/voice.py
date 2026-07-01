@@ -1094,6 +1094,18 @@ def session_token(
             + "\n=== END USER CONTEXT ==="
         )
 
+    # Phase 2 admin rollout gate: COMPASS_MENTOR_MODE=admin appends the two-lane
+    # "kill the parrot" reasoning policy for ADMINS ONLY (so the owner can test
+    # it before any subscriber). COMPASS_MENTOR_MODE=1 (all users) is handled
+    # inside build_compass_voice_prompt(); this branch adds the admin-only tier
+    # without double-appending. Appended last for maximum recency precedence.
+    if ctx == "compass" and os.environ.get("COMPASS_MENTOR_MODE") == "admin" and is_admin:
+        try:
+            from api.services.voice_prompts.compass import _MENTOR_TWO_LANE
+            session_instructions = session_instructions + _MENTOR_TWO_LANE
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[session_token] mentor two-lane append failed: %s", e)
+
     # Run the OpenAI mint with a hard timeout so we fail fast instead of letting
     # Cloudflare wait 30s for nothing.
     import concurrent.futures as _cf
