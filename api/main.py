@@ -2855,6 +2855,105 @@ async def _massive_diagnose():
     return out
 
 
+# -- Flow DB perf diagnostics + one-shot optimizer -----------------------
+# Added 2026-07-01 during post-market debug of /api/live/massive/recent
+# slowness (single-call 4s, diagnostic 43s for 11K rows). Suspicion: stale
+# query-planner stats and/or bloated WAL. These two endpoints let an
+# operator inspect and (POST) fix without shell access to the DB.
+#
+# /plan   -- READ-ONLY. Reports row count, EXPLAIN QUERY PLAN for the
+#            /recent-style filter, and the current index list. Safe to
+#            call any time. Use this first to confirm the diagnosis
+#            (planner not using idx_flow_source_date -> SCAN TABLE flow).
+#
+# /optimize -- WRITES. Runs PRAGMA wal_checkpoint(TRUNCATE) then ANALYZE.
+#              Both are safe operations that block briefly but do not
+#              modify data. WAL checkpoint truncates the WAL file back
+#              into the main DB (fixes bloat). ANALYZE rebuilds sqlite_stat1
+#              (fixes stale planner stats). Idempotent; safe to re-run.
+@app.get("/api/admin/flow/plan")
+async def _flow_plan():
+    """Read-only. Inspect DB size, query plan, and indexes on the flow table."""
+    import sqlite3, time
+    out = {}
+    try:
+        t0 = time.time()
+        with sqlite3.connect("/data/flow.db", timeout=30) as conn:
+            cur = conn.execute("SELECT COUNT(*) FROM flow")
+            out["total_rows"] = cur.fetchone()[0]
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                "AND Color IN ('MAGENTA','YELLOW')"
+            )
+            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+            )
+            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+            cur = conn.execute(
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='flow'"
+            )
+            out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
+            cur = conn.execute("PRAGMA journal_mode")
+            out["journal_mode"] = cur.fetchone()[0]
+            cur = conn.execute("PRAGMA page_size")
+            out["page_size"] = cur.fetchone()[0]
+            cur = conn.execute("PRAGMA page_count")
+            out["page_count"] = cur.fetchone()[0]
+            out["db_size_mb"] = round(out["page_size"] * out["page_count"] / (1024*1024), 1)
+        out["elapsed_sec"] = round(time.time() - t0, 2)
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
+@app.post("/api/admin/flow/optimize")
+async def _flow_optimize():
+    """One-shot: checkpoint WAL, run ANALYZE, then re-inspect plan.
+
+    Safe to re-run. No data mutation. Blocks briefly (typically <10s each).
+    Report includes timings and the post-optimize query plan so you can
+    verify at a glance whether the planner now uses idx_flow_source_date.
+    """
+    import sqlite3, time
+    out = {}
+    try:
+        with sqlite3.connect("/data/flow.db", timeout=120) as conn:
+            t0 = time.time()
+            cur = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            out["checkpoint_result"] = list(cur.fetchone() or [])
+            out["checkpoint_sec"] = round(time.time() - t0, 2)
+
+            t1 = time.time()
+            conn.execute("ANALYZE")
+            out["analyze_sec"] = round(time.time() - t1, 2)
+
+            cur = conn.execute("SELECT COUNT(*) FROM flow")
+            out["total_rows"] = cur.fetchone()[0]
+
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                "AND Color IN ('MAGENTA','YELLOW')"
+            )
+            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+            )
+            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+
+            cur = conn.execute("PRAGMA page_count")
+            out["page_count_post"] = cur.fetchone()[0]
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
 @app.post("/api/admin/massive/backfill-ticktest")
 async def _massive_backfill_ticktest(target_date: str = None):
     """Apply tick-test classification retroactively to flow rows with Side=''.
