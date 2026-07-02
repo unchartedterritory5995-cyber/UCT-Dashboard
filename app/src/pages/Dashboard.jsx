@@ -13,6 +13,7 @@ import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import DeskVideoRail from '../components/dashboard/DeskVideoRail'
+import MarketStatusBar from '../components/dashboard/MarketStatusBar'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
 import UIcon from '../components/ui/UIcon'
 import styles from './Dashboard.module.css'
@@ -67,27 +68,39 @@ export default function Dashboard() {
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        {/* ── Desktop layout (unchanged; hidden on mobile) ───────────────── */}
+        {/* ── Desktop: command-center grid (2026-07-02 restyle) ──────────── */}
         <div className={styles.desktopOnly}>
-          <div className={styles.row1}>
-            <FuturesStrip />
-          </div>
+          {/* Slim status header: session · index chips · exposure · quote */}
+          <MarketStatusBar />
           <IntradayPulse />
-          <JournalSnapshotTile />
-          <CatalystTable />
-          <div className={styles.row2}>
-            <MoversSidebar />
+
+          {/* Row B — the decision row: catalysts hero + journal/movers rail */}
+          <div className={styles.rowB}>
+            <div className={styles.hero}>
+              <CatalystTable />
+            </div>
+            <div className={styles.rail}>
+              <JournalSnapshotTile />
+              <div className={styles.railMovers}>
+                <MoversSidebar />
+              </div>
+            </div>
+          </div>
+
+          {/* Row C — market glance */}
+          <div className={styles.rowC}>
             <MarketBreadth />
             <ThemeTracker />
-          </div>
-          <div className={styles.row3}>
-            <CatalystFlow />
             <LeadershipTile />
             <TapeFeed />
           </div>
-          <div className={styles.row4}>
+
+          {/* Row D — earnings + flow */}
+          <div className={styles.rowD}>
+            <CatalystFlow />
             <OptionsFlowPreview />
           </div>
+
           <DeskVideoRail />
         </div>
 
