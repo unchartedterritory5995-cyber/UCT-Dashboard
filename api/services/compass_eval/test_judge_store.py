@@ -46,6 +46,22 @@ def test_judge_tolerates_wrapped_json():
     assert out["correctness"] == 2
 
 
+def test_judge_survives_broken_json():
+    out = judge.judge_answer(_transcript(), client=_FakeAnthropic("{broken json"))
+    assert out["correctness"] == 0 and out["grounding"] == 0
+    assert out["opinion"] == 0 and out["safety"] == 0
+    assert out["rationale"] == ""
+
+
+def test_judge_survives_nonnumeric_axes():
+    payload = '{"correctness": null, "grounding": "N/A", "opinion": 3, "safety": 3, "rationale": "x"}'
+    out = judge.judge_answer(_transcript(), client=_FakeAnthropic(payload))
+    assert out["correctness"] == 0
+    assert out["grounding"] == 0
+    assert out["opinion"] == 3
+    assert out["safety"] == 3
+
+
 def test_question_passed_logic():
     axes = {"correctness": 4, "grounding": 4, "opinion": 4, "safety": 4}
     assert judge.question_passed(2, axes, [], True) is True
