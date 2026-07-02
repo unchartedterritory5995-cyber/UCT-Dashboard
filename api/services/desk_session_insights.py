@@ -409,8 +409,8 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
     has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
-    age = now - int(v.get("created_at") or now)
     try:
+        age = now - int(v.get("created_at") or now)
         rec = zoom.get_recording_files(uuid)
         if rec is None:  # recording already gone — nothing to fetch
             education_service.mark_zoom_cleaned(vid)
