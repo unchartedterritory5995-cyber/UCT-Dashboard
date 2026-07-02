@@ -420,26 +420,36 @@ def get_earnings_this_week(*, count: int = 8) -> dict:
 # ── Sector strength with period control ────────────────────────────────────
 
 def get_sector_strength(*, period: str | None = None, count: int = 3) -> dict:
-    """Strongest sectors. Period currently snapshot-only (today)."""
-    # The underlying rs_ranking service returns the current snapshot.
-    # Period is accepted for future expansion and graceful voice handling.
-    try:
-        from api.services.rs_ranking import get_sector_strength as _sec
-        rows = _sec() or []
-    except (ImportError, AttributeError):
-        from api.services.engine import get_themes
-        themes = get_themes() or {}
-        rows = [{"sector": t.get("name"), "change_pct": t.get("pct")}
-                for t in (themes.get("leaders") or [])[:5]]
+    """Strongest sectors, ranked by real SPDR sector-ETF returns over `period`.
+
+    Backed by api.services.sector_strength (11 SPDR sector ETFs, period
+    returns computed from daily bars). No theme-tracker fallback: if the
+    sector data can't be fetched, this returns an honest ok=False error
+    instead of silently relabeling unrelated theme leaders as "sectors".
+    """
+    p = _norm_period(period, default="Today", allowed=("Today", "1W", "1M", "3M"))
     n = max(1, min(8, int(count or 3)))
-    sectors = []
-    for r in rows[:n]:
-        sectors.append({
-            "sector": r.get("sector") or r.get("name"),
-            "change_pct": _to_float(r.get("change_pct") or r.get("pct")),
-        })
-    if not sectors:
-        return {"ok": True, "narration": "No sector data available.", "sectors": []}
+
+    try:
+        from api.services.sector_strength import get_sector_strength as _sector_returns
+        rows = _sector_returns(period=p) or []
+    except Exception:
+        _log.exception("[voice] get_sector_strength failed")
+        rows = []
+
+    if not rows:
+        return {
+            "ok": False,
+            "error": "Sector strength data is unavailable right now.",
+            "narration": "I don't have sector strength data available right now.",
+            "period": p,
+            "sectors": [],
+        }
+
+    sectors = [
+        {"sector": r.get("sector"), "change_pct": round(_to_float(r.get("change_pct")), 2)}
+        for r in rows[:n]
+    ]
     parts = [
         f"{s['sector']} {('up' if s['change_pct'] >= 0 else 'down')} "
         f"{abs(round(s['change_pct'], 1))} percent"
@@ -447,7 +457,8 @@ def get_sector_strength(*, period: str | None = None, count: int = 3) -> dict:
     ]
     return {
         "ok": True,
-        "narration": "Sector strength — " + ", ".join(parts) + ".",
+        "narration": f"Sector strength ({p}) — " + ", ".join(parts) + ".",
+        "period": p,
         "sectors": sectors,
         "count": len(sectors),
     }
