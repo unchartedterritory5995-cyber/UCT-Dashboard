@@ -174,3 +174,18 @@ def test_evening_smoke_host_aware():
 
 def test_evening_smoke_no_host():
     _smoke("EVENING UPDATE")
+
+
+def test_same_inputs_render_identical_bytes():
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    b = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert a == b
+
+
+def test_different_dates_render_different_cards():
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    b = t.render_session_thumbnail("July 2, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert a != b
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    b = t.render_session_thumbnail("July 2, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    assert a != b

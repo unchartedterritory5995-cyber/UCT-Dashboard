@@ -32,6 +32,7 @@ from __future__ import annotations
 import io
 import os
 import random
+import zlib
 from typing import NamedTuple
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -139,6 +140,15 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     if "thought" in low:
         return _EMERALD_THEME
     return _DEFAULT_THEME
+
+
+def _episode_seed(date_text: str, eyebrow_label: str) -> int:
+    """Deterministic per-episode seed derived from the episode's own inputs —
+    same date+eyebrow always reproduces the same card; a different date or
+    show name reliably produces a different (but still deterministic) card.
+    Never touches the global `random` state — callers thread this int into
+    their own `random.Random(seed)` / `np.random.default_rng(seed)` instances."""
+    return zlib.crc32(f"{date_text}|{eyebrow_label}".encode())
 
 
 def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
@@ -258,10 +268,13 @@ def _grain(img: Image.Image, alpha: float, seed: int = 7) -> Image.Image:
     return Image.fromarray(np.clip(arr + noise, 0, 255).astype(np.uint8))
 
 
-def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+def _render_classic(theme: Theme, date_text: str, eyebrow_label: str, *,
+                    seed: int = 7) -> Image.Image:
     """Candlestick skyline: a glowing gold uptrend across a storm-lit night sky,
     the date the metallic-gold hero above it. Rendered at 2x and downscaled
-    (super-sampled) for crisp, clean edges, finished with a light film grain."""
+    (super-sampled) for crisp, clean edges, finished with a light film grain.
+    `seed` (per-episode, from `_episode_seed`) drives the candlestick trend
+    shape + the grain offset so every day's card is unique but reproducible."""
     S = 2
     size = (_W * S, _H * S)
 
@@ -279,8 +292,9 @@ def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
 
     # The skyline: one huge glowing candlestick uptrend across the lower half,
     # softly blurred so it reads like lit towers in the rain.
+    trend = _gen_trend(seed)
     lay = Image.new("RGBA", size, (0, 0, 0, 0))
-    lay = _draw_uptrend(lay, s(-70), s(304), s(1298), s(742))
+    lay = _draw_uptrend(lay, s(-70), s(304), s(1298), s(742), trend=trend)
     soft = lay.filter(ImageFilter.GaussianBlur(s(3)))
     img = Image.alpha_composite(img, soft)
     crisp = lay.copy()
@@ -319,7 +333,7 @@ def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
 
     img = Image.alpha_composite(img, _vignette(0.5, size))
     out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
-    return _grain(out, alpha=6.0)
+    return _grain(out, alpha=6.0, seed=7 + seed)
 
 
 # ---------------------------------------------------------------------------
@@ -329,13 +343,54 @@ def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
 _TREND = [0.10, 0.20, 0.16, 0.32, 0.45, 0.39, 0.55, 0.49, 0.67, 0.81, 0.96]
 
 
-def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
+def _gen_trend(seed: int, n: int = len(_TREND)) -> list:
+    """Deterministic per-episode candlestick trend: a random walk of `n`
+    points (matches `_TREND`'s length by default) that starts low, ends high,
+    and rises with 2-4 bounded pullbacks along the way — decorative variation
+    only, never the global random state.
+
+    - start in [0.05, 0.20], end in [0.90, 1.0] (always — anchored explicitly)
+    - 2-4 interior steps are "pullbacks": bounded dips in [-0.12, -0.03]
+    - every other step steers toward the end value with light jitter, each
+      step clamped to [-0.12, +0.22] while more than one step remains (the
+      final step is unclamped so the walk lands exactly on `end`)
+    - every point clamped to [0, 1]
+    """
+    rng = random.Random(seed)
+    start = rng.uniform(0.05, 0.20)
+    end = rng.uniform(0.90, 1.0)
+    steps = n - 1
+    eligible = list(range(1, steps - 1)) if steps > 2 else list(range(steps))
+    n_pullbacks = min(rng.randint(2, 4), len(eligible))
+    pullback_steps = set(rng.sample(eligible, n_pullbacks)) if eligible else set()
+
+    values = [start]
+    cur = start
+    for i in range(steps):
+        remaining = steps - i
+        if i in pullback_steps:
+            step = rng.uniform(-0.12, -0.03)
+        else:
+            target_step = (end - cur) / remaining
+            step = target_step + rng.uniform(-0.03, 0.05)
+            if remaining > 1:
+                step = max(-0.12, min(0.22, step))
+        cur = max(0.0, min(1.0, cur + step))
+        values.append(cur)
+    values[-1] = max(0.0, min(1.0, end))  # anchor the close explicitly
+    return values
+
+
+def _draw_uptrend(img: Image.Image, x0, y0, x1, y1, trend: list | None = None) -> Image.Image:
     """Glowing gold candlestick uptrend: filled up-candles, hollow down-candles,
-    a bright close-line, and a gradient area glow that fades to nothing."""
+    a bright close-line, and a gradient area glow that fades to nothing.
+    `trend` defaults to the fixed `_TREND` list so other callers are unaffected;
+    pass a per-episode series (see `_gen_trend`) for date-seeded variation."""
+    trend = _TREND if trend is None else trend
     size = img.size
     chart = Image.new("RGBA", size, (0, 0, 0, 0))
     d = ImageDraw.Draw(chart)
-    n = len(_TREND)
+    n = len(trend)
     span = (x1 - x0) / n
     bw = span * 0.44
     wick_w = max(2, int(span * 0.05))
@@ -347,7 +402,7 @@ def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
         return y1 - max(0.0, min(1.0, v)) * (y1 - y0)
 
     pts, prev = [], 0.03
-    for i, c in enumerate(_TREND):
+    for i, c in enumerate(trend):
         o = prev
         hi = max(o, c) + 0.05
         lo = min(o, c) - 0.05
@@ -430,12 +485,15 @@ def _journal_diamond(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fil
     d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=fill)
 
 
-def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str, *,
+                      seed: int = 7) -> Image.Image:
     """Leather-bound journal cover: a leather-textured base tint (from theme,
     so "thoughts"/"emerald" share this exact layout), a double gold frame with
     corner diamonds, a compass medallion, and a centered gold-foil-stamped
     headline (derived from eyebrow_label) + kicker + date. Rendered at 2x and
-    downscaled (super-sampled) for crisp, clean edges."""
+    downscaled (super-sampled) for crisp, clean edges. `seed` (per-episode)
+    only SUBTLY varies the leather grain + lighting-center jitter — this is
+    a formal design, so no structural variation."""
     S = 2                                   # super-sample factor
     W, H = _W * S, _H * S
     size = (W, H)
@@ -448,9 +506,10 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
 
     # Leather base: theme gradient (shared bg tint) + coarse mottling + fine grain.
     base = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGB")
-    # Seeded coarse grain (deterministic leather texture)
+    # Seeded coarse grain (deterministic leather texture), subtly jittered per
+    # episode by offsetting the base grain seed.
     import numpy as np
-    rng = np.random.default_rng(7)
+    rng = np.random.default_rng(7 + seed)
     coarse_arr = rng.normal(128.0, 58.0, (H // 6, W // 6))
     coarse = Image.fromarray(np.clip(coarse_arr, 0, 255).astype(np.uint8), mode='L')
     coarse = coarse.resize(size, Image.BILINEAR)
@@ -462,7 +521,13 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
     base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (fine,) * 3)), 0.16)
 
     img = base.convert("RGBA")
-    img = Image.alpha_composite(img, _radial(W // 2, s(230), s(620), (255, 238, 200), 22, size))
+    # Radial lighting center jittered a few tens of pixels per episode — subtle,
+    # not structural (formal design).
+    jrng = random.Random(seed)
+    jx = s(jrng.uniform(-30, 30))
+    jy = s(jrng.uniform(-30, 30))
+    img = Image.alpha_composite(
+        img, _radial(W // 2 + jx, s(230) + jy, s(620), (255, 238, 200), 22, size))
     img = Image.alpha_composite(img, _vignette(0.62, size))
 
     draw = ImageDraw.Draw(img)
@@ -552,9 +617,6 @@ _SKY_STOPS = [
     (0.62, (224, 126, 60)), (0.695, (252, 204, 120)), (0.72, (120, 60, 50)),
     (1.0, (10, 7, 14)),
 ]
-_SKY_SEEDH = [0.55, 0.80, 0.42, 0.92, 0.6, 0.5, 0.86, 0.46, 0.72, 0.96, 0.58,
-              0.66, 0.82, 0.43, 0.76, 0.5, 0.9, 0.6, 0.7, 0.46, 0.84, 0.54,
-              0.92, 0.62, 0.5, 0.78, 0.44, 0.86, 0.66, 0.58]
 
 
 def _sky_gradient(stops: list, size: tuple) -> Image.Image:
@@ -578,23 +640,26 @@ def _sky_gradient(stops: list, size: tuple) -> Image.Image:
 
 
 def _skyline(img: Image.Image, bottom: int, min_h: int, hspan: int,
-             color=(6, 5, 12)) -> list:
+             color=(6, 5, 12), seed: int = 7) -> list:
     """Dark city silhouette rooted at `bottom` (buildings rise upward from
     there, e.g. a waterline) with scattered lit windows; returns rooftop
     points. `min_h`/`hspan` set the shortest building height and the extra
-    height range layered on top of it."""
+    height range layered on top of it. `seed` (per-episode) drives both the
+    building heights and lit-window placement — same visual ranges/density
+    as the old fixed pattern, just seeded per day instead of hardcoded."""
     d = ImageDraw.Draw(img, "RGBA")
+    rng = random.Random(seed)
     tops = []
     xs = list(range(-20, _W + 60, 46))
     for i, x in enumerate(xs):
         wdt = 46
-        hf = _SKY_SEEDH[i % len(_SKY_SEEDH)]
+        hf = rng.uniform(0.42, 0.96)
         top = bottom - min_h - int(hf * hspan)
         d.rectangle([x, top, x + wdt - 4, bottom], fill=(*color, 255))
         tops.append((x + wdt // 2, top))
         for wy in range(top + 14, bottom - 10, 22):
             for wx in range(x + 8, x + wdt - 10, 14):
-                if ((i * 7 + wy * 3 + wx) % 5) == 0:
+                if rng.random() < 0.2:
                     d.rectangle([wx, wy, wx + 4, wy + 6], fill=(245, 205, 120, 170))
     return tops
 
@@ -696,11 +761,14 @@ def _water_glitter(img: Image.Image, waterline: int, cx: int, seed: int = 7) -> 
     img.alpha_composite(seam.filter(ImageFilter.GaussianBlur(1)))
 
 
-def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+def _render_evening(theme: Theme, date_text: str, eyebrow_label: str, *,
+                    seed: int = 7) -> Image.Image:
     """City lights on water: a dusk skyline silhouette rooted at a raised
     waterline, mirrored into a dim reflection in the bay below with
     window-light streaks and a sun-glitter cone, headline + date plaque
-    floating over the sky/water band."""
+    floating over the sky/water band. `seed` (per-episode, from
+    `_episode_seed`) drives the skyline heights/window placement and the
+    water reflections/glitter so each day's card is unique but deterministic."""
     cx = _W // 2
     waterline = 518
     img = _sky_gradient(_SKY_STOPS, _SIZE).convert("RGBA")
@@ -709,7 +777,7 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
     img = Image.alpha_composite(img, _radial(cx, waterline, 430, (255, 194, 96), 175))
     img = Image.alpha_composite(img, _radial(cx, waterline - 60, 150, (255, 228, 164), 195))
 
-    tops = _skyline(img, waterline, 30, 160)
+    tops = _skyline(img, waterline, 30, 160, seed=seed)
 
     # Subtle glowing gold uptrend tracing the rising rooftops (markets motif).
     pts = [p for p in tops if 60 < p[0] < _W - 60]
@@ -721,7 +789,7 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
 
     _water_base(img, waterline)
     _water_reflections(img, waterline)
-    _water_glitter(img, waterline, cx)
+    _water_glitter(img, waterline, cx, seed=seed + 1)
 
     # Darken the top band so the headline reads cleanly over the sky.
     ov = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
@@ -806,9 +874,13 @@ def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Ima
         plate = Image.open(_PLATE_CHARTMASTER).convert("RGBA")
         img = _cover_fit(plate)
     except Exception:
-        # Never break a publish over a missing/corrupt plate asset.
-        # Handles both missing files and corrupt-but-openable assets (PIL lazy evaluation).
-        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label)
+        # Never break a publish over a missing/corrupt plate asset. Handles both
+        # missing files and corrupt-but-openable assets (PIL lazy evaluation).
+        # Seed derived the same way `render_session_thumbnail` would for this
+        # exact (date_text, eyebrow_label) pair, so the fallback stays byte-
+        # identical to an explicit variant="default" classic render.
+        seed = _episode_seed(date_text, eyebrow_label)
+        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label, seed=seed)
 
     cx = _W // 2
 
@@ -836,14 +908,15 @@ def render_session_thumbnail(
     variant: str | None = None,
 ) -> bytes:
     theme = _resolve_theme(variant, eyebrow_label)
+    seed = _episode_seed(date_text, eyebrow_label)
     if theme.layout == "evening":
-        img = _render_evening(theme, date_text, eyebrow_label)
+        img = _render_evening(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "editorial":
-        img = _render_editorial(theme, date_text, eyebrow_label)
+        img = _render_editorial(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "plate":
         img = _render_plate(theme, date_text, eyebrow_label)
     else:
-        img = _render_classic(theme, date_text, eyebrow_label)
+        img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=95, subsampling=0)
     return buf.getvalue()
