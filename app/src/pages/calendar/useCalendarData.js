@@ -72,14 +72,12 @@ export function useWeekEnrichment(weekDates) {
   const key = weekDates && weekDates.length ? `enrich:${weekDates.join(',')}` : null
   return useSWR(
     key,
-    () => Promise.all(
-      weekDates.map(ds =>
-        fetch(`/api/calendar/enrichment?date=${ds}`)
-          .then(r => (r.ok ? r.json() : {}))
-          .then(e => [ds, e || {}])
-          .catch(() => [ds, {}])
-      )
-    ).then(Object.fromEntries),
+    // ONE batch request for the whole week (was one fetch per day → N round-trips
+    // + N backend threadpool slots). Falls back to {} on any failure.
+    () => fetch(`/api/calendar/enrichment-batch?dates=${weekDates.join(',')}`)
+      .then(r => (r.ok ? r.json() : {}))
+      .then(e => e || {})
+      .catch(() => ({})),
     { refreshInterval: 300000, revalidateOnFocus: false }
   )
 }

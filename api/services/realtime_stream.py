@@ -121,22 +121,29 @@ def get_last_seen_ages(now: int | None = None) -> dict[str, int]:
 
 def subscribe_tickers(tickers):
     """Add tickers to the subscription set. Thread-safe."""
-    new = set(t.upper() for t in tickers) - _subscribed
-    if not new:
-        return
-    _subscribed.update(new)
+    up = set(t.upper() for t in tickers)
+    # Mutate under _lock so the WS reconnect thread never iterates _subscribed
+    # mid-mutation ("set changed size during iteration").
+    with _lock:
+        new = up - _subscribed
+        if not new:
+            return
+        _subscribed.update(new)
+        total = len(_subscribed)
     # If WebSocket is running, send subscribe messages
     if _ws_loop and _running:
         asyncio.run_coroutine_threadsafe(_async_subscribe(new), _ws_loop)
-    _logger.info("[stream] Subscribed %d new tickers (total: %d)", len(new), len(_subscribed))
+    _logger.info("[stream] Subscribed %d new tickers (total: %d)", len(new), total)
 
 
 def unsubscribe_tickers(tickers):
     """Remove tickers from the subscription set and send unsubscribe messages."""
-    to_remove = set(t.upper() for t in tickers) & _subscribed
-    if not to_remove:
-        return
-    _subscribed.difference_update(to_remove)
+    down = set(t.upper() for t in tickers)
+    with _lock:
+        to_remove = down & _subscribed
+        if not to_remove:
+            return
+        _subscribed.difference_update(to_remove)
     if _ws_loop and _running:
         asyncio.run_coroutine_threadsafe(_async_unsubscribe(to_remove), _ws_loop)
     _logger.debug("[stream] Unsubscribed %d tickers (total: %d)", len(to_remove), len(_subscribed))
@@ -200,7 +207,8 @@ async def _run_websocket():
                 # Re-subscribe only already-requested tickers (lazy subscription model).
                 # Bulk-subscribing the full 3,685-ticker universe on every connect
                 # saturates Finnhub free-tier limits and wastes bandwidth.
-                all_tickers = sorted(_subscribed)
+                with _lock:  # snapshot under lock (mutated from the event-loop thread)
+                    all_tickers = sorted(_subscribed)
                 for sym in all_tickers:
                     await ws.send(json.dumps({"type": "subscribe", "symbol": sym}))
                 if all_tickers:

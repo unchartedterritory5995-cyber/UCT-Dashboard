@@ -1041,12 +1041,11 @@ def calendar_my_sets(user: dict = Depends(get_current_user)):
 _ENRICH_TTL = 300  # 5 min — options move is itself 60s-cached upstream
 
 
-@router.get("/api/calendar/enrichment")
-def get_enrichment(date: str | None = None):
-    """Per-ticker expected move + 4-quarter beat history + hist_stats for a given day.
+def _compute_enrichment_for_date(target: str) -> dict:
+    """Per-ticker expected move + 4-quarter beat history + hist_stats for one day.
 
-    Bounded + cached so the core /api/calendar paints instantly and this
-    overlays on top. Empty dict if the calendar cache isn't warm yet.
+    Bounded + cached (_ENRICH_TTL) so the core /api/calendar paints instantly and
+    this overlays on top. Empty dict if the calendar cache isn't warm yet.
 
     hist_stats shape: {avg_abs_move, up_count, total, last_n}
       avg_abs_move — average absolute post-earnings move over last N reports
@@ -1054,11 +1053,7 @@ def get_enrichment(date: str | None = None):
       total        — total number of reports measured
       last_n       — last N individual moves (pct, newest first, capped at 8)
     """
-    import re as _re
     from concurrent.futures import ThreadPoolExecutor
-    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
-        return {}
-    target = date or _today_et().isoformat()
 
     ck = f"calendar_enrichment_{target}"
     hit = cache.get(ck)
@@ -1127,6 +1122,35 @@ def get_enrichment(date: str | None = None):
             out[sym] = data
 
     cache.set(ck, out, ttl=_ENRICH_TTL)
+    return out
+
+
+@router.get("/api/calendar/enrichment")
+def get_enrichment(date: str | None = None):
+    """Single-day enrichment overlay. See _compute_enrichment_for_date."""
+    import re as _re
+    if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        return {}
+    target = date or _today_et().isoformat()
+    return _compute_enrichment_for_date(target)
+
+
+@router.get("/api/calendar/enrichment-batch")
+def get_enrichment_batch(dates: str | None = None):
+    """Batch enrichment for a whole week in ONE request. `dates` = comma-separated
+    YYYY-MM-DD list; returns {date: enrichment_map}. This replaces the frontend
+    firing one request per day (N round-trips + N threadpool slots → 1), which
+    matters at scale. Each day reuses the same per-date cache as the single
+    endpoint, so a warm calendar returns instantly.
+    """
+    import re as _re
+    if not dates:
+        return {}
+    out: dict = {}
+    for d in dates.split(","):
+        d = d.strip()
+        if d and _re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+            out[d] = _compute_enrichment_for_date(d)
     return out
 
 
