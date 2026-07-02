@@ -50,11 +50,9 @@ _TAGLINE = "Navigate the market, effectively."
 class Theme(NamedTuple):
     bg_top: tuple
     bg_bottom: tuple
-    glow: tuple
     wordmark: tuple
     eyebrow: tuple
     date: tuple
-    rule: tuple
     tagline: tuple
     layout: str = "classic"   # "classic" | "editorial" | "evening" | "plate"
 
@@ -62,11 +60,9 @@ class Theme(NamedTuple):
 _DEFAULT_THEME = Theme(
     bg_top=(13, 17, 23),
     bg_bottom=(5, 7, 11),
-    glow=_GOLD,
     wordmark=(236, 240, 246),
     eyebrow=_GOLD,
     date=(236, 240, 246),
-    rule=_GOLD,
     tagline=(138, 147, 163),
 )
 
@@ -78,11 +74,9 @@ _EMERALD_THEME = Theme(
     # brand color.
     bg_top=(15, 46, 34),
     bg_bottom=(5, 18, 13),
-    glow=_EMERALD_GOLD,
     wordmark=(249, 245, 232),
     eyebrow=_EMERALD_GOLD,
     date=(249, 245, 232),
-    rule=_EMERALD_GOLD,
     tagline=(190, 208, 188),
     layout="editorial",
 )
@@ -95,11 +89,9 @@ _GOLD_LO = (198, 158, 84)
 _EVENING_THEME = Theme(
     bg_top=(22, 32, 60),
     bg_bottom=(5, 7, 14),
-    glow=_GOLD,
     wordmark=(228, 219, 236),
     eyebrow=_GOLD,
     date=(238, 230, 216),
-    rule=_GOLD,
     tagline=(198, 190, 206),
     layout="evening",
 )
@@ -110,11 +102,9 @@ _EVENING_THEME = Theme(
 _CHARTMASTER_THEME = Theme(
     bg_top=(10, 20, 34),
     bg_bottom=(3, 7, 14),
-    glow=_GOLD,
     wordmark=(236, 240, 246),
     eyebrow=_GOLD,
     date=(251, 234, 202),
-    rule=_GOLD,
     tagline=(138, 147, 163),
     layout="plate",
 )
@@ -133,7 +123,7 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     if variant:
         return _THEMES.get(variant.lower().strip(), _DEFAULT_THEME)
     low = (eyebrow_label or "").lower()
-    if "chartmaster" in low:
+    if "chartmaster" in low.replace(" ", ""):
         return _CHARTMASTER_THEME
     if "evening" in low:
         return _EVENING_THEME

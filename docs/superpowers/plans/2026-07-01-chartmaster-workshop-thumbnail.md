@@ -193,13 +193,19 @@ def _cover_fit(src: Image.Image, size: tuple = _SIZE) -> Image.Image:
     return src.crop((x, y, x + W, y + H))
 
 
+# NOTE (amended post-review): `_cover_fit(plate)` moved INSIDE the try below —
+# a corrupt-but-openable PNG (PIL's lazy decode means `Image.open` alone can
+# succeed on a truncated/corrupt file; the failure surfaces on the first real
+# access, i.e. inside `_cover_fit`'s `.resize()`/`.crop()`) must ALSO fall back
+# to the classic card, not just an outright missing file / open() failure.
 def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
     try:
         plate = Image.open(_PLATE_CHARTMASTER).convert("RGBA")
+        img = _cover_fit(plate)
     except Exception:
-        # Never break a publish over a missing/corrupt plate asset.
+        # Never break a publish over a missing/corrupt plate asset. Handles
+        # both missing files and corrupt-but-openable assets (PIL lazy eval).
         return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label)
-    img = _cover_fit(plate)
     cx = _W // 2
 
     # Date plaque — same treatment as the Evening Update pill. Drawn on its

@@ -87,6 +87,12 @@ def test_chartmaster_eyebrow_routes_to_plate():
     assert t._resolve_theme(None, "WORKSHOP WITH CHARTMASTER").layout == "plate"
 
 
+def test_chartmaster_eyebrow_space_insensitive_routes_to_plate():
+    # A Zoom template renamed "Workshop with Chart Master" (space between
+    # Chart/Master) must still route to the plate layout.
+    assert t._resolve_theme(None, "WORKSHOP WITH CHART MASTER").layout == "plate"
+
+
 def test_chartmaster_variant_override_routes_to_plate():
     assert t._resolve_theme("chartmaster", "LIVE TRADING SESSION").layout == "plate"
 
