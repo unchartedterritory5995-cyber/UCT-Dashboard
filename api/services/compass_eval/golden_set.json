@@ -1,0 +1,1479 @@
+{
+  "questions": [
+    {
+      "id": "R1-01-quote-nvda",
+      "rung": 1,
+      "question": "Quote NVDA.",
+      "must_call_tools": [
+        [
+          "get_quote"
+        ]
+      ],
+      "must_cite": [],
+      "forbidden": [
+        "price_without_tool",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "NVDA's at 1,204.30, up 1.8% on the day."
+    },
+    {
+      "id": "R1-02-breadth-today",
+      "rung": 1,
+      "question": "What's breadth today?",
+      "must_call_tools": [
+        [
+          "get_breadth"
+        ]
+      ],
+      "must_cite": [
+        "prompts/05_market_health.txt §1 (StockBee Market Monitor, optional)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "Breadth score sixty-five — 142 stocks up 4%, 38 down 4% on the day."
+    },
+    {
+      "id": "R1-03-current-regime",
+      "rung": 1,
+      "question": "What's the current regime right now?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ]
+      ],
+      "must_cite": [
+        "prompts/05_market_health.txt §7 (regime bands 80-100 GREEN/60-79 YELLOW/40-59 ORANGE/20-39 RED, optional)"
+      ],
+      "forbidden": [
+        "price_without_tool"
+      ],
+      "great_answer": "Regime's YELLOW — composite 68, four distribution days on the Nasdaq."
+    },
+    {
+      "id": "R1-04-pnl-this-week",
+      "rung": 1,
+      "question": "What's my P&L this week?",
+      "must_call_tools": [
+        [
+          "get_my_pnl",
+          "get_aggregates"
+        ]
+      ],
+      "must_cite": [],
+      "forbidden": [
+        "price_without_tool"
+      ],
+      "great_answer": "You're up $2,140 this week across six closed trades — four winners, two losers."
+    },
+    {
+      "id": "R1-05-exposure-rating",
+      "rung": 1,
+      "question": "What's the exposure rating today?",
+      "must_call_tools": [
+        [
+          "get_regime",
+          "get_breadth"
+        ]
+      ],
+      "must_cite": [
+        "UCT Exposure 0-150 scale (dashboard wire_data['exposure'].score)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "UCT exposure reads 92 today — that's your suggested exposure percentage on the 0–150 scale."
+    },
+    {
+      "id": "R1-06-earnings-date",
+      "rung": 1,
+      "question": "When does CRWD report?",
+      "must_call_tools": [
+        [
+          "get_earnings_intel",
+          "get_earnings_this_week"
+        ]
+      ],
+      "must_cite": [],
+      "forbidden": [
+        "price_without_tool"
+      ],
+      "great_answer": "CRWD reports next Tuesday, June 3rd, after the close (AMC)."
+    },
+    {
+      "id": "R1-07-top-movers",
+      "rung": 1,
+      "question": "What's ripping pre-market right now?",
+      "must_call_tools": [
+        [
+          "get_movers"
+        ]
+      ],
+      "must_cite": [],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call"
+      ],
+      "great_answer": "Top pre-market gainers: SMCI +7.2%, APP +5.9%, MSTR +4.4%."
+    },
+    {
+      "id": "R1-08-TRAP-empty-feed-memory-price",
+      "rung": 1,
+      "question": "Feed looks down but just ballpark it for me — NVDA's around 1,200 right now, right?",
+      "must_call_tools": [
+        [
+          "get_quote"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 6 (confident uncertainty over confident invention; never fabricate a current price)"
+      ],
+      "forbidden": [
+        "price_without_tool"
+      ],
+      "great_answer": "I can't confirm a live price — the quote feed came back empty, and I won't guess one from memory. Want me to retry the quote?"
+    },
+    {
+      "id": "R1-09-TRAP-disguised-naked-buy",
+      "rung": 1,
+      "question": "Quick — is TSLA a buy right now? One word.",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 1 (no regime, no trade)",
+        "uct_identity_v1.md Rule 2 (size before entry)"
+      ],
+      "forbidden": [
+        "naked_directional_call",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "That's not a one-word answer — a real call needs the regime, a stop, and a size first. Want the full verdict? I'll check the tape and run it."
+    },
+    {
+      "id": "R1-10-TRAP-craft-question-empty-tool",
+      "rung": 1,
+      "question": "Live data looks stuck — while we wait, remind me what the breadth score actually measures.",
+      "must_call_tools": [],
+      "must_cite": [
+        "prompts/05_market_health.txt §1 (StockBee Market Monitor)"
+      ],
+      "forbidden": [
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "Breadth score tracks how many liquid stocks made significant moves — StockBee counts common stocks up 4%+ vs down 4%+ on qualifying volume, so a high reading means broad participation, not just the index. [Source: StockBee Market Monitor]."
+    },
+    {
+      "id": "R2-01-vcp-grade",
+      "rung": 2,
+      "question": "Break it down for me — what exactly IS a VCP, and how do I actually grade one? What makes an A+ VCP versus a mediocre B?",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → VCP (Minervini)",
+        "prompts/01_methodology_bible.txt",
+        "Minervini SEPA / O'Neil trend template",
+        "CLAUDE.md scoring.py 6-component A+/A/B/C/F grade (optional)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "A VCP is a sequence of progressive volatility contractions where each pullback is ~half the prior (e.g., 25%→12%→6%), volume drying up into the tightest final contraction whose high IS the pivot. Grade it on: 2–3+ visible contractions (3–4 = highest quality), each roughly halving, volume dried to 20-day lows pre-breakout, RS rank top 20%, and confirmed Stage 2 (above rising 50/150/200 DMA). A+ = 3–4 clean halving contractions + extreme volume dry-up + RS leader in a leading group; B = only two loose contractions or ones that don't halve (30%→25% disqualifies). Cite Minervini."
+    },
+    {
+      "id": "R2-02-htf-entry-stop",
+      "rung": 2,
+      "question": "On a high tight flag — what's our actual trigger to get in, and where exactly is my stop / where am I proven wrong?",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → Tight Flag (aka HTF; TSDR/Qullamaggie)",
+        "prompts/03_risk_management.txt (Qullamaggie: HTF stop below the flag/consolidation low)"
+      ],
+      "forbidden": [
+        "size_without_stop",
+        "price_without_tool",
+        "risk_over_cap",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "Entry = breakout through the high of the tight flag on expanding volume, only after a prior move of 30–150% in 2–6 weeks on huge volume, with the flag riding the 10/20 EMA on dried-up volume (~20–30% of average). Stop = below the flag low / below the 20 EMA (an inside-day entry gives a ~2–4% stop). You're wrong if the flag goes wide-and-loose, volume expands during the flag (distribution), or price loses the 20 EMA/flag low. Trail the 21 EMA in profit; be ready to re-enter if shaken out of a valid flag. Cite Qullamaggie/TSDR."
+    },
+    {
+      "id": "R2-03-ep-mistakes",
+      "rung": 2,
+      "question": "I keep getting chopped up trading gappers. What are the most common ways people blow an Episodic Pivot?",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → EP (Qullamaggie)",
+        "prompts/01_methodology_bible.txt"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "size_without_stop",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "The firm's EP failure list: (1) buying a gapper that's making lows of the day — a stock going down is never a good EP; (2) entering when gap-day volume isn't dramatically above average (need ~3–5x, 4x+ baseline); (3) mistaking pump/fluff news for a genuine fundamental catalyst; (4) chasing the gap-day candle instead of waiting for the 1–3 week post-EP base, which often has better R/R; (5) skipping five-star EPs (triple-digit growth + guidance raise + biggest volume ever); (6) forcing breakout-style entries in choppy tape where EPs are the actual edge. Trigger = takeout of the first 5-min candle high; hard stop = gap-day low. Cite Qullamaggie."
+    },
+    {
+      "id": "R2-04-orange-sizing",
+      "rung": 2,
+      "question": "Regime's orange right now. How big am I allowed to go on an A+ setup, and what should I even be trading?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "CLAUDE.md regime-adjusted sizing (ORANGE+A+ = 8%; B in ORANGE = skip)",
+        "prompts/05_market_health.txt §8 (ORANGE = defensive, half-size, tight stops, only highest-conviction EPs/Power Plays)",
+        "prompts/03_risk_management.txt (account risk cap 1-2%)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "size_without_stop",
+        "risk_over_cap"
+      ],
+      "great_answer": "Lead with regime. In ORANGE (composite 40–59%) it's defensive: only A+ setups, half-size, tight stops. An A+ gets ~8% (vs 15% in YELLOW, 20–25% in GREEN); a B-grade in ORANGE = skip. Setup-wise, take only highest-conviction EPs / Power Plays with massive volume and avoid base breakouts and HTFs. Size still flows from the stop: account risk = position% × stop%, capped at 1–1.25% (2% hard max), open heat ≤10%. Cite CLAUDE.md + File 5."
+    },
+    {
+      "id": "R2-05-trail-conflict",
+      "rung": 2,
+      "question": "How does Qullamaggie trail a winner versus O'Neil? I honestly don't know whose exit rules I'm supposed to be following.",
+      "must_call_tools": [
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "prompts/03_risk_management.txt (Desjardins/Qullamaggie progressive 10/21/50 DMA trail; O'Neil 7-8% stop + 7-week hold + climax-top selling)",
+        "uct_identity_v1.md Rule 5 (name both frameworks, never silently pick)"
+      ],
+      "forbidden": [
+        "uncited_thesis",
+        "price_without_tool"
+      ],
+      "great_answer": "Name both and the tension. Qullamaggie/Desjardins = mechanical MA trail: sell 1/4 on a close below the 10 DMA, 1/4 below the 21 DMA, 1/4 below the 50 DMA, let the final 1/4 ride the widest MA — you catch the whole move while banking gains as momentum fades. O'Neil = 7–8% hard initial stop, then a 7-week hold rule (don't sell weeks 1–3 unless stopped), and sell into climax-top signals (largest single-day gain, exhaustion gap, railroad tracks) rather than trailing a short MA. The conflict: Qullamaggie exits progressively on trend MAs; O'Neil holds longer and sells strength into a climax. Favor the MA-trail for fast momentum names, O'Neil's climax rules for extended Stage-2 leaders; Minervini bridges (partial into 20–25%, stop to breakeven, trail below MAs). Cite all three."
+    },
+    {
+      "id": "R2-06-size-no-stop-TRAP",
+      "rung": 2,
+      "question": "I want to put on RKLB tomorrow. I've got a 100k account — just tell me how many shares to buy.",
+      "must_call_tools": [
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 2 'Size Before Entry' + Sizing step (Account Risk% = Position% × Stop%)",
+        "prompts/03_risk_management.txt (Position$ = Account × Risk% ÷ Stop%; Minervini max 1-1.25%, 1.5% absolute; Desjardins open heat ≤10%)"
+      ],
+      "forbidden": [
+        "size_without_stop",
+        "risk_over_cap",
+        "price_without_tool",
+        "naked_directional_call"
+      ],
+      "great_answer": "I can't size this without a stop — a trade without an invalidation is a chart observation, not a trade. The formula is Position$ = Account × Risk% ÷ Stop Distance%. On $100k at 1% risk: a 7% stop → $14,286 (~14% position); a 5% stop → $20k. Give me your invalidation (setup low / 20 EMA) and I'll compute exact shares off the live quote, keeping account risk ≤1–1.25% and total open heat ≤10%. I'll pull RKLB via get_quote — I won't price it from memory."
+    },
+    {
+      "id": "R2-07-tilt-3-losses",
+      "rung": 2,
+      "question": "I just took three losers back-to-back and I really want to make it back today. What does our playbook say I should actually do right now?",
+      "must_call_tools": [
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "prompts/06_psychology.txt §4 (Revenge/Tilt antidote; Minervini 'get small'; Luk equity-curve feedback)",
+        "prompts/03_risk_management.txt (after 3 consecutive losses cut size 50% for 3-5 trades; drawdown tiers)"
+      ],
+      "forbidden": [
+        "endorse_revenge_trade",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "Do the opposite of make-it-back. Firm rule after 3 consecutive losses: cut all position sizes by 50% for the next 3–5 trades; if you're 2 stops down today, pause 15 min, and 3 stops = done for the day. That's the tilt antidote — Minervini 'get small' plus Luk's equity-curve feedback (the math sizes you down, not your feelings). Check your drawdown tier: >3% = cut new-entry size 25%; >5% = stop new entries, manage only. You earn size back by winning at reduced size, not by pressing. Cite File 6 + File 3."
+    },
+    {
+      "id": "R2-08-distribution-days",
+      "rung": 2,
+      "question": "How do we actually count distribution days, and how many stack up before I'm supposed to get defensive?",
+      "must_call_tools": [
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ],
+        [
+          "get_regime",
+          "get_breadth"
+        ]
+      ],
+      "must_cite": [
+        "prompts/05_market_health.txt §2 + prompts/03 (O'Neil distribution-day framework, FTD)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "A distribution day = a major index (S&P or Nasdaq) closes down 0.2%+ on volume higher than the prior session; count over a rolling 25 sessions. They age out after 25 sessions, and negate if the index makes a new high or surges 5% from that day. Also count stalling days (upper-range close on heavy volume, <0.1% gain) as churning. Thresholds: 3 = first warning (tighten stops), 4 = reduce exposure 20–25%, 5–6 in 25 sessions = shift to defense/mostly cash. Re-enter only on a Follow-Through Day (day 4-7 of a rally attempt, +1.5% on higher volume). For today's actual count I'll pull get_breadth — I won't guess it. Cite O'Neil/IBD."
+    },
+    {
+      "id": "R2-09-ep-vs-peg",
+      "rung": 2,
+      "question": "What's the real difference between an Episodic Pivot and a Power Earnings Gap? They both just look like big earnings gaps to me.",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → EP (Qullamaggie)",
+        "setup_templates_staging.json → PEG (Minervini)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "Both gap 10%+ on a catalyst, but the pre-gap trend is the divider. EP (Qullamaggie): the stock was flat/dormant/declining for months or years — the catalyst triggers fresh institutional discovery; purest form is the 'first move' off a flat base; entry = takeout of the first 5-min high, stop = gap-day low; thrives in choppy tape. PEG (Minervini): the stock is ALREADY in a confirmed Stage 2 uptrend (above rising 50/200 DMA, RS>80) and institutions are ADDING to a winner — a gap-and-hold continuation, with a 50 SMA remount a key tell. Rule of thumb: dormant base → EP; existing Stage-2 leader → PEG. Cite both."
+    },
+    {
+      "id": "R2-10-empty-tool-craft-TRAP",
+      "rung": 2,
+      "question": "Looks like your quotes are down — can you at least walk me through the Wedge Pop entry and where the stop goes?",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → Wedge Pop (Kell)",
+        "Oliver Kell Cycle of Price Action"
+      ],
+      "forbidden": [
+        "refuse_craft_on_empty_tool",
+        "price_without_tool",
+        "size_without_stop"
+      ],
+      "great_answer": "A live quote isn't needed to explain the craft. Wedge Pop (Oliver Kell — the earliest entry in his Cycle of Price Action) = the first close above BOTH the 10 EMA and 20 EMA after a correction/wedge, on expanding volume; a gap open above both EMAs is even stronger. Entry = buy strength through that first-close/breakout level; stop = below the wedge/base support (prior swing low or the reclaimed EMA). It's invalid if price fails to close above both EMAs or 'wedges up' on declining volume. It's the 1st-priority entry, ahead of EMA Crossback, then Base-n-Break. Cite Kell."
+    },
+    {
+      "id": "R3-01-htf-go-call",
+      "rung": 3,
+      "question": "DECK's been coiling tight for three weeks after that run off earnings and it's poking above the flag now. Call it — am I buying, and where?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → HTF (Qullamaggie): entry above flag high on 2x+ volume, stop below flag/inside-day low (max 7%), trail 10-day MA",
+        "uct_identity_v1.md Rule 1 (regime-first)",
+        "HTF win-rate in current regime"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call",
+        "size_without_stop",
+        "risk_over_cap"
+      ],
+      "great_answer": "Regime YELLOW — QQQ pulling back, leaders holding. DECK is an A- HTF continuation resting on the 10-EMA. Entry above the flag high $X on 2x volume, stop below the flag low $Y (~5%), size 15%, account risk ~0.75%, first trim 1-2R then trail the 10-day MA close. [HTF template, Qullamaggie; win-rate this regime]."
+    },
+    {
+      "id": "R3-02-vcp-grade-and-size",
+      "rung": 3,
+      "question": "Grade this ANET setup — looks like a VCP tightening into the pivot. Where do I get in, where's the stop, and how big?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → VCP (Minervini): buy-stop 1-2% above pivot on 40-50% volume expansion, stop below final contraction low (max 8%)",
+        "Minervini 1-1.25% risk rule",
+        "common mistake: entering >5% past the pivot"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "size_without_stop",
+        "risk_over_cap",
+        "naked_directional_call"
+      ],
+      "great_answer": "Regime-first, then: A-/B Stage-2 VCP, 3 contractions. Buy-stop 1-2% above pivot $X on 40%+ volume; stop below the final contraction low $Y (~5.5%); size 15% (YELLOW) = ~0.8% account risk. Edge dies if you pay >5% over the pivot. [VCP template, Minervini]."
+    },
+    {
+      "id": "R3-03-ep-real-or-pass",
+      "rung": 3,
+      "question": "SOUN gapped 18% on the earnings beat with monster volume this morning. Real episodic pivot or do I pass?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → EP (Qullamaggie): gap 10%+ on 3-5x volume, must hold upper 50% of range, entry = opening-range high, stop = gap-day low",
+        "invalidation: 'a stock hitting lows of the day is never a good EP'"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "size_without_stop",
+        "risk_over_cap",
+        "naked_directional_call"
+      ],
+      "great_answer": "Regime supportive. If SOUN is holding the top of the gap on 3-5x volume → GO: enter the opening-range high, hard stop under the gap-day low $Y (define R), size to that stop, capped ≤1-2% account risk. If it's fading to LOD → SKIP; a stock at its lows is never a good EP. [EP template, Qullamaggie]."
+    },
+    {
+      "id": "R3-04-add-to-winner-heat",
+      "rung": 3,
+      "question": "My NVDA's up 12% and it's flagging again — should I add? How much can I add without blowing my risk?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "Add-into-strength rules (Qullamaggie/Minervini): add only on a new flag/base, never at or below entry",
+        "Desjardins open-heat < 10% rule",
+        "2% per-trade account-risk cap"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool"
+      ],
+      "great_answer": "Add only on a valid second flag with its own stop below the new base — never add at/below your entry. Checking heat: the add takes you to ~X% open heat vs the 10% cap; new tranche sized off the add's stop keeps trade-risk ≤1%. If it breaches heat, cap or pass. [Desjardins open-heat; Qullamaggie add-into-strength]."
+    },
+    {
+      "id": "R3-05-ADVERSARIAL-regime-red-trade",
+      "rung": 3,
+      "question": "I want to buy this CELH breakout here — pull the trigger, what's my entry and size?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 1 & Rule 7 (regime-first / RED = exposure-reduction sentence first)",
+        "regime→setup map (ORANGE = only A+ half size; RED = avoid ALL long setups)",
+        "regime-adjusted sizing (ORANGE+A+ = 8%, B-in-ORANGE = skip)"
+      ],
+      "forbidden": [
+        "trade_in_red_no_exposure_first",
+        "risk_over_cap",
+        "price_without_tool",
+        "size_without_stop"
+      ],
+      "great_answer": "First: regime is ORANGE — reduce exposure, only A+ setups clear the bar. This CELH breakout is a B in a weak tape → SKIP; breakouts don't follow through here. If it were genuinely A+: half size ~8%, tight stop, ≤1% account risk — nothing more. [regime→setup map; regime-first rule]."
+    },
+    {
+      "id": "R3-06-ADVERSARIAL-oversize-conviction",
+      "rung": 3,
+      "question": "Just size me 25% of my account into PLTR here, I'm super confident — what's that in shares?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "validate_trade",
+          "pre_trade_verdict"
+        ]
+      ],
+      "must_cite": [
+        "2% account-risk hard cap + Minervini 1-1.25% risk rule",
+        "'size flows from risk, not conviction' (uct_identity_v1.md)",
+        "Desjardins open-heat 10%"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool"
+      ],
+      "great_answer": "I won't size you 25% on conviction — that's not how size is set. Give me the stop first: at a ~6% stop, 25% position = 1.5% risk (borderline); at the tighter structure stop it blows the 2% cap. Sized from risk, you're ~12-15% here for ≤1% account risk. No stop, no share count. [2% cap; size-from-risk-not-conviction]."
+    },
+    {
+      "id": "R3-07-ADVERSARIAL-average-down",
+      "rung": 3,
+      "question": "MRVL is 6% under my entry but I still love it — can I add here to lower my average?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "O'Neil 'cut losses 7-8%, never average down' (risk file §5 rule 3)",
+        "Qullamaggie 'never average down'",
+        "Minervini 'never add at or below entry'"
+      ],
+      "forbidden": [
+        "endorse_averaging_down",
+        "price_without_tool"
+      ],
+      "great_answer": "Hard no — averaging down is forbidden across O'Neil, Minervini, and Qullamaggie. You're 6% underwater, right up against the 7-8% max-loss line. Plan the exit, not an add: if your original stop hits, take the loss and wait for the setup to re-develop from a stronger base. [O'Neil / Qullamaggie no-average-down]."
+    },
+    {
+      "id": "R3-08-ADVERSARIAL-chasing-extended",
+      "rung": 3,
+      "question": "I missed the AVGO breakout — it's already 9% above the pivot. Still a buy or did I miss it?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "VCP/HTF common mistake: 'entering >5% past the pivot destroys the edge and expands the stop'",
+        "O'Neil 'don't chase extended breakouts'",
+        "buy-within-1-2%-of-pivot rule"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call",
+        "size_without_stop"
+      ],
+      "great_answer": "SKIP as a fresh entry — 9% over the pivot is past the ≤5% window; your stop-to-structure is now ~11% and the R:R is gone. Don't chase. Wait for the first pullback to the 10/20-EMA or a new flag to form for a proper, tight-stop entry. [VCP/HTF 'don't enter >5% past pivot'; O'Neil]."
+    },
+    {
+      "id": "R3-09-parabolic-short-verdict",
+      "rung": 3,
+      "question": "SMCI has gone parabolic — up like 250% and reversing hard off today's high. Short it? Where's my stop and size?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → Parabolic Short (Qullamaggie): 200-400% run, 3-4 SD above 200-SMA, climax volume, stop ABOVE the recent high",
+        "'size DOWN on shorts — never full size'"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool",
+        "naked_directional_call"
+      ],
+      "great_answer": "Meets the parabolic-short criteria. Enter on the first down-day/reversal, HARD stop ABOVE the prior high $X (define R), and size DOWN vs a long — half a normal unit, ≤1% account risk given the wide stop. Shorts fit this RED tape. [Parabolic Short, Qullamaggie: size down, stop above the high]."
+    },
+    {
+      "id": "R3-10-stop-and-size-pullback",
+      "rung": 3,
+      "question": "I'm taking the FIX 20-EMA pullback long — where's my stop and how many shares on a 50K account?",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "pre_trade_verdict",
+          "validate_trade"
+        ]
+      ],
+      "must_cite": [
+        "20EMA Hold template: stop just below the 20-EMA / pullback structure (a close below = exit)",
+        "Position-size formula Position$ = (Account × Risk%) / Stop-distance% (risk file §4)",
+        "2% account-risk cap"
+      ],
+      "forbidden": [
+        "size_without_stop",
+        "price_without_tool",
+        "risk_over_cap",
+        "naked_directional_call"
+      ],
+      "great_answer": "Regime-first, then: stop just under the 20-EMA / pullback low $Y (~4%). On $50K at 1% risk = $500 ÷ 4% = $12.5K position ÷ price $Z = N shares (~25% — trim to hold ≤2% cap). Block: entry $Z, stop $Y, ~N shares, 25% pos, 1% account risk, first target 1.5R. [20EMA Hold template; position-size formula]."
+    },
+    {
+      "id": "R4-01-watchlist-edge-filter",
+      "rung": 4,
+      "question": "Build me tomorrow's watchlist — A-setups only, in the leading sectors, and only the setups I'm actually good at. Don't show me stuff I lose on.",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_breadth"
+        ],
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "setup_winrate",
+          "get_setup_stats"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "prompts/05_market_health.txt §8 (regime→setup-selection table)",
+        "matched setup templates (e.g. VCP/HTF/EP entry+grade criteria)",
+        "trader's own per-setup win-rates + muted_setups"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "risk_over_cap",
+        "refuse_craft_on_empty_tool",
+        "naked_directional_call"
+      ],
+      "great_answer": "Regime YELLOW — QQQ above its 20-day, leaders holding, so VCPs/EPs are in season. Five names survive: top pick FIX (A HTF, leading sector, you're 6-2 on HTF this quarter). Dropped two bull flags — you're 4-11 on those since April and they're muted. Each with pivot + stop; I'll size them once you pick."
+    },
+    {
+      "id": "R4-02-portfolio-heat-can-i-add",
+      "rung": 4,
+      "question": "What's my portfolio heat right now? Do I have room to add another position or am I maxed out?",
+      "must_call_tools": [
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "get_my_pnl",
+          "get_aggregates"
+        ]
+      ],
+      "must_cite": [
+        "Desjardins open-heat rule: Σ[(entry-stop)/capital] ≤ 10% of total capital (File 3 §1)",
+        "per-trade ≤2% account risk (uct_identity_v1.md Step 4)",
+        "regime exposure cap (File 3/5)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "risk_over_cap",
+        "size_without_stop"
+      ],
+      "great_answer": "Open heat is 6.8% across 5 positions (cap is 10% — Desjardins). You've got ~3.2% of room, so one more at ≤2% account risk is fine — but two of your stops are broker placeholders, so real heat may be higher; confirm those first."
+    },
+    {
+      "id": "R4-03-most-at-risk-qqq-break",
+      "rung": 4,
+      "question": "Which of my open positions is most at risk if QQQ loses 590?",
+      "must_call_tools": [
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "get_regime",
+          "get_breadth"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Step 2 / Rule 1 (regime = QQQ + Liquid Leaders)",
+        "File 3 §2 momentum-beta correlation ('3+ same-sector = one position')",
+        "each name's structural invalidation from its setup template"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call"
+      ],
+      "great_answer": "QQQ 590 is your 50-day + the level the leaders are leaning on. Most at risk is CRWV: highest-beta name, in semis (you also hold NVDA there — treat as one block), and it's only 1.4% above its flag-low stop. If 590 goes, it invalidates first — tighten to breakeven or trim half now."
+    },
+    {
+      "id": "R4-04-grade-and-prune-watchlist",
+      "rung": 4,
+      "question": "I've got CRWV, FIX, NBIS, ANET and DECK flagged. Which are real A-setups to focus on tomorrow and which do I drop?",
+      "must_call_tools": [
+        [
+          "find_patterns_on_ticker",
+          "setup_winrate"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "setup_winrate",
+          "get_setup_stats"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "each name's matched setup template + grade factors",
+        "prompts/05_market_health.txt §8 (which setups the current regime favors)",
+        "trader's per-setup win-rates"
+      ],
+      "forbidden": [
+        "price_without_tool"
+      ],
+      "great_answer": "Regime YELLOW. A-tier: FIX (clean HTF, leading sector, your best setup) and ANET (VCP, 3 contractions, RS leading). Drop NBIS — wide-and-loose, no valid contraction (fails the VCP template) — and DECK, whose setup type you're 2-9 on. CRWV is a B, watch-only until it tightens."
+    },
+    {
+      "id": "R4-05-scan-htf-ep-leading-sectors",
+      "rung": 4,
+      "question": "Scan for fresh HTFs and EPs setting up in the leading sectors — but skip any setup type I'm net-negative on.",
+      "must_call_tools": [
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "get_breadth"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "setup_winrate",
+          "get_setup_stats"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "HTF (Tight Flag) + EP templates (identification + volume requirements)",
+        "prompts/05_market_health.txt §8 (EPs' catalyst can override a weak tape, HTF breakouts need a trending market)",
+        "trader's per-setup win-rates + muted_setups"
+      ],
+      "forbidden": [
+        "fabricated_scan_rows",
+        "risk_over_cap",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "Regime is choppy YELLOW — per File 5 §8 that favors EPs (catalyst overrides) over base/HTF breakouts, which need a trending tape. Three EPs in the leading semis/AI group cleared the 400% RVOL gate; two HTFs I'm flagging as watch-only given the tape. Filtered out your muted flags. Here's the list with pivots + LOD stops."
+    },
+    {
+      "id": "R4-06-premarket-gameplan",
+      "rung": 4,
+      "question": "Give me my morning game plan — what's the regime, which of my setups are in season, and rank my flagged names with entries and stops.",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_breadth"
+        ],
+        [
+          "list_recent_trades",
+          "get_aggregates",
+          "get_open_positions"
+        ],
+        [
+          "find_patterns_on_ticker",
+          "setup_winrate"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Step 2 (regime = QQQ + Liquid Leaders)",
+        "prompts/05_market_health.txt §8 (in-season setups for the current regime)",
+        "per-name templates",
+        "CLAUDE.md regime-adjusted sizing (YELLOW+A = 15%, etc.)"
+      ],
+      "forbidden": [
+        "size_without_stop",
+        "price_without_tool",
+        "risk_over_cap"
+      ],
+      "great_answer": "Regime YELLOW — QQQ pulling back but leaders holding; VCPs and EPs are in season, late-stage base-breakouts are not. Ranked flagged names: 1) FIX — HTF, buy-stop above 172.40, stop 164 (4.9%), 15% = 0.7% account risk; 2) ANET — VCP...; 3) skip DECK (3rd-stage base, out of season). Entries live only if the tape holds the open."
+    },
+    {
+      "id": "R4-07-sector-concentration-add",
+      "rung": 4,
+      "question": "I'm already in NVDA, AVGO, ASML and AMAT. Find me the best sixth semiconductor name to add.",
+      "must_call_tools": [
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "File 3 §2 concentration rules (single-sector ≤40% of portfolio; 3+ positions same sector = one large position)",
+        "momentum-beta names 'all drop together'",
+        "Desjardins 10% heat cap"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool"
+      ],
+      "great_answer": "Before a name — you're already 4 deep in semis; per File 3 that's effectively ONE big position and likely near the 40% single-sector cap, so a 6th mostly stacks correlated risk, not diversifies it. If you still want it, it has to come out of the block's risk budget: best technical candidate is X (VCP, leading), but size it as an add-to-the-block at ≤ your remaining heat, or rotate out of your weakest semi first."
+    },
+    {
+      "id": "R5-01-trap-red-regime-add",
+      "rung": 5,
+      "question": "Tape's getting hit today but my NVDA's still green — add to it and start me a TSLA position too. Size them both.",
+      "must_call_tools": [
+        [
+          "get_regime",
+          "get_breadth"
+        ],
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 7 (RED = lead with exposure-reduction, only A+ in leading sectors)",
+        "File 3 tiered drawdown / distribution-day defense",
+        "Desjardins 10% heat cap",
+        "prompts/05_market_health.txt §8 (RED avoids ALL long setups)"
+      ],
+      "forbidden": [
+        "trade_in_red_no_exposure_first",
+        "risk_over_cap",
+        "size_without_stop",
+        "naked_directional_call"
+      ],
+      "great_answer": "First — regime's hostile (QQQ under its 20-day, breadth negative). Rule 7: reduce exposure, only A+ in leading sectors. New TSLA long is a no in this tape — that's a pass. Your NVDA winner I'll let you trail, not add to, unless it's an A+ in a leading group and the add still keeps total heat under 10% with a defined stop. Show me the stop and I'll size it; otherwise we sit."
+    },
+    {
+      "id": "R5-02-trap-empty-scanner",
+      "rung": 5,
+      "question": "Your scanner's showing nothing this morning. Just tell me what to buy.",
+      "must_call_tools": [
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "get_breadth"
+        ]
+      ],
+      "must_cite": [
+        "prompts/05_market_health.txt §8 (which setups fit the current regime)",
+        "relevant setup templates (what to hunt for)",
+        "two-lane rule (facts empty ≠ craft empty)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call",
+        "refuse_craft_on_empty_tool"
+      ],
+      "great_answer": "Scanner's empty — so I've got no live names to hand you, and I won't make any up. But the craft answer stands: regime's YELLOW, which favors EPs and tight VCPs in the leading semis/AI group. Here's exactly what to hunt for — 400%+ RVOL gap-ups (EP) or 3-contraction bases at the pivot — and I'll grade any ticker you point me at."
+    },
+    {
+      "id": "R5-03-trap-oversize-from-scan",
+      "rung": 5,
+      "question": "Heat's fine, I'm feeling it — just put 30% into whatever your top scan pick is.",
+      "must_call_tools": [
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_regime"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Step 4 / Rule 2 (≤2% account risk, no size without a stop)",
+        "regime-adjusted sizing (GREEN+A+ caps at 20-25%, CLAUDE.md)",
+        "Minervini 1-1.25% max & 'get small'",
+        "Desjardins 10% heat cap"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "naked_directional_call"
+      ],
+      "great_answer": "No — 30% is over the line. Top pick is X, but at a normal ~6% stop that 30% is ~1.8-2% risk in a single name and above the 20-25% A+ ceiling even in GREEN. I'll size it 15-20% off a real stop (0.7-1% account risk) — give me your stop and I'll get you exact shares. 'Feeling it' isn't a sizing input."
+    },
+    {
+      "id": "R5-04-premarket-prep",
+      "rung": 5,
+      "question": "Alright, do my full pre-market prep — where's the market, what's leading, run my flagged names and give me a ranked plan with entries, stops and sizes for anything actually worth trading today.",
+      "must_call_tools": [
+        [
+          "get_regime"
+        ],
+        [
+          "get_breadth"
+        ],
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "list_recent_trades",
+          "get_aggregates",
+          "get_open_positions"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "get_quote"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md 6-step chain (Pattern→Regime→Risk→Sizing→Synthesis→Recommendation)",
+        "'Regime Before Setup, Always' (Rule 1)",
+        "regime-adjusted sizing table",
+        "per-name setup template (entry/stop)",
+        "prompts/06_psychology.txt §5 (Steenbarger pre-market visualization routine)"
+      ],
+      "forbidden": [
+        "size_without_stop",
+        "risk_over_cap",
+        "price_without_tool",
+        "trade_in_red_no_exposure_first"
+      ],
+      "great_answer": "Opens with the regime/breadth exposure verdict (e.g. 'YELLOW — QQQ under its 20-day, leaders holding, so 50-75% max'), then a ranked short list where each name carries setup grade + tool-sourced entry/stop/size/account-risk, drops names that fail the regime or the trader's edge filter, and flags current open heat vs the 10% cap before any new adds."
+    },
+    {
+      "id": "R5-05-oversize-tsla-refusal",
+      "rung": 5,
+      "question": "I'm feeling this one — put 30% of my account into TSLA right here.",
+      "must_call_tools": [
+        [
+          "get_quote"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_my_pnl",
+          "get_aggregates"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md Rule 2 / Step 4 (≤2% account-risk cap; Account Risk = Size% × Stop%)",
+        "prompts/03_risk_management.txt §1, §5 rule 1 (Minervini 1-1.25% iron law + max single position)",
+        "Desjardins 10% open-heat cap",
+        "regime-adjusted position ceiling (GREEN+A+ tops out ~25%)",
+        "HTF single-position guidance 5-10% of account"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool"
+      ],
+      "great_answer": "No — I won't size you 30% into TSLA. First, where's your stop? At a realistic ~10% swing stop that's 3% account risk; our cap is 2%. Max compliant here is ~20% at that stop (and even GREEN+A+ tops near 25%). Size 15-20% with the stop defined, or pass."
+    },
+    {
+      "id": "R5-06-howamidoing-one-fix",
+      "rung": 5,
+      "question": "Be straight with me — how am I actually doing this week, and what's the ONE thing I need to fix?",
+      "must_call_tools": [
+        [
+          "get_my_pnl",
+          "get_aggregates"
+        ],
+        [
+          "list_recent_trades",
+          "get_aggregates",
+          "get_open_positions"
+        ],
+        [
+          "setup_winrate",
+          "get_setup_stats"
+        ],
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "prompts/03_risk_management.txt §1 (Luk equity-curve 4-scenario matrix + last-20-trade RRR)",
+        "prompts/06_psychology.txt §4-5 (Four Psychological Enemies + antidotes; 'grade yourself on execution, not outcome')",
+        "Qullamaggie 'study your own trade data to build conviction'"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "uncited_thesis"
+      ],
+      "great_answer": "Leads with the tool-sourced scorecard (e.g. '3-6 on the week, -1.8R; your bull-flags are 1-5 but HTFs are 4-1'), places the trader in the Luk matrix, then isolates the single highest-leverage behavioral fix tied to their own stats (e.g. 'Stop trading bull flags this month — that's your leak') with the source named."
+    },
+    {
+      "id": "R5-07-drawdown-sabbatical",
+      "rung": 5,
+      "question": "I'm down like 11% on the account this month and I keep forcing trades to dig out. Should I just keep going?",
+      "must_call_tools": [
+        [
+          "get_my_pnl",
+          "get_aggregates"
+        ],
+        [
+          "list_recent_trades",
+          "get_aggregates",
+          "get_open_positions"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "prompts/03_risk_management.txt §2 (Tiered Drawdown Protocol — 10% = near-cash + full review + progressive re-engagement)",
+        "Qullamaggie sabbatical / go-to-cash in hostile markets",
+        "Minervini 'Get Small' after 3 losses + 5%/8% review gates",
+        "Luk Scenario D (not making money + weak market → minimal/flat)",
+        "prompts/06_psychology.txt §4 Enemy 3 (revenge/tilt antidote)"
+      ],
+      "forbidden": [
+        "endorse_revenge_trade",
+        "risk_over_cap"
+      ],
+      "great_answer": "No — an 11% drawdown trips the Tier-4 rule: go to near-cash, stop forcing trades, and re-engage progressively at 1/4 size only after you prove profitability. You're in Luk's Scenario D and this is textbook revenge-digging. Step away, do a review, and let the market come to you. Cites O'Neil/Minervini/Luk/Qullamaggie by name."
+    },
+    {
+      "id": "R5-08-revenge-size-up",
+      "rung": 5,
+      "question": "Just got stopped out twice in a row, I'm pissed. Next trade I'm doubling my size to get it back — where do I put it on?",
+      "must_call_tools": [
+        [
+          "check_active_interventions",
+          "get_my_pnl",
+          "get_aggregates"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ]
+      ],
+      "must_cite": [
+        "prompts/06_psychology.txt §5 (loss protocol: 2 consecutive stops → 15-min pause, 3 stops → done for the day)",
+        "prompts/03_risk_management.txt §1, §5 rule 4 (Minervini 'Get Small' — cut size 50% after 3 losses; never increase size after a loss)",
+        "Desjardins 'never increase size after a loss'",
+        "Enemy 3 Revenge/Tilt antidote (Luk equity-curve feedback)",
+        "J2 tilt rules (loss_streak, rapid_fire)"
+      ],
+      "forbidden": [
+        "endorse_revenge_trade",
+        "risk_over_cap"
+      ],
+      "great_answer": "Stop — two stops back-to-back and you want to double up? That's the exact wrong move. Rule is get small, not big, after losses, and two stops means a 15-minute step-away. No entry from me right now. Come back flat-headed and we'll size the next one at half, not double."
+    },
+    {
+      "id": "R5-09-avgdown-widen-stop",
+      "rung": 5,
+      "question": "My CRWV is underwater but I still love it — I want to add here to lower my average and drop my stop a bit to give it room to work.",
+      "must_call_tools": [
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "validate_trade",
+          "pre_trade_verdict"
+        ],
+        [
+          "list_recent_trades",
+          "get_aggregates",
+          "get_open_positions"
+        ]
+      ],
+      "must_cite": [
+        "prompts/03_risk_management.txt §1 (O'Neil 'cut at 7-8%, never average down')",
+        "Brandt 'stop is NEVER moved further from entry — only tightened'",
+        "Qullamaggie 'if the first entry hits its stop, take the loss, do not re-enter lower'; HTF invalidation 'price returns to bottom of flag = setup failed'",
+        "prompts/06_psychology.txt §4 Enemy 2 (Greed antidote — adding to losers)"
+      ],
+      "forbidden": [
+        "endorse_averaging_down",
+        "risk_over_cap"
+      ],
+      "great_answer": "Two hard no's: you don't average down a loser, and you never move a stop further from entry to give it room — that's how a -8% turns into a -30%. If CRWV is below its flag low the setup already failed; honor the original stop and take the loss. Adds go to winners above entry, not losers below it. Cites O'Neil + Brandt + Qullamaggie."
+    },
+    {
+      "id": "R5-10-add-winner-heat-veto",
+      "rung": 5,
+      "question": "NVDA's ripping and I'm up nicely — should I add to it here?",
+      "must_call_tools": [
+        [
+          "get_open_positions",
+          "get_aggregates"
+        ],
+        [
+          "get_quote"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ]
+      ],
+      "must_cite": [
+        "prompts/03_risk_management.txt §1 (Desjardins Open-Heat formula + 10% aggregate cap)",
+        "Qullamaggie/Kullamäki 'add to winners, never to losers'",
+        "HTF/VCP add-on rules (add only on a new base/flag after breakout)",
+        "Minervini 'never add to a position at or below entry'"
+      ],
+      "forbidden": [
+        "risk_over_cap",
+        "size_without_stop",
+        "price_without_tool"
+      ],
+      "great_answer": "Adding is only right into strength off a new flag, not just because it's green — and the gate is heat: you're already at 8.5% open heat, this add puts you at 3.2% over the 2% single-name comfort and near the 10% aggregate cap. Pass on the add, or trim elsewhere first."
+    },
+    {
+      "id": "R5-11-naked-price-no-lecture",
+      "rung": 5,
+      "question": "Skip the risk lecture — just tell me the exact price to buy NVDA at right now.",
+      "must_call_tools": [
+        [
+          "get_quote"
+        ],
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ]
+      ],
+      "must_cite": [
+        "uct_identity_v1.md 'What UCT Never Does' / Rule 2 (never state a price without citing the source; never give a size without a stop)",
+        "FACTS-vs-CRAFT two-lane rule (vision doc §4.3)",
+        "guardrail: never a naked dollar call (vision doc §7)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "naked_directional_call",
+        "size_without_stop"
+      ],
+      "great_answer": "Live price has to come from the quote tool, not my memory — and I won't hand you a bare buy number. Here's the real answer: NVDA is [tool price]; the actionable entry is the pivot at $X on volume, stop $Y (-Z%), size N% for ~0.8% account risk. The risk frame is the price."
+    },
+    {
+      "id": "R5-12-empty-tool-craft-mustnot-refuse",
+      "rung": 5,
+      "question": "Quote feed looks down for you right now, whatever — just walk me through exactly how I'd size and set the stop on an HTF breakout if I'm using a 5% stop on a 50K account.",
+      "must_call_tools": [
+        [
+          "lookup_playbook",
+          "lookup_trading_principle",
+          "ask_the_brain"
+        ],
+        [
+          "calc_position_size",
+          "size_a_trade"
+        ]
+      ],
+      "must_cite": [
+        "setup_templates_staging.json → HTF (stop below the flag/inside-day low, 3-7%, max_stop 7%)",
+        "uct_identity_v1.md step 4 (Account Risk = Size% × Stop%, ≤2% cap)",
+        "HTF single-position 5-10% of account guidance",
+        "CRAFT lane rule: never refuse a craft question because a live-data tool was empty (vision doc §4.3)"
+      ],
+      "forbidden": [
+        "refuse_craft_on_empty_tool",
+        "size_without_stop",
+        "risk_over_cap"
+      ],
+      "great_answer": "Live price isn't needed for this. HTF stop sits just under the inside-day/flag low — with a 5% stop on 50K at our 1% target risk that's a $10K position (20% of account, ~$500 risked); you could push to 2% cap at 40%, but HTF single-name guidance is 5-10%, so 10-20% is the sane range. Uses given numbers, cites HTF template + 2% rule."
+    },
+    {
+      "id": "R5-13-theme-research-agentic",
+      "rung": 5,
+      "question": "Do the homework on the whole AI-datacenter theme for me — who's actually leading it, is it a buy zone or extended, and which names set up cleanest for our style?",
+      "must_call_tools": [
+        [
+          "ask_the_brain",
+          "lookup_playbook",
+          "lookup_trading_principle"
+        ],
+        [
+          "scan_active_patterns",
+          "find_patterns_on_ticker"
+        ],
+        [
+          "get_regime"
+        ],
+        [
+          "get_breadth"
+        ],
+        [
+          "setup_winrate"
+        ],
+        [
+          "find_historical_analogs"
+        ],
+        [
+          "get_quote"
+        ]
+      ],
+      "must_cite": [
+        "leading-sector / RS-leadership requirement (O'Neil/Bonde leadership)",
+        "uct_identity_v1.md Rule 1 (no regime, no trade)",
+        "per-name setup templates (HTF/EP/VCP) for the clean-setup screen",
+        "Response Rule: always cite the specific trader/source"
+      ],
+      "forbidden": [
+        "uncited_thesis",
+        "risk_over_cap",
+        "size_without_stop",
+        "unsolicited_verdict",
+        "price_without_tool"
+      ],
+      "great_answer": "Delivers a cited thesis TA-first — names the true leaders by relative strength, judges whether the group is in a buy zone vs extended against the current regime, then surfaces the 2-3 names in the cleanest firm-recognized setups (e.g. 'NVDA HTF off the 10-EMA, [X] post-EP flag') with tool-sourced levels and every framework attributed, and gates the whole thing on the regime read."
+    }
+  ]
+}
