@@ -326,11 +326,39 @@ _TICKER_SYS = (
     "session / educational webinar for stock/ETF mentions. Return STRICT JSON "
     "only (no prose, no code fences):\n"
     '{ "ticker_moments": [ {"t": <int seconds>, "ticker": "AAPL"} ] }\n'
-    "List every stock/ETF actually discussed, at the second its discussion "
-    "STARTS; map spoken company names to the correct US ticker (Nvidia->NVDA). "
-    "Skip vague index talk. De-dup obvious repeats but keep distinct revisits. "
-    "Use integer seconds from the [h:mm:ss] markers. Output ONLY the JSON object."
+    "List the stock/ETF mentions actually discussed — AT MOST the 60 most "
+    "significant — at the second each discussion STARTS; map spoken company "
+    "names to the correct US ticker (Nvidia->NVDA). Skip vague index talk. "
+    "De-dup obvious repeats but keep distinct revisits. Use integer seconds "
+    "from the [h:mm:ss] markers. Output ONLY the JSON object."
 )
+
+
+def _salvage_truncated_json(raw: str) -> str:
+    """A max_tokens-truncated ticker response dies mid-array. Recover the
+    complete leading objects: cut at the last complete '}' and close whatever
+    brackets/braces remain open (string-aware). '' when nothing usable."""
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end <= start:
+        return ""
+    s = raw[start:end + 1]
+    stack, in_str, esc = [], False, False
+    for ch in s:
+        if esc:
+            esc = False
+        elif ch == "\\":
+            esc = True
+        elif ch == '"':
+            in_str = not in_str
+        elif not in_str:
+            if ch in "[{":
+                stack.append(ch)
+            elif ch == "]" and stack and stack[-1] == "[":
+                stack.pop()
+            elif ch == "}" and stack and stack[-1] == "{":
+                stack.pop()
+    return s + "".join("]" if c == "[" else "}" for c in reversed(stack))
 
 
 def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
@@ -346,12 +374,17 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
     msg = client.messages.create(
         model=_MODEL,
-        max_tokens=800,
+        max_tokens=2400,
         system=_TICKER_SYS,
         messages=[{"role": "user", "content": user}],
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content)
-    data = json.loads(_strip_json(raw))
+    try:
+        data = json.loads(_strip_json(raw))
+    except json.JSONDecodeError:
+        # max_tokens truncation cuts the array mid-object — salvage the
+        # complete leading moments rather than losing the whole video's chips.
+        data = json.loads(_salvage_truncated_json(raw))
     return _clean_tickers(data.get("ticker_moments"))
 
 

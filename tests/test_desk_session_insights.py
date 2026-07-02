@@ -530,3 +530,49 @@ def test_videos_missing_ticker_moments_query(edu_db):
     assert v1["id"] in ids
     assert v2["id"] not in ids   # already has ticker_moments
     assert v3["id"] not in ids   # no chapters yet
+
+
+def test_salvage_truncated_json_recovers_leading_objects():
+    raw = ('{"ticker_moments": [{"t": 1, "ticker": "AAPL"}, '
+           '{"t": 50, "ticker": "NVDA"}, {"t": 99, "tic')
+    import json as _json
+    data = _json.loads(si._salvage_truncated_json(raw))
+    assert data["ticker_moments"] == [
+        {"t": 1, "ticker": "AAPL"}, {"t": 50, "ticker": "NVDA"}]
+
+
+def test_salvage_truncated_json_nothing_usable():
+    assert si._salvage_truncated_json('{"ticker_moments": [{"t": 1, "tick') == ""
+
+
+def test_generate_ticker_moments_budget_and_salvage(monkeypatch):
+    """Regression 2026-07-02: max_tokens=800 truncated long sessions mid-JSON,
+    silently killing every big video's chips. Pin the bigger budget AND the
+    salvage path for any residual truncation."""
+    from api.services import engine
+
+    captured = {}
+
+    class _Block:
+        text = ('{"ticker_moments": [{"t": 5, "ticker": "SPY"}, '
+                '{"t": 60, "ticker": "QQQ"}, {"t": 90, "tic')
+
+    class _Msg:
+        content = [_Block()]
+
+    class _Messages:
+        @staticmethod
+        def create(**kw):
+            captured.update(kw)
+            return _Msg()
+
+    class _Client:
+        messages = _Messages()
+
+        def with_options(self, **kw):
+            return self
+
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+    out = si.generate_ticker_moments("Title", [{"t": 5, "text": "hello"}])
+    assert captured.get("max_tokens", 0) >= 2000
+    assert [m["ticker"] for m in out] == ["SPY", "QQQ"]
