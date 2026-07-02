@@ -90,3 +90,53 @@ def test_bad_signature_rejected(client):
                     headers={"x-zm-request-timestamp": "3", "x-zm-signature": "v0=bad",
                              "content-type": "application/json"})
     assert r.status_code == 401
+
+
+# ── /insights-status ─────────────────────────────────────────────────────────────
+
+def test_insights_status_401_without_bearer(client):
+    r = client.get("/api/desk/insights-status")
+    assert r.status_code == 401
+
+
+def test_insights_status_401_wrong_bearer(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "correct-secret")
+    r = client.get("/api/desk/insights-status",
+                   headers={"Authorization": "Bearer wrong-secret"})
+    assert r.status_code == 401
+
+
+def test_insights_status_happy_shape_with_stubbed_service(client, monkeypatch):
+    from api.services import desk_session_insights, education_service
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    monkeypatch.setattr(desk_session_insights, "get_insights_status", lambda: {
+        "pending": [{"id": 1, "title": "Live Trading Session — July 1, 2026"}],
+        "recent_passes": [{"ts": 111, "results": [], "errors": []}],
+        "fail_streaks": {2: 3},
+    })
+    monkeypatch.setattr(education_service, "list_videos", lambda: [
+        {"id": 5, "title": "V5", "meeting_uuid": "U5", "insights_at": 123,
+         "zoom_cleaned": 1, "chapters": '[{"t":0,"title":"a"}]',
+         "ticker_moments": '[{"ticker":"AAPL","t":0}]'},
+        {"id": 6, "title": "V6 (not a session)", "meeting_uuid": "", "insights_at": None,
+         "zoom_cleaned": 0, "chapters": None, "ticker_moments": None},
+        {"id": 4, "title": "V4 corrupt json", "meeting_uuid": "U4", "insights_at": None,
+         "zoom_cleaned": 0, "chapters": "not json", "ticker_moments": "[1,2"},
+    ])
+
+    r = client.get("/api/desk/insights-status", headers={"Authorization": "Bearer ppp"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["pending"] == [{"id": 1, "title": "Live Trading Session — July 1, 2026"}]
+    assert data["recent_passes"] == [{"ts": 111, "results": [], "errors": []}]
+    assert data["fail_streaks"] == {"2": 3}  # JSON round-trips int keys as strings
+
+    videos = data["recent_videos"]
+    assert len(videos) == 2  # V6 excluded — no meeting_uuid
+    assert videos[0]["id"] == 5  # newest (highest id) first
+    assert videos[0]["chapters"] == 1
+    assert videos[0]["tickers"] == 1
+    assert videos[0]["zoom_cleaned"] is True
+    v4 = next(v for v in videos if v["id"] == 4)
+    assert v4["chapters"] == 0  # malformed JSON parsed defensively -> 0, no crash
+    assert v4["tickers"] == 0

@@ -545,6 +545,109 @@ def test_salvage_truncated_json_nothing_usable():
     assert si._salvage_truncated_json('{"ticker_moments": [{"t": 1, "tick') == ""
 
 
+# ── Observability: recent-passes ring buffer + per-video fail streaks ───────────
+
+class _AlwaysRaiseZoom:
+    """Every call to get_recording_files raises — simulates a video whose pass
+    keeps failing (e.g. a Zoom auth/network hiccup) so the fail-streak counter
+    climbs on every call to process_pending_session_insights."""
+    def get_recording_files(self, uuid):
+        raise RuntimeError("zoom boom")
+
+
+@pytest.fixture
+def clean_observability_state():
+    si._RECENT_PASSES.clear()
+    si._FAIL_STREAKS.clear()
+    yield
+    si._RECENT_PASSES.clear()
+    si._FAIL_STREAKS.clear()
+
+
+def test_recent_passes_ring_buffer_bounded_at_12(edu_db, chapters_enabled, clean_observability_state):
+    # No pending videos at all -> each pass is a cheap no-op, purely exercising
+    # the ring buffer's maxlen.
+    for _ in range(15):
+        si.process_pending_session_insights(zoom=None)
+    assert len(si._RECENT_PASSES) == 12
+    last = si._RECENT_PASSES[-1]
+    assert set(last.keys()) == {"ts", "results", "errors"}
+
+
+def test_pass_records_per_video_error(edu_db, chapters_enabled, clean_observability_state):
+    v = _seed_session_video(title="Live Trading Session — Err Day", meeting_uuid="ERR1")
+    si.process_pending_session_insights(zoom=_AlwaysRaiseZoom())
+    assert len(si._RECENT_PASSES) == 1
+    errors = si._RECENT_PASSES[-1]["errors"]
+    assert len(errors) == 1
+    assert errors[0]["id"] == v["id"]
+    assert "zoom boom" in errors[0]["error"]
+
+
+def test_fail_streak_alert_fires_exactly_once_at_4(edu_db, chapters_enabled,
+                                                    clean_observability_state, monkeypatch):
+    from api.services import discord_notify
+    calls = []
+    monkeypatch.setattr(discord_notify, "_send_webhook", lambda embed: calls.append(embed))
+
+    v = _seed_session_video(title="Live Trading Session — Streak Day", meeting_uuid="ERR2")
+    zoom = _AlwaysRaiseZoom()
+
+    for _ in range(3):
+        si.process_pending_session_insights(zoom=zoom)
+    assert calls == []  # not yet at the threshold
+    assert si._FAIL_STREAKS[v["id"]] == 3
+
+    si.process_pending_session_insights(zoom=zoom)  # 4th consecutive failure
+    assert len(calls) == 1
+    assert "failing repeatedly" in calls[0]["title"]
+
+    si.process_pending_session_insights(zoom=zoom)  # 5th — must NOT re-fire
+    assert len(calls) == 1
+
+
+def test_fail_streak_resets_on_success_skip_path(edu_db, chapters_enabled,
+                                                  clean_observability_state, monkeypatch):
+    """Consecutive-failure semantics: a video that fails twice, then succeeds
+    (recording_gone is a legitimate skip path, not a failure), must have its
+    streak cleared — so two MORE failures afterward do not trip the alert."""
+    from api.services import discord_notify
+    calls = []
+    monkeypatch.setattr(discord_notify, "_send_webhook", lambda embed: calls.append(embed))
+
+    v = _seed_session_video(title="Live Trading Session — Reset Day", meeting_uuid="ERR3")
+
+    for _ in range(2):
+        si.process_pending_session_insights(zoom=_AlwaysRaiseZoom())
+    assert si._FAIL_STREAKS[v["id"]] == 2
+
+    class _GoneZoom:
+        def get_recording_files(self, uuid):
+            return None  # recording already gone -> success/skip path
+
+    si.process_pending_session_insights(zoom=_GoneZoom())
+    assert v["id"] not in si._FAIL_STREAKS
+
+    # Re-seed a fresh pending video (the prior one is now zoom_cleaned) and
+    # fail it twice more — still below threshold since the streak reset.
+    v2 = _seed_session_video(title="Live Trading Session — Reset Day 2", meeting_uuid="ERR4")
+    for _ in range(2):
+        si.process_pending_session_insights(zoom=_AlwaysRaiseZoom())
+    assert calls == []
+    assert si._FAIL_STREAKS[v2["id"]] == 2
+
+
+def test_get_insights_status_shape(edu_db, chapters_enabled, clean_observability_state):
+    v = _seed_session_video(title="Live Trading Session — Status Day", meeting_uuid="STAT1")
+    si.process_pending_session_insights(zoom=_AlwaysRaiseZoom())
+
+    status = si.get_insights_status()
+    assert set(status.keys()) == {"pending", "recent_passes", "fail_streaks"}
+    assert status["pending"] == [{"id": v["id"], "title": v["title"]}]
+    assert len(status["recent_passes"]) == 1
+    assert status["fail_streaks"] == {v["id"]: 1}
+
+
 def test_generate_ticker_moments_budget_and_salvage(monkeypatch):
     """Regression 2026-07-02: max_tokens=800 truncated long sessions mid-JSON,
     silently killing every big video's chips. Pin the bigger budget AND the

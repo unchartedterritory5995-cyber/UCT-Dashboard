@@ -15,12 +15,23 @@ reversible, additive.
 """
 from __future__ import annotations
 
+import collections
 import json
 import os
 import re
 import time
 
 from api.services import education_service
+
+# ── Observability (2026-07-02) ───────────────────────────────────────────────────
+# Per-video failures used to only print — logs are flooded, so a failing pass is
+# indistinguishable from a never-ran one. `_RECENT_PASSES` gives an at-a-glance
+# audit trail of the last dozen passes (results + errors); `_FAIL_STREAKS` counts
+# CONSECUTIVE per-video failures so a stuck video fires exactly one Discord alert
+# (at the 4th straight failure) instead of spamming or staying silent forever.
+_RECENT_PASSES: "collections.deque[dict]" = collections.deque(maxlen=12)
+_FAIL_STREAKS: dict[int, int] = {}
+_FAIL_STREAK_ALERT_AT = 4
 
 # Zoom's AI Companion SUMMARY file gives chapters/headline/summary for free on
 # most sessions (see parse_zoom_summary below), so the LLM is now only needed
@@ -438,120 +449,155 @@ def _generate_poster(vid: int, v: dict, ins: dict) -> bool:
         return False
 
 
-def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
+def _fire_fail_streak_alert(vid: int, title: str, last_error: str) -> None:
+    """Best-effort Discord alert once a video hits _FAIL_STREAK_ALERT_AT
+    consecutive failures. Never raises — a notification hiccup must never
+    interrupt the insights pass."""
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "⚠️ Session insights failing repeatedly",
+            "description": (f"Video #{vid} ({title or 'untitled'}) has failed "
+                            f"{_FAIL_STREAK_ALERT_AT} consecutive insights passes.\n"
+                            f"Last error: {last_error}"),
+            "color": 0xE0A800,
+        })
+    except Exception:
+        pass
+
+
+def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict],
+                         errors: list[dict]) -> None:
+    """Thin wrapper: runs `_run_one_pending` and turns any exception into a
+    tracked error + fail-streak bump (alerting once at the threshold), or
+    resets the streak on any non-raising completion (success or a legitimate
+    skip/wait path — both mean this pass did NOT fail)."""
+    vid = v["id"]
+    try:
+        _run_one_pending(v, zoom, max_wait, now, results)
+    except Exception as e:
+        msg = str(e)
+        print(f"[session-insights] video {vid} failed (non-fatal): {msg}")
+        errors.append({"id": vid, "error": msg[:300]})
+        streak = _FAIL_STREAKS.get(vid, 0) + 1
+        _FAIL_STREAKS[vid] = streak
+        if streak == _FAIL_STREAK_ALERT_AT:
+            _fire_fail_streak_alert(vid, v.get("title") or "", msg[:300])
+    else:
+        _FAIL_STREAKS.pop(vid, None)
+
+
+def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
     has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
-    try:
-        age = now - int(v.get("created_at") or now)
-        rec = zoom.get_recording_files(uuid)
-        if rec is None:  # recording already gone — nothing to fetch
-            education_service.mark_zoom_cleaned(vid)
-            if not has_chapters:
-                education_service.mark_insights_attempt(vid)
-            results.append({"id": vid, "action": "recording_gone"})
+    age = now - int(v.get("created_at") or now)
+    rec = zoom.get_recording_files(uuid)
+    if rec is None:  # recording already gone — nothing to fetch
+        education_service.mark_zoom_cleaned(vid)
+        if not has_chapters:
+            education_service.mark_insights_attempt(vid)
+        results.append({"id": vid, "action": "recording_gone"})
+        return
+
+    if not has_chapters:
+        # 1) Zoom-first (free): Zoom's AI Companion SUMMARY file already
+        # has chapters/headline/summary — no LLM needed at all.
+        zoom_ins = None
+        sfile = _find_summary_file(rec)
+        if sfile:
+            try:
+                raw = zoom.download_text(sfile["download_url"])
+                parsed = parse_zoom_summary(raw)
+            except Exception as se:
+                print(f"[session-insights] summary parse failed (non-fatal): {se}")
+                parsed = None
+            if parsed and parsed.get("chapters"):
+                zoom_ins = parsed
+
+        # Transcript fetch/parse unchanged — feeds the plain transcript
+        # storage AND the ticker-moments call regardless of which path
+        # supplied the chapters.
+        cues: list[dict] = []
+        tfile = _find_transcript_file(rec)
+        if tfile:
+            try:
+                vtt = zoom.download_text(tfile["download_url"])
+                cues = parse_vtt(vtt)
+            except Exception as te:
+                print(f"[session-insights] transcript download failed (non-fatal): {te}")
+                cues = []
+
+        # Zoom generates the transcript VTT asynchronously and it can
+        # trail the SUMMARY file (zoom_client.py: "may be absent on
+        # early calls"). If the summary already gave us chapters but the
+        # transcript isn't here yet, do NOT store/trash/stamp now —
+        # trashing sets zoom_cleaned, which permanently forecloses both
+        # a future transcript fetch AND the ticker-backfill loop (it
+        # requires a stored transcript). Wait for the next scheduled
+        # pass instead, unless we've already exhausted max_wait (then
+        # fall through to the existing bounded give-up path below).
+        if zoom_ins and not cues and age < max_wait:
+            print(f"[session-insights] video {vid} has summary chapters but "
+                  f"transcript isn't ready yet — waiting (age={age}s)")
+            results.append({"id": vid, "action": "waiting_transcript_have_summary",
+                            "age_s": age})
             return
 
+        ins, source = None, None
+        if zoom_ins:
+            # 3) Ticker moments = LLM-only, best-effort, never blocking.
+            ticker_moments: list[dict] = []
+            if cues:
+                try:
+                    ticker_moments = generate_ticker_moments(v.get("title") or "", cues)
+                except Exception as tke:
+                    print(f"[session-insights] ticker moments failed (non-fatal): {tke}")
+                    ticker_moments = []
+            ins = {
+                "headline": zoom_ins.get("headline", ""),
+                "summary": zoom_ins.get("summary", []),
+                "chapters": zoom_ins.get("chapters", []),
+                "ticker_moments": ticker_moments,
+            }
+            source = "zoom"
+        elif cues:
+            # 2) LLM fallback — only when no usable summary file exists.
+            ins = generate_insights(v.get("title") or "", cues)
+            source = "llm"
+
+        if ins and ins.get("chapters"):
+            poster_ok = _generate_poster(vid, v, ins)
+            education_service.set_video_insights(
+                vid,
+                # Timestamped (not flattened) so the ticker-backfill loop
+                # can recover cues from disk with zero Zoom dependency.
+                transcript=_timestamped_block(cues) if cues else None,
+                chapters=ins["chapters"],
+                ticker_moments=ins["ticker_moments"],
+                headline=ins.get("headline", ""),
+                summary=ins.get("summary", []),
+                poster=poster_ok,
+            )
+            has_chapters = True
+            results.append({"id": vid, "action": "generated", "source": source,
+                            "chapters": len(ins["chapters"]),
+                            "tickers": len(ins["ticker_moments"]),
+                            "poster": poster_ok})
+
+    # Clean up the Zoom recording once we've captured insights — or once
+    # we've waited long enough that the transcript clearly isn't coming.
+    if has_chapters or age >= max_wait:
+        try:
+            zoom.delete_recording(uuid)
+        except Exception as de:
+            print(f"[session-insights] delete {uuid} failed (non-fatal): {de}")
+        education_service.mark_zoom_cleaned(vid)
         if not has_chapters:
-            # 1) Zoom-first (free): Zoom's AI Companion SUMMARY file already
-            # has chapters/headline/summary — no LLM needed at all.
-            zoom_ins = None
-            sfile = _find_summary_file(rec)
-            if sfile:
-                try:
-                    raw = zoom.download_text(sfile["download_url"])
-                    parsed = parse_zoom_summary(raw)
-                except Exception as se:
-                    print(f"[session-insights] summary parse failed (non-fatal): {se}")
-                    parsed = None
-                if parsed and parsed.get("chapters"):
-                    zoom_ins = parsed
-
-            # Transcript fetch/parse unchanged — feeds the plain transcript
-            # storage AND the ticker-moments call regardless of which path
-            # supplied the chapters.
-            cues: list[dict] = []
-            tfile = _find_transcript_file(rec)
-            if tfile:
-                try:
-                    vtt = zoom.download_text(tfile["download_url"])
-                    cues = parse_vtt(vtt)
-                except Exception as te:
-                    print(f"[session-insights] transcript download failed (non-fatal): {te}")
-                    cues = []
-
-            # Zoom generates the transcript VTT asynchronously and it can
-            # trail the SUMMARY file (zoom_client.py: "may be absent on
-            # early calls"). If the summary already gave us chapters but the
-            # transcript isn't here yet, do NOT store/trash/stamp now —
-            # trashing sets zoom_cleaned, which permanently forecloses both
-            # a future transcript fetch AND the ticker-backfill loop (it
-            # requires a stored transcript). Wait for the next scheduled
-            # pass instead, unless we've already exhausted max_wait (then
-            # fall through to the existing bounded give-up path below).
-            if zoom_ins and not cues and age < max_wait:
-                print(f"[session-insights] video {vid} has summary chapters but "
-                      f"transcript isn't ready yet — waiting (age={age}s)")
-                results.append({"id": vid, "action": "waiting_transcript_have_summary",
-                                "age_s": age})
-                return
-
-            ins, source = None, None
-            if zoom_ins:
-                # 3) Ticker moments = LLM-only, best-effort, never blocking.
-                ticker_moments: list[dict] = []
-                if cues:
-                    try:
-                        ticker_moments = generate_ticker_moments(v.get("title") or "", cues)
-                    except Exception as tke:
-                        print(f"[session-insights] ticker moments failed (non-fatal): {tke}")
-                        ticker_moments = []
-                ins = {
-                    "headline": zoom_ins.get("headline", ""),
-                    "summary": zoom_ins.get("summary", []),
-                    "chapters": zoom_ins.get("chapters", []),
-                    "ticker_moments": ticker_moments,
-                }
-                source = "zoom"
-            elif cues:
-                # 2) LLM fallback — only when no usable summary file exists.
-                ins = generate_insights(v.get("title") or "", cues)
-                source = "llm"
-
-            if ins and ins.get("chapters"):
-                poster_ok = _generate_poster(vid, v, ins)
-                education_service.set_video_insights(
-                    vid,
-                    # Timestamped (not flattened) so the ticker-backfill loop
-                    # can recover cues from disk with zero Zoom dependency.
-                    transcript=_timestamped_block(cues) if cues else None,
-                    chapters=ins["chapters"],
-                    ticker_moments=ins["ticker_moments"],
-                    headline=ins.get("headline", ""),
-                    summary=ins.get("summary", []),
-                    poster=poster_ok,
-                )
-                has_chapters = True
-                results.append({"id": vid, "action": "generated", "source": source,
-                                "chapters": len(ins["chapters"]),
-                                "tickers": len(ins["ticker_moments"]),
-                                "poster": poster_ok})
-
-        # Clean up the Zoom recording once we've captured insights — or once
-        # we've waited long enough that the transcript clearly isn't coming.
-        if has_chapters or age >= max_wait:
-            try:
-                zoom.delete_recording(uuid)
-            except Exception as de:
-                print(f"[session-insights] delete {uuid} failed (non-fatal): {de}")
-            education_service.mark_zoom_cleaned(vid)
-            if not has_chapters:
-                education_service.mark_insights_attempt(vid)
-                results.append({"id": vid, "action": "gave_up_transcript", "age_s": age})
-        else:
-            results.append({"id": vid, "action": "waiting_transcript", "age_s": age})
-    except Exception as e:
-        print(f"[session-insights] video {vid} failed (non-fatal): {e}")
+            education_service.mark_insights_attempt(vid)
+            results.append({"id": vid, "action": "gave_up_transcript", "age_s": age})
+    else:
+        results.append({"id": vid, "action": "waiting_transcript", "age_s": age})
 
 
 def _ticker_backfill_enabled() -> bool:
@@ -592,6 +638,7 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
     if not is_enabled():
         return []
     results: list[dict] = []
+    errors: list[dict] = []
     try:
         pending = education_service.videos_pending_insights(_window_secs())
     except Exception as e:
@@ -604,9 +651,26 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
         max_wait = _max_wait_secs()
         now = int(time.time())
         for v in pending:
-            _process_one_pending(v, zoom, max_wait, now, results)
+            _process_one_pending(v, zoom, max_wait, now, results, errors)
 
     # Independent of the main pass above — runs even when `pending` is empty,
     # and never touches Zoom (stored transcript only).
     _run_ticker_backfill(results)
+    _RECENT_PASSES.append({"ts": int(time.time()), "results": list(results), "errors": errors})
     return results
+
+
+def get_insights_status() -> dict:
+    """Observability snapshot for GET /api/desk/insights-status: the current
+    pending-work queue + the last dozen pass results/errors + per-video
+    consecutive-failure counters. Never raises."""
+    try:
+        pending_rows = education_service.videos_pending_insights(_window_secs())
+    except Exception as e:
+        print(f"[session-insights] status: list pending failed: {e}")
+        pending_rows = []
+    return {
+        "pending": [{"id": v.get("id"), "title": v.get("title")} for v in pending_rows],
+        "recent_passes": list(_RECENT_PASSES),
+        "fail_streaks": dict(_FAIL_STREAKS),
+    }
