@@ -15,6 +15,7 @@ executor / preview functions.
 """
 from __future__ import annotations
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone, timedelta, date
 from typing import Any, Callable
@@ -1618,3 +1619,127 @@ TOOLS.update({
         },
     },
 })
+
+
+# ---------------------------------------------------------------------------
+# Brain bridge tools (mentor initiative) — same facade the voice side uses,
+# so voice and text can never diverge. Dark until BRAIN_TOOLS_ENABLED=1.
+# ---------------------------------------------------------------------------
+
+def _exec_ask_the_brain(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import brain_kb_service
+    return brain_kb_service.ask_the_brain(str(args.get("question", "")), k=int(args.get("k", 6)))
+
+
+def _exec_lookup_playbook(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import brain_service
+    return brain_service.lookup_playbook(str(args.get("setup_name", "")))
+
+
+def _exec_setup_winrate(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import brain_service
+    return brain_service.setup_winrate(str(args.get("setup", "")), str(args.get("regime", "ALL")))
+
+
+def _exec_find_historical_analogs(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import brain_service
+    return brain_service.find_historical_analogs(
+        str(args.get("setup_type", "")), str(args.get("regime", "")),
+        str(args.get("sector", "")), int(args.get("limit", 5)))
+
+
+def _exec_size_a_trade(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import brain_service
+    return brain_service.size_a_trade(
+        entry=float(args.get("entry", 0)), stop=float(args.get("stop", 0)),
+        account=float(args.get("account", 0)), regime=str(args.get("regime", "")),
+        grade=str(args.get("grade", "A")), risk_pct=float(args.get("risk_pct", 1.0)))
+
+
+def _voice_delegate(tool_name):
+    def _exec(*, user_id, account_id, args, conn=None) -> dict:
+        from api.services import voice_tools
+        return voice_tools.dispatch(tool_name, dict(args or {}), user={"id": user_id})
+    return _exec
+
+
+_BRAIN_TOOLS = {
+    "ask_the_brain": {
+        "name": "ask_the_brain",
+        "description": "Semantic search over the firm's full knowledge base (8,500+ entries)."
+                       " Returns cited passages to reason from for any craft/methodology question.",
+        "requires_confirm": False,
+        "executor": _exec_ask_the_brain,
+        "input_schema": {"type": "object", "properties": {
+            "question": {"type": "string"}, "k": {"type": "integer", "default": 6}},
+            "required": ["question"]},
+    },
+    "lookup_playbook": {
+        "name": "lookup_playbook",
+        "description": "Exact setup-template lookup (48 firm templates): entry, stop, max stop %,"
+                       " invalidation, common mistakes, win-rate. Accepts aliases.",
+        "requires_confirm": False,
+        "executor": _exec_lookup_playbook,
+        "input_schema": {"type": "object", "properties": {
+            "setup_name": {"type": "string"}}, "required": ["setup_name"]},
+    },
+    "setup_winrate": {
+        "name": "setup_winrate",
+        "description": "Win-rate/expectancy for a setup, optionally per regime (GREEN/YELLOW/"
+                       "ORANGE/RED or ALL).",
+        "requires_confirm": False,
+        "executor": _exec_setup_winrate,
+        "input_schema": {"type": "object", "properties": {
+            "setup": {"type": "string"}, "regime": {"type": "string", "default": "ALL"}},
+            "required": ["setup"]},
+    },
+    "find_historical_analogs": {
+        "name": "find_historical_analogs",
+        "description": "Historical analogs for a setup in a regime: what happened before.",
+        "requires_confirm": False,
+        "executor": _exec_find_historical_analogs,
+        "input_schema": {"type": "object", "properties": {
+            "setup_type": {"type": "string"}, "regime": {"type": "string"},
+            "sector": {"type": "string"}, "limit": {"type": "integer", "default": 5}},
+            "required": ["setup_type"]},
+    },
+    "size_a_trade": {
+        "name": "size_a_trade",
+        "description": "Risk-first position sizing from the firm's regime-by-grade table."
+                       " Requires a stop; account risk hard-capped at 2%.",
+        "requires_confirm": False,
+        "executor": _exec_size_a_trade,
+        "input_schema": {"type": "object", "properties": {
+            "entry": {"type": "number"}, "stop": {"type": "number"},
+            "account": {"type": "number"}, "regime": {"type": "string"},
+            "grade": {"type": "string", "default": "A"},
+            "risk_pct": {"type": "number", "default": 1.0}},
+            "required": ["entry", "stop", "account"]},
+    },
+    # Voice↔text parity: the golden set's Rung-1 facts need these in chat too.
+    "get_quote": {
+        "name": "get_quote",
+        "description": "Live quote: last price, percent change, direction for a symbol.",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_quote"),
+        "input_schema": {"type": "object", "properties": {
+            "symbol": {"type": "string"}}, "required": ["symbol"]},
+    },
+    "get_regime": {
+        "name": "get_regime",
+        "description": "Current market regime (GREEN/YELLOW/ORANGE/RED) with exposure guidance.",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_regime"),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    "get_breadth": {
+        "name": "get_breadth",
+        "description": "Today's market breadth reading.",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_breadth"),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+}
+
+if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
+    TOOLS.update(_BRAIN_TOOLS)
