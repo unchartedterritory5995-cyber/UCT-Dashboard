@@ -31,9 +31,18 @@ _REGIME_MAP = {
 
 
 def _reset_for_tests() -> None:
+    """Clear the cached engine AND any imported uct_intelligence modules.
+
+    Popping sys.modules matters: without it, a prior import of
+    uct_intelligence from a DIFFERENT path would be silently served by
+    Python's module cache and the facade would answer from the wrong DB.
+    """
     global _ENGINE, _ENGINE_TRIED
     _ENGINE = None
     _ENGINE_TRIED = False
+    for mod in list(sys.modules):
+        if mod == "uct_intelligence" or mod.startswith("uct_intelligence."):
+            sys.modules.pop(mod, None)
 
 
 def _engine():
@@ -42,17 +51,17 @@ def _engine():
     if _ENGINE is not None or _ENGINE_TRIED:
         return _ENGINE
     _ENGINE_TRIED = True
-    from api.services import brain_sync
-    path = os.environ.get("UCT_INTEL_PATH") or brain_sync.brain_dir()
-    if not os.path.isdir(os.path.join(path, "uct_intelligence")):
-        return None
-    if path not in sys.path:
-        sys.path.insert(0, path)
     try:
+        from api.services import brain_sync
+        path = os.environ.get("UCT_INTEL_PATH") or brain_sync.brain_dir()
+        if not os.path.isdir(os.path.join(path, "uct_intelligence")):
+            return None
+        if path not in sys.path:
+            sys.path.insert(0, path)
         import uct_intelligence.api as uct  # noqa: PLC0415
         _ENGINE = uct
     except Exception:
-        log.exception("brain engine import failed from %s", path)
+        log.exception("brain engine import failed")
         _ENGINE = None
     return _ENGINE
 
@@ -117,12 +126,13 @@ def setup_winrate(setup: str, regime: str = "ALL") -> dict:
     if uct is None:
         return dict(_UNAVAILABLE)
     try:
+        regime = (regime or "ALL").upper()
         canonical = uct.resolve_setup_name(setup) or setup
-        perf = uct.get_setup_performance(canonical, regime or "ALL")
+        perf = uct.get_setup_performance(canonical, regime)
         if not perf:
-            return {"ok": False, "setup": canonical, "regime": regime or "ALL",
+            return {"ok": False, "setup": canonical, "regime": regime,
                     "reason": "not enough sample (<5 trades) for this setup/regime"}
-        out = {"ok": True, "setup": canonical, "regime": regime or "ALL"}
+        out = {"ok": True, "setup": canonical, "regime": regime}
         for k in ("total_trades", "wins", "losses", "win_rate_pct",
                   "avg_gain_pct", "avg_loss_pct", "expectancy"):
             if k in perf:

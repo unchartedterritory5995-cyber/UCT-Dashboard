@@ -13,12 +13,8 @@ from api.services import brain_service
 ENGINE_PKG = Path(__file__).resolve().parents[2] / "external" / "uct-intelligence" / "uct_intelligence"
 
 
-@pytest.fixture()
-def brain_env(tmp_path, monkeypatch):
-    """Real engine code + a tiny fixture DB in the packed layout."""
-    if not ENGINE_PKG.is_dir():
-        pytest.skip("uct-intelligence submodule not checked out")
-    root = tmp_path / "brain"
+def _make_brain(root, origin_trader="Qullamaggie"):
+    """Build a packed brain layout (real engine code + tiny fixture DB) at root."""
     shutil.copytree(ENGINE_PKG, root / "uct_intelligence")
     data = root / "data"
     data.mkdir()
@@ -35,7 +31,7 @@ def brain_env(tmp_path, monkeypatch):
         "INSERT INTO setup_templates (name, family, origin_trader, description, aliases,"
         " ideal_regime, entry_triggers, stop_methods, max_stop_pct, profit_logic,"
         " invalidation, common_mistakes, active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)",
-        ("HTF", "Momentum Continuation", "Qullamaggie", "High tight flag",
+        ("HTF", "Momentum Continuation", origin_trader, "High tight flag",
          json.dumps(["High Tight Flag", "HTF continuation"]), json.dumps(["GREEN", "YELLOW"]),
          json.dumps({"primary": "break of flag high on volume"}),
          json.dumps({"initial": "below flag low", "max_pct": 7.0}), 7.0,
@@ -63,13 +59,19 @@ def brain_env(tmp_path, monkeypatch):
                  " created_at TEXT, updated_at TEXT, source_ref TEXT)")
     conn.commit()
     conn.close()
+    return root
+
+
+@pytest.fixture()
+def brain_env(tmp_path, monkeypatch):
+    """Real engine code + a tiny fixture DB in the packed layout."""
+    if not ENGINE_PKG.is_dir():
+        pytest.skip("uct-intelligence submodule not checked out")
+    root = _make_brain(tmp_path / "brain")
     monkeypatch.setenv("BRAIN_DIR", str(root))
     brain_service._reset_for_tests()
     yield root
     brain_service._reset_for_tests()
-    sys.modules.pop("uct_intelligence.api", None)
-    sys.modules.pop("uct_intelligence.db", None)
-    sys.modules.pop("uct_intelligence", None)
 
 
 def test_unavailable_when_no_brain(tmp_path, monkeypatch):
@@ -103,3 +105,25 @@ def test_size_a_trade_uses_regime_default_and_validates(brain_env, monkeypatch):
     assert out["shares"] > 0
     bad = brain_service.size_a_trade(entry=100.0, stop=100.0, account=50000.0)
     assert bad["ok"] is False
+
+
+def test_reset_clears_stale_engine_module(tmp_path, monkeypatch):
+    """_reset_for_tests must pop cached uct_intelligence modules so a new
+    BRAIN_DIR serves the NEW pack's data, not Python's stale module cache."""
+    if not ENGINE_PKG.is_dir():
+        pytest.skip("uct-intelligence submodule not checked out")
+    try:
+        pack_a = _make_brain(tmp_path / "brain_a", origin_trader="Qullamaggie")
+        monkeypatch.setenv("BRAIN_DIR", str(pack_a))
+        brain_service._reset_for_tests()
+        first = brain_service.lookup_playbook("HTF")
+        assert first["ok"] is True and first["origin_trader"] == "Qullamaggie"
+
+        pack_b = _make_brain(tmp_path / "brain_b", origin_trader="FAKE_TRADER")
+        monkeypatch.setenv("BRAIN_DIR", str(pack_b))
+        brain_service._reset_for_tests()
+        second = brain_service.lookup_playbook("HTF")
+        assert second["ok"] is True
+        assert second["origin_trader"] == "FAKE_TRADER"
+    finally:
+        brain_service._reset_for_tests()
