@@ -24,6 +24,7 @@ import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import HoldingsList from '../components/HoldingsList'
+import HoldingsListSkeleton from '../components/HoldingsListSkeleton'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import BrokerSyncStatus from '../components/BrokerSyncStatus'
@@ -426,7 +427,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
 
       {(showShares || showOptions) && (
         (isLoading || optionsLoading) && mergedPositions.length === 0 ? (
-          <div className={styles.loading}>Loading positions…</div>
+          <HoldingsListSkeleton />
         ) : view === 'list' ? (
           <HoldingsList
             positions={showShares ? positions : []}

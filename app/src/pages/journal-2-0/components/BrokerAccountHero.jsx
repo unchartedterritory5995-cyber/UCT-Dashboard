@@ -15,6 +15,7 @@ import { useMemo, useRef, useState } from 'react'
 import { money, moneySigned, percent } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
+import { SkeletonBlock, SkeletonLine } from '../../../components/Skeleton'
 import styles from './BrokerAccountHero.module.css'
 
 // Robinhood range tabs. 1D is an intraday reconstruction (bars); the rest come
@@ -181,6 +182,16 @@ export default function BrokerAccountHero({
           ))}
         </div>
       </header>
+
+      {!model && isLoading && (
+        <div className={styles.chartSkeleton} role="status" aria-busy="true" aria-label="Loading equity curve">
+          <SkeletonBlock width="100%" height={120} />
+          <div className={styles.chartSkeletonAxis} aria-hidden="true">
+            <SkeletonLine width="52px" height={9} />
+            <SkeletonLine width="52px" height={9} />
+          </div>
+        </div>
+      )}
 
       {model && (
         <>

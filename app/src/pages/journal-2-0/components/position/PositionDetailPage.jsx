@@ -18,6 +18,7 @@ import useJ2Trades from '../../hooks/useJ2Trades'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
 import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import AboutSection from './AboutSection'
 import StatsSection from './StatsSection'
 import NewsSection from './NewsSection'
@@ -149,10 +150,14 @@ export default function PositionDetailPage() {
         <CompanyLogo sym={sym} size={40} tile />
         <div className={styles.identity}>
           <h1 className={styles.sym}>{sym}</h1>
-          {snapshot?.name && <div className={styles.name}>{snapshot.name}</div>}
+          {snapshot?.name
+            ? <div className={styles.name}>{snapshot.name}</div>
+            : <SkeletonLine width="140px" height={12} />}
         </div>
         <div className={styles.priceBlock}>
-          <div className={styles.price}>{Number.isFinite(price) ? money(price) : '—'}</div>
+          {Number.isFinite(price)
+            ? <div className={styles.price}>{money(price)}</div>
+            : <SkeletonLine width="110px" height={28} />}
           {Number.isFinite(changePct) && (
             <div className={`${styles.change} ${up ? styles.pos : styles.neg}`}>
               <span aria-hidden="true">{up ? '▲' : '▼'}</span>
