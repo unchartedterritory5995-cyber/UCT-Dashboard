@@ -1,0 +1,62 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import HoldingsList from './HoldingsList'
+
+vi.mock('../hooks/useHoldingsSparklines', () => ({
+  default: () => ({ closes: { AAPL: [1, 2, 3], TSLA: [3, 2, 1] }, loading: false }),
+}))
+vi.mock('../../../components/CompanyLogo', () => ({
+  default: ({ sym }) => <span data-testid={`logo-${sym}`} />,
+}))
+
+const positions = [
+  { id: 1, symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 100, entryDate: '2026-06-01' },
+  { id: 2, symbol: 'TSLA', side: 'Short', shares: 5, entryPrice: 200, entryDate: '2026-06-01' },
+]
+const prices = {
+  AAPL: { price: 110, change_pct: 2, prev_close: 107.84 },
+  TSLA: { price: 190, change_pct: -1, prev_close: 191.92 },
+}
+const strategies = [
+  {
+    id: 9, underlying: 'CRWV', strategyType: 'long_call', netEntry: 400,
+    brokerCurrentValue: 600, legs: [{ qty: 2, strike: 110, expiration: '2026-10-16', entryPrice: 2 }],
+  },
+]
+
+beforeEach(() => localStorage.clear())
+
+describe('HoldingsList', () => {
+  it('renders the Stocks & ETFs section with logo, ticker, shares and price pill', () => {
+    render(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
+    expect(screen.getByText('Stocks & ETFs')).toBeInTheDocument()
+    expect(screen.getByTestId('logo-AAPL')).toBeInTheDocument()
+    expect(screen.getByText('AAPL')).toBeInTheDocument()
+    expect(screen.getByText('10 shares')).toBeInTheDocument()
+    expect(screen.getByText('$110.00')).toBeInTheDocument()
+    expect(screen.getByText('Short 5')).toBeInTheDocument()
+  })
+
+  it('renders the Options section from the broker mark', () => {
+    render(<HoldingsList positions={[]} optionStrategies={strategies} prices={{}} />)
+    expect(screen.getByText('Options')).toBeInTheDocument()
+    expect(screen.getByText('$600.00')).toBeInTheDocument()
+    expect(screen.queryByText('Stocks & ETFs')).toBeNull()
+  })
+
+  it('defaults to Equity desc and re-sorts via the control', () => {
+    render(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
+    let syms = screen.getAllByTestId('holding-sym').map((el) => el.textContent)
+    expect(syms).toEqual(['AAPL', 'TSLA'])          // 1100 > 950
+    fireEvent.change(screen.getByLabelText('Sort holdings'), { target: { value: 'symbol' } })
+    fireEvent.click(screen.getByRole('button', { name: /direction/i }))  // desc → asc
+    syms = screen.getAllByTestId('holding-sym').map((el) => el.textContent)
+    expect(syms).toEqual(['AAPL', 'TSLA'])
+    expect(JSON.parse(localStorage.getItem('uct.j2.holdings.sort'))).toEqual({ key: 'symbol', dir: 'asc' })
+  })
+
+  it('renders nothing when the book is empty', () => {
+    const { container } = render(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
+    expect(container.textContent).toBe('')
+  })
+})

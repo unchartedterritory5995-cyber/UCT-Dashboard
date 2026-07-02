@@ -1,0 +1,165 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #e8e6e1);
+  letter-spacing: 0.2px;
+}
+
+.sortCtl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sortSelect {
+  background: var(--surface-2, #17171a);
+  color: var(--text-muted, #8a8a8a);
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.dirBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #2a2a2e);
+  background: var(--surface-2, #17171a);
+  color: var(--accent, #c9a84c);
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.ident {
+  display: flex;
+  flex-direction: column;
+  min-width: 84px;
+  gap: 2px;
+}
+
+.sym {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text, #e8e6e1);
+}
+
+.shares {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.spark {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 92px;
+}
+
+/* Robinhood-style solid price pill — green up / red down. */
+.pill {
+  display: inline-block;
+  min-width: 78px;
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pillUp {
+  background: var(--gain, #22c55e);
+  color: #04140a;
+}
+
+.pillDown {
+  background: var(--loss, #ef4444);
+  color: #fff;
+}
+
+.pillFlat {
+  background: var(--surface-2, #17171a);
+  color: var(--text-muted, #8a8a8a);
+  border: 1px solid var(--border, #2a2a2e);
+}
+
+.today {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+}
+
+.optValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #e8e6e1);
+  font-variant-numeric: tabular-nums;
+}
+
+.pos { color: var(--gain, #22c55e); }
+.neg { color: var(--loss, #ef4444); }
+
+/* Phone: drop the sparkline so ticker + pill keep breathing room. */
+@media (max-width: 640px) {
+  .spark { display: none; }
+  .row { gap: 10px; }
+}
