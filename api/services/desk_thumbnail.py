@@ -11,11 +11,12 @@ recoloured:
   - "LIVE TRADING SESSION" -> classic: a candlestick skyline — a glowing gold
     uptrend across a storm-lit night sky, the DATE the metallic-gold hero above
     it. Rendered at 2x and downscaled (super-sampled) with a light film grain.
-  - "THOUGHTS ON THE MARKET" -> editorial: an asymmetric magazine-style card —
-    left = kicker tab + serif metallic-gold headline (the TITLE is the hero) on a
-    gold pull-quote spine + date; right = a glowing gold candlestick uptrend so it
-    instantly reads as *markets*. Cinematic depth (radial light + vignette).
-    Rendered at 2x and downscaled (super-sampled) for crisp, clean edges.
+  - "THOUGHTS ON THE MARKET" -> editorial: a leather-bound journal cover — an
+    emerald leather-textured base (theme bg tint + coarse/fine grain), a double
+    gold frame with corner diamonds, a compass medallion, and a centered
+    gold-foil-stamped title (derived from eyebrow_label) + kicker + date, all
+    stamped into the cover. Rendered at 2x and downscaled (super-sampled) for
+    crisp, clean edges.
   - "EVENING UPDATE FROM TSDR" -> evening: a cinematic dusk skyline with headline
     and date plaque, themed for the evening show.
   - "WORKSHOP WITH CHARTMASTER" -> plate: pre-made cinematic artwork with a
@@ -67,8 +68,12 @@ _DEFAULT_THEME = Theme(
 
 _EMERALD_GOLD = (228, 198, 112)
 _EMERALD_THEME = Theme(
-    bg_top=(19, 140, 101),
-    bg_bottom=(5, 47, 34),
+    # Deep emerald leather tint (not the brighter kelly-green of the raw brand
+    # swatch) — this is the ONLY consumer of bg_top/bg_bottom (the editorial
+    # leather-journal layout), so it's tuned for that cover, not as a general
+    # brand color.
+    bg_top=(15, 46, 34),
+    bg_bottom=(5, 18, 13),
     glow=_EMERALD_GOLD,
     wordmark=(249, 245, 232),
     eyebrow=_EMERALD_GOLD,
@@ -315,30 +320,8 @@ def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
 
 
 # ---------------------------------------------------------------------------
-# Editorial (Thoughts on the Market) — super-sampled
+# Editorial (Thoughts on the Market) — leather-bound journal cover, super-sampled
 # ---------------------------------------------------------------------------
-
-def _hero_line_left(base: Image.Image, x: int, y: int, text: str,
-                    font: ImageFont.FreeTypeFont) -> None:
-    """Left-anchored metallic-gold serif headline line with a soft drop shadow."""
-    size = base.size
-    w = int(ImageDraw.Draw(base).textlength(text, font=font))
-    asc, desc = font.getmetrics()
-    h = asc + desc
-    off = max(2, h // 24)
-    shadow = Image.new("RGBA", size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).text((x, y + off), text, font=font, fill=(0, 24, 17, 180))
-    base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(max(4, h // 18))))
-    grad = Image.new("RGB", (max(1, w), h))
-    gd = ImageDraw.Draw(grad)
-    for yy in range(h):
-        t = yy / max(1, h - 1)
-        gd.line([(0, yy), (w, yy)],
-                fill=tuple(int(_GOLD_HI[i] + (_GOLD_LO[i] - _GOLD_HI[i]) * t) for i in range(3)))
-    mask = Image.new("L", (max(1, w), h), 0)
-    ImageDraw.Draw(mask).text((0, 0), text, font=font, fill=255)
-    base.paste(grad, (int(x), int(y)), mask)
-
 
 _TREND = [0.10, 0.20, 0.16, 0.32, 0.45, 0.39, 0.55, 0.49, 0.67, 0.81, 0.96]
 
@@ -401,7 +384,55 @@ def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
     return Image.alpha_composite(img, chart)
 
 
+def _journal_gold_grad(w: int, h: int) -> Image.Image:
+    """Vertical metallic-gold gradient block — the fill used behind stamped
+    (foil-pressed) text on the leather journal cover."""
+    grad = Image.new("RGB", (max(1, w), max(1, h)))
+    gd = ImageDraw.Draw(grad)
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        gd.line([(0, yy), (w, yy)],
+                fill=tuple(int(_GOLD_HI[i] + (_GOLD_LO[i] - _GOLD_HI[i]) * t) for i in range(3)))
+    return grad
+
+
+def _journal_stamp_center(base: Image.Image, cx: int, y: int, text: str,
+                          font: ImageFont.FreeTypeFont, tracking: int = 0) -> None:
+    """Gold-foil stamp: a pressed dark halo + metallic gold gradient face, so
+    text reads as embossed/stamped into the leather cover rather than printed."""
+    d = ImageDraw.Draw(base)
+    w = int(_tracked_w(d, text, font, tracking) if tracking else d.textlength(text, font=font))
+    asc, desc = font.getmetrics()
+    h = asc + desc
+    x = int(cx - w / 2)
+    off = max(1, h // 36)
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(sh)
+    if tracking:
+        _draw_tracked(sd, x - off, y - off, text, font, (0, 0, 0, 200), tracking)
+    else:
+        sd.text((x - off, y - off), text, font=font, fill=(0, 0, 0, 200))
+    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(max(2, h // 20))))
+    mask = Image.new("L", (w, h), 0)
+    md = ImageDraw.Draw(mask)
+    if tracking:
+        _draw_tracked(md, 0, 0, text, font, 255, tracking)
+    else:
+        md.text((0, 0), text, font=font, fill=255)
+    base.paste(_journal_gold_grad(w, h), (x, int(y)), mask)
+
+
+def _journal_diamond(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill) -> None:
+    """Small gold diamond accent — frame corners + kicker rule end-caps."""
+    d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=fill)
+
+
 def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+    """Leather-bound journal cover: a leather-textured base tint (from theme,
+    so "thoughts"/"emerald" share this exact layout), a double gold frame with
+    corner diamonds, a compass medallion, and a centered gold-foil-stamped
+    headline (derived from eyebrow_label) + kicker + date. Rendered at 2x and
+    downscaled (super-sampled) for crisp, clean edges."""
     S = 2                                   # super-sample factor
     W, H = _W * S, _H * S
     size = (W, H)
@@ -409,59 +440,95 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
     def s(v):
         return int(round(v * S))
 
-    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
-    img = Image.alpha_composite(img, _radial(s(360), s(240), s(520), (44, 196, 144), 70, size))
-    img = Image.alpha_composite(img, _vignette(0.6, size))
+    GOLD = (214, 180, 98)       # frame + foil-stamp gold — literal, not theme-driven
+    GOLD_DIM = (168, 138, 70)   # secondary frame/rule gold
 
-    # Right-side glowing candlestick uptrend (the "markets" hero graphic).
-    img = _draw_uptrend(img, s(726), s(214), s(1196), s(556))
+    # Leather base: theme gradient (shared bg tint) + coarse mottling + fine grain.
+    base = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGB")
+    coarse = Image.effect_noise((W // 6, H // 6), 58).resize(size, Image.BILINEAR)
+    coarse = coarse.filter(ImageFilter.GaussianBlur(2)).convert("L")
+    base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (coarse,) * 3)), 0.22)
+    fine = Image.effect_noise(size, 34).convert("L")
+    base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (fine,) * 3)), 0.16)
+
+    img = base.convert("RGBA")
+    img = Image.alpha_composite(img, _radial(W // 2, s(230), s(620), (255, 238, 200), 22, size))
+    img = Image.alpha_composite(img, _vignette(0.62, size))
 
     draw = ImageDraw.Draw(img)
-    g = theme.rule
-    LX = s(96)
+    cx = W // 2
 
-    mark = _compass(s(50))
+    # Double gold frame + corner diamonds.
+    o1, o2 = s(40), s(54)
+    draw.rectangle([o1, o1, W - o1, H - o1], outline=GOLD, width=s(3))
+    draw.rectangle([o2, o2, W - o2, H - o2], outline=GOLD_DIM, width=s(1))
+    for px in (o2, W - o2):
+        for py in (o2, H - o2):
+            _journal_diamond(draw, px, py, s(9), GOLD)
+
+    # Compass medallion.
+    my = s(150)
+    draw.ellipse([cx - s(62), my - s(62), cx + s(62), my + s(62)], outline=GOLD, width=s(3))
+    draw.ellipse([cx - s(53), my - s(53), cx + s(53), my + s(53)], outline=GOLD_DIM, width=s(1))
+    mark = _compass(s(78))
     if mark is not None:
-        img.paste(mark, (LX, s(56)), mark)
+        img.alpha_composite(mark, (cx - s(39), my - s(39)))
     draw = ImageDraw.Draw(img)
-    _draw_tracked(draw, LX + s(66), s(70), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 21 * S),
-                  theme.wordmark, 6 * S)
 
-    # Kicker tab — filled gold pill with dark text.
-    kf = _font("DejaVuSerif-Bold.ttf", 21 * S)
-    ktext = "MARKET COMMENTARY"
-    kw = _tracked_w(draw, ktext, kf, 4 * S)
-    draw.rounded_rectangle([LX, s(126), LX + kw + s(36), s(170)], radius=s(8), fill=g)
-    _draw_tracked(draw, LX + s(18), s(135), ktext, kf, theme.bg_bottom, 4 * S)
+    # Wordmark — gold-foil stamp.
+    _journal_stamp_center(img, cx, s(236), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 22 * S), 8 * S)
+    draw = ImageDraw.Draw(img)
 
-    # Hero headline — auto-fit serif metallic gold, left-aligned.
+    # Hero headline — eyebrow_label balanced across two lines, auto-fit so the
+    # widest line fits inside the gold frame (_W - 260, super-sampled): step
+    # the font size down while EITHER line overflows, then — if the floor
+    # size still overflows — ellipsis-truncate via the shared _fit_tracked
+    # helper (forced to that exact floor size so both lines stay uniform).
     lines = _balanced_two_lines(eyebrow_label)
-    avail = s(600)
-    size_pt = 96
-    while size_pt > 48:
-        f = _font("DejaVuSerif-Bold.ttf", size_pt * S)
-        if max(draw.textlength(ln, font=f) for ln in lines) <= avail:
+    max_w = s(_W - 260)
+    max_pt, min_pt = 76 * S, 44 * S
+    size_pt = max_pt
+    while size_pt > min_pt:
+        f = _font("DejaVuSerif-Bold.ttf", size_pt)
+        if max(draw.textlength(ln, font=f) for ln in lines) <= max_w:
             break
         size_pt -= 2
-    f_title = _font("DejaVuSerif-Bold.ttf", size_pt * S)
+    f_title = _font("DejaVuSerif-Bold.ttf", size_pt)
+    lines = [
+        ln if draw.textlength(ln, font=f_title) <= max_w
+        else _fit_tracked(draw, ln, "DejaVuSerif-Bold.ttf", size_pt, size_pt, max_w, 0)[1]
+        for ln in lines
+    ]
     asc, desc = f_title.getmetrics()
-    lh = int((asc + desc) * 0.98)
-    ty = s(214)
-    draw.rectangle([LX, ty + s(10), LX + s(7), ty + lh * len(lines) - s(8)], fill=g)
+    lh = int((asc + desc) * 0.96)
+    ty = s(300)
     for ln in lines:
-        _hero_line_left(img, LX + s(30), ty, ln, f_title)
+        _journal_stamp_center(img, cx, ty, ln, f_title)
         ty += lh
     draw = ImageDraw.Draw(img)
 
-    # Date + small gold underline.
+    # Kicker with flanking rules + diamonds — stays the literal show label.
+    ktext = "MARKET COMMENTARY"
+    kf = _font("DejaVuSerif-Bold.ttf", 19 * S)
+    ky = ty + s(36)
+    kw = _tracked_w(draw, ktext, kf, 6 * S)
+    kmid = ky + s(13)
+    lx0, lx1 = cx - kw / 2 - s(110), cx - kw / 2 - s(24)
+    rx0, rx1 = cx + kw / 2 + s(24), cx + kw / 2 + s(110)
+    draw.line([lx0, kmid, lx1, kmid], fill=GOLD_DIM, width=s(2))
+    draw.line([rx0, kmid, rx1, kmid], fill=GOLD_DIM, width=s(2))
+    _journal_diamond(draw, lx0 - s(8), kmid, s(6), GOLD)
+    _journal_diamond(draw, rx1 + s(8), kmid, s(6), GOLD)
+    _draw_tracked_center(draw, cx, ky, ktext, kf, GOLD, 6 * S)
+
+    # Date — gold-foil stamp.
     f_date = _font("DejaVuSerif-Bold.ttf", 40 * S)
-    dy = ty + s(26)
-    _draw_tracked(draw, LX + s(30), dy, date_text.upper(), f_date, theme.date, 2 * S)
-    dw = _tracked_w(draw, date_text.upper(), f_date, 2 * S)
-    draw.rectangle([LX + s(30), dy + s(56), LX + s(30) + min(dw, s(230)), dy + s(60)], fill=g)
+    dy = ky + s(64)
+    _journal_stamp_center(img, cx, dy, date_text.upper(), f_date, 5 * S)
+    draw = ImageDraw.Draw(img)
 
     # Tagline, foot.
-    _draw_center(draw, W // 2, H - s(70), _TAGLINE, _font("DejaVuSerif.ttf", 25 * S), theme.tagline)
+    _draw_center(draw, cx, H - s(88), _TAGLINE, _font("DejaVuSerif.ttf", 22 * S), theme.tagline)
 
     return img.convert("RGB").resize(_SIZE, Image.LANCZOS)
 
