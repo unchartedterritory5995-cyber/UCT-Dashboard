@@ -1695,6 +1695,61 @@ recording on the account auto-posts (titled by its webinar name); add a skip rul
 - Setup walkthrough (one-time Zoom + YouTube + GCP OAuth) + design/plan specs in
   `docs/superpowers/specs/2026-06-24-desk-daily-sessions-*` + `…-thumbnails-design.md`.
 
+## Performance & Scale — 2026-07-01 launch-hardening (do NOT regress)
+
+Big perf/scale pass ahead of the ~200-user launch. Full detail + remaining backlog
+in user memory `project_launch_readiness_2026_07_01` + `project_perf_pass_2026_07_01`
++ `incident_524_single_process_overload_2026_07_01`. **Architecture reality: the web
+pod is ONE uvicorn process = ONE event loop + ONE anyio threadpool (64) shared by all
+users. Do NOT multi-worker the web pod (SSE live-price state is in-process).** So every
+scale win is about not fanning out per-user work.
+
+- **The 524 outage (2026-07-01):** anyio-threadpool exhaustion + SQLite write contention
+  on the single loop (a bare 401 took 24s). Fixed by throttling the per-request
+  `validate_session` last_login write (`auth_service._should_write_last_login`, 300s) +
+  offloading cold work. **Keystone: never do an unthrottled per-request DB write on the
+  universal auth path.**
+- **Unbounded external calls pin threadpool workers** → the outage class. All fixed:
+  Anthropic client `timeout=60` (`engine.py`); yfinance is bounded everywhere —
+  `massive._bounded_yf` + the shared `api/services/yf_util.bounded_call` (used by
+  `fundamentals.get_fundamentals` `.info`, `dividends_calendar.get_events`). **Any NEW
+  blocking external call on the request path MUST have a timeout.**
+- **`/api/live-prices` is two-tier (`live_prices.py`):** a whole-set fast path over a
+  SHARED per-ticker cache (`live_px1_{TK}`, 15s) + a `Semaphore(6)` valve with a
+  herd-collapse re-check. This kills per-user cache-key fragmentation (the post-deploy
+  cold-herd = the launch-day 524 risk). Don't revert to caching by the whole ticker set.
+- **Cold-start warm-on-boot (`main.py::_start_dashboard_warm_background`, ~20s post-boot):**
+  warms movers/themes/news/breadth/calendar so the first users after a deploy hit warm
+  caches (verified: movers 5s→161ms, breadth 2.9s→137ms, calendar 3.7s→51ms). Sits next
+  to the hot-tier + RS warmers. **A warm target only helps if the underlying fn caches** —
+  e.g. `breadth_monitor.get_history` was uncached (recomputed every request, spiked 28s);
+  now 5-min cached keyed by `days` + invalidated on store_snapshot/patch_field/delete.
+- **RS rankings (`rs_ranking.py`):** `get_rs_for_ticker` is a pure cache lookup (never
+  rebuilds the ~3,685-ticker universe); `main.py`'s RS warmer RE-warms every 50min (under
+  the 1h TTL) via `compute_rs_scores(force=True)` so the ~17s recompute never lands on a user.
+- **`insider.get_recent_insider_buys`** parallelizes its ~55 Finnhub fetches (10-wide pool).
+  **`fundamentals.compare_fundamentals`** parallelizes its ≤6 tickers.
+- **Calendar enrichment is batched:** `GET /api/calendar/enrichment-batch?dates=` returns a
+  whole week in ONE request (helper `_compute_enrichment_for_date`; `useWeekEnrichment` calls
+  it once) — was one request PER day. Single-date endpoint kept for back-compat.
+- **Journal auto broker-sync is fire-and-return:** `POST /api/j2/broker/sync?background=1`
+  runs the SnapTrade sync as a detached `asyncio.create_task` + returns immediately (11.5s→
+  762ms). `useBrokerSync` uses it + an 8s delayed refresh. Explicit "Sync now" buttons stay
+  blocking (they surface the result). (broker_sync merge invariant unaffected: `grep -c
+  broker_sync api/main.py` still ≥ 7.)
+- **Frontend:** global `<SWRConfig>` in `App.jsx` (revalidateOnFocus off, dedup 8s) — don't
+  remove. `useMobileSWR` pauses polling on hidden tabs; JournalSnapshotTile + the discipline
+  poll (20s) use it. Model Book no longer prefetches every stock's detail/earnings across ALL
+  years on load (168→144 requests).
+- **WAL** is on for auth.db / bars.db / cot.db / breadth_monitor.db. Web `busy_timeout` is
+  deliberately LOW (2s on bars; auth.db still 10s — a KNOWN remaining risk, see memory).
+- **Down-alert monitor** (`worker_main._down_alert_decision`): worker keep-warm pings the
+  web origin + posts 🔴/🟢 to Discord (`DISCORD_WEBHOOK_URL` + `DOWN_ALERT_ENABLED=1`).
+- **Known remaining (NOT yet done — memory has the ranked list):** auth.db 10s busy_timeout,
+  SSE event-loop 100ms→250ms + lock-free candle snapshot, alert-check delivery offload,
+  Finnhub sub cap, table virtualization (react-virtual installed/unused), 1.1MB echarts shrink,
+  eventual multi-instance architecture for scale beyond a few hundred users.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
