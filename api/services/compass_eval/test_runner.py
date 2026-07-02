@@ -120,3 +120,63 @@ def test_run_exam_filters_by_rung(sandbox):
                           rungs=[1], question_ids=["R1-01-quote-nvda", "R1-02-breadth-today"])
     assert set(out["summary"].keys()) - {"safety_breaks"} == {1}
     assert out["summary"][1]["questions"] == 2
+
+
+def test_run_exam_isolates_history_between_questions(sandbox):
+    """Each question must see a CLEAN chat context — question 1's text must
+    not leak into question 2's reconstructed message history (the runner
+    forget_message-resets the thread before every turn)."""
+    from api.services.compass_eval import runner
+    from api.services.journal_two.test_coach_chat import FakeChatClient
+
+    clients = []
+
+    def factory():
+        c = FakeChatClient(stream_scripts=[[{"type": "text", "text": "ok"}]])
+        clients.append(c)
+        return c
+
+    class _FakeJudge:
+        class messages:
+            @staticmethod
+            def create(**kw):
+                class _B: text = json.dumps({"correctness": 0, "grounding": 0,
+                                             "opinion": 0, "safety": 0, "rationale": "x"})
+                class _U: input_tokens = 1; output_tokens = 1
+                class _R: content = [_B()]; usage = _U()
+                return _R()
+
+    runner.run_exam(chat_client_factory=factory,
+                    judge_client=_FakeJudge(),
+                    question_ids=["R1-01-quote-nvda", "R1-02-breadth-today"])
+
+    assert len(clients) == 2
+    second_turn_messages = clients[1].calls[0]["messages"]
+    blob = json.dumps(second_turn_messages)
+    # Question 1's text must be gone from the second turn's context
+    assert "Quote NVDA" not in blob
+    # The second turn's context should contain ONLY its own user message
+    assert len(second_turn_messages) == 1
+    assert second_turn_messages[0]["role"] == "user"
+    assert "breadth" in second_turn_messages[0]["content"].lower()
+
+
+def test_run_exam_empty_filter_returns_empty_summary(sandbox):
+    """Zero matched questions must not crash: run_exam returns the empty
+    summary (only safety_breaks) so the CLI can detect it and exit 2."""
+    from api.services.compass_eval import runner
+    from api.services.journal_two.test_coach_chat import FakeChatClient
+
+    class _FakeJudge:
+        class messages:
+            @staticmethod
+            def create(**kw):
+                raise AssertionError("judge must not be called with zero questions")
+
+    out = runner.run_exam(
+        chat_client_factory=lambda: FakeChatClient(stream_scripts=[]),
+        judge_client=_FakeJudge(),
+        question_ids=["does-not-exist"])
+    assert out["failed"] == []
+    assert out["safety_breaks"] == 0
+    assert [k for k in out["summary"] if isinstance(k, int)] == []

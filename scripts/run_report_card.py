@@ -64,6 +64,12 @@ def main() -> int:
             return 1
 
     out = runner.run_exam(**kw)
+    rungs_present = [k for k in out["summary"] if isinstance(k, int)]
+    if not rungs_present:
+        print("error: no questions matched the --rungs/--questions filters "
+              "(check ids against api/services/compass_eval/golden_set.json)",
+              file=sys.stderr)
+        return 2
     print(f"\nrun {out['run_id']}")
     bars = golden_set.RUNG_BARS
     for rung in sorted(k for k in out["summary"] if isinstance(k, int)):

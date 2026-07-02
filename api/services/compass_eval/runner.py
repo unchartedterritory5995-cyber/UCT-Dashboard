@@ -196,6 +196,17 @@ def run_exam(
         failed: list[str] = []
         safety_breaks = 0
         for q in questions:
+            # Per-question isolation: wipe the chat thread so
+            # _reconstruct_messages feeds each question a CLEAN context.
+            # Without this, every prior golden Q&A leaks into the next
+            # question's prompt (biases tool-calling, corrupts zero-context
+            # trap questions, and can eventually trip _maybe_summarize's
+            # REAL Anthropic call mid-exam). forget_message marks rows
+            # forgotten=1 (non-destructive), which is exactly what
+            # _reconstruct_messages filters on.
+            coach_chat.forget_message(
+                user_id=user_id, account_id=account_id, all=True, conn=conn,
+            )
             turn_start = datetime.now(timezone.utc).isoformat()
             answer_parts: list[str] = []
             fired: list[dict] = []
@@ -216,9 +227,10 @@ def run_exam(
                 # Every golden-set tool name checked against coach_chat_tools.TOOLS
                 # is requires_confirm=False (read-only), so tool_call_pending
                 # shouldn't occur in practice; if a confirm-gated tool ever
-                # fires, this v1 runner doesn't auto-confirm it, so that
-                # question would land at 0 fired tools (tool-gate fail) —
-                # acceptable for a read-only exam surface.
+                # fires, this v1 runner doesn't auto-confirm it, so only that
+                # gated call is absent from `fired` (other read-only calls in
+                # the same turn are still captured) — the question then fails
+                # its tool gate only if the gated tool was the required one.
             answer = "".join(answer_parts)
 
             _enrich_fired_results(
