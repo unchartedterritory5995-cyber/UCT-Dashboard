@@ -80,23 +80,24 @@ function _rebuild() {
     chunks.push(union.slice(i, i + MAX_SSE_TICKERS))
   }
 
+  const existingByKey = new Map(_buckets.map(b => [b.key, b]))
   const next = []
-  for (let i = 0; i < chunks.length; i++) {
-    const key = chunks[i].join(',')
-    const existing = _buckets[i]
-    if (existing && existing.key === key) {
+  for (const chunk of chunks) {
+    const key = chunk.join(',')
+    const existing = existingByKey.get(key)
+    if (existing) {
+      existingByKey.delete(key)
       next.push(existing)  // unchanged bucket keeps its live connection
       continue
     }
-    if (existing) _teardownBucket(existing)
     const bucket = {
-      key, tickers: chunks[i], es: null, connected: false,
+      key, tickers: chunk, es: null, connected: false,
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
     }
     next.push(bucket)
     _connectBucket(bucket)
   }
-  for (let i = chunks.length; i < _buckets.length; i++) _teardownBucket(_buckets[i])
+  for (const stale of existingByKey.values()) _teardownBucket(stale)
   _buckets = next
 
   if (_buckets.length > 0 && !_watchdogTimer) {
@@ -140,7 +141,7 @@ function _connectBucket(bucket) {
     } catch { /* malformed frame — ignore */ }
   }
 
-  es.addEventListener('heartbeat', touch)
+  es.addEventListener('heartbeat', () => { if (bucket.es === es) touch() })
 
   es.addEventListener('stale', (event) => {
     if (bucket.es !== es) return
