@@ -27,7 +27,8 @@ def test_brain_and_parity_tools_present_when_flag_on(monkeypatch):
     cct = _reload_tools(monkeypatch, enabled=True)
     for name in ("ask_the_brain", "lookup_playbook", "setup_winrate",
                  "find_historical_analogs", "size_a_trade",
-                 "get_quote", "get_regime", "get_breadth"):
+                 "get_quote", "get_regime", "get_breadth",
+                 "get_movers", "get_earnings_intel", "get_earnings_this_week"):
         assert name in cct.TOOLS, name
         spec = cct.TOOLS[name]
         assert spec["requires_confirm"] is False
@@ -52,3 +53,14 @@ def test_get_quote_delegates_to_voice_registry(monkeypatch):
     out = cct.TOOLS["get_quote"]["executor"](
         user_id="u1", account_id="a1", args={"symbol": "nvda"}, conn=None)
     assert out["tool"] == "get_quote" and out["args"]["symbol"] == "nvda"
+
+
+def test_get_movers_delegates_to_voice_registry(monkeypatch):
+    cct = _reload_tools(monkeypatch, enabled=True)
+    from api.services import voice_tools
+    monkeypatch.setattr(voice_tools, "dispatch",
+                        lambda name, args, user=None: {"ok": True, "tool": name, "args": args})
+    out = cct.TOOLS["get_movers"]["executor"](
+        user_id="u1", account_id="a1", args={"direction": "losers", "count": 5}, conn=None)
+    assert out["tool"] == "get_movers"
+    assert out["args"] == {"direction": "losers", "count": 5}

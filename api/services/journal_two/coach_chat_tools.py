@@ -1739,6 +1739,37 @@ _BRAIN_TOOLS = {
         "executor": _voice_delegate("get_breadth"),
         "input_schema": {"type": "object", "properties": {}},
     },
+    # Chat parity (closes exam gap R1-06/R1-07) — these already existed
+    # unconditionally in the voice registry; delegate rather than duplicate.
+    "get_movers": {
+        "name": "get_movers",
+        "description": "Top market movers — gainers or losers.",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_movers"),
+        "input_schema": {"type": "object", "properties": {
+            "direction": {"type": "string", "enum": ["gainers", "losers"],
+                          "description": "Which direction. Defaults to gainers."},
+            "count": {"type": "integer", "description": "How many to include (default 3, max 5)."},
+        }},
+    },
+    "get_earnings_intel": {
+        "name": "get_earnings_intel",
+        "description": "Analyst consensus and price target for a ticker (Finnhub).",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_earnings_intel"),
+        "input_schema": {"type": "object", "properties": {
+            "symbol": {"type": "string"},
+        }},
+    },
+    "get_earnings_this_week": {
+        "name": "get_earnings_this_week",
+        "description": "Tickers reporting earnings before the bell and after close for the week.",
+        "requires_confirm": False,
+        "executor": _voice_delegate("get_earnings_this_week"),
+        "input_schema": {"type": "object", "properties": {
+            "count": {"type": "integer", "description": "How many per bucket (default 8, max 20)."},
+        }},
+    },
 }
 
 if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
