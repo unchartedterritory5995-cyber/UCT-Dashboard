@@ -1868,42 +1868,18 @@ export default function ModelBook() {
   // first view after a refresh, not just the year you happened to land on.
   useEffect(() => {
     if (!years.length) return
-    let cancelled = false
     // Gallery lists + gain stats for every year → the stock list + gains paint
     // instantly the moment you click a different year (tiny JSON, fire now).
     years.forEach(y => {
       preload(`/api/modelbook/stocks?year=${y}`, fetcher)
       preload(`/api/modelbook/year-stats?year=${y}`, fetcher)
     })
-    ;(async () => {
-      let all = []
-      try {
-        const r = await fetch('/api/modelbook/all-stocks', { credentials: 'include' })
-        all = (await r.json())?.stocks || []
-      } catch { return }
-      if (cancelled || !all.length) return
-      all.sort((a, b) => (b.year - a.year) || 0)  // newest years first
-      // NOTE: deliberately NOT prefetching every year's BARS here. That pulled
-      // hundreds of ~300KB payloads on first open, saturating bandwidth + the JS
-      // main thread and STARVING the chart the user is actively loading (the 10s
-      // first-load symptom). Each year's bars are warmed on demand when you open
-      // that year (the current-year effect above), and the backend keeps the whole
-      // Model Book set hot (modelbook_bars_prewarm) so on-demand loads are ~sub-second.
-      // Only the tiny per-stock detail/earnings JSON trickles in the background here.
-      let i = 0
-      const trickle = () => {
-        if (cancelled || i >= all.length) return
-        const s = all[i]; i += 1
-        if (s?.id != null) {
-          preload(`/api/modelbook/stock/${s.id}`, fetcher)        // setups + catalysts (small)
-        }
-        if (s?.symbol) preload(`/api/modelbook/year-earnings?symbol=${encodeURIComponent(s.symbol)}&year=${s.year}`, fetcher)
-        setTimeout(trickle, 150)
-      }
-      // Defer the catalog trickle so the active chart + current year load first.
-      setTimeout(trickle, 4000)
-    })()
-    return () => { cancelled = true }
+    // NOTE (2026-07-01 perf): we deliberately DON'T prefetch every stock's
+    // detail + earnings across the ENTIRE catalog anymore. That fired 100+
+    // requests on every Model Book load (168 total observed). Each year's
+    // per-stock detail/bars/earnings now warms ON DEMAND when you open that year
+    // (the current-year effect above re-runs on year change), and the backend
+    // keeps the Model Book set hot, so switching to a cold year is still fast.
   }, [years])
 
   // Horizontal-scroll the year strip (arrows) + keep the active year in view when

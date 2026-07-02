@@ -504,6 +504,58 @@ def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
     threading.Thread(target=_delayed, daemon=True, name="hot-tier-warmer").start()
 
 
+def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
+    """Pre-warm the dashboard/landing-facing caches shortly after boot.
+
+    The in-memory TTLCache resets on every deploy; without this the FIRST users
+    after a deploy eat the 3-5s cold recompute on the busiest pages (movers,
+    themes, news, breadth, calendar). Warming them ~20s post-boot moves that cost
+    off the user and onto a background thread. Each step is independent + best-
+    effort so one failure never blocks the rest.
+    """
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+
+        def _warm(label, fn):
+            try:
+                fn()
+                log.info("[dashboard-warm] %s ok", label)
+            except Exception:
+                log.exception("[dashboard-warm] %s failed", label)
+
+        def _movers():
+            from api.services.massive import get_movers
+            get_movers()
+
+        def _themes():
+            from api.routers.theme_performance import get_theme_performance
+            get_theme_performance()
+
+        def _news():
+            from api.services.engine import get_news
+            get_news()
+
+        def _breadth():
+            from api.routers.breadth_monitor import get_breadth_history
+            get_breadth_history(days=90)
+
+        def _calendar():
+            from api.routers.calendar import get_calendar
+            get_calendar()
+
+        _warm("movers", _movers)
+        _warm("themes", _themes)
+        _warm("news", _news)
+        _warm("breadth", _breadth)
+        _warm("calendar", _calendar)
+
+    threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
+
+
 def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
     """Pre-compute RS rankings ~120s after startup so first user request is hot.
 
@@ -937,6 +989,12 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
+
+    try:
+        _start_dashboard_warm_background()
+        logging.getLogger(__name__).info("[startup] dashboard warm scheduled (~20s after boot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
 
     try:
         _start_rs_rankings_warm_background()
