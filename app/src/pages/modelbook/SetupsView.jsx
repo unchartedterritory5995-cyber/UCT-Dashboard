@@ -1039,7 +1039,9 @@ export default function SetupsView({ onExit }) {
         <button className={styles.backBtn} onClick={onExit}>‹ Model Book</button>
         <div className={styles.wordmark}>
           <SetupGlyph setup={WORDMARK_GLYPH} className={styles.wordmarkGlyph} />
-          <span className={styles.wordmarkText}>Setup Library</span>
+          {/* Real heading (not a span): the page's accessible title — screen
+              readers and tests find the library by its name again. */}
+          <h1 className={styles.wordmarkText}>Setup Library</h1>
         </div>
         <div className={styles.pills}>
           {SETUP_CATEGORIES.map(cat => (

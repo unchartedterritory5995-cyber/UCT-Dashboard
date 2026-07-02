@@ -77,3 +77,51 @@ async def sessions_status(request: Request):
     if not expected or auth != f"Bearer {expected}":
         return Response(status_code=401)
     return {"jobs": desk_session_jobs.list_recent(20)}
+
+
+def _recent_session_video_summaries(limit: int = 8) -> list[dict]:
+    """Last `limit` session videos (have a meeting_uuid), newest first, with
+    just enough shape to eyeball insights health: id/title/insights_at/
+    zoom_cleaned + chapter/ticker COUNTS (the JSON columns parsed
+    defensively — a corrupt/legacy row must never break this diagnostic)."""
+    from api.services import education_service
+    import json as _json
+
+    def _count(v: dict, field: str) -> int:
+        try:
+            arr = _json.loads(v.get(field) or "[]")
+            return len(arr) if isinstance(arr, list) else 0
+        except Exception:
+            return 0
+
+    try:
+        videos = education_service.list_videos()
+    except Exception:
+        return []
+    with_uuid = [v for v in videos if (v.get("meeting_uuid") or "").strip()]
+    with_uuid.sort(key=lambda v: v.get("id") or 0, reverse=True)
+    return [{
+        "id": v.get("id"),
+        "title": v.get("title"),
+        "insights_at": v.get("insights_at"),
+        "zoom_cleaned": bool(v.get("zoom_cleaned")),
+        "chapters": _count(v, "chapters"),
+        "tickers": _count(v, "ticker_moments"),
+    } for v in with_uuid[:limit]]
+
+
+@router.get("/insights-status")
+async def insights_status(request: Request):
+    """Diagnostics for the session-insights backfill pass: pending queue +
+    recent pass results/errors + per-video fail streaks (all from
+    `desk_session_insights.get_insights_status()`) plus the last 8 session
+    videos' insight state. Gated by the PUSH_SECRET bearer, mirroring
+    /sessions-status exactly."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_insights
+    data = desk_session_insights.get_insights_status()
+    data["recent_videos"] = _recent_session_video_summaries()
+    return data

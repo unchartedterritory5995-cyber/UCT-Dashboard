@@ -1,7 +1,7 @@
-"""Catalyst Hunter — an Opus 4.8 + live-web-search discovery agent.
+"""Catalyst Hunter — a live-web-search discovery agent.
 
 Where the rest of the pipeline only *summarizes* pre-fetched feeds, the hunter
-goes *looking*: it runs Opus 4.8 with the server-side web-search tool and
+goes *looking*: it runs Claude with the server-side web-search tool and
 adaptive reasoning to sweep every catalyst category pre-market — earnings,
 analyst rating/PT changes, M&A, FDA, guidance, contracts, index changes,
 offerings, halts, other material news — and returns structured candidates,
@@ -11,6 +11,15 @@ Output is one JSON object: {"hits": [ {ticker, catalyst_type, headline,
 source_url, when, moving_yet}, ... ]}. We instruct the model to return JSON
 (rather than using output_config.format) so the structured-output path doesn't
 have to coexist with the server-tool loop; parsing is defensive.
+
+Cost controls (2026-07-02 — the hunter was ~$28/day before these):
+  - deep sweeps use CATALYST_HUNTER_MODEL (default claude-opus-4-8); light
+    follow-ups use CATALYST_HUNTER_LIGHT_MODEL (default claude-sonnet-5)
+  - web_search capped via max_uses (CATALYST_HUNTER_MAX_SEARCHES_DEEP=12 /
+    _LIGHT=4); search fees ($10/1k) are cost-logged alongside tokens
+  - prompt caching on pause_turn continuations (re-reads bill ~0.1x)
+  - hunts respect the daily cost caps (cost_guard.may_synthesize) BEFORE spending
+  - the engine only hunts on designated ticks — see run_refresh(hunt=...)
 
 Fail-open: ANY error returns []. Gated on CATALYST_HUNTER_ENABLED (default off).
 """
@@ -26,7 +35,10 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
-MODEL = os.environ.get("CATALYST_HUNTER_MODEL", "claude-opus-4-8")
+# Deep sweep model: CATALYST_HUNTER_MODEL (default claude-opus-4-8).
+# Light sweeps use CATALYST_HUNTER_LIGHT_MODEL (default claude-sonnet-5) —
+# "what's new in the last 30 minutes" is a search-and-list task, not Opus work.
+# Both resolved per-call inside run_hunt().
 _MAX_ITERS = int(os.environ.get("CATALYST_HUNTER_MAX_ITERATIONS", "8"))
 
 # The catalyst taxonomy the hunter is allowed to emit. Anything else → "News".
@@ -166,26 +178,51 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
     prompt = _light_prompt(existing_tickers or set()) if mode == "light" else _deep_prompt()
     md = dt.datetime.now(_ET).date().isoformat()
 
+    # The hunter is the pipeline's biggest spender — honor the daily cost caps
+    # BEFORE spending, not just synthesis. Fail-open if the guard itself breaks.
+    try:
+        if not cost_guard.may_synthesize(md):
+            logger.warning("[hunter] daily cost cap reached — skipping %s hunt", mode)
+            return []
+    except Exception:
+        pass
+
     try:
         client = _get_anthropic_client()
     except Exception:
         logger.exception("[hunter] no anthropic client")
         return []
 
+    if mode == "light":
+        model = os.environ.get("CATALYST_HUNTER_LIGHT_MODEL", "claude-sonnet-5")
+        max_searches = int(os.environ.get("CATALYST_HUNTER_MAX_SEARCHES_LIGHT", "4"))
+    else:
+        model = os.environ.get("CATALYST_HUNTER_MODEL", "claude-opus-4-8")
+        max_searches = int(os.environ.get("CATALYST_HUNTER_MAX_SEARCHES_DEEP", "12"))
+
     kwargs = dict(
-        model=MODEL,
+        model=model,
         max_tokens=8000,
         thinking={"type": "adaptive"},
-        tools=[{"type": "web_search_20260209", "name": "web_search"}],
+        tools=[{"type": "web_search_20260209", "name": "web_search",
+                "max_uses": max_searches}],
         system=_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
+        # Auto-cache the last cacheable block: pause_turn continuations re-send
+        # the whole search-result history, and cache reads bill at ~0.1x.
+        cache_control={"type": "ephemeral"},
     )
 
     in_tok = out_tok = 0
+    searches = 0
     msg = None
     try:
         for _ in range(max(1, _MAX_ITERS)):
             try:
+                msg = client.messages.create(**kwargs)
+            except TypeError:
+                # SDK too old for the top-level cache_control param — drop it.
+                kwargs.pop("cache_control", None)
                 msg = client.messages.create(**kwargs)
             except Exception as e:
                 if "temperature" in str(e).lower():
@@ -196,6 +233,11 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
             try:
                 in_tok += msg.usage.input_tokens
                 out_tok += msg.usage.output_tokens
+            except Exception:
+                pass
+            try:
+                stu = getattr(msg.usage, "server_tool_use", None)
+                searches += int(getattr(stu, "web_search_requests", 0) or 0)
             except Exception:
                 pass
             if getattr(msg, "stop_reason", None) != "pause_turn":
@@ -209,9 +251,11 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
         logger.exception("[hunter] model call failed (mode=%s)", mode)
         return []
 
-    # Cost-log (best-effort) so hunts count against the daily caps.
+    # Cost-log (best-effort) so hunts count against the daily caps — including
+    # the $10/1k web-search fees, which token counts alone don't capture.
     try:
-        cost_guard.record(md, "__hunter__", MODEL, in_tok, out_tok, was_cached=False)
+        cost_guard.record(md, "__hunter__", model, in_tok, out_tok,
+                          was_cached=False, search_requests=searches)
     except Exception:
         pass
 

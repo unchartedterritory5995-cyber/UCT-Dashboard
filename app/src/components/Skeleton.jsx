@@ -8,6 +8,14 @@ export function SkeletonBlock({ width = '100%', height = 80 }) {
   return <div className={styles.block} style={{ width, height }} />
 }
 
+export function SkeletonCircle({ size = 28 }) {
+  return <div className={styles.circle} style={{ width: size, height: size }} />
+}
+
+export function SkeletonPill({ width = 78, height = 26 }) {
+  return <div className={styles.pill} style={{ width, height }} />
+}
+
 export function SkeletonTileContent({ lines = 4 }) {
   return (
     <div className={styles.tileContent}>

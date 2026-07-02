@@ -2,6 +2,7 @@
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
 import { useState, useCallback } from 'react'
+import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
@@ -48,7 +49,7 @@ export default function ArticlesSection() {
         )}
       </div>
 
-      {isLoading && <div className={styles.note}>Loading…</div>}
+      {isLoading && <DeskSectionSkeleton cards={6} />}
 
       {!isLoading && articles.length === 0 && (
         <div className={styles.empty}>

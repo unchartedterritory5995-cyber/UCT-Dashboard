@@ -14,6 +14,70 @@
   gap: var(--space-md);
 }
 .row1 { width: 100%; }
+
+/* ── Command-center grid (2026-07-02 restyle) ─────────────────────────────
+   Row B: catalysts HERO (7fr) + right rail (journal over movers, 5fr).
+   Row C: 4-up glance row. Row D: earnings + options flow. */
+.rowB {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.hero {
+  max-height: 680px;
+  overflow-y: auto;
+  border-radius: var(--radius-xl, 14px);
+}
+
+/* Gold-edge emphasis on the hero tile — element selector so TileCard's
+   hashed classes stay untouched. */
+.hero > :first-child {
+  border-color: rgba(201, 168, 76, 0.45);
+  box-shadow: 0 0 22px rgba(201, 168, 76, 0.07);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.railMovers {
+  max-height: 420px;
+  overflow-y: auto;
+  border-radius: var(--radius-xl, 14px);
+}
+
+.rowC {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+  align-items: stretch;
+}
+
+.rowD {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+/* Hover lift on every desktop tile (element selector on TileCard roots). */
+.desktopOnly :is(.rowB, .rowC, .rowD) > * > :first-child,
+.desktopOnly .rail > * > :first-child {
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .desktopOnly :is(.rowC, .rowD) > *:hover > :first-child {
+    transform: translateY(-1px);
+    border-color: rgba(201, 168, 76, 0.35);
+  }
+}
+
 .row2 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -57,7 +121,19 @@
 /* ── Hide mobile layout on desktop ────────────────────────────────────────── */
 .mobileOnly { display: none; }
 
+@media (max-width: 1440px) {
+  .rowC { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1100px) {
+  .rowB { grid-template-columns: 1fr; }
+  .hero { max-height: none; overflow: visible; }
+  .rail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .rowD { grid-template-columns: 1fr; }
   .row2 { grid-template-columns: 1fr 1fr; }
   .row3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .row4 { grid-template-columns: 1fr; }
@@ -65,6 +141,7 @@
 
 @media (max-width: 768px) {
   .content { padding: 10px; gap: 10px; }
+  .rail { grid-template-columns: 1fr; }
   .row2 { grid-template-columns: 1fr; }
   .row3 { grid-template-columns: 1fr; grid-template-rows: auto; }
 }

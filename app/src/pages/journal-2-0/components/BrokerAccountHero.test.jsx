@@ -122,3 +122,67 @@ describe('BrokerAccountHero', () => {
     expect(screen.getByText(/-\$50\.00/)).toBeInTheDocument()    // Today $ (down)
   })
 })
+
+// ── RH extended-hours split (After-Hours / Overnight) ───────────────────────
+describe('extended-hours hero rows', () => {
+  const positions = [
+    { symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 100, entryDate: '2026-06-01' },
+  ]
+
+  it('post-market: Today freezes at the close and After-Hours gets its own line', () => {
+    const prices = {
+      AAPL: {
+        price: 112, ext_price: 112, ext_session: 'post_market',
+        day_close: 110, prev_close: 108,
+      },
+    }
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{ netLiq: 14632, today: 40, todayPct: 0.003 }}
+        positions={positions}
+        prices={prices}
+      />,
+    )
+    // Today (frozen regular leg) = 10 × (110 − 108) = +$20.00 AND
+    // After-Hours = 10 × (112 − 110) = +$20.00 — one line each.
+    expect(screen.getAllByText(/\+\$20\.00/)).toHaveLength(2)
+    expect(screen.getByText(/Today/)).toBeInTheDocument()
+    expect(screen.getByText('After-Hours')).toBeInTheDocument()
+  })
+
+  it('pre-market: the single change line relabels to Overnight', () => {
+    const prices = {
+      AAPL: { price: 111, ext_price: 111, ext_session: 'pre_market', prev_close: 108 },
+    }
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{ netLiq: 14632, today: 30, todayPct: 0.002 }}
+        positions={positions}
+        prices={prices}
+      />,
+    )
+    expect(screen.getByText(/Overnight/)).toBeInTheDocument()
+    expect(screen.queryByText('After-Hours')).toBeNull()
+    expect(screen.queryByText(/Today/)).toBeNull()
+  })
+
+  it('regular session: unchanged single Today line', () => {
+    const prices = { AAPL: { price: 111, prev_close: 108 } }
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{ netLiq: 14632, today: 30, todayPct: 0.002 }}
+        positions={positions}
+        prices={prices}
+      />,
+    )
+    expect(screen.getByText(/Today/)).toBeInTheDocument()
+    expect(screen.queryByText('After-Hours')).toBeNull()
+    expect(screen.queryByText(/Overnight/)).toBeNull()
+  })
+})

@@ -1,0 +1,230 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #e8e6e1);
+  letter-spacing: 0.2px;
+}
+
+.sortCtl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sortSelect {
+  background: var(--surface-2, #17171a);
+  color: var(--text-muted, #8a8a8a);
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.dirBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #2a2a2e);
+  background: var(--surface-2, #17171a);
+  color: var(--accent, #c9a84c);
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+li:last-child > .row {
+  border-bottom: none;
+}
+
+/* Equity rows navigate to the per-stock detail page. */
+.rowLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.rowLink:hover {
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+
+.ident {
+  display: flex;
+  flex-direction: column;
+  min-width: 84px;
+  gap: 2px;
+}
+
+.sym {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text, #e8e6e1);
+}
+
+.shares {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.spark {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 92px;
+}
+
+/* Robinhood-style solid price pill — green up / red down. */
+.pill {
+  display: inline-block;
+  min-width: 78px;
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pillUp {
+  background: var(--gain, #22c55e);
+  color: #04140a;
+}
+
+.pillDown {
+  background: var(--loss, #ef4444);
+  color: #fff;
+}
+
+.pillFlat {
+  background: var(--surface-2, #17171a);
+  color: var(--text-muted, #8a8a8a);
+  border: 1px solid var(--border, #2a2a2e);
+}
+
+.today {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+}
+
+.optValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #e8e6e1);
+  font-variant-numeric: tabular-nums;
+}
+
+.pos { color: var(--gain, #22c55e); }
+.neg { color: var(--loss, #ef4444); }
+
+/* Phone: drop the sparkline so ticker + pill keep breathing room;
+   sort controls grow to tap size. */
+@media (max-width: 640px) {
+  .spark { display: none; }
+  .row { gap: 10px; }
+
+  .sortSelect {
+    min-height: var(--tap-min, 44px);
+    padding: 4px 14px;
+  }
+
+  .dirBtn {
+    width: var(--tap-min, 44px);
+    height: var(--tap-min, 44px);
+  }
+}
+
+/* Live tick flash — one-shot brightness pulse in the direction of the move. */
+.flashUp {
+  animation: pillFlashUp 0.6s ease-out;
+}
+
+.flashDown {
+  animation: pillFlashDown 0.6s ease-out;
+}
+
+@keyframes pillFlashUp {
+  0% { filter: brightness(1.55); box-shadow: 0 0 14px rgba(34, 197, 94, 0.55); }
+  100% { filter: brightness(1); box-shadow: none; }
+}
+
+@keyframes pillFlashDown {
+  0% { filter: brightness(1.55); box-shadow: 0 0 14px rgba(239, 68, 68, 0.55); }
+  100% { filter: brightness(1); box-shadow: none; }
+}
+
+/* Press feedback on row links. */
+.rowLink {
+  transition: transform 0.08s ease, filter 0.12s ease, background 0.15s ease;
+}
+
+.rowLink:active {
+  transform: scale(0.995);
+  filter: brightness(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashUp,
+  .flashDown {
+    animation: none;
+  }
+
+  .rowLink,
+  .rowLink:active {
+    transition: none;
+    transform: none;
+  }
+}

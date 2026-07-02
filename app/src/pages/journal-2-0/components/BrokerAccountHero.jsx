@@ -12,9 +12,11 @@
  * from the already-computed portfolioAggregates. Renders null for non-broker.
  */
 import { useMemo, useRef, useState } from 'react'
-import { money, moneySigned, percent } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, extendedSessionSplit } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
+import useAnimatedNumber from '../../../hooks/useAnimatedNumber'
+import { SkeletonBlock, SkeletonLine } from '../../../components/Skeleton'
 import styles from './BrokerAccountHero.module.css'
 
 // Robinhood range tabs. 1D is an intraday reconstruction (bars); the rest come
@@ -64,6 +66,11 @@ export default function BrokerAccountHero({
   const wrapRef = useRef(null)
 
   const isIntraday = range.period === '1D'
+  // Derived from props (no hook) — computed up here so the data hooks below
+  // can be gated off entirely for non-broker accounts (the component renders
+  // null for them, but ungated hooks were still firing the whole intraday
+  // bar fan-out on manual books).
+  const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   // Daily equity curve across ALL brokers for the multi-day ranges; for 1D we
   // reconstruct an intraday curve from each holding's bars (still fetch a light
   // perf window so endEquity/fallbacks stay available).
@@ -71,7 +78,8 @@ export default function BrokerAccountHero({
     null, isIntraday ? '1W' : range.period, { portfolio: true },
   )
   const { series: intradaySeries, loading: intraLoading } = useIntradayEquityCurve({
-    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0, enabled: isIntraday,
+    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0,
+    enabled: isIntraday && isBroker,
   })
 
   const series = isIntraday ? (intradaySeries || []) : (data?.equitySeries || [])
@@ -95,7 +103,26 @@ export default function BrokerAccountHero({
     return { line, area, up, coords, baselineY: coords[0].y, estimated: series.some((p) => p.estimated) }
   }, [series])
 
-  const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
+  // Tween target = the non-scrub headline (live net-liq, else perf base).
+  // Called before the early return so the hook order is stable for
+  // non-broker accounts too.
+  const baseValue = data?.endEquity ?? account?.brokerTotalEquity
+  const netLiqVal = liveSummary?.netLiq
+  const animatedHead = useAnimatedNumber(netLiqVal != null ? netLiqVal : baseValue)
+
+  // RH extended-hours split — null during regular session/closed. Computed
+  // before the early return so hook order stays stable.
+  const todayIso = useMemo(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
+    [],
+  )
+  const extSplit = useMemo(
+    () => extendedSessionSplit(positions, prices, {
+      cash: account?.brokerCash ?? 0, optionMarketValue, todayIso,
+    }),
+    [positions, prices, account?.brokerCash, optionMarketValue, todayIso],
+  )
+
   if (!isBroker) return null
 
   const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
@@ -105,11 +132,9 @@ export default function BrokerAccountHero({
   const scrubbing = scrub != null && model && series[scrub]
   // Headline = the live net-liq (cash + live market value of holdings — the
   // Robinhood-accurate number), or the scrub point, or the portfolio perf base.
-  const baseValue = data?.endEquity ?? account.brokerTotalEquity
-  const netLiqVal = liveSummary?.netLiq
-  const headValue = scrubbing
-    ? series[scrub].value
-    : (netLiqVal != null ? netLiqVal : baseValue)
+  // RH-style "slides, doesn't jump" — ticks tween via animatedHead; scrubbing
+  // stays instant (the finger IS the animation).
+  const shownValue = scrubbing ? series[scrub].value : animatedHead
 
   // ONE change line that rebaselines to the selected range (Robinhood behavior):
   // 1D = today's move (prefer the live summary), else the change over the window
@@ -122,8 +147,25 @@ export default function BrokerAccountHero({
     rangeChange = liveSummary.today
     rangePct = liveSummary.todayPct
   }
+  let rangeLabel = isIntraday ? 'Today' : range.label
+  // RH extended-hours behavior (1D only): after the close, Today FREEZES at
+  // the 4pm close and the after-hours move gets its own stacked line;
+  // pre-market, the whole move since prev close IS the overnight move — the
+  // single line just relabels.
+  let extLine = null
+  // liveSummary == null means multi-broker (portfolio base) — the extended
+  // split is built from the SELECTED account's book, so applying it there
+  // would mix single-account legs under a portfolio headline. Single-broker only.
+  if (isIntraday && extSplit && liveSummary != null) {
+    if (extSplit.session === 'post_market') {
+      rangeChange = extSplit.regularDollar
+      rangePct = extSplit.regularPct
+      extLine = { label: 'After-Hours', dollar: extSplit.extDollar, pct: extSplit.extPct }
+    } else {
+      rangeLabel = 'Overnight'
+    }
+  }
   const rangeUp = (rangeChange ?? 0) >= 0
-  const rangeLabel = isIntraday ? 'Today' : range.label
 
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
@@ -147,7 +189,7 @@ export default function BrokerAccountHero({
             Account Value
             {isLive && <span className={styles.liveBadge}> LIVE</span>}
           </div>
-          <div className={styles.value}>{money(headValue)}</div>
+          <div className={styles.value}>{money(shownValue)}</div>
           <div className={styles.changes}>
             {scrubbing ? (
               <span className={`${styles.change} ${scrubUp ? styles.pos : styles.neg}`}>
@@ -156,13 +198,22 @@ export default function BrokerAccountHero({
                 <span className={styles.changeLabel}> {pointLabel(series[scrub])}</span>
               </span>
             ) : (
-              rangeChange != null && (
-                <span className={`${styles.change} ${rangeUp ? styles.pos : styles.neg}`}>
-                  {rangeUp ? '▲' : '▼'} {moneySigned(rangeChange)}
-                  {rangePct != null && <>{' '}({percent(rangePct, { signed: true, dp: 1, isRatio: true })})</>}
-                  <span className={styles.changeLabel}> {rangeLabel}{model?.estimated ? ' · est.' : ''}</span>
-                </span>
-              )
+              <>
+                {rangeChange != null && (
+                  <span className={`${styles.change} ${rangeUp ? styles.pos : styles.neg}`}>
+                    {rangeUp ? '▲' : '▼'} {moneySigned(rangeChange)}
+                    {rangePct != null && <>{' '}({percent(rangePct, { signed: true, dp: 1, isRatio: true })})</>}
+                    <span className={styles.changeLabel}> {rangeLabel}{model?.estimated ? ' · est.' : ''}</span>
+                  </span>
+                )}
+                {extLine && (
+                  <span className={`${styles.change} ${styles.extChange} ${extLine.dollar >= 0 ? styles.pos : styles.neg}`}>
+                    {extLine.dollar >= 0 ? '▲' : '▼'} {moneySigned(extLine.dollar)}
+                    {extLine.pct != null && <>{' '}({percent(extLine.pct, { signed: true, dp: 2, isRatio: true })})</>}
+                    <span className={styles.changeLabel}> {extLine.label}</span>
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -181,6 +232,16 @@ export default function BrokerAccountHero({
           ))}
         </div>
       </header>
+
+      {!model && isLoading && (
+        <div className={styles.chartSkeleton} role="status" aria-busy="true" aria-label="Loading equity curve">
+          <SkeletonBlock width="100%" height={120} />
+          <div className={styles.chartSkeletonAxis} aria-hidden="true">
+            <SkeletonLine width="52px" height={9} />
+            <SkeletonLine width="52px" height={9} />
+          </div>
+        </div>
+      )}
 
       {model && (
         <>

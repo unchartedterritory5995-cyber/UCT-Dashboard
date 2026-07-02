@@ -14,6 +14,7 @@ import {
   holdDaysDisplay,
 } from '../../../lib/journal-2-0'
 import UIcon from '../../../components/ui/UIcon'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import styles from './TradesTable.module.css'
 
 export function buildTradesColumns() {
@@ -173,7 +174,45 @@ function sortValue(key, trade) {
   return trade[key]
 }
 
+/**
+ * Phone card — one closed trade per card (headline P&L + entry→exit meta +
+ * read-only setup chip), replacing the dense table on ≤640px. Tap opens the
+ * trade drawer (same as tapping the symbol cell on desktop). The inline
+ * setup <select> stays desktop-only.
+ */
+function TradeCard({ trade, onRowAction, reviewedIds }) {
+  const net = trade.pnlDollarNet ?? trade.pnlDollar
+  const pnlCls = net > 0 ? styles.pos : net < 0 ? styles.neg : ''
+  return (
+    <button
+      type="button"
+      className={styles.card}
+      data-testid="trade-card"
+      onClick={onRowAction ? () => onRowAction('open', trade) : undefined}
+    >
+      <div className={styles.cardHead}>
+        <span className={styles.cardIdent}>
+          {cellFor('symbol', trade, { reviewedIds })}
+          {resultBadge(trade.result)}
+        </span>
+        <span className={styles.cardFigures}>
+          <span className={`${styles.cardPnl} ${pnlCls}`}>{moneySigned(net)}</span>
+          <span className={styles.cardR}>{fmtR(trade.rMultiple)}</span>
+        </span>
+      </div>
+      <div className={styles.cardMeta}>
+        {fmtShares(trade.shares, !Number.isInteger(trade.shares))} @ {money(trade.entryPrice)} → {money(trade.exitPrice)}
+      </div>
+      <div className={styles.cardMeta}>
+        {dateShort(trade.entryDate)} – {dateShort(trade.exitDate)}
+        {trade.setup && <span className={styles.cardSetup}>{trade.setup}</span>}
+      </div>
+    </button>
+  )
+}
+
 export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds, setups, onUpdateSetup }) {
+  const isPhone = useIsPhone()
   // Default sort: entryDate DESC (spec §11.3). Clicking a header re-sorts.
   const [sort, setSort] = useState({ key: 'entryDate', dir: 'desc' })
 
@@ -219,6 +258,16 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
         <p className={styles.emptyHint}>
           Or <a href="/settings">connect your brokerage</a> to auto-import every trade.
         </p>
+      </div>
+    )
+  }
+
+  if (isPhone) {
+    return (
+      <div className={styles.cardList}>
+        {sorted.map((t) => (
+          <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} />
+        ))}
       </div>
     )
   }

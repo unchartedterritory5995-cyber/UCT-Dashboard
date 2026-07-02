@@ -73,7 +73,9 @@ def _maybe_auto_refresh_if_stale(ranked_rows: list, refreshed_at=None) -> None:
     _LAST_AUTO_REFRESH_AT = now
     reason = "no ranked rows" if not ranked_rows else f"data {int((data_age or 0)/60)}m stale"
     try:
-        threading.Thread(target=engine.run_refresh, daemon=True,
+        # Feed-only: a stale-page self-heal must not consume the day's deep
+        # sweep — the 8:00 ET hunt tick owns it (schedule v5).
+        threading.Thread(target=lambda: engine.run_refresh(hunt=False), daemon=True,
                          name="catalyst-self-heal").start()
         logger.info("[catalysts] self-heal (%s) — kicked background refresh", reason)
     except Exception:
@@ -131,8 +133,9 @@ def catalysts_by_date(ymd: str = Path(...), user=Depends(get_current_user)):
 @router.post("/catalysts/refresh")
 def catalysts_refresh(user=Depends(require_admin)):
     """Trigger an immediate refresh. Runs in a background thread so the HTTP
-    response returns immediately — refreshes can take 5–10s."""
-    threading.Thread(target=engine.run_refresh, daemon=True,
+    response returns immediately — refreshes can take 5–10s. An explicit admin
+    click also runs a hunter sweep (deep if today's hasn't run, else light)."""
+    threading.Thread(target=lambda: engine.run_refresh(hunt=True), daemon=True,
                      name="catalyst-force-refresh").start()
     return {"ok": True, "message": "Refresh started in background."}
 

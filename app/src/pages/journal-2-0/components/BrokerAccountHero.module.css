@@ -64,3 +64,24 @@
   .chartWrap { height: 130px; }
   .strip { gap: 16px; }
 }
+
+/* Equity-curve skeleton — holds the graph slot while the series loads. */
+.chartSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chartSkeletonAxis {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Second stacked change line for extended-hours (After-Hours) — smaller,
+   under the main Today line, per Robinhood. */
+.extChange {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+  opacity: 0.9;
+}

@@ -61,3 +61,19 @@ def test_soft_cap_logs_warning_but_allows(s, monkeypatch, caplog):
     with caplog.at_level(logging.WARNING):
         assert cost_guard.may_synthesize("2026-05-26") is True
     assert any("soft cap" in r.message.lower() for r in caplog.records)
+
+
+def test_sonnet_5_pricing_known():
+    from api.services.catalyst import cost_guard
+    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 3.0
+    assert cost_guard.estimate_cost("claude-sonnet-5", 0, 1_000_000) == 15.0
+
+
+def test_record_adds_web_search_fees(monkeypatch):
+    from api.services.catalyst import cost_guard, store
+    logged = {}
+    monkeypatch.setattr(store, "log_cost", lambda **kw: logged.update(kw))
+    cost = cost_guard.record("2026-07-02", "__hunter__", "claude-opus-4-8",
+                             0, 0, search_requests=100)
+    assert cost == 1.0  # 100 searches x $0.01
+    assert logged["cost_usd"] == 1.0

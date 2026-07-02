@@ -104,19 +104,19 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   mockMbView = 'setups'
   render(<ModelBook />)
   expect(screen.getByRole('heading', { name: /setup library/i })).toBeInTheDocument()
-  // Family dividers + a few well-known pattern cards render.
-  expect(screen.getByText(/bases & breakouts — \d+ patterns/i)).toBeInTheDocument()
-  expect(screen.getByText(/gaps & catalysts — \d+ patterns/i)).toBeInTheDocument()
+  // Family filter pills + a few well-known pattern cards render.
+  expect(screen.getByRole('button', { name: /bases & breakouts/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /gaps & catalysts/i })).toBeInTheDocument()
   const bullFlagCard = screen.getByRole('button', { name: /bull flag/i })
   expect(bullFlagCard).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
-  // Click a card → the detail scaffold (playbook + examples sections) opens.
+  // Click a card → the stage scaffold opens: setup heading, playbook hover
+  // hint, and the charted-examples pane.
   fireEvent.click(bullFlagCard)
   expect(screen.getByRole('heading', { name: /bull flag/i })).toBeInTheDocument()
-  expect(screen.getByText(/the playbook/i)).toBeInTheDocument()
-  expect(screen.getByText(/charted examples/i)).toBeInTheDocument()
-  // Back returns to the library grid.
-  fireEvent.click(screen.getByRole('button', { name: /setup library/i }))
+  expect(screen.getByText(/hover a setup for its playbook/i)).toBeInTheDocument()
+  expect(screen.getByText(/loading examples|no charted examples yet/i)).toBeInTheDocument()
+  // The library rail stays alongside the stage — other setups remain reachable.
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
 })
 

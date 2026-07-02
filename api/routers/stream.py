@@ -180,7 +180,11 @@ async def stream_prices(
                     yield "event: heartbeat\ndata: {}\n\n"
                     last_heartbeat = time.time()
 
-                await asyncio.sleep(0.1)
+                # 250ms cadence (was 100ms). Every open tab holds one of these
+                # loops on the SINGLE event loop; at launch scale the 10Hz tick
+                # (snapshot + diff per connection) was measurable pure overhead.
+                # 4Hz is still far below human perception for price updates.
+                await asyncio.sleep(0.25)
         finally:
             # Clean up subscriptions when client disconnects so _subscribed
             # doesn't grow unbounded as users navigate between pages.

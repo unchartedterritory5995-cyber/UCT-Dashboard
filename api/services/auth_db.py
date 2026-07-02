@@ -420,7 +420,13 @@ CREATE INDEX IF NOT EXISTS idx_landing_events_day     ON landing_events(date(cre
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH, timeout=10)
+    # timeout=3 (was 10): auth.db is on the UNIVERSAL request path — every
+    # validate_session read opens a connection on an anyio worker. Under write
+    # contention a 10s in-driver wait × concurrent requests compounds into the
+    # threadpool-starvation class behind the 2026-07-01 524 outage (bars.db
+    # runs 2s on web for the same reason). WAL keeps reads lock-free; 3s is
+    # generous headroom for the (throttled) session writes.
+    conn = sqlite3.connect(_DB_PATH, timeout=3)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

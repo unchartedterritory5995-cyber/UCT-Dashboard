@@ -5,7 +5,7 @@
  * each timestamp via the pure buildIntradayEquitySeries. Options are flat (no
  * intraday quote). Only runs when `enabled` (i.e. the 1D range is selected).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildIntradayEquitySeries } from '../lib/intradayEquity'
 
 const etDateOf = (epochSeconds) =>
@@ -26,11 +26,15 @@ export default function useIntradayEquityCurve({
     [positions],
   )
   const symKey = symbols.join(',')
-  // Snapshot the price map into a stable string only for the fields we need
-  // (prev_close / price / change_pct), so the effect doesn't re-run every tick.
+  // Key ONLY on prev_close (stable all day) — keying on price/change_pct made
+  // the effect re-run on EVERY live tick, re-firing the whole per-position
+  // /api/bars fan-out every ~2s (the 524-class fetch storm). The price-derived
+  // prev-close fallback is read from a ref at resolution time instead.
   const prevKey = symbols
-    .map((s) => `${s}:${prices?.[s]?.prev_close ?? ''}:${prices?.[s]?.price ?? ''}:${prices?.[s]?.change_pct ?? ''}`)
+    .map((s) => `${s}:${prices?.[s]?.prev_close ?? ''}`)
     .join('|')
+  const pricesRef = useRef(prices)
+  pricesRef.current = prices
 
   useEffect(() => {
     if (!enabled || !symbols.length) {
@@ -57,8 +61,9 @@ export default function useIntradayEquityCurve({
       if (cancelled) return
       const barsBySymbol = Object.fromEntries(pairs)
       const prevCloseBySymbol = {}
+      const latestPrices = pricesRef.current
       for (const sym of symbols) {
-        const snap = prices?.[sym]
+        const snap = latestPrices?.[sym]
         let pc
         if (Number.isFinite(snap?.prev_close)) pc = snap.prev_close
         else if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {

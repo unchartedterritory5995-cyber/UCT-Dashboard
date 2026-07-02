@@ -18,11 +18,14 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Nudges from '../hooks/useJ2Nudges'
 import NudgesBanner from '../components/NudgesBanner'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
+import { buildStrategyLabel, classifyDebitCredit } from '../lib/optionCalcs'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
+import HoldingsList from '../components/HoldingsList'
+import HoldingsListSkeleton from '../components/HoldingsListSkeleton'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import BrokerSyncStatus from '../components/BrokerSyncStatus'
@@ -45,6 +48,7 @@ import {
 import styles from './OpenPositionsTab.module.css'
 
 const COLUMN_STORAGE_KEY = 'uct.j2.openPositions.columns'
+const VIEW_STORAGE_KEY = 'uct.j2.openPositions.view'
 
 async function jsonFetch(url, method, body) {
   const res = await fetch(url, {
@@ -67,22 +71,36 @@ async function jsonFetch(url, method, body) {
 }
 
 // Normalize an OPEN option strategy into a position-table row so options show
-// alongside shares (Symbol "CRWV Oct 16 $110C", Side "Long Call"). Current value
-// + P&L come from the broker mark (brokerCurrentValue), refreshed each sync.
+// alongside shares. Single-leg types get the compact "CRWV Oct 16 $110C" +
+// "Long Call" treatment; MULTI-LEG strategies (verticals, condors, ...) use
+// buildStrategyLabel + a debit/credit-derived side — the old first-leg-only
+// logic labeled a long call debit spread "Short Call" at the wrong strike.
 function optionToRow(s) {
   const leg = (s.legs && s.legs[0]) || {}
   const qty = leg.qty ?? 0
-  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
-  const isCall = (s.strategyType || '').endsWith('call')
-  const sideLabel = `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`
-  let when = ''
-  if (leg.expiration) {
-    const d = new Date(`${leg.expiration}T00:00:00`)
-    if (!Number.isNaN(d.getTime())) {
-      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+  const type = s.strategyType || ''
+  const singleLeg = ['long_call', 'long_put', 'short_call', 'short_put'].includes(type)
+  let sideLabel
+  let symbol
+  let isLong
+  if (singleLeg) {
+    isLong = type.startsWith('long_')
+    const isCall = type.endsWith('call')
+    sideLabel = `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`
+    let when = ''
+    if (leg.expiration) {
+      const d = new Date(`${leg.expiration}T00:00:00`)
+      if (!Number.isNaN(d.getTime())) {
+        when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+      }
     }
+    symbol = `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`
+  } else {
+    // Multi-leg: net debit = you own the structure (long-ish), credit = short-ish.
+    isLong = classifyDebitCredit(s.netEntry) !== 'credit'
+    sideLabel = isLong ? 'Long' : 'Short'
+    symbol = buildStrategyLabel(s)
   }
-  const symbol = `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`
   const bcv = s.brokerCurrentValue
   const pnlDollar = bcv == null ? null : bcv - s.netEntry
   return {
@@ -143,6 +161,18 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const [optionsCloseTarget, setOptionsCloseTarget] = useState(null)
   const [expiredBannerDismissed, setExpiredBannerDismissed] = useState(false)
   const [toast, setToast] = useState(null)  // { message, tone }
+  // RH-style holdings list (default) vs the dense table — persisted choice.
+  const [view, setView] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_STORAGE_KEY) === 'table' ? 'table' : 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const switchView = (v) => {
+    setView(v)
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v) } catch { /* private mode */ }
+  }
 
   // Tab-scoped shortcuts. react-hotkeys-hook skips input/textarea/
   // contenteditable by default — matches the cheat sheet's note.
@@ -349,6 +379,23 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         </div>
 
         <div className={styles.actionGroup}>
+          <div className={styles.viewToggle} role="group" aria-label="Positions view">
+            <button
+              type="button"
+              className={view === 'list' ? styles.viewBtnActive : styles.viewBtn}
+              onClick={() => switchView('list')}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={view === 'table' ? styles.viewBtnActive : styles.viewBtn}
+              onClick={() => switchView('table')}
+            >
+              Table
+            </button>
+          </div>
+          {view === 'table' && (
           <div className={styles.pickerWrap}>
             <button
               ref={pickerBtnRef}
@@ -371,6 +418,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               onClose={() => setPickerOpen(false)}
             />
           </div>
+          )}
           {showShares && (
             <button
               type="button"
@@ -394,7 +442,13 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
 
       {(showShares || showOptions) && (
         (isLoading || optionsLoading) && mergedPositions.length === 0 ? (
-          <div className={styles.loading}>Loading positions…</div>
+          <HoldingsListSkeleton />
+        ) : view === 'list' ? (
+          <HoldingsList
+            positions={showShares ? positions : []}
+            optionStrategies={showOptions ? optionStrategies : []}
+            prices={prices}
+          />
         ) : (
           <PositionsTable
             positions={mergedPositions}

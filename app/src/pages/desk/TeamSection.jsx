@@ -4,6 +4,7 @@
 // with the trader's bio, trading style, and teaching focus. Photos upload
 // server-side (Pillow→WebP).
 import { useState, useRef, useCallback } from 'react'
+import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
@@ -86,7 +87,7 @@ export default function TeamSection() {
         )}
       </div>
 
-      {isLoading && <div className={styles.note}>Loading…</div>}
+      {isLoading && <DeskSectionSkeleton cards={8} />}
 
       {!isLoading && team.length === 0 && (
         <div className={styles.empty}>

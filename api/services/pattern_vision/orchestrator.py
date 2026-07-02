@@ -51,7 +51,12 @@ def _read_bars(ticker, tf):
 
 
 def _signals_hash(ticker, setup, bars) -> str:
-    tail = bars[-1] if bars else ()
+    # Key off the last CLOSED bar (bars[-2]), not the developing candle:
+    # bars[-1] mutates every hour during the session, and hashing it made every
+    # hourly run re-judge every open candidate (~8x daily Opus spend for the
+    # same setup). A candidate is judged once when it first appears (no prior
+    # verdict) and again only when a new bar actually closes.
+    tail = bars[-2] if len(bars) >= 2 else (bars[-1] if bars else ())
     return hashlib.sha1(f"{ticker}|{setup}|{tail}".encode()).hexdigest()[:16]
 
 

@@ -19,10 +19,17 @@ import hashlib
 import threading
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
-from api.services.cache import cache
+from api.services.cache import TTLCache
 from api.services.massive import _get_client, _detect_session
 
 router = APIRouter()
+
+# DEDICATED cache instance (not the 500-entry app singleton). The per-ticker
+# refactor writes up to 250 `live_px1_*` keys + a whole-set key PER POLL; in
+# the shared singleton that churned LRU evictions against bars/news/snapshot
+# keys at launch scale, defeating the 15s TTL and re-creating the cold-herd
+# semaphore pileup this two-tier design exists to prevent.
+cache = TTLCache()
 
 _MAX_TICKERS = 250  # Watchlists page sends every visible ticker in one request.
 _CACHE_TTL = 15     # seconds — applies to both the whole-set and per-ticker caches
@@ -66,13 +73,18 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
         out[ticker] = {
             "price": round(float(price), 2),
-            "change_pct": round(float(t.get("todaysChangePerc", 0.0)), 4),
-            "change": round(float(t.get("todaysChange", 0.0)), 4),
+            # `or 0.0` (not a .get default): the API can return explicit null
+            # for halted/new listings — float(None) would kill the WHOLE batch.
+            "change_pct": round(float(t.get("todaysChangePerc") or 0.0), 4),
+            "change": round(float(t.get("todaysChange") or 0.0), 4),
             "volume": volume,
             "day_open": round(float(day.get("o") or 0), 2),
             "day_high": round(float(day.get("h") or 0), 2),
             "day_low": round(float(day.get("l") or 0), 2),
             "prev_close": round(float(prev_day.get("c") or 0), 2),
+            # Today's REGULAR-session close — null pre-market (no day bar yet).
+            # Powers the RH-style After-Hours split (move since the 4pm close).
+            "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
         }

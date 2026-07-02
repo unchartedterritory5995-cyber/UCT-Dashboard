@@ -338,6 +338,73 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
   return { netLiq, marketValue, today, todayPct }
 }
 
+/**
+ * Robinhood-style extended-hours split for the account hero.
+ *
+ * Regular session / market closed (no `ext_session` in the feed) → null.
+ * Pre-market → `{ session: 'pre_market' }` only: the whole move since the
+ *   previous close IS the overnight move, so the caller just relabels its
+ *   single change line "Overnight".
+ * Post-market → the full split:
+ *   regularDollar = Σ signed × (day_close − ref)   [Today, FROZEN at the 4pm close;
+ *                    ref = fill if opened today, else prev_close / derived]
+ *   extDollar     = Σ signed × (extPrice − day_close)   [After-Hours]
+ *   Percents are vs net-liq at the close (cash + Σ signed×day_close + option marks).
+ * Positions whose snapshot lacks day_close contribute to neither leg (they
+ * still show in the blended live total elsewhere — this split only reports
+ * what it can attribute honestly).
+ *
+ * @param {Array<{symbol,shares,side?,entryPrice?,entryDate?}>} positions
+ * @param {Record<string,{price?,prev_close?,change_pct?,day_close?,ext_price?,ext_session?}>} prices
+ * @param {{cash?: number, optionMarketValue?: number, todayIso?: string}} [opts]
+ * @returns {{session:string, regularDollar?:number, regularPct?:number|null,
+ *            extDollar?:number, extPct?:number|null}|null}
+ */
+export const extendedSessionSplit = (positions, prices, opts = {}) => {
+  const { cash = 0, optionMarketValue = 0, todayIso } = opts
+  let session = null
+  for (const p of positions || []) {
+    const s = prices?.[p?.symbol]?.ext_session
+    if (s === 'pre_market' || s === 'post_market') { session = s; break }
+  }
+  if (!session) return null
+  if (session === 'pre_market') return { session }
+
+  let regularDollar = 0
+  let extDollar = 0
+  let closeValue = 0
+  for (const p of positions || []) {
+    if (!Number.isFinite(p?.shares)) continue
+    const snap = prices?.[p.symbol]
+    const dayClose = snap?.day_close
+    if (!Number.isFinite(dayClose)) continue
+    const signed = p.side === 'Short' ? -p.shares : p.shares
+    closeValue += signed * dayClose
+    const openedToday =
+      todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
+    let ref
+    if (openedToday) {
+      ref = p.entryPrice
+    } else if (Number.isFinite(snap?.prev_close)) {
+      ref = snap.prev_close
+    } else if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {
+      ref = snap.price / (1 + snap.change_pct / 100)
+    }
+    if (Number.isFinite(ref)) regularDollar += signed * (dayClose - ref)
+    const ext = Number.isFinite(snap?.ext_price) ? snap.ext_price : snap?.price
+    if (Number.isFinite(ext)) extDollar += signed * (ext - dayClose)
+  }
+  const netLiqAtClose = cash + closeValue + optionMarketValue
+  const prevCloseEquity = netLiqAtClose - regularDollar
+  return {
+    session,
+    regularDollar,
+    regularPct: prevCloseEquity ? regularDollar / prevCloseEquity : null,
+    extDollar,
+    extPct: netLiqAtClose ? extDollar / netLiqAtClose : null,
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // §14.5 Trade-level
 // ───────────────────────────────────────────────────────────────────────────

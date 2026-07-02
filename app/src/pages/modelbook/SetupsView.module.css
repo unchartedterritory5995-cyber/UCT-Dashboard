@@ -42,6 +42,7 @@
   filter: drop-shadow(0 2px 8px rgba(201, 168, 76, 0.3));
 }
 .wordmarkText {
+  margin: 0;                      /* it's an <h1> now — kill UA margins */
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 800;

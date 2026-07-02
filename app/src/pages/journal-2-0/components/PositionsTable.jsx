@@ -28,6 +28,7 @@ import {
 } from '../../../lib/journal-2-0'
 import TickerPopup from '../../../components/TickerPopup'
 import UIcon from '../../../components/ui/UIcon'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import styles from './PositionsTable.module.css'
 
 export const POSITIONS_COLUMNS = [
@@ -268,6 +269,79 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   )
 }
 
+/**
+ * Phone card — one position per card (3-5 key fields + 44px actions),
+ * replacing the dense table on ≤640px. Same sorted order as the table.
+ */
+function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose, onOptionDelete }) {
+  const isOpt = !!position.isOption
+  const hasPrice = typeof current === 'number' && Number.isFinite(current)
+  const allowFractional = isFractional(position)
+  const active = activeStop(position)
+  const noRealStop =
+    position.source === 'broker' && active != null && active === position.entryPrice
+
+  const pnlD = isOpt ? position.optPnlDollar : (hasPrice ? positionPnlDollar(position, current) : null)
+  const pnlP = isOpt ? position.optPnlPercent : (hasPrice ? positionPnlPercent(position, current) : null)
+  const curDisplay = isOpt
+    ? (position.optCurrent == null ? '—' : money(position.optCurrent))
+    : (hasPrice ? money(current) : '—')
+  const pnlCls = pnlD > 0 ? styles.pos : pnlD < 0 ? styles.neg : ''
+
+  return (
+    <div className={styles.card} data-testid="position-card">
+      <div className={styles.cardHead}>
+        <div className={styles.cardIdent}>
+          <span className={styles.cardSym}>{position.symbol}</span>
+          {sideBadge(position.side, isOpt ? position.sideKind === 'long' : undefined)}
+        </div>
+        <div className={styles.cardFigures}>
+          <span className={styles.cardPrice}>{curDisplay}</span>
+          <span className={`${styles.cardPnl} ${pnlCls}`}>
+            {pnlD == null ? '—' : moneySigned(pnlD)}
+            {/* both branches produce RATIOS (positionPnlPercent + optPnlPercent) */}
+            {pnlP != null && <> ({percent(pnlP, { signed: true, dp: 1, isRatio: true })})</>}
+          </span>
+        </div>
+      </div>
+      <div className={styles.cardMeta}>
+        {isOpt ? (
+          <>{position.shares} {position.shares === 1 ? 'contract' : 'contracts'} @ {money(position.entryPrice)}</>
+        ) : (
+          <>
+            {fmtShares(position.shares, allowFractional)} @ {money(position.entryPrice)}
+            {' · '}stop {noRealStop ? '—' : money(active)}
+          </>
+        )}
+        {' · '}
+        {position.entryEstimated ? 'est.' : (position.entryDate ? dateShort(position.entryDate) : '—')}
+      </div>
+      <div className={styles.cardActions}>
+        <TickerPopup sym={isOpt ? position.underlying : position.symbol} as="button" className={styles.cardBtn}>
+          <UIcon name="equity" size={14} />
+        </TickerPopup>
+        {!isOpt && (
+          <button type="button" className={styles.cardBtn} disabled={!onEdit}
+                  onClick={() => onEdit?.(position)} aria-label={`Edit ${position.symbol}`}>
+            Edit
+          </button>
+        )}
+        <button type="button" className={styles.cardBtn} disabled={isOpt ? !onOptionClose : !onClose}
+                onClick={() => (isOpt ? onOptionClose?.(position.strategy) : onClose?.(position))}
+                aria-label={`Close ${position.symbol}`}>
+          Close
+        </button>
+        <button type="button" className={`${styles.cardBtn} ${styles.cardBtnDanger}`}
+                disabled={isOpt ? !onOptionDelete : !onDelete}
+                onClick={() => (isOpt ? onOptionDelete?.(position.strategy) : onDelete?.(position))}
+                aria-label={`Delete ${position.symbol}`}>
+          Del
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Sorting ──────────────────────────────────────────────────────────────────
 // Most columns sort numerically; symbol/side are text and date is an ISO
 // string (lexical = chronological). 'actions' is not sortable.
@@ -334,6 +408,7 @@ export default function PositionsTable({
   onOptionDelete,
 }) {
   const [sort, setSort] = useState({ key: 'symbol', dir: 'asc' })
+  const isPhone = useIsPhone()
 
   const handleSort = (key) => {
     setSort((prev) =>
@@ -347,8 +422,11 @@ export default function PositionsTable({
     const dir = sort.dir === 'asc' ? 1 : -1
     const text = TEXT_SORT_KEYS.has(sort.key)
     return [...positions].sort((a, b) => {
-      const av = sortKeyFor(sort.key, a, prices?.[a.symbol]?.price, accountSize)
-      const bv = sortKeyFor(sort.key, b, prices?.[b.symbol]?.price, accountSize)
+      // Sort on the price the ROWS display (live tick → broker mark), not the
+      // raw feed — otherwise after-hours broker rows show values but sort as
+      // blanks and sink to the bottom.
+      const av = sortKeyFor(sort.key, a, currentPriceFor(a, prices), accountSize)
+      const bv = sortKeyFor(sort.key, b, currentPriceFor(b, prices), accountSize)
       const aEmpty = av == null || av === ''
       const bEmpty = bv == null || bv === ''
       if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
@@ -374,6 +452,25 @@ export default function PositionsTable({
         <p className={styles.emptyHint}>
           Add one with the <strong>+ Add Position</strong> button above.
         </p>
+      </div>
+    )
+  }
+
+  if (isPhone) {
+    return (
+      <div className={styles.cardList}>
+        {sorted.map((p) => (
+          <PhoneCard
+            key={p.id}
+            position={p}
+            current={currentPriceFor(p, prices)}
+            onEdit={onEdit}
+            onClose={onClose}
+            onDelete={onDelete}
+            onOptionClose={onOptionClose}
+            onOptionDelete={onOptionDelete}
+          />
+        ))}
       </div>
     )
   }

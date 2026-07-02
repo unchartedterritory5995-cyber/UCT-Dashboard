@@ -1,6 +1,6 @@
 import io
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from api.services import desk_thumbnail as t
 
@@ -87,6 +87,12 @@ def test_chartmaster_eyebrow_routes_to_plate():
     assert t._resolve_theme(None, "WORKSHOP WITH CHARTMASTER").layout == "plate"
 
 
+def test_chartmaster_eyebrow_space_insensitive_routes_to_plate():
+    # A Zoom template renamed "Workshop with Chart Master" (space between
+    # Chart/Master) must still route to the plate layout.
+    assert t._resolve_theme(None, "WORKSHOP WITH CHART MASTER").layout == "plate"
+
+
 def test_chartmaster_variant_override_routes_to_plate():
     assert t._resolve_theme("chartmaster", "LIVE TRADING SESSION").layout == "plate"
 
@@ -128,3 +134,78 @@ def test_plate_missing_falls_back_to_classic(monkeypatch, tmp_path):
         "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER",
         variant="default")
     assert data == classic                              # deterministic Pillow output
+
+
+def _smoke(eyebrow, variant=None):
+    data = t.render_session_thumbnail("July 1, 2026", eyebrow_label=eyebrow,
+                                       variant=variant)
+    assert data[:2] == b"\xff\xd8"
+    img = Image.open(io.BytesIO(data))
+    assert img.size == (1280, 720)
+    assert len(data) < 2 * 1024 * 1024
+    return data
+
+
+def test_classic_smoke():
+    _smoke("LIVE TRADING SESSION")
+
+
+def test_classic_long_arbitrary_eyebrow_no_crash():
+    _smoke("SUPER EXTENDED WEEKEND DEEP DIVE MASTERCLASS MARATHON SESSION")
+
+
+def test_editorial_smoke():
+    _smoke("THOUGHTS ON THE MARKET")
+
+
+def test_editorial_long_title_no_crash():
+    # Regression: long editorial titles must render without overflowing the gold
+    # frame or crashing. Exercises the multi-line headline fitting logic
+    # (~lines 487-501 in _render_editorial).
+    _smoke("A REMARKABLY LONG AND WINDING REFLECTION ON EVERYTHING THE MARKET DID THIS QUARTER")
+
+
+def test_fit_tracked_truncates_when_floor_overflows():
+    img = Image.new("RGB", (1280, 720))
+    d = ImageDraw.Draw(img)
+    long_text = "— " + ("VERY LONG WEBINAR NAME " * 12).strip() + " —"
+    f, fitted = t._fit_tracked(d, long_text, "DejaVuSans-Bold.ttf", 20, 10, 1280 - 120, 5)
+    assert t._tracked_w(d, fitted, f, 5) <= 1280 - 120
+    assert fitted.endswith("…")
+
+
+def test_evening_smoke_host_aware():
+    _smoke("EVENING UPDATE FROM TSDR")
+
+
+def test_evening_smoke_no_host():
+    _smoke("EVENING UPDATE")
+
+
+def test_same_inputs_render_identical_bytes():
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    b = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert a == b
+
+
+def test_different_dates_render_different_cards():
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="LIVE TRADING SESSION")
+    b = t.render_session_thumbnail("July 2, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert a != b
+    a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    b = t.render_session_thumbnail("July 2, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    assert a != b
+
+
+def test_gen_trend_bounds_over_many_seeds():
+    # Regression for the "tower candle" bug: the old implementation force-set
+    # values[-1] = end unconditionally, so the final close-open delta could
+    # blow past the documented +-0.22 step bound (median 0.28, max ~0.92 over
+    # a seed sweep). Every step, including the last, must now stay in-bounds.
+    for s in range(10_000):
+        vals = t._gen_trend(s)
+        assert all(0.0 <= v <= 1.0 for v in vals)
+        assert 0.90 <= vals[-1] <= 1.0
+        deltas = [b - a for a, b in zip(vals, vals[1:])]
+        assert all(-0.125 <= d <= 0.225 for d in deltas), (s, deltas)
+        assert 2 <= sum(1 for d in deltas if d < 0) <= 4

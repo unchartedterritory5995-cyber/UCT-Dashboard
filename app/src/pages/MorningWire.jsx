@@ -282,7 +282,7 @@ export default function MorningWire() {
               dangerouslySetInnerHTML={{ __html: rundown.html }}
             />
           )
-          : <p className={styles.loading}>Loading rundown…</p>
+          : <SkeletonTileContent lines={12} />
         }
       </TileCard>
 

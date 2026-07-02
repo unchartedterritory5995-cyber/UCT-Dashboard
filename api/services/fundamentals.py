@@ -87,16 +87,24 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         info = bounded_call(lambda: yf.Ticker(sym).info, None) or {}
     except Exception as e:
         _log.warning("yfinance fundamentals failed for %s: %s", sym, e)
-        return {"error": f"yfinance failed: {e}", "ticker": sym}
+        err = {"error": f"yfinance failed: {e}", "ticker": sym}
+        # Negative-cache briefly: a dead/renamed ticker in someone's journal
+        # would otherwise re-submit to the bounded yfinance pool (12s wall)
+        # on EVERY request, crowding out good tickers.
+        _CACHE.set(cache_key, err, ttl=300)
+        return err
 
     if not info or not info.get("symbol"):
-        return {"error": "no fundamentals available", "ticker": sym}
+        err = {"error": "no fundamentals available", "ticker": sym}
+        _CACHE.set(cache_key, err, ttl=300)
+        return err
 
     result = {
         "ticker": sym,
         "name": info.get("longName") or info.get("shortName") or sym,
         "sector": info.get("sector"),
         "industry": info.get("industry"),
+        "about": info.get("longBusinessSummary"),
         # Valuation
         "market_cap": _fmt_billions(info.get("marketCap")),
         "enterprise_value": _fmt_billions(info.get("enterpriseValue")),
@@ -125,7 +133,15 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "debt_to_equity": _round(info.get("debtToEquity")),
         "current_ratio": _round(info.get("currentRatio")),
         # Yield / shareholder return
-        "dividend_yield_pct": _round_pct(info.get("dividendYield")),
+        # yfinance changed `dividendYield` semantics: it is now ALREADY a
+        # percent (AAPL → 0.37 meaning 0.37%), so no ×100. The old ×100 path
+        # displayed "37%" product-wide. `trailingAnnualDividendYield` is still
+        # a ratio → keep _round_pct for the fallback.
+        "dividend_yield_pct": (
+            _round(info.get("dividendYield"), 2)
+            if info.get("dividendYield") is not None
+            else _round_pct(info.get("trailingAnnualDividendYield"))
+        ),
         "payout_ratio_pct": _round_pct(info.get("payoutRatio")),
         # Ownership (free from the same .info call — feeds ratings sponsorship percentile)
         "held_pct_institutions": _round_pct(info.get("heldPercentInstitutions")),

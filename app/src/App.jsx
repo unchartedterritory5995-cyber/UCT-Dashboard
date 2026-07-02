@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import BrandSplash from './components/BrandSplash'
 import { SWRConfig } from 'swr'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
@@ -37,6 +38,7 @@ const Desk = lazy(() => import('./pages/desk/Desk'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
+const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
@@ -119,19 +121,7 @@ export default function App() {
         <GlobalVideoLayer />
         <RouteErrorBoundary>
           <Suspense fallback={
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100vh',
-              background: '#0e0f0d',
-              color: '#a8a290',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              fontSize: '14px',
-              letterSpacing: '0.5px',
-            }}>
-              Loading…
-            </div>
+            <BrandSplash label="Loading page" />
           }>
             <Routes>
             {/* Public routes — redirect to dashboard if already logged in */}
@@ -178,6 +168,7 @@ export default function App() {
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
+                <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
                 <Route path="/patterns" element={<Patterns />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />

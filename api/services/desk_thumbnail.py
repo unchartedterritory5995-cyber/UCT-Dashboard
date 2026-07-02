@@ -8,14 +8,19 @@ Each session *type* gets its own colour THEME **and** its own LAYOUT so the card
 are unmistakably different in The Desk → Videos library — not the same template
 recoloured:
 
-  - "LIVE TRADING SESSION" -> classic: gold-on-black, the DATE is the hero.
-  - "THOUGHTS ON THE MARKET" -> editorial: an asymmetric magazine-style card —
-    left = kicker tab + serif metallic-gold headline (the TITLE is the hero) on a
-    gold pull-quote spine + date; right = a glowing gold candlestick uptrend so it
-    instantly reads as *markets*. Cinematic depth (radial light + vignette).
-    Rendered at 2x and downscaled (super-sampled) for crisp, clean edges.
-  - "EVENING UPDATE FROM TSDR" -> evening: a cinematic dusk skyline with headline
-    and date plaque, themed for the evening show.
+  - "LIVE TRADING SESSION" -> classic: a candlestick skyline — a glowing gold
+    uptrend across a storm-lit night sky, the DATE the metallic-gold hero above
+    it. Rendered at 2x and downscaled (super-sampled) with a light film grain.
+  - "THOUGHTS ON THE MARKET" -> editorial: a leather-bound journal cover — an
+    emerald leather-textured base (theme bg tint + coarse/fine grain), a double
+    gold frame with corner diamonds, a compass medallion, and a centered
+    gold-foil-stamped title (derived from eyebrow_label) + kicker + date, all
+    stamped into the cover. Rendered at 2x and downscaled (super-sampled) for
+    crisp, clean edges.
+  - "EVENING UPDATE FROM TSDR" -> evening: city lights on water — a dusk skyline
+    silhouette rooted at a raised waterline, mirrored into a dim reflection in
+    the bay below with window-light streaks and a sun-glitter cone, headline +
+    date plaque floating over the sky/water, themed for the evening show.
   - "WORKSHOP WITH CHARTMASTER" -> plate: pre-made cinematic artwork with a
     stamped date plaque, for ChartMaster workshops.
 
@@ -26,6 +31,8 @@ from __future__ import annotations
 
 import io
 import os
+import random
+import zlib
 from typing import NamedTuple
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -43,11 +50,9 @@ _TAGLINE = "Navigate the market, effectively."
 class Theme(NamedTuple):
     bg_top: tuple
     bg_bottom: tuple
-    glow: tuple
     wordmark: tuple
     eyebrow: tuple
     date: tuple
-    rule: tuple
     tagline: tuple
     layout: str = "classic"   # "classic" | "editorial" | "evening" | "plate"
 
@@ -55,23 +60,23 @@ class Theme(NamedTuple):
 _DEFAULT_THEME = Theme(
     bg_top=(13, 17, 23),
     bg_bottom=(5, 7, 11),
-    glow=_GOLD,
     wordmark=(236, 240, 246),
     eyebrow=_GOLD,
     date=(236, 240, 246),
-    rule=_GOLD,
     tagline=(138, 147, 163),
 )
 
 _EMERALD_GOLD = (228, 198, 112)
 _EMERALD_THEME = Theme(
-    bg_top=(19, 140, 101),
-    bg_bottom=(5, 47, 34),
-    glow=_EMERALD_GOLD,
+    # Deep emerald leather tint (not the brighter kelly-green of the raw brand
+    # swatch) — this is the ONLY consumer of bg_top/bg_bottom (the editorial
+    # leather-journal layout), so it's tuned for that cover, not as a general
+    # brand color.
+    bg_top=(15, 46, 34),
+    bg_bottom=(5, 18, 13),
     wordmark=(249, 245, 232),
     eyebrow=_EMERALD_GOLD,
     date=(249, 245, 232),
-    rule=_EMERALD_GOLD,
     tagline=(190, 208, 188),
     layout="editorial",
 )
@@ -84,11 +89,9 @@ _GOLD_LO = (198, 158, 84)
 _EVENING_THEME = Theme(
     bg_top=(22, 32, 60),
     bg_bottom=(5, 7, 14),
-    glow=_GOLD,
     wordmark=(228, 219, 236),
     eyebrow=_GOLD,
     date=(238, 230, 216),
-    rule=_GOLD,
     tagline=(198, 190, 206),
     layout="evening",
 )
@@ -99,11 +102,9 @@ _EVENING_THEME = Theme(
 _CHARTMASTER_THEME = Theme(
     bg_top=(10, 20, 34),
     bg_bottom=(3, 7, 14),
-    glow=_GOLD,
     wordmark=(236, 240, 246),
     eyebrow=_GOLD,
     date=(251, 234, 202),
-    rule=_GOLD,
     tagline=(138, 147, 163),
     layout="plate",
 )
@@ -122,13 +123,22 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     if variant:
         return _THEMES.get(variant.lower().strip(), _DEFAULT_THEME)
     low = (eyebrow_label or "").lower()
-    if "chartmaster" in low:
+    if "chartmaster" in low.replace(" ", ""):
         return _CHARTMASTER_THEME
     if "evening" in low:
         return _EVENING_THEME
     if "thought" in low:
         return _EMERALD_THEME
     return _DEFAULT_THEME
+
+
+def _episode_seed(date_text: str, eyebrow_label: str) -> int:
+    """Deterministic per-episode seed derived from the episode's own inputs —
+    same date+eyebrow always reproduces the same card; a different date or
+    show name reliably produces a different (but still deterministic) card.
+    Never touches the global `random` state — callers thread this int into
+    their own `random.Random(seed)` / `np.random.default_rng(seed)` instances."""
+    return zlib.crc32(f"{date_text}|{eyebrow_label}".encode())
 
 
 def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
@@ -165,6 +175,23 @@ def _draw_tracked_center(draw, cx, y, text, font, fill, tracking):
 
 def _tracked_w(draw, text, font, tracking):
     return sum(draw.textlength(ch, font=font) for ch in text) + tracking * (len(text) - 1)
+
+
+def _fit_tracked(draw, text, font_name, max_pt, min_pt, max_w, tracking):
+    """Largest font size in [min_pt, max_pt] whose tracked width fits max_w;
+    if even min_pt overflows, ellipsis-truncate the text to fit. Returns
+    (font, text)."""
+    size = max_pt
+    while size >= min_pt:
+        f = _font(font_name, size)
+        if _tracked_w(draw, text, f, tracking) <= max_w:
+            return f, text
+        size -= 2
+    f = _font(font_name, min_pt)
+    t = text
+    while t and _tracked_w(draw, t + "…", f, tracking) > max_w:
+        t = t[:-1]
+    return f, (t + "…") if t != text else text
 
 
 def _compass(size: int) -> Image.Image | None:
@@ -204,64 +231,199 @@ def _vignette(strength: float, size: tuple = _SIZE) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# Classic (Live Trading)
+# Classic (Live Trading) — candlestick skyline
 # ---------------------------------------------------------------------------
 
-def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
-    img = _gradient_bg(theme.bg_top, theme.bg_bottom).convert("RGBA")
-    cx = _W // 2
-    glow = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
-    ImageDraw.Draw(glow).ellipse([cx - 150, 40, cx + 150, 340], fill=(*theme.glow, 60))
-    img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(70)))
-    mark = _compass(150)
+def _band_scrim(size: tuple, y_from: int, y_to: int, max_alpha: int,
+                top_down: bool = True) -> Image.Image:
+    """Dark gradient band (for text legibility / grounding over busy art)."""
+    ov = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    span = max(1, y_to - y_from)
+    for y in range(y_from, y_to):
+        t = (y - y_from) / span
+        a = int(max_alpha * (1 - t)) if top_down else int(max_alpha * t)
+        d.line([(0, y), (size[0], y)], fill=(3, 4, 8, a))
+    return ov
+
+
+def _grain(img: Image.Image, alpha: float, seed: int = 7) -> Image.Image:
+    """Subtle film grain: additive per-pixel Gaussian noise (monochrome, so it
+    reads as grain rather than color speckle). `alpha` is the noise strength
+    (stddev). Deterministic (fixed default seed) so renders stay reproducible."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    arr = np.asarray(img).astype(np.int16)
+    noise = rng.normal(0.0, alpha, arr.shape[:2])[:, :, None]
+    return Image.fromarray(np.clip(arr + noise, 0, 255).astype(np.uint8))
+
+
+def _render_classic(theme: Theme, date_text: str, eyebrow_label: str, *,
+                    seed: int = 7) -> Image.Image:
+    """Candlestick skyline: a glowing gold uptrend across a storm-lit night sky,
+    the date the metallic-gold hero above it. Rendered at 2x and downscaled
+    (super-sampled) for crisp, clean edges, finished with a light film grain.
+    `seed` (per-episode, from `_episode_seed`) drives the candlestick trend
+    shape + the grain offset so every day's card is unique but reproducible."""
+    S = 2
+    size = (_W * S, _H * S)
+
+    def s(v):
+        return int(round(v * S))
+
+    stops = [(0.0, (15, 19, 33)), (0.35, (35, 41, 64)), (0.62, (18, 20, 34)), (1.0, (5, 6, 10))]
+    img = _sky_gradient(stops, size).convert("RGBA")
+    cx = size[0] // 2
+
+    # Storm light: cold break in the clouds upper-left, warm glow where the
+    # trend peaks. Design elements, not theme-driven — stay literal.
+    img = Image.alpha_composite(img, _radial(s(300), s(120), s(360), (150, 170, 214), 60, size))
+    img = Image.alpha_composite(img, _radial(s(1020), s(600), s(540), _GOLD, 50, size))
+
+    # The skyline: one huge glowing candlestick uptrend across the lower half,
+    # softly blurred so it reads like lit towers in the rain.
+    trend = _gen_trend(seed)
+    lay = Image.new("RGBA", size, (0, 0, 0, 0))
+    lay = _draw_uptrend(lay, s(-70), s(304), s(1298), s(742), trend=trend)
+    soft = lay.filter(ImageFilter.GaussianBlur(s(3)))
+    img = Image.alpha_composite(img, soft)
+    crisp = lay.copy()
+    crisp.putalpha(crisp.split()[3].point(lambda p: int(p * 0.38)))
+    img = Image.alpha_composite(img, crisp)
+
+    # Ground the base + clear the sky band for text.
+    img = Image.alpha_composite(img, _band_scrim(size, s(580), size[1], 135, top_down=False))
+    img = Image.alpha_composite(img, _band_scrim(size, 0, s(300), 150, top_down=True))
+
+    # Brand kit, centered above the skyline.
+    mark = _compass(s(80))
     if mark is not None:
-        img.alpha_composite(mark, (cx - 75, 80))
-    img = img.convert("RGB")
+        img.alpha_composite(mark, (cx - s(40), s(34)))
+    _shadow_center(img, cx, s(126), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 29 * S), theme.wordmark, 8 * S)
+
+    # Eyebrow — dynamic show label, auto-fit (tracked) so an arbitrarily long
+    # label shrinks to fit rather than clipping or overflowing the canvas; if
+    # even the floor size overflows (very long Zoom webinar names), ellipsis-
+    # truncate rather than clip both edges.
     draw = ImageDraw.Draw(img)
-    _draw_tracked_center(draw, cx, 252, _WORDMARK, _font("DejaVuSans-Bold.ttf", 38), theme.wordmark, 10)
-    _draw_tracked_center(draw, cx, 350, f"— {eyebrow_label} —", _font("DejaVuSans-Bold.ttf", 30), theme.eyebrow, 5)
-    _draw_center(draw, cx, 410, date_text, _font("DejaVuSans-Bold.ttf", 96), theme.date)
-    draw.rectangle([cx - 90, 548, cx + 90, 552], fill=theme.rule)
-    _draw_center(draw, cx, 600, _TAGLINE, _font("DejaVuSans.ttf", 30), theme.tagline)
-    return img
+    eyebrow_text = f"— {eyebrow_label} —"
+    eb_tracking = 5 * S
+    eb_font, eyebrow_text = _fit_tracked(draw, eyebrow_text, "DejaVuSans-Bold.ttf",
+                                         20 * S, 10 * S, s(_W - 120), eb_tracking)
+    _shadow_center(img, cx, s(176), eyebrow_text, eb_font, theme.eyebrow, eb_tracking)
+
+    # Date — metallic gold hero, auto-fit (mirrors the _render_evening idiom).
+    date_up = date_text.upper()
+    dt_font, date_up = _fit_tracked(draw, date_up, "DejaVuSerif-Bold.ttf",
+                                    86 * S, 48 * S, s(_W - 160), 0)
+    _gold_center(img, cx, s(216), date_up, dt_font)
+
+    _shadow_center(img, cx, s(346), _TAGLINE, _font("DejaVuSans.ttf", 22 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.5, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=6.0, seed=7 + seed)
 
 
 # ---------------------------------------------------------------------------
-# Editorial (Thoughts on the Market) — super-sampled
+# Editorial (Thoughts on the Market) — leather-bound journal cover, super-sampled
 # ---------------------------------------------------------------------------
-
-def _hero_line_left(base: Image.Image, x: int, y: int, text: str,
-                    font: ImageFont.FreeTypeFont) -> None:
-    """Left-anchored metallic-gold serif headline line with a soft drop shadow."""
-    size = base.size
-    w = int(ImageDraw.Draw(base).textlength(text, font=font))
-    asc, desc = font.getmetrics()
-    h = asc + desc
-    off = max(2, h // 24)
-    shadow = Image.new("RGBA", size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).text((x, y + off), text, font=font, fill=(0, 24, 17, 180))
-    base.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(max(4, h // 18))))
-    grad = Image.new("RGB", (max(1, w), h))
-    gd = ImageDraw.Draw(grad)
-    for yy in range(h):
-        t = yy / max(1, h - 1)
-        gd.line([(0, yy), (w, yy)],
-                fill=tuple(int(_GOLD_HI[i] + (_GOLD_LO[i] - _GOLD_HI[i]) * t) for i in range(3)))
-    mask = Image.new("L", (max(1, w), h), 0)
-    ImageDraw.Draw(mask).text((0, 0), text, font=font, fill=255)
-    base.paste(grad, (int(x), int(y)), mask)
-
 
 _TREND = [0.10, 0.20, 0.16, 0.32, 0.45, 0.39, 0.55, 0.49, 0.67, 0.81, 0.96]
 
+_TREND_STEP_LO, _TREND_STEP_HI = -0.12, 0.22   # every consecutive delta, no exceptions
+_TREND_TAIL_STEPS = 4                          # last N transitions: clean rise + tail-blend
+_TREND_MAX_ATTEMPTS = 40                       # bounded regeneration for a rare unlanded draw
 
-def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
+
+def _gen_trend(seed: int, n: int = len(_TREND)) -> list:
+    """Deterministic per-episode candlestick trend: a random walk of `n`
+    points (matches `_TREND`'s length by default) that starts low, ends high,
+    and rises with 2-4 bounded pullbacks along the way — decorative variation
+    only, never the global random state.
+
+    Contract (regression-tested over 10k seeds —
+    ``test_gen_trend_bounds_over_many_seeds``):
+      1. every point in [0, 1]
+      2. final point in [0.90, 1.0]
+      3. every consecutive delta in [-0.12, +0.22]
+      4. 2-4 down-steps (pullbacks) present
+      5. deterministic per rng seed
+
+    - start in [0.05, 0.20], end (target close) in [0.90, 1.0]
+    - the last `_TREND_TAIL_STEPS` transitions are never eligible to be
+      picked as a pullback (they always rise) and are where the walk closes
+      the gap to `end` — no single step is ever force-anchored past the
+      bound, so there is no oversized "tower" candle. The gap is spread
+      across those tail steps with growing weight toward the very last one,
+      and every individual step (interior AND tail) is clamped to
+      [-0.12, +0.22] BEFORE being applied — never overwritten after.
+    - if a rare draw still can't land the final point in [0.90, 1.0] with
+      2-4 pullbacks present (e.g. pullbacks left more ground to cover than
+      the tail's bounded steps can close), the whole walk is regenerated by
+      drawing again from the SAME `rng` instance — bounded retries, still
+      fully deterministic per seed.
+    - every point clamped to [0, 1]
+    """
+    rng = random.Random(seed)
+    steps = n - 1
+    tail_n = min(_TREND_TAIL_STEPS, max(steps - 1, 0))
+    interior_steps = steps - tail_n
+    pullback_ceiling = max(1, interior_steps)
+    eligible = list(range(1, pullback_ceiling)) if pullback_ceiling > 1 else []
+
+    candidate = None
+    for _attempt in range(_TREND_MAX_ATTEMPTS):
+        start = rng.uniform(0.05, 0.20)
+        end = rng.uniform(0.90, 1.0)
+        n_pullbacks = min(rng.randint(2, 4), len(eligible))
+        pullback_steps = set(rng.sample(eligible, n_pullbacks)) if eligible and n_pullbacks else set()
+
+        values = [start]
+        cur = start
+        for i in range(interior_steps):
+            remaining = steps - i
+            if i in pullback_steps:
+                step = rng.uniform(-0.12, -0.03)
+            else:
+                target_step = (end - cur) / remaining
+                step = target_step + rng.uniform(-0.03, 0.05)
+            step = max(_TREND_STEP_LO, min(_TREND_STEP_HI, step))
+            cur = max(0.0, min(1.0, cur + step))
+            values.append(cur)
+
+        # Tail-blend: close the gap to `end` over `tail_n` clean-rise steps,
+        # weighted toward the last one, each clamped to the same bounds as
+        # every other step (replaces the old unconditional final-point anchor).
+        if tail_n:
+            gap = end - cur
+            wsum = tail_n * (tail_n + 1) / 2
+            for w in range(1, tail_n + 1):
+                step = max(_TREND_STEP_LO, min(_TREND_STEP_HI, gap * w / wsum))
+                cur = max(0.0, min(1.0, cur + step))
+                values.append(cur)
+
+        deltas = [b - a for a, b in zip(values, values[1:])]
+        landed = 0.90 <= values[-1] <= 1.0
+        n_down = sum(1 for d in deltas if d < 0)
+        candidate = values
+        if landed and 2 <= n_down <= 4:
+            return values
+
+    return candidate  # pragma: no cover — exhausted retries on a pathological draw
+
+
+def _draw_uptrend(img: Image.Image, x0, y0, x1, y1, trend: list | None = None) -> Image.Image:
     """Glowing gold candlestick uptrend: filled up-candles, hollow down-candles,
-    a bright close-line, and a gradient area glow that fades to nothing."""
+    a bright close-line, and a gradient area glow that fades to nothing.
+    `trend` defaults to the fixed `_TREND` list so other callers are unaffected;
+    pass a per-episode series (see `_gen_trend`) for date-seeded variation."""
+    trend = _TREND if trend is None else trend
     size = img.size
     chart = Image.new("RGBA", size, (0, 0, 0, 0))
     d = ImageDraw.Draw(chart)
-    n = len(_TREND)
+    n = len(trend)
     span = (x1 - x0) / n
     bw = span * 0.44
     wick_w = max(2, int(span * 0.05))
@@ -273,7 +435,7 @@ def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
         return y1 - max(0.0, min(1.0, v)) * (y1 - y0)
 
     pts, prev = [], 0.03
-    for i, c in enumerate(_TREND):
+    for i, c in enumerate(trend):
         o = prev
         hi = max(o, c) + 0.05
         lo = min(o, c) - 0.05
@@ -313,7 +475,58 @@ def _draw_uptrend(img: Image.Image, x0, y0, x1, y1) -> Image.Image:
     return Image.alpha_composite(img, chart)
 
 
-def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+def _journal_gold_grad(w: int, h: int) -> Image.Image:
+    """Vertical metallic-gold gradient block — the fill used behind stamped
+    (foil-pressed) text on the leather journal cover."""
+    grad = Image.new("RGB", (max(1, w), max(1, h)))
+    gd = ImageDraw.Draw(grad)
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        gd.line([(0, yy), (w, yy)],
+                fill=tuple(int(_GOLD_HI[i] + (_GOLD_LO[i] - _GOLD_HI[i]) * t) for i in range(3)))
+    return grad
+
+
+def _journal_stamp_center(base: Image.Image, cx: int, y: int, text: str,
+                          font: ImageFont.FreeTypeFont, tracking: int = 0) -> None:
+    """Gold-foil stamp: a pressed dark halo + metallic gold gradient face, so
+    text reads as embossed/stamped into the leather cover rather than printed."""
+    d = ImageDraw.Draw(base)
+    w = int(_tracked_w(d, text, font, tracking) if tracking else d.textlength(text, font=font))
+    asc, desc = font.getmetrics()
+    h = asc + desc
+    x = int(cx - w / 2)
+    off = max(1, h // 36)
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(sh)
+    if tracking:
+        _draw_tracked(sd, x - off, y - off, text, font, (0, 0, 0, 200), tracking)
+    else:
+        sd.text((x - off, y - off), text, font=font, fill=(0, 0, 0, 200))
+    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(max(2, h // 20))))
+    mask = Image.new("L", (w, h), 0)
+    md = ImageDraw.Draw(mask)
+    if tracking:
+        _draw_tracked(md, 0, 0, text, font, 255, tracking)
+    else:
+        md.text((0, 0), text, font=font, fill=255)
+    base.paste(_journal_gold_grad(w, h), (x, int(y)), mask)
+
+
+def _journal_diamond(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill) -> None:
+    """Small gold diamond accent — frame corners + kicker rule end-caps."""
+    d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=fill)
+
+
+def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str, *,
+                      seed: int = 7) -> Image.Image:
+    """Leather-bound journal cover: a leather-textured base tint (from theme,
+    so "thoughts"/"emerald" share this exact layout), a double gold frame with
+    corner diamonds, a compass medallion, and a centered gold-foil-stamped
+    headline (derived from eyebrow_label) + kicker + date. Rendered at 2x and
+    downscaled (super-sampled) for crisp, clean edges. `seed` (per-episode)
+    only SUBTLY varies the leather grain + lighting-center jitter — this is
+    a formal design, so no structural variation."""
     S = 2                                   # super-sample factor
     W, H = _W * S, _H * S
     size = (W, H)
@@ -321,59 +534,109 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
     def s(v):
         return int(round(v * S))
 
-    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
-    img = Image.alpha_composite(img, _radial(s(360), s(240), s(520), (44, 196, 144), 70, size))
-    img = Image.alpha_composite(img, _vignette(0.6, size))
+    GOLD = (214, 180, 98)       # frame + foil-stamp gold — literal, not theme-driven
+    GOLD_DIM = (168, 138, 70)   # secondary frame/rule gold
 
-    # Right-side glowing candlestick uptrend (the "markets" hero graphic).
-    img = _draw_uptrend(img, s(726), s(214), s(1196), s(556))
+    # Leather base: theme gradient (shared bg tint) + coarse mottling + fine grain.
+    base = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGB")
+    # Seeded coarse grain (deterministic leather texture), subtly jittered per
+    # episode by offsetting the base grain seed.
+    import numpy as np
+    rng = np.random.default_rng(7 + seed)
+    coarse_arr = rng.normal(128.0, 58.0, (H // 6, W // 6))
+    coarse = Image.fromarray(np.clip(coarse_arr, 0, 255).astype(np.uint8), mode='L')
+    coarse = coarse.resize(size, Image.BILINEAR)
+    coarse = coarse.filter(ImageFilter.GaussianBlur(2))
+    base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (coarse,) * 3)), 0.22)
+    # Seeded fine grain (deterministic leather texture overlay)
+    fine_arr = rng.normal(128.0, 34.0, (H, W))
+    fine = Image.fromarray(np.clip(fine_arr, 0, 255).astype(np.uint8), mode='L')
+    base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (fine,) * 3)), 0.16)
+
+    img = base.convert("RGBA")
+    # Radial lighting center jittered a few tens of pixels per episode — subtle,
+    # not structural (formal design).
+    jrng = random.Random(seed)
+    jx = s(jrng.uniform(-30, 30))
+    jy = s(jrng.uniform(-30, 30))
+    img = Image.alpha_composite(
+        img, _radial(W // 2 + jx, s(230) + jy, s(620), (255, 238, 200), 22, size))
+    img = Image.alpha_composite(img, _vignette(0.62, size))
 
     draw = ImageDraw.Draw(img)
-    g = theme.rule
-    LX = s(96)
+    cx = W // 2
 
-    mark = _compass(s(50))
+    # Double gold frame + corner diamonds.
+    o1, o2 = s(40), s(54)
+    draw.rectangle([o1, o1, W - o1, H - o1], outline=GOLD, width=s(3))
+    draw.rectangle([o2, o2, W - o2, H - o2], outline=GOLD_DIM, width=s(1))
+    for px in (o2, W - o2):
+        for py in (o2, H - o2):
+            _journal_diamond(draw, px, py, s(9), GOLD)
+
+    # Compass medallion.
+    my = s(150)
+    draw.ellipse([cx - s(62), my - s(62), cx + s(62), my + s(62)], outline=GOLD, width=s(3))
+    draw.ellipse([cx - s(53), my - s(53), cx + s(53), my + s(53)], outline=GOLD_DIM, width=s(1))
+    mark = _compass(s(78))
     if mark is not None:
-        img.paste(mark, (LX, s(56)), mark)
+        img.alpha_composite(mark, (cx - s(39), my - s(39)))
     draw = ImageDraw.Draw(img)
-    _draw_tracked(draw, LX + s(66), s(70), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 21 * S),
-                  theme.wordmark, 6 * S)
 
-    # Kicker tab — filled gold pill with dark text.
-    kf = _font("DejaVuSerif-Bold.ttf", 21 * S)
-    ktext = "MARKET COMMENTARY"
-    kw = _tracked_w(draw, ktext, kf, 4 * S)
-    draw.rounded_rectangle([LX, s(126), LX + kw + s(36), s(170)], radius=s(8), fill=g)
-    _draw_tracked(draw, LX + s(18), s(135), ktext, kf, theme.bg_bottom, 4 * S)
+    # Wordmark — gold-foil stamp.
+    _journal_stamp_center(img, cx, s(236), _WORDMARK, _font("DejaVuSerif-Bold.ttf", 22 * S), 8 * S)
+    draw = ImageDraw.Draw(img)
 
-    # Hero headline — auto-fit serif metallic gold, left-aligned.
+    # Hero headline — eyebrow_label balanced across two lines, auto-fit so the
+    # widest line fits inside the gold frame (_W - 260, super-sampled): step
+    # the font size down while EITHER line overflows, then — if the floor
+    # size still overflows — ellipsis-truncate via the shared _fit_tracked
+    # helper (forced to that exact floor size so both lines stay uniform).
     lines = _balanced_two_lines(eyebrow_label)
-    avail = s(600)
-    size_pt = 96
-    while size_pt > 48:
-        f = _font("DejaVuSerif-Bold.ttf", size_pt * S)
-        if max(draw.textlength(ln, font=f) for ln in lines) <= avail:
+    max_w = s(_W - 260)
+    max_pt, min_pt = 76 * S, 44 * S
+    size_pt = max_pt
+    while size_pt > min_pt:
+        f = _font("DejaVuSerif-Bold.ttf", size_pt)
+        if max(draw.textlength(ln, font=f) for ln in lines) <= max_w:
             break
         size_pt -= 2
-    f_title = _font("DejaVuSerif-Bold.ttf", size_pt * S)
+    f_title = _font("DejaVuSerif-Bold.ttf", size_pt)
+    lines = [
+        ln if draw.textlength(ln, font=f_title) <= max_w
+        else _fit_tracked(draw, ln, "DejaVuSerif-Bold.ttf", size_pt, size_pt, max_w, 0)[1]
+        for ln in lines
+    ]
     asc, desc = f_title.getmetrics()
-    lh = int((asc + desc) * 0.98)
-    ty = s(214)
-    draw.rectangle([LX, ty + s(10), LX + s(7), ty + lh * len(lines) - s(8)], fill=g)
+    lh = int((asc + desc) * 0.96)
+    ty = s(300)
     for ln in lines:
-        _hero_line_left(img, LX + s(30), ty, ln, f_title)
+        _journal_stamp_center(img, cx, ty, ln, f_title)
         ty += lh
     draw = ImageDraw.Draw(img)
 
-    # Date + small gold underline.
+    # Kicker with flanking rules + diamonds — stays the literal show label.
+    ktext = "MARKET COMMENTARY"
+    kf = _font("DejaVuSerif-Bold.ttf", 19 * S)
+    ky = ty + s(36)
+    kw = _tracked_w(draw, ktext, kf, 6 * S)
+    kmid = ky + s(13)
+    lx0, lx1 = cx - kw / 2 - s(110), cx - kw / 2 - s(24)
+    rx0, rx1 = cx + kw / 2 + s(24), cx + kw / 2 + s(110)
+    draw.line([lx0, kmid, lx1, kmid], fill=GOLD_DIM, width=s(2))
+    draw.line([rx0, kmid, rx1, kmid], fill=GOLD_DIM, width=s(2))
+    _journal_diamond(draw, lx0 - s(8), kmid, s(6), GOLD)
+    _journal_diamond(draw, rx1 + s(8), kmid, s(6), GOLD)
+    _draw_tracked_center(draw, cx, ky, ktext, kf, GOLD, 6 * S)
+
+    # Date — gold-foil stamp.
     f_date = _font("DejaVuSerif-Bold.ttf", 40 * S)
-    dy = ty + s(26)
-    _draw_tracked(draw, LX + s(30), dy, date_text.upper(), f_date, theme.date, 2 * S)
-    dw = _tracked_w(draw, date_text.upper(), f_date, 2 * S)
-    draw.rectangle([LX + s(30), dy + s(56), LX + s(30) + min(dw, s(230)), dy + s(60)], fill=g)
+    dy = ky + s(64)
+    _journal_stamp_center(img, cx, dy, date_text.upper(), f_date, 5 * S)
+    draw = ImageDraw.Draw(img)
 
     # Tagline, foot.
-    _draw_center(draw, W // 2, H - s(70), _TAGLINE, _font("DejaVuSerif.ttf", 25 * S), theme.tagline)
+    _draw_center(draw, cx, H - s(88), _TAGLINE, _font("DejaVuSerif.ttf", 22 * S), theme.tagline)
 
     return img.convert("RGB").resize(_SIZE, Image.LANCZOS)
 
@@ -383,13 +646,10 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
 # ---------------------------------------------------------------------------
 
 _SKY_STOPS = [
-    (0.0, (24, 16, 52)), (0.32, (74, 30, 76)), (0.54, (170, 72, 72)),
-    (0.65, (226, 130, 60)), (0.70, (252, 206, 124)), (0.715, (150, 80, 52)),
-    (1.0, (16, 9, 14)),
+    (0.0, (20, 14, 50)), (0.30, (70, 30, 74)), (0.50, (160, 70, 72)),
+    (0.62, (224, 126, 60)), (0.695, (252, 204, 120)), (0.72, (120, 60, 50)),
+    (1.0, (10, 7, 14)),
 ]
-_SKY_SEEDH = [0.55, 0.80, 0.42, 0.92, 0.6, 0.5, 0.86, 0.46, 0.72, 0.96, 0.58,
-              0.66, 0.82, 0.43, 0.76, 0.5, 0.9, 0.6, 0.7, 0.46, 0.84, 0.54,
-              0.92, 0.62, 0.5, 0.78, 0.44, 0.86, 0.66, 0.58]
 
 
 def _sky_gradient(stops: list, size: tuple) -> Image.Image:
@@ -412,20 +672,27 @@ def _sky_gradient(stops: list, size: tuple) -> Image.Image:
     return img
 
 
-def _skyline(img: Image.Image, horizon: int, color=(6, 5, 12)) -> list:
-    """Dark city silhouette with scattered lit windows; returns rooftop points."""
+def _skyline(img: Image.Image, bottom: int, min_h: int, hspan: int,
+             color=(6, 5, 12), seed: int = 7) -> list:
+    """Dark city silhouette rooted at `bottom` (buildings rise upward from
+    there, e.g. a waterline) with scattered lit windows; returns rooftop
+    points. `min_h`/`hspan` set the shortest building height and the extra
+    height range layered on top of it. `seed` (per-episode) drives both the
+    building heights and lit-window placement — same visual ranges/density
+    as the old fixed pattern, just seeded per day instead of hardcoded."""
     d = ImageDraw.Draw(img, "RGBA")
+    rng = random.Random(seed)
     tops = []
     xs = list(range(-20, _W + 60, 46))
     for i, x in enumerate(xs):
         wdt = 46
-        hf = _SKY_SEEDH[i % len(_SKY_SEEDH)]
-        top = horizon - int((_H - horizon) * hf * 0.9) - int(hf * 60)
-        d.rectangle([x, top, x + wdt - 4, _H], fill=(*color, 255))
+        hf = rng.uniform(0.42, 0.96)
+        top = bottom - min_h - int(hf * hspan)
+        d.rectangle([x, top, x + wdt - 4, bottom], fill=(*color, 255))
         tops.append((x + wdt // 2, top))
-        for wy in range(top + 14, _H - 10, 22):
+        for wy in range(top + 14, bottom - 10, 22):
             for wx in range(x + 8, x + wdt - 10, 14):
-                if ((i * 7 + wy * 3 + wx) % 5) == 0:
+                if rng.random() < 0.2:
                     d.rectangle([wx, wy, wx + 4, wy + 6], fill=(245, 205, 120, 170))
     return tops
 
@@ -461,12 +728,89 @@ def _shadow_center(base: Image.Image, cx: int, y: int, text: str,
     _draw_tracked_center(ImageDraw.Draw(base), cx, y, text, font, fill, tracking)
 
 
-def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+def _water_base(img: Image.Image, waterline: int) -> None:
+    """Opaque dark-bay gradient filling below the waterline — the base fill
+    the reflection + glitter layers composite onto."""
+    w, h = _SIZE
+    d = ImageDraw.Draw(img)
+    span = max(1, h - waterline)
+    for y in range(waterline, h):
+        t = (y - waterline) / span
+        d.line([(0, y), (w, y)],
+               fill=(int(18 - 11 * t), int(16 - 10 * t), int(34 - 22 * t), 255))
+
+
+def _water_reflections(img: Image.Image, waterline: int, ref_h: int = 200) -> None:
+    """Mirror the sky/skyline band just above the waterline into a dim,
+    vertically-compressed reflection composited into the bay below — the
+    glimmer on dark water that sells the raised horizon as a waterfront."""
+    w, h = _SIZE
+    region = img.crop((0, waterline - ref_h, w, waterline)).convert("RGB")
+    ref = region.transpose(Image.FLIP_TOP_BOTTOM)
+    ref = ref.point(lambda p: int(p * 0.52))
+    ref = ref.resize((w, max(1, ref_h // 3))).resize((w, h - waterline))
+    ref = ref.filter(ImageFilter.GaussianBlur(2))
+
+    mask = Image.new("L", (w, h - waterline), 0)
+    md = ImageDraw.Draw(mask)
+    for y in range(h - waterline):
+        md.line([(0, y), (w, y)], fill=int(200 * (1 - y / (h - waterline)) ** 0.8))
+    ref_rgba = ref.convert("RGBA")
+    ref_rgba.putalpha(mask)
+    layer = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    layer.paste(ref_rgba, (0, waterline))
+    img.alpha_composite(layer)
+
+
+def _water_glitter(img: Image.Image, waterline: int, cx: int, seed: int = 7) -> None:
+    """Vertical window-light streaks bleeding down from the skyline, a
+    sun-glitter cone widening down the bay, and a bright waterline seam — the
+    sparkle that reads as moving water rather than a flat mirror."""
+    rnd = random.Random(seed)
+
+    streaks = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(streaks)
+    for _ in range(54):
+        x = rnd.uniform(30, _W - 30)
+        ln = rnd.uniform(35, 160)
+        a = rnd.randint(45, 125)
+        sd.line([(x, waterline + 3), (x, waterline + 3 + ln)], fill=(250, 214, 138, a),
+                width=rnd.choice((2, 2, 3)))
+    img.alpha_composite(streaks.filter(ImageFilter.GaussianBlur(1)))
+
+    glitter = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glitter)
+    for _ in range(150):
+        y = waterline + rnd.uniform(4, 190)
+        spread = 30 + (y - waterline) * 0.55
+        x = cx + rnd.gauss(0, spread * 0.5)
+        w = rnd.uniform(3, 11)
+        a = rnd.randint(60, 205)
+        gd.rectangle([x - w / 2, y, x + w / 2, y + 2], fill=(255, 226, 152, a))
+    img.alpha_composite(glitter.filter(ImageFilter.GaussianBlur(1)))
+
+    seam = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(seam).line([(0, waterline), (_W, waterline)], fill=(255, 212, 140, 150), width=2)
+    img.alpha_composite(seam.filter(ImageFilter.GaussianBlur(1)))
+
+
+def _render_evening(theme: Theme, date_text: str, eyebrow_label: str, *,
+                    seed: int = 7) -> Image.Image:
+    """City lights on water: a dusk skyline silhouette rooted at a raised
+    waterline, mirrored into a dim reflection in the bay below with
+    window-light streaks and a sun-glitter cone, headline + date plaque
+    floating over the sky/water band. `seed` (per-episode, from
+    `_episode_seed`) drives the skyline heights/window placement and the
+    water reflections/glitter so each day's card is unique but deterministic."""
     cx = _W // 2
+    waterline = 518
     img = _sky_gradient(_SKY_STOPS, _SIZE).convert("RGBA")
-    horizon = int(_H * 0.70)
-    img = Image.alpha_composite(img, _radial(cx, horizon, 380, (255, 198, 98), 150))  # sun
-    tops = _skyline(img, horizon)
+
+    # Sun glow low on the waterline (design elements, not theme-driven).
+    img = Image.alpha_composite(img, _radial(cx, waterline, 430, (255, 194, 96), 175))
+    img = Image.alpha_composite(img, _radial(cx, waterline - 60, 150, (255, 228, 164), 195))
+
+    tops = _skyline(img, waterline, 30, 160, seed=seed)
 
     # Subtle glowing gold uptrend tracing the rising rooftops (markets motif).
     pts = [p for p in tops if 60 < p[0] < _W - 60]
@@ -476,11 +820,15 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
     img = Image.alpha_composite(img, line.filter(ImageFilter.GaussianBlur(6)))
     img = Image.alpha_composite(img, line)
 
+    _water_base(img, waterline)
+    _water_reflections(img, waterline)
+    _water_glitter(img, waterline, cx, seed=seed + 1)
+
     # Darken the top band so the headline reads cleanly over the sky.
     ov = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
     od = ImageDraw.Draw(ov)
-    for y in range(0, 310):
-        od.line([(0, y), (_W, y)], fill=(6, 4, 14, int(165 * (1 - y / 310))))
+    for y in range(0, 290):
+        od.line([(0, y), (_W, y)], fill=(6, 4, 14, int(165 * (1 - y / 290))))
     img = Image.alpha_composite(img, ov)
 
     mark = _compass(64)
@@ -505,19 +853,28 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
         if draw.textlength(head, font=f) <= _W - 80:
             break
         size_pt -= 2
-    _gold_center(img, cx, 140, head, _font("DejaVuSerif-Bold.ttf", size_pt))
+    _gold_center(img, cx, 118, head, _font("DejaVuSerif-Bold.ttf", size_pt))
 
     if sub:
-        _shadow_center(img, cx, 298, sub, _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
+        _shadow_center(img, cx, 262, sub, _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
 
+    # Date pill — floats on the water band. Drawn on its own RGBA layer +
+    # alpha_composite (mirrors _render_plate's pill) so the translucent fill
+    # actually blends over the busy reflections/glitter beneath it, unlike a
+    # direct draw onto the RGBA image.
     draw = ImageDraw.Draw(img)
     df = _font("DejaVuSans-Bold.ttf", 30)
     dt = date_text.upper()
     dw = _tracked_w(draw, dt, df, 3)
-    draw.rounded_rectangle([cx - dw / 2 - 22, 362, cx + dw / 2 + 22, 412],
-                           radius=25, fill=(0, 0, 0, 130), outline=(250, 212, 132), width=2)
-    _draw_tracked_center(draw, cx, 372, dt, df, (251, 234, 202), 3)
+    pill_cy = 636
+    pill = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - 22, pill_cy - 25, cx + dw / 2 + 22, pill_cy + 25],
+        radius=25, fill=(0, 0, 0, 150), outline=(250, 212, 132, 255), width=2)
+    img.alpha_composite(pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, pill_cy - 15, dt, df, (251, 234, 202), 3)
 
+    img = Image.alpha_composite(img, _vignette(0.22))
     return img.convert("RGB")
 
 
@@ -550,9 +907,13 @@ def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Ima
         plate = Image.open(_PLATE_CHARTMASTER).convert("RGBA")
         img = _cover_fit(plate)
     except Exception:
-        # Never break a publish over a missing/corrupt plate asset.
-        # Handles both missing files and corrupt-but-openable assets (PIL lazy evaluation).
-        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label)
+        # Never break a publish over a missing/corrupt plate asset. Handles both
+        # missing files and corrupt-but-openable assets (PIL lazy evaluation).
+        # Seed derived the same way `render_session_thumbnail` would for this
+        # exact (date_text, eyebrow_label) pair, so the fallback stays byte-
+        # identical to an explicit variant="default" classic render.
+        seed = _episode_seed(date_text, eyebrow_label)
+        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label, seed=seed)
 
     cx = _W // 2
 
@@ -580,14 +941,15 @@ def render_session_thumbnail(
     variant: str | None = None,
 ) -> bytes:
     theme = _resolve_theme(variant, eyebrow_label)
+    seed = _episode_seed(date_text, eyebrow_label)
     if theme.layout == "evening":
-        img = _render_evening(theme, date_text, eyebrow_label)
+        img = _render_evening(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "editorial":
-        img = _render_editorial(theme, date_text, eyebrow_label)
+        img = _render_editorial(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "plate":
         img = _render_plate(theme, date_text, eyebrow_label)
     else:
-        img = _render_classic(theme, date_text, eyebrow_label)
+        img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=95, subsampling=0)
     return buf.getvalue()
