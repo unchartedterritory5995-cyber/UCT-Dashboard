@@ -436,7 +436,13 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
     msg = client.messages.create(
         model=_TICKER_MODEL,
-        max_tokens=2400,
+        max_tokens=4000,
+        # Sonnet 5 runs ADAPTIVE THINKING by default when `thinking` is omitted,
+        # and max_tokens caps thinking + answer COMBINED — on a marathon
+        # transcript the model burned the whole budget reasoning and returned
+        # zero text (stop_reason=max_tokens, content=[ThinkingBlock]). This is
+        # mechanical extraction; spend the entire budget on the answer.
+        thinking={"type": "disabled"},
         system=_TICKER_SYS,
         messages=[{"role": "user", "content": user}],
     )
@@ -656,11 +662,13 @@ def _ticker_backfill_enabled() -> bool:
     return os.environ.get("DESK_CHAPTERS_TICKER_BACKFILL", "1") != "0"
 
 
-def _run_ticker_backfill(results: list[dict]) -> None:
+def _run_ticker_backfill(results: list[dict], errors: list[dict]) -> None:
     """4) Ticker backfill: videos already carrying chapters + a stored
     transcript but EMPTY ticker_moments get a bounded, best-effort retry from
     the STORED transcript — no Zoom dependency (the recording is already
-    trashed by this point). A failed attempt just waits for the next pass."""
+    trashed by this point). A failed attempt just waits for the next pass.
+    Failures feed the same errors/fail-streak observability as the main pass —
+    a silently-failing backfill looked identical to an idle one (2026-07-02)."""
     if not _ticker_backfill_enabled():
         return
     try:
@@ -671,15 +679,22 @@ def _run_ticker_backfill(results: list[dict]) -> None:
         print(f"[session-insights] ticker backfill list failed: {e}")
         return
     for v in rows:
-        vid = v["id"]
+        vid = v.get("id")
         cues = _parse_timestamped_block(v.get("transcript") or "")
         if not cues:
             continue
         try:
             tickers = generate_ticker_moments(v.get("title") or "", cues)
         except Exception as e:
-            print(f"[session-insights] ticker backfill {vid} failed (non-fatal): {e}")
+            msg = str(e)
+            print(f"[session-insights] ticker backfill {vid} failed (non-fatal): {msg}")
+            errors.append({"id": vid, "error": f"ticker_backfill: {msg[:280]}"})
+            streak = _FAIL_STREAKS.get(vid, 0) + 1
+            _FAIL_STREAKS[vid] = streak
+            if streak == _FAIL_STREAK_ALERT_AT:
+                _fire_fail_streak_alert(vid, v.get("title") or "", msg[:300])
             continue  # don't stamp/poison anything — next pass retries
+        _FAIL_STREAKS.pop(vid, None)
         education_service.set_video_insights(vid, ticker_moments=tickers)
         results.append({"id": vid, "action": "ticker_backfill", "tickers": len(tickers)})
 
@@ -707,7 +722,7 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
 
     # Independent of the main pass above — runs even when `pending` is empty,
     # and never touches Zoom (stored transcript only).
-    _run_ticker_backfill(results)
+    _run_ticker_backfill(results, errors)
     _RECENT_PASSES.append({"ts": int(time.time()), "results": list(results), "errors": errors})
     return results
 

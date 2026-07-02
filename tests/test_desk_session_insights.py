@@ -678,7 +678,32 @@ def test_generate_ticker_moments_budget_and_salvage(monkeypatch):
     monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
     out = si.generate_ticker_moments("Title", [{"t": 5, "text": "hello"}])
     assert captured.get("max_tokens", 0) >= 2000
+    # Regression 2026-07-02 #2: Sonnet 5 defaults to adaptive thinking when the
+    # field is omitted; on long transcripts thinking consumed the ENTIRE
+    # max_tokens budget (stop_reason=max_tokens, zero text). Pin it disabled.
+    assert captured.get("thinking") == {"type": "disabled"}
     assert [m["ticker"] for m in out] == ["SPY", "QQQ"]
+
+
+def test_ticker_backfill_failures_feed_observability(monkeypatch):
+    """A silently-failing backfill looked identical to an idle one — its
+    exceptions must land in the pass errors + fail streaks like the main pass."""
+    monkeypatch.setattr(
+        si.education_service, "videos_missing_ticker_moments",
+        lambda window, limit: [{"id": 42, "title": "Big Session",
+                                "transcript": "[0:00:05] hello"}],
+    )
+    monkeypatch.setattr(
+        si, "generate_ticker_moments",
+        lambda title, cues: (_ for _ in ()).throw(RuntimeError("llm exploded")),
+    )
+    si._FAIL_STREAKS.clear()
+    results, errors = [], []
+    si._run_ticker_backfill(results, errors)
+    assert results == []
+    assert errors and errors[0]["id"] == 42
+    assert "ticker_backfill" in errors[0]["error"]
+    assert si._FAIL_STREAKS.get(42) == 1
 
 
 # ── Ticker-chip quality guard: range filter, dedup, model override ──────────────
