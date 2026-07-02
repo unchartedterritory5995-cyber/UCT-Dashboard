@@ -443,6 +443,15 @@ def _compass_tool_union() -> set[str]:
     out.add("analyze_sizing_curve")
     out.add("analyze_correlation")
     out.add("compare_setups")
+    # Brain bridge (flag-gated by BRAIN_TOOLS_ENABLED at registration time) —
+    # firm playbook/KB lookup, setup win-rates, historical analogs, sizing.
+    # Harmless to list here even when the flag is off: get_schema_for_context
+    # only surfaces tools that are actually in the registry.
+    out.add("ask_the_brain")
+    out.add("lookup_playbook")
+    out.add("setup_winrate")
+    out.add("find_historical_analogs")
+    out.add("size_a_trade")
     return out
 
 
@@ -480,6 +489,10 @@ _COMPASS_CORE_TOOLS: set[str] = {
     # Knowledge / research / memory
     "lookup_trading_principle", "deep_research", "web_search",
     "remember", "recall_relevant", "note_write", "note_read",
+    # Brain bridge — firm playbook/KB, setup win-rates, historical analogs,
+    # risk-first sizing (flag-gated; harmless when unregistered).
+    "ask_the_brain", "lookup_playbook", "setup_winrate",
+    "find_historical_analogs", "size_a_trade",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",

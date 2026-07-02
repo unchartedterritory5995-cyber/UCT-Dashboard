@@ -7,6 +7,7 @@ narration_template.
 """
 
 import logging
+import os
 
 import api.services.voice_tools as _vt
 
@@ -1836,6 +1837,36 @@ def _get_regime(fresh: bool = False) -> dict:
     return get_current_regime(fresh=bool(fresh))
 
 
+# ── Brain bridge: firm playbook / KB / sizing tools (flag-gated) ───────────
+
+def _ask_the_brain(question: str, k: int = 6) -> dict:
+    from api.services import brain_kb_service
+    return brain_kb_service.ask_the_brain(question, k=int(k or 6))
+
+
+def _lookup_playbook(setup_name: str) -> dict:
+    from api.services import brain_service
+    return brain_service.lookup_playbook(setup_name)
+
+
+def _setup_winrate(setup: str, regime: str = "ALL") -> dict:
+    from api.services import brain_service
+    return brain_service.setup_winrate(setup, regime or "ALL")
+
+
+def _find_historical_analogs(setup_type: str, regime: str = "", sector: str = "",
+                             limit: int = 5) -> dict:
+    from api.services import brain_service
+    return brain_service.find_historical_analogs(setup_type, regime, sector, int(limit or 5))
+
+
+def _size_a_trade(entry: float, stop: float, account: float, regime: str = "",
+                  grade: str = "A", risk_pct: float = 1.0) -> dict:
+    from api.services import brain_service
+    return brain_service.size_a_trade(entry=entry, stop=stop, account=account,
+                                      regime=regime, grade=grade, risk_pct=risk_pct)
+
+
 # ── Batch 9a: Trading Knowledge Base lookup ────────────────────────────────
 
 def _lookup_trading_principle(query: str = "", count: int = 3) -> dict:
@@ -3606,6 +3637,55 @@ def _register_all() -> None:
         },
         contexts=["global"],
     )(_lookup_trading_principle)
+
+    if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
+        _vt.voice_tool(
+            name="ask_the_brain",
+            description="Semantic search over the firm's full knowledge base (8,500+ entries:"
+                        " setups, rules, psychology, methodology from O'Neil/Minervini/Qullamaggie"
+                        " lineage). Returns cited passages to reason from. Use for any craft,"
+                        " methodology, or 'teach me / why / compare' question.",
+            parameters={"question": {"type": "string", "description": "The craft question"},
+                        "k": {"type": "integer", "description": "Passages to return (default 6)"}},
+            contexts=["global"],
+        )(_ask_the_brain)
+        _vt.voice_tool(
+            name="lookup_playbook",
+            description="Exact setup-template lookup (48 firm templates): entry triggers, stop"
+                        " method, max stop %, invalidation, common mistakes, win-rate. Accepts"
+                        " aliases like 'high tight flag' or 'episodic pivot'.",
+            parameters={"setup_name": {"type": "string", "description": "Setup name or alias"}},
+            contexts=["global"],
+        )(_lookup_playbook)
+        _vt.voice_tool(
+            name="setup_winrate",
+            description="Win-rate and expectancy for a setup, optionally in a specific regime"
+                        " (GREEN/YELLOW/ORANGE/RED or ALL). Says so when the sample is too small.",
+            parameters={"setup": {"type": "string"},
+                        "regime": {"type": "string", "description": "Regime filter, default ALL"}},
+            contexts=["global"],
+        )(_setup_winrate)
+        _vt.voice_tool(
+            name="find_historical_analogs",
+            description="Historical analogs: when this setup fired before in this regime, what"
+                        " happened (follow-through stats).",
+            parameters={"setup_type": {"type": "string"},
+                        "regime": {"type": "string"}, "sector": {"type": "string"},
+                        "limit": {"type": "integer"}},
+            contexts=["global"],
+        )(_find_historical_analogs)
+        _vt.voice_tool(
+            name="size_a_trade",
+            description="Risk-first position sizing from the firm's regime-by-grade table:"
+                        " shares, position %, dollar risk, R-targets. Requires a stop; caps"
+                        " account risk at 2%.",
+            parameters={"entry": {"type": "number"}, "stop": {"type": "number"},
+                        "account": {"type": "number"},
+                        "regime": {"type": "string", "description": "Blank = current regime"},
+                        "grade": {"type": "string", "description": "Setup grade, e.g. A+"},
+                        "risk_pct": {"type": "number", "description": "Account risk %, max 2"}},
+            contexts=["global"],
+        )(_size_a_trade)
 
     _vt.voice_tool(
         name="get_regime",
