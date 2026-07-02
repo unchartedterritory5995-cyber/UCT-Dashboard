@@ -24,10 +24,14 @@ def _verify_signature(secret: str, timestamp: str, raw_body: str, signature: str
     return hmac.compare_digest(expected, signature)
 
 def _first_mp4_url(obj: dict) -> str | None:
-    for f in (obj.get("recording_files") or []):
-        if (f.get("file_type") or "").upper() == "MP4" and f.get("download_url"):
-            return f["download_url"]
-    return None
+    # Largest MP4 wins: a stop/restart mid-webinar yields multiple MP4 segments,
+    # and the tiny first clip must not shadow the real recording. Files without
+    # a file_size rank lowest, so an all-sizeless payload keeps first-MP4 order.
+    mp4s = [f for f in (obj.get("recording_files") or [])
+            if (f.get("file_type") or "").upper() == "MP4" and f.get("download_url")]
+    if not mp4s:
+        return None
+    return max(mp4s, key=lambda f: f.get("file_size") or 0)["download_url"]
 
 @router.post("/zoom-webhook")
 async def zoom_webhook(request: Request):
