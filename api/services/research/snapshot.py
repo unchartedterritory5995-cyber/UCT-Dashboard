@@ -28,6 +28,7 @@ def _skeleton(sym: str) -> dict:
         "name": None,
         "sector": None,
         "industry": None,
+        "about": None,
         "composite": None,
         "components": {},
         "checkup": [],
@@ -66,6 +67,7 @@ def get_snapshot(sym: str) -> dict:
     out["name"] = fund.get("name") or sym
     out["sector"] = fund.get("sector")
     out["industry"] = fund.get("industry")
+    out["about"] = fund.get("about")  # longBusinessSummary — RH-style About section
     out["next_earnings"] = fund.get("next_earnings")  # ISO date or None (header chip)
 
     out["composite"] = rat.get("composite")

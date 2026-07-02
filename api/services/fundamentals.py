@@ -97,6 +97,7 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "name": info.get("longName") or info.get("shortName") or sym,
         "sector": info.get("sector"),
         "industry": info.get("industry"),
+        "about": info.get("longBusinessSummary"),
         # Valuation
         "market_cap": _fmt_billions(info.get("marketCap")),
         "enterprise_value": _fmt_billions(info.get("enterpriseValue")),
