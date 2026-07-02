@@ -89,12 +89,28 @@ _EVENING_THEME = Theme(
     layout="evening",
 )
 
+# "Workshop with ChartMaster" — a pre-made cinematic artwork plate (stormy sea,
+# ornate gold CHARTMASTER lettering baked into the art); only the date is
+# stamped per episode. ChartMaster workshops only — not a general plate system.
+_CHARTMASTER_THEME = Theme(
+    bg_top=(10, 20, 34),
+    bg_bottom=(3, 7, 14),
+    glow=_GOLD,
+    wordmark=(236, 240, 246),
+    eyebrow=_GOLD,
+    date=(251, 234, 202),
+    rule=_GOLD,
+    tagline=(138, 147, 163),
+    layout="plate",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
     "thoughts": _EMERALD_THEME,
     "emerald": _EMERALD_THEME,
     "evening": _EVENING_THEME,
+    "chartmaster": _CHARTMASTER_THEME,
 }
 
 
@@ -102,6 +118,8 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     if variant:
         return _THEMES.get(variant.lower().strip(), _DEFAULT_THEME)
     low = (eyebrow_label or "").lower()
+    if "chartmaster" in low:
+        return _CHARTMASTER_THEME
     if "evening" in low:
         return _EVENING_THEME
     if "thought" in low:

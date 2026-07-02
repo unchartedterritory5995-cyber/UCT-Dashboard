@@ -81,3 +81,15 @@ def test_evening_is_host_aware():
     bracco = t.render_session_thumbnail("June 30, 2026", "EVENING UPDATE FROM BRACCO")
     assert Image.open(io.BytesIO(bracco)).size == (1280, 720)
     assert tsdr != bracco
+
+
+def test_chartmaster_eyebrow_routes_to_plate():
+    assert t._resolve_theme(None, "WORKSHOP WITH CHARTMASTER").layout == "plate"
+
+
+def test_chartmaster_variant_override_routes_to_plate():
+    assert t._resolve_theme("chartmaster", "LIVE TRADING SESSION").layout == "plate"
+
+
+def test_live_trading_still_classic():
+    assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
