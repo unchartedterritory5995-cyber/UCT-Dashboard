@@ -108,17 +108,17 @@ describe('subscriptions → union → buckets', () => {
   })
 
   it('an unchanged bucket is reused even when its index shifts', () => {
-    const first50 = Array.from({ length: 50 }, (_, i) => `B${String(i).padStart(2, '0')}`)
-    // 'ZZZZ' sorts AFTER the B-block, so bucket 0 = the B-block, bucket 1 = [ZZZZ]
-    const un = mgr.subscribe(['ZZZZ'], () => {})
-    mgr.subscribe(first50, () => {})
-    flushRebuild()
-    expect(openInstances()).toHaveLength(2)
-    const bBucketEs = openInstances().find(es => es.url.includes('B00'))
-    // Dropping ZZZZ leaves the B-block bucket identical in content
-    un()
+    const bBlock = Array.from({ length: 50 }, (_, i) => `B${String(i).padStart(2, '0')}`)
+    mgr.subscribe(bBlock, () => {})
     flushRebuild()
     expect(openInstances()).toHaveLength(1)
-    expect(openInstances()[0]).toBe(bBucketEs)
+    const bEs = openInstances()[0]
+    // A-block sorts BEFORE the B-block → B-block shifts index 0 → 1, content unchanged
+    const aBlock = Array.from({ length: 50 }, (_, i) => `A${String(i).padStart(2, '0')}`)
+    mgr.subscribe(aBlock, () => {})
+    flushRebuild()
+    expect(openInstances()).toHaveLength(2)
+    expect(openInstances()).toContain(bEs)   // fails under positional matching
+    expect(bEs.closed).toBe(false)
   })
 })
