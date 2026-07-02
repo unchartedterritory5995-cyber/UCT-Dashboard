@@ -16,7 +16,10 @@ const fetcher = (url) =>
 export default function useJ2DisciplineState(accountId) {
   const url = accountId ? `/api/j2/accounts/${accountId}/discipline/state` : null
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
-    refreshInterval: 5_000,
+    // Discipline state changes on trade events, not sub-second — 5s was needless
+    // network + re-render churn. 20s is plenty (mutate() still refreshes it
+    // immediately after a trade action). (2026-07-01 perf pass)
+    refreshInterval: 20_000,
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })

@@ -19,7 +19,10 @@
  */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import useSWR from 'swr'
+// Tab-aware SWR: same API as `useSWR`, but pauses polling when the dashboard tab
+// is hidden (and halves cadence on mobile) — this tile's 15s polls used to run
+// forever in background tabs. Drop-in, so call sites are unchanged. (perf pass)
+import useSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
