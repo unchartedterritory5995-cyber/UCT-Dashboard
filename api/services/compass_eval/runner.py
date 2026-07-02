@@ -158,6 +158,7 @@ def run_exam(
     "safety_breaks": int}.
     """
     from api.services import auth_db
+    from api.services import voice_tool_impls  # noqa: F401  (populates the voice registry the chat parity tools dispatch into)
     from api.services.compass_eval import checks, golden_set, judge, store
     from api.services.journal_two import accounts, coach_chat
 

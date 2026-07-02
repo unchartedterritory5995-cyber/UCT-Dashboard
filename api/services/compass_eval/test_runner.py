@@ -9,6 +9,16 @@ import tempfile
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _restore_brain_tools_flag(monkeypatch):
+    """Any test that flips BRAIN_TOOLS_ENABLED / reloads coach_chat_tools must
+    leave the module back in its default flag-off state for later tests."""
+    yield
+    monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "0")
+    import api.services.journal_two.coach_chat_tools as cct
+    importlib.reload(cct)
+
+
 @pytest.fixture()
 def sandbox(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -180,3 +190,31 @@ def test_run_exam_empty_filter_returns_empty_summary(sandbox):
     assert out["failed"] == []
     assert out["safety_breaks"] == 0
     assert [k for k in out["summary"] if isinstance(k, int)] == []
+
+
+def test_parity_tool_reaches_real_voice_registry(monkeypatch):
+    """Regression proof for the final-review finding: run_exam's chat parity
+    tools (get_quote/get_regime/get_breadth) dispatch into the voice tool
+    registry (voice_tools.dispatch), which is only populated once
+    api.services.voice_tool_impls has been imported (its _register_all()
+    runs at module bottom). The web app imports it at boot; run_exam did not
+    — so an exam run would silently get {"error": "tool ... not found"} for
+    every parity tool. This test proves the fix (the import runner.py now
+    performs near the top of run_exam) actually resolves a parity tool
+    against the REAL registry — no monkeypatching of voice_tools.dispatch.
+
+    get_regime is used (not get_quote/get_breadth): it wraps the local
+    regime classifier, which is network-free by construction — its only
+    external touch (a VIX snapshot fetch) is wrapped in a try/except that
+    swallows failures, so this test needs no network and no mocking.
+    """
+    monkeypatch.setenv("BRAIN_TOOLS_ENABLED", "1")
+    import api.services.journal_two.coach_chat_tools as cct
+    importlib.reload(cct)
+    import api.services.voice_tool_impls  # noqa: F401  populates the voice registry
+
+    result = cct.TOOLS["get_regime"]["executor"](
+        user_id="u", account_id="a", args={}, conn=None)
+
+    assert isinstance(result, dict)
+    assert "not found" not in str(result.get("error", ""))
