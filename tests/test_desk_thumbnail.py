@@ -148,6 +148,10 @@ def test_classic_long_arbitrary_eyebrow_no_crash():
     _smoke("SUPER EXTENDED WEEKEND DEEP DIVE MASTERCLASS MARATHON SESSION")
 
 
+def test_editorial_smoke():
+    _smoke("THOUGHTS ON THE MARKET")
+
+
 def test_fit_tracked_truncates_when_floor_overflows():
     img = Image.new("RGB", (1280, 720))
     d = ImageDraw.Draw(img)
