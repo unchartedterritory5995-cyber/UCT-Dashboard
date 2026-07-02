@@ -406,6 +406,18 @@ def main():
         log.exception(f"bars SQLite init failed: {e}")
         sys.exit(1)
 
+    # Purge stale Monday-keyed weekly rows (content-based, idempotent).
+    # CRITICAL that this runs HERE and not only in api.main's lifespan: the
+    # worker's bars.db is the R2 snapshot source of truth — the 2026-07-02
+    # duplicate-weekly-candle incident happened because the web-only one-shot
+    # heal never touched this DB, and every snapshot re-poisoned the web pod.
+    try:
+        _wk = _bs.purge_mis_keyed_weekly_rows()
+        if _wk:
+            log.info(f"weekly key purge: removed {_wk} mis-keyed weekly rows")
+    except Exception as e:
+        log.warning(f"weekly key purge failed (non-fatal): {e}")
+
     _start_prewarmer()
     _start_massive_ws()
     _start_uploader()

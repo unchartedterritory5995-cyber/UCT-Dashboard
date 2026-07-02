@@ -373,8 +373,16 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
     placeholder bar per ticker on 30m/60m (overnight UTC buckets, v=0); this is
     the single chokepoint every cached response flows through. Zero volume is
     legitimate (illiquid / extended-hours) and is kept. Filtering here does not
-    perturb delta/partial-cache logic — those read raw SQLite rows, not this."""
+    perturb delta/partial-cache logic — those read raw SQLite rows, not this.
+
+    Weekly guard (2026-07-02): drop weekly rows whose date is not the Friday
+    of its ISO week. Valid weekly keys are ALWAYS calendar Fridays
+    (_resample_weekly_iso); a non-Friday key is a stale Monday-keyed leftover
+    that duplicates the week's candle. bars_sqlite.purge_mis_keyed_weekly_rows
+    cleans the store at boot; this keeps charts clean even against a
+    just-restored stale snapshot between purges."""
     date_tf = tf in ("D", "W", "M")
+    weekly = tf == "W"
     out = []
     for ts, o, h, l, c, v in rows:
         if o is None or h is None or l is None or c is None:
@@ -383,6 +391,12 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
             continue
         if date_tf:
             s = str(ts)
+            if weekly:
+                try:
+                    if datetime(int(s[:4]), int(s[4:6]), int(s[6:])).weekday() != 4:
+                        continue
+                except ValueError:
+                    continue
             t_val = f"{s[:4]}-{s[4:6]}-{s[6:]}"
         else:
             t_val = ts
@@ -1733,6 +1747,65 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
         is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf)
+
+        # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
+        # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF
+        # only fires when the user pans into history they don't have — the
+        # old stale+bg path answered that explicit ask with the same shallow
+        # window (the client treats a non-delta response as authoritative and
+        # won't re-poll for up to 30s; a TF switch resets depth), so panning
+        # visibly loaded nothing: "intraday won't load more than 1 day."
+        # Mirrors the cold-stale synchronous precedent; the inflight dedup in
+        # Layer 4 prevents a stampede and _mark_history_complete prevents
+        # refetch loops, so each (ticker, tf) pays the ~3-8s fetch once.
+        # D/W/M deliberately KEEP the background path — their 2.5s dwell-warm
+        # fires on every chart open and must never block a request thread.
+        if is_partial and _is_deep_request(bars) and tf in ("1", "5", "15", "30", "60"):
+            with _inflight_lock:
+                if cache_key in _inflight:
+                    deep_waiter, i_fetch_deep = _inflight[cache_key], False
+                else:
+                    deep_waiter = _threading.Event()
+                    _inflight[cache_key] = deep_waiter
+                    i_fetch_deep = True
+            if i_fetch_deep:
+                try:
+                    raw = _fetch_intraday(ticker_up, tf, bars)
+                    if raw and not _is_intraday_stale(raw):
+                        _sqlite.put_bars(ticker_up, tf, raw, date_tf=False)
+                        _mark_history_complete(ticker_up, tf)
+                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    payload = {
+                        "ticker": ticker_up, "tf": tf,
+                        "bars": _fmt_sqlite_bars(fresh_rows or stored_rows, tf),
+                    }
+                    if payload["bars"]:
+                        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+                    return JSONResponse(
+                        content=payload,
+                        headers={"Cache-Control": "public, max-age=5"},
+                    )
+                except Exception as _deep_e:
+                    import logging as _log_deep
+                    _log_deep.getLogger(__name__).error(
+                        f"[bars] deep intraday sync fetch failed {ticker_up} tf={tf}: "
+                        f"{type(_deep_e).__name__}: {_deep_e}"
+                    )
+                    # Fall through to the stale-serve below — same UX as before.
+                finally:
+                    with _inflight_lock:
+                        _inflight.pop(cache_key, None)
+                    deep_waiter.set()
+            else:
+                # Another request is already deep-fetching this key — wait
+                # briefly, then serve whatever is freshest.
+                deep_waiter.wait(timeout=12)
+                hit = cache.get(cache_key)
+                if hit is not None:
+                    return JSONResponse(
+                        content=hit,
+                        headers={"Cache-Control": "public, max-age=5"},
+                    )
 
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
