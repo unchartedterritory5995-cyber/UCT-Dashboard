@@ -151,21 +151,34 @@ def get_events(syms: list[str]) -> list[dict]:
         cache.set(cache_key, [], ttl=_CACHE_TTL)
         return []
 
-    for sym in clean_syms:
+    # Parallelize + hard-deadline the per-symbol yfinance work. Sequentially this
+    # was up to 200 × ~1s (tens of seconds) and a hung yfinance call had no
+    # timeout — it could pin the request forever. An 8-wide pool + a 25s total
+    # deadline + non-blocking shutdown keeps the request bounded. (2026-07-01)
+    from concurrent.futures import ThreadPoolExecutor
+    import time as _time
+
+    def _one(sym: str) -> list[dict]:
+        out: list[dict] = []
         try:
             ticker = yf.Ticker(sym)
-
-            # Forward dividend (from .calendar ex-date)
             div_event = _get_forward_dividend(ticker, sym, today)
             if div_event:
-                results.append(div_event)
-
-            # Forward splits (from .splits, future dates only)
-            split_events = _get_forward_splits(ticker, sym, today)
-            results.extend(split_events)
-
+                out.append(div_event)
+            out.extend(_get_forward_splits(ticker, sym, today))
         except Exception as exc:
             _logger.debug("dividends_calendar: error processing %s: %s", sym, exc)
+        return out
+
+    ex = ThreadPoolExecutor(max_workers=8, thread_name_prefix="div-cal")
+    futures = [ex.submit(_one, s) for s in clean_syms]
+    deadline = _time.monotonic() + 25.0
+    for fut in futures:
+        try:
+            results.extend(fut.result(timeout=max(0.0, deadline - _time.monotonic())))
+        except Exception:
+            pass
+    ex.shutdown(wait=False, cancel_futures=True)
 
     # Sort by date ascending
     results.sort(key=lambda e: e.get("date") or "")

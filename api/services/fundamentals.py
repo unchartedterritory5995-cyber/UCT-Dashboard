@@ -80,9 +80,11 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
     if cached is not None:
         return dict(cached)
 
+    # yfinance `.info` is its slowest / most hang-prone call and has no timeout;
+    # bound it so a stalled Yahoo response can't pin a worker thread forever.
     try:
-        t = yf.Ticker(sym)
-        info = t.info or {}
+        from api.services.yf_util import bounded_call
+        info = bounded_call(lambda: yf.Ticker(sym).info, None) or {}
     except Exception as e:
         _log.warning("yfinance fundamentals failed for %s: %s", sym, e)
         return {"error": f"yfinance failed: {e}", "ticker": sym}
@@ -153,7 +155,11 @@ def compare_fundamentals(tickers: list[str]) -> dict[str, Any]:
     if len(tickers) < 2:
         return {"error": "need at least 2 tickers for peer comp"}
 
-    rows = [get_fundamentals(t) for t in tickers]
+    # Parallelize the peer set — each get_fundamentals is now internally bounded,
+    # so up to 6 tickers resolve concurrently instead of sequentially.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 6)) as ex:
+        rows = list(ex.map(get_fundamentals, tickers))
     rows = [r for r in rows if "error" not in r]
     if not rows:
         return {"error": "no fundamentals available for any ticker"}

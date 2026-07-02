@@ -110,16 +110,17 @@ def _compute_returns(ticker: str) -> dict | None:
     }
 
 
-def compute_rs_scores() -> list[dict]:
+def compute_rs_scores(force: bool = False) -> list[dict]:
     """Compute RS scores and percentile ranks for the full universe.
 
     Returns list of {ticker, rs_score, rs_rank, returns: {1w, 1m, 3m, 6m}}
     sorted by rs_rank descending (best first).
 
-    Results cached for 1 hour.
+    Results cached for 1 hour. `force=True` recomputes even if cached — used by
+    the background re-warmer so the cache never lapses cold onto a real request.
     """
     cached = cache.get(_CACHE_KEY)
-    if cached is not None:
+    if cached is not None and not force:
         return cached
 
     universe = _get_universe()
@@ -171,8 +172,15 @@ def compute_rs_scores() -> list[dict]:
 
 
 def get_rs_for_ticker(ticker: str) -> dict | None:
-    """Return RS data for a single ticker from cached rankings."""
-    rankings = compute_rs_scores()
+    """Return RS data for a single ticker from CACHED rankings only.
+
+    Never triggers a full-universe recompute — that ~17s cost belongs to the
+    background warmer, not a one-row lookup (previously a single-ticker request
+    on a cold cache rebuilt all ~3,685 tickers). Returns None when cold.
+    """
+    rankings = cache.get(_CACHE_KEY)
+    if not rankings:
+        return None
     ticker_up = ticker.upper()
     for item in rankings:
         if item["ticker"] == ticker_up:

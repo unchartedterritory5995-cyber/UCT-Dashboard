@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import requests
@@ -88,18 +89,24 @@ def get_recent_insider_buys() -> list[dict]:
     tickers = _get_feed_tickers()
     cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
 
-    buys: list[dict] = []
-    for ticker in tickers:
+    # Parallelize the per-ticker Finnhub fetches. Each get_insider_activity is
+    # independently cached (4h) and has a 15s per-call timeout, so a 10-wide
+    # pool turns ~55 SEQUENTIAL fetches (~16s cold) into a few concurrent waves.
+    def _fetch(tk: str):
         try:
-            txns = get_insider_activity(ticker)
+            return tk, get_insider_activity(tk)
+        except Exception:
+            return tk, []
+
+    buys: list[dict] = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        for tk, txns in ex.map(_fetch, tickers):
             for t in txns:
                 if t["type"] != "buy":
                     continue
                 if t["date"] < cutoff:
                     continue
-                buys.append({**t, "symbol": ticker})
-        except Exception:
-            continue
+                buys.append({**t, "symbol": tk})
 
     # Sort by dollar amount descending — most notable first
     buys.sort(key=lambda b: b["amount"], reverse=True)

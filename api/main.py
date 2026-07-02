@@ -516,14 +516,22 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
     def _delayed():
         import time
         time.sleep(delay_seconds)
-        try:
-            from api.services import rs_ranking
-            rankings = rs_ranking.compute_rs_scores()
-            logging.getLogger(__name__).info(
-                "[startup] rs-rankings warmed: %d entries", len(rankings)
-            )
-        except Exception:
-            logging.getLogger(__name__).exception("[startup] rs-rankings warm failed")
+        # Re-warm on a loop just UNDER the 1h cache TTL so the ~17s recompute is
+        # always absorbed by this background thread and never lands on a real
+        # user request (previously every hour the first requester ate the full
+        # cold recompute). force=True after the initial populate.
+        first = True
+        while True:
+            try:
+                from api.services import rs_ranking
+                rankings = rs_ranking.compute_rs_scores(force=not first)
+                logging.getLogger(__name__).info(
+                    "[rs-rankings] warmed: %d entries", len(rankings)
+                )
+                first = False
+            except Exception:
+                logging.getLogger(__name__).exception("[rs-rankings] warm failed")
+            time.sleep(3000)  # 50 min, under the 3600s cache TTL
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
