@@ -8,7 +8,9 @@ Each session *type* gets its own colour THEME **and** its own LAYOUT so the card
 are unmistakably different in The Desk → Videos library — not the same template
 recoloured:
 
-  - "LIVE TRADING SESSION" -> classic: gold-on-black, the DATE is the hero.
+  - "LIVE TRADING SESSION" -> classic: a candlestick skyline — a glowing gold
+    uptrend across a storm-lit night sky, the DATE the metallic-gold hero above
+    it. Rendered at 2x and downscaled (super-sampled) with a light film grain.
   - "THOUGHTS ON THE MARKET" -> editorial: an asymmetric magazine-style card —
     left = kicker tab + serif metallic-gold headline (the TITLE is the hero) on a
     gold pull-quote spine + date; right = a glowing gold candlestick uptrend so it
@@ -204,26 +206,103 @@ def _vignette(strength: float, size: tuple = _SIZE) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# Classic (Live Trading)
+# Classic (Live Trading) — candlestick skyline
 # ---------------------------------------------------------------------------
 
+def _band_scrim(size: tuple, y_from: int, y_to: int, max_alpha: int,
+                top_down: bool = True) -> Image.Image:
+    """Dark gradient band (for text legibility / grounding over busy art)."""
+    ov = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    span = max(1, y_to - y_from)
+    for y in range(y_from, y_to):
+        t = (y - y_from) / span
+        a = int(max_alpha * (1 - t)) if top_down else int(max_alpha * t)
+        d.line([(0, y), (size[0], y)], fill=(3, 4, 8, a))
+    return ov
+
+
+def _grain(img: Image.Image, alpha: float, seed: int = 7) -> Image.Image:
+    """Subtle film grain: additive per-pixel Gaussian noise (monochrome, so it
+    reads as grain rather than color speckle). `alpha` is the noise strength
+    (stddev). Deterministic (fixed default seed) so renders stay reproducible."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    arr = np.asarray(img).astype(np.int16)
+    noise = rng.normal(0.0, alpha, arr.shape[:2])[:, :, None]
+    return Image.fromarray(np.clip(arr + noise, 0, 255).astype(np.uint8))
+
+
 def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
-    img = _gradient_bg(theme.bg_top, theme.bg_bottom).convert("RGBA")
-    cx = _W // 2
-    glow = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
-    ImageDraw.Draw(glow).ellipse([cx - 150, 40, cx + 150, 340], fill=(*theme.glow, 60))
-    img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(70)))
-    mark = _compass(150)
+    """Candlestick skyline: a glowing gold uptrend across a storm-lit night sky,
+    the date the metallic-gold hero above it. Rendered at 2x and downscaled
+    (super-sampled) for crisp, clean edges, finished with a light film grain."""
+    S = 2
+    size = (_W * S, _H * S)
+
+    def s(v):
+        return int(round(v * S))
+
+    stops = [(0.0, (15, 19, 33)), (0.35, (35, 41, 64)), (0.62, (18, 20, 34)), (1.0, (5, 6, 10))]
+    img = _sky_gradient(stops, size).convert("RGBA")
+    cx = size[0] // 2
+
+    # Storm light: cold break in the clouds upper-left, warm glow where the
+    # trend peaks. Design elements, not theme-driven — stay literal.
+    img = Image.alpha_composite(img, _radial(s(300), s(120), s(360), (150, 170, 214), 60, size))
+    img = Image.alpha_composite(img, _radial(s(1020), s(600), s(540), _GOLD, 50, size))
+
+    # The skyline: one huge glowing candlestick uptrend across the lower half,
+    # softly blurred so it reads like lit towers in the rain.
+    lay = Image.new("RGBA", size, (0, 0, 0, 0))
+    lay = _draw_uptrend(lay, s(-70), s(304), s(1298), s(742))
+    soft = lay.filter(ImageFilter.GaussianBlur(s(3)))
+    img = Image.alpha_composite(img, soft)
+    crisp = lay.copy()
+    crisp.putalpha(crisp.split()[3].point(lambda p: int(p * 0.38)))
+    img = Image.alpha_composite(img, crisp)
+
+    # Ground the base + clear the sky band for text.
+    img = Image.alpha_composite(img, _band_scrim(size, s(580), size[1], 135, top_down=False))
+    img = Image.alpha_composite(img, _band_scrim(size, 0, s(300), 150, top_down=True))
+
+    # Brand kit, centered above the skyline.
+    mark = _compass(s(80))
     if mark is not None:
-        img.alpha_composite(mark, (cx - 75, 80))
-    img = img.convert("RGB")
+        img.alpha_composite(mark, (cx - s(40), s(34)))
+    _shadow_center(img, cx, s(126), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 29 * S), theme.wordmark, 8 * S)
+
+    # Eyebrow — dynamic show label, auto-fit (tracked) so an arbitrarily long
+    # label shrinks to fit rather than clipping or overflowing the canvas.
     draw = ImageDraw.Draw(img)
-    _draw_tracked_center(draw, cx, 252, _WORDMARK, _font("DejaVuSans-Bold.ttf", 38), theme.wordmark, 10)
-    _draw_tracked_center(draw, cx, 350, f"— {eyebrow_label} —", _font("DejaVuSans-Bold.ttf", 30), theme.eyebrow, 5)
-    _draw_center(draw, cx, 410, date_text, _font("DejaVuSans-Bold.ttf", 96), theme.date)
-    draw.rectangle([cx - 90, 548, cx + 90, 552], fill=theme.rule)
-    _draw_center(draw, cx, 600, _TAGLINE, _font("DejaVuSans.ttf", 30), theme.tagline)
-    return img
+    eyebrow_text = f"— {eyebrow_label} —"
+    eb_tracking = 5 * S
+    eb_pt = 20
+    while eb_pt > 10:
+        f = _font("DejaVuSans-Bold.ttf", eb_pt * S)
+        if _tracked_w(draw, eyebrow_text, f, eb_tracking) <= s(_W - 120):
+            break
+        eb_pt -= 2
+    _shadow_center(img, cx, s(176), eyebrow_text, _font("DejaVuSans-Bold.ttf", eb_pt * S),
+                   theme.eyebrow, eb_tracking)
+
+    # Date — metallic gold hero, auto-fit (mirrors the _render_evening idiom).
+    draw = ImageDraw.Draw(img)
+    date_up = date_text.upper()
+    dt_pt = 86
+    while dt_pt > 48:
+        f = _font("DejaVuSerif-Bold.ttf", dt_pt * S)
+        if draw.textlength(date_up, font=f) <= s(_W - 160):
+            break
+        dt_pt -= 2
+    _gold_center(img, cx, s(216), date_up, _font("DejaVuSerif-Bold.ttf", dt_pt * S))
+
+    _shadow_center(img, cx, s(346), _TAGLINE, _font("DejaVuSans.ttf", 22 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.5, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=6.0)
 
 
 # ---------------------------------------------------------------------------
