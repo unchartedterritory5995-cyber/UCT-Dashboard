@@ -23,6 +23,7 @@ import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyM
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
+import HoldingsList from '../components/HoldingsList'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import BrokerSyncStatus from '../components/BrokerSyncStatus'
@@ -45,6 +46,7 @@ import {
 import styles from './OpenPositionsTab.module.css'
 
 const COLUMN_STORAGE_KEY = 'uct.j2.openPositions.columns'
+const VIEW_STORAGE_KEY = 'uct.j2.openPositions.view'
 
 async function jsonFetch(url, method, body) {
   const res = await fetch(url, {
@@ -143,6 +145,18 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const [optionsCloseTarget, setOptionsCloseTarget] = useState(null)
   const [expiredBannerDismissed, setExpiredBannerDismissed] = useState(false)
   const [toast, setToast] = useState(null)  // { message, tone }
+  // RH-style holdings list (default) vs the dense table — persisted choice.
+  const [view, setView] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_STORAGE_KEY) === 'table' ? 'table' : 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const switchView = (v) => {
+    setView(v)
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v) } catch { /* private mode */ }
+  }
 
   // Tab-scoped shortcuts. react-hotkeys-hook skips input/textarea/
   // contenteditable by default — matches the cheat sheet's note.
@@ -349,6 +363,23 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
         </div>
 
         <div className={styles.actionGroup}>
+          <div className={styles.viewToggle} role="group" aria-label="Positions view">
+            <button
+              type="button"
+              className={view === 'list' ? styles.viewBtnActive : styles.viewBtn}
+              onClick={() => switchView('list')}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={view === 'table' ? styles.viewBtnActive : styles.viewBtn}
+              onClick={() => switchView('table')}
+            >
+              Table
+            </button>
+          </div>
+          {view === 'table' && (
           <div className={styles.pickerWrap}>
             <button
               ref={pickerBtnRef}
@@ -371,6 +402,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               onClose={() => setPickerOpen(false)}
             />
           </div>
+          )}
           {showShares && (
             <button
               type="button"
@@ -395,6 +427,12 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       {(showShares || showOptions) && (
         (isLoading || optionsLoading) && mergedPositions.length === 0 ? (
           <div className={styles.loading}>Loading positions…</div>
+        ) : view === 'list' ? (
+          <HoldingsList
+            positions={showShares ? positions : []}
+            optionStrategies={showOptions ? optionStrategies : []}
+            prices={prices}
+          />
         ) : (
           <PositionsTable
             positions={mergedPositions}

@@ -127,3 +127,27 @@
   .ghostBtn,
   .primaryBtn { min-height: var(--tap-min, 44px); }
 }
+
+/* List | Table view toggle (RH holdings list is the default view). */
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.viewBtn,
+.viewBtnActive {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #8a8a8a);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.viewBtnActive {
+  background: var(--accent, #c9a84c);
+  color: #151310;
+}
