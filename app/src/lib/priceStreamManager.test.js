@@ -177,6 +177,10 @@ describe('event fanout + snapshot', () => {
   it('candle events hit realtimeCandle exactly once each', () => {
     realtimeCandle.applyTick.mockClear()
     realtimeCandle.applyBarClose.mockClear()
+    // Two subscribers of the SAME symbol share one bucket by construction —
+    // this asserts one listener registration/apply per event (guarding against
+    // accidental double addEventListener), which is the only dedup this
+    // architecture needs: per-subscriber apply cannot exist here.
     mgr.subscribe(['AAPL'], () => {})
     mgr.subscribe(['AAPL'], () => {})   // second consumer of the SAME ticker
     flushRebuild()
@@ -206,6 +210,17 @@ describe('reconnect + watchdog', () => {
     expect(openInstances()).toHaveLength(0)   // second retry waits 10s, not 5s
     vi.advanceTimersByTime(5000)
     expect(openInstances()).toHaveLength(1)
+    // Third error: delay is now 20000 (capped) — and a fourth stays capped
+    const es3 = openInstances()[0]
+    es3.emitError()
+    vi.advanceTimersByTime(10000 + 10)
+    expect(openInstances()).toHaveLength(0)   // 10s is no longer enough
+    vi.advanceTimersByTime(10000)
+    expect(openInstances()).toHaveLength(1)   // reconnected at 20s
+    const es4 = openInstances()[0]
+    es4.emitError()
+    vi.advanceTimersByTime(20000 + 10)
+    expect(openInstances()).toHaveLength(1)   // still 20s — cap does not grow
   })
 
   it('prices persist across a reconnect (never cleared)', () => {
