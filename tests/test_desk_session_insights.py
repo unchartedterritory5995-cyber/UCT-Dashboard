@@ -679,3 +679,79 @@ def test_generate_ticker_moments_budget_and_salvage(monkeypatch):
     out = si.generate_ticker_moments("Title", [{"t": 5, "text": "hello"}])
     assert captured.get("max_tokens", 0) >= 2000
     assert [m["ticker"] for m in out] == ["SPY", "QQQ"]
+
+
+# ── Ticker-chip quality guard: range filter, dedup, model override ──────────────
+
+def _stub_ticker_client(monkeypatch, moments, captured=None):
+    from api.services import engine
+    captured = captured if captured is not None else {}
+
+    class _Block:
+        text = json.dumps({"ticker_moments": moments})
+
+    class _Msg:
+        content = [_Block()]
+
+    class _Messages:
+        @staticmethod
+        def create(**kw):
+            captured.update(kw)
+            return _Msg()
+
+    class _Client:
+        messages = _Messages()
+
+        def with_options(self, **kw):
+            return self
+
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+    return captured
+
+
+def test_ticker_model_defaults_to_sonnet():
+    assert si._TICKER_MODEL == "claude-sonnet-5"
+    assert si._TICKER_MODEL != si._MODEL  # chapters-fallback stays haiku, independent knob
+
+
+def test_generate_ticker_moments_uses_ticker_model(monkeypatch):
+    captured = _stub_ticker_client(monkeypatch, [{"t": 1, "ticker": "AAPL"}])
+    monkeypatch.setattr(si, "_TICKER_MODEL", "claude-sonnet-custom")
+    si.generate_ticker_moments("Title", [{"t": 5, "text": "hello"}])
+    assert captured.get("model") == "claude-sonnet-custom"
+
+
+def test_generate_ticker_moments_filters_timestamps_beyond_video_end(monkeypatch):
+    """Audit evidence: chips appeared at timestamps BEYOND the video's end
+    (extrapolated by the model). Anything past the last transcript marker
+    (+60s grace for a mention right at the tail) must be dropped."""
+    cues = [{"t": 0, "text": "open"}, {"t": 100, "text": "close"}]  # max_t = 100
+    _stub_ticker_client(monkeypatch, [
+        {"t": 50, "ticker": "AAPL"},    # in range
+        {"t": 150, "ticker": "NVDA"},   # in the +60s grace window (<=160)
+        {"t": 400, "ticker": "TSLA"},   # way beyond the end -> dropped
+    ])
+    out = si.generate_ticker_moments("Title", cues)
+    assert [m["ticker"] for m in out] == ["AAPL", "NVDA"]
+
+
+def test_generate_ticker_moments_dedups_exact_t_and_ticker(monkeypatch):
+    cues = [{"t": 0, "text": "open"}, {"t": 200, "text": "close"}]
+    _stub_ticker_client(monkeypatch, [
+        {"t": 30, "ticker": "AAPL"},
+        {"t": 30, "ticker": "AAPL"},   # exact duplicate -> dropped
+        {"t": 30, "ticker": "MSFT"},   # same t, different ticker -> kept
+    ])
+    out = si.generate_ticker_moments("Title", cues)
+    pairs = [(m["t"], m["ticker"]) for m in out]
+    assert pairs == [(30, "AAPL"), (30, "MSFT")]
+
+
+def test_generate_ticker_moments_max_t_verifies_order_not_just_last_cue():
+    """Cues are DOCUMENTED as time-ordered — don't blindly trust cues[-1]['t'];
+    verify the ordering and fall back to max() when it's violated."""
+    unordered = [{"t": 500, "text": "a"}, {"t": 10, "text": "b"}]  # last element is NOT the max
+    assert si._max_cue_t(unordered) == 500
+    ordered = [{"t": 10, "text": "a"}, {"t": 500, "text": "b"}]
+    assert si._max_cue_t(ordered) == 500
+    assert si._max_cue_t([]) == 0

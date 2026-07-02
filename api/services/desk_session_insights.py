@@ -40,6 +40,14 @@ _FAIL_STREAK_ALERT_AT = 4
 # default than the old Opus-only path (DESK_CHAPTERS_MODEL env still overrides).
 _MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-haiku-4-5")
 
+# Ticker-moments timestamp fidelity is a reasoning task (copy the EXACT
+# preceding [h:mm:ss] marker, never estimate) — audit found real chips
+# drifting onto neighboring topics' timestamps and even past the video's end.
+# Sonnet is materially more careful here for ~5 cents/video; independent knob
+# from _MODEL (the chapters-fallback path) so this can be tuned/rolled back
+# on its own. Used ONLY by generate_ticker_moments.
+_TICKER_MODEL = os.environ.get("DESK_TICKERS_MODEL", "claude-sonnet-5")
+
 
 def is_enabled() -> bool:
     return os.environ.get("DESK_SESSION_CHAPTERS_ENABLED", "") == "1"
@@ -337,11 +345,21 @@ _TICKER_SYS = (
     "session / educational webinar for stock/ETF mentions. Return STRICT JSON "
     "only (no prose, no code fences):\n"
     '{ "ticker_moments": [ {"t": <int seconds>, "ticker": "AAPL"} ] }\n'
-    "List the stock/ETF mentions actually discussed — AT MOST the 60 most "
-    "significant — at the second each discussion STARTS; map spoken company "
-    "names to the correct US ticker (Nvidia->NVDA). Skip vague index talk. "
-    "De-dup obvious repeats but keep distinct revisits. Use integer seconds "
-    "from the [h:mm:ss] markers. Output ONLY the JSON object."
+    "List the stock/ETF mentions actually DISCUSSED — analyzed, traded, or given "
+    "real commentary — AT MOST the 60 most significant. Do NOT include a ticker "
+    "that is merely listed in passing (e.g. rattled off in a scanner/watchlist "
+    "recitation with no comment on it) — only genuine discussion counts.\n"
+    "TIMESTAMP RULE (critical — do not violate): for each mention, find the "
+    "[h:mm:ss] marker line the mention appears on or the marker immediately "
+    "PRECEDING it, and copy that marker's seconds value VERBATIM as `t`. Never "
+    "estimate, interpolate, or invent a timestamp, and never attribute a "
+    "mention to a neighboring topic's timestamp — if you are not sure which "
+    "marker a mention belongs to, use the nearest one that precedes it, not a "
+    "later one. `t` must never exceed the LAST [h:mm:ss] marker in the "
+    "transcript — nothing in this video happens after the transcript ends.\n"
+    "Map spoken company names to the correct US ticker (Nvidia->NVDA). "
+    "De-dup obvious repeats but keep distinct revisits. Output ONLY the JSON "
+    "object."
 )
 
 
@@ -372,6 +390,39 @@ def _salvage_truncated_json(raw: str) -> str:
     return s + "".join("]" if c == "[" else "}" for c in reversed(stack))
 
 
+def _max_cue_t(cues: list[dict]) -> int:
+    """Last transcript timestamp — the deterministic ceiling for ticker chips.
+    Cues are documented as time-ordered, but that's an assumption from an
+    upstream parser, not a guarantee: verify the ordering and fall back to
+    max() rather than blindly trusting cues[-1]."""
+    if not cues:
+        return 0
+    last = cues[-1]["t"]
+    if all(cues[i]["t"] <= cues[i + 1]["t"] for i in range(len(cues) - 1)):
+        return last
+    return max(c["t"] for c in cues)
+
+
+def _filter_ticker_moments(moments: list[dict], cues: list[dict]) -> list[dict]:
+    """Deterministic guard against LLM extrapolation: an audit found chips at
+    timestamps BEYOND the video's end and tickers drifting onto neighboring
+    topics' timestamps. Drop anything outside [0, max_t + 60] (a small grace
+    window for a mention right at the tail, past the last marker's start) and
+    de-dup exact (t, ticker) repeats."""
+    max_t = _max_cue_t(cues)
+    out, seen = [], set()
+    for m in moments:
+        t = m.get("t")
+        if t is None or not (0 <= t <= max_t + 60):
+            continue
+        key = (m.get("ticker"), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(m)
+    return out
+
+
 def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     """Small best-effort LLM call for ticker_moments ONLY — the only LLM touch
     on the Zoom-first path (chapters/headline/summary there are free, straight
@@ -384,7 +435,7 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     user = f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"
     client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
     msg = client.messages.create(
-        model=_MODEL,
+        model=_TICKER_MODEL,
         max_tokens=2400,
         system=_TICKER_SYS,
         messages=[{"role": "user", "content": user}],
@@ -396,7 +447,8 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
         # max_tokens truncation cuts the array mid-object — salvage the
         # complete leading moments rather than losing the whole video's chips.
         data = json.loads(_salvage_truncated_json(raw))
-    return _clean_tickers(data.get("ticker_moments"))
+    moments = _clean_tickers(data.get("ticker_moments"))
+    return _filter_ticker_moments(moments, cues)
 
 
 # ── Recording-file selection ─────────────────────────────────────────────────────
