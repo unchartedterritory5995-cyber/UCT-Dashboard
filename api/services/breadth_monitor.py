@@ -64,6 +64,8 @@ def store_snapshot(date_str: str, metrics: dict) -> bool:
                 (date_str, json.dumps(metrics)),
             )
             c.commit()
+        from api.services.cache import cache
+        cache.delete_prefix("breadth_history_")  # fresh data → drop cached history
         return True
     except Exception as e:
         print(f"[breadth_monitor] store error: {e}")
@@ -130,7 +132,18 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
 
 
 def get_history(days: int = 90) -> list:
-    """Return last N trading days, newest first. Ratios computed from stored data."""
+    """Return last N trading days, newest first. Ratios computed from stored data.
+
+    Cached (5 min) keyed by `days`: breadth data updates once daily (afternoon
+    push), so this recomputed the full rolling-metric pass on EVERY request for
+    no benefit — costly under load and the reason the /api/breadth-monitor cold
+    hit was slow. 5-min staleness is imperceptible for daily data.
+    """
+    from api.services.cache import cache
+    ck = f"breadth_history_{days}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
     try:
         with _conn() as c:
             rows = c.execute(
@@ -231,7 +244,9 @@ def get_history(days: int = 90) -> list:
         row["breadth_score"] = _compute_breadth_score(row)
 
     # Return newest-first
-    return list(reversed(result_asc))
+    out = list(reversed(result_asc))
+    cache.set(ck, out, ttl=300)
+    return out
 
 
 def _rolling_avg(window: list, key: str, decimals: int = 1) -> Optional[float]:
@@ -268,6 +283,8 @@ def patch_field(date_str: str, key: str, value) -> bool:
                 (json.dumps(m), date_str),
             )
             c.commit()
+        from api.services.cache import cache
+        cache.delete_prefix("breadth_history_")
         return True
     except Exception as e:
         print(f"[breadth_monitor] patch_field error: {e}")
@@ -282,6 +299,8 @@ def delete_snapshot(date_str: str) -> bool:
                 "DELETE FROM breadth_snapshots WHERE date = ?", (date_str,)
             )
             c.commit()
+        from api.services.cache import cache
+        cache.delete_prefix("breadth_history_")
         return cur.rowcount > 0
     except Exception as e:
         print(f"[breadth_monitor] delete_snapshot error: {e}")
