@@ -4251,12 +4251,31 @@ export default function StockChart({
         } catch { /* provider optional */ }
       }
       try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* ignore */ }
-      // The vertical for BOTH ends is fit to the real candles of each frame
-      // (unpadded), computed here so the glide never reads the replay pad or the
-      // mid-transition held slice for autoscale — that was crunching the candles
-      // and dragging the price-anchored annotations on the way back to Setup.
+      // The vertical is fit to the real candles of each frame. Normally that's the
+      // UNPADDED window (the replay pad to the right is blank, so including it would
+      // crunch the candles). But in the Result view (keepBarsAfterExit) the pad is
+      // filled with REAL post-result candles — a continued run (e.g. TASR) can peak
+      // there, above the framed window's high — so the vertical must span the pad
+      // too or those candles clip off the top of the settled view.
       const _glideOverlays = fitPriceToCandles ? null : overlayData
-      const tRangeGlide = _windowPriceRange(filteredBars, fromIdx, endIdx, _glideOverlays)
+      const _tVEnd = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
+      // An explicit autoscaleInfoProvider price range is used EDGE-TO-EDGE by
+      // lightweight-charts — it does NOT get the price scale's scaleMargins (those
+      // only pad the default autoscale). So the raw candle high/low would sit flush
+      // against the top/bottom of the pane (the tallest candle clipping off the top
+      // in the Result view). Bake the same top/bottom headroom the default autoscale
+      // would apply into the pinned range so the glide lands with proper margins.
+      const _mm = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _padVert = (r) => {
+        if (!r) return r
+        const mt = Math.max(0, Math.min(0.45, _mm?.top ?? 0))
+        const mb = Math.max(0, Math.min(0.45, _mm?.bottom ?? 0))
+        const denom = 1 - mt - mb
+        if (!(denom > 0)) return r
+        const R = (r.hi - r.lo) / denom
+        return { lo: r.lo - mb * R, hi: r.hi + mt * R }
+      }
+      const tRangeGlide = _padVert(_windowPriceRange(filteredBars, fromIdx, _tVEnd, _glideOverlays))
       let sRangeGlide = null
       // Start the glide FROM the outgoing frame, re-asserted explicitly (with the
       // same replay pad it's showing, so there's no pre-glide jump). The setData
@@ -4283,7 +4302,7 @@ export default function StockChart({
             if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
           }
         }
-        sRangeGlide = _windowPriceRange(filteredBars, oS, oE, _glideOverlays)
+        sRangeGlide = _padVert(_windowPriceRange(filteredBars, oS, oE, _glideOverlays))
         const oPad = frameRightPadFrac > 0 ? Math.round((oE - oS) * frameRightPadFrac) : 0
         if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE + oPad }) } catch { /* mid-load */ } }
       }
