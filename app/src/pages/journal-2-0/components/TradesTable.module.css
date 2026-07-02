@@ -172,3 +172,82 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ── Phone card view (≤640px via useIsPhone) ─────────────────────────── */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface-1, #101013);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+}
+
+.card:active {
+  filter: brightness(1.08);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardIdent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text, #e8e6e1);
+}
+
+.cardFigures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cardPnl {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardR {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardMeta {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardSetup {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #c9a84c);
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  padding: 1px 8px;
+}

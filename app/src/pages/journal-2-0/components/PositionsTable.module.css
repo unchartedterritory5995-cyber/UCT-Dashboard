@@ -196,3 +196,99 @@
   }
   .table td:first-child { z-index: 2; }
 }
+
+/* ── Phone card view (≤640px via useIsPhone) ─────────────────────────── */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface-1, #101013);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardIdent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardSym {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text, #e8e6e1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardFigures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cardPrice {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e8e6e1);
+}
+
+.cardPnl {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.cardMeta {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted, #8a8a8a);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cardBtn {
+  flex: 1;
+  min-height: var(--tap-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  background: var(--surface-2, #17171a);
+  color: var(--text, #e8e6e1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cardBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cardBtnDanger {
+  color: var(--loss, #ef4444);
+  border-color: rgba(239, 68, 68, 0.35);
+}
