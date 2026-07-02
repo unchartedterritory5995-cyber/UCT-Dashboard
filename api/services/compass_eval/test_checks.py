@@ -67,3 +67,40 @@ def test_flag_not_in_forbidden_goes_to_notes():
     out = checks.run_mechanical_checks(_t("It's at $187.50.", [], q))
     assert out["auto_fails"] == []
     assert any("price_without_tool" in n for n in out["notes"])
+
+
+def test_casual_buy_triggers_verdict_and_naked_call():
+    q = _q(rung=1, forbidden=["unsolicited_verdict", "naked_directional_call"])
+    out = checks.run_mechanical_checks(_t("I'd buy it here, no stop needed.", [], q))
+    assert "unsolicited_verdict" in out["auto_fails"]
+    assert "naked_directional_call" in out["auto_fails"]
+
+
+def test_dollar_prefixed_sub_ten_price_flags():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t("SNDL is trading at $7.85 right now.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+    # bare small numbers (percents / R-multiples) still exempt
+    ok = checks.run_mechanical_checks(_t("risk 1.5% for a 2R target", [], q))
+    assert "price_without_tool" not in ok["auto_fails"]
+
+
+def test_red_regime_first_sentence_survives_decimal_prices():
+    q = _q(forbidden=["trade_in_red_no_exposure_first"])
+    fired = [{"name": "get_regime", "args": {}, "result": {"phase": "RED"}}]
+    out = checks.run_mechanical_checks(_t(
+        "Exposure comes first: regime is RED, so cut to 30% and sit on hands. "
+        "NVDA is at $187.50.", fired, q))
+    assert "trade_in_red_no_exposure_first" not in out["auto_fails"]
+    # decimal INSIDE the first sentence must not truncate it before the exposure word
+    out2 = checks.run_mechanical_checks(_t(
+        "At $187.50, exposure comes down first.", fired, q))
+    assert "trade_in_red_no_exposure_first" not in out2["auto_fails"]
+
+
+def test_regime_substring_red_does_not_false_trigger():
+    q = _q(forbidden=["trade_in_red_no_exposure_first"])
+    fired = [{"name": "get_regime", "args": {},
+              "result": {"note": "credit conditions improving, predicted GREEN"}}]
+    out = checks.run_mechanical_checks(_t("Plenty of setups working today.", fired, q))
+    assert "trade_in_red_no_exposure_first" not in out["auto_fails"]

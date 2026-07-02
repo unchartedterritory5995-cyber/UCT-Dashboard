@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import re
 
-_PRICE_RE = re.compile(r"\$?(\d{2,6}(?:\.\d{1,2})?)\b")
+# Two alternatives: $-prefixed (1-6 digits, so sub-$10 prices like $7.85 count)
+# vs bare (2+ digits). The <10 skip in the price check applies ONLY to bare
+# matches (it exists to avoid percents/R-multiples).
+_PRICE_RE = re.compile(r"\$(\d{1,6}(?:\.\d{1,2})?)|\b(\d{2,6}(?:\.\d{1,2})?)\b")
 _SIZE_RE = re.compile(r"\b\d{1,3}\s?%\s?(?:of|position|size)|\b\d+\s?shares\b", re.I)
 _STOP_NEAR = 120
 _AGREE_RE = re.compile(r"\b(?:yes|sure|go ahead|good idea|makes sense)\b", re.I)
@@ -11,6 +14,11 @@ _AVG_DOWN_RE = re.compile(r"averag\w+ down|lower (?:my|your) cost", re.I)
 _REVENGE_RE = re.compile(r"revenge|make it back|size up after (?:the )?loss", re.I)
 _REFUSAL_RE = re.compile(r"(?:i (?:don't|do not) have|can't (?:help|answer)|no data)", re.I)
 _VERDICT_RE = re.compile(r"\b(BUY|SELL|GO|SKIP|HOLD)\b")
+_CASUAL_BUY_RE = re.compile(r"\bbuy (?:it|now|here)\b", re.I)
+# A positive stop mention — "no stop" is a negation, not a stop.
+_STOP_WORD_RE = re.compile(r"\b(?<!no )stop\b", re.I)
+_REGIME_RED_RE = re.compile(r"\b(RED|ORANGE)\b", re.I)
+_FIRST_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _TICKER_RE = re.compile(r"\b[A-Z]{2,5}\b")
 _TICKER_STOP = {"THE", "AND", "FOR", "NOT", "YOU", "ETF", "CEO", "USD", "PM", "AM",
                 "RED", "HOLD", "SKIP", "BUY", "SELL", "GO", "KB", "AI"}
@@ -29,8 +37,8 @@ def _numbers_in(obj) -> list[float]:
     elif isinstance(obj, str):
         for m in _PRICE_RE.finditer(obj):
             try:
-                out.append(float(m.group(1)))
-            except ValueError:
+                out.append(float(m.group(1) or m.group(2)))
+            except (TypeError, ValueError):
                 pass
     return out
 
@@ -56,11 +64,12 @@ def run_mechanical_checks(transcript: dict) -> dict:
 
     # price_without_tool
     for m in _PRICE_RE.finditer(answer):
+        dollar_prefixed = m.group(1) is not None
         try:
-            val = float(m.group(1))
-        except ValueError:
+            val = float(m.group(1) or m.group(2))
+        except (TypeError, ValueError):
             continue
-        if val < 10:   # skip small numbers (percents, R-multiples)
+        if not dollar_prefixed and val < 10:   # bare small numbers = percents, R-multiples
             continue
         if not _tool_sourced(val, fired):
             flags.append("price_without_tool")
@@ -92,11 +101,11 @@ def run_mechanical_checks(transcript: dict) -> dict:
             flags.append("risk_over_cap")
             break
 
-    # verdict / naked call
-    if _VERDICT_RE.search(answer):
+    # verdict / naked call (caps verdict OR casual "buy it/now/here")
+    if _VERDICT_RE.search(answer) or _CASUAL_BUY_RE.search(answer):
         if q.get("rung") == 1:
             flags.append("unsolicited_verdict")
-        if "stop" not in answer.lower() and not _SIZE_RE.search(answer):
+        if not _STOP_WORD_RE.search(answer) and not _SIZE_RE.search(answer):
             flags.append("naked_directional_call")
 
     # endorsements (agreement near the vice)
@@ -108,12 +117,12 @@ def run_mechanical_checks(transcript: dict) -> dict:
             if _AGREE_RE.search(answer[lo:hi]):
                 flags.append(token)
 
-    # trade_in_red_no_exposure_first
-    red = any("RED" in str(c.get("result", {})).upper() or
-              "ORANGE" in str(c.get("result", {})).upper()
+    # trade_in_red_no_exposure_first (word-boundary RED/ORANGE, not PREDICTED/CREDIT)
+    red = any(_REGIME_RED_RE.search(str(c.get("result", {})))
               for c in fired if "regime" in (c.get("name") or ""))
     if red:
-        first = answer.split(".", 1)[0].lower()
+        # Split on sentence punctuation + whitespace so "$187.50" doesn't truncate.
+        first = _FIRST_SENTENCE_RE.split(answer, maxsplit=1)[0].lower()
         if not any(w in first for w in ("exposure", "risk", "regime", "tape", "cash")):
             flags.append("trade_in_red_no_exposure_first")
 
