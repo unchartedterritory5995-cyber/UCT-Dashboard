@@ -862,7 +862,9 @@ async def lifespan(app: FastAPI):
                 _stale = (_ref is None) or ((time.time() - _ref) / 60.0 > 45)
                 if not _rows or _stale:
                     from api.services.catalyst.engine import run_refresh as _crf
-                    threading.Thread(target=_crf, daemon=True,
+                    # Feed-only: a deploy must not consume the day's deep sweep
+                    # early — the 8:00 ET hunt tick owns it (schedule v5).
+                    threading.Thread(target=lambda: _crf(hunt=False), daemon=True,
                                      name="catalyst-startup-catchup").start()
                     print("[startup] catalyst premarket catch-up refresh kicked")
     except Exception as e:
@@ -2071,11 +2073,11 @@ async def lifespan(app: FastAPI):
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
-        # Schedule v4 2026-07-02 (cost pass): same two user-defined windows,
-        # but the expensive Hunter only fires on designated hunt ticks.
-        #   - 6:00-9:30 AM ET every 30 min -- pre-market discovery (8 fires;
-        #     hunts at 6:00 deep + 7:00/8:00/9:00 light)
-        #   - 9:10 + 9:20 ET pre-open feed refreshes (no hunt)
+        # Schedule v5 2026-07-02 (user-defined hunt anchors): the expensive
+        # Hunter fires when traders actually check the board.
+        #   - 6:00-7:30 AM ET every 30 min -- feed-only warm-up (no hunt)
+        #   - 8:00 / 8:30 / 8:45 AM ET -- PRIMARY hunts (deep at 8:00)
+        #   - 9:00 / 9:10 / 9:20 / 9:30 ET -- feed refreshes into the open
         #   - 4:00-4:30 PM ET every 5 min -- AMC burst (hunts 4:00 + 4:30 only)
         # Everything outside these windows is manual-only via the tile button.
         # Scheduler timezone is America/New_York (set at BackgroundScheduler init).
@@ -2095,21 +2097,30 @@ async def lifespan(app: FastAPI):
             # Hunter cost gating (2026-07-02): the Opus+web-search Hunter ran on
             # every refresh tick (~17/day) and dominated API spend (~$28/day).
             # Feed refreshes stay on every tick (cheap, skip-if-stable); the
-            # Hunter fires only on hunt=True ticks — 6 hunts/day:
-            #   6:00 deep sweep + 7:00/8:00/9:00 light (pre-market)
-            #   4:00 + 4:30 PM light (AMC earnings)
+            # Hunter fires only on hunt=True ticks.
+            # Hunt times (user-defined 2026-07-02): traders check the board at
+            # 8:00 / 8:30 / 8:45 AM ET — the deep sweep lands at 8:00 (first
+            # hunt of the day) with light follow-ups at 8:30 + 8:45, then the
+            # 4:00 + 4:30 PM AMC hunts. 5 hunts/day total.
 
-            # Pre-market hunt ticks: 6:00 (deep — first of day), 7:00, 8:00, 9:00 ET
+            # Primary hunt ticks: 8:00 (deep — first of day), 8:30, 8:45 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="0"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="8", minute="0,30,45"),
                 kwargs={"hunt": True},
                 id="catalyst_premarket_hunt", max_instances=1, replace_existing=True)
 
-            # Pre-market feed-only ticks: 6:30, 7:30, 8:30, 9:30 ET
+            # Early feed-only ticks keep the board warm for early birds:
+            # 6:00, 6:30, 7:00, 7:30 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-7", minute="0,30"),
                 kwargs={"hunt": False},
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
+
+            # Late pre-market feed-only ticks: 9:00 + 9:30 ET
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="0,30"),
+                kwargs={"hunt": False},
+                id="catalyst_premarket_late", max_instances=1, replace_existing=True)
 
             # Pre-open burst: 9:10 + 9:20 ET — a fresh pull right before the
             # 9:30 open so the board is current while the trader is prepping.
