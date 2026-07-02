@@ -166,3 +166,11 @@ def test_fit_tracked_truncates_when_floor_overflows():
     f, fitted = t._fit_tracked(d, long_text, "DejaVuSans-Bold.ttf", 20, 10, 1280 - 120, 5)
     assert t._tracked_w(d, fitted, f, 5) <= 1280 - 120
     assert fitted.endswith("…")
+
+
+def test_evening_smoke_host_aware():
+    _smoke("EVENING UPDATE FROM TSDR")
+
+
+def test_evening_smoke_no_host():
+    _smoke("EVENING UPDATE")
