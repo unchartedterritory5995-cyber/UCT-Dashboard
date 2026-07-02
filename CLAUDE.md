@@ -1695,6 +1695,57 @@ recording on the account auto-posts (titled by its webinar name); add a skip rul
 - Setup walkthrough (one-time Zoom + YouTube + GCP OAuth) + design/plan specs in
   `docs/superpowers/specs/2026-06-24-desk-daily-sessions-*` + `…-thumbnails-design.md`.
 
+### Session insights — chapters/transcripts/auto-trash (repaired 2026-07-02)
+
+`desk_session_insights.process_pending_session_insights` backfills published
+videos (education.db rows with a `meeting_uuid`, 7-day window): Zoom VTT
+transcript → Opus chapters + ticker-moments + recap poster → **then trashes
+the Zoom cloud recording** (deletes are DEFERRED to this pass whenever
+`DESK_SESSION_CHAPTERS_ENABLED=1`). Scheduled in `main.py` every 15 min
+(`CronTrigger(minute="7/15")`, id `desk_session_insights`), offset from the
+`*/5` publish drain.
+
+**It was triple-broken until 2026-07-02 — each layer masked the next; keep all
+three fixed:**
+1. Zoom S2S app lacked `cloud_recording:read:list_recording_files:admin`
+   (added in Marketplace → "UCT Desk Sessions" → Scopes) → every
+   `get_recording_files` 400'd.
+2. The pass was **never wired into any scheduler** — defined, zero callers —
+   so deferred deletes had no collector and recordings accumulated in Zoom.
+3. The 2026-07-01 launch-hardening's shared Anthropic client `timeout=60`
+   made every `generate_insights` call time out (600k-char transcript +
+   2400 Opus tokens ≠ 60s). The insights call now uses
+   `_get_anthropic_client().with_options(timeout=...)` —
+   `DESK_CHAPTERS_LLM_TIMEOUT_SECS`, default 300 — safe because it runs on a
+   scheduler thread, never the request path. Regression test:
+   `test_generate_insights_overrides_short_shared_client_timeout`.
+
+**Diagnosis gotchas:** a failing pass is INVISIBLE in the DB — per-video
+exceptions only print (log flood buries them) and stamp nothing, so "never
+ran" and "always fails" look identical. Ground truth = `insights_at` /
+`zoom_cleaned` / `chapters` columns in `/data/education.db` (probe via
+`railway ssh`). **`railway ssh` probes must use `/opt/venv/bin/python`** —
+bare `python3` is the Nix system python with no app deps (httpx missing).
+Pass args as `echo <b64> "|" base64 -d "|" /opt/venv/bin/python` (railway
+joins argv into one sh string; quotes/parens/stdin all break).
+
+### Thumbnails — per-show designs + per-day variation (2026-07-01/02)
+
+`desk_thumbnail.py` layouts: **classic** = candlestick-skyline (default +
+plate fallback; arbitrary eyebrows auto-fit via `_fit_tracked` with an
+ellipsis floor — never clips), **editorial** = leather-journal (Thoughts),
+**evening** = city-lights-on-water (Evening Update, host-aware `FROM <host>`),
+**plate** = ChartMaster artwork (`desk_assets/chartmaster-workshop.png`,
+ChartMaster-only by owner decision). Every card is **date-seeded**
+(`_episode_seed` = crc32 of `date_text|eyebrow_label`): classic's chart
+pattern (`_gen_trend` — every step bounded incl. the final anchor; 10k-seed
+regression rail), evening's skyline/windows/water-glitter, and editorial's
+grain vary per episode, deterministically (same inputs = byte-identical
+render; the plate-fallback byte-equality test depends on this). Webhook picks
+the **largest** MP4 (multi-segment recordings; a 2-min stub once shipped
+instead of the 1:23 workshop). Specs/plans:
+`docs/superpowers/{specs,plans}/2026-07-0{1,2}-*thumbnail*`.
+
 ## Performance & Scale — 2026-07-01 launch-hardening (do NOT regress)
 
 Big perf/scale pass ahead of the ~200-user launch. Full detail + remaining backlog
