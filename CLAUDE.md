@@ -227,6 +227,102 @@ UX pass over the three big J2 surfaces (memory `project_journal_tables_polish_20
   PATCH would 404); an off-list existing setup is preserved as an option.
   `hooks/useJ2Trades.js` now also returns `mutate` for the optimistic write.
 
+## Compass Brain Bridge (mentor initiative) — dark, flag-gated (2026-07-02)
+
+Bridges the uct-intelligence brain (8,500+-entry KB, 48 setup templates, sizing/analog
+engine) to Railway as a nightly **Brain Pack** and exposes it to BOTH Compass surfaces
+(voice + text chat) through one shared facade, plus the runnable **report-card exam**
+that grades it all. Everything shipped DARK — all flags default OFF.
+Plan: `docs/superpowers/plans/2026-07-02-compass-brain-bridge.md`.
+
+### Brain Pack — layout + R2 keys
+- Tarball built nightly on the PC from `C:\Users\Patrick\uct-intelligence` by
+  `scripts/brain_pack_export.py` (that repo): engine package code + a consistent
+  SQLite-backup copy of its KB database + manifest.
+- **R2 keys (same bucket + `DATA_SYNC_*` env names as the bars rail):**
+  `brain/latest.txt` (text ts) + `brain/<ts>.tar.gz`; exporter prunes to the
+  newest 5 packs.
+- Installed layout on the web pod (default `<DATA_DIR>/brain`, i.e. `/data/brain`):
+  `uct_intelligence/*.py` + `data/uct_intelligence.db` + `PACK_MANIFEST.json`
+  (`{ts, kb_rows, template_rows, db_bytes}`). This preserves the engine's hardcoded
+  `<package-parent>/data/uct_intelligence.db` resolution, so the previously-dead
+  `api/routers/intelligence.py` lights up with just `UCT_INTEL_PATH=/data/brain` —
+  zero engine changes, no submodule init on Railway.
+- **LOCKED invariant — two-repo contract:** the pack layout
+  (`uct_intelligence/` + `data/uct_intelligence.db` + `PACK_MANIFEST.json`) is a
+  contract between uct-intelligence (`scripts/brain_pack_export.py`) and
+  uct-dashboard (`api/services/brain_sync.py`). **Change both sides together or
+  not at all.**
+
+### Modules
+- `api/services/brain_sync.py` — pulls `brain/latest.txt`, verifies (path-traversal
+  guard + required members + `PRAGMA integrity_check`), atomically installs at
+  `brain_dir()` (env `BRAIN_DIR` override), marker `<DATA_DIR>/.brain_last_ts`,
+  `on_install(fn)` callbacks, `start_background_sync()` = boot pull + 6h refresh
+  daemon thread. New engine *code* needs a process restart; the *DB* re-reads per
+  connection.
+- `api/services/brain_service.py` — shared facade over the engine
+  (`lookup_playbook`/`setup_winrate`/`find_historical_analogs`/`size_a_trade`).
+  Single point both Compass surfaces call so voice and text can never diverge.
+  Never raises: returns `{"ok": False, "error": "brain not available"}` when the
+  pack isn't installed. Sizing validates stop-below-entry and hard-caps account
+  risk at 2%; blank regime fills from the dashboard's own classifier.
+- `api/services/brain_kb_service.py` — semantic index over the KB for
+  `ask_the_brain` (v1 retrieval-only: returns cited passages; the calling model
+  synthesizes). OpenAI `text-embedding-3-small`, own SQLite at
+  `<DATA_DIR>/brain_index.db` (env `BRAIN_INDEX_DB`), in-memory numpy matrix
+  cache, incremental reindex by content hash. `main.py` wires
+  `brain_sync.on_install(lambda: brain_kb_service.reindex())` so each pack
+  install reindexes.
+
+### Tools (5 brain + 3 parity, all behind `BRAIN_TOOLS_ENABLED=1`)
+- **5 brain tools in BOTH registries** — voice (`voice_tool()` in
+  `voice_tool_impls.py`) AND text chat (`TOOLS` dict via `_BRAIN_TOOLS` in
+  `coach_chat_tools.py`): `ask_the_brain` · `lookup_playbook` · `setup_winrate` ·
+  `find_historical_analogs` · `size_a_trade`.
+- **3 chat parity tools** (chat-only additions; voice already had them):
+  `get_quote` · `get_regime` · `get_breadth`, delegated to the voice impls via
+  `voice_tools.dispatch` so there is one implementation.
+- **Known-by-design parity gap:** golden-set questions **R1-06 (earnings date)
+  and R1-07 (top movers)** need `get_earnings_intel`/`get_earnings_this_week`/
+  `get_movers`, which exist voice-side only — text chat fails those two report-card
+  questions until those tools are added to chat parity.
+
+### Flags / env (Railway web pod; all default OFF)
+- `BRAIN_PACK_ENABLED=1` — boot pull + 6h refresh in `main.py` lifespan (also
+  auto-sets `UCT_INTEL_PATH` to `brain_dir()` when unset).
+- `UCT_INTEL_PATH=/data/brain` — points `api/routers/intelligence.py` (+ the
+  brain facade) at the installed pack.
+- `BRAIN_TOOLS_ENABLED=1` — exposes the 5+3 tools on both surfaces.
+- `COMPASS_MENTOR_MODE` (`0`/`1`/`admin`) — the two-lane mentor persona
+  (`MENTOR_TWO_LANE` in `coach_prompts.py`, re-exported by
+  `voice_prompts/compass.py`) **now also reaches text chat**
+  (`coach_chat._mentor_mode_active`) with identical semantics: `1` = everyone,
+  `admin` = admin users only, else off.
+
+### PC-side exporter + schedule
+- `C:\Users\Patrick\uct-intelligence\scripts\brain_pack_export.py` —
+  `--build-only <out.tar.gz>` (no network) or `--upload` (build + push to R2 +
+  prune). Uses the same `DATA_SYNC_*` env names as the dashboard.
+- Nightly schedule: Windows Task Scheduler job **"UCT Brain Pack Export"
+  weekdays 21:00 CT** running `--upload` (registered per the activation runbook,
+  Task 15 of the plan; mirrors the "UCT Wire Critic" registration pattern).
+
+### Report card (`api/services/compass_eval/` + `scripts/run_report_card.py`)
+- 50-question golden set (`golden_set.json`) across 5 rungs with per-rung pass
+  bars (`RUNG_BARS`); runner replays questions through
+  `coach_chat.handle_user_turn` on a seeded sandbox DB, reads fired tools from
+  `j2_chat_messages.tool_calls`, applies mechanical checks (`checks.py`: tool
+  gate + 11 auto-fail safety tokens) + a `claude-haiku-4-5` judge, stores scores
+  in a SQLite trend store.
+- Usage: `python scripts/run_report_card.py --db %TEMP%\rc.db [--rungs 1,2]
+  [--questions R1-01-quote-nvda] [--offline]` (needs `ANTHROPIC_API_KEY` unless
+  `--offline`; defaults `BRAIN_TOOLS_ENABLED=1` + `COMPASS_MENTOR_MODE=1` for
+  the run).
+- **Deploy-gate rule: exit 1 (any safety break, or any rung below its bar) =
+  do NOT ship that Compass change.** R1-06/R1-07 fail by design in chat mode
+  until the parity gap above is closed.
+
 ## Mobile Navigation
 
 Shown at ≤1024px (desktop uses the left `NavBar`). Two pieces, both in `Layout.jsx`:
