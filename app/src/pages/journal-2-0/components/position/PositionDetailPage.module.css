@@ -1,0 +1,424 @@
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.back {
+  color: var(--accent, #c9a84c);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.missing {
+  color: var(--text-muted, #8a8a8a);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sym {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--text, #e8e6e1);
+}
+
+.name {
+  font-size: 13px;
+  color: var(--text-muted, #8a8a8a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.priceBlock {
+  margin-left: auto;
+  text-align: right;
+}
+
+.price {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e8e6e1);
+}
+
+.change {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.changeLabel {
+  color: var(--text-muted, #8a8a8a);
+  font-weight: 500;
+}
+
+/* ── Chart ──────────────────────────────────────────────────────────── */
+.chartCard {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-1, #101013);
+}
+
+.tfBar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #2a2a2e);
+}
+
+.tfBtn,
+.tfBtnActive {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #8a8a8a);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.tfBtnActive {
+  background: var(--accent, #c9a84c);
+  color: #151310;
+}
+
+.chartWrap {
+  height: 420px;
+}
+
+/* ── Sections ───────────────────────────────────────────────────────── */
+.section {
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  padding-top: 18px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text, #e8e6e1);
+}
+
+.pos { color: var(--gain, #22c55e); }
+.neg { color: var(--loss, #ef4444); }
+
+/* Your Position grid */
+.posGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 20px;
+  margin-bottom: 10px;
+}
+
+.posCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.posLabel {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.posValue {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e8e6e1);
+}
+
+/* About */
+.chipRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #8a8a8a);
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.about,
+.aboutClamped {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text, #d9d7d2);
+}
+
+.aboutClamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.showMore {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: var(--accent, #c9a84c);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Stats */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 20px;
+}
+
+.statCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.statValue {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e8e6e1);
+}
+
+/* News */
+.newsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.newsItem {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.newsItem:last-child {
+  border-bottom: none;
+}
+
+.newsMeta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted, #8a8a8a);
+  margin-bottom: 3px;
+}
+
+.newsSource {
+  font-weight: 700;
+}
+
+.newsHeadline {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text, #e8e6e1);
+  text-decoration: none;
+  line-height: 1.45;
+}
+
+.newsHeadline:hover {
+  color: var(--accent, #c9a84c);
+}
+
+/* Analyst */
+.ratingSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ratingBig {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gain, #22c55e);
+}
+
+.ratingOf {
+  font-size: 12.5px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.ratingBar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2, #17171a);
+}
+
+.ratingBuy { background: var(--gain, #22c55e); }
+.ratingHold { background: #8a8a8a; }
+.ratingSell { background: var(--loss, #ef4444); }
+
+.ratingLegend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.dotBuy { background: var(--gain, #22c55e); }
+.dotHold { background: #8a8a8a; }
+.dotSell { background: var(--loss, #ef4444); }
+
+.ratingFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.ratingTarget {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #e8e6e1);
+}
+
+.uctChip {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--accent, #c9a84c);
+  border: 1px solid var(--accent, #c9a84c);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* Earnings */
+.earnTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.earnTable th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #8a8a8a);
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--border, #2a2a2e);
+}
+
+.earnTable td {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  color: var(--text, #e8e6e1);
+}
+
+/* History */
+.histList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.histItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  font-variant-numeric: tabular-nums;
+}
+
+.histItem:last-child {
+  border-bottom: none;
+}
+
+.histTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text, #e8e6e1);
+}
+
+.histMeta {
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+  margin-top: 2px;
+}
+
+.histOpenChip {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--accent, #c9a84c);
+  border: 1px solid var(--accent, #c9a84c);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* ── Phone ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .page {
+    padding: 14px 14px 48px;
+    gap: 18px;
+  }
+
+  .sym { font-size: 21px; }
+  .price { font-size: 21px; }
+  .chartWrap { height: 300px; }
+  .posGrid { grid-template-columns: repeat(2, 1fr); }
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+}

@@ -37,6 +37,7 @@ const Desk = lazy(() => import('./pages/desk/Desk'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
+const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
@@ -178,6 +179,7 @@ export default function App() {
                 <Route path="/journal" element={<Journal />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
+                <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
                 <Route path="/patterns" element={<Patterns />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
