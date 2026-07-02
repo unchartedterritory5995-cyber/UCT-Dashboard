@@ -14,6 +14,10 @@ recoloured:
     gold pull-quote spine + date; right = a glowing gold candlestick uptrend so it
     instantly reads as *markets*. Cinematic depth (radial light + vignette).
     Rendered at 2x and downscaled (super-sampled) for crisp, clean edges.
+  - "EVENING UPDATE FROM TSDR" -> evening: a cinematic dusk skyline with headline
+    and date plaque, themed for the evening show.
+  - "WORKSHOP WITH CHARTMASTER" -> plate: pre-made cinematic artwork with a
+    stamped date plaque, for ChartMaster workshops.
 
 Theme/layout is picked from the eyebrow label (auto-derived from the Zoom webinar
 name) so a new content type needs no code change here; pass `variant` to override.
@@ -45,7 +49,7 @@ class Theme(NamedTuple):
     date: tuple
     rule: tuple
     tagline: tuple
-    layout: str = "classic"   # "classic" | "editorial"
+    layout: str = "classic"   # "classic" | "editorial" | "evening" | "plate"
 
 
 _DEFAULT_THEME = Theme(
@@ -517,6 +521,56 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
     return img.convert("RGB")
 
 
+# ---------------------------------------------------------------------------
+# Plate (Workshop with ChartMaster) — pre-made artwork + stamped date plaque
+# ---------------------------------------------------------------------------
+
+_PLATE_CHARTMASTER = os.path.join(_ASSETS, "chartmaster-workshop.png")
+
+# Plaque center-y: inside the calm-water band the artwork reserves in its
+# bottom 15%. Tuned visually against the real plate; keep in sync with the
+# authoring brief in the design spec.
+_PLATE_DATE_CY = 645
+
+
+def _cover_fit(src: Image.Image, size: tuple = _SIZE) -> Image.Image:
+    """Scale to cover `size`, center-crop the overflow (safety net — the
+    plate is authored at 16:9, so normally this is a pure resize)."""
+    w, h = src.size
+    W, H = size
+    scale = max(W / w, H / h)
+    nw, nh = max(W, int(round(w * scale))), max(H, int(round(h * scale)))
+    src = src.resize((nw, nh), Image.LANCZOS)
+    x, y = (nw - W) // 2, (nh - H) // 2
+    return src.crop((x, y, x + W, y + H))
+
+
+def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+    try:
+        plate = Image.open(_PLATE_CHARTMASTER).convert("RGBA")
+    except Exception:
+        # Never break a publish over a missing/corrupt plate asset.
+        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label)
+    img = _cover_fit(plate)
+    cx = _W // 2
+
+    # Date plaque — same treatment as the Evening Update pill. Drawn on its
+    # own RGBA layer + alpha_composite so the translucent fill actually
+    # blends over the artwork.
+    df = _font("DejaVuSans-Bold.ttf", 30)
+    dt = date_text.upper()
+    measure = ImageDraw.Draw(img)
+    dw = _tracked_w(measure, dt, df, 3)
+    pill = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - 22, _PLATE_DATE_CY - 25, cx + dw / 2 + 22, _PLATE_DATE_CY + 25],
+        radius=25, fill=(0, 0, 0, 130), outline=(250, 212, 132, 255), width=2)
+    img = Image.alpha_composite(img, pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, _PLATE_DATE_CY - 15, dt, df,
+                         theme.date, 3)
+    return img.convert("RGB")
+
+
 def render_session_thumbnail(
     date_text: str,
     eyebrow_label: str = "LIVE TRADING SESSION",
@@ -528,6 +582,8 @@ def render_session_thumbnail(
         img = _render_evening(theme, date_text, eyebrow_label)
     elif theme.layout == "editorial":
         img = _render_editorial(theme, date_text, eyebrow_label)
+    elif theme.layout == "plate":
+        img = _render_plate(theme, date_text, eyebrow_label)
     else:
         img = _render_classic(theme, date_text, eyebrow_label)
     buf = io.BytesIO()

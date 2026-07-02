@@ -1,4 +1,6 @@
 import io
+import os
+import tempfile
 
 from PIL import Image
 
@@ -93,3 +95,38 @@ def test_chartmaster_variant_override_routes_to_plate():
 
 def test_live_trading_still_classic():
     assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
+
+
+def _fake_plate(path, size=(1280, 720)):
+    Image.new("RGB", size, (10, 30, 60)).save(path, "PNG")
+
+
+def test_plate_render_returns_jpeg_1280x720_under_2mb(monkeypatch, tmp_path):
+    plate = str(tmp_path / "plate.png")
+    _fake_plate(plate)
+    monkeypatch.setattr(t, "_PLATE_CHARTMASTER", plate)
+    data = t.render_session_thumbnail(
+        "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER")
+    assert data[:2] == b"\xff\xd8"                      # JPEG magic
+    img = Image.open(io.BytesIO(data))
+    assert img.size == (1280, 720)
+    assert len(data) < 2 * 1024 * 1024
+
+
+def test_plate_cover_fits_non_16x9_source(monkeypatch, tmp_path):
+    plate = str(tmp_path / "wide.png")
+    _fake_plate(plate, size=(1886, 892))                # ~2.11:1 like the sample
+    monkeypatch.setattr(t, "_PLATE_CHARTMASTER", plate)
+    data = t.render_session_thumbnail(
+        "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER")
+    assert Image.open(io.BytesIO(data)).size == (1280, 720)
+
+
+def test_plate_missing_falls_back_to_classic(monkeypatch, tmp_path):
+    monkeypatch.setattr(t, "_PLATE_CHARTMASTER", str(tmp_path / "nope.png"))
+    data = t.render_session_thumbnail(
+        "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER")
+    classic = t.render_session_thumbnail(
+        "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER",
+        variant="default")
+    assert data == classic                              # deterministic Pillow output
