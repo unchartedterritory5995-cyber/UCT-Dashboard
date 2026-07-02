@@ -73,6 +73,9 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "day_high": round(float(day.get("h") or 0), 2),
             "day_low": round(float(day.get("l") or 0), 2),
             "prev_close": round(float(prev_day.get("c") or 0), 2),
+            # Today's REGULAR-session close — null pre-market (no day bar yet).
+            # Powers the RH-style After-Hours split (move since the 4pm close).
+            "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
         }

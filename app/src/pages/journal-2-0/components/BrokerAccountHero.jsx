@@ -12,7 +12,7 @@
  * from the already-computed portfolioAggregates. Renders null for non-broker.
  */
 import { useMemo, useRef, useState } from 'react'
-import { money, moneySigned, percent } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, extendedSessionSplit } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
 import useAnimatedNumber from '../../../hooks/useAnimatedNumber'
@@ -104,6 +104,19 @@ export default function BrokerAccountHero({
   const netLiqVal = liveSummary?.netLiq
   const animatedHead = useAnimatedNumber(netLiqVal != null ? netLiqVal : baseValue)
 
+  // RH extended-hours split — null during regular session/closed. Computed
+  // before the early return so hook order stays stable.
+  const todayIso = useMemo(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
+    [],
+  )
+  const extSplit = useMemo(
+    () => extendedSessionSplit(positions, prices, {
+      cash: account?.brokerCash ?? 0, optionMarketValue, todayIso,
+    }),
+    [positions, prices, account?.brokerCash, optionMarketValue, todayIso],
+  )
+
   const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   if (!isBroker) return null
 
@@ -129,8 +142,22 @@ export default function BrokerAccountHero({
     rangeChange = liveSummary.today
     rangePct = liveSummary.todayPct
   }
+  let rangeLabel = isIntraday ? 'Today' : range.label
+  // RH extended-hours behavior (1D only): after the close, Today FREEZES at
+  // the 4pm close and the after-hours move gets its own stacked line;
+  // pre-market, the whole move since prev close IS the overnight move — the
+  // single line just relabels.
+  let extLine = null
+  if (isIntraday && extSplit) {
+    if (extSplit.session === 'post_market') {
+      rangeChange = extSplit.regularDollar
+      rangePct = extSplit.regularPct
+      extLine = { label: 'After-Hours', dollar: extSplit.extDollar, pct: extSplit.extPct }
+    } else {
+      rangeLabel = 'Overnight'
+    }
+  }
   const rangeUp = (rangeChange ?? 0) >= 0
-  const rangeLabel = isIntraday ? 'Today' : range.label
 
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
@@ -163,13 +190,22 @@ export default function BrokerAccountHero({
                 <span className={styles.changeLabel}> {pointLabel(series[scrub])}</span>
               </span>
             ) : (
-              rangeChange != null && (
-                <span className={`${styles.change} ${rangeUp ? styles.pos : styles.neg}`}>
-                  {rangeUp ? '▲' : '▼'} {moneySigned(rangeChange)}
-                  {rangePct != null && <>{' '}({percent(rangePct, { signed: true, dp: 1, isRatio: true })})</>}
-                  <span className={styles.changeLabel}> {rangeLabel}{model?.estimated ? ' · est.' : ''}</span>
-                </span>
-              )
+              <>
+                {rangeChange != null && (
+                  <span className={`${styles.change} ${rangeUp ? styles.pos : styles.neg}`}>
+                    {rangeUp ? '▲' : '▼'} {moneySigned(rangeChange)}
+                    {rangePct != null && <>{' '}({percent(rangePct, { signed: true, dp: 1, isRatio: true })})</>}
+                    <span className={styles.changeLabel}> {rangeLabel}{model?.estimated ? ' · est.' : ''}</span>
+                  </span>
+                )}
+                {extLine && (
+                  <span className={`${styles.change} ${styles.extChange} ${extLine.dollar >= 0 ? styles.pos : styles.neg}`}>
+                    {extLine.dollar >= 0 ? '▲' : '▼'} {moneySigned(extLine.dollar)}
+                    {extLine.pct != null && <>{' '}({percent(extLine.pct, { signed: true, dp: 2, isRatio: true })})</>}
+                    <span className={styles.changeLabel}> {extLine.label}</span>
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>

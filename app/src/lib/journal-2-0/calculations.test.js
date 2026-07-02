@@ -942,3 +942,59 @@ describe('brokerLiveSummary', () => {
     expect(r.marketValue).toBe(10)
   })
 })
+
+// ── extendedSessionSplit (RH After-Hours/Overnight hero row) ────────────────
+import { extendedSessionSplit } from './calculations.js'
+
+describe('extendedSessionSplit', () => {
+  const TODAY = '2026-07-02'
+  const long = { symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 100, entryDate: '2026-06-01' }
+  const short = { symbol: 'TSLA', side: 'Short', shares: 5, entryPrice: 200, entryDate: '2026-06-01' }
+
+  it('returns null during regular session / closed (no ext_session)', () => {
+    expect(extendedSessionSplit([long], {
+      AAPL: { price: 110, prev_close: 108, day_close: 110 },
+    })).toBeNull()
+    expect(extendedSessionSplit([], {})).toBeNull()
+  })
+
+  it('pre-market returns session only (caller relabels the line)', () => {
+    expect(extendedSessionSplit([long], {
+      AAPL: { price: 111, ext_price: 111, ext_session: 'pre_market', prev_close: 108 },
+    })).toEqual({ session: 'pre_market' })
+  })
+
+  it('post-market splits Today (frozen at close) from After-Hours', () => {
+    const prices = {
+      AAPL: { price: 112, ext_price: 112, ext_session: 'post_market', day_close: 110, prev_close: 108 },
+      TSLA: { price: 188, ext_price: 188, ext_session: 'post_market', day_close: 190, prev_close: 195 },
+    }
+    const out = extendedSessionSplit([long, short], prices, { cash: 1000, todayIso: TODAY })
+    // regular: 10×(110−108) + (−5)×(190−195) = 20 + 25 = 45
+    expect(out.regularDollar).toBeCloseTo(45)
+    // ext: 10×(112−110) + (−5)×(188−190) = 20 + 10 = 30
+    expect(out.extDollar).toBeCloseTo(30)
+    // netLiqAtClose = 1000 + 10×110 − 5×190 = 1150
+    expect(out.extPct).toBeCloseTo(30 / 1150)
+    expect(out.regularPct).toBeCloseTo(45 / (1150 - 45))
+    expect(out.session).toBe('post_market')
+  })
+
+  it('same-day fills measure the regular leg from the fill price', () => {
+    const openedToday = { symbol: 'NVDA', side: 'Long', shares: 2, entryPrice: 150, entryDate: TODAY }
+    const out = extendedSessionSplit([openedToday], {
+      NVDA: { price: 158, ext_price: 158, ext_session: 'post_market', day_close: 155, prev_close: 149 },
+    }, { todayIso: TODAY })
+    expect(out.regularDollar).toBeCloseTo(2 * (155 - 150))   // from the fill, not prev close
+    expect(out.extDollar).toBeCloseTo(2 * (158 - 155))
+  })
+
+  it('positions without day_close contribute to neither leg', () => {
+    const out = extendedSessionSplit([long, { ...short, symbol: 'XX' }], {
+      AAPL: { price: 112, ext_price: 112, ext_session: 'post_market', day_close: 110, prev_close: 108 },
+      XX: { price: 50, ext_price: 50, ext_session: 'post_market', prev_close: 49 },  // no day_close
+    }, { todayIso: TODAY })
+    expect(out.regularDollar).toBeCloseTo(20)
+    expect(out.extDollar).toBeCloseTo(20)
+  })
+})

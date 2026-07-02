@@ -76,3 +76,12 @@
   display: flex;
   justify-content: space-between;
 }
+
+/* Second stacked change line for extended-hours (After-Hours) — smaller,
+   under the main Today line, per Robinhood. */
+.extChange {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+  opacity: 0.9;
+}
