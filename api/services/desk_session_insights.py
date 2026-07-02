@@ -38,6 +38,13 @@ def _max_wait_secs() -> int:
     return int(hrs * 3600)
 
 
+def _llm_timeout_secs() -> float:
+    try:
+        return float(os.environ.get("DESK_CHAPTERS_LLM_TIMEOUT_SECS", "300"))
+    except ValueError:
+        return 300.0
+
+
 def _window_secs() -> int:
     try:
         days = float(os.environ.get("DESK_SESSION_INSIGHTS_WINDOW_DAYS", "7"))
@@ -163,7 +170,12 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     if not block:
         return {"chapters": [], "ticker_moments": [], "headline": "", "summary": []}
     user = f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"
-    client = _get_anthropic_client()
+    # The shared client is hard-capped at 60s to protect the request path
+    # (2026-07-01 thread-exhaustion hardening), but a marathon-session
+    # transcript + 2400 output tokens from Opus cannot finish in 60s. This
+    # runs on the background insights scheduler, never a user request, so a
+    # long bound is safe here — without it every generation times out.
+    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
     msg = client.messages.create(
         model=_MODEL,
         max_tokens=2400,

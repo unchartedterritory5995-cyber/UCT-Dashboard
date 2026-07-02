@@ -73,3 +73,36 @@ def test_find_transcript_file():
 def test_strip_json_fenced():
     assert si._strip_json('```json\n{"a":1}\n```') == '{"a":1}'
     assert si._strip_json('chatter {"a":1} trailing') == '{"a":1}'
+
+
+def test_generate_insights_overrides_short_shared_client_timeout(monkeypatch):
+    """The shared engine client is capped at 60s to protect the request path;
+    the insights call MUST override it or every real transcript times out
+    (regression 2026-07-02: launch-hardening silently broke chapter generation)."""
+    from api.services import engine
+
+    captured = {}
+
+    class _Block:
+        text = ('{"headline": "h", "summary": ["s"], '
+                '"chapters": [{"t": 5, "title": "Open"}], "ticker_moments": []}')
+
+    class _Msg:
+        content = [_Block()]
+
+    class _Messages:
+        @staticmethod
+        def create(**kw):
+            return _Msg()
+
+    class _Client:
+        messages = _Messages()
+
+        def with_options(self, **kw):
+            captured.update(kw)
+            return self
+
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+    out = si.generate_insights("Title", [{"t": 5, "text": "hello"}])
+    assert captured.get("timeout", 0) >= 120
+    assert out["chapters"] == [{"t": 5, "title": "Open"}]
