@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildEquityRows, buildOptionRows, sortRows, SORT_OPTIONS } from './holdingsRows'
+import { buildEquityRows, sortRows, SORT_OPTIONS } from './holdingsRows'
 
 const TODAY = '2026-07-02'
 
@@ -56,24 +56,6 @@ describe('buildEquityRows', () => {
     expect(row.todayDollar).toBeNull()
     expect(row.changePct).toBeNull()
     expect(row.marketValue).toBe(1050)
-  })
-})
-
-describe('buildOptionRows', () => {
-  it('maps broker mark and P&L', () => {
-    const s = { id: 9, underlying: 'CRWV', netEntry: 400, brokerCurrentValue: 600, legs: [] }
-    const [row] = buildOptionRows([s])
-    expect(row.kind).toBe('option')
-    expect(row.marketValue).toBe(600)
-    expect(row.pnlDollar).toBe(200)
-    expect(row.pnlPct).toBeCloseTo(0.5)
-  })
-
-  it('nulls when the broker mark is absent', () => {
-    const s = { id: 9, underlying: 'CRWV', netEntry: 400, brokerCurrentValue: null, legs: [] }
-    const [row] = buildOptionRows([s])
-    expect(row.marketValue).toBeNull()
-    expect(row.pnlDollar).toBeNull()
   })
 })
 

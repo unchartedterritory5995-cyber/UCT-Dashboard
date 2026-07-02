@@ -10,8 +10,9 @@ import { Link } from 'react-router-dom'
 import CompanyLogo from '../../../components/CompanyLogo'
 import Sparkline from '../../../components/Sparkline'
 import useHoldingsSparklines from '../hooks/useHoldingsSparklines'
-import { buildEquityRows, buildOptionRows, sortRows, SORT_OPTIONS } from '../lib/holdingsRows'
-import { money, moneySigned, percent } from '../../../lib/journal-2-0'
+import OptionsBoard from './OptionsBoard'
+import { buildEquityRows, sortRows, SORT_OPTIONS } from '../lib/holdingsRows'
+import { money, percent } from '../../../lib/journal-2-0'
 import styles from './HoldingsList.module.css'
 
 const SORT_STORAGE_KEY = 'uct.j2.holdings.sort'
@@ -38,12 +39,11 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
     () => sortRows(buildEquityRows(positions, prices, todayIso), sort.key, sort.dir),
     [positions, prices, todayIso, sort],
   )
-  const optionRows = useMemo(() => buildOptionRows(optionStrategies), [optionStrategies])
-
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { closes } = useHoldingsSparklines(symbols)
 
-  if (!equityRows.length && !optionRows.length) return null
+  const hasOptions = (optionStrategies || []).length > 0
+  if (!equityRows.length && !hasOptions) return null
 
   const saveSort = (next) => {
     setSort(next)
@@ -90,16 +90,7 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
         </section>
       )}
 
-      {optionRows.length > 0 && (
-        <section aria-label="Options">
-          <div className={styles.sectionHead}>
-            <h3 className={styles.sectionTitle}>Options</h3>
-          </div>
-          <ul className={styles.rows}>
-            {optionRows.map((row) => <OptionRow key={row.key} row={row} />)}
-          </ul>
-        </section>
-      )}
+      {hasOptions && <OptionsBoard strategies={optionStrategies} />}
     </div>
   )
 }
@@ -140,25 +131,3 @@ function EquityRow({ row, spark }) {
   )
 }
 
-function OptionRow({ row }) {
-  const tone = row.pnlDollar == null ? '' : row.pnlDollar >= 0 ? styles.pos : styles.neg
-  return (
-    <li className={styles.row}>
-      <div className={styles.ident}>
-        <span className={styles.sym}>{row.label}</span>
-        <span className={styles.shares}>
-          {row.contracts != null ? `${row.contracts} ${row.contracts === 1 ? 'contract' : 'contracts'}` : 'Broker mark'}
-        </span>
-      </div>
-      <div className={styles.spacer} />
-      <div className={styles.right}>
-        <span className={styles.optValue}>
-          {row.marketValue == null ? '—' : money(row.marketValue)}
-        </span>
-        <span className={`${styles.today} ${tone}`}>
-          {row.pnlDollar == null ? ' ' : moneySigned(row.pnlDollar)}
-        </span>
-      </div>
-    </li>
-  )
-}

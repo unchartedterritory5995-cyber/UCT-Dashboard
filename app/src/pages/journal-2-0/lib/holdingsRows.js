@@ -5,7 +5,6 @@
  *   entries, else prev close (derived from change_pct when the feed lacks it).
  */
 import { currentPriceFor, positionPnlDollar } from '../../../lib/journal-2-0'
-import { buildStrategyLabel } from './optionCalcs'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
 
@@ -42,23 +41,6 @@ export function buildEquityRows(positions, prices, todayIso) {
       totalReturnDollar,
       totalReturnPct: totalReturnDollar != null && basis ? totalReturnDollar / basis : null,
       sparkKey: p.symbol,
-    }
-  })
-}
-
-export function buildOptionRows(strategies) {
-  return (strategies || []).map((s) => {
-    const mark = fin(s.brokerCurrentValue)
-    const pnl = mark == null || !Number.isFinite(s.netEntry) ? null : mark - s.netEntry
-    return {
-      kind: 'option',
-      key: `o-${s.id}`,
-      label: buildStrategyLabel(s),
-      underlying: s.underlying,
-      contracts: s.legs?.[0]?.qty ?? null,
-      marketValue: mark == null ? null : Math.abs(mark),
-      pnlDollar: pnl,
-      pnlPct: pnl != null && s.netEntry ? pnl / Math.abs(s.netEntry) : null,
     }
   })
 }

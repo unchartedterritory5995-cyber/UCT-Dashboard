@@ -11,6 +11,9 @@ vi.mock('../hooks/useHoldingsSparklines', () => ({
 vi.mock('../../../components/CompanyLogo', () => ({
   default: ({ sym }) => <span data-testid={`logo-${sym}`} />,
 }))
+vi.mock('./OptionsBoard', () => ({
+  default: ({ strategies }) => <div data-testid="options-board">{strategies.length}</div>,
+}))
 
 const positions = [
   { id: 1, symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 100, entryDate: '2026-06-01' },
@@ -40,10 +43,9 @@ describe('HoldingsList', () => {
     expect(screen.getByText('Short 5')).toBeInTheDocument()
   })
 
-  it('renders the Options section from the broker mark', () => {
+  it('renders the OptionsBoard when strategies exist', () => {
     renderList(<HoldingsList positions={[]} optionStrategies={strategies} prices={{}} />)
-    expect(screen.getByText('Options')).toBeInTheDocument()
-    expect(screen.getByText('$600.00')).toBeInTheDocument()
+    expect(screen.getByTestId('options-board')).toHaveTextContent('1')
     expect(screen.queryByText('Stocks & ETFs')).toBeNull()
   })
 
