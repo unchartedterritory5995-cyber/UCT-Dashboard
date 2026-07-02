@@ -488,6 +488,29 @@ def videos_pending_insights(max_age_secs: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def videos_missing_ticker_moments(max_age_secs: int, limit: int) -> list[dict]:
+    """Session videos that already have chapters + a stored transcript but no
+    ticker_moments yet — the ticker-backfill work-list (runs entirely off the
+    stored transcript; the Zoom recording is already trashed by this point, so
+    this query is intentionally NOT gated on zoom_cleaned). Ordered
+    oldest-first, bounded by `limit` so a pass never over-processes."""
+    cutoff = int(time.time()) - int(max_age_secs)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, youtube_id, title, transcript, chapters, ticker_moments
+               FROM edu_videos
+               WHERE meeting_uuid IS NOT NULL AND meeting_uuid != ''
+                 AND chapters IS NOT NULL AND chapters != '' AND chapters != '[]'
+                 AND transcript IS NOT NULL AND transcript != ''
+                 AND (ticker_moments IS NULL OR ticker_moments = '' OR ticker_moments = '[]')
+                 AND created_at >= ?
+               ORDER BY created_at ASC
+               LIMIT ?""",
+            (cutoff, int(limit)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 # ── Per-user timestamped video notes ─────────────────────────────────────────────
 # Lightweight "jot a thought at MM:SS" notes for any video; click a note to jump
 # back. A separate "send to Notebook" action (frontend) bundles them into a J2 note.

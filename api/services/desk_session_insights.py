@@ -22,8 +22,12 @@ import time
 
 from api.services import education_service
 
-# Opus for synthesis (feedback_opus_for_synthesis). 4.8 rejects `temperature`.
-_MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-opus-4-8")
+# Zoom's AI Companion SUMMARY file gives chapters/headline/summary for free on
+# most sessions (see parse_zoom_summary below), so the LLM is now only needed
+# for (a) the rare fallback when no usable summary file exists and (b) the
+# small best-effort ticker-moments call. Haiku is plenty for both — cheaper
+# default than the old Opus-only path (DESK_CHAPTERS_MODEL env still overrides).
+_MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-haiku-4-5")
 
 
 def is_enabled() -> bool:
@@ -97,6 +101,82 @@ def transcript_plain(cues: list[dict]) -> str:
     return "\n".join(c["text"] for c in cues)
 
 
+_TB_LINE = re.compile(r"^\[(?:(\d+):)?(\d{1,2}):(\d{2})\] (.*)$")
+
+
+def _parse_timestamped_block(text: str) -> list[dict]:
+    """Inverse of `_timestamped_block` — recovers [{t, text}] cues from the
+    STORED transcript (we persist the timestamped form, not the flat
+    `transcript_plain` one, precisely so the ticker-backfill loop can retry
+    later with zero Zoom dependency — the recording is long since trashed)."""
+    cues: list[dict] = []
+    for line in (text or "").split("\n"):
+        m = _TB_LINE.match(line)
+        if not m:
+            continue
+        h, mnt, s = int(m.group(1) or 0), int(m.group(2)), int(m.group(3))
+        cues.append({"t": h * 3600 + mnt * 60 + s, "text": m.group(4)})
+    return cues
+
+
+# ── Zoom-native summary parsing (free chapters — no LLM) ────────────────────────
+
+_HMS = re.compile(r"^(\d+):(\d{2}):(\d{2})(?:[.,]\d+)?$")
+
+
+def _hms_to_secs(ts) -> "int | None":
+    """Parse a Zoom summary `start_time`/`end_time` string ("HH:MM:SS.mmm")
+    into whole seconds. None on anything that isn't that shape."""
+    if not isinstance(ts, str):
+        return None
+    m = _HMS.match(ts.strip())
+    if not m:
+        return None
+    h, mnt, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    return h * 3600 + mnt * 60 + s
+
+
+def parse_zoom_summary(raw: str) -> dict:
+    """Parse Zoom AI Companion's SUMMARY file JSON into
+    {headline, summary, chapters} — chapters straight from `items[]`, free
+    (no LLM). Tolerant of malformed JSON / missing items / partial rows;
+    always returns the full shape."""
+    empty = {"headline": "", "summary": [], "chapters": []}
+    try:
+        data = json.loads(raw or "")
+    except (json.JSONDecodeError, TypeError):
+        return empty
+    if not isinstance(data, dict):
+        return empty
+
+    items = data.get("items")
+    if not isinstance(items, list):
+        items = []
+
+    chapters = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        title = str(it.get("label") or "").strip()[:80]
+        t = _hms_to_secs(it.get("start_time"))
+        if not title or t is None:
+            continue
+        chapters.append({"t": t, "title": title})
+    chapters.sort(key=lambda c: c["t"])
+
+    summary = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        s = str(it.get("summary") or "").strip()
+        if s:
+            summary.append(s[:300])
+    summary = summary[:6]
+
+    headline = str(data.get("overall_summary") or "").strip()[:200]
+    return {"headline": headline, "summary": summary, "chapters": chapters}
+
+
 def _recap_date(title: str) -> str:
     """Session titles are '{type} — {Month D, YYYY}'; pull the date tail for the
     poster, falling back to the whole title."""
@@ -161,10 +241,56 @@ def _strip_json(s: str) -> str:
     return s[a:b + 1] if a != -1 and b != -1 and b > a else s
 
 
+# Shared LLM-output cleaners (module-level so both generate_insights and the
+# ticker-only generate_ticker_moments can reuse them).
+
+def _clean_chapters(items):
+    out = []
+    for it in items or []:
+        try:
+            t = int(it["t"])
+            ttl = str(it.get("title") or "").strip()[:80]
+        except (KeyError, TypeError, ValueError):
+            continue
+        if ttl and t >= 0:
+            out.append({"t": t, "title": ttl})
+    out.sort(key=lambda x: x["t"])
+    return out
+
+
+def _clean_tickers(items):
+    out, seen = [], set()
+    for it in items or []:
+        try:
+            tk = str(it.get("ticker") or "").strip().upper().lstrip("$")
+            t = int(it["t"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not tk or not re.fullmatch(r"[A-Z][A-Z.\-]{0,6}", tk) or t < 0:
+            continue
+        key = (tk, t // 30)  # collapse near-duplicate mentions (~30s buckets)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"ticker": tk, "t": t, "note": str(it.get("note") or "").strip()[:100]})
+    out.sort(key=lambda x: x["t"])
+    return out
+
+
+def _clean_summary(items):
+    out = []
+    for s in items or []:
+        t = str(s or "").strip()
+        if t:
+            out.append(t[:200])
+    return out[:6]
+
+
 def generate_insights(title: str, cues: list[dict]) -> dict:
-    """Call Opus to turn cues into {headline, summary, chapters, ticker_moments}.
-    Raises on hard LLM failure so the caller can decide to retry (don't store /
-    don't give up yet)."""
+    """LLM fallback (only used when no usable Zoom summary file exists): turn
+    cues into {headline, summary, chapters, ticker_moments}. Raises on hard
+    LLM failure so the caller can decide to retry (don't store / don't give
+    up yet)."""
     from api.services.engine import _get_anthropic_client
     block = _timestamped_block(cues)
     if not block:
@@ -185,45 +311,6 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     raw = "".join(getattr(b, "text", "") for b in msg.content)
     data = json.loads(_strip_json(raw))
 
-    def _clean_chapters(items):
-        out = []
-        for it in items or []:
-            try:
-                t = int(it["t"])
-                ttl = str(it.get("title") or "").strip()[:80]
-            except (KeyError, TypeError, ValueError):
-                continue
-            if ttl and t >= 0:
-                out.append({"t": t, "title": ttl})
-        out.sort(key=lambda x: x["t"])
-        return out
-
-    def _clean_tickers(items):
-        out, seen = [], set()
-        for it in items or []:
-            try:
-                tk = str(it.get("ticker") or "").strip().upper().lstrip("$")
-                t = int(it["t"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if not tk or not re.fullmatch(r"[A-Z][A-Z.\-]{0,6}", tk) or t < 0:
-                continue
-            key = (tk, t // 30)  # collapse near-duplicate mentions (~30s buckets)
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append({"ticker": tk, "t": t, "note": str(it.get("note") or "").strip()[:100]})
-        out.sort(key=lambda x: x["t"])
-        return out
-
-    def _clean_summary(items):
-        out = []
-        for s in items or []:
-            t = str(s or "").strip()
-            if t:
-                out.append(t[:200])
-        return out[:6]
-
     return {
         "headline": str(data.get("headline") or "").strip()[:200],
         "summary": _clean_summary(data.get("summary")),
@@ -232,7 +319,43 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     }
 
 
-# ── Transcript file selection ────────────────────────────────────────────────────
+# ── Ticker-moments — LLM-only, best-effort (never blocks the Zoom-first path) ───
+
+_TICKER_SYS = (
+    "You are scanning a timestamped transcript of a stock-trading firm's live "
+    "session / educational webinar for stock/ETF mentions. Return STRICT JSON "
+    "only (no prose, no code fences):\n"
+    '{ "ticker_moments": [ {"t": <int seconds>, "ticker": "AAPL"} ] }\n'
+    "List every stock/ETF actually discussed, at the second its discussion "
+    "STARTS; map spoken company names to the correct US ticker (Nvidia->NVDA). "
+    "Skip vague index talk. De-dup obvious repeats but keep distinct revisits. "
+    "Use integer seconds from the [h:mm:ss] markers. Output ONLY the JSON object."
+)
+
+
+def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
+    """Small best-effort LLM call for ticker_moments ONLY — the only LLM touch
+    on the Zoom-first path (chapters/headline/summary there are free, straight
+    from Zoom's own SUMMARY file). Raises on failure; callers MUST wrap this
+    so a billing/LLM hiccup never blocks publishing the free Zoom chapters."""
+    from api.services.engine import _get_anthropic_client
+    block = _timestamped_block(cues)
+    if not block:
+        return []
+    user = f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"
+    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
+    msg = client.messages.create(
+        model=_MODEL,
+        max_tokens=800,
+        system=_TICKER_SYS,
+        messages=[{"role": "user", "content": user}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    data = json.loads(_strip_json(raw))
+    return _clean_tickers(data.get("ticker_moments"))
+
+
+# ── Recording-file selection ─────────────────────────────────────────────────────
 
 def _find_transcript_file(recording_json: dict):
     """Return the completed TRANSCRIPT recording_file (download_url present), or None."""
@@ -246,7 +369,173 @@ def _find_transcript_file(recording_json: dict):
     return None
 
 
+def _find_summary_file(recording_json: dict):
+    """Return Zoom AI Companion's SUMMARY recording_file (download_url
+    present), or None. MUST NOT match the sibling `summary_next_steps` file
+    (action items — not what we want)."""
+    for f in (recording_json or {}).get("recording_files") or []:
+        ft = (f.get("file_type") or "").upper()
+        rt = (f.get("recording_type") or "").lower()
+        if ft == "SUMMARY" and rt == "summary" and f.get("download_url"):
+            return f
+    return None
+
+
 # ── Orchestration ────────────────────────────────────────────────────────────────
+
+_TICKER_BACKFILL_LIMIT = 3  # bounded — best-effort, one small LLM call per video
+
+
+def _generate_poster(vid: int, v: dict, ins: dict) -> bool:
+    """Branded recap poster from the summary (best-effort — never blocks
+    storing the text insights if Pillow hiccups)."""
+    try:
+        from api.services import desk_recap_poster
+        desk_recap_poster.save_recap_poster(
+            vid,
+            title=v.get("title") or "Session Recap",
+            date_text=_recap_date(v.get("title")),
+            headline=ins.get("headline", ""),
+            summary=ins.get("summary", []),
+            tickers=[t["ticker"] for t in ins["ticker_moments"]],
+        )
+        return True
+    except Exception as pe:
+        print(f"[session-insights] poster render failed (non-fatal): {pe}")
+        return False
+
+
+def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]) -> None:
+    vid = v["id"]
+    uuid = v.get("meeting_uuid") or ""
+    has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
+    try:
+        rec = zoom.get_recording_files(uuid)
+        if rec is None:  # recording already gone — nothing to fetch
+            education_service.mark_zoom_cleaned(vid)
+            if not has_chapters:
+                education_service.mark_insights_attempt(vid)
+            results.append({"id": vid, "action": "recording_gone"})
+            return
+
+        if not has_chapters:
+            # 1) Zoom-first (free): Zoom's AI Companion SUMMARY file already
+            # has chapters/headline/summary — no LLM needed at all.
+            zoom_ins = None
+            sfile = _find_summary_file(rec)
+            if sfile:
+                try:
+                    raw = zoom.download_text(sfile["download_url"])
+                    parsed = parse_zoom_summary(raw)
+                except Exception as se:
+                    print(f"[session-insights] summary parse failed (non-fatal): {se}")
+                    parsed = None
+                if parsed and parsed.get("chapters"):
+                    zoom_ins = parsed
+
+            # Transcript fetch/parse unchanged — feeds the plain transcript
+            # storage AND the ticker-moments call regardless of which path
+            # supplied the chapters.
+            cues: list[dict] = []
+            tfile = _find_transcript_file(rec)
+            if tfile:
+                try:
+                    vtt = zoom.download_text(tfile["download_url"])
+                    cues = parse_vtt(vtt)
+                except Exception as te:
+                    print(f"[session-insights] transcript download failed (non-fatal): {te}")
+                    cues = []
+
+            ins, source = None, None
+            if zoom_ins:
+                # 3) Ticker moments = LLM-only, best-effort, never blocking.
+                ticker_moments: list[dict] = []
+                if cues:
+                    try:
+                        ticker_moments = generate_ticker_moments(v.get("title") or "", cues)
+                    except Exception as tke:
+                        print(f"[session-insights] ticker moments failed (non-fatal): {tke}")
+                        ticker_moments = []
+                ins = {
+                    "headline": zoom_ins.get("headline", ""),
+                    "summary": zoom_ins.get("summary", []),
+                    "chapters": zoom_ins.get("chapters", []),
+                    "ticker_moments": ticker_moments,
+                }
+                source = "zoom"
+            elif cues:
+                # 2) LLM fallback — only when no usable summary file exists.
+                ins = generate_insights(v.get("title") or "", cues)
+                source = "llm"
+
+            if ins and ins.get("chapters"):
+                poster_ok = _generate_poster(vid, v, ins)
+                education_service.set_video_insights(
+                    vid,
+                    # Timestamped (not flattened) so the ticker-backfill loop
+                    # can recover cues from disk with zero Zoom dependency.
+                    transcript=_timestamped_block(cues) if cues else None,
+                    chapters=ins["chapters"],
+                    ticker_moments=ins["ticker_moments"],
+                    headline=ins.get("headline", ""),
+                    summary=ins.get("summary", []),
+                    poster=poster_ok,
+                )
+                has_chapters = True
+                results.append({"id": vid, "action": "generated", "source": source,
+                                "chapters": len(ins["chapters"]),
+                                "tickers": len(ins["ticker_moments"]),
+                                "poster": poster_ok})
+
+        # Clean up the Zoom recording once we've captured insights — or once
+        # we've waited long enough that the transcript clearly isn't coming.
+        age = now - int(v.get("created_at") or now)
+        if has_chapters or age >= max_wait:
+            try:
+                zoom.delete_recording(uuid)
+            except Exception as de:
+                print(f"[session-insights] delete {uuid} failed (non-fatal): {de}")
+            education_service.mark_zoom_cleaned(vid)
+            if not has_chapters:
+                education_service.mark_insights_attempt(vid)
+                results.append({"id": vid, "action": "gave_up_transcript", "age_s": age})
+        else:
+            results.append({"id": vid, "action": "waiting_transcript", "age_s": age})
+    except Exception as e:
+        print(f"[session-insights] video {vid} failed (non-fatal): {e}")
+
+
+def _ticker_backfill_enabled() -> bool:
+    return os.environ.get("DESK_CHAPTERS_TICKER_BACKFILL", "1") != "0"
+
+
+def _run_ticker_backfill(results: list[dict]) -> None:
+    """4) Ticker backfill: videos already carrying chapters + a stored
+    transcript but EMPTY ticker_moments get a bounded, best-effort retry from
+    the STORED transcript — no Zoom dependency (the recording is already
+    trashed by this point). A failed attempt just waits for the next pass."""
+    if not _ticker_backfill_enabled():
+        return
+    try:
+        rows = education_service.videos_missing_ticker_moments(
+            _window_secs(), _TICKER_BACKFILL_LIMIT
+        )
+    except Exception as e:
+        print(f"[session-insights] ticker backfill list failed: {e}")
+        return
+    for v in rows:
+        vid = v["id"]
+        cues = _parse_timestamped_block(v.get("transcript") or "")
+        if not cues:
+            continue
+        try:
+            tickers = generate_ticker_moments(v.get("title") or "", cues)
+        except Exception as e:
+            print(f"[session-insights] ticker backfill {vid} failed (non-fatal): {e}")
+            continue  # don't stamp/poison anything — next pass retries
+        education_service.set_video_insights(vid, ticker_moments=tickers)
+        results.append({"id": vid, "action": "ticker_backfill", "tickers": len(tickers)})
+
 
 def process_pending_session_insights(*, zoom=None) -> list[dict]:
     """Backfill chapters/ticker-moments for published session videos, then trash
@@ -258,79 +547,17 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
         pending = education_service.videos_pending_insights(_window_secs())
     except Exception as e:
         print(f"[session-insights] list pending failed: {e}")
-        return []
-    if not pending:
-        return []
+        pending = []
 
-    from api.services.zoom_client import ZoomClient
-    zoom = zoom or ZoomClient()
-    max_wait = _max_wait_secs()
-    now = int(time.time())
+    if pending:
+        from api.services.zoom_client import ZoomClient
+        zoom = zoom or ZoomClient()
+        max_wait = _max_wait_secs()
+        now = int(time.time())
+        for v in pending:
+            _process_one_pending(v, zoom, max_wait, now, results)
 
-    for v in pending:
-        vid = v["id"]
-        uuid = v.get("meeting_uuid") or ""
-        has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
-        try:
-            rec = zoom.get_recording_files(uuid)
-            if rec is None:  # recording already gone — nothing to fetch
-                education_service.mark_zoom_cleaned(vid)
-                if not has_chapters:
-                    education_service.mark_insights_attempt(vid)
-                results.append({"id": vid, "action": "recording_gone"})
-                continue
-
-            tfile = _find_transcript_file(rec)
-            if tfile and not has_chapters:
-                vtt = zoom.download_text(tfile["download_url"])
-                cues = parse_vtt(vtt)
-                if cues:
-                    ins = generate_insights(v.get("title") or "", cues)
-                    # Branded recap poster from the summary (best-effort — never
-                    # blocks storing the text insights if Pillow hiccups).
-                    poster_ok = False
-                    try:
-                        from api.services import desk_recap_poster
-                        desk_recap_poster.save_recap_poster(
-                            vid,
-                            title=v.get("title") or "Session Recap",
-                            date_text=_recap_date(v.get("title")),
-                            headline=ins.get("headline", ""),
-                            summary=ins.get("summary", []),
-                            tickers=[t["ticker"] for t in ins["ticker_moments"]],
-                        )
-                        poster_ok = True
-                    except Exception as pe:
-                        print(f"[session-insights] poster render failed (non-fatal): {pe}")
-                    education_service.set_video_insights(
-                        vid,
-                        transcript=transcript_plain(cues),
-                        chapters=ins["chapters"],
-                        ticker_moments=ins["ticker_moments"],
-                        headline=ins.get("headline", ""),
-                        summary=ins.get("summary", []),
-                        poster=poster_ok,
-                    )
-                    has_chapters = True
-                    results.append({"id": vid, "action": "generated",
-                                    "chapters": len(ins["chapters"]),
-                                    "tickers": len(ins["ticker_moments"]),
-                                    "poster": poster_ok})
-
-            # Clean up the Zoom recording once we've captured insights — or once
-            # we've waited long enough that the transcript clearly isn't coming.
-            age = now - int(v.get("created_at") or now)
-            if has_chapters or age >= max_wait:
-                try:
-                    zoom.delete_recording(uuid)
-                except Exception as de:
-                    print(f"[session-insights] delete {uuid} failed (non-fatal): {de}")
-                education_service.mark_zoom_cleaned(vid)
-                if not has_chapters:
-                    education_service.mark_insights_attempt(vid)
-                    results.append({"id": vid, "action": "gave_up_transcript", "age_s": age})
-            else:
-                results.append({"id": vid, "action": "waiting_transcript", "age_s": age})
-        except Exception as e:
-            print(f"[session-insights] video {vid} failed (non-fatal): {e}")
+    # Independent of the main pass above — runs even when `pending` is empty,
+    # and never touches Zoom (stored transcript only).
+    _run_ticker_backfill(results)
     return results
