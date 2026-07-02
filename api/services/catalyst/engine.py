@@ -889,9 +889,18 @@ def _market_closed_today(now_et: Optional[dt.datetime] = None) -> tuple[bool, st
     return False, ""
 
 
-def run_refresh() -> dict:
+def run_refresh(hunt: Optional[bool] = None) -> dict:
     """Single full pass. Returns summary dict for logging.
-    Never raises — all errors swallowed + logged."""
+    Never raises — all errors swallowed + logged.
+
+    hunt: controls the (expensive) Catalyst Hunter for this tick.
+      None  — auto: hunt only if today's deep sweep hasn't run yet. This is the
+              default for startup catch-ups + manual refreshes, so the first
+              refresh of any day still gets the full deep sweep.
+      True  — hunt: deep if first of the day, else a light follow-up sweep.
+              Passed by the scheduler on the designated hunt ticks only.
+      False — never hunt this tick (feed-only refresh).
+    """
     md = _today_market_date()
     summary = {"market_date": md, "candidates": 0, "scored": 0,
                "selected": 0, "synthesized": 0, "errors": []}
@@ -905,28 +914,37 @@ def run_refresh() -> dict:
             summary["skipped"] = why
             return summary
 
-    # Catalyst Hunter mode: deep on the first run of the day, light thereafter.
+    # Catalyst Hunter gating: deep on the first hunting run of the day, light
+    # thereafter — and only on ticks that ask for it (see the hunt param).
     # Per-date flag file in the catalysts.db dir marks that today's deep sweep ran.
     hunter_mode = "deep"
     existing_tickers = None
+    deep_done = True  # fail-safe: if the flag check breaks, don't spend
     try:
         _ddir = os.path.dirname(os.environ.get("CATALYST_DB_PATH", "/data/catalysts.db")) or "."
         _flag = os.path.join(_ddir, f".hunter_deep_{md}")
-        if os.path.exists(_flag):
+        deep_done = os.path.exists(_flag)
+    except Exception:
+        pass
+
+    run_hunter = hunt is True or (hunt is None and not deep_done)
+    if run_hunter:
+        if deep_done:
             hunter_mode = "light"
-            existing_tickers = {(r.get("ticker") or "").upper()
-                                for r in store.get_for_date(md, ranked_only=False)
-                                if r.get("ticker")}
+            try:
+                existing_tickers = {(r.get("ticker") or "").upper()
+                                    for r in store.get_for_date(md, ranked_only=False)
+                                    if r.get("ticker")}
+            except Exception:
+                existing_tickers = set()
         else:
             try:
                 open(_flag, "w").close()
             except Exception:
                 pass
-    except Exception:
-        pass
 
     try:
-        candidates = sources.collect_all(run_hunter=True, hunter_mode=hunter_mode,
+        candidates = sources.collect_all(run_hunter=run_hunter, hunter_mode=hunter_mode,
                                          existing_tickers=existing_tickers)
     except Exception as e:
         logger.exception("[catalyst-engine] source collection failed")

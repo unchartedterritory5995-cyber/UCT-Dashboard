@@ -3,8 +3,10 @@
 Anthropic pricing (USD per million tokens, 2026):
   claude-opus-4-8:   $5.00  input, $25.00 output
   claude-opus-4-7:   $5.00  input, $25.00 output
+  claude-sonnet-5:   $3.00  input, $15.00 output
   claude-sonnet-4-6: $3.00  input, $15.00 output
   claude-haiku-4-5:  $1.00  input, $5.00  output
+Server-side web search: $10 per 1,000 searches.
 """
 import logging
 import os
@@ -22,9 +24,14 @@ _HARD_CAP_TRIPPED = False
 _PRICING = {
     "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},
+    "claude-sonnet-5":   {"input": 3.0,  "output": 15.0},
     "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
     "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0},
 }
+
+# Server-side web_search tool: $10 per 1,000 searches. Result tokens are
+# billed as normal input tokens and already flow through estimate_cost().
+_WEB_SEARCH_USD_EACH = 0.01
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -73,9 +80,13 @@ def may_synthesize(market_date: str) -> bool:
 
 def record(market_date: str, ticker: str, model: str,
            input_tokens: int, output_tokens: int,
-           was_cached: bool = False) -> float:
-    """Record a synthesis call. Returns the cost in USD."""
+           was_cached: bool = False, search_requests: int = 0) -> float:
+    """Record a synthesis/hunter call. Returns the cost in USD.
+
+    search_requests: server-side web_search invocations made during the call,
+    billed at $10/1k on top of token cost so the daily caps see real spend."""
     cost = 0.0 if was_cached else estimate_cost(model, input_tokens, output_tokens)
+    cost += max(0, int(search_requests or 0)) * _WEB_SEARCH_USD_EACH
     store.log_cost(market_date=market_date, ticker=ticker, model=model,
                    input_tokens=input_tokens, output_tokens=output_tokens,
                    cost_usd=cost, was_cached=was_cached)

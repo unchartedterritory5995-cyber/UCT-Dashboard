@@ -60,3 +60,89 @@ def test_run_hunt_happy_path(monkeypatch):
     assert hits[0]["ticker"] == "NVDA"
     assert hits[0]["catalyst_type"] == "Analyst"
     assert hits[0]["moving_yet"] is False
+
+
+# ---- cost-reduction behaviors (2026-07-02) ---------------------------------
+
+def _fake_client_capturing(captured, payload=None, usage=None):
+    payload = payload or json.dumps({"hits": []})
+    msg = types.SimpleNamespace(
+        content=[types.SimpleNamespace(text=payload)],
+        usage=usage or types.SimpleNamespace(input_tokens=10, output_tokens=20),
+        stop_reason="end_turn",
+    )
+
+    def create(**kw):
+        captured.append(kw)
+        return msg
+
+    return types.SimpleNamespace(messages=types.SimpleNamespace(create=create))
+
+
+def test_deep_hunt_caches_prompt_and_caps_searches(monkeypatch):
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+    captured = []
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client",
+                        lambda: _fake_client_capturing(captured))
+
+    hunter.run_hunt("deep")
+
+    kw = captured[0]
+    assert kw["cache_control"] == {"type": "ephemeral"}
+    assert kw["tools"][0]["max_uses"] == 12
+    assert kw["model"] == "claude-opus-4-8"
+
+
+def test_light_hunt_uses_cheaper_model_and_fewer_searches(monkeypatch):
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+    monkeypatch.delenv("CATALYST_HUNTER_LIGHT_MODEL", raising=False)
+    captured = []
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client",
+                        lambda: _fake_client_capturing(captured))
+
+    hunter.run_hunt("light", existing_tickers={"AAPL"})
+
+    kw = captured[0]
+    assert kw["model"] == "claude-sonnet-5"
+    assert kw["tools"][0]["max_uses"] == 4
+
+
+def test_hunt_skipped_when_daily_cap_tripped(monkeypatch):
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+    from api.services.catalyst import cost_guard
+    monkeypatch.setattr(cost_guard, "may_synthesize", lambda md: False)
+
+    captured = []
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client",
+                        lambda: _fake_client_capturing(captured))
+
+    assert hunter.run_hunt("deep") == []
+    assert captured == []  # no model call may be made once the cap is tripped
+
+
+def test_hunt_records_web_search_fees(monkeypatch):
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+    usage = types.SimpleNamespace(
+        input_tokens=100, output_tokens=50,
+        server_tool_use=types.SimpleNamespace(web_search_requests=7),
+    )
+    captured = []
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client",
+                        lambda: _fake_client_capturing(captured, usage=usage))
+
+    recorded = {}
+    from api.services.catalyst import cost_guard
+
+    def fake_record(md, ticker, model, itok, otok, was_cached=False, search_requests=0):
+        recorded.update(ticker=ticker, search_requests=search_requests)
+        return 0.0
+
+    monkeypatch.setattr(cost_guard, "record", fake_record)
+
+    hunter.run_hunt("deep")
+    assert recorded["ticker"] == "__hunter__"
+    assert recorded["search_requests"] == 7

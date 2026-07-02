@@ -111,3 +111,34 @@ def test_run_refresh_unranks_dropped_tickers(s):
     old = store.get_ticker_for_date("OLD_STAR", md)
     assert old is not None
     assert old["rank"] is None
+
+
+# ---- hunter cadence gating (2026-07-02) -------------------------------------
+
+def test_run_refresh_hunt_gating(s, monkeypatch, tmp_path):
+    """hunt=False never hunts; default hunts deep once/day; hunt=True forces a
+    light follow-up after the deep sweep ran."""
+    monkeypatch.setenv("CATALYST_DB_PATH", str(tmp_path / "catalysts.db"))
+    from api.services.catalyst import sources
+    calls = []
+
+    def fake_collect(run_hunter=False, hunter_mode="deep", existing_tickers=None):
+        calls.append({"run_hunter": run_hunter, "hunter_mode": hunter_mode,
+                      "existing_tickers": existing_tickers})
+        return []
+
+    monkeypatch.setattr(sources, "collect_all", fake_collect)
+
+    engine.run_refresh(hunt=False)
+    assert calls[-1]["run_hunter"] is False
+
+    engine.run_refresh()  # first auto tick of the day -> deep hunt
+    assert calls[-1] == {"run_hunter": True, "hunter_mode": "deep",
+                         "existing_tickers": None}
+
+    engine.run_refresh()  # deep already ran -> auto ticks stop hunting
+    assert calls[-1]["run_hunter"] is False
+
+    engine.run_refresh(hunt=True)  # explicit hunt tick -> light sweep
+    assert calls[-1]["run_hunter"] is True
+    assert calls[-1]["hunter_mode"] == "light"

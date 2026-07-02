@@ -2071,12 +2071,13 @@ async def lifespan(app: FastAPI):
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
-        # Schedule v3 2026-05-27 evening (user-defined): two focused windows
-        # mirroring the user's actual trading workflow. Everything outside
-        # these windows is manual-only via the - Refresh button on the tile.
-        #   - 6:00-9:30 AM ET every 30 min -- pre-market discovery (8 fires)
-        #   - 4:00-4:30 PM ET every 5 min -- AMC earnings burst (7 fires)
-        # Total 15 auto refreshes/day on weekdays (mon-fri).
+        # Schedule v4 2026-07-02 (cost pass): same two user-defined windows,
+        # but the expensive Hunter only fires on designated hunt ticks.
+        #   - 6:00-9:30 AM ET every 30 min -- pre-market discovery (8 fires;
+        #     hunts at 6:00 deep + 7:00/8:00/9:00 light)
+        #   - 9:10 + 9:20 ET pre-open feed refreshes (no hunt)
+        #   - 4:00-4:30 PM ET every 5 min -- AMC burst (hunts 4:00 + 4:30 only)
+        # Everything outside these windows is manual-only via the tile button.
         # Scheduler timezone is America/New_York (set at BackgroundScheduler init).
         # -- Ratings percentile nightly gather (Phase 2) -----------------------
         # 2:30 AM ET daily -- off-market, low load. Incremental + capped so each
@@ -2091,9 +2092,23 @@ async def lifespan(app: FastAPI):
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
 
-            # Pre-market: 6:00, 6:30, 7:00, 7:30, 8:00, 8:30, 9:00, 9:30 ET
+            # Hunter cost gating (2026-07-02): the Opus+web-search Hunter ran on
+            # every refresh tick (~17/day) and dominated API spend (~$28/day).
+            # Feed refreshes stay on every tick (cheap, skip-if-stable); the
+            # Hunter fires only on hunt=True ticks — 6 hunts/day:
+            #   6:00 deep sweep + 7:00/8:00/9:00 light (pre-market)
+            #   4:00 + 4:30 PM light (AMC earnings)
+
+            # Pre-market hunt ticks: 6:00 (deep — first of day), 7:00, 8:00, 9:00 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="0,30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="0"),
+                kwargs={"hunt": True},
+                id="catalyst_premarket_hunt", max_instances=1, replace_existing=True)
+
+            # Pre-market feed-only ticks: 6:30, 7:30, 8:30, 9:30 ET
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9", minute="30"),
+                kwargs={"hunt": False},
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
 
             # Pre-open burst: 9:10 + 9:20 ET — a fresh pull right before the
@@ -2103,11 +2118,17 @@ async def lifespan(app: FastAPI):
             # any late-breaking pre-open catalyst.
             _scheduler.add_job(_cat_refresh,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="10,20"),
+                kwargs={"hunt": False},
                 id="catalyst_preopen", max_instances=1, replace_existing=True)
 
-            # AMC earnings burst: 4:00, 4:05, 4:10, 4:15, 4:20, 4:25, 4:30 PM ET
+            # AMC earnings burst: hunts at 4:00 + 4:30, feed-only 4:05-4:25 PM ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0-30/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0,30"),
+                kwargs={"hunt": True},
+                id="catalyst_amc_burst_hunt", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="5-25/5"),
+                kwargs={"hunt": False},
                 id="catalyst_amc_burst", max_instances=1, replace_existing=True)
 
             # Coverage self-audit: 8:15 PM ET weekdays -- after the AMC burst +

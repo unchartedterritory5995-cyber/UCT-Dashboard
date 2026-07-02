@@ -131,8 +131,9 @@ def catalysts_by_date(ymd: str = Path(...), user=Depends(get_current_user)):
 @router.post("/catalysts/refresh")
 def catalysts_refresh(user=Depends(require_admin)):
     """Trigger an immediate refresh. Runs in a background thread so the HTTP
-    response returns immediately — refreshes can take 5–10s."""
-    threading.Thread(target=engine.run_refresh, daemon=True,
+    response returns immediately — refreshes can take 5–10s. An explicit admin
+    click also runs a hunter sweep (deep if today's hasn't run, else light)."""
+    threading.Thread(target=lambda: engine.run_refresh(hunt=True), daemon=True,
                      name="catalyst-force-refresh").start()
     return {"ok": True, "message": "Refresh started in background."}
 
