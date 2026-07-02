@@ -171,3 +171,37 @@ multiple connections.
 Ship enabled by default (kill-switch available). Deploy after market close.
 Verify in browser same evening. Document the kill-switch in CLAUDE.md's
 Performance section.
+
+## Amendment (final review)
+
+The "zero backend changes" goal above was premised on each server-side SSE
+connection's lifecycle being independent — i.e. that one connection's
+`unsubscribe_tickers()` on disconnect could never affect another connection's
+tickers. That premise was false: `api/services/realtime_stream.py` kept a
+single **global `_subscribed` set** shared by every `/api/stream/prices`
+connection on the process.
+
+The client-side pool's reconnect sequence (new bucket **subscribes** the full
+new ticker union first, then the old connection's `finally` **unsubscribes**
+its own list) made the resulting bug deterministic: for any ticker present in
+both the old and new bucket, the old connection's unsubscribe removed it from
+the shared set — and thus from the upstream Polygon/Finnhub WebSocket — even
+though the new bucket's connection still needed it. The server's change-gated
+SSE loop then had nothing new to emit for that ticker, so it went silent while
+still sending heartbeats (which satisfy the client watchdog), producing a
+frozen-but-"connected" price for every overlapping ticker on every bucket
+rebuild. This is also a **pre-existing latent bug** in the pre-pooling code
+(two independent `useRealtimePrices` instances watching the same ticker hit
+the same race whenever one unmounted before the other) — the pool just made
+it fire on every union change instead of rarely.
+
+**Fix:** `subscribe_tickers()`/`unsubscribe_tickers()` in
+`api/services/realtime_stream.py` were converted to refcounted (a
+`collections.Counter`, `_sub_counts`, alongside the existing `_subscribed`
+set which now represents the effective count-\>=1 set). A ticker's upstream
+WS subscription is only sent on its 0→1 transition and only torn down on its
+1→0 transition; overlapping subscribers share it safely. This is a one-file,
+backend-only change — `api/routers/stream.py` and the frontend pool are
+untouched, and `get_stream_status()` / the WS reconnect re-subscribe loop keep
+identical semantics (they still just read the effective `_subscribed` set).
+See `tests/test_realtime_stream_refcount.py`.
