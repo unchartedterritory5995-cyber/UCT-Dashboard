@@ -548,10 +548,12 @@ def _cover_fit(src: Image.Image, size: tuple = _SIZE) -> Image.Image:
 def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
     try:
         plate = Image.open(_PLATE_CHARTMASTER).convert("RGBA")
+        img = _cover_fit(plate)
     except Exception:
         # Never break a publish over a missing/corrupt plate asset.
+        # Handles both missing files and corrupt-but-openable assets (PIL lazy evaluation).
         return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label)
-    img = _cover_fit(plate)
+
     cx = _W // 2
 
     # Date plaque — same treatment as the Evening Update pill. Drawn on its
