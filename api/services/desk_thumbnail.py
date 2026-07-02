@@ -17,8 +17,10 @@ recoloured:
     gold-foil-stamped title (derived from eyebrow_label) + kicker + date, all
     stamped into the cover. Rendered at 2x and downscaled (super-sampled) for
     crisp, clean edges.
-  - "EVENING UPDATE FROM TSDR" -> evening: a cinematic dusk skyline with headline
-    and date plaque, themed for the evening show.
+  - "EVENING UPDATE FROM TSDR" -> evening: city lights on water — a dusk skyline
+    silhouette rooted at a raised waterline, mirrored into a dim reflection in
+    the bay below with window-light streaks and a sun-glitter cone, headline +
+    date plaque floating over the sky/water, themed for the evening show.
   - "WORKSHOP WITH CHARTMASTER" -> plate: pre-made cinematic artwork with a
     stamped date plaque, for ChartMaster workshops.
 
@@ -29,6 +31,7 @@ from __future__ import annotations
 
 import io
 import os
+import random
 from typing import NamedTuple
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -538,9 +541,9 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
 # ---------------------------------------------------------------------------
 
 _SKY_STOPS = [
-    (0.0, (24, 16, 52)), (0.32, (74, 30, 76)), (0.54, (170, 72, 72)),
-    (0.65, (226, 130, 60)), (0.70, (252, 206, 124)), (0.715, (150, 80, 52)),
-    (1.0, (16, 9, 14)),
+    (0.0, (20, 14, 50)), (0.30, (70, 30, 74)), (0.50, (160, 70, 72)),
+    (0.62, (224, 126, 60)), (0.695, (252, 204, 120)), (0.72, (120, 60, 50)),
+    (1.0, (10, 7, 14)),
 ]
 _SKY_SEEDH = [0.55, 0.80, 0.42, 0.92, 0.6, 0.5, 0.86, 0.46, 0.72, 0.96, 0.58,
               0.66, 0.82, 0.43, 0.76, 0.5, 0.9, 0.6, 0.7, 0.46, 0.84, 0.54,
@@ -567,18 +570,22 @@ def _sky_gradient(stops: list, size: tuple) -> Image.Image:
     return img
 
 
-def _skyline(img: Image.Image, horizon: int, color=(6, 5, 12)) -> list:
-    """Dark city silhouette with scattered lit windows; returns rooftop points."""
+def _skyline(img: Image.Image, bottom: int, min_h: int, hspan: int,
+             color=(6, 5, 12)) -> list:
+    """Dark city silhouette rooted at `bottom` (buildings rise upward from
+    there, e.g. a waterline) with scattered lit windows; returns rooftop
+    points. `min_h`/`hspan` set the shortest building height and the extra
+    height range layered on top of it."""
     d = ImageDraw.Draw(img, "RGBA")
     tops = []
     xs = list(range(-20, _W + 60, 46))
     for i, x in enumerate(xs):
         wdt = 46
         hf = _SKY_SEEDH[i % len(_SKY_SEEDH)]
-        top = horizon - int((_H - horizon) * hf * 0.9) - int(hf * 60)
-        d.rectangle([x, top, x + wdt - 4, _H], fill=(*color, 255))
+        top = bottom - min_h - int(hf * hspan)
+        d.rectangle([x, top, x + wdt - 4, bottom], fill=(*color, 255))
         tops.append((x + wdt // 2, top))
-        for wy in range(top + 14, _H - 10, 22):
+        for wy in range(top + 14, bottom - 10, 22):
             for wx in range(x + 8, x + wdt - 10, 14):
                 if ((i * 7 + wy * 3 + wx) % 5) == 0:
                     d.rectangle([wx, wy, wx + 4, wy + 6], fill=(245, 205, 120, 170))
@@ -616,12 +623,86 @@ def _shadow_center(base: Image.Image, cx: int, y: int, text: str,
     _draw_tracked_center(ImageDraw.Draw(base), cx, y, text, font, fill, tracking)
 
 
+def _water_base(img: Image.Image, waterline: int) -> None:
+    """Opaque dark-bay gradient filling below the waterline — the base fill
+    the reflection + glitter layers composite onto."""
+    w, h = _SIZE
+    d = ImageDraw.Draw(img)
+    span = max(1, h - waterline)
+    for y in range(waterline, h):
+        t = (y - waterline) / span
+        d.line([(0, y), (w, y)],
+               fill=(int(18 - 11 * t), int(16 - 10 * t), int(34 - 22 * t), 255))
+
+
+def _water_reflections(img: Image.Image, waterline: int, ref_h: int = 200) -> None:
+    """Mirror the sky/skyline band just above the waterline into a dim,
+    vertically-compressed reflection composited into the bay below — the
+    glimmer on dark water that sells the raised horizon as a waterfront."""
+    w, h = _SIZE
+    region = img.crop((0, waterline - ref_h, w, waterline)).convert("RGB")
+    ref = region.transpose(Image.FLIP_TOP_BOTTOM)
+    ref = ref.point(lambda p: int(p * 0.52))
+    ref = ref.resize((w, max(1, ref_h // 3))).resize((w, h - waterline))
+    ref = ref.filter(ImageFilter.GaussianBlur(2))
+
+    mask = Image.new("L", (w, h - waterline), 0)
+    md = ImageDraw.Draw(mask)
+    for y in range(h - waterline):
+        md.line([(0, y), (w, y)], fill=int(200 * (1 - y / (h - waterline)) ** 0.8))
+    ref_rgba = ref.convert("RGBA")
+    ref_rgba.putalpha(mask)
+    layer = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    layer.paste(ref_rgba, (0, waterline))
+    img.alpha_composite(layer)
+
+
+def _water_glitter(img: Image.Image, waterline: int, cx: int, seed: int = 7) -> None:
+    """Vertical window-light streaks bleeding down from the skyline, a
+    sun-glitter cone widening down the bay, and a bright waterline seam — the
+    sparkle that reads as moving water rather than a flat mirror."""
+    rnd = random.Random(seed)
+
+    streaks = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(streaks)
+    for _ in range(54):
+        x = rnd.uniform(30, _W - 30)
+        ln = rnd.uniform(35, 160)
+        a = rnd.randint(45, 125)
+        sd.line([(x, waterline + 3), (x, waterline + 3 + ln)], fill=(250, 214, 138, a),
+                width=rnd.choice((2, 2, 3)))
+    img.alpha_composite(streaks.filter(ImageFilter.GaussianBlur(1)))
+
+    glitter = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glitter)
+    for _ in range(150):
+        y = waterline + rnd.uniform(4, 190)
+        spread = 30 + (y - waterline) * 0.55
+        x = cx + rnd.gauss(0, spread * 0.5)
+        w = rnd.uniform(3, 11)
+        a = rnd.randint(60, 205)
+        gd.rectangle([x - w / 2, y, x + w / 2, y + 2], fill=(255, 226, 152, a))
+    img.alpha_composite(glitter.filter(ImageFilter.GaussianBlur(1)))
+
+    seam = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(seam).line([(0, waterline), (_W, waterline)], fill=(255, 212, 140, 150), width=2)
+    img.alpha_composite(seam.filter(ImageFilter.GaussianBlur(1)))
+
+
 def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Image:
+    """City lights on water: a dusk skyline silhouette rooted at a raised
+    waterline, mirrored into a dim reflection in the bay below with
+    window-light streaks and a sun-glitter cone, headline + date plaque
+    floating over the sky/water band."""
     cx = _W // 2
+    waterline = 518
     img = _sky_gradient(_SKY_STOPS, _SIZE).convert("RGBA")
-    horizon = int(_H * 0.70)
-    img = Image.alpha_composite(img, _radial(cx, horizon, 380, (255, 198, 98), 150))  # sun
-    tops = _skyline(img, horizon)
+
+    # Sun glow low on the waterline (design elements, not theme-driven).
+    img = Image.alpha_composite(img, _radial(cx, waterline, 430, (255, 194, 96), 175))
+    img = Image.alpha_composite(img, _radial(cx, waterline - 60, 150, (255, 228, 164), 195))
+
+    tops = _skyline(img, waterline, 30, 160)
 
     # Subtle glowing gold uptrend tracing the rising rooftops (markets motif).
     pts = [p for p in tops if 60 < p[0] < _W - 60]
@@ -631,11 +712,15 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
     img = Image.alpha_composite(img, line.filter(ImageFilter.GaussianBlur(6)))
     img = Image.alpha_composite(img, line)
 
+    _water_base(img, waterline)
+    _water_reflections(img, waterline)
+    _water_glitter(img, waterline, cx)
+
     # Darken the top band so the headline reads cleanly over the sky.
     ov = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
     od = ImageDraw.Draw(ov)
-    for y in range(0, 310):
-        od.line([(0, y), (_W, y)], fill=(6, 4, 14, int(165 * (1 - y / 310))))
+    for y in range(0, 290):
+        od.line([(0, y), (_W, y)], fill=(6, 4, 14, int(165 * (1 - y / 290))))
     img = Image.alpha_composite(img, ov)
 
     mark = _compass(64)
@@ -660,19 +745,28 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
         if draw.textlength(head, font=f) <= _W - 80:
             break
         size_pt -= 2
-    _gold_center(img, cx, 140, head, _font("DejaVuSerif-Bold.ttf", size_pt))
+    _gold_center(img, cx, 118, head, _font("DejaVuSerif-Bold.ttf", size_pt))
 
     if sub:
-        _shadow_center(img, cx, 298, sub, _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
+        _shadow_center(img, cx, 262, sub, _font("DejaVuSerif-Bold.ttf", 40), (252, 232, 198), 14)
 
+    # Date pill — floats on the water band. Drawn on its own RGBA layer +
+    # alpha_composite (mirrors _render_plate's pill) so the translucent fill
+    # actually blends over the busy reflections/glitter beneath it, unlike a
+    # direct draw onto the RGBA image.
     draw = ImageDraw.Draw(img)
     df = _font("DejaVuSans-Bold.ttf", 30)
     dt = date_text.upper()
     dw = _tracked_w(draw, dt, df, 3)
-    draw.rounded_rectangle([cx - dw / 2 - 22, 362, cx + dw / 2 + 22, 412],
-                           radius=25, fill=(0, 0, 0, 130), outline=(250, 212, 132), width=2)
-    _draw_tracked_center(draw, cx, 372, dt, df, (251, 234, 202), 3)
+    pill_cy = 636
+    pill = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - 22, pill_cy - 25, cx + dw / 2 + 22, pill_cy + 25],
+        radius=25, fill=(0, 0, 0, 150), outline=(250, 212, 132, 255), width=2)
+    img.alpha_composite(pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, pill_cy - 15, dt, df, (251, 234, 202), 3)
 
+    img = Image.alpha_composite(img, _vignette(0.22))
     return img.convert("RGB")
 
 
