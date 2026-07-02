@@ -580,6 +580,7 @@ export default function StockChart({
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
+  keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
   candleFrameFade = false,  // Setup Library: when exitDate moves (Setup⇄Result), crossfade the candles PAST the highlighted setup day in/out instead of popping them
   fitPriceToCandles = false, // price scale fits the CANDLES only — MA overlays don't expand it (they clip off-screen, TC2000-style), so price sits at the same spot regardless of where the 200MA is
   forceLogScale = false,    // default the price scale to logarithmic
@@ -1932,13 +1933,21 @@ export default function StockChart({
       // first one peeks a sliver past the right edge of the year / setup-focus
       // view (the right edge sits on a bar index). Drop them — the chart never
       // shows past the year anyway. LEADING bars are kept for MA warm-up.
-      if (exactDateRange && exactSliceEnd && src?.length) {
+      //   • keepBarsAfterExit (Setup Library Result view): keep the post-exit
+      //     history so the candles continue into the right-pad space instead of
+      //     cutting off at exitDate.
+      //   • a held slice (_sliceHold, a Setup⇄Result shrink glide in flight):
+      //     keep everything too, so the outgoing candles past the new exitDate
+      //     glide off-screen instead of vanishing on the first frame.
+      const _holdActive = !!(_sliceHold && _sliceHold.key === _exKey && String(_sliceHold.end) > String(exitDate))
+      if (exactDateRange && exactSliceEnd && src?.length && !keepBarsAfterExit && !_holdActive) {
         const cut = src.findIndex(b => String(b.t) > exactSliceEnd)  // first bar after frame-end
         if (cut > 0) src = src.slice(0, cut)
       }
       return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
     },
-    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
+    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit]
   )
 
   // Curated book charts (exactDateRange) frame a specific historical window.
@@ -3342,7 +3351,14 @@ export default function StockChart({
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
-      const tailData = _fadeMA ? ovData.filter(p => String(p.time) >= _cut) : null
+      // The tail is the post-setup segment. In the steady SETUP view the frame ends
+      // ON the setup day, so the filter yields exactly one point (the cutoff itself)
+      // — and a single-point curved LineSeries renders as a stray flat horizontal
+      // dash past the last candle. Collapse it to empty so the MA just ends cleanly
+      // at the setup day; the tail only carries real data during the Setup⇄Result
+      // fade and in the Result view (where it has many points).
+      const _tailRaw = _fadeMA ? ovData.filter(p => String(p.time) >= _cut) : null
+      const tailData = _tailRaw && _tailRaw.length >= 2 ? _tailRaw : []
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
       const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
