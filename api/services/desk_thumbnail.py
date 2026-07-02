@@ -169,6 +169,23 @@ def _tracked_w(draw, text, font, tracking):
     return sum(draw.textlength(ch, font=font) for ch in text) + tracking * (len(text) - 1)
 
 
+def _fit_tracked(draw, text, font_name, max_pt, min_pt, max_w, tracking):
+    """Largest font size in [min_pt, max_pt] whose tracked width fits max_w;
+    if even min_pt overflows, ellipsis-truncate the text to fit. Returns
+    (font, text)."""
+    size = max_pt
+    while size > min_pt:
+        f = _font(font_name, size)
+        if _tracked_w(draw, text, f, tracking) <= max_w:
+            return f, text
+        size -= 2
+    f = _font(font_name, min_pt)
+    t = text
+    while t and _tracked_w(draw, t + "…", f, tracking) > max_w:
+        t = t[:-1]
+    return f, (t + "…") if t != text else text
+
+
 def _compass(size: int) -> Image.Image | None:
     try:
         mark = Image.open(os.path.join(_ASSETS, "compass-mark.png")).convert("RGBA")
@@ -274,29 +291,21 @@ def _render_classic(theme: Theme, date_text: str, eyebrow_label: str) -> Image.I
                    _font("DejaVuSans-Bold.ttf", 29 * S), theme.wordmark, 8 * S)
 
     # Eyebrow — dynamic show label, auto-fit (tracked) so an arbitrarily long
-    # label shrinks to fit rather than clipping or overflowing the canvas.
+    # label shrinks to fit rather than clipping or overflowing the canvas; if
+    # even the floor size overflows (very long Zoom webinar names), ellipsis-
+    # truncate rather than clip both edges.
     draw = ImageDraw.Draw(img)
     eyebrow_text = f"— {eyebrow_label} —"
     eb_tracking = 5 * S
-    eb_pt = 20
-    while eb_pt > 10:
-        f = _font("DejaVuSans-Bold.ttf", eb_pt * S)
-        if _tracked_w(draw, eyebrow_text, f, eb_tracking) <= s(_W - 120):
-            break
-        eb_pt -= 2
-    _shadow_center(img, cx, s(176), eyebrow_text, _font("DejaVuSans-Bold.ttf", eb_pt * S),
-                   theme.eyebrow, eb_tracking)
+    eb_font, eyebrow_text = _fit_tracked(draw, eyebrow_text, "DejaVuSans-Bold.ttf",
+                                         20 * S, 10 * S, s(_W - 120), eb_tracking)
+    _shadow_center(img, cx, s(176), eyebrow_text, eb_font, theme.eyebrow, eb_tracking)
 
     # Date — metallic gold hero, auto-fit (mirrors the _render_evening idiom).
-    draw = ImageDraw.Draw(img)
     date_up = date_text.upper()
-    dt_pt = 86
-    while dt_pt > 48:
-        f = _font("DejaVuSerif-Bold.ttf", dt_pt * S)
-        if draw.textlength(date_up, font=f) <= s(_W - 160):
-            break
-        dt_pt -= 2
-    _gold_center(img, cx, s(216), date_up, _font("DejaVuSerif-Bold.ttf", dt_pt * S))
+    dt_font, date_up = _fit_tracked(draw, date_up, "DejaVuSerif-Bold.ttf",
+                                    86 * S, 48 * S, s(_W - 160), 0)
+    _gold_center(img, cx, s(216), date_up, dt_font)
 
     _shadow_center(img, cx, s(346), _TAGLINE, _font("DejaVuSans.ttf", 22 * S), theme.tagline, 0)
 

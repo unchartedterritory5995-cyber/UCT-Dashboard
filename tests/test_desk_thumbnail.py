@@ -1,6 +1,6 @@
 import io
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from api.services import desk_thumbnail as t
 
@@ -146,3 +146,12 @@ def test_classic_smoke():
 
 def test_classic_long_arbitrary_eyebrow_no_crash():
     _smoke("SUPER EXTENDED WEEKEND DEEP DIVE MASTERCLASS MARATHON SESSION")
+
+
+def test_fit_tracked_truncates_when_floor_overflows():
+    img = Image.new("RGB", (1280, 720))
+    d = ImageDraw.Draw(img)
+    long_text = "— " + ("VERY LONG WEBINAR NAME " * 12).strip() + " —"
+    f, fitted = t._fit_tracked(d, long_text, "DejaVuSans-Bold.ttf", 20, 10, 1280 - 120, 5)
+    assert t._tracked_w(d, fitted, f, 5) <= 1280 - 120
+    assert fitted.endswith("…")
