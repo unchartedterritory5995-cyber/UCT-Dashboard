@@ -1654,6 +1654,8 @@ async def lifespan(app: FastAPI):
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
             from api.services import brain_sync as _brain_sync
+            from api.services import brain_kb_service as _brain_kb
+            _brain_sync.on_install(lambda: _brain_kb.reindex())
             _brain_sync.start_background_sync()
             _intel = os.environ.get("UCT_INTEL_PATH")
             if not _intel:
