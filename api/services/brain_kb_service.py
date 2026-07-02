@@ -72,7 +72,9 @@ def _unpack(blob: bytes):
 def _default_embed(texts: list[str]) -> list[list[float]]:
     from api.services.voice_openai import _get_client
     client = _get_client()
-    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+    # request-path invariant (2026-07-01 outage): every blocking external
+    # call reachable from a request MUST carry an explicit timeout.
+    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=texts, timeout=20.0)
     return [d.embedding for d in resp.data]
 
 
