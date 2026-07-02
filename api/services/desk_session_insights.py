@@ -524,7 +524,7 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
     tracked error + fail-streak bump (alerting once at the threshold), or
     resets the streak on any non-raising completion (success or a legitimate
     skip/wait path — both mean this pass did NOT fail)."""
-    vid = v["id"]
+    vid = v.get("id")
     try:
         _run_one_pending(v, zoom, max_wait, now, results)
     except Exception as e:
