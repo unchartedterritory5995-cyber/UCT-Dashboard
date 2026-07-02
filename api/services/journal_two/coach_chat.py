@@ -26,6 +26,34 @@ def _get_conn(conn=None):
     return c, True
 
 
+def _mentor_mode_active(user_id: str, conn=None) -> bool:
+    """True when the two-lane mentor policy (coach_prompts.MENTOR_TWO_LANE)
+    should be appended to this user's system prompt. Mirrors the voice-side
+    COMPASS_MENTOR_MODE gate (api/routers/voice.py session_token) so text
+    chat and voice share identical activation semantics:
+      - "1"     -> on for everyone
+      - "admin" -> on only for users with users.role == "admin"
+      - anything else (including unset) -> off
+    """
+    mode = os.environ.get("COMPASS_MENTOR_MODE", "0")
+    if mode == "1":
+        return True
+    if mode == "admin":
+        _conn, _close = _get_conn(conn)
+        try:
+            row = _conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+            if row is None:
+                return False
+            role = row["role"] if isinstance(row, sqlite3.Row) else row[0]
+            return role == "admin"
+        except Exception:
+            return False
+        finally:
+            if _close:
+                _conn.close()
+    return False
+
+
 # ── Onboarding-state accessors (per-account j2_accounts OR unified state) ─────
 #
 # Onboarding state (onboarded / onboarding_mode / onboarding_session_id) lives
@@ -448,6 +476,8 @@ def handle_user_turn(
             if onboarding:
                 system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
             system_prompt += _current_regime_context()
+            if _mentor_mode_active(user_id, _conn):
+                system_prompt += coach_prompts.MENTOR_TWO_LANE
 
             assistant_text = ""
             tool_uses: list[dict] = []

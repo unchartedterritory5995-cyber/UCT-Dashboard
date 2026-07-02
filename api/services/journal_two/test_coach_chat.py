@@ -29,9 +29,11 @@ class FakeChatClient:
     def __init__(self, *, stream_scripts: list[list[dict]]):
         self.stream_scripts = list(stream_scripts)
         self.calls = []
+        self.captured_system_prompts = []
 
     def start_stream(self, *, system_prompt: str, messages: list, tools: list, **_kw):
         self.calls.append({"system_prompt": system_prompt, "messages": messages, "tools": tools})
+        self.captured_system_prompts.append(system_prompt)
         if not self.stream_scripts:
             raise RuntimeError("FakeChatClient out of stream scripts")
         events = self.stream_scripts.pop(0)
