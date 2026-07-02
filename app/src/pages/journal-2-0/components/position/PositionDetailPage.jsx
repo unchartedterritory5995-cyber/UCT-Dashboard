@@ -16,6 +16,7 @@ import useEarningsTable from '../../../../hooks/useEarningsTable'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2Trades from '../../hooks/useJ2Trades'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
 import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -126,7 +127,7 @@ export default function PositionDetailPage() {
   )
   const analyst = useMemo(() => analystModel(grades), [grades])
 
-  const price = live?.price
+  const price = useAnimatedNumber(live?.price)   // slides on ticks, snaps on load
   const changePct = live?.change_pct
   const changeDollar = Number.isFinite(price) && Number.isFinite(changePct)
     ? price - price / (1 + changePct / 100)

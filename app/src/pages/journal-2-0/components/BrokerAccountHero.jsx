@@ -15,6 +15,7 @@ import { useMemo, useRef, useState } from 'react'
 import { money, moneySigned, percent } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
+import useAnimatedNumber from '../../../hooks/useAnimatedNumber'
 import { SkeletonBlock, SkeletonLine } from '../../../components/Skeleton'
 import styles from './BrokerAccountHero.module.css'
 
@@ -96,6 +97,13 @@ export default function BrokerAccountHero({
     return { line, area, up, coords, baselineY: coords[0].y, estimated: series.some((p) => p.estimated) }
   }, [series])
 
+  // Tween target = the non-scrub headline (live net-liq, else perf base).
+  // Called before the early return so the hook order is stable for
+  // non-broker accounts too.
+  const baseValue = data?.endEquity ?? account?.brokerTotalEquity
+  const netLiqVal = liveSummary?.netLiq
+  const animatedHead = useAnimatedNumber(netLiqVal != null ? netLiqVal : baseValue)
+
   const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   if (!isBroker) return null
 
@@ -106,11 +114,9 @@ export default function BrokerAccountHero({
   const scrubbing = scrub != null && model && series[scrub]
   // Headline = the live net-liq (cash + live market value of holdings — the
   // Robinhood-accurate number), or the scrub point, or the portfolio perf base.
-  const baseValue = data?.endEquity ?? account.brokerTotalEquity
-  const netLiqVal = liveSummary?.netLiq
-  const headValue = scrubbing
-    ? series[scrub].value
-    : (netLiqVal != null ? netLiqVal : baseValue)
+  // RH-style "slides, doesn't jump" — ticks tween via animatedHead; scrubbing
+  // stays instant (the finger IS the animation).
+  const shownValue = scrubbing ? series[scrub].value : animatedHead
 
   // ONE change line that rebaselines to the selected range (Robinhood behavior):
   // 1D = today's move (prefer the live summary), else the change over the window
@@ -148,7 +154,7 @@ export default function BrokerAccountHero({
             Account Value
             {isLive && <span className={styles.liveBadge}> LIVE</span>}
           </div>
-          <div className={styles.value}>{money(headValue)}</div>
+          <div className={styles.value}>{money(shownValue)}</div>
           <div className={styles.changes}>
             {scrubbing ? (
               <span className={`${styles.change} ${scrubUp ? styles.pos : styles.neg}`}>
