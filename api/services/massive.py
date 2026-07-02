@@ -6,6 +6,8 @@ Calls https://api.massive.com using MASSIVE_API_KEY env var.
 No dependency on the local uct-intelligence package — works on Railway.
 """
 import os
+import time
+import concurrent.futures as _cf
 from typing import Any
 
 import httpx
@@ -13,6 +15,25 @@ import httpx
 from api.services.cache import cache
 
 _REST_BASE = "https://api.massive.com"
+
+# yfinance (used for VIX/BTC/futures snapshots + a liquidity filter) has NO
+# request timeout, so a hung Yahoo call pins the caller's worker thread forever —
+# enough of those exhaust the anyio pool and take the whole site down (the
+# 2026-07-01 incident). Run yfinance calls on a small dedicated pool and cap the
+# wait: a hung call returns the fallback in _YF_TIMEOUT_S instead of never. Any
+# still-running orphan is bounded to the pool's 4 workers. Treated as a black box
+# so we never touch yfinance internals (version-fragile).
+_YF_TIMEOUT_S = 12.0
+_YF_POOL = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="yf-bound")
+
+
+def _bounded_yf(fn, default, timeout: float = _YF_TIMEOUT_S):
+    """Run a blocking yfinance callable with a hard wall-clock cap.
+    Returns `default` on timeout or any error."""
+    try:
+        return _YF_POOL.submit(fn).result(timeout=timeout)
+    except Exception:
+        return default
 
 
 def to_polygon_symbol(ticker: str) -> str:
@@ -291,12 +312,15 @@ def _is_leveraged_etf(ticker: str) -> bool:
         return cached
     try:
         import yfinance as yf
-        info = yf.Ticker(ticker).info
-        name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
-        keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
-                    "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
-                    "proshares ultra"]
-        result = any(kw in name for kw in keywords)
+        info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
+        if not info:
+            result = False
+        else:
+            name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
+            keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
+                        "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
+                        "proshares ultra"]
+            result = any(kw in name for kw in keywords)
     except Exception:
         result = False
     cache.set(cache_key, result, ttl=86400)  # 24 hours
@@ -320,7 +344,6 @@ def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
         return {}
     try:
         import yfinance as yf
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _fetch_one(ticker: str) -> tuple[str, float]:
             try:
@@ -332,8 +355,19 @@ def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
             except Exception:
                 return ticker, float("inf")  # can't fetch → don't filter out
 
-        with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as ex:
-            result = dict(f.result() for f in as_completed(ex.submit(_fetch_one, t) for t in tickers))
+        # Bound the whole batch to a hard deadline + non-blocking shutdown so a
+        # hung Yahoo request can't pin this thread forever (2026-07-01 incident).
+        ex = _cf.ThreadPoolExecutor(max_workers=min(len(tickers), 8), thread_name_prefix="yf-dvol")
+        futures = {ex.submit(_fetch_one, t): t for t in tickers}
+        result: dict[str, float] = {}
+        deadline = time.monotonic() + 15.0
+        for fut, t in futures.items():
+            try:
+                k, v = fut.result(timeout=max(0.0, deadline - time.monotonic()))
+                result[k] = v
+            except Exception:
+                result[t] = float("inf")  # timeout/error → don't filter out
+        ex.shutdown(wait=False, cancel_futures=True)
         return result
     except Exception:
         return {t: float("inf") for t in tickers}
@@ -343,12 +377,16 @@ def _yfinance_snapshot(ticker: str) -> dict:
     """Fetch latest price via yfinance (used for futures/crypto not in Massive equities)."""
     try:
         import yfinance as yf
-        t = yf.Ticker(ticker)
-        fi = t.fast_info
-        close = float(fi.last_price)
-        prev  = float(fi.previous_close)
-        chg_pct = (close - prev) / prev * 100 if prev else 0.0
-        return {"close": close, "vwap": close, "change_pct": round(chg_pct, 4)}
+
+        def _work():
+            t = yf.Ticker(ticker)
+            fi = t.fast_info
+            close = float(fi.last_price)
+            prev  = float(fi.previous_close)
+            chg_pct = (close - prev) / prev * 100 if prev else 0.0
+            return {"close": close, "vwap": close, "change_pct": round(chg_pct, 4)}
+
+        return _bounded_yf(_work, {})
     except Exception:
         return {}
 

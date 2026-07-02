@@ -31,8 +31,12 @@ def _db_path() -> str:
 
 
 def _conn() -> sqlite3.Connection:
-    c = sqlite3.connect(_db_path())
+    c = sqlite3.connect(_db_path(), timeout=10)
     c.row_factory = sqlite3.Row
+    # WAL so a breadth push write doesn't block dashboard reads (and vice-versa).
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA synchronous=NORMAL")
+    c.execute("PRAGMA busy_timeout=5000")
     return c
 
 

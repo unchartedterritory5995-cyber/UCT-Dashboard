@@ -66,7 +66,10 @@ def _get_anthropic_client():
                 api_key = os.environ.get("ANTHROPIC_API_KEY")
                 if not api_key:
                     raise RuntimeError("ANTHROPIC_API_KEY is not set")
-                _anthropic_client = anthropic.Anthropic(api_key=api_key)
+                # timeout bounds a hung LLM call so it can't pin a worker thread
+                # forever (the 2026-07-01 thread-exhaustion class). 60s is generous
+                # for our max_tokens; the SDK still retries transient errors.
+                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
