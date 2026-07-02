@@ -66,6 +66,24 @@ describe('HoldingsList', () => {
     expect(link).toHaveAttribute('href', '/journal-2-0/position/AAPL')
   })
 
+  it('flashes the price pill when a live tick moves the price', () => {
+    const { rerender } = renderList(
+      <HoldingsList positions={[positions[0]]} optionStrategies={[]} prices={prices} />,
+    )
+    const pill = screen.getByText('$110.00')
+    expect(pill.className).not.toMatch(/flash/i)
+    rerender(
+      <MemoryRouter>
+        <HoldingsList
+          positions={[positions[0]]}
+          optionStrategies={[]}
+          prices={{ AAPL: { ...prices.AAPL, price: 111 } }}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('$111.00').className).toMatch(/flashUp/)
+  })
+
   it('renders nothing when the book is empty', () => {
     const { container } = renderList(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
     expect(container.textContent).toBe('')

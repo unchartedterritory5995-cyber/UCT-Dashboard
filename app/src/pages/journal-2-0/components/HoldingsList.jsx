@@ -5,7 +5,7 @@
  * an RH-style sort control. Display-only: Edit/Close/Delete live in the
  * dense Table view; Phase 3 wires row click-through to the detail page.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CompanyLogo from '../../../components/CompanyLogo'
 import Sparkline from '../../../components/Sparkline'
@@ -95,10 +95,30 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
   )
 }
 
+/**
+ * One-shot flash class when the live price ticks — brighter fill for ~600ms
+ * in the direction of the move, then settles. No flash on first price.
+ */
+function useTickFlash(price) {
+  const prevRef = useRef(price)
+  const [flash, setFlash] = useState(null)   // 'up' | 'down' | null
+  useEffect(() => {
+    const prev = prevRef.current
+    prevRef.current = price
+    if (!Number.isFinite(prev) || !Number.isFinite(price) || prev === price) return undefined
+    setFlash(price > prev ? 'up' : 'down')
+    const t = setTimeout(() => setFlash(null), 650)
+    return () => clearTimeout(t)
+  }, [price])
+  return flash
+}
+
 function EquityRow({ row, spark }) {
+  const flash = useTickFlash(row.price)
   const pillTone = row.changePct == null
     ? styles.pillFlat
     : row.changePct >= 0 ? styles.pillUp : styles.pillDown
+  const flashCls = flash === 'up' ? styles.flashUp : flash === 'down' ? styles.flashDown : ''
   return (
     <li>
       <Link
@@ -117,7 +137,7 @@ function EquityRow({ row, spark }) {
           <Sparkline values={spark} width={96} height={30} />
         </div>
         <div className={styles.right}>
-          <span className={`${styles.pill} ${pillTone}`}>
+          <span className={`${styles.pill} ${pillTone} ${flashCls}`}>
             {row.price == null ? '—' : money(row.price)}
           </span>
           <span className={styles.today}>
