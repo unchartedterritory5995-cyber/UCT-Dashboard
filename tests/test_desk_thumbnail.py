@@ -189,3 +189,17 @@ def test_different_dates_render_different_cards():
     a = t.render_session_thumbnail("July 1, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
     b = t.render_session_thumbnail("July 2, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
     assert a != b
+
+
+def test_gen_trend_bounds_over_many_seeds():
+    # Regression for the "tower candle" bug: the old implementation force-set
+    # values[-1] = end unconditionally, so the final close-open delta could
+    # blow past the documented +-0.22 step bound (median 0.28, max ~0.92 over
+    # a seed sweep). Every step, including the last, must now stay in-bounds.
+    for s in range(10_000):
+        vals = t._gen_trend(s)
+        assert all(0.0 <= v <= 1.0 for v in vals)
+        assert 0.90 <= vals[-1] <= 1.0
+        deltas = [b - a for a, b in zip(vals, vals[1:])]
+        assert all(-0.125 <= d <= 0.225 for d in deltas), (s, deltas)
+        assert 2 <= sum(1 for d in deltas if d < 0) <= 4
