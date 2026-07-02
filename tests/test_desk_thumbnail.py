@@ -128,3 +128,21 @@ def test_plate_missing_falls_back_to_classic(monkeypatch, tmp_path):
         "July 1, 2026", eyebrow_label="WORKSHOP WITH CHARTMASTER",
         variant="default")
     assert data == classic                              # deterministic Pillow output
+
+
+def _smoke(eyebrow, variant=None):
+    data = t.render_session_thumbnail("July 1, 2026", eyebrow_label=eyebrow,
+                                       variant=variant)
+    assert data[:2] == b"\xff\xd8"
+    img = Image.open(io.BytesIO(data))
+    assert img.size == (1280, 720)
+    assert len(data) < 2 * 1024 * 1024
+    return data
+
+
+def test_classic_smoke():
+    _smoke("LIVE TRADING SESSION")
+
+
+def test_classic_long_arbitrary_eyebrow_no_crash():
+    _smoke("SUPER EXTENDED WEEKEND DEEP DIVE MASTERCLASS MARATHON SESSION")
