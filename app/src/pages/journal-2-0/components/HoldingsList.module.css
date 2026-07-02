@@ -73,8 +73,20 @@
   border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
 }
 
-.row:last-child {
+li:last-child > .row {
   border-bottom: none;
+}
+
+/* Equity rows navigate to the per-stock detail page. */
+.rowLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.rowLink:hover {
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
 }
 
 .ident {

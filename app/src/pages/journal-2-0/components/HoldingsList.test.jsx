@@ -1,6 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import HoldingsList from './HoldingsList'
+
+const renderList = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
 
 vi.mock('../hooks/useHoldingsSparklines', () => ({
   default: () => ({ closes: { AAPL: [1, 2, 3], TSLA: [3, 2, 1] }, loading: false }),
@@ -28,7 +31,7 @@ beforeEach(() => localStorage.clear())
 
 describe('HoldingsList', () => {
   it('renders the Stocks & ETFs section with logo, ticker, shares and price pill', () => {
-    render(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
+    renderList(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
     expect(screen.getByText('Stocks & ETFs')).toBeInTheDocument()
     expect(screen.getByTestId('logo-AAPL')).toBeInTheDocument()
     expect(screen.getByText('AAPL')).toBeInTheDocument()
@@ -38,14 +41,14 @@ describe('HoldingsList', () => {
   })
 
   it('renders the Options section from the broker mark', () => {
-    render(<HoldingsList positions={[]} optionStrategies={strategies} prices={{}} />)
+    renderList(<HoldingsList positions={[]} optionStrategies={strategies} prices={{}} />)
     expect(screen.getByText('Options')).toBeInTheDocument()
     expect(screen.getByText('$600.00')).toBeInTheDocument()
     expect(screen.queryByText('Stocks & ETFs')).toBeNull()
   })
 
   it('defaults to Equity desc and re-sorts via the control', () => {
-    render(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
+    renderList(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
     let syms = screen.getAllByTestId('holding-sym').map((el) => el.textContent)
     expect(syms).toEqual(['AAPL', 'TSLA'])          // 1100 > 950
     fireEvent.change(screen.getByLabelText('Sort holdings'), { target: { value: 'symbol' } })
@@ -55,8 +58,14 @@ describe('HoldingsList', () => {
     expect(JSON.parse(localStorage.getItem('uct.j2.holdings.sort'))).toEqual({ key: 'symbol', dir: 'asc' })
   })
 
+  it('equity rows link to the position detail page', () => {
+    renderList(<HoldingsList positions={positions} optionStrategies={[]} prices={prices} />)
+    const link = screen.getByRole('link', { name: 'AAPL position detail' })
+    expect(link).toHaveAttribute('href', '/journal-2-0/position/AAPL')
+  })
+
   it('renders nothing when the book is empty', () => {
-    const { container } = render(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
+    const { container } = renderList(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
     expect(container.textContent).toBe('')
   })
 })

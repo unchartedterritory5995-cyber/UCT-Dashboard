@@ -6,6 +6,7 @@
  * dense Table view; Phase 3 wires row click-through to the detail page.
  */
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import CompanyLogo from '../../../components/CompanyLogo'
 import Sparkline from '../../../components/Sparkline'
 import useHoldingsSparklines from '../hooks/useHoldingsSparklines'
@@ -108,27 +109,33 @@ function EquityRow({ row, spark }) {
     ? styles.pillFlat
     : row.changePct >= 0 ? styles.pillUp : styles.pillDown
   return (
-    <li className={styles.row}>
-      <CompanyLogo sym={row.symbol} size={28} tile />
-      <div className={styles.ident}>
-        <span className={styles.sym} data-testid="holding-sym">{row.symbol}</span>
-        <span className={styles.shares}>
-          {row.side === 'Short' ? `Short ${row.shares}` : `${row.shares} shares`}
-        </span>
-      </div>
-      <div className={styles.spark}>
-        <Sparkline values={spark} width={96} height={30} />
-      </div>
-      <div className={styles.right}>
-        <span className={`${styles.pill} ${pillTone}`}>
-          {row.price == null ? '—' : money(row.price)}
-        </span>
-        <span className={styles.today}>
-          {row.changePct == null
-            ? ' '
-            : percent(row.changePct, { dp: 2, signed: true, isRatio: false })}
-        </span>
-      </div>
+    <li>
+      <Link
+        className={`${styles.row} ${styles.rowLink}`}
+        to={`/journal-2-0/position/${encodeURIComponent(row.symbol)}`}
+        aria-label={`${row.symbol} position detail`}
+      >
+        <CompanyLogo sym={row.symbol} size={28} tile />
+        <div className={styles.ident}>
+          <span className={styles.sym} data-testid="holding-sym">{row.symbol}</span>
+          <span className={styles.shares}>
+            {row.side === 'Short' ? `Short ${row.shares}` : `${row.shares} shares`}
+          </span>
+        </div>
+        <div className={styles.spark}>
+          <Sparkline values={spark} width={96} height={30} />
+        </div>
+        <div className={styles.right}>
+          <span className={`${styles.pill} ${pillTone}`}>
+            {row.price == null ? '—' : money(row.price)}
+          </span>
+          <span className={styles.today}>
+            {row.changePct == null
+              ? ' '
+              : percent(row.changePct, { dp: 2, signed: true, isRatio: false })}
+          </span>
+        </div>
+      </Link>
     </li>
   )
 }
