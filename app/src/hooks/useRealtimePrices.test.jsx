@@ -73,6 +73,34 @@ describe('pooled useRealtimePrices', () => {
     expect(openInstances()).toHaveLength(0)
   })
 
+  it('an empty-ticker hook never registers with the pool and never re-renders on publishes', async () => {
+    vi.useFakeTimers()
+    const { default: useRealtimePrices } = await import('./useRealtimePrices')
+    const mgr = await import('../lib/priceStreamManager')
+
+    let idleRenders = 0
+    const idle = renderHook(() => { idleRenders++; return useRealtimePrices([]) })
+    const active = renderHook(() => useRealtimePrices(['AAPL']))
+    act(() => { vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10) })
+
+    expect(openInstances()).toHaveLength(1)   // only the active hook's ticker
+    expect(openInstances()[0].url).toBe('/api/stream/prices?tickers=AAPL')
+
+    const rendersBefore = idleRenders
+    const es = openInstances()[0]
+    act(() => {
+      es.emitOpen()
+      es.emitMessage({ AAPL: { price: 42 } })
+      es.emitMessage({ AAPL: { price: 43 } })
+    })
+    expect(active.result.current.prices.AAPL.price).toBe(43)
+    expect(idleRenders).toBe(rendersBefore)   // idle consumer untouched by publishes
+    expect(idle.result.current.prices).toEqual({})
+    expect(idle.result.current.isStreaming).toBe(false)
+
+    idle.unmount(); active.unmount()
+  })
+
   it('staleSymbols is filtered to the hook’s own tickers', async () => {
     vi.useFakeTimers()
     const { default: useRealtimePrices } = await import('./useRealtimePrices')

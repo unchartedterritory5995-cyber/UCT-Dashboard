@@ -19,6 +19,14 @@ import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } 
  * refresh) reverts to the legacy per-instance implementation below.
  */
 
+// Idle consumers (empty ticker list — e.g. a closed TickerPopup or a
+// liveUpdates={false} StockChart) must never re-render on unrelated
+// app-wide SSE publishes. This frozen object is a stable reference shared
+// by every idle consumer, so useSyncExternalStore's Object.is check never
+// sees a "change."
+const EMPTY_SNAPSHOT = Object.freeze({ prices: Object.freeze({}), staleSymbols: new Set(), connected: false })
+const getEmptySnapshot = () => EMPTY_SNAPSHOT
+
 function usePooledRealtimePrices(tickers = []) {
   // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
@@ -26,10 +34,16 @@ function usePooledRealtimePrices(tickers = []) {
   const sorted = [...new Set(tickers)].sort().join(',')
 
   const subscribeStore = useCallback(
-    (onStoreChange) => priceStreamManager.subscribe(sorted ? sorted.split(',') : [], onStoreChange),
+    (onStoreChange) => {
+      if (!sorted) return () => {}   // idle consumer: never registers, never notified
+      return priceStreamManager.subscribe(sorted.split(','), onStoreChange)
+    },
     [sorted],
   )
-  const snap = useSyncExternalStore(subscribeStore, priceStreamManager.getSnapshot, priceStreamManager.getSnapshot)
+  // Idle consumers read a frozen empty snapshot so unrelated app-wide publishes
+  // can never re-render them (the manager's snapshot is one shared object).
+  const getSnap = sorted ? priceStreamManager.getSnapshot : getEmptySnapshot
+  const snap = useSyncExternalStore(subscribeStore, getSnap, getSnap)
 
   // Per-field merge: REST fields are preserved, stream fields overlay.
   // CRITICAL: only merge for tickers in the CURRENT subscription set — the
@@ -212,6 +226,12 @@ function useLegacyRealtimePrices(tickers = []) {
 
   // Per-field merge: REST fields (day_open, day_high, day_low, volume, prev_close)
   // are preserved, stream fields (price, change_pct, updated_at, timestamp) overlay.
+  // This ensures developing candles get session OHLC from REST + live price from stream.
+  //
+  // CRITICAL: only merge for tickers in the CURRENT subscription set. streamPrices
+  // accumulates entries from prior subscriptions (we never delete keys on unsubscribe);
+  // without this filter, charts could see stale prices for unrelated tickers from
+  // earlier sessions, e.g. AAPL's old price showing up while viewing MSFT.
   const tickerSet = useMemo(() => new Set(tickers.filter(Boolean)), [sorted]) // eslint-disable-line react-hooks/exhaustive-deps
   const mergedPrices = useMemo(() => {
     const result = {}
