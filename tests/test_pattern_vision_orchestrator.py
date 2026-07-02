@@ -57,3 +57,25 @@ def test_cost_cap_blocks_judging(tmp_path, monkeypatch):
     monkeypatch.setattr(orch, "_read_bars", lambda t, tf: [(20260101, 1, 1, 1, 1, 1)])
     out = orch.judge_ticker("NVDA", client=object())
     assert out["cost_capped"] is True and out["judged"] == 0
+
+
+def test_signals_hash_ignores_developing_last_bar():
+    """The judge must not re-judge every hour just because the live daily
+    candle wiggled: the hash keys off the last CLOSED bar, so intraday
+    mutations of bars[-1] are stable, while a newly closed bar re-judges."""
+    from api.services.pattern_vision.orchestrator import _signals_hash
+
+    closed = [("2026-07-01", 10, 12, 9, 11, 1000)]
+    live_10am = closed + [("2026-07-02", 11, 11.5, 10.8, 11.2, 200)]
+    live_3pm = closed + [("2026-07-02", 11, 13.0, 10.8, 12.9, 900)]
+
+    # Same closed history, different developing candle -> same hash (skip)
+    assert _signals_hash("NVDA", "VCP", live_10am) == _signals_hash("NVDA", "VCP", live_3pm)
+
+    # A new bar CLOSES (yesterday's live bar joins the closed history) -> new hash
+    next_day = live_3pm + [("2026-07-03", 13, 14, 12.5, 13.8, 300)]
+    assert _signals_hash("NVDA", "VCP", live_3pm) != _signals_hash("NVDA", "VCP", next_day)
+
+    # Degenerate inputs stay safe
+    assert _signals_hash("NVDA", "VCP", [])
+    assert _signals_hash("NVDA", "VCP", closed)
