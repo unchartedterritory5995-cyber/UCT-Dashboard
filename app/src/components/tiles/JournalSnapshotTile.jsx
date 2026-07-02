@@ -41,6 +41,7 @@ import {
 } from '../../pages/journal-2-0/lib/optionCalcs'
 import compassLogo from '../intro/assets/compass-mark.png'
 import UIcon from '../ui/UIcon'
+import Sparkline, { sparkPaths } from '../Sparkline'
 import styles from './JournalSnapshotTile.module.css'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
@@ -72,23 +73,12 @@ export function positionTodayDollar(p, live) {
   return (price - prevClose) * p.shares * sgn
 }
 
-/** Build a static sparkline path (viewBox 0..100) from a broker equity series. */
+/**
+ * Build a static sparkline path (viewBox 0..100) from a broker equity series.
+ * Back-compat wrapper over the shared Sparkline's pure sparkPaths builder.
+ */
 export function buildSpark(series) {
-  const pts = (series || []).filter((p) => Number.isFinite(p?.value))
-  if (pts.length < 2) return null
-  const ys = pts.map((p) => p.value)
-  const min = Math.min(...ys)
-  const max = Math.max(...ys)
-  const span = max - min || 1
-  const n = pts.length
-  const coords = pts.map((p, i) => ({
-    x: (i / (n - 1)) * 100,
-    y: 100 - ((p.value - min) / span) * 100,
-  }))
-  const line = coords.map((c, i) => `${i ? 'L' : 'M'}${c.x.toFixed(2)} ${c.y.toFixed(2)}`).join(' ')
-  const area = `${line} L100 100 L0 100 Z`
-  const up = pts[n - 1].value >= pts[0].value
-  return { line, area, up }
+  return sparkPaths((series || []).map((p) => p?.value))
 }
 
 const sign = (n) => (n > 0 ? styles.pos : n < 0 ? styles.neg : '')
@@ -292,8 +282,6 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
   }
   const periodPnl = perf?.dollarPnl
   const periodPct = perf?.timeWeighted
-  const spark = buildSpark(series)
-  const sparkColor = spark && !spark.up ? 'var(--loss, #ef4444)' : 'var(--gain, #22c55e)'
 
   return (
     <div className={styles.hero}>
@@ -305,31 +293,10 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
         {todayChange != null && <PerfFigure label="Today" dollar={todayChange} pct={todayPct} />}
         {periodPnl != null && <PerfFigure label={BROKER_PERIOD} dollar={periodPnl} pct={periodPct} />}
       </div>
-      {spark && (
-        <svg
-          className={styles.spark}
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="jstSparkFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={sparkColor} stopOpacity="0.28" />
-              <stop offset="100%" stopColor={sparkColor} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={spark.area} fill="url(#jstSparkFill)" />
-          <path
-            d={spark.line}
-            fill="none"
-            stroke={sparkColor}
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
+      <Sparkline
+        className={styles.spark}
+        values={series.map((p) => p?.value)}
+      />
       <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
     </div>
   )
