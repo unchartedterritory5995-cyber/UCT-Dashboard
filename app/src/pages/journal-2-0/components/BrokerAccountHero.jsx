@@ -66,6 +66,11 @@ export default function BrokerAccountHero({
   const wrapRef = useRef(null)
 
   const isIntraday = range.period === '1D'
+  // Derived from props (no hook) — computed up here so the data hooks below
+  // can be gated off entirely for non-broker accounts (the component renders
+  // null for them, but ungated hooks were still firing the whole intraday
+  // bar fan-out on manual books).
+  const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   // Daily equity curve across ALL brokers for the multi-day ranges; for 1D we
   // reconstruct an intraday curve from each holding's bars (still fetch a light
   // perf window so endEquity/fallbacks stay available).
@@ -73,7 +78,8 @@ export default function BrokerAccountHero({
     null, isIntraday ? '1W' : range.period, { portfolio: true },
   )
   const { series: intradaySeries, loading: intraLoading } = useIntradayEquityCurve({
-    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0, enabled: isIntraday,
+    positions, prices, optionMarketValue, cash: account?.brokerCash ?? 0,
+    enabled: isIntraday && isBroker,
   })
 
   const series = isIntraday ? (intradaySeries || []) : (data?.equitySeries || [])
@@ -117,7 +123,6 @@ export default function BrokerAccountHero({
     [positions, prices, account?.brokerCash, optionMarketValue, todayIso],
   )
 
-  const isBroker = account?.balanceSource === 'broker' && account?.brokerTotalEquity != null
   if (!isBroker) return null
 
   const marginUsed = account.brokerCash != null && account.brokerCash < 0 ? -account.brokerCash : 0
@@ -148,7 +153,10 @@ export default function BrokerAccountHero({
   // pre-market, the whole move since prev close IS the overnight move — the
   // single line just relabels.
   let extLine = null
-  if (isIntraday && extSplit) {
+  // liveSummary == null means multi-broker (portfolio base) — the extended
+  // split is built from the SELECTED account's book, so applying it there
+  // would mix single-account legs under a portfolio headline. Single-broker only.
+  if (isIntraday && extSplit && liveSummary != null) {
     if (extSplit.session === 'post_market') {
       rangeChange = extSplit.regularDollar
       rangePct = extSplit.regularPct

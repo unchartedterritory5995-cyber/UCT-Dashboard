@@ -299,7 +299,8 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
           <span className={styles.cardPrice}>{curDisplay}</span>
           <span className={`${styles.cardPnl} ${pnlCls}`}>
             {pnlD == null ? '—' : moneySigned(pnlD)}
-            {pnlP != null && <> ({percent(pnlP, { signed: true, dp: 1, isRatio: isOpt })})</>}
+            {/* both branches produce RATIOS (positionPnlPercent + optPnlPercent) */}
+            {pnlP != null && <> ({percent(pnlP, { signed: true, dp: 1, isRatio: true })})</>}
           </span>
         </div>
       </div>
@@ -421,8 +422,11 @@ export default function PositionsTable({
     const dir = sort.dir === 'asc' ? 1 : -1
     const text = TEXT_SORT_KEYS.has(sort.key)
     return [...positions].sort((a, b) => {
-      const av = sortKeyFor(sort.key, a, prices?.[a.symbol]?.price, accountSize)
-      const bv = sortKeyFor(sort.key, b, prices?.[b.symbol]?.price, accountSize)
+      // Sort on the price the ROWS display (live tick → broker mark), not the
+      // raw feed — otherwise after-hours broker rows show values but sort as
+      // blanks and sink to the bottom.
+      const av = sortKeyFor(sort.key, a, currentPriceFor(a, prices), accountSize)
+      const bv = sortKeyFor(sort.key, b, currentPriceFor(b, prices), accountSize)
       const aEmpty = av == null || av === ''
       const bEmpty = bv == null || bv === ''
       if (aEmpty && bEmpty) { /* fall through to tiebreak */ }

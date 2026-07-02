@@ -42,6 +42,12 @@ describe('buildEquityRows', () => {
     expect(row.todayDollar).toBeCloseTo((155 - 150) * 2)  // ref = entry, not prev_close
   })
 
+  it('same-day rule fires with FULL ISO timestamps (the real API shape)', () => {
+    const p = { ...openedToday, entryDate: `${TODAY}T14:32:11+00:00` }
+    const [row] = buildEquityRows([p], prices, TODAY)
+    expect(row.todayDollar).toBeCloseTo((155 - 150) * 2)
+  })
+
   it('derives prev_close from change_pct when snapshot lacks it', () => {
     const p = { ...long }
     const noPc = { AAPL: { price: 110, change_pct: 10 } }  // implied prev_close = 100

@@ -40,7 +40,10 @@ export function yourPositionModel(position, snap, netLiq, todayIso) {
   const prices = snap ? { [position.symbol]: snap } : {}
   const price = fin(currentPriceFor(position, prices))
   const signed = (position.side === 'Short' ? -1 : 1) * (position.shares || 0)
-  const ref = position.entryDate === todayIso ? fin(position.entryPrice) : prevCloseOf(snap)
+  // entryDate is a FULL ISO timestamp — date-part compare (see brokerLiveSummary).
+  const openedToday =
+    todayIso && position.entryDate && String(position.entryDate).slice(0, 10) === todayIso
+  const ref = openedToday ? fin(position.entryPrice) : prevCloseOf(snap)
   const livePrice = fin(snap?.price)
   const todayDollar = livePrice != null && ref != null ? signed * (livePrice - ref) : null
   const marketValue = price == null ? null : Math.abs(position.shares || 0) * price

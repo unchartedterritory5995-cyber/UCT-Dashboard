@@ -20,36 +20,37 @@ const ease = (t) => 1 - (1 - t) ** 3
 
 export default function useAnimatedNumber(value, { duration = 350 } = {}) {
   const [display, setDisplay] = useState(value)
-  const fromRef = useRef(value)
+  // The value currently ON SCREEN — a new tween interrupting an in-flight one
+  // starts from here (not from the previous TARGET, which would visibly jump).
+  const shownRef = useRef(value)
   const firstRef = useRef(true)
   const rafRef = useRef(null)
 
   useEffect(() => {
     if (!Number.isFinite(value)) {
-      fromRef.current = value
+      shownRef.current = value
       setDisplay(value)
       return undefined
     }
-    if (firstRef.current || !Number.isFinite(fromRef.current) || reduceMotion()) {
+    if (firstRef.current || !Number.isFinite(shownRef.current) || reduceMotion()) {
       firstRef.current = false
-      fromRef.current = value
+      shownRef.current = value
       setDisplay(value)
       return undefined
     }
-    const from = fromRef.current
+    const from = shownRef.current
     if (from === value) return undefined
     const start = performance.now()
     const tick = (now) => {
       const t = Math.min(1, (now - start) / duration)
-      const cur = from + (value - from) * ease(t)
-      setDisplay(t >= 1 ? value : cur)
+      const cur = t >= 1 ? value : from + (value - from) * ease(t)
+      shownRef.current = cur
+      setDisplay(cur)
       if (t < 1) rafRef.current = requestAnimationFrame(tick)
-      else fromRef.current = value
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      fromRef.current = value
     }
   }, [value, duration])
 

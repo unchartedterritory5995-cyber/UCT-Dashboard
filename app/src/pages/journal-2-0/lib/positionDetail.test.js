@@ -33,6 +33,12 @@ describe('yourPositionModel', () => {
     expect(m.todayDollar).toBeCloseTo(10)
   })
 
+  it('same-day rule fires with FULL ISO timestamps (the real API shape)', () => {
+    const p = { id: 3, symbol: 'NVDA', side: 'Long', shares: 2, entryPrice: 150, entryDate: `${TODAY}T13:05:00+00:00` }
+    const m = yourPositionModel(p, { price: 155, change_pct: 4 }, null, TODAY)
+    expect(m.todayDollar).toBeCloseTo(10)
+  })
+
   it('null position → null', () => {
     expect(yourPositionModel(null, snap, 1000, TODAY)).toBeNull()
   })

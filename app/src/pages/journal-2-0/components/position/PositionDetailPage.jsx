@@ -73,7 +73,7 @@ export default function PositionDetailPage() {
 
   const { data: snapshot } = useFundamentalSnapshot(sym)
   const { prices } = useRealtimePrices(sym ? [sym] : [])
-  const live = prices?.[sym]
+  const liveRaw = prices?.[sym]
 
   const { data: barsData } = useSWR(
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30` : null, fetcher,
@@ -88,6 +88,16 @@ export default function PositionDetailPage() {
     { revalidateOnFocus: false },
   )
   const { data: earningsTable } = useEarningsTable(sym)
+
+  // Resilience: when the live feed is quiet/down, fall back to the last daily
+  // close from the bars we already fetched — a real price beats a permanent
+  // shimmer or an all-dash Your Position. No change % without a live snapshot.
+  const live = useMemo(() => {
+    if (liveRaw?.price != null) return liveRaw
+    const bars = barsData?.bars
+    const lastClose = bars?.length ? bars[bars.length - 1]?.c : undefined
+    return Number.isFinite(lastClose) ? { price: lastClose } : liveRaw
+  }, [liveRaw, barsData])
 
   const { positions } = useJ2Positions()
   const { trades } = useJ2Trades()

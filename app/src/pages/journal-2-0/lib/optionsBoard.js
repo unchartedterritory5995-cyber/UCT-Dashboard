@@ -25,7 +25,11 @@ export function buildOptionCards(strategies) {
       totalReturnPct: pnl != null && s.netEntry ? pnl / Math.abs(s.netEntry) : null,
     }
   })
-  return cards.sort((a, b) => (a.dte ?? Infinity) - (b.dte ?? Infinity))
+  return cards.sort((a, b) => {
+    const ad = a.dte ?? Infinity
+    const bd = b.dte ?? Infinity
+    return ad === bd ? 0 : ad - bd   // avoid Infinity − Infinity = NaN
+  })
 }
 
 export function netOptionsPerformance(closedStrategies, openCards) {

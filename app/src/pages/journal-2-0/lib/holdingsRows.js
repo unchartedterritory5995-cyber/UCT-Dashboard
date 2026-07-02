@@ -23,7 +23,12 @@ export function buildEquityRows(positions, prices, todayIso) {
     const snap = prices?.[p.symbol]
     const price = fin(currentPriceFor(p, prices))
     const signed = (p.side === 'Short' ? -1 : 1) * (p.shares || 0)
-    const ref = p.entryDate === todayIso ? fin(p.entryPrice) : prevCloseOf(snap)
+    // entryDate arrives as a FULL ISO timestamp from the API — compare the
+    // date part only (same recipe as brokerLiveSummary) or the same-day-fill
+    // rule never fires.
+    const openedToday =
+      todayIso && p.entryDate && String(p.entryDate).slice(0, 10) === todayIso
+    const ref = openedToday ? fin(p.entryPrice) : prevCloseOf(snap)
     const livePrice = fin(snap?.price)
     const todayDollar = livePrice != null && ref != null ? signed * (livePrice - ref) : null
     const totalReturnDollar = price == null ? null : positionPnlDollar(p, price)

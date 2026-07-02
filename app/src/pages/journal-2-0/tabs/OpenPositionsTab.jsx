@@ -18,6 +18,7 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Nudges from '../hooks/useJ2Nudges'
 import NudgesBanner from '../components/NudgesBanner'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
+import { buildStrategyLabel, classifyDebitCredit } from '../lib/optionCalcs'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
@@ -70,22 +71,36 @@ async function jsonFetch(url, method, body) {
 }
 
 // Normalize an OPEN option strategy into a position-table row so options show
-// alongside shares (Symbol "CRWV Oct 16 $110C", Side "Long Call"). Current value
-// + P&L come from the broker mark (brokerCurrentValue), refreshed each sync.
+// alongside shares. Single-leg types get the compact "CRWV Oct 16 $110C" +
+// "Long Call" treatment; MULTI-LEG strategies (verticals, condors, ...) use
+// buildStrategyLabel + a debit/credit-derived side — the old first-leg-only
+// logic labeled a long call debit spread "Short Call" at the wrong strike.
 function optionToRow(s) {
   const leg = (s.legs && s.legs[0]) || {}
   const qty = leg.qty ?? 0
-  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
-  const isCall = (s.strategyType || '').endsWith('call')
-  const sideLabel = `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`
-  let when = ''
-  if (leg.expiration) {
-    const d = new Date(`${leg.expiration}T00:00:00`)
-    if (!Number.isNaN(d.getTime())) {
-      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+  const type = s.strategyType || ''
+  const singleLeg = ['long_call', 'long_put', 'short_call', 'short_put'].includes(type)
+  let sideLabel
+  let symbol
+  let isLong
+  if (singleLeg) {
+    isLong = type.startsWith('long_')
+    const isCall = type.endsWith('call')
+    sideLabel = `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`
+    let when = ''
+    if (leg.expiration) {
+      const d = new Date(`${leg.expiration}T00:00:00`)
+      if (!Number.isNaN(d.getTime())) {
+        when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+      }
     }
+    symbol = `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`
+  } else {
+    // Multi-leg: net debit = you own the structure (long-ish), credit = short-ish.
+    isLong = classifyDebitCredit(s.netEntry) !== 'credit'
+    sideLabel = isLong ? 'Long' : 'Short'
+    symbol = buildStrategyLabel(s)
   }
-  const symbol = `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`
   const bcv = s.brokerCurrentValue
   const pnlDollar = bcv == null ? null : bcv - s.netEntry
   return {

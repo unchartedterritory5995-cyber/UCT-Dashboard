@@ -159,3 +159,16 @@
     padding: 6px 18px;
   }
 }
+
+@media (max-width: 640px) {
+  /* Let the actions wrap instead of squeezing the List|Table toggle
+     (it was clipping to "ist|Tabl" between the two big buttons). */
+  .actionGroup {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .viewToggle {
+    flex-shrink: 0;
+  }
+}

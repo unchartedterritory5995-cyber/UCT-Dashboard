@@ -39,7 +39,7 @@ def _first(data):
 
 
 def _consensus(ticker: str) -> Optional[dict]:
-    row = _first(ee._fmp_get("/stable/grades-consensus", {"symbol": ticker}))
+    row = _first(ee._fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=4))
     if not row:
         return None
     buckets = {k: int(row.get(k) or 0) for k in
@@ -51,8 +51,8 @@ def _consensus(ticker: str) -> Optional[dict]:
 
 
 def _price_target(ticker: str) -> Optional[dict]:
-    con = _first(ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker})) or {}
-    summ = _first(ee._fmp_get("/stable/price-target-summary", {"symbol": ticker})) or {}
+    con = _first(ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)) or {}
+    summ = _first(ee._fmp_get("/stable/price-target-summary", {"symbol": ticker}, timeout=4)) or {}
     out = {
         "high":      _num(con.get("targetHigh")),
         "low":       _num(con.get("targetLow")),
@@ -71,7 +71,7 @@ def _price_target(ticker: str) -> Optional[dict]:
 
 
 def _recent_actions(ticker: str) -> list[dict]:
-    data = ee._fmp_get("/stable/grades", {"symbol": ticker, "limit": 40})
+    data = ee._fmp_get("/stable/grades", {"symbol": ticker, "limit": 40}, timeout=4)
     if not isinstance(data, list):
         return []
     out: list[dict] = []
@@ -91,7 +91,7 @@ def _recent_actions(ticker: str) -> list[dict]:
 
 
 def _trend(ticker: str) -> list[dict]:
-    data = ee._fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": _MAX_TREND})
+    data = ee._fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": _MAX_TREND}, timeout=4)
     if not isinstance(data, list):
         return []
     out: list[dict] = []
