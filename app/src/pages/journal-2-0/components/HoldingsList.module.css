@@ -170,10 +170,21 @@ li:last-child > .row {
 .pos { color: var(--gain, #22c55e); }
 .neg { color: var(--loss, #ef4444); }
 
-/* Phone: drop the sparkline so ticker + pill keep breathing room. */
+/* Phone: drop the sparkline so ticker + pill keep breathing room;
+   sort controls grow to tap size. */
 @media (max-width: 640px) {
   .spark { display: none; }
   .row { gap: 10px; }
+
+  .sortSelect {
+    min-height: var(--tap-min, 44px);
+    padding: 4px 14px;
+  }
+
+  .dirBtn {
+    width: var(--tap-min, 44px);
+    height: var(--tap-min, 44px);
+  }
 }
 
 /* Live tick flash — one-shot brightness pulse in the direction of the move. */

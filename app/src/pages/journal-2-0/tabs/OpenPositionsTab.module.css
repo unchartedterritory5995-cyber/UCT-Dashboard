@@ -151,3 +151,11 @@
   background: var(--accent, #c9a84c);
   color: #151310;
 }
+
+@media (max-width: 640px) {
+  .viewBtn,
+  .viewBtnActive {
+    min-height: var(--tap-min, 44px);
+    padding: 6px 18px;
+  }
+}
