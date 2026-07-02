@@ -182,7 +182,7 @@ def _fit_tracked(draw, text, font_name, max_pt, min_pt, max_w, tracking):
     if even min_pt overflows, ellipsis-truncate the text to fit. Returns
     (font, text)."""
     size = max_pt
-    while size > min_pt:
+    while size >= min_pt:
         f = _font(font_name, size)
         if _tracked_w(draw, text, f, tracking) <= max_w:
             return f, text
@@ -448,10 +448,17 @@ def _render_editorial(theme: Theme, date_text: str, eyebrow_label: str) -> Image
 
     # Leather base: theme gradient (shared bg tint) + coarse mottling + fine grain.
     base = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGB")
-    coarse = Image.effect_noise((W // 6, H // 6), 58).resize(size, Image.BILINEAR)
-    coarse = coarse.filter(ImageFilter.GaussianBlur(2)).convert("L")
+    # Seeded coarse grain (deterministic leather texture)
+    import numpy as np
+    rng = np.random.default_rng(7)
+    coarse_arr = rng.normal(128.0, 58.0, (H // 6, W // 6))
+    coarse = Image.fromarray(np.clip(coarse_arr, 0, 255).astype(np.uint8), mode='L')
+    coarse = coarse.resize(size, Image.BILINEAR)
+    coarse = coarse.filter(ImageFilter.GaussianBlur(2))
     base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (coarse,) * 3)), 0.22)
-    fine = Image.effect_noise(size, 34).convert("L")
+    # Seeded fine grain (deterministic leather texture overlay)
+    fine_arr = rng.normal(128.0, 34.0, (H, W))
+    fine = Image.fromarray(np.clip(fine_arr, 0, 255).astype(np.uint8), mode='L')
     base = Image.blend(base, ImageChops.overlay(base, Image.merge("RGB", (fine,) * 3)), 0.16)
 
     img = base.convert("RGBA")
