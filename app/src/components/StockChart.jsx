@@ -1935,19 +1935,35 @@ export default function StockChart({
       // shows past the year anyway. LEADING bars are kept for MA warm-up.
       //   • keepBarsAfterExit (Setup Library Result view): keep the post-exit
       //     history so the candles continue into the right-pad space instead of
-      //     cutting off at exitDate.
+      //     cutting off at exitDate — but ONLY a pad's worth, never the whole
+      //     tail out to today.
       //   • a held slice (_sliceHold, a Setup⇄Result shrink glide in flight):
-      //     keep everything too, so the outgoing candles past the new exitDate
+      //     keep that same pad so the outgoing candles past the new exitDate
       //     glide off-screen instead of vanishing on the first frame.
+      // CRITICAL: keeping the ENTIRE tail out to `today` (years past the framed
+      // result) let a transient re-frame during a data-phase swap snap the view
+      // to the latest bar — the "jumps years into the future, then lands on the
+      // result" glitch — and bloated every animation frame. Cap it to the pad.
       const _holdActive = !!(_sliceHold && _sliceHold.key === _exKey && String(_sliceHold.end) > String(exitDate))
-      if (exactDateRange && exactSliceEnd && src?.length && !keepBarsAfterExit && !_holdActive) {
+      if (exactDateRange && exactSliceEnd && src?.length) {
         const cut = src.findIndex(b => String(b.t) > exactSliceEnd)  // first bar after frame-end
-        if (cut > 0) src = src.slice(0, cut)
+        if (cut > 0) {
+          if (keepBarsAfterExit || _holdActive) {
+            // Keep just enough real candles past the end to fill the right pad
+            // (frameRightPadFrac of the framed window) plus a small margin.
+            const startIdx = entryDate ? src.findIndex(b => String(b.t) >= entryDate) : 0
+            const winBars = cut - Math.max(0, startIdx)
+            const extra = Math.ceil(winBars * (frameRightPadFrac || 0)) + 6
+            src = src.slice(0, cut + extra)
+          } else {
+            src = src.slice(0, cut)
+          }
+        }
       }
       return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
-    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit]
+    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
 
   // Curated book charts (exactDateRange) frame a specific historical window.
