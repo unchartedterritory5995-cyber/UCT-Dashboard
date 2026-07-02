@@ -122,15 +122,39 @@ async def refresh_accounts(user: dict = Depends(_paid)) -> dict[str, Any]:
 
 @router.post("/sync")
 async def sync_now(
-    user: dict = Depends(_paid), full: bool = False, force: bool = False
+    user: dict = Depends(_paid), full: bool = False, force: bool = False,
+    background: bool = False,
 ) -> dict[str, Any]:
     """On-demand sync of the user's connected accounts. Applies a per-account
     cooldown (BROKER_SYNC_COOLDOWN_SEC, default 180s) so opening the journal /
     repeated clicks don't hammer SnapTrade — pass force=1 to bypass, full=1 for
-    a full historical backfill (used on first connect)."""
+    a full historical backfill (used on first connect).
+
+    background=1 fires the sync as a detached task and returns immediately — used
+    by the auto-sync-on-journal-open so that request (which awaits a multi-second
+    SnapTrade round-trip) doesn't hold a worker for its whole duration. At ~200
+    concurrent journal opens the blocking version would tie up the shared
+    threadpool; the UI already shows the last-synced data and picks up fresh data
+    on its next poll. Explicit 'Sync now' buttons stay blocking (they want the
+    result)."""
     _guard_configured()
     from api.services.journal_two.broker import sync as broker_sync_engine
     cooldown = 0.0 if (force or full) else float(os.getenv("BROKER_SYNC_COOLDOWN_SEC", "180"))
+
+    if background:
+        uid = user["id"]
+
+        async def _bg():
+            try:
+                await broker_sync_engine.sync_all_for_user(
+                    uid, full=full, cooldown_seconds=cooldown)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("[broker] background sync failed")
+
+        asyncio.create_task(_bg())
+        return {"status": "started", "background": True}
+
     results = await broker_sync_engine.sync_all_for_user(
         user["id"], full=full, cooldown_seconds=cooldown)
     return {"results": results}

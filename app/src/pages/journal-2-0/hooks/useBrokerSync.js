@@ -14,22 +14,30 @@ export default function useBrokerSync(onSynced) {
     if (ran.current) return
     ran.current = true
     let cancelled = false
+    let refreshTimer = null
     ;(async () => {
       try {
-        const r = await fetch('/api/j2/broker/sync', { method: 'POST', credentials: 'include' })
+        // background=1: the server kicks the SnapTrade sync off as a detached
+        // task and returns immediately, so this open never waits on (or holds a
+        // server worker for) the multi-second broker round-trip. The freshly
+        // imported trades/positions land a few seconds later, so we schedule a
+        // single refresh to pick them up. Explicit "Sync now" buttons stay
+        // blocking (they surface the sync result directly).
+        const r = await fetch('/api/j2/broker/sync?background=1', {
+          method: 'POST', credentials: 'include',
+        })
         if (!r.ok || cancelled) return
-        const data = await r.json().catch(() => null)
-        // Only notify if at least one account actually synced (not all cooldown-skipped).
-        const results = data?.results || {}
-        const didSync = Object.values(results).some(
-          (x) => x && typeof x === 'object' && x.skipped == null && x.error == null,
-        )
-        if (didSync && onSynced) onSynced()
+        if (onSynced) {
+          refreshTimer = setTimeout(() => { if (!cancelled) onSynced() }, 8000)
+        }
       } catch {
         /* best-effort */
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (refreshTimer) clearTimeout(refreshTimer)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
