@@ -152,6 +152,13 @@ def test_editorial_smoke():
     _smoke("THOUGHTS ON THE MARKET")
 
 
+def test_editorial_long_title_no_crash():
+    # Regression: long editorial titles must render without overflowing the gold
+    # frame or crashing. Exercises the multi-line headline fitting logic
+    # (~lines 487-501 in _render_editorial).
+    _smoke("A REMARKABLY LONG AND WINDING REFLECTION ON EVERYTHING THE MARKET DID THIS QUARTER")
+
+
 def test_fit_tracked_truncates_when_floor_overflows():
     img = Image.new("RGB", (1280, 720))
     d = ImageDraw.Draw(img)
