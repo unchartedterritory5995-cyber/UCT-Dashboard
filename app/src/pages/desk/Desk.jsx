@@ -2,6 +2,7 @@
 // "The Desk" — unified first-party content hub. One paid tab with four
 // sub-sections: Videos · Articles · Posts · Team.
 import { lazy, Suspense, useState, useEffect } from 'react'
+import DeskSectionSkeleton from './DeskSectionSkeleton'
 import { useSearchParams } from 'react-router-dom'
 import { GraduationIcon, ArticleIcon, PostIcon, TeamIcon } from '../education/icons'
 import styles from './Desk.module.css'
@@ -64,7 +65,7 @@ export default function Desk() {
       </nav>
 
       <div className={styles.body}>
-        <Suspense fallback={<div className={styles.note}>Loading…</div>}>
+        <Suspense fallback={<DeskSectionSkeleton cards={8} />}>
           <Active.Comp />
         </Suspense>
       </div>

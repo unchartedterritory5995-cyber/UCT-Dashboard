@@ -2,6 +2,7 @@
 // The Desk → Posts: a board of the firm's OWN official Twitter/X accounts
 // (flagged is_official), one column/feed per person. Reuses the tweet pipeline.
 import { useMemo, useState } from 'react'
+import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import useTweetFeed from '../../hooks/useTweetFeed'
@@ -133,7 +134,7 @@ export default function PostsSection() {
         </div>
       </div>
 
-      {isLoading && <div className={styles.note}>Loading…</div>}
+      {isLoading && <DeskSectionSkeleton cards={6} />}
 
       {!isLoading && columns.length === 0 && (
         <div className={styles.empty}>

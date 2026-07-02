@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import BrandSplash from './BrandSplash'
 
 function MaintenancePage() {
   return (
@@ -61,15 +62,7 @@ export default function AuthGuard() {
   }, [])
 
   if (loading || !maintenanceChecked) {
-    return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: 'var(--bg)', color: 'var(--text-muted)',
-        fontFamily: "'Instrument Sans', sans-serif", fontSize: '14px',
-      }}>
-        Loading...
-      </div>
-    )
+    return <BrandSplash label="Signing you in" />
   }
 
   // Maintenance mode: block non-admins

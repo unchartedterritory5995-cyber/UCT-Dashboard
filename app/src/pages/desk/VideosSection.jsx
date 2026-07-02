@@ -3,6 +3,7 @@
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
 import { useState, useMemo, useCallback, useEffect, useSyncExternalStore } from 'react'
+import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
@@ -229,7 +230,7 @@ export default function VideosSection() {
         </div>
       )}
 
-      {isLoading && <div className={styles.note}>Loading…</div>}
+      {isLoading && <DeskSectionSkeleton cards={8} />}
       {error && <div className={styles.note}>Couldn’t load videos. Try again shortly.</div>}
 
       {!isLoading && total === 0 && (

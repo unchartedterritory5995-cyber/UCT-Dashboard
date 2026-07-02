@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import BrandSplash from './components/BrandSplash'
 import { SWRConfig } from 'swr'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
@@ -120,19 +121,7 @@ export default function App() {
         <GlobalVideoLayer />
         <RouteErrorBoundary>
           <Suspense fallback={
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100vh',
-              background: '#0e0f0d',
-              color: '#a8a290',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              fontSize: '14px',
-              letterSpacing: '0.5px',
-            }}>
-              Loading…
-            </div>
+            <BrandSplash label="Loading page" />
           }>
             <Routes>
             {/* Public routes — redirect to dashboard if already logged in */}
