@@ -457,6 +457,65 @@ def test_ticker_backfill_skippable_via_env(edu_db, chapters_enabled, monkeypatch
     assert calls == []
 
 
+def test_summary_only_young_video_waits_for_transcript_no_trash(edu_db, chapters_enabled, monkeypatch):
+    """Summary file has usable chapters but the transcript VTT hasn't landed
+    yet (Zoom generates it asynchronously) and the video is still young —
+    must NOT store insights, trash the recording, or stamp zoom_cleaned/
+    insights_at. Regression guard for the bug where a transcript-less
+    Zoom-summary insight got stored + the recording trashed immediately,
+    permanently losing the transcript (zoom_cleaned=1 blocks re-entry into
+    videos_pending_insights; transcript IS NULL blocks the ticker-backfill)."""
+    v = _seed_session_video(title="Live Trading Session — July 1, 2026", meeting_uuid="UUIDW1")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        # NO transcript file yet.
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    matches = [r for r in out if r.get("id") == v["id"]]
+    assert len(matches) == 1
+    assert matches[0]["action"] == "waiting_transcript_have_summary"
+
+    row = edu.get_video(v["id"])
+    assert (row["chapters"] or "").strip() in ("", "[]")
+    assert row["insights_at"] is None
+    assert not row["zoom_cleaned"]
+    assert zoom.deleted == []  # recording NOT trashed
+
+
+def test_summary_only_expired_wait_stores_zoom_insights_and_trashes(edu_db, chapters_enabled, monkeypatch):
+    """Same shape (summary chapters, transcript still absent) but the video
+    has exhausted DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS — proceeds exactly as
+    before the fix: store the Zoom-derived insights (transcript absent),
+    trash the recording, mark zoom_cleaned. Better than losing the chapters
+    forever, bounded by the existing backstop."""
+    monkeypatch.setenv("DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS", "0")  # max_wait=0 -> already expired
+
+    v = _seed_session_video(title="Live Trading Session — July 2, 2026", meeting_uuid="UUIDW2")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        # still no transcript file.
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert any(r.get("id") == v["id"] and r.get("action") == "generated" and r.get("source") == "zoom"
+               for r in out)
+    row = edu.get_video(v["id"])
+    chapters = json.loads(row["chapters"])
+    assert chapters == [
+        {"t": 0, "title": "Open & Game Plan"},
+        {"t": 300, "title": "NVDA Setup"},
+    ]
+    assert row["transcript"] is None
+    assert json.loads(row["ticker_moments"]) == []
+    assert zoom.deleted == ["UUIDW2"]
+    assert row["zoom_cleaned"] == 1
+
+
 def test_videos_missing_ticker_moments_query(edu_db):
     v1 = _seed_session_video(title="A", meeting_uuid="Q1")
     edu.set_video_insights(v1["id"], transcript="[0:00] a", chapters=[{"t": 0, "title": "Open"}],

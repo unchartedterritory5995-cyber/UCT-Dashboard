@@ -409,6 +409,7 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
     vid = v["id"]
     uuid = v.get("meeting_uuid") or ""
     has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
+    age = now - int(v.get("created_at") or now)
     try:
         rec = zoom.get_recording_files(uuid)
         if rec is None:  # recording already gone — nothing to fetch
@@ -445,6 +446,22 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
                 except Exception as te:
                     print(f"[session-insights] transcript download failed (non-fatal): {te}")
                     cues = []
+
+            # Zoom generates the transcript VTT asynchronously and it can
+            # trail the SUMMARY file (zoom_client.py: "may be absent on
+            # early calls"). If the summary already gave us chapters but the
+            # transcript isn't here yet, do NOT store/trash/stamp now —
+            # trashing sets zoom_cleaned, which permanently forecloses both
+            # a future transcript fetch AND the ticker-backfill loop (it
+            # requires a stored transcript). Wait for the next scheduled
+            # pass instead, unless we've already exhausted max_wait (then
+            # fall through to the existing bounded give-up path below).
+            if zoom_ins and not cues and age < max_wait:
+                print(f"[session-insights] video {vid} has summary chapters but "
+                      f"transcript isn't ready yet — waiting (age={age}s)")
+                results.append({"id": vid, "action": "waiting_transcript_have_summary",
+                                "age_s": age})
+                return
 
             ins, source = None, None
             if zoom_ins:
@@ -489,7 +506,6 @@ def _process_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[d
 
         # Clean up the Zoom recording once we've captured insights — or once
         # we've waited long enough that the transcript clearly isn't coming.
-        age = now - int(v.get("created_at") or now)
         if has_chapters or age >= max_wait:
             try:
                 zoom.delete_recording(uuid)
