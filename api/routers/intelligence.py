@@ -14,16 +14,14 @@ from api.middleware.auth_middleware import get_current_user
 router = APIRouter()
 
 # Cross-repo import for uct-intelligence
-_UCT_INTEL_PATH = os.environ.get(
-    "UCT_INTEL_PATH",
-    r"C:\Users\Patrick\uct-intelligence"
-)
-if _UCT_INTEL_PATH not in sys.path:
-    sys.path.insert(0, _UCT_INTEL_PATH)
+_UCT_INTEL_PATH_DEFAULT = r"C:\Users\Patrick\uct-intelligence"
 
 
 def _get_api():
     """Lazy import of uct_intelligence.api to avoid startup failures."""
+    path = os.environ.get("UCT_INTEL_PATH", _UCT_INTEL_PATH_DEFAULT)
+    if path not in sys.path:
+        sys.path.insert(0, path)
     try:
         import uct_intelligence.api as uct
         return uct

@@ -138,3 +138,18 @@ def sync_brain_pack(*, s3=None, force: bool = False) -> bool:
     except Exception:
         log.exception("brain pack sync failed")
         return False
+
+
+def start_background_sync(interval_seconds: int = 21600):
+    """Boot pull + periodic refresh loop in a daemon thread (web pod)."""
+    import threading
+
+    def _loop():
+        sync_brain_pack()
+        while True:
+            time.sleep(interval_seconds)
+            sync_brain_pack()
+
+    t = threading.Thread(target=_loop, name="brain_pack_sync", daemon=True)
+    t.start()
+    return t

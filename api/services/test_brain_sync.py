@@ -89,3 +89,15 @@ def test_sync_fires_on_install_callbacks(data_dir):
     finally:
         brain_sync._INSTALL_CALLBACKS.clear()
     assert seen == [1]
+
+
+def test_start_background_sync_runs_boot_pull(data_dir, monkeypatch):
+    import time as _time
+    calls = []
+    monkeypatch.setattr(brain_sync, "sync_brain_pack", lambda **kw: calls.append(kw) or True)
+    brain_sync.start_background_sync(interval_seconds=999999)
+    for _ in range(50):
+        if calls:
+            break
+        _time.sleep(0.1)
+    assert calls, "boot pull did not run"

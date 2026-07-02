@@ -1650,6 +1650,20 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_hotset_push_loop, daemon=True, name="hotset_push").start()
         print("[startup] hot-set push loop started (web -> R2, 2-min cadence)")
 
+    # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
+    if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
+        try:
+            from api.services import brain_sync as _brain_sync
+            _brain_sync.start_background_sync()
+            _intel = os.environ.get("UCT_INTEL_PATH")
+            if not _intel:
+                os.environ["UCT_INTEL_PATH"] = _brain_sync.brain_dir()
+            logging.getLogger(__name__).info(
+                "brain pack sync enabled; UCT_INTEL_PATH=%s", os.environ.get("UCT_INTEL_PATH")
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("brain pack sync failed to start")
+
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster
         bb = bar_broadcaster.init_broadcaster(
