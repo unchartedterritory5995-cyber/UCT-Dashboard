@@ -3,7 +3,13 @@ import time
 from collections import OrderedDict
 from typing import Any
 
-_MAX_SIZE = 500  # Prevent unbounded memory growth
+# LRU cap. 500 → 1000 (2026-07-02 scale pass): the journal holdings list adds
+# ~60 small `bars_{T}_D_30` keys per user page-load, which at launch scale
+# churned evictions against the hot news/snapshot/analyst/movers keys long
+# before their TTLs (live-prices already moved to its own dedicated instance).
+# Kept bounded because bars payloads can be MB-scale — raise further only with
+# a pod-memory check, or give bars its own size-aware cache.
+_MAX_SIZE = 1000
 
 
 class TTLCache:
