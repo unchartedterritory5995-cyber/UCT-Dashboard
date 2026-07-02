@@ -2063,6 +2063,15 @@ async def lifespan(app: FastAPI):
                 except Exception as e:
                     print(f"[desk-sessions] safety-net error (non-fatal): {e}")
 
+            def _dds_insights():
+                try:
+                    from api.services import desk_session_insights as _dsi
+                    out = _dsi.process_pending_session_insights()
+                    if out:
+                        print(f"[desk-sessions] insights pass handled {len(out)} video(s)")
+                except Exception as e:
+                    print(f"[desk-sessions] insights error (non-fatal): {e}")
+
             # Drain the recording queue every 5 min (a recording usually finishes
             # processing on Zoom's side a few minutes after the webinar ends).
             _scheduler.add_job(_dds_process, trigger=CronTrigger(minute="*/5"),
@@ -2070,6 +2079,11 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_dds_safety,
                 trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=0),
                 id="desk_daily_session_safety", max_instances=1, replace_existing=True)
+            # Chapters/transcript + deferred Zoom-trash backfill (self-gated by
+            # DESK_SESSION_CHAPTERS_ENABLED). Offset from the */5 drain so a fresh
+            # publish gets its transcript pass a couple of minutes later.
+            _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="7/15"),
+                id="desk_session_insights", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------
