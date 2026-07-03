@@ -1381,14 +1381,34 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
         except Exception:
             pass
 
-    # Read ALL stored rows and filter to > since
-    all_rows = _sqlite.get_bars(ticker_up, tf, bars)
-    formatted = _fmt_sqlite_bars(all_rows, tf) if all_rows else []
-
+    # Read ONLY the new rows via an index range scan (WHERE ts > since), instead
+    # of reading up to `bars` (5000) rows + formatting all of them + Python-
+    # filtering to the 1-5 that are actually new. This is the browser's 30s SWR
+    # revalidation path — the single highest-QPS bars entrypoint during RTH — so
+    # the old full-window read was pure wasted CPU + SQLite page-cache churn on
+    # the shared event loop, multiplied across every open chart × every user.
+    #
+    # SQLite stores date-TF ts as a YYYYMMDD int, but `since_val` for date TFs is
+    # an ISO date string ("2026-07-03"); convert it to the int key for the SQL
+    # `ts > ?` compare. Intraday `since_val` is already unix seconds.
     if date_tf:
-        delta = [b for b in formatted if b["t"] > since_val]
+        try:
+            since_ts_sql = int(str(since_val).replace("-", "")) if since_val else 0
+        except (ValueError, TypeError):
+            since_ts_sql = 0
     else:
-        delta = [b for b in formatted if b["t"] > since_val]
+        try:
+            since_ts_sql = int(since_val) if since_val else 0
+        except (ValueError, TypeError):
+            since_ts_sql = 0
+
+    if since_ts_sql > 0:
+        new_rows = _sqlite.get_bars_since(ticker_up, tf, since_ts_sql)
+    else:
+        # Degenerate since (parse failure / 0): preserve the old bounded window
+        # rather than returning the entire history unbounded.
+        new_rows = _sqlite.get_bars(ticker_up, tf, bars)
+    delta = _fmt_sqlite_bars(new_rows, tf) if new_rows else []
 
     # Invalidate the full cache so the next non-delta request picks up fresh data
     cache.invalidate(cache_key)
