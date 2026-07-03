@@ -1656,6 +1656,12 @@ def _exec_size_a_trade(*, user_id, account_id, args, conn=None) -> dict:
         grade=str(args.get("grade", "A")), risk_pct=float(args.get("risk_pct", 1.0)))
 
 
+def _exec_grade_ticker(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import grade_ticker as _gt
+    return _gt.grade_ticker(str(args.get("symbol", "")),
+                            account_size=args.get("account_size"))
+
+
 def _voice_delegate(tool_name):
     def _exec(*, user_id, account_id, args, conn=None) -> dict:
         from api.services import voice_tools
@@ -1715,6 +1721,18 @@ _BRAIN_TOOLS = {
             "grade": {"type": "string", "default": "A"},
             "risk_pct": {"type": "number", "default": 1.0}},
             "required": ["entry", "stop", "account"]},
+    },
+    "grade_ticker": {
+        "name": "grade_ticker",
+        "description": "Grade a ticker as a trade RIGHT NOW: returns a decisive "
+                       "GO/HOLD/SKIP verdict with regime, setup + grade, entry, stop, "
+                       "size %, and account-risk % — all tool-sourced. Use this for any "
+                       "'call this trade' / 'should I buy/short X' / 'grade X' question.",
+        "requires_confirm": False,
+        "executor": _exec_grade_ticker,
+        "input_schema": {"type": "object", "properties": {
+            "symbol": {"type": "string"},
+            "account_size": {"type": "number"}}, "required": ["symbol"]},
     },
     # Voice↔text parity: the golden set's Rung-1 facts need these in chat too.
     "get_quote": {
