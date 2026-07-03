@@ -126,3 +126,11 @@ def test_engine_recommendation_skip_forces_skip():
     out = _call(size_fn=skip_size)
     assert out["verdict"] == "SKIP"
     assert "size_skip" in out["hard_flags"]
+
+
+def test_unsizable_setup_forces_skip():
+    # sizing unavailable (e.g. brain pack down) -> cannot size -> not a GO.
+    out = _call(size_fn=lambda *a, **k: {"ok": False, "reason": "brain not available"})
+    assert out["verdict"] == "SKIP"
+    assert "size_unavailable" in out["hard_flags"]
+    assert out["size_pct"] is None

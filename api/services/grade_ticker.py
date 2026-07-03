@@ -169,10 +169,14 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         hard_flags.append("grade_below_b")
     if account_risk_pct is not None and account_risk_pct > _RISK_CAP_PCT:
         hard_flags.append("risk_over_cap")
+    if size_pct is None:
+        # "size before entry" — an idea we cannot size is not a tradable call.
+        hard_flags.append("size_unavailable")
     if extended:
         hard_flags.append("extended")
 
-    if any(f in hard_flags for f in ("regime_red", "no_setup", "grade_below_b", "risk_over_cap", "size_skip")):
+    if any(f in hard_flags for f in ("regime_red", "no_setup", "grade_below_b",
+                                     "risk_over_cap", "size_skip", "size_unavailable")):
         verdict = "SKIP"
     elif "extended" in hard_flags or band == "ORANGE" or (band == "YELLOW" and grade == "B"):
         verdict = "HOLD"
