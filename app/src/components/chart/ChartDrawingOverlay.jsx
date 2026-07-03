@@ -688,6 +688,13 @@ export default function ChartDrawingOverlay({
   const [textInput, setTextInput] = useState(null)
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, drawingId }
   const rafRef = useRef(null)
+  // Instant frame-snap handling: LWC updates priceToCoordinate ASYNC (on its next
+  // paint), so right after a snap the price mapping is stale. Blank the layer and
+  // hold it blank until the mapping actually changes (settles), so price-anchored
+  // lines never flash at the pre-snap height. snapBaseYRef = the pre-snap sample.
+  const snapSuppressRef = useRef(false)
+  const snapBaseYRef = useRef(null)
+  const snapSafetyRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
   // Motion detection: the off-screen guard is suspended while the view is moving
@@ -983,6 +990,14 @@ export default function ChartDrawingOverlay({
           // separately and fall back to blank mapping values.
           let y0 = null, y1 = null
           try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
+          // Snap settled? Once the price mapping moves off its pre-snap sample,
+          // LWC has repainted at the new scale — release the blank so the very
+          // next redraw resolves the annotations at their correct height.
+          if (snapSuppressRef.current && y0 != null && snapBaseYRef.current != null
+              && Math.abs(y0 - snapBaseYRef.current) > 0.5) {
+            snapSuppressRef.current = false
+            if (snapSafetyRef.current) { clearTimeout(snapSafetyRef.current); snapSafetyRef.current = null }
+          }
           // Include the text-fade value so the fade renders frame-by-frame even at
           // the very end of the zoom, where the range barely changes.
           const tf = textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''
@@ -1015,6 +1030,10 @@ export default function ChartDrawingOverlay({
     if (w === 0 || h === 0) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
+
+    // Held blank between an instant frame snap and the moment LWC's price mapping
+    // settles (see the redraw handle + tick), so nothing draws at a stale height.
+    if (snapSuppressRef.current) return
 
     // Clip everything to the plot area (exclude the right price axis) so no line,
     // ray, or label ever renders over the price scale — e.g. an hray streaking to
@@ -1223,11 +1242,19 @@ export default function ChartDrawingOverlay({
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
-  // Expose the redraw to the parent (StockChart) so it can force a re-resolve
-  // right after an instant frame snap, before paint — otherwise the overlay's own
-  // redraw ran with the pre-snap price mapping (child effects run before the
-  // parent's snap effect) and the lines flashed at the old positions for a frame.
-  if (redrawHandleRef) redrawHandleRef.current = () => redrawRef.current?.()
+  // The parent (StockChart) calls this right after an instant frame snap. We
+  // can't just redraw — LWC's priceToCoordinate is still the pre-snap mapping
+  // this frame (its scale updates on its own later paint). So BLANK the layer now
+  // and let the rAF tick redraw it the moment the mapping actually changes; that
+  // way the lines never appear at the wrong height, they just resolve into place.
+  if (redrawHandleRef) redrawHandleRef.current = () => {
+    snapSuppressRef.current = true
+    try { snapBaseYRef.current = seriesRef?.current?.priceToCoordinate(1) ?? null } catch { snapBaseYRef.current = null }
+    if (snapSafetyRef.current) clearTimeout(snapSafetyRef.current)
+    // Safety net: if the settle is never detected, un-blank anyway.
+    snapSafetyRef.current = setTimeout(() => { snapSuppressRef.current = false; redrawRef.current?.() }, 250)
+    redrawRef.current?.()   // clears the canvas (suppressed → returns after clear)
+  }
 
   // Trigger redraw when any drawing state changes
   useEffect(() => { redrawRef.current?.() }, [redraw])
