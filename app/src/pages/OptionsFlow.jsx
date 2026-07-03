@@ -2017,20 +2017,22 @@ export default function OptionsFlowDashboard() {
     // Grade: 0.5–2.5
     const g = c.grade||"";
     s += g==="A+"?2.5:g==="A"?2:g==="B+"?1.5:g==="B"?1:g==="C"?0.5:0.5;
-    // Premium (used in multiple checks)
-    const p = c.prem||0;
     // Hits (repetition): 0.5–2.5
     const h = c.hits||0;
     const v = c.volOI||0;
+    const p = c.prem||0;
     const cap = wlCapCheck(c);
     const isMega = cap === "Mega";
     if (h <= 1) {
-      // Single trade — score by conviction signals (premium + V/OI) instead of repetition
-      if (v >= 15) s += 2.5;
+      // Single trade — score by conviction signals (premium + V/OI) instead of repetition.
+      // Whale tier added so a $5M+ (non-mega) / $10M+ (mega) single SWEEP at ASK gets
+      // max conviction credit even if V/OI is low. Previously a massive single trade
+      // capped at +1.5 (v<5, p>=$500K branch), undervaluing the size of the bet.
+      if (isMega ? p >= 10e6 : p >= 5e6) s += 2.5;   // whale single trade
+      else if (v >= 15) s += 2.5;
       else if (v >= 5 && (isMega ? p >= 2e6 : p >= 250e3)) s += 2;
-      else if (isMega ? p >= 5e6 : p >= 1e6) s += 2; // massive single-trade premium
       else if (v >= 5) s += 1.5;
-      else if (isMega ? p >= 2e6 : p >= 500e3) s += 1.5;
+      else if (isMega ? p >= 5e6 : p >= 500e3) s += 1.5;
       else s += 0.5;
     } else {
       let hitsScore = h>=10?2.5:h>=5?2:h>=3?1.5:h>=2?1:0.5;
@@ -2041,23 +2043,50 @@ export default function OptionsFlowDashboard() {
       if (isMega ? p >= 5e6 : p >= 2e6) hitsScore = Math.max(hitsScore, 2);
       s += hitsScore;
     }
-    // Cap-relative premium: 0.5–2
-    // (isMega and p already defined above)
-    if (isMega) { s += p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5; }
-    else { s += p>=2e6?2:p>=500e3?1.5:p>=100e3?1:0.5; }
-    // V/OI ratio: 0.5–2.5 (boosted from 1.5 max)
-    s += v>=20?2.5:v>=10?2:v>=5?1.5:v>=3?1.2:v>=2?1:0.5;
-    // Side (urgency): 0.5–1.5
+    // Cap-relative premium: extended tiers for whale sizes.
+    // Previously maxed at $2M (non-mega) / $10M (mega), so a $5.3M trade scored
+    // the same as a $2.1M trade despite being 2.5x larger. New tiers:
+    //   non-mega: 0.5 / 1 / 1.5 / 1.75 / 2 / 2.5 / 3      ← was max 2
+    //   mega:     0.5 / 1 / 1.5 / 2 / 2.5                 ← was max 2
+    // $1.5M tier added (non-mega) so weekly sweeps in the $1.5-$2M range
+    // (e.g. BE 250 CALL 6/12 $1.94M SWEEP) don't fall into the same bucket
+    // as $500K trades.
+    if (isMega) {
+      s += p>=20e6?2.5:p>=10e6?2:p>=5e6?1.5:p>=1e6?1:0.5;
+    } else {
+      s += p>=10e6?3:p>=5e6?2.5:p>=2e6?2:p>=1.5e6?1.75:p>=500e3?1.5:p>=100e3?1:0.5;
+    }
+    // V/OI ratio: 0.5–2.5 (refined tiers — 8× is genuinely outsized)
+    s += v>=15?2.5:v>=8?2:v>=5?1.5:v>=3?1.2:v>=2?1:0.5;
+    // Side (urgency): 0.5–1.5. ASK/BID (single-side trade, not AA double-aggressor)
+    // now gets 0.75 instead of the lowest tier — a clean SWEEP at ASK is still
+    // directional even without the "AA" extreme-aggressor flag.
     const sd = c.side||"";
-    s += sd==="AA"?1.5:sd==="BB"?1:0.5;
+    s += sd==="AA"?1.5:sd==="BB"?1:(sd==="ASK"||sd==="BID")?0.75:0.5;
     // UOA flag: +1 when true
     if (c.uoa) s += 1;
     // LEAPS bonus: +0.5 for DTE > 180 (long-dated conviction)
     if ((c.DTE||0) > 180) s += 0.5;
-    // Sustained-accumulation bonus — high hit count on real premium signals
-    // committed buying that the multi-hit tier (capped at h>=10 → 2.5) doesn't
-    // fully capture. 56 ASK prints totaling $1.1M is qualitatively different
-    // from a 10-hit cluster at the same premium.
+    // ── Whale single-trade bonus ─────────────────────────────────────────
+    // A single sweep with $5M+ premium (non-mega) or $10M+ (mega) signals
+    // institutional positioning of a kind that the V/OI-weighted scorer was
+    // systematically missing. The user flagged BE PUT $240 7/17 — a single
+    // $5.3M SWEEP at ASK that languished at #16 in the bear watchlist
+    // despite being 4x larger than the entries ranked above it. Mini-whale
+    // tier lowered from $2M to $1.5M (non-mega) so weekly sweeps in the
+    // $1.5-$2M range get explicit recognition. Stacks on top of the
+    // cap-relative premium tier above so genuine size compounds.
+    if (h <= 1) {
+      if (isMega ? p >= 10e6 : p >= 5e6) s += 1.5;
+      else if (isMega ? p >= 5e6 : p >= 1.5e6) s += 0.75;
+    }
+    // ── Sustained-accumulation bonus ─────────────────────────────────────
+    // High hit count on real premium signals committed buying that the
+    // multi-hit tier alone (capped at h>=10 → 2.5) doesn't fully capture.
+    // SERV's 56 ASK sweeps totaling $1.1M is qualitatively different from
+    // a 10-hit cluster at the same premium — the conviction is sustained
+    // through the session, not a one-time burst. Top 10 Flow Picks already
+    // rewards this pattern; this brings autoScore in line.
     if (h >= 50 && p >= 1e6) s += 1.5;
     else if (h >= 30 && p >= 750e3) s += 1.0;
     else if (h >= 20 && p >= 500e3) s += 0.5;
@@ -2081,7 +2110,10 @@ export default function OptionsFlowDashboard() {
       else if (p < 500e3) premMult = 0.7;
     }
     s = s * premMult;
-    // Normalize to 10 max (raw max ~12.5)
+    // Normalize to 10 max (raw max ~14, but most realistic combinations
+    // stay under 12.5 — kept divisor at 1.25 so existing watchlist scores
+    // look familiar; only whale-size + high-grade combos can now legitimately
+    // approach 100%.)
     return Math.min(10, Math.round(s / 1.25 * 10) / 10);
   };
 
