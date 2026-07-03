@@ -32,7 +32,7 @@ from api.services import modelbook_service as svc
 router = APIRouter(prefix="/api/modelbook", tags=["modelbook"])
 
 _GRADES = {"A+", "A", "B", "C", "F"}
-_TIMEFRAMES = {"D", "W"}
+_TIMEFRAMES = {"D", "W", "M"}
 _MARKER_SIDES = {"aboveBar", "belowBar"}
 _MARKER_SHAPES = {"arrowUp", "arrowDown", "circle", "square"}
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

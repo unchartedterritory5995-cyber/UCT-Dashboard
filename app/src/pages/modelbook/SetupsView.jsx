@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
 import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, DIRECTION_META } from './setupCatalog'
 import { SETUP_PLAYBOOKS } from './setupPlaybooks'
-import { parseBarsCsv, resampleWeekly } from '../../utils/barsCsv'
+import { parseBarsCsv, resampleWeekly, resampleMonthly } from '../../utils/barsCsv'
 import styles from './SetupsView.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -464,6 +464,7 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
           title="Chart timeframe for this example">
           <option value="D">Daily</option>
           <option value="W">Weekly</option>
+          <option value="M">Monthly</option>
         </select>
         <select className={styles.exInput} value={form.scale_mode} onChange={e => set('scale_mode', e.target.value)}
           title="Price-scale mode for this example's chart">
@@ -646,10 +647,13 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     () => (Array.isArray(customBarsData?.bars) && customBarsData.bars.length ? customBarsData.bars : null),
     [customBarsData],
   )
-  // Daily as stored; resampled for the Weekly timeframe (matches Model Book).
+  // Daily as stored; resampled for the Weekly/Monthly timeframe (matches Model Book).
   const chartBars = useMemo(() => {
     if (!customBars) return null
-    return (ex.timeframe || 'D') === 'W' ? resampleWeekly(customBars) : customBars
+    const tf = ex.timeframe || 'D'
+    if (tf === 'W') return resampleWeekly(customBars)
+    if (tf === 'M') return resampleMonthly(customBars)
+    return customBars
   }, [customBars, ex.timeframe])
   const barsFileRef = useRef(null)
   const [barsMsg, setBarsMsg] = useState(null)

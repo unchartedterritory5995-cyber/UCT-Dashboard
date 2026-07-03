@@ -52,3 +52,18 @@ export function resampleWeekly(daily) {
   }
   return [...weeks.values()].sort((a, b) => a.t.localeCompare(b.t))
 }
+
+// Resample daily bars → monthly (first-of-month anchored) for the M timeframe.
+// Mirrors the backend's _resample_monthly_iso so uploaded-data examples match
+// what the providers serve: open = first day's open, high/low aggregated,
+// close = last day's close, volume summed, dated to the 1st of the month.
+export function resampleMonthly(daily) {
+  const months = new Map()
+  for (const b of daily) {
+    const key = b.t.slice(0, 7)                    // YYYY-MM
+    const m = months.get(key)
+    if (!m) months.set(key, { t: `${key}-01`, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
+    else { m.h = Math.max(m.h, b.h); m.l = Math.min(m.l, b.l); m.c = b.c; m.v += (b.v || 0) }
+  }
+  return [...months.values()].sort((a, b) => a.t.localeCompare(b.t))
+}
