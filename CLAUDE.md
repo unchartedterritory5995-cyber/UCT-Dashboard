@@ -2025,6 +2025,52 @@ scale win is about not fanning out per-user work.
   Finnhub sub cap, table virtualization (react-virtual installed/unused), 1.1MB echarts shrink,
   eventual multi-instance architecture for scale beyond a few hundred users.
 
+## Fundamentals Accuracy Monitor (dark, flag-gated · 2026-07-03)
+
+Continuous detect → self-heal → alert safety net for the fundamentals widget's
+earnings-table endpoint — the analog of `bars_reconciliation` for fundamentals
+data. The per-request pipeline is correct + self-freshening + NaN-sanitized, but
+nothing actively CATCHES a future regression (a code change reintroducing the
+forward-quarter off-by-one, a provider silently going bad, a per-ticker drift);
+this closes that gap.
+
+- **`api/services/fundamentals_monitor.py`** — every cycle samples ~30 tickers
+  (priority liquid + WARM cache entries + a small bounded COLD long-tail),
+  runs invariant checks on `get_earnings_table()` output (what users SEE),
+  self-heals a stale cache entry (invalidate + recheck), and alerts on a defect
+  that survives the heal. **Runs WEB-side** (started in `main.py` lifespan next
+  to bars_reconciliation) — the heal is a cache invalidation and the cache users
+  read is web-local, so healing must run there.
+- **Invariants** (`check_ticker`): NaN/inf present · dup reported quarter · dup
+  forward quarter · reported/forward label overlap · label↔period_end
+  consistency · **forward strip contiguous & continuing the newest reported
+  quarter** (the independent oracle that actually catches the off-by-one SHIFT —
+  the naive "label == _label_from_period_end(period_end)" check is TAUTOLOGICAL
+  because the label is DERIVED from period_end, so it can't catch a dropped
+  quarter). Blank revenue (pre-revenue names) is TALLIED, never flagged.
+  Validated false-positive-safe across 608 live tickers (only genuine anomalies
+  fire; e.g. HUBG surfaced a real stale-forward-quarter data gap).
+- **Self-heal:** `cache.invalidate(f"earnings_table::{S}")` (EXACT key — the
+  earnings_table:: key has no trailing separator, so `delete_prefix` would
+  over-match, e.g. 'A' wiping AAPL) + `cache.delete_prefix(f"mb_year_earnings_{S}_")`
+  (separator-anchored, safe).
+- **Alert-on-change:** Discord + in-app (`chart_health_alerts`) fire ONLY on
+  newly-flagged tickers, so a persistent upstream anomaly (self-heal can't fix a
+  bad SOURCE) stays visible in the status endpoint without re-spamming hourly.
+- **Cold-tail bounded** (`_COLD_TAIL`, default 6/cycle) — a cold check can fire
+  the scarce AlphaVantage 25/day deep-history budget the widget itself uses;
+  warm+priority sampling keeps external-quota cost tiny (near-zero on Railway,
+  where FMP Ultimate rarely falls through to AV).
+- **Status:** `GET /api/admin/fundamentals-health` (no-auth read-only, mirrors
+  reconciliation-status): cycles/checked/healed, blank-sales rate, currently
+  `flagged_current`.
+- **Env (web pod, default OFF):** `FUNDAMENTALS_MONITOR_ENABLED=1` +
+  `_CYCLE_SECONDS` (7200) · `_SAMPLE` (30) · `_COLD_TAIL` (6) · `_STARTUP_DELAY`.
+- **Known day-1 flag:** HUBG (its 2026 Q1 actual is missing from FMP's
+  stable/earnings but lingers as a stale forward estimate card) — a real
+  surfaced anomaly, not a false positive. Grace-window tightening in
+  `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.

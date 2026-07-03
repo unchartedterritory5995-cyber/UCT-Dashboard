@@ -41,6 +41,23 @@ from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
 from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
 
+# ── Serve-layer diagnostics (Server-Timing) ──────────────────────────────────
+# Which cache tier served the request, so a slow bars response is diagnosable in
+# prod (cold upstream fetch vs inflight-wait vs a warm hit that got unlucky) — the
+# cold path was previously UNMEASURED (all prod latency samples were warm
+# megacaps). The router reads this per-request and emits it on a Server-Timing
+# header. Thread-local: each request runs on one anyio thread; reset at entry.
+_serve_diag = _threading.local()
+
+
+def _mark_serve(layer: str) -> None:
+    _serve_diag.layer = layer
+
+
+def get_serve_layer() -> str:
+    return getattr(_serve_diag, "layer", "unknown")
+
+
 # ── In-flight deduplication ───────────────────────────────────────────────────
 # Prevents N concurrent requests for the same key from each making a separate
 # Massive API call.  The first thread that arrives becomes the "fetcher" and
@@ -1369,6 +1386,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     Triggers a delta fetch from Massive if SQLite data is stale, then returns
     only the new rows — typically 0-5 bars, so payload is ~500 bytes vs 50 KB.
     """
+    _mark_serve("delta")
     ticker_up = ticker.upper()
     # Indices have no delta/SQLite path — return the full yfinance set (the
     # caller fetches index bars without `since`, so this is a safety net).
@@ -1719,10 +1737,12 @@ _DEFAULT_WARM_TFS = ["D", "W", "M", "60", "30", "15", "5", "1"]
 
 
 def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
+    _mark_serve("miss")  # default; each serve path below overwrites it
     ticker_up = ticker.upper()
     # Market indices (^IXIC etc.) live only in yfinance — short-circuit the
     # whole Massive/SQLite path. Used by the Model Book index-comparison pane.
     if _is_yf_only_symbol(ticker_up):
+        _mark_serve("yf-only")
         return _yf_only_bars_response(ticker_up, tf, bars)
     _record_intraday_request(ticker_up, tf)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
@@ -1731,6 +1751,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # ── Layer 1: In-memory TTL cache (<1 ms) ─────────────────────────────────
     cached = cache.get(cache_key)
     if cached is not None:
+        _mark_serve("mem")
         return JSONResponse(
             content=cached,
             headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
@@ -1754,6 +1775,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # SQLite has enough fresh data (or holds the full available history,
         # which is < bars for stocks shorter-lived than the request) — serve
         # immediately, no API call.
+        _mark_serve("sqlite")
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
         return JSONResponse(
@@ -1955,6 +1977,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _bg_delta_sem.release()
                     _inflight.pop(cache_key, None)
 
+        _mark_serve("stale-swr")
         return JSONResponse(
             content=stale_payload,
             headers={"Cache-Control": "public, max-age=5"},
@@ -1986,6 +2009,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
     if not i_am_fetcher:
         # Wait up to 12 s for the fetcher to finish, then read from cache.
+        _mark_serve("inflight-wait")
         waiter_ev.wait(timeout=12)
         hit = cache.get(cache_key)
         if hit is not None:
@@ -2001,6 +2025,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         )
 
     # We are the designated fetcher for this key.
+    _mark_serve("fetch")
     import logging as _log
     _logger = _log.getLogger(__name__)
     result_bars: list[dict] = []

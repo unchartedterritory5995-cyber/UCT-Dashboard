@@ -1049,6 +1049,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_reconciliation start failed")
 
+    # Fundamentals-accuracy monitor (web-side, same cache-locality reasoning as
+    # bars_reconciliation). No-ops unless FUNDAMENTALS_MONITOR_ENABLED=1.
+    try:
+        from api.services import fundamentals_monitor
+        fundamentals_monitor.start()
+        logging.getLogger(__name__).info("[startup] fundamentals_monitor started")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
+
     try:
         from api.services import realtime_candle
         import asyncio

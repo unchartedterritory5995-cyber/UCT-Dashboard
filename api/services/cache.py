@@ -64,6 +64,14 @@ class TTLCache:
         with self._lock:
             self._store.clear()
 
+    def keys_with_prefix(self, prefix: str) -> list[str]:
+        """Snapshot of currently-cached (non-expired-by-clock-only) keys starting
+        with ``prefix``. Read-only; used to sample WARM entries (e.g. the
+        fundamentals monitor prefers checking tickers users are actually viewing,
+        which are free cache hits, over cold long-tail fetches)."""
+        with self._lock:
+            return [k for k in self._store if k.startswith(prefix)]
+
     def delete_prefix(self, prefix: str) -> int:
         """Remove every key starting with ``prefix``. Returns the count.
 
