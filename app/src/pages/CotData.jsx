@@ -274,32 +274,11 @@ export default function CotData() {
   const labels  = data ? data.map(d => fmtDate(d.date)) : []
   const hasData = data && data.length > 0
 
-  // Symmetric net-positioning bound — rounded up to a clean number
-  const netBound = hasData
-    ? roundUpNice(Math.max(
-        ...data.flatMap(d => [
-          Math.abs(d.large_spec_net),
-          Math.abs(d.commercial_net),
-          Math.abs(d.small_spec_net),
-        ])
-      ))
-    : 250000
-
-  // Latest report + week-over-week deltas for the header stat chips
+  // Latest report + week-over-week deltas for the pane headers
   const latest = hasData ? data[data.length - 1] : null
   const prev   = hasData && data.length > 1 ? data[data.length - 2] : null
-  const chips  = latest ? [
-    { key: 'commercials',  label: 'Commercials', value: latest.commercial_net,
-      delta: prev ? latest.commercial_net - prev.commercial_net : null },
-    { key: 'largeSpecs',   label: 'Large Specs', value: latest.large_spec_net,
-      delta: prev ? latest.large_spec_net - prev.large_spec_net : null },
-    { key: 'smallSpecs',   label: 'Small Specs', value: latest.small_spec_net,
-      delta: prev ? latest.small_spec_net - prev.small_spec_net : null },
-    { key: 'openInterest', label: 'Open Interest', value: latest.open_interest,
-      delta: prev ? latest.open_interest - prev.open_interest : null, compact: true },
-  ] : []
 
-  // Fixed axis width so the two stacked panels align vertically
+  // Fixed axis width so all stacked panes align vertically
   const AXIS_FIT = axis => { axis.width = 64 }
 
   const tooltipStyle = {
@@ -314,94 +293,98 @@ export default function CotData() {
     cornerRadius:    6,
   }
 
-  const netData = hasData ? {
-    labels,
-    datasets: [
-      {
-        type:            'bar',
-        label:           'Commercials',
-        data:            data.map(d => d.commercial_net),
-        backgroundColor: SERIES_COLORS.commercials,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           1,
-      },
-      {
-        type:            'bar',
-        label:           'Large Speculators',
-        data:            data.map(d => d.large_spec_net),
-        backgroundColor: SERIES_COLORS.largeSpecs,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           2,
-      },
-      {
-        type:            'bar',
-        label:           'Small Speculators',
-        data:            data.map(d => d.small_spec_net),
-        backgroundColor: SERIES_COLORS.smallSpecs,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           3,
-      },
-    ],
-  } : null
+  // One pane per trader group — each with its own zero line, symmetric to its
+  // own extreme so every group reads against its own history.
+  const PANE_DEFS = [
+    { key: 'commercials', label: 'Commercials',        field: 'commercial_net' },
+    { key: 'largeSpecs',  label: 'Large Speculators',  field: 'large_spec_net' },
+    { key: 'smallSpecs',  label: 'Small Speculators',  field: 'small_spec_net' },
+  ]
 
-  const netOptions = {
-    responsive:          true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend:  { display: false },
-      tooltip: {
-        ...tooltipStyle,
-        callbacks: {
-          title: items => items[0]?.label || '',
-          label: ctx   => `  ${ctx.dataset.label}: ${fmtNum(ctx.raw)}`,
-          labelColor: ctx => {
-            const colors = {
-              'Commercials':       SERIES_COLORS.commercials,
-              'Large Speculators': SERIES_COLORS.largeSpecs,
-              'Small Speculators': SERIES_COLORS.smallSpecs,
-            }
-            const c = colors[ctx.dataset.label] || '#f0ead8'
-            return { borderColor: c, backgroundColor: c, borderRadius: 2 }
+  const fmtNet = v =>
+    v == null ? '' : v < 0 ? `(${fmtCompact(Math.abs(v))})` : fmtCompact(v)
+
+  const panes = hasData ? PANE_DEFS.map(def => {
+    const series = data.map(d => d[def.field])
+    // Asymmetric bounds: fit each side to that group's own extremes so a
+    // one-sided group (e.g. always-short large specs) uses the full pane
+    // height. The minority side keeps a 12% floor so small bars stay visible.
+    const up   = roundUpNice(Math.max(...series, 0))
+    const dn   = roundUpNice(Math.max(...series.map(v => -v), 0))
+    const span = Math.max(up, dn, 1000)
+    const yMax = Math.max(up, roundUpNice(span * 0.12))
+    const yMin = -Math.max(dn, roundUpNice(span * 0.12))
+    // A padded (breathing-room-only) edge gets no label — it would crowd the 0.
+    const upPadded = yMax > up
+    const dnPadded = -yMin > dn
+    const color = SERIES_COLORS[def.key]
+    return {
+      ...def,
+      color,
+      latest: latest[def.field],
+      delta:  prev ? latest[def.field] - prev[def.field] : null,
+      chartData: {
+        labels,
+        datasets: [{
+          type:            'bar',
+          label:           def.label,
+          data:            series,
+          backgroundColor: color,
+          borderRadius:    2,
+          borderSkipped:   'start',
+          maxBarThickness: 20,
+          categoryPercentage: 0.82,
+          barPercentage:   0.86,
+        }],
+      },
+      chartOptions: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend:  { display: false },
+          tooltip: {
+            ...tooltipStyle,
+            callbacks: {
+              title: items => items[0]?.label || '',
+              label: ctx   => `  ${def.label}: ${fmtNum(ctx.raw)}`,
+              labelColor: () => ({ borderColor: color, backgroundColor: color, borderRadius: 2 }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid:   { display: false },
+            border: { display: false },
+            ticks:  { display: false },
+          },
+          y: {
+            min:      yMin,
+            max:      yMax,
+            afterFit: AXIS_FIT,
+            // Exactly three ticks — floor, zero, ceiling — so the gold zero
+            // line always renders even with asymmetric bounds.
+            afterBuildTicks: axis => {
+              axis.ticks = [yMin, 0, yMax].map(value => ({ value }))
+            },
+            grid: {
+              color: ctx => ctx.tick.value === 0 ? ZERO_LINE : GRID_FAINT,
+              lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
+            },
+            border: { display: false },
+            ticks:  {
+              color: AXIS_TEXT,
+              font:  { size: 10 },
+              callback: v => {
+                if ((v === yMax && upPadded) || (v === yMin && dnPadded)) return ''
+                return fmtNet(v)
+              },
+            },
           },
         },
       },
-    },
-    scales: {
-      x: {
-        grid:   { display: false },
-        border: { color: 'rgba(168, 162, 144, 0.15)' },
-        ticks:  { display: false },
-      },
-      y: {
-        min:      -netBound,
-        max:       netBound,
-        afterFit:  AXIS_FIT,
-        grid: {
-          color: ctx => ctx.tick.value === 0 ? ZERO_LINE : GRID_FAINT,
-          lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
-        },
-        border: { display: false },
-        ticks:  {
-          color: AXIS_TEXT,
-          font:  { size: 10 },
-          callback: v => v == null ? '' : v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
-        },
-      },
-    },
-  }
+    }
+  }) : []
 
   const oiData = hasData ? {
     labels,
@@ -603,54 +586,64 @@ export default function CotData() {
             {data !== null && ' — database may still be seeding'}
           </div>
         )}
-        {!loading && !error && netData && (
+        {!loading && !error && hasData && (
           <ChartErrorBoundary>
             <div className={styles.chartHeader}>
               <div className={styles.chartHeaderLeft}>
-                <div className={styles.eyebrow}>CFTC — Commitment of Traders</div>
+                <div className={styles.eyebrow}>Commitment of Traders</div>
                 <div className={styles.chartTitle}>
                   {SYMBOL_NAMES[symbol] || symbol}
                   <span className={styles.chartTitleSym}>{symbol}</span>
                 </div>
                 {latest && (
                   <div className={styles.chartSub}>
-                    Net positioning · latest report {fmtDate(latest.date)}
+                    Weekly net positioning by trader group · CFTC report {fmtDate(latest.date)}
                   </div>
                 )}
               </div>
-              <div className={styles.legendChips}>
-                {chips.map(c => (
-                  <div key={c.key} className={styles.chip}>
-                    <span
-                      className={styles.chipDot}
-                      style={{ background: SERIES_COLORS[c.key] }}
-                    />
-                    <div className={styles.chipBody}>
-                      <span className={styles.chipLabel}>{c.label}</span>
-                      <span className={styles.chipVal}>
-                        {c.compact ? fmtCompact(c.value) : fmtNum(c.value)}
-                        {c.delta != null && c.delta !== 0 && (
-                          <span className={c.delta > 0 ? styles.chipDeltaUp : styles.chipDeltaDown}>
-                            {c.delta > 0 ? '▲' : '▼'} {fmtCompact(Math.abs(c.delta))}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            </div>
+
+            <div className={styles.panesWrap}>
+              <div className={styles.watermark} aria-hidden="true">
+                <span className={styles.watermarkSym}>{symbol}</span>
+                <span className={styles.watermarkName}>
+                  {SYMBOL_NAMES[symbol] || symbol}
+                </span>
               </div>
-            </div>
 
-            <div className={styles.netPanel}>
-              <Chart type="bar" data={netData} options={netOptions} />
-            </div>
+              {panes.map(p => (
+                <div key={p.key} className={styles.pane}>
+                  <div className={styles.paneHeader}>
+                    <span className={styles.paneDot} style={{ background: p.color }} />
+                    <span className={styles.paneLabel}>{p.label}</span>
+                    <span className={styles.paneVal}>{fmtNum(p.latest)}</span>
+                    {p.delta != null && p.delta !== 0 && (
+                      <span className={p.delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown}>
+                        {p.delta > 0 ? '▲' : '▼'} {fmtCompact(Math.abs(p.delta))} wk
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.paneBody}>
+                    <Chart type="bar" data={p.chartData} options={p.chartOptions} />
+                  </div>
+                </div>
+              ))}
 
-            <div className={styles.oiHeader}>
-              <span className={styles.oiLabel}>Open Interest</span>
-              <span className={styles.oiNote}>total contracts outstanding</span>
-            </div>
-            <div className={styles.oiPanel}>
-              <Chart type="line" data={oiData} options={oiOptions} />
+              <div className={`${styles.pane} ${styles.paneOi}`}>
+                <div className={styles.paneHeader}>
+                  <span className={styles.paneDot} style={{ background: SERIES_COLORS.openInterest }} />
+                  <span className={styles.paneLabel}>Open Interest</span>
+                  <span className={styles.paneVal}>{fmtCompact(latest.open_interest)}</span>
+                  {prev && latest.open_interest !== prev.open_interest && (
+                    <span className={latest.open_interest > prev.open_interest ? styles.paneDeltaUp : styles.paneDeltaDown}>
+                      {latest.open_interest > prev.open_interest ? '▲' : '▼'} {fmtCompact(Math.abs(latest.open_interest - prev.open_interest))} wk
+                    </span>
+                  )}
+                </div>
+                <div className={styles.paneBody}>
+                  <Chart type="line" data={oiData} options={oiOptions} />
+                </div>
+              </div>
             </div>
           </ChartErrorBoundary>
         )}
