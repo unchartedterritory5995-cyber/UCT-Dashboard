@@ -34,6 +34,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
+import { resample } from '../utils/resampleBars'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
@@ -1819,6 +1820,24 @@ export default function StockChart({
   // warm switch paints on the first frame instead of flashing the loading
   // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
   const _memBars = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
+  // ticker whose Daily is already in the sync mem cache normally still costs a
+  // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
+  // synthesize W/M from the cached Daily and paint it on the FIRST frame; the
+  // normal SWR fetch then replaces it with authoritative server bars. The
+  // resampler mirrors the server's ISO-Friday / 1st-of-month bucketing exactly
+  // (cross-checked bar-for-bar vs prod), so the swap is seamless for the visible
+  // range. Only as the LAST fallback — real net/IDB/mem W/M data always wins — so
+  // this paints ONLY during the brief load window. Memoized on the Daily array
+  // identity so it doesn't churn updateChart every render.
+  const _dailyForAgg = (!_overrideArr && !barsOverridePending
+                        && (resolvedTf === 'W' || resolvedTf === 'M'))
+    ? memPeek(sym, 'D')
+    : null
+  const _aggBars = useMemo(
+    () => (_dailyForAgg ? resample(_dailyForAgg, 'D', resolvedTf) : null),
+    [_dailyForAgg, resolvedTf],
+  )
   const bars = _overrideArr
     ? barsOverride
     : (barsOverridePending
@@ -1829,7 +1848,9 @@ export default function StockChart({
                 ? idbBars
                 : (_netMatches
                     ? data.bars
-                    : (_memBars?.length ? _memBars : null)))))
+                    : (_memBars?.length
+                        ? _memBars
+                        : (_aggBars?.length ? _aggBars : null))))))
   const loading = !bars && !error
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted
