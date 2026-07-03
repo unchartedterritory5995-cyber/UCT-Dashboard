@@ -445,6 +445,23 @@ def main():
     _start_keepwarm()
     _start_memwatch()
 
+    # Boot fingerprint — one grep-able line so an operator can confirm which
+    # data-integrity guards are live in this worker deploy (mirrors the web's
+    # "[startup] chart-realtime-mode:" line). The R2 upload integrity gate
+    # (data_sync._assert_shippable_db) is THE guard that stops a corrupt/empty
+    # worker DB from poisoning the fleet's snapshot (2026-07-03 outage class);
+    # log its floor so "is the gate active + at what threshold" is answerable
+    # from the worker log alone.
+    try:
+        from api.services import data_sync as _ds_fp
+        log.info(
+            "worker-integrity: r2_upload_gate=on "
+            f"snapshot_min_ohlcv_rows={_ds_fp.SNAPSHOT_MIN_OHLCV_ROWS} "
+            "weekly_key_purge=on(boot,blocking) delta_gate=on"
+        )
+    except Exception as e:
+        log.warning(f"worker-integrity fingerprint failed (non-fatal): {e}")
+
     port = int(os.environ.get("PORT", "8080"))
     log.info(f"worker HTTP listening on :{port} (healthcheck only)")
     uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info")
