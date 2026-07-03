@@ -11,6 +11,7 @@ from api.services.awareness.rules import (
     compute_relevance_score,
     rule_stop_watch,
     rule_regime_flip,
+    rule_earnings_proximity,
 )
 
 
@@ -146,3 +147,41 @@ def test_regime_flip_silent_when_no_prior_label():
                                 "entry_price": 100.0, "stop_price": 90.0,
                                 "source": None}], "watch_syms": set()}
     assert rule_regime_flip(scan_ctx, user_ctx) == []
+
+
+# ── rule_earnings_proximity (R5) ─────────────────────────────────────────────
+
+def test_earnings_proximity_fires_for_owned_symbol_today():
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"AAPL": "2026-07-02"}}
+    user_ctx = {"positions": [{"symbol": "AAPL", "side": "Long",
+                                "entry_price": 190.0, "stop_price": 180.0,
+                                "source": None}], "watch_syms": set()}
+    out = rule_earnings_proximity(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "earnings_proximity"
+    assert out[0].dedup_key == "AAPL:earnings"
+    assert out[0].personal_multiplier == 1.4  # owned boost
+
+
+def test_earnings_proximity_fires_for_watched_symbol_within_window():
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"MSFT": "2026-07-04"}}  # +2 days
+    user_ctx = {"positions": [], "watch_syms": {"MSFT"}}
+    out = rule_earnings_proximity(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].personal_multiplier == 1.0  # watched, not owned
+
+
+def test_earnings_proximity_silent_outside_window():
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"MSFT": "2026-07-10"}}  # +8 days, past default 3-day window
+    user_ctx = {"positions": [], "watch_syms": {"MSFT"}}
+    assert rule_earnings_proximity(scan_ctx, user_ctx) == []
+
+
+def test_earnings_proximity_silent_for_untracked_symbol():
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"GOOG": "2026-07-02"}}
+    user_ctx = {"positions": [], "watch_syms": {"MSFT"}}  # GOOG not owned/watched
+    assert rule_earnings_proximity(scan_ctx, user_ctx) == []

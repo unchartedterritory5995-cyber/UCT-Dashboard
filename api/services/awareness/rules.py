@@ -135,3 +135,52 @@ def rule_regime_flip(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
         urgency=1.4,
         dedup_key=f"REGIME:{label}",
     )]
+
+
+EARNINGS_PROXIMITY_DEFAULT_DAYS = 3
+
+
+def rule_earnings_proximity(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
+    """R5: fires for any owned OR watched symbol reporting within the
+    proximity window. dedup_key is composite ("SYM:earnings") so it never
+    shares a cooldown with a stop-watch insight on the same symbol."""
+    out: list[InsightCandidate] = []
+    earnings_by_symbol: dict = scan_ctx.get("earnings_by_symbol") or {}
+    if not earnings_by_symbol:
+        return out
+
+    today = scan_ctx.get("today")
+    owned_syms = {(p.get("symbol") or "").upper()
+                  for p in (user_ctx.get("positions") or [])}
+    watch_syms = {s.upper() for s in (user_ctx.get("watch_syms") or set())}
+    mine = owned_syms | watch_syms
+
+    for sym in mine:
+        report_date_str = earnings_by_symbol.get(sym)
+        if not report_date_str:
+            continue
+        try:
+            report_date = date.fromisoformat(report_date_str)
+        except ValueError:
+            continue
+        days_out = (report_date - today).days
+        if days_out < 0 or days_out > EARNINGS_PROXIMITY_DEFAULT_DAYS:
+            continue
+
+        owned = sym in owned_syms
+        # base_signal scales inversely with days_out: today=1.0, floors at 0.3.
+        base_signal = max(0.3, 1.0 - 0.2 * days_out)
+        when = ("today" if days_out == 0 else
+                "tomorrow" if days_out == 1 else f"in {days_out} days")
+
+        out.append(InsightCandidate(
+            kind="earnings_proximity", symbol=sym,
+            headline=f"{sym} reports earnings {when}",
+            body=(f"{'You own' if owned else 'On your watchlist'}: {sym} is "
+                  f"scheduled to report on {report_date_str}."),
+            base_signal=base_signal,
+            personal_multiplier=1.4 if owned else 1.0,
+            urgency=1.5 if days_out == 0 else 1.0,
+            dedup_key=f"{sym}:earnings",
+        ))
+    return out
