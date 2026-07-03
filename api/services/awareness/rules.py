@@ -43,3 +43,60 @@ def compute_relevance_score(
     it's always a valid add_insight() importance value."""
     raw = float(base_signal) * float(personal_multiplier) * float(urgency) * 10.0
     return max(1, min(10, round(raw)))
+
+
+NEAR_STOP_PCT = 0.03  # 3% — R2 "nearing stop" threshold
+
+
+def _stop_distance_pct(side: str, price: float, stop: float) -> float:
+    """Positive = price hasn't reached the stop yet (as a % of price).
+    <= 0 means at or through the stop."""
+    if side == "Long":
+        return (price - stop) / price
+    return (stop - price) / price  # Short
+
+
+def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
+    """R1 (at/through stop) + R2 (nearing stop). Skips broker carried-in
+    positions whose stop is a NOT-NULL placeholder (stop_price==entry_price,
+    source=='broker') -- see journal_two/broker/balances.py."""
+    out: list[InsightCandidate] = []
+    live_prices: dict = scan_ctx.get("live_prices") or {}
+
+    for pos in user_ctx.get("positions") or []:
+        sym = (pos.get("symbol") or "").upper()
+        side = pos.get("side")
+        stop = pos.get("stop_price")
+        entry = pos.get("entry_price")
+        source = pos.get("source")
+        if not sym or side not in ("Long", "Short") or stop is None or entry is None:
+            continue
+        if source == "broker" and abs(float(stop) - float(entry)) < 1e-9:
+            continue  # placeholder stop -- nothing real to watch
+
+        price = live_prices.get(sym)
+        if not price or price <= 0:
+            continue  # no cached price this cycle -- never fetch per-position
+
+        distance_pct = _stop_distance_pct(side, float(price), float(stop))
+
+        if distance_pct <= 0:
+            out.append(InsightCandidate(
+                kind="stop_hit", symbol=sym,
+                headline=f"{sym} is AT or THROUGH its stop",
+                body=(f"{side} {sym}: stop {float(stop):.2f}, current price "
+                      f"{float(price):.2f}. Review the position now."),
+                base_signal=1.0, personal_multiplier=1.3, urgency=2.0,
+                dedup_key=sym,
+            ))
+        elif distance_pct <= NEAR_STOP_PCT:
+            base_signal = 0.4 + (1.0 - distance_pct / NEAR_STOP_PCT) * 0.3
+            out.append(InsightCandidate(
+                kind="stop_proximity", symbol=sym,
+                headline=f"{sym} is nearing its stop",
+                body=(f"{side} {sym}: stop {float(stop):.2f}, current price "
+                      f"{float(price):.2f} ({distance_pct * 100:.1f}% away)."),
+                base_signal=base_signal, personal_multiplier=1.2, urgency=1.3,
+                dedup_key=sym,
+            ))
+    return out
