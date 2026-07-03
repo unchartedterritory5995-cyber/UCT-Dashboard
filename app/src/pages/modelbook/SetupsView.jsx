@@ -536,19 +536,12 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   const [annotating, setAnnotating] = useState(false)
   const [draft, setDraft] = useState([])
   const [editing, setEditing] = useState(false)
-  // Setup vs Result get SEPARATE annotation sets (drawings_json vs
-  // result_drawings_json). `view` is the live toggle; `shownView` lags it so the
-  // outgoing set fades out before the incoming one fades in (a crossfade rather
-  // than a swap). Editing targets the live view's set.
+  // Setup vs Result can carry SEPARATE annotation sets (drawings_json vs
+  // result_drawings_json). The flip is an instant snap, so the annotation set
+  // switches with it immediately (no lagged crossfade) — a lag left the Result
+  // annotations (e.g. the "+308%" advance label) appearing ~½s after the flip.
   const [view, setView] = useState('setup')
-  const [shownView, setShownView] = useState('setup')
   const activeField = view === 'result' ? 'result_drawings_json' : 'drawings_json'
-  useEffect(() => {
-    if (annotating) { setShownView(view); return }
-    if (shownView === view) return
-    const t = setTimeout(() => setShownView(view), 280)
-    return () => clearTimeout(t)
-  }, [view, annotating, shownView])
   // Inline header "advance" blurb (e.g. "160% in 26 days"), admin-editable.
   const [advance, setAdvance] = useState(ex.advance_note || '')
   useEffect(() => { setAdvance(ex.advance_note || '') }, [ex.advance_note])
@@ -589,15 +582,14 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     patchExample({ watermark_x: x, watermark_y: y })
   }
   // Setup annotations PERSIST into the Result view — they stay anchored to their
-  // candles/prices and glide with the chart during the Setup⇄Result transition
-  // (they are not faded out or swapped). Any result-specific annotations layer
-  // additively on top once the Result view has settled.
+  // candles/prices. In the Result view any result-specific annotations layer
+  // additively on top, switched in immediately with the flip (keyed on `view`).
   const drawings = useMemo(() => {
     const setupD = boundHrays(parseDrawings(ex.drawings_json), ex.label_date)
-    if (shownView !== 'result') return setupD
+    if (view !== 'result') return setupD
     const resultD = boundHrays(parseDrawings(ex.result_drawings_json), ex.label_date)
     return resultD.length ? [...setupD, ...resultD] : setupD
-  }, [ex.drawings_json, ex.result_drawings_json, shownView, ex.label_date])
+  }, [ex.drawings_json, ex.result_drawings_json, view, ex.label_date])
   const priceLines = useMemo(() => {
     const lines = []
     if (ex.entry_price != null) lines.push({ price: ex.entry_price, color: ENTRY_COLOR, lineStyle: 2, title: `Entry $${Number(ex.entry_price).toFixed(2)}` })

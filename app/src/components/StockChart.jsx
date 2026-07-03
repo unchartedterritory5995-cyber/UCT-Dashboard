@@ -1931,7 +1931,12 @@ export default function StockChart({
   const _exKey = `${sym}_${resolvedTf}`
   {
     const prev = prevExactEndRef.current
-    if (exactDateRange && exitDate && prev && prev.key === _exKey && prev.end
+    // The shrink-hold exists ONLY to let outgoing candles glide off-screen during
+    // the animated flip. With instantFrameFlip there's no glide (we snap), so never
+    // engage it — otherwise it holds the wider slice, then a re-render releases it,
+    // which lands the view a beat AFTER the snap (the "moves ¼s later" glitch).
+    if (!instantFrameFlip
+        && exactDateRange && exitDate && prev && prev.key === _exKey && prev.end
         && String(prev.end) > String(exitDate)
         && (!sliceHoldRef.current || sliceHoldRef.current.key !== _exKey
             || String(sliceHoldRef.current.end) < String(prev.end))) {
