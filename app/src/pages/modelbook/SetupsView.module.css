@@ -150,6 +150,9 @@
   transition: background 0.12s, border-color 0.12s;
 }
 .railRow:hover { background: rgba(255, 255, 255, 0.035); }
+/* No lingering gold focus ring — arrow-key nav leaves DOM focus on the last
+   clicked row, and the active row's own gold highlight is the real indicator. */
+.railRow:focus-visible { outline: none; }
 .railRow + .railRow { border-top: 1px solid rgba(255, 255, 255, 0.045); }
 .railRowActive {
   background: rgba(201, 168, 76, 0.1);

@@ -1009,7 +1009,9 @@ export default function SetupsView({ onExit }) {
         ? visibleFlat[0]
         : visibleFlat[e.key === 'ArrowDown' ? Math.min(idx + 1, visibleFlat.length - 1) : Math.max(idx - 1, 0)]
       if (!next) return
-      setExMenuOpen(false)
+      // Keep the examples menu's open/closed state as-is: since the dropdown is a
+      // single element gated on `exMenuOpen && name === selectedName`, changing the
+      // selection makes it close under the old setup and re-open under the new one.
       setSelectedName(next.name)
       requestAnimationFrame(() => {
         document.querySelector(`[data-setup-name="${next.name}"]`)?.scrollIntoView({ block: 'nearest' })
