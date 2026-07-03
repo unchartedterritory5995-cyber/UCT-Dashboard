@@ -397,21 +397,25 @@ def audit_ticker(
         for row in cached_rows
     ]
 
-    # Holiday-Monday normalization for weekly bars: cache stores the dt
-    # of the FIRST trading day of the ISO week (so a week with Monday
-    # off — Labor Day, MLK Day, etc — is anchored at Tuesday). Canonical
-    # is normalized to ISO Monday in fetch_canonical_bars. Without this
-    # second-pass normalization, the audit cannot match those ~10
-    # holiday weeks per year and reports them as both bars_only_in_cache
-    # and bars_only_in_canonical even though the bar values are correct.
+    # Weekly key alignment: normalize each cached weekly row to the FRIDAY of
+    # its ISO week so it matches BOTH the canonical side (fetch_canonical_bars
+    # above normalizes Polygon's Sunday anchor to ISO Friday, line ~349) AND the
+    # live cache scheme (_resample_weekly_iso keys every weekly candle at the ISO
+    # Friday since commit e9c75603). The prior code re-keyed to ISO MONDAY here
+    # while canonical used Friday — so the two never lined up and EVERY weekly
+    # audit silently reported bars_compared:0 (and a reconciler run on 'W' would
+    # have seen all bars as diverged and could DELETE correct rows). Since the
+    # cache is already Friday-keyed this is idempotent for current rows and only
+    # corrects any legacy off-Friday row. This is the prerequisite that unblocks
+    # adding W to the continuous reconciler.
     if tf == "W":
         for b in cached:
             ts = int(b["t"])
             try:
                 dt = datetime.strptime(str(ts), "%Y%m%d")
                 iso_year, iso_week, _ = dt.isocalendar()
-                monday = datetime.fromisocalendar(iso_year, iso_week, 1)
-                b["t"] = int(monday.strftime("%Y%m%d"))
+                friday = datetime.fromisocalendar(iso_year, iso_week, 5)
+                b["t"] = int(friday.strftime("%Y%m%d"))
             except ValueError:
                 pass
 
