@@ -69,6 +69,18 @@ def get_earnings_table_endpoint(
         return {"ticker": s, "annual": [], "quarterly": []}
 
 
+@router.get("/api/admin/fundamentals-health")
+def fundamentals_health():
+    """Current state of the fundamentals-accuracy monitor (no auth — read-only).
+
+    Shows cycles run, tickers checked, cache entries auto-healed, the blank-sales
+    rate (legit for pre-revenue names — watch for a spike), and any tickers still
+    failing the widget invariants after self-heal (should be empty). A non-empty
+    `flagged_current` = a real regression to investigate."""
+    from api.services import fundamentals_monitor
+    return fundamentals_monitor.get_state()
+
+
 @router.get("/api/fundamentals/{ticker}")
 def get_fundamentals_endpoint(ticker: str):
     """Compact fundamentals for a ticker.
