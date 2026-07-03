@@ -10,6 +10,7 @@ from api.services.awareness.rules import (
     InsightCandidate,
     compute_relevance_score,
     rule_stop_watch,
+    rule_regime_flip,
 )
 
 
@@ -101,3 +102,47 @@ def test_stop_watch_skips_when_no_live_price_cached():
                                 "entry_price": 300.0, "stop_price": 280.0,
                                 "source": None}], "watch_syms": set()}
     assert rule_stop_watch(_scan({}), user_ctx) == []  # MSFT not cached this cycle
+
+
+# ── rule_regime_flip (R4) ────────────────────────────────────────────────────
+
+def test_regime_flip_fires_when_label_changed_and_user_has_positions():
+    scan_ctx = {"live_prices": {}, "earnings_by_symbol": {}, "today": date(2026, 7, 2),
+                "regime": {"label": "bear_trend", "prev_label": "bull_trend",
+                           "confidence": 0.7}}
+    user_ctx = {"positions": [{"symbol": "NVDA", "side": "Long",
+                                "entry_price": 100.0, "stop_price": 90.0,
+                                "source": None}], "watch_syms": set()}
+    out = rule_regime_flip(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "regime_flip"
+    assert out[0].dedup_key == "REGIME:bear_trend"
+
+
+def test_regime_flip_silent_when_label_unchanged():
+    scan_ctx = {"live_prices": {}, "earnings_by_symbol": {}, "today": date(2026, 7, 2),
+                "regime": {"label": "bull_trend", "prev_label": "bull_trend",
+                           "confidence": 0.7}}
+    user_ctx = {"positions": [{"symbol": "NVDA", "side": "Long",
+                                "entry_price": 100.0, "stop_price": 90.0,
+                                "source": None}], "watch_syms": set()}
+    assert rule_regime_flip(scan_ctx, user_ctx) == []
+
+
+def test_regime_flip_silent_for_user_with_nothing_at_stake():
+    scan_ctx = {"live_prices": {}, "earnings_by_symbol": {}, "today": date(2026, 7, 2),
+                "regime": {"label": "bear_trend", "prev_label": "bull_trend",
+                           "confidence": 0.7}}
+    user_ctx = {"positions": [], "watch_syms": set()}
+    assert rule_regime_flip(scan_ctx, user_ctx) == []
+
+
+def test_regime_flip_silent_when_no_prior_label():
+    # First-ever scan (empty regime_snapshots ledger) -- nothing to compare.
+    scan_ctx = {"live_prices": {}, "earnings_by_symbol": {}, "today": date(2026, 7, 2),
+                "regime": {"label": "bull_trend", "prev_label": None,
+                           "confidence": 0.7}}
+    user_ctx = {"positions": [{"symbol": "NVDA", "side": "Long",
+                                "entry_price": 100.0, "stop_price": 90.0,
+                                "source": None}], "watch_syms": set()}
+    assert rule_regime_flip(scan_ctx, user_ctx) == []

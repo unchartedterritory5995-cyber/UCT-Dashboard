@@ -100,3 +100,38 @@ def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
                 dedup_key=sym,
             ))
     return out
+
+
+def rule_regime_flip(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
+    """R4: fires once per (label, cycle) for any user with something at
+    stake (an open position or a watched symbol) -- an inactive account
+    with neither gets nothing. dedup_key is label-scoped (not per-user),
+    so add_insight's 6h per-symbol cooldown naturally suppresses repeat
+    firing for the SAME flip across scan cycles while allowing a genuine
+    flip-back-and-forth to re-fire (different label string)."""
+    regime = scan_ctx.get("regime") or {}
+    label = regime.get("label")
+    prev_label = regime.get("prev_label")
+    confidence = regime.get("confidence") or 0.5
+    if not label or not prev_label or label == prev_label:
+        return []
+
+    has_positions = bool(user_ctx.get("positions"))
+    has_watch = bool(user_ctx.get("watch_syms"))
+    if not has_positions and not has_watch:
+        return []
+
+    pretty_prev = prev_label.replace("_", " ")
+    pretty_new = label.replace("_", " ")
+    base_signal = 0.5 + 0.5 * min(1.0, max(0.0, float(confidence)))
+
+    return [InsightCandidate(
+        kind="regime_flip", symbol=None,
+        headline=f"Market regime flipped: {pretty_prev} → {pretty_new}",
+        body=(f"Confidence {float(confidence) * 100:.0f}%. Reassess exposure "
+              f"and setup selection for the new regime."),
+        base_signal=base_signal,
+        personal_multiplier=1.3 if has_positions else 1.0,
+        urgency=1.4,
+        dedup_key=f"REGIME:{label}",
+    )]
