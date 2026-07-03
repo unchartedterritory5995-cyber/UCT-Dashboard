@@ -809,7 +809,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotationsEditable={annotating}
           annotationsTextVisible={true}
           annotationsFadeWhole={false}
-          candleFrameFade={!annotating}
+          candleFrameFade={false}
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
           highlightBarTime={ex.label_date || null}
