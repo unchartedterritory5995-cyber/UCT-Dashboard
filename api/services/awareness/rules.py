@@ -87,7 +87,10 @@ def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
                 body=(f"{side} {sym}: stop {float(stop):.2f}, current price "
                       f"{float(price):.2f}. Review the position now."),
                 base_signal=1.0, personal_multiplier=1.3, urgency=2.0,
-                dedup_key=sym,
+                # Distinct cooldown namespace from stop_proximity: an earlier
+                # "nearing stop" warning must never swallow the THROUGH-the-stop
+                # escalation via add_insight's 6h per-symbol cooldown.
+                dedup_key=f"{sym}:stop_hit",
             ))
         elif distance_pct <= NEAR_STOP_PCT:
             base_signal = 0.4 + (1.0 - distance_pct / NEAR_STOP_PCT) * 0.3
@@ -97,7 +100,7 @@ def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
                 body=(f"{side} {sym}: stop {float(stop):.2f}, current price "
                       f"{float(price):.2f} ({distance_pct * 100:.1f}% away)."),
                 base_signal=base_signal, personal_multiplier=1.2, urgency=1.3,
-                dedup_key=sym,
+                dedup_key=f"{sym}:stop_near",
             ))
     return out
 
@@ -146,12 +149,17 @@ EARNINGS_PROXIMITY_DEFAULT_DAYS = 3
 def rule_earnings_proximity(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
     """R5: fires for any owned OR watched symbol reporting within the
     proximity window. dedup_key is composite ("SYM:earnings") so it never
-    shares a cooldown with a stop-watch insight on the same symbol."""
+    shares a cooldown with a stop-watch insight on the same symbol.
+
+    The window size comes from scan_ctx["earnings_window_days"] (set by
+    engine.py from AWARENESS_EARNINGS_PROXIMITY_DAYS) so the rule's cutoff
+    always matches the engine's collection window; falls back to the default."""
     out: list[InsightCandidate] = []
     earnings_by_symbol: dict = scan_ctx.get("earnings_by_symbol") or {}
     if not earnings_by_symbol:
         return out
 
+    window_days = scan_ctx.get("earnings_window_days", EARNINGS_PROXIMITY_DEFAULT_DAYS)
     today = scan_ctx.get("today")
     owned_syms = {(p.get("symbol") or "").upper()
                   for p in (user_ctx.get("positions") or [])}
@@ -167,7 +175,7 @@ def rule_earnings_proximity(scan_ctx: dict, user_ctx: dict) -> list[InsightCandi
         except ValueError:
             continue
         days_out = (report_date - today).days
-        if days_out < 0 or days_out > EARNINGS_PROXIMITY_DEFAULT_DAYS:
+        if days_out < 0 or days_out > window_days:
             continue
 
         owned = sym in owned_syms

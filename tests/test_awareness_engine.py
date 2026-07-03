@@ -215,6 +215,32 @@ def test_fire_candidate_no_delivery_below_importance_floor(db_path):
     deliver.assert_not_called()
 
 
+def test_fire_candidate_stop_hit_not_suppressed_by_prior_proximity_warning(db_path):
+    """A 'nearing stop' warning must NOT start the cooldown that swallows the
+    subsequent THROUGH-the-stop escalation -- the two stop kinds carry distinct
+    dedup namespaces (SYM:stop_near vs SYM:stop_hit)."""
+    from api.services.awareness import engine as eng
+    from api.services.awareness.rules import InsightCandidate
+    _seed_user("u7", "u7@x.com")
+
+    proximity = InsightCandidate(
+        kind="stop_proximity", symbol="NVDA", headline="NVDA is nearing its stop",
+        body="body", base_signal=0.6, personal_multiplier=1.2, urgency=1.3,
+        dedup_key="NVDA:stop_near",
+    )
+    stop_hit = InsightCandidate(
+        kind="stop_hit", symbol="NVDA", headline="NVDA is AT or THROUGH its stop",
+        body="body", base_signal=1.0, personal_multiplier=1.3, urgency=2.0,
+        dedup_key="NVDA:stop_hit",
+    )
+    with mock.patch("api.services.watchlist_alert_service.deliver_alert_payload"):
+        first = eng._fire_candidate("u7", proximity)
+        second = eng._fire_candidate("u7", stop_hit)  # escalation must land
+
+    assert first is True
+    assert second is True
+
+
 def test_fire_candidate_suppressed_by_cooldown_returns_false(db_path):
     from api.services.awareness import engine as eng
     from api.services.awareness.rules import InsightCandidate

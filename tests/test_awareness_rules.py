@@ -57,7 +57,7 @@ def test_stop_watch_fires_stop_hit_when_long_price_at_or_below_stop():
     out = rule_stop_watch(_scan({"NVDA": 88.0}), user_ctx)
     assert len(out) == 1
     assert out[0].kind == "stop_hit"
-    assert out[0].dedup_key == "NVDA"
+    assert out[0].dedup_key == "NVDA:stop_hit"
     assert out[0].base_signal == 1.0
 
 
@@ -69,6 +69,9 @@ def test_stop_watch_fires_stop_proximity_when_near():
     out = rule_stop_watch(_scan({"NVDA": 91.5}), user_ctx)
     assert len(out) == 1
     assert out[0].kind == "stop_proximity"
+    # Separate cooldown namespace from stop_hit -- a proximity warning must
+    # never start the 6h cooldown that would swallow the escalation.
+    assert out[0].dedup_key == "NVDA:stop_near"
 
 
 def test_stop_watch_silent_when_price_far_from_stop():
@@ -192,6 +195,19 @@ def test_earnings_proximity_silent_outside_window():
                 "earnings_by_symbol": {"MSFT": "2026-07-10"}}  # +8 days, past default 3-day window
     user_ctx = {"positions": [], "watch_syms": {"MSFT"}}
     assert rule_earnings_proximity(scan_ctx, user_ctx) == []
+
+
+def test_earnings_proximity_honors_scan_ctx_window_days():
+    # A widened window (engine sets earnings_window_days from
+    # AWARENESS_EARNINGS_PROXIMITY_DAYS) must reach past the default cutoff:
+    # +5 days is outside the default 3-day window but inside window=5.
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"MSFT": "2026-07-07"},  # +5 days
+                "earnings_window_days": 5}
+    user_ctx = {"positions": [], "watch_syms": {"MSFT"}}
+    out = rule_earnings_proximity(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "earnings_proximity"
 
 
 def test_earnings_proximity_silent_for_untracked_symbol():

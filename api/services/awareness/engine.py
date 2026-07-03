@@ -130,13 +130,19 @@ def _build_market_scan_ctx(user_ctxs: dict) -> dict:
         regime_snapshots.record_snapshot(label, confidence)
 
     today = date.today()
-    days = int(os.environ.get("AWARENESS_EARNINGS_PROXIMITY_DAYS", "3"))
+    try:
+        days = int(os.environ.get("AWARENESS_EARNINGS_PROXIMITY_DAYS", "3"))
+    except (ValueError, TypeError):
+        days = 3  # malformed env value must never kill the scan cycle
     earnings_by_symbol = _collect_earnings_window(today, days)
 
     return {
         "live_prices": live_prices,
         "regime": {"label": label, "confidence": confidence, "prev_label": prev_label},
         "earnings_by_symbol": earnings_by_symbol,
+        # rule_earnings_proximity reads this so its cutoff always matches the
+        # collection window above (env-tunable end to end, not half-wired).
+        "earnings_window_days": days,
         "today": today,
     }
 
@@ -187,9 +193,13 @@ def run_awareness_scan() -> dict:
     fired = 0
     for user_id, user_ctx in user_ctxs.items():
         candidates: list[InsightCandidate] = []
-        candidates += rules.rule_stop_watch(scan_ctx, user_ctx)
-        candidates += rules.rule_earnings_proximity(scan_ctx, user_ctx)
-        candidates += rules.rule_regime_flip(scan_ctx, user_ctx)
+        try:
+            candidates += rules.rule_stop_watch(scan_ctx, user_ctx)
+            candidates += rules.rule_earnings_proximity(scan_ctx, user_ctx)
+            candidates += rules.rule_regime_flip(scan_ctx, user_ctx)
+        except Exception as e:  # noqa: BLE001 — one user's bad data can't abort the rest
+            _log.warning("[awareness] rules failed user=%s: %s", user_id, e)
+            continue
         for candidate in candidates:
             try:
                 if _fire_candidate(user_id, candidate):
