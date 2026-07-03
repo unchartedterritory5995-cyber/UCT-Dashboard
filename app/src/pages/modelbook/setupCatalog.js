@@ -84,6 +84,15 @@ export const SETUP_CATALOG = [
     candles: [-1, 0.8, 8, 6, -3.5, -3, -2, 0.5, -0.4, [9, 0, 0.5]],
     emas: [9, 20, 50, 200],
   },
+  {
+    name: 'Cup & Handle',
+    family: 'Bases & Breakouts',
+    direction: 'long',
+    essence: 'A rounded, multi-week base (the cup) recovers to its prior high, then drifts into a shallow, low-volume pullback (the handle) — the breakout above the handle high resumes the advance.',
+    candles: [-5, -4, -1.5, 1.5, 4, 5, 4.5, -2, -1.5, [7, 0, 0.4]],
+    pivot: { idx: 6, side: 'h' },
+    emas: [20, 50],
+  },
 
   // ── Momentum & Trend ───────────────────────────────────────────────────────
   {

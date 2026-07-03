@@ -785,7 +785,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           markVolumeExtremes
           volumePaneHeightPct={12}
           volumeMa={50}
-          priceScaleTopMargin={0.12}
+          priceScaleTopMargin={0.04}
           priceScaleBottomMargin={0.07}
           watermarkOpacity={0.62}
           watermarkX={wmPos.x}
