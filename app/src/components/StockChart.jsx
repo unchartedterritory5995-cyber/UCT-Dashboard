@@ -4263,12 +4263,13 @@ export default function StockChart({
       if (focusRafRef.current != null) { cancelAnimationFrame(focusRafRef.current); focusRafRef.current = null }
       focusActiveRef.current = false
       focusRangeRef.current = null
-      // Compute the snapped frame's EDGE-TO-EDGE vertical (candle window + the same
-      // headroom the default autoscale applies) and pin it via the focus provider,
-      // so LWC settles to EXACTLY this range. Passing the identical range to the
-      // annotation overlay lets it place price-anchored lines at their correct
+      // Let the chart snap via DEFAULT autoscale (it settles in the first painted
+      // frame — pinning via the provider instead made LWC animate the price scale
+      // over ~1s). Separately compute that SAME edge-to-edge range and hand it to
+      // the annotation overlay so it places price-anchored lines at the correct
       // height in the same frame (LWC's own priceToCoordinate is async), then hand
-      // back seamlessly once LWC catches up.
+      // back seamlessly once LWC's mapping catches up (identical by construction).
+      focusPriceRangeRef.current = null
       const _ov = fitPriceToCandles ? null : overlayData
       const _tv = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
       const _mmI = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
@@ -4280,7 +4281,6 @@ export default function StockChart({
         const _R = (_raw.hi - _raw.lo) / (1 - _mt - _mb)
         targetVert = { lo: _raw.lo - _mb * _R, hi: _raw.hi + _mt * _R }
       }
-      focusPriceRangeRef.current = targetVert   // provider pins the chart to this exact range (null → default autoscale)
       applyYear()
       // Snap the price-anchored annotations to the same target range immediately.
       try { annRedrawRef.current?.(targetVert) } catch { /* overlay not mounted */ }
