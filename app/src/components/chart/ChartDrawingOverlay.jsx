@@ -680,6 +680,7 @@ export default function ChartDrawingOverlay({
   fontSize = 13,             // default size for new text annotations
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
+  redrawHandleRef = null,    // parent-held ref; the overlay assigns its redraw fn here so a chart snap (instant Setup⇄Result flip) can force the annotations to re-resolve to the NEW mapping in the same frame (no 1-frame position pop)
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -1222,6 +1223,11 @@ export default function ChartDrawingOverlay({
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
+  // Expose the redraw to the parent (StockChart) so it can force a re-resolve
+  // right after an instant frame snap, before paint — otherwise the overlay's own
+  // redraw ran with the pre-snap price mapping (child effects run before the
+  // parent's snap effect) and the lines flashed at the old positions for a frame.
+  if (redrawHandleRef) redrawHandleRef.current = () => redrawRef.current?.()
 
   // Trigger redraw when any drawing state changes
   useEffect(() => { redrawRef.current?.() }, [redraw])

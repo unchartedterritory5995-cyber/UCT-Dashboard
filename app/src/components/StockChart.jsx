@@ -1107,6 +1107,7 @@ export default function StockChart({
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
   const exactPinSigRef = useRef(null)     // `${sym}_${tf}|${entryDate}|${exitDate}` last pinned exact-range frame — a same-chart date change (Setup ⇄ Result flip) glides instead of snapping
+  const annRedrawRef = useRef(null)       // set by the annotation overlay; called right after an instant frame snap so the price-anchored lines re-resolve to the new mapping in the same frame (no 1-frame position pop)
   const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
@@ -4265,6 +4266,11 @@ export default function StockChart({
       focusPriceRangeRef.current = null
       focusRangeRef.current = null
       applyYear()
+      // Re-resolve the price-anchored annotations against the NOW-snapped mapping,
+      // in this same commit (before paint). The overlay's own redraw already ran
+      // with the pre-snap mapping (child effects fire before this parent effect),
+      // which flashed the lines at their old positions for one frame.
+      try { annRedrawRef.current?.() } catch { /* overlay not mounted */ }
       yearFramedRef.current = `${fk}:${filteredBars.length}`
       if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
       return
@@ -6122,6 +6128,7 @@ export default function StockChart({
             seriesRef={candleSeriesRef}
             bars={bars}
             hidePriceLabels
+            redrawHandleRef={annRedrawRef}
             textFadeRef={annotationsEditable ? null : textFadeRef}
             fadeWholeLayer={!annotationsEditable && annotationsFadeWhole}
             activeTool={annotationsEditable ? activeTool : null}
