@@ -588,10 +588,16 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     if (!isAdmin) return
     patchExample({ watermark_x: x, watermark_y: y })
   }
-  const drawings = useMemo(
-    () => boundHrays(parseDrawings(shownView === 'result' ? ex.result_drawings_json : ex.drawings_json), ex.label_date),
-    [ex.drawings_json, ex.result_drawings_json, shownView, ex.label_date],
-  )
+  // Setup annotations PERSIST into the Result view — they stay anchored to their
+  // candles/prices and glide with the chart during the Setup⇄Result transition
+  // (they are not faded out or swapped). Any result-specific annotations layer
+  // additively on top once the Result view has settled.
+  const drawings = useMemo(() => {
+    const setupD = boundHrays(parseDrawings(ex.drawings_json), ex.label_date)
+    if (shownView !== 'result') return setupD
+    const resultD = boundHrays(parseDrawings(ex.result_drawings_json), ex.label_date)
+    return resultD.length ? [...setupD, ...resultD] : setupD
+  }, [ex.drawings_json, ex.result_drawings_json, shownView, ex.label_date])
   const priceLines = useMemo(() => {
     const lines = []
     if (ex.entry_price != null) lines.push({ price: ex.entry_price, color: ENTRY_COLOR, lineStyle: 2, title: `Entry $${Number(ex.entry_price).toFixed(2)}` })
@@ -801,8 +807,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotations={annotating ? draft : (drawings.length ? drawings : null)}
           annotationsVisible={annotating || drawings.length > 0}
           annotationsEditable={annotating}
-          annotationsTextVisible={annotating || shownView === view}
-          annotationsFadeWhole={!annotating}
+          annotationsTextVisible={true}
+          annotationsFadeWhole={false}
           candleFrameFade={!annotating}
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
