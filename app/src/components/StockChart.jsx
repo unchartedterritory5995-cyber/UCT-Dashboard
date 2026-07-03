@@ -1106,6 +1106,7 @@ export default function StockChart({
   const focusProviderInstalledRef = useRef(false) // whether the candle series has the focus autoscale provider attached
   const textFadeRef = useRef(0)           // 0..1 opacity for setup TEXT annotations — driven by the focus zoom (Model Book): hidden zoomed out, eases in as it lands on a setup
   const exactPinSigRef = useRef(null)     // `${sym}_${tf}|${entryDate}|${exitDate}` last pinned exact-range frame — a same-chart date change (Setup ⇄ Result flip) glides instead of snapping
+  const preFlipRangeRef = useRef(null)    // {from,to} logical range captured in updateChart BEFORE the flip's setData — the Setup⇄Result glide starts from the REAL outgoing view (re-deriving it from dates snaps IPO-base frames, which begin before the first bar, to the left edge)
   const hadHighlightRef = useRef(false)   // whether a gold highlight bar is currently applied (so we only clear when needed)
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
@@ -3938,6 +3939,14 @@ export default function StockChart({
     // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
     let oldRange = null
     try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+    // Stash the outgoing view for the Setup⇄Result glide: it starts from this
+    // exact range instead of re-deriving it from dates (which snaps IPO-base
+    // frames — those begin before the first bar — to the left edge). Captured
+    // pre-setData; setData appends bars so existing indices don't shift, keeping
+    // this range valid as the glide's start. (exactDateRange = book/library charts.)
+    if (exactDateRange && oldRange && Number.isFinite(oldRange.from) && Number.isFinite(oldRange.to)) {
+      preFlipRangeRef.current = { from: oldRange.from, to: oldRange.to }
+    }
     const oldBarCount = lastBarCountRef.current
     if (zoomKeyRef.current !== zoomKey) {
       const isFirstLoad = zoomKeyRef.current === null
@@ -4305,27 +4314,35 @@ export default function StockChart({
       // never flashes. Skipped when a glide is already in flight (rapid flipping)
       // — then we glide from wherever the view currently is.
       if (!focusActiveRef.current) {
-        const [oldEntryRaw, oldExitRaw] = prevPinSig.slice(fk.length + 1).split('|')
-        const oLo = toMs(oldEntryRaw === 'null' ? null : oldEntryRaw)
-        const oHi = toMs(oldExitRaw === 'null' ? null : oldExitRaw)
-        let oS = Number.isNaN(oLo) ? 0 : filteredBars.findIndex(b => toMs(b.t) >= oLo)
-        if (oS < 0) oS = 0
-        // The outgoing frame may have started before the first bar (pre-IPO blank
-        // pad, e.g. CRWV's IPO-base setup view sits at a negative `from`). Start the
-        // glide from where the view ACTUALLY is, not a snapped bar 0 — otherwise the
-        // re-assert below jumps -N → 0 before the glide, glitching the transition.
-        if (!Number.isNaN(oLo) && oS === 0) {
-          oS = -leadingBlankBars(oLo, toMs(filteredBars[0].t), resolvedTf)
-        }
-        let oE = filteredBars.length - 1
-        if (!Number.isNaN(oHi)) {
-          for (let i = filteredBars.length - 1; i >= 0; i--) {
-            if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
+        // PREFERRED: start from the ACTUAL outgoing view captured pre-setData in
+        // updateChart. setData appends bars (indices unchanged), so this range is
+        // still valid — and unlike re-deriving from dates it never mishandles a
+        // frame that begins before the first bar (IPO base: the leading blank pad),
+        // which is what snapped the first candle to the left edge before the zoom.
+        const pr = preFlipRangeRef.current
+        if (pr && Number.isFinite(pr.from) && Number.isFinite(pr.to) && pr.to > pr.from) {
+          sRangeGlide = _padVert(_windowPriceRange(filteredBars, pr.from, pr.to, _glideOverlays))
+          try { chart.timeScale().setVisibleLogicalRange({ from: pr.from, to: pr.to }) } catch { /* mid-load */ }
+        } else {
+          // FALLBACK: re-derive the outgoing frame from its dates.
+          const [oldEntryRaw, oldExitRaw] = prevPinSig.slice(fk.length + 1).split('|')
+          const oLo = toMs(oldEntryRaw === 'null' ? null : oldEntryRaw)
+          const oHi = toMs(oldExitRaw === 'null' ? null : oldExitRaw)
+          let oS = Number.isNaN(oLo) ? 0 : filteredBars.findIndex(b => toMs(b.t) >= oLo)
+          if (oS < 0) oS = 0
+          if (!Number.isNaN(oLo) && oS === 0) {
+            oS = -leadingBlankBars(oLo, toMs(filteredBars[0].t), resolvedTf)
           }
+          let oE = filteredBars.length - 1
+          if (!Number.isNaN(oHi)) {
+            for (let i = filteredBars.length - 1; i >= 0; i--) {
+              if (toMs(filteredBars[i].t) <= oHi) { oE = i; break }
+            }
+          }
+          sRangeGlide = _padVert(_windowPriceRange(filteredBars, oS, oE, _glideOverlays))
+          const oPad = frameRightPadFrac > 0 ? Math.round((oE - oS) * frameRightPadFrac) : 0
+          if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE + oPad }) } catch { /* mid-load */ } }
         }
-        sRangeGlide = _padVert(_windowPriceRange(filteredBars, oS, oE, _glideOverlays))
-        const oPad = frameRightPadFrac > 0 ? Math.round((oE - oS) * frameRightPadFrac) : 0
-        if (oE > oS) { try { chart.timeScale().setVisibleLogicalRange({ from: oS, to: oE + oPad }) } catch { /* mid-load */ } }
       }
       focusActiveRef.current = true
       focusRangeRef.current = null
