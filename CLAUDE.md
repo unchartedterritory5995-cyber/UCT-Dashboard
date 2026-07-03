@@ -331,6 +331,36 @@ Plan: `docs/superpowers/plans/2026-07-02-compass-brain-bridge.md`.
   percent fractions, and the judge graded live numbers against its own memory
   instead of the fired tool results.)
 
+### grade_ticker — the unskippable verdict (Phase 2 · dark, flag-gated · 2026-07-02)
+The Phase-2 answer to the hedging above. `api/services/grade_ticker.py` is a pure
+orchestrator that composes the already-shipped tools into ONE decisive, tool-sourced
+verdict: `get_regime` (the gate) → `get_quote` → `find_patterns_on_ticker`
+(`detections[].levels{entry,stop,target_primary}` + confidence → grade) →
+`lookup_playbook` (win-rate/mistakes) → `brain_service.size_a_trade` (regime-scaled,
+2%-capped). It returns a typed `{verdict: GO|HOLD|SKIP, regime, setup, grade, entry,
+stop, size_pct, account_risk_pct, first_target, basis, hard_flags, sources}` — never
+null, never "it depends", never raises (`{ok: False, reason}` when the regime gate
+can't run).
+- **Decisiveness is STRUCTURAL, not prompted.** Deterministic hard-gates force the
+  verdict: `no_setup`/`regime_red`/`grade_below_b`/`risk_over_cap`/`size_skip` → SKIP;
+  `extended`/ORANGE/(YELLOW+B) → HOLD; else GO. The model narrates but can't hedge
+  (verdict is computed) or fabricate (every number is tool-sourced). `size_a_trade`'s
+  own `recommendation="SKIP"` (regime×grade table = do-not-size) is honored as `size_skip`.
+- **Registered in BOTH surfaces** behind `BRAIN_TOOLS_ENABLED` — voice (`voice_tool()` +
+  `voice_agents` union/core) and chat (`_BRAIN_TOOLS` in `coach_chat_tools.py`).
+- **Made unskippable by `§11 Verdict protocol`** appended to `MENTOR_TWO_LANE`
+  (`coach_prompts.py`, re-exported to voice) — gated by `COMPASS_MENTOR_MODE`: any
+  "call this trade / grade X / should I buy X" question MUST route through `grade_ticker`,
+  regime-first. Rungs 1–2 fact/craft questions never trigger it.
+- **The report-card golden set credits it:** `grade_ticker` was added to every Rung-3+
+  tool-gate OR-group it covers (one call satisfies regime+quote+playbook+sizing+verdict).
+- **DEPLOY GATE:** re-run the report card (`--rungs 3,4,5`) with the flags on — Rungs 3–5
+  must climb off the 0/10·0/7·0/13 baseline before `COMPASS_MENTOR_MODE` advances past
+  `admin`. Merged dark: the tool is live under `BRAIN_TOOLS_ENABLED` but the ENFORCED
+  verdict behavior is admin-only until the exam clears.
+  Spec: `docs/superpowers/specs/2026-07-02-compass-grade-ticker-verdict-design.md`;
+  plan: `docs/superpowers/plans/2026-07-02-compass-grade-ticker.md`.
+
 ## Awareness Engine — Milestone 1 (dark, flag-gated · 2026-07-02)
 
 Compass now *watches the market and speaks up first* — Milestone 1 of the
