@@ -4,7 +4,9 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
+import re
 import secrets
+import threading
 import time
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse, FileResponse
@@ -126,15 +128,13 @@ def _resolve_tts_params(user: dict, body: "TtsRequest"):
     return text, voice, speed, is_admin
 
 
-def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
-    """Return cached audio or a StreamingResponse that synthesizes + caches.
-    Long text is auto-chunked by the synth layer and streamed progressively, so
-    the browser starts playing the first chunk while later ones synthesize."""
-    text = normalize_for_speech(text)  # tickers/%/abbreviations → spoken form
-    cached = get_cached(text, voice=voice, speed=speed)
-    if cached is not None:
-        return Response(content=cached, media_type="audio/mpeg")
-
+def _stream_and_cache_response(text: str, voice: str, speed: float, user_id: int):
+    """StreamingResponse that synthesizes progressively (auto-chunked by the
+    synth layer) so the browser starts playing chunk 1 while later chunks
+    synthesize. Caches the finished clip ONLY on clean completion — a
+    mid-stream synth failure must never cache the truncated bytes, or every
+    future play of that text serves a clipped MP3 forever.
+    Expects already-normalized text."""
     # Pre-check OpenAI client config so we can return 503 BEFORE starting the stream.
     try:
         from api.services.voice_openai import _get_client
@@ -143,18 +143,20 @@ def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
         raise HTTPException(status_code=503, detail=str(e))
 
     accumulated = bytearray()
+    completed = threading.Event()
 
     def streamer():
         try:
             for chunk in synthesize_speech_stream(text, voice=voice, speed=speed):
                 accumulated.extend(chunk)
                 yield chunk
+            completed.set()
         except Exception as e:
             _log.exception("voice synth streaming failed: %s", e)
             # Stream truncates; browser <audio> shows error. Nothing more we can do mid-stream.
 
     def on_complete():
-        if accumulated:
+        if completed.is_set() and accumulated:
             put_cached(text, voice, speed, bytes(accumulated))
             record_mode_a_seconds(user_id, _estimate_seconds(text, speed))
 
@@ -163,6 +165,15 @@ def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
         media_type="audio/mpeg",
         background=BackgroundTask(on_complete),
     )
+
+
+def _tts_audio_response(text: str, voice: str, speed: float, user_id: int):
+    """Return cached audio or a StreamingResponse that synthesizes + caches."""
+    text = normalize_for_speech(text)  # tickers/%/abbreviations → spoken form
+    cached = get_cached(text, voice=voice, speed=speed)
+    if cached is not None:
+        return Response(content=cached, media_type="audio/mpeg")
+    return _stream_and_cache_response(text, voice, speed, user_id)
 
 
 @router.post("/tts")
@@ -231,6 +242,18 @@ def tts_stream(request: Request, token: str, user: dict = Depends(requires_voice
     # range requests → the <audio> element is seekable (scrub / fast-forward).
     path = cached_file_path(text, voice=voice, speed=speed)
     if path is None:
+        # Cold miss. A first play (no Range header, or Chrome's opening
+        # "bytes=0-") must stream progressively — synthesizing the whole clip
+        # before the first byte leaves Cloudflare staring at a silent response
+        # that 524s after 100s, so long uncached clips (UCT 20 picks) hard-
+        # failed or took minutes to start. Only a real mid-file seek
+        # (start > 0) needs the synthesize-everything-then-serve-file path.
+        range_header = request.headers.get("range", "")
+        m = re.match(r"bytes=(\d+)-", range_header)
+        seek_start = int(m.group(1)) if m else 0
+        if not range_header or seek_start == 0:
+            return _stream_and_cache_response(text, voice, speed, user["id"])
+
         # Synthesize the whole clip (auto-chunked), cache it, then serve the file.
         try:
             audio = synthesize_speech(text, voice=voice, speed=speed)

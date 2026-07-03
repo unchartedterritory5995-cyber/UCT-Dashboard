@@ -86,13 +86,17 @@ def test_tts_rejects_empty_text(client):
 
 
 def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypatch):
-    """The flow: POST /prepare -> token, GET /stream?token -> SEEKABLE audio file."""
+    """The flow: POST /prepare -> token, GET /stream?token -> audio. The cold
+    first GET streams progressively; the second serves the cached SEEKABLE file."""
     monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
     _login(client, plan="pro")
     fake_audio = b"\xFF\xFB\x90\x00STREAMED"
     fake_client = object()
     with patch("api.services.voice_openai._get_client", return_value=fake_client), \
-         patch("api.routers.voice.synthesize_speech", return_value=fake_audio) as synth:
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ) as synth:
         long_rundown = ("Markets are moving today. " * 500).strip()  # ~12k chars
         p = client.post("/api/voice/tts/prepare", json={"text": long_rundown})
         assert p.status_code == 200
@@ -104,11 +108,82 @@ def test_tts_prepare_returns_token_then_stream_plays(client, tmp_path, monkeypat
         s2 = client.get(f"/api/voice/tts/stream?token={token}")
     assert s.status_code == 200
     assert s.headers["content-type"].startswith("audio/mpeg")
-    # FileResponse advertises range support so the player can scrub/fast-forward.
-    assert s.headers.get("accept-ranges") == "bytes"
     assert s.content == fake_audio
     assert s2.content == fake_audio
+    # FileResponse advertises range support so the player can scrub/fast-forward.
+    assert s2.headers.get("accept-ranges") == "bytes"
     assert synth.call_count == 1  # cached on the second hit
+
+
+def test_tts_stream_cold_miss_streams_progressively(client, tmp_path, monkeypatch):
+    """Cold cache: /stream must NOT synthesize the whole clip before sending the
+    first byte — behind Cloudflare a silent >100s response gets 524'd, so long
+    uncached clips (UCT 20 picks) hard-failed or took minutes to start. It must
+    stream progressively via synthesize_speech_stream, then cache the finished
+    clip so the NEXT request is a seekable file."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"\xFF\xFB\x90\x00PROGRESSIVE"
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.synthesize_speech") as full_synth, \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ) as stream_synth:
+        token = client.post("/api/voice/tts/prepare", json={"text": "cold uct20 pick"}).json()["token"]
+        s = client.get(f"/api/voice/tts/stream?token={token}")
+        s2 = client.get(f"/api/voice/tts/stream?token={token}")
+    assert s.status_code == 200
+    assert s.content == fake_audio
+    full_synth.assert_not_called()  # the blocking whole-clip synth must not run
+    assert stream_synth.call_count == 1  # second request served from cache
+    assert s2.content == fake_audio
+    assert s2.headers.get("accept-ranges") == "bytes"  # replay/seek is a real file
+
+
+def test_tts_stream_chrome_initial_range_streams_progressively(client, tmp_path, monkeypatch):
+    """Chrome sends 'Range: bytes=0-' on the FIRST media request. That must take
+    the progressive path too — only a real mid-file seek (start > 0) needs the
+    synthesize-everything path."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    fake_audio = b"\xFF\xFB\x90\x00CHROME"
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.synthesize_speech") as full_synth, \
+         patch(
+             "api.routers.voice.synthesize_speech_stream",
+             side_effect=lambda *a, **k: iter([fake_audio]),
+         ):
+        token = client.post("/api/voice/tts/prepare", json={"text": "chrome range zero"}).json()["token"]
+        s = client.get(f"/api/voice/tts/stream?token={token}", headers={"Range": "bytes=0-"})
+    assert s.status_code == 200
+    assert s.content == fake_audio
+    full_synth.assert_not_called()
+
+
+def test_tts_stream_failed_synth_does_not_cache_partial_audio(client, tmp_path, monkeypatch):
+    """If synthesis dies mid-stream, the truncated bytes must NOT be cached —
+    otherwise every future play of that text serves a clipped MP3 forever."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    calls = {"n": 0}
+
+    def flaky_stream(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            def gen():
+                yield b"PART"
+                raise RuntimeError("synth died mid-clip")
+            return gen()
+        return iter([b"\xFF\xFB\x90\x00FULLCLIP"])
+
+    with patch("api.services.voice_openai._get_client", return_value=object()), \
+         patch("api.routers.voice.synthesize_speech_stream", side_effect=flaky_stream):
+        token = client.post("/api/voice/tts/prepare", json={"text": "flaky clip"}).json()["token"]
+        client.get(f"/api/voice/tts/stream?token={token}")  # truncated stream
+        s2 = client.get(f"/api/voice/tts/stream?token={token}")
+    assert calls["n"] == 2  # second request re-synthesized instead of serving the stump
+    assert s2.content == b"\xFF\xFB\x90\x00FULLCLIP"
 
 
 def test_tts_stream_supports_range_requests(client, tmp_path, monkeypatch):
