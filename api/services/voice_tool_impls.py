@@ -33,9 +33,10 @@ def _breadth() -> dict:
 
 
 def _sector_flow() -> list[dict]:
-    """Return list of {sector, change_pct (float)} sorted by strength.
-    Falls back to themes leaders if no dedicated endpoint.
-    change_pct is always parsed to a float so callers can compare numerically."""
+    """Return list of {sector, change_pct (float)} sorted by strength, from
+    real SPDR sector-ETF returns (api.services.sector_strength). No theme
+    fallback — an empty list means sector data is genuinely unavailable, and
+    callers must treat it that way rather than substituting theme leaders."""
     def _to_float(v) -> float:
         if v is None:
             return 0.0
@@ -48,15 +49,13 @@ def _sector_flow() -> list[dict]:
             return 0.0
 
     try:
-        from api.services.rs_ranking import get_sector_strength as _sec
+        from api.services.sector_strength import get_sector_strength as _sec
         raw = _sec() or []
-        return [{"sector": s.get("sector") or s.get("name"),
-                 "change_pct": _to_float(s.get("change_pct") or s.get("pct"))} for s in raw]
-    except (ImportError, AttributeError):
-        from api.services.engine import get_themes
-        themes = get_themes() or {}
-        leaders = (themes.get("leaders") or [])[:5]
-        return [{"sector": t.get("name"), "change_pct": _to_float(t.get("pct"))} for t in leaders]
+    except Exception:
+        _log.exception("[voice] _sector_flow failed")
+        return []
+    return [{"sector": s.get("sector"), "change_pct": _to_float(s.get("change_pct"))}
+            for s in raw]
 
 
 # ── Indirections (set 2) ────────────────────────────────────────────────────

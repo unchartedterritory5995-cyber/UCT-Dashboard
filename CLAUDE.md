@@ -1888,6 +1888,15 @@ scale win is about not fanning out per-user work.
   remove. `useMobileSWR` pauses polling on hidden tabs; JournalSnapshotTile + the discipline
   poll (20s) use it. Model Book no longer prefetches every stock's detail/earnings across ALL
   years on load (168→144 requests).
+- **SSE connection pooling (2026-07-02):** all `useRealtimePrices` instances share
+  ONE browser-wide EventSource pool (`app/src/lib/priceStreamManager.js` — ticker
+  union, ≤50/bucket mirroring `stream.py MAX_SSE_TICKERS`, 400ms debounced
+  reconnect on union change, per-bucket backoff+watchdog, candle events applied
+  once). Was 4-8 connections/user (dashboard mounts desktop+mobile layouts
+  simultaneously) = 4-8 server stream loops each. KILL-SWITCH: in DevTools run
+  `localStorage.setItem('uct.ssePool.disabled','1')` + refresh → legacy
+  per-instance connections (kept verbatim in `useRealtimePrices.js`). Remove the
+  legacy path only after weeks of green prod.
 - **WAL** is on for auth.db / bars.db / cot.db / breadth_monitor.db. Web `busy_timeout` is
   deliberately LOW (2s on bars; auth.db still 10s — a KNOWN remaining risk, see memory).
 - **Down-alert monitor** (`worker_main._down_alert_decision`): worker keep-warm pings the

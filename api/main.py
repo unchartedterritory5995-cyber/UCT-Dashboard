@@ -1395,6 +1395,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] weekly_close_date_heal error (non-fatal): {e}")
 
+    # ── Weekly key purge (content-based, EVERY boot) ─────────────────────────
+    # The flag-gated heal above ran once per volume — but the worker's bars.db
+    # never ran it (worker_main doesn't execute this lifespan), so its R2
+    # snapshots kept the old Monday-keyed weekly rows and force_resync restored
+    # them onto the web pod with the flag file blocking a re-heal (observed
+    # 2026-07-02: every week duplicated product-wide). This purge is keyed on
+    # CONTENT (a weekly row not dated the Friday of its ISO week is always
+    # stale), idempotent, and ~ms on a clean DB — safe to run every startup.
+    try:
+        from api.services import bars_sqlite as _wk_bs
+        _wk_deleted = _wk_bs.purge_mis_keyed_weekly_rows()
+        if _wk_deleted:
+            from api.services.cache import cache as _wk_mem
+            _wk_mem.delete_prefix("bars_")
+            print(f"[startup] weekly_key_purge: removed {_wk_deleted} mis-keyed weekly rows")
+    except Exception as e:
+        print(f"[startup] weekly_key_purge error (non-fatal): {e}")
+
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
     print(

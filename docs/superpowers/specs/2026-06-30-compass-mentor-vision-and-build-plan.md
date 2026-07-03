@@ -1,7 +1,7 @@
 # Compass → World-Class Swing-Trading Mentor — Vision & Build Plan
 
 **Status:** Living document · **Started:** 2026-06-30 · **Owner:** Patrick Gosz
-**How to read this:** Sections 1–3 are the *vision* (plain language). Sections 4–6 are the *architecture and plan* (plain language first, with real file names so it's buildable). Section 7 is the *build process*. Sections 8–9 are *open ideas* and *decisions locked so far*. Nothing here is built yet — this is the north star we build against.
+**How to read this:** Sections 1–3 are the *vision* (plain language). Sections 4–6 are the *architecture and plan* (plain language first, with real file names so it's buildable). Section 7 is the *build process*. Sections 8–9 are *open ideas* and *decisions locked so far*. Section 11 is the **status ledger** — what has actually shipped against this plan.
 
 ---
 
@@ -184,10 +184,10 @@ Rungs 1–2 = T0–T2, Rung 3 = T2, Rungs 4–5 = T3. The **T3 engine** (`api/se
 
 Effort is relative (S/M/L/XL) — shape and dependencies, not a schedule. Every phase merges *flag-off* and climbs the rollout ladder (§7).
 
-- **Phase 0 — Stop the silence & the parroting** *(S–M, do first, highest ROI).* Fix the silence bug in `realtimeEventHandlers.js` (still uses old *beta* OpenAI event names after the app moved to the new *GA* endpoints → tool results never round-trip → voice goes silent; blocks everything). Fix the `{ok}` envelope in `voice_dispatch.py`. **Milestone:** talk locally → tool runs → spoken answer. Also proves the whole dev→flag→rollout loop on something tiny.
-- **Phase 1 — Bridge the brain to the cloud** *(L–XL, the crown-jewels lift).* Add the env override + nightly **Brain Pack** export over the R2 rail; **light up `intelligence.py`**; build `brain_service.py` and wire structured tools (`lookup_playbook`, `size_a_trade`, `setup_winrate`) then `ask_the_brain` + the semantic index. **Milestone:** in production, an admin gets a real graded answer from the 3,700-entry KB. *(Patrick pastes `ANTHROPIC_API_KEY` into Railway.)*
-- **Phase 2 — Make it a mentor** *(M–L).* Ship the two-lane persona rewrite, wire the 6-step chain as an enforced scaffold, repair orphaned/stub tools, reach voice↔text parity, stand up the **report card** and gate deploys on it. **Milestone:** the eval set clears the bar; a beta cohort uses it for a week with positive feedback.
-- **Phase 3 — Maximum agentic + full awareness** *(L–XL).* Build the Planner–Executor engine + async voice ack/deliver + plan-level one-shot confirm; turn on and sharpen the **Awareness Engine**; wire the untapped dashboard engines (Model Book, real Pre-Trade Verdict, GEX, tilt interventions, earnings recaps); add web-push. Hard budgets land here (steps-per-task + tasks-per-user-per-day caps, global daily circuit-breaker, per-user token meter). **Milestone:** Compass completes a real multi-step job end-to-end within cost caps, and watches stops/earnings/regime for a cohort.
+- ✅ **SHIPPED 2026-07-01** · **Phase 0 — Stop the silence & the parroting** *(S–M, do first, highest ROI).* Fix the silence bug in `realtimeEventHandlers.js` (still uses old *beta* OpenAI event names after the app moved to the new *GA* endpoints → tool results never round-trip → voice goes silent; blocks everything). Fix the `{ok}` envelope in `voice_dispatch.py`. **Milestone:** talk locally → tool runs → spoken answer. Also proves the whole dev→flag→rollout loop on something tiny.
+- ✅ **SHIPPED 2026-07-02 (live in prod)** · **Phase 1 — Bridge the brain to the cloud** *(L–XL, the crown-jewels lift).* Add the env override + nightly **Brain Pack** export over the R2 rail; **light up `intelligence.py`**; build `brain_service.py` and wire structured tools (`lookup_playbook`, `size_a_trade`, `setup_winrate`) then `ask_the_brain` + the semantic index. **Milestone:** in production, an admin gets a real graded answer from the 3,700-entry KB. *(Patrick pastes `ANTHROPIC_API_KEY` into Railway.)*
+- 🟡 **PARTIAL** (two-lane persona shipped voice 7/01 + text 7/02; report card RUNNABLE 7/02; stub-tool repair + 6-step scaffold remain) · **Phase 2 — Make it a mentor** *(M–L).* Ship the two-lane persona rewrite, wire the 6-step chain as an enforced scaffold, repair orphaned/stub tools, reach voice↔text parity, stand up the **report card** and gate deploys on it. **Milestone:** the eval set clears the bar; a beta cohort uses it for a week with positive feedback.
+- 🟡 **STARTED** (Awareness Engine M1 planning 7/02) · **Phase 3 — Maximum agentic + full awareness** *(L–XL).* Build the Planner–Executor engine + async voice ack/deliver + plan-level one-shot confirm; turn on and sharpen the **Awareness Engine**; wire the untapped dashboard engines (Model Book, real Pre-Trade Verdict, GEX, tilt interventions, earnings recaps); add web-push. Hard budgets land here (steps-per-task + tasks-per-user-per-day caps, global daily circuit-breaker, per-user token meter). **Milestone:** Compass completes a real multi-step job end-to-end within cost caps, and watches stops/earnings/regime for a cohort.
 
 *Chart/screenshot reading (multimodal "grade this chart") lands in Phase 2–3 — after the foundation, per owner decision.*
 
@@ -261,3 +261,14 @@ Effort is relative (S/M/L/XL) — shape and dependencies, not a schedule. Every 
 4. **Stand up the report card v1** (a first golden set + the four-axis rubric) so every change from here is graded before subscribers see it.
 
 *This is a living plan — we iterate on it as each milestone lands.*
+
+---
+
+## 11. Status Ledger (living)
+
+- **2026-07-01 — Phase 0 shipped**: voice silence fix (beta→GA Realtime events), `{ok}` envelope, visible error states, lean tool set; two-lane persona (voice) behind `COMPASS_MENTOR_MODE=1|admin`.
+- **2026-07-02 — Phase 1 SHIPPED & LIVE**: nightly Brain Pack (PC Task Scheduler "UCT Brain Pack Export", weekdays 21:00 → R2 → `/data/brain`); `intelligence.py` lit; `brain_service.py` + `brain_kb_service.py` (semantic index — 8,660 chunks indexed in prod in 86s on first boot); `ask_the_brain` + `lookup_playbook` + `setup_winrate` + `find_historical_analogs` + `size_a_trade` in BOTH voice and chat, + chat parity `get_quote`/`get_regime`/`get_breadth`/`get_movers`/earnings tools. Flags ON in prod: `BRAIN_PACK_ENABLED`, `UCT_INTEL_PATH=/data/brain`, `BRAIN_TOOLS_ENABLED`. (Note: the KB grew — 8,532 entries at ship time, not the 3,700 this doc cites.)
+- **2026-07-02 — Report card RUNNABLE**: `api/services/compass_eval/` (50-question golden set, mechanical checks, Haiku judge, score store) + `scripts/run_report_card.py` (exit 1 = deploy gate). Baseline v1 ran end-to-end; enrichment fix + baseline v2 in progress. Known-by-design chat gaps R1-06/R1-07 closed same day.
+- **2026-07-02 — Two-lane persona reaches TEXT chat** (same `COMPASS_MENTOR_MODE` gates, fail-closed admin check); voice output verified byte-identical.
+- **2026-07-02 — Phase 3 started**: Awareness Engine M1 (stops + earnings-proximity + regime-flip) recon complete, plan in progress on `feat/awareness-engine-m1`; will require un-pausing `COMPASS_AUTOMATION_ENABLED` + new `AWARENESS_ENGINE_ENABLED`.
+- **Remaining from Phase 2**: repair orphaned/stub voice tools (audit in progress), 6-step chain as an enforced scaffold, report-card bar as a hard merge gate.
