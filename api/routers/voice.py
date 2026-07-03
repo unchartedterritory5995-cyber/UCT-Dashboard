@@ -4,6 +4,7 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
+import os
 import re
 import secrets
 import threading
