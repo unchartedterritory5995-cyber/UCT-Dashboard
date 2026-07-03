@@ -167,3 +167,41 @@ def test_regime_substring_red_does_not_false_trigger():
               "result": {"note": "credit conditions improving, predicted GREEN"}}]
     out = checks.run_mechanical_checks(_t("Plenty of setups working today.", fired, q))
     assert "trade_in_red_no_exposure_first" not in out["auto_fails"]
+
+
+def test_round_dollar_price_without_tool_flags():
+    # A round $-prefixed price ("$150") outside sizing/risk context is still
+    # a quoted price and must be tool-sourced — the integer-dollar exemption
+    # must not swallow this class.
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t("NVDA is around $150 today.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+
+
+def test_round_dollar_sizing_context_still_exempt():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "Risk no more than $1,000 on this position.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_comma_bare_number_flags_fabrication():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "the index closed at 1,234.56 today.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+
+
+def test_percent_and_r_multiple_regression_still_exempt():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t("down 1.53% on the day", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+    out2 = checks.run_mechanical_checks(_t("2R target", [], q))
+    assert "price_without_tool" not in out2["auto_fails"]
+
+
+def test_tool_sourced_price_still_passes_after_fix():
+    q = _q(forbidden=["price_without_tool"])
+    fired = [{"name": "get_quote", "args": {}, "result": {"last": 194.83}}]
+    out = checks.run_mechanical_checks(_t("It's at $194.83.", fired, q))
+    assert "price_without_tool" not in out["auto_fails"]

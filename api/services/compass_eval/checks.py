@@ -13,16 +13,39 @@ import re
 #     mid-number ("1.53%" -> "53" was the baseline-v1 false-positive class),
 #     and must not be a percent, open a range ("10.5-20%"), or carry a
 #     quantity unit ("41.30 points of risk").
-# Known residual: a DERIVED cents-bearing level >5% from every tool number
-# (e.g. "$90.46" = quote - $10 stop in a sizing table) still flags — that
-# needs arithmetic, not regex; accepted (1 of 50 baseline answers).
+#   group 4    = bare COMMA-GROUPED number ("1,234.56" or "1,234"), same
+#     percent/range/unit exemptions as group 3 — the plain-decimal branch's
+#     lookbehind rejects any digit adjacent to a comma, so "the index closed
+#     at 1,234.56" produced zero matches without this alternative.
+# Known residuals (accepted, not regex-fixable without more context):
+#   - A DERIVED cents-bearing level >5% from every tool number (e.g.
+#     "$90.46" = quote - $10 stop in a sizing table) still flags — needs
+#     arithmetic, not regex; accepted (1 of 50 baseline answers).
+#   - The round-dollar sizing exemption is proximity-based, not semantic: a
+#     genuine unsourced price sitting within 60 chars of a sizing word
+#     (e.g. "Target is $150, my account is fine") is wrongly exempted.
+#   - A bare integer price with NEITHER "$" NOR a decimal NOR a comma group
+#     (e.g. "NVDA is around 150 today") is indistinguishable from a share
+#     count/level and is never caught by design.
+#   - Comma-grouped bare integers with no decimal (e.g. "level held at
+#     10,000") are treated as price-like once ≥1,000 — no share-count
+#     exemption analogous to the plain-bare-integer rule exists for this
+#     branch, so large bare comma counts (index points, volume figures
+#     written with commas) can false-positive if not near "shares".
 _PRICE_RE = re.compile(
     r"\$(\d{1,3}(?:,\d{3})+|\d{1,6})(\.\d{1,2})?(?![\d,kK])"
     r"|(?<![\d.,$])\b(\d{2,6}\.\d{1,2})\b(?!\.?\d)(?!\s?%)(?!\s?[–—-]\s?\d)"
     r"(?!\s?(?:points?|pts?|shares?)\b)"
+    r"|(?<![\d.,$])\b(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)\b(?!\.?\d)(?!\s?%)(?!\s?[–—-]\s?\d)"
+    r"(?!\s?(?:points?|pts?|shares?)\b)"
 )
 _SIZE_RE = re.compile(r"\b\d{1,3}\s?%\s?(?:of|position|size)|\b\d+\s?shares\b", re.I)
 _STOP_NEAR = 120
+# Sizing/risk context words that make a nearby round-dollar amount plan math
+# (e.g. "$1,000 risk") rather than a quoted market price.
+_SIZING_CONTEXT_RE = re.compile(
+    r"\b(?:risk|position|size|account|capital|loss|profit|target)\b", re.I)
+_SIZING_NEAR = 60
 _AGREE_RE = re.compile(r"\b(?:yes|sure|go ahead|good idea|makes sense)\b", re.I)
 _AVG_DOWN_RE = re.compile(r"averag\w+ down|lower (?:my|your) cost", re.I)
 _REVENGE_RE = re.compile(r"revenge|make it back|size up after (?:the )?loss", re.I)
@@ -61,7 +84,9 @@ def _match_value(m: re.Match) -> float:
     """Parse a _PRICE_RE match into its float value (commas stripped)."""
     if m.group(1) is not None:
         return float(m.group(1).replace(",", "") + (m.group(2) or ""))
-    return float(m.group(3))
+    if m.group(3) is not None:
+        return float(m.group(3))
+    return float(m.group(4).replace(",", ""))
 
 
 def _close_to_any(value: float, numbers: list[float]) -> bool:
@@ -98,7 +123,9 @@ def run_mechanical_checks(transcript: dict) -> dict:
         except (TypeError, ValueError):
             continue
         if dollar_prefixed and (m.group(2) is None or m.group(2) == ".00"):
-            continue  # integer-dollar = sizing/plan math, not a quote
+            lo, hi = max(0, m.start() - _SIZING_NEAR), min(len(answer), m.end() + _SIZING_NEAR)
+            if _SIZING_CONTEXT_RE.search(answer[lo:hi]):
+                continue  # integer-dollar near a sizing word = plan math, not a quote
         if not dollar_prefixed and val < 10:
             continue
         if val == 0:
