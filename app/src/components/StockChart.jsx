@@ -583,6 +583,7 @@ export default function StockChart({
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
   candleFrameFade = false,  // Setup Library: when exitDate moves (Setup⇄Result), crossfade the candles PAST the highlighted setup day in/out instead of popping them
+  instantFrameFlip = false, // exactDateRange only: a frame change (Setup⇄Result) SNAPS to the new frame instead of gliding — an instant cut, like loading a fresh chart
   fitPriceToCandles = false, // price scale fits the CANDLES only — MA overlays don't expand it (they clip off-screen, TC2000-style), so price sits at the same spot regardless of where the 200MA is
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
@@ -4248,6 +4249,21 @@ export default function StockChart({
         mainPriceScale()?.applyOptions({ autoScale: true })
       } catch { /* range can be out of bounds mid-load; next update re-pins */ }
     }
+    if (frameChanged && instantFrameFlip) {
+      // Instant cut (Setup Library): no glide — snap straight to the new frame,
+      // like loading a fresh chart. Cancel any in-flight glide, drop the focus
+      // vertical so the price scale re-autoscales to the new window, and pin the
+      // new range. yearFramedRef is stamped so the settle-window re-assert burst
+      // doesn't fire on top of this.
+      if (focusRafRef.current != null) { cancelAnimationFrame(focusRafRef.current); focusRafRef.current = null }
+      focusActiveRef.current = false
+      focusPriceRangeRef.current = null
+      focusRangeRef.current = null
+      applyYear()
+      yearFramedRef.current = `${fk}:${filteredBars.length}`
+      if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
+      return
+    }
     if (frameChanged) {
       // Animated Setup ⇄ Result transition: same dual-axis glide as the setup
       // focus zoom — the window slides/stretches across the screen to the new
@@ -4375,7 +4391,7 @@ export default function StockChart({
     // that snaps the view to the latest bars) re-runs this pin and re-frames the
     // year. The focusActiveRef guard above means a live setup/catalyst zoom is
     // untouched; all effects run before paint, so there's no flash of "now".
-  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet, overlayData, frameRightPadFrac])
+  }, [exactDateRange, entryDate, exitDate, filteredBars, sym, resolvedTf, mergedMarkers, highlightTimeSet, overlayData, frameRightPadFrac, instantFrameFlip])
 
   // Each stock starts at the year view with setup text hidden; the first focus
   // zoom then eases it in. Without this reset, switching from a focused stock

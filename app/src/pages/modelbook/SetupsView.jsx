@@ -810,6 +810,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           annotationsTextVisible={true}
           annotationsFadeWhole={false}
           candleFrameFade={false}
+          instantFrameFlip
           onAnnotationsChange={setDraft}
           onAnnotationsMigrate={isAdmin ? migrateDrawings : null}
           highlightBarTime={ex.label_date || null}
