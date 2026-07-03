@@ -980,6 +980,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
+    # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
+    # initialized unconditionally (like indicator_alert_service) so local
+    # dev/tests never need AWARENESS_ENGINE_ENABLED=1 just to read/write it.
+    try:
+        from api.services.awareness import regime_snapshots as _awareness_regime_snapshots
+        _awareness_regime_snapshots.init_schema()
+        logging.getLogger(__name__).info("[startup] awareness regime_snapshots schema ready")
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] awareness regime_snapshots schema init failed"
+        )
+
     try:
         _start_priority_audit_background()
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
@@ -2378,6 +2390,30 @@ async def lifespan(app: FastAPI):
                            trigger=CronTrigger(day_of_week="mon-fri",
                                                hour="16-20", minute="*/30"),
                            id="voice_proactive_after_hours",
+                           max_instances=1, replace_existing=True)
+
+        def _awareness_engine_scan():
+            import os as _os_aw
+            if _os_aw.environ.get("AWARENESS_ENGINE_ENABLED", "0") != "1":
+                print("[awareness] AWARENESS_ENGINE_ENABLED not set -- skipping scan "
+                      "(set AWARENESS_ENGINE_ENABLED=1 alongside COMPASS_AUTOMATION_ENABLED=1)")
+                return
+            try:
+                from api.services.awareness.engine import run_awareness_scan
+                result = run_awareness_scan()
+                print(f"[awareness] scan complete: {result}")
+            except Exception as e:
+                print(f"[awareness] scan failed: {e}")
+
+        # Calm/surgical cadence: every 20 minutes, weekday market-adjacent
+        # hours only. Daily caps + per-symbol cooldowns (existing
+        # add_insight) do the rest of the noise control. Single-flight is
+        # load-bearing: run_awareness_scan does a read-then-append on the
+        # regime_snapshots ledger, so max_instances=1 must stay 1.
+        _add_compass_job(_awareness_engine_scan,
+                           trigger=CronTrigger(day_of_week="mon-fri",
+                                               hour="4-20", minute="*/20"),
+                           id="awareness_engine_scan",
                            max_instances=1, replace_existing=True)
 
         def _compass_daily_focus_run():
