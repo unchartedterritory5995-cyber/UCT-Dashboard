@@ -216,6 +216,60 @@ def _verify_snapshot_db(path: str) -> bool:
         return False
 
 
+class SnapshotIntegrityError(Exception):
+    """A snapshot DB failed its pre-ship integrity/row-count gate — refuse to
+    upload it. Callers skip the upload and retry next cycle (by which time the
+    prewarmer has usually healed the source)."""
+
+
+# Minimum ohlcv row count a FULL snapshot must contain to be shippable. Catches
+# the empty-schema DB that force_resync creates when no R2 snapshot installs
+# (2026-07-03: an emptied recovery DB must NEVER become the fleet's snapshot of
+# truth via a replace-pull). A healthy worker holds millions of rows; a floor of
+# 1000 cleanly separates real data from an empty/near-empty recovery DB with
+# ~zero false-reject risk. Env-tunable for edge cases.
+SNAPSHOT_MIN_OHLCV_ROWS = int(os.environ.get("SNAPSHOT_MIN_OHLCV_ROWS", "1000"))
+
+
+def _assert_shippable_db(path: str, min_ohlcv_rows: int, label: str) -> int:
+    """Gate a just-built snapshot/delta DB before it is tarred + PUT to R2.
+
+    THE fix for the 2026-07-03 outage: the DOWNLOAD side verifies integrity at
+    three points, but the UPLOAD side verified nothing — so a corrupt (or empty
+    recovery) worker DB shipped to R2 and, on the web pods' next pull, deleted
+    the local DB and installed nothing, 503-ing every chart until reboot. This
+    makes 'latest' good by construction.
+
+    Runs PRAGMA integrity_check (must be the literal 'ok') and asserts the ohlcv
+    table holds at least ``min_ohlcv_rows``. Raises SnapshotIntegrityError on
+    either failure. Returns the ohlcv row count on success (for logging).
+    """
+    try:
+        c = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    except sqlite3.DatabaseError as e:
+        raise SnapshotIntegrityError(f"{label}: cannot open for integrity check: {e}") from e
+    try:
+        try:
+            row = c.execute("PRAGMA integrity_check").fetchone()
+        except sqlite3.DatabaseError as e:
+            raise SnapshotIntegrityError(f"{label}: integrity_check raised: {e}") from e
+        if not (row and row[0] == "ok"):
+            raise SnapshotIntegrityError(f"{label}: integrity_check != 'ok' (got {row!r})")
+        try:
+            cnt_row = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+            n = int(cnt_row[0]) if cnt_row else 0
+        except sqlite3.DatabaseError as e:
+            raise SnapshotIntegrityError(f"{label}: ohlcv table unreadable: {e}") from e
+        if n < min_ohlcv_rows:
+            raise SnapshotIntegrityError(
+                f"{label}: ohlcv row count {n} below floor {min_ohlcv_rows} "
+                f"(refusing to ship an empty/truncated DB)"
+            )
+        return n
+    finally:
+        c.close()
+
+
 def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
     """Use SQLite's online backup API to copy a consistent snapshot.
 
@@ -286,6 +340,11 @@ def _make_tarball() -> str:
         if has_db:
             snap_db_path = os.path.join(tmpdir, "bars.db")
             _backup_sqlite_db(db_path, snap_db_path)
+            # Gate BEFORE tarring: a malformed or empty DB must never become the
+            # fleet's snapshot of truth (2026-07-03 outage). Raises
+            # SnapshotIntegrityError, which upload_snapshot catches → skip + retry.
+            n = _assert_shippable_db(snap_db_path, SNAPSHOT_MIN_OHLCV_ROWS, "full snapshot")
+            logger.info(f"[data_sync] snapshot integrity gate passed ({n} ohlcv rows)")
 
         tar_path = os.path.join(tmpdir, "snapshot.tar.gz")
         with tarfile.open(tar_path, mode="w:gz") as tar:
@@ -381,6 +440,12 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
         if not _empty_snapshot_logged:
             logger.warning(f"[data_sync] skip upload (will retry silently): {e}")
             _empty_snapshot_logged = True
+        return None
+    except SnapshotIntegrityError as e:
+        # Corrupt/empty source DB — do NOT ship it (the 2026-07-03 poison class).
+        # Loud (not the once-per-process empty guard): a failing integrity gate
+        # is an operational signal, and the next cycle retries after prewarm heals.
+        logger.error(f"[data_sync] snapshot REFUSED by integrity gate — not uploading: {e}")
         return None
     ts = str(int(time.time()))
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
@@ -926,6 +991,11 @@ def _make_delta_tarball(now: Optional[int] = None) -> Optional[bytes]:
         n = _export_delta_db(delta_db, now=now)
         if n == 0:
             return None
+        # Gate the freshly-built delta before shipping. Integrity only + a >=1
+        # floor (delta windows are legitimately small; n>0 already ensured
+        # above). A corrupt delta merged into a web pod is the same poison class
+        # as a corrupt full snapshot.
+        _assert_shippable_db(delta_db, 1, "delta")
         buf = io.BytesIO()
         with tarfile.open(fileobj=buf, mode="w:gz") as tar:
             tar.add(delta_db, arcname="delta.db")
@@ -964,7 +1034,11 @@ def upload_delta(now: Optional[int] = None) -> Optional[str]:
     bucket = _bucket()
     if not (client and bucket):
         return None
-    data = _make_delta_tarball(now=now)
+    try:
+        data = _make_delta_tarball(now=now)
+    except SnapshotIntegrityError as e:
+        logger.error(f"[data_sync] delta REFUSED by integrity gate — not uploading: {e}")
+        return None
     if not data:
         return None
     ts = str(int(now if now is not None else time.time()))

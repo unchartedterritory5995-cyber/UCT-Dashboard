@@ -116,6 +116,10 @@ def test_base_then_delta_round_trip(tmp_path, monkeypatch):
     fake = _FakeS3()
     monkeypatch.setattr(data_sync, "_client", lambda: fake)
     monkeypatch.setattr(data_sync, "_bucket", lambda: "b")
+    # This test exercises base+delta round-trip mechanics with a tiny seed DB;
+    # the production upload integrity gate's 1000-row floor (which guards against
+    # shipping an empty/truncated DB) is not what's under test here, so lower it.
+    monkeypatch.setattr(data_sync, "SNAPSHOT_MIN_OHLCV_ROWS", 1)
     # Real wall clock: the base is stamped from time.time(); the delta must be
     # newer (deltas are always uploaded after the base in production).
     base_now = int(time.time())
