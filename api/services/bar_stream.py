@@ -283,6 +283,14 @@ async def _drain_pending_queue(ws) -> None:
 
     Runs every 250 ms. Cheap because most ticks the queues are empty.
     """
+    # REQUIRED: the re-queue paths below do `_pending_subscribe |= ...` /
+    # `_pending_unsubscribe |= ...` (augmented assignment). Without this global
+    # declaration Python treats both names as function-LOCAL for the entire
+    # scope, so the reads at the top of the loop (`sorted(_pending_subscribe)`)
+    # raise UnboundLocalError on the drain task's very first tick — the task
+    # dies silently and the subscribe queue NEVER flushes (bars never subscribe
+    # when STREAM_BARS_ENABLED=1). Mirrors _run_websocket's global declaration.
+    global _pending_subscribe, _pending_unsubscribe
     while True:
         await asyncio.sleep(0.25)
         with _state_lock:

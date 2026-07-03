@@ -407,20 +407,41 @@ def main():
         sys.exit(1)
 
     # Purge stale Monday-keyed weekly rows (content-based, idempotent).
-    # CRITICAL that this runs HERE and not only in api.main's lifespan: the
-    # worker's bars.db is the R2 snapshot source of truth — the 2026-07-02
-    # duplicate-weekly-candle incident happened because the web-only one-shot
-    # heal never touched this DB, and every snapshot re-poisoned the web pod.
-    try:
-        _wk = _bs.purge_mis_keyed_weekly_rows()
-        if _wk:
+    # CRITICAL that this runs on the worker and not only in api.main's
+    # lifespan: the worker's bars.db is the R2 snapshot source of truth — the
+    # 2026-07-02 duplicate-weekly-candle incident happened because the
+    # web-only one-shot heal never touched this DB, and every snapshot
+    # re-poisoned the web pod.
+    #
+    # It MUST NOT run inline before uvicorn: the DISTINCT scan has no
+    # tf-leading index and takes minutes on the worker's multi-GB ohlcv
+    # table, so an inline purge kept /api/health from ever coming up and
+    # Railway's 600s healthcheck FAILED every worker deploy (2026-07-02).
+    # Background thread instead — and the uploader starts from the SAME
+    # thread, after the purge, so no R2 snapshot is ever taken while the
+    # stale Monday rows are still present.
+    def _purge_then_start_uploader():
+        # Intentionally the SYNC purge, NOT purge_mis_keyed_weekly_rows_async().
+        # bars_sqlite's docstring says boot callers "MUST use the _async variant" —
+        # that contract is for INLINE/main-thread callers (it keeps the healthcheck
+        # unblocked). Here we are ALREADY on a dedicated daemon thread, and we need
+        # the call to BLOCK so _start_uploader() runs strictly AFTER the purge. The
+        # _async variant returns immediately, which would start the uploader before
+        # the purge finished and re-open the 2026-07-02 snapshot-poisoning window.
+        # Do NOT "fix" this to _async.
+        try:
+            _wk = _bs.purge_mis_keyed_weekly_rows()
             log.info(f"weekly key purge: removed {_wk} mis-keyed weekly rows")
-    except Exception as e:
-        log.warning(f"weekly key purge failed (non-fatal): {e}")
+        except Exception as e:
+            log.warning(f"weekly key purge failed (non-fatal): {e}")
+        _start_uploader()
+
+    threading.Thread(
+        target=_purge_then_start_uploader, name="weekly-purge", daemon=True
+    ).start()
 
     _start_prewarmer()
     _start_massive_ws()
-    _start_uploader()
     _start_keepwarm()
     _start_memwatch()
 

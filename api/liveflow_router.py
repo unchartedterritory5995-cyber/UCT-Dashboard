@@ -10,11 +10,14 @@ Discord forwarding stats.
 from fastapi import APIRouter, Query, Body
 from pydantic import BaseModel
 
+import logging
 import re
 
 from api import liveflow_worker
 
 router = APIRouter(prefix="/api/live", tags=["live-flow"])
+
+log = logging.getLogger(__name__)
 
 
 class UserBlocklistPayload(BaseModel):
@@ -490,10 +493,7 @@ async def admin_force_push_discord(
       { ok: bool, posted: bool, message_id: str|null, error: str|null }
     """
     import httpx
-    import logging
     from datetime import datetime, timezone
-
-    log = logging.getLogger(__name__)
 
     confirm = payload.get("confirm", "")
     alert = payload.get("alert") or {}

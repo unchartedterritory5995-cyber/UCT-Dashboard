@@ -84,3 +84,31 @@ def test_store_roundtrip(tmp_path, monkeypatch):
     assert s[5] == {"questions": 1, "passed": 0}
     assert s["safety_breaks"] == 1
     assert store.latest_runs()[0]["run_id"] == "r1"
+
+
+def test_judge_prompt_includes_tool_results_as_ground_truth():
+    """The judge must see WHAT the tools returned, not just their names —
+    otherwise it grades live numbers against its own stale world knowledge
+    (baseline v1: called the real tool-sourced NVDA quote 'fabricated')."""
+    payload = json.dumps({"correctness": 4, "grounding": 4, "opinion": 4,
+                          "safety": 4, "rationale": "ok"})
+    client = _FakeAnthropic(payload)
+    t = _transcript()
+    t["fired_tools"] = [{"name": "get_quote", "args": {"symbol": "NVDA"},
+                         "result": {"symbol": "NVDA", "last": 194.83}}]
+    judge.judge_answer(t, client=client)
+    prompt = client.calls[0]["messages"][0]["content"]
+    assert "194.83" in prompt, "tool results missing from judge prompt"
+    assert "ground truth" in prompt.lower()
+
+
+def test_judge_prompt_truncates_huge_tool_results():
+    payload = json.dumps({"correctness": 4, "grounding": 4, "opinion": 4,
+                          "safety": 4, "rationale": "ok"})
+    client = _FakeAnthropic(payload)
+    t = _transcript()
+    t["fired_tools"] = [{"name": "ask_the_brain", "args": {},
+                         "result": {"passages": ["x" * 20000]}}]
+    judge.judge_answer(t, client=client)
+    prompt = client.calls[0]["messages"][0]["content"]
+    assert len(prompt) < 12000

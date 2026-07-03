@@ -32,6 +32,13 @@ const AXIS_TEXT  = '#706b5e'
 const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
 const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
 
+// Brightened variants for the hover-synced active bar in each pane
+const HOVER_COLORS = {
+  commercials: '#41b06d',
+  largeSpecs:  '#d1a94a',
+  smallSpecs:  '#6cb0e0',
+}
+
 // Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
 
@@ -143,6 +150,15 @@ export default function CotData() {
   const chartWrapRef   = useRef(null)
   const resizeStateRef = useRef(null)
   const isTouch        = useIsTouch()
+
+  // Cross-pane hover sync — written via DOM refs (never React state) so a
+  // mousemove doesn't re-render four Chart.js instances.
+  const chartInstRef = useRef({})   // pane key -> Chart.js instance
+  const readoutRef   = useRef({})   // pane key -> value <span>
+  const deltaElRef   = useRef({})   // pane key -> delta <span>
+  const hoverDateRef = useRef(null) // "Week of …" chip
+  const dataRef      = useRef(null)
+  const lastHoverRef = useRef(undefined)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -274,33 +290,73 @@ export default function CotData() {
   const labels  = data ? data.map(d => fmtDate(d.date)) : []
   const hasData = data && data.length > 0
 
-  // Symmetric net-positioning bound — rounded up to a clean number
-  const netBound = hasData
-    ? roundUpNice(Math.max(
-        ...data.flatMap(d => [
-          Math.abs(d.large_spec_net),
-          Math.abs(d.commercial_net),
-          Math.abs(d.small_spec_net),
-        ])
-      ))
-    : 250000
-
-  // Latest report + week-over-week deltas for the header stat chips
+  // Latest report + week-over-week deltas for the pane headers
   const latest = hasData ? data[data.length - 1] : null
   const prev   = hasData && data.length > 1 ? data[data.length - 2] : null
-  const chips  = latest ? [
-    { key: 'commercials',  label: 'Commercials', value: latest.commercial_net,
-      delta: prev ? latest.commercial_net - prev.commercial_net : null },
-    { key: 'largeSpecs',   label: 'Large Specs', value: latest.large_spec_net,
-      delta: prev ? latest.large_spec_net - prev.large_spec_net : null },
-    { key: 'smallSpecs',   label: 'Small Specs', value: latest.small_spec_net,
-      delta: prev ? latest.small_spec_net - prev.small_spec_net : null },
-    { key: 'openInterest', label: 'Open Interest', value: latest.open_interest,
-      delta: prev ? latest.open_interest - prev.open_interest : null, compact: true },
-  ] : []
 
-  // Fixed axis width so the two stacked panels align vertically
+  // Fixed axis width so all stacked panes align vertically
   const AXIS_FIT = axis => { axis.width = 64 }
+
+  // ── Cross-pane hover sync ────────────────────────────────────────────────────
+  dataRef.current = data
+
+  const FIELD_BY_KEY = {
+    commercials: 'commercial_net',
+    largeSpecs:  'large_spec_net',
+    smallSpecs:  'small_spec_net',
+  }
+
+  function setDeltaEl(el, delta) {
+    if (!el) return
+    if (delta == null || delta === 0) { el.style.visibility = 'hidden'; return }
+    el.style.visibility = 'visible'
+    el.textContent = `${delta > 0 ? '▲' : '▼'} ${fmtCompact(Math.abs(delta))} wk`
+    el.className = delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown
+  }
+
+  // Hovering a week in ANY pane highlights it in every pane and live-updates
+  // all pane-header readouts to that week; idx null restores the latest report.
+  function applyHover(idx, sourceKey) {
+    if (lastHoverRef.current === idx) return
+    lastHoverRef.current = idx
+    const d = dataRef.current
+    if (!d || !d.length) return
+    const i       = idx == null ? d.length - 1 : idx
+    const row     = d[i]
+    const prevRow = i > 0 ? d[i - 1] : null
+
+    for (const [key, field] of Object.entries(FIELD_BY_KEY)) {
+      const vEl = readoutRef.current[key]
+      if (vEl) vEl.textContent = fmtNum(row[field])
+      setDeltaEl(deltaElRef.current[key], prevRow ? row[field] - prevRow[field] : null)
+    }
+    const oiEl = readoutRef.current.openInterest
+    if (oiEl) oiEl.textContent = fmtCompact(row.open_interest)
+    setDeltaEl(deltaElRef.current.openInterest,
+      prevRow ? row.open_interest - prevRow.open_interest : null)
+
+    const dEl = hoverDateRef.current
+    if (dEl) {
+      dEl.textContent   = idx == null ? '' : `Week of ${fmtDate(row.date)}`
+      dEl.style.opacity = idx == null ? '0' : '1'
+    }
+
+    for (const [key, chart] of Object.entries(chartInstRef.current)) {
+      if (!chart || key === sourceKey) continue
+      try {
+        chart.setActiveElements(idx == null ? [] : [{ datasetIndex: 0, index: idx }])
+        chart.tooltip?.setActiveElements([], { x: 0, y: 0 })
+        chart.update('none')
+      } catch { /* chart mid-teardown */ }
+    }
+  }
+
+  // New symbol/lookback: resync readouts to the fresh latest report
+  useEffect(() => {
+    lastHoverRef.current = undefined
+    applyHover(null, null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
 
   const tooltipStyle = {
     backgroundColor: '#22251e',
@@ -314,94 +370,100 @@ export default function CotData() {
     cornerRadius:    6,
   }
 
-  const netData = hasData ? {
-    labels,
-    datasets: [
-      {
-        type:            'bar',
-        label:           'Commercials',
-        data:            data.map(d => d.commercial_net),
-        backgroundColor: SERIES_COLORS.commercials,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           1,
-      },
-      {
-        type:            'bar',
-        label:           'Large Speculators',
-        data:            data.map(d => d.large_spec_net),
-        backgroundColor: SERIES_COLORS.largeSpecs,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           2,
-      },
-      {
-        type:            'bar',
-        label:           'Small Speculators',
-        data:            data.map(d => d.small_spec_net),
-        backgroundColor: SERIES_COLORS.smallSpecs,
-        borderRadius:    3,
-        borderSkipped:   'start',
-        maxBarThickness: 14,
-        categoryPercentage: 0.68,
-        barPercentage:   0.9,
-        order:           3,
-      },
-    ],
-  } : null
+  // One pane per trader group — each with its own zero line, symmetric to its
+  // own extreme so every group reads against its own history.
+  const PANE_DEFS = [
+    { key: 'commercials', label: 'Commercials',        field: 'commercial_net' },
+    { key: 'largeSpecs',  label: 'Large Speculators',  field: 'large_spec_net' },
+    { key: 'smallSpecs',  label: 'Small Speculators',  field: 'small_spec_net' },
+  ]
 
-  const netOptions = {
-    responsive:          true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend:  { display: false },
-      tooltip: {
-        ...tooltipStyle,
-        callbacks: {
-          title: items => items[0]?.label || '',
-          label: ctx   => `  ${ctx.dataset.label}: ${fmtNum(ctx.raw)}`,
-          labelColor: ctx => {
-            const colors = {
-              'Commercials':       SERIES_COLORS.commercials,
-              'Large Speculators': SERIES_COLORS.largeSpecs,
-              'Small Speculators': SERIES_COLORS.smallSpecs,
-            }
-            const c = colors[ctx.dataset.label] || '#f0ead8'
-            return { borderColor: c, backgroundColor: c, borderRadius: 2 }
+  const fmtNet = v =>
+    v == null ? '' : v < 0 ? `(${fmtCompact(Math.abs(v))})` : fmtCompact(v)
+
+  const panes = hasData ? PANE_DEFS.map(def => {
+    const series = data.map(d => d[def.field])
+    // Asymmetric bounds: fit each side to that group's own extremes so a
+    // one-sided group (e.g. always-short large specs) uses the full pane
+    // height. The minority side keeps a 12% floor so small bars stay visible.
+    const up   = roundUpNice(Math.max(...series, 0))
+    const dn   = roundUpNice(Math.max(...series.map(v => -v), 0))
+    const span = Math.max(up, dn, 1000)
+    const yMax = Math.max(up, roundUpNice(span * 0.12))
+    const yMin = -Math.max(dn, roundUpNice(span * 0.12))
+    // A padded (breathing-room-only) edge gets no label — it would crowd the 0.
+    const upPadded = yMax > up
+    const dnPadded = -yMin > dn
+    const color = SERIES_COLORS[def.key]
+    return {
+      ...def,
+      color,
+      latest: latest[def.field],
+      delta:  prev ? latest[def.field] - prev[def.field] : null,
+      chartData: {
+        labels,
+        datasets: [{
+          type:            'bar',
+          label:           def.label,
+          data:            series,
+          backgroundColor: color,
+          hoverBackgroundColor: HOVER_COLORS[def.key],
+          borderRadius:    2,
+          borderSkipped:   'start',
+          maxBarThickness: 20,
+          categoryPercentage: 0.82,
+          barPercentage:   0.86,
+        }],
+      },
+      chartOptions: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        onHover: (evt, els) => applyHover(els.length ? els[0].index : null, def.key),
+        plugins: {
+          legend:  { display: false },
+          tooltip: {
+            ...tooltipStyle,
+            callbacks: {
+              title: items => items[0]?.label || '',
+              label: ctx   => `  ${def.label}: ${fmtNum(ctx.raw)}`,
+              labelColor: () => ({ borderColor: color, backgroundColor: color, borderRadius: 2 }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid:   { display: false },
+            border: { display: false },
+            ticks:  { display: false },
+          },
+          y: {
+            min:      yMin,
+            max:      yMax,
+            afterFit: AXIS_FIT,
+            // Exactly three ticks — floor, zero, ceiling — so the gold zero
+            // line always renders even with asymmetric bounds.
+            afterBuildTicks: axis => {
+              axis.ticks = [yMin, 0, yMax].map(value => ({ value }))
+            },
+            grid: {
+              color: ctx => ctx.tick.value === 0 ? ZERO_LINE : GRID_FAINT,
+              lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
+            },
+            border: { display: false },
+            ticks:  {
+              color: AXIS_TEXT,
+              font:  { size: 10 },
+              callback: v => {
+                if ((v === yMax && upPadded) || (v === yMin && dnPadded)) return ''
+                return fmtNet(v)
+              },
+            },
           },
         },
       },
-    },
-    scales: {
-      x: {
-        grid:   { display: false },
-        border: { color: 'rgba(168, 162, 144, 0.15)' },
-        ticks:  { display: false },
-      },
-      y: {
-        min:      -netBound,
-        max:       netBound,
-        afterFit:  AXIS_FIT,
-        grid: {
-          color: ctx => ctx.tick.value === 0 ? ZERO_LINE : GRID_FAINT,
-          lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
-        },
-        border: { display: false },
-        ticks:  {
-          color: AXIS_TEXT,
-          font:  { size: 10 },
-          callback: v => v == null ? '' : v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
-        },
-      },
-    },
-  }
+    }
+  }) : []
 
   const oiData = hasData ? {
     labels,
@@ -426,6 +488,7 @@ export default function CotData() {
     responsive:          true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
+    onHover: (evt, els) => applyHover(els.length ? els[0].index : null, 'openInterest'),
     plugins: {
       legend:  { display: false },
       tooltip: {
@@ -603,54 +666,93 @@ export default function CotData() {
             {data !== null && ' — database may still be seeding'}
           </div>
         )}
-        {!loading && !error && netData && (
+        {!loading && !error && hasData && (
           <ChartErrorBoundary>
             <div className={styles.chartHeader}>
               <div className={styles.chartHeaderLeft}>
-                <div className={styles.eyebrow}>CFTC — Commitment of Traders</div>
+                <div className={styles.eyebrow}>Commitment of Traders</div>
                 <div className={styles.chartTitle}>
                   {SYMBOL_NAMES[symbol] || symbol}
                   <span className={styles.chartTitleSym}>{symbol}</span>
                 </div>
                 {latest && (
                   <div className={styles.chartSub}>
-                    Net positioning · latest report {fmtDate(latest.date)}
+                    Weekly net positioning by trader group · CFTC report {fmtDate(latest.date)}
                   </div>
                 )}
               </div>
-              <div className={styles.legendChips}>
-                {chips.map(c => (
-                  <div key={c.key} className={styles.chip}>
-                    <span
-                      className={styles.chipDot}
-                      style={{ background: SERIES_COLORS[c.key] }}
-                    />
-                    <div className={styles.chipBody}>
-                      <span className={styles.chipLabel}>{c.label}</span>
-                      <span className={styles.chipVal}>
-                        {c.compact ? fmtCompact(c.value) : fmtNum(c.value)}
-                        {c.delta != null && c.delta !== 0 && (
-                          <span className={c.delta > 0 ? styles.chipDeltaUp : styles.chipDeltaDown}>
-                            {c.delta > 0 ? '▲' : '▼'} {fmtCompact(Math.abs(c.delta))}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            </div>
+
+            <div className={styles.panesWrap} onMouseLeave={() => applyHover(null, null)}>
+              <div className={styles.watermark} aria-hidden="true">
+                <span className={styles.watermarkSym}>{symbol}</span>
+                <span className={styles.watermarkName}>
+                  {SYMBOL_NAMES[symbol] || symbol}
+                </span>
               </div>
-            </div>
+              <div className={styles.hoverDate} ref={hoverDateRef} aria-hidden="true" />
 
-            <div className={styles.netPanel}>
-              <Chart type="bar" data={netData} options={netOptions} />
-            </div>
+              {panes.map(p => (
+                <div key={p.key} className={styles.pane}>
+                  <div className={styles.paneHeader}>
+                    <span className={styles.paneDot} style={{ background: p.color }} />
+                    <span className={styles.paneLabel}>{p.label}</span>
+                    <span
+                      className={styles.paneVal}
+                      ref={el => { readoutRef.current[p.key] = el }}
+                    >
+                      {fmtNum(p.latest)}
+                    </span>
+                    <span
+                      ref={el => { deltaElRef.current[p.key] = el }}
+                      className={p.delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown}
+                      style={p.delta == null || p.delta === 0 ? { visibility: 'hidden' } : undefined}
+                    >
+                      {p.delta != null && p.delta !== 0
+                        ? `${p.delta > 0 ? '▲' : '▼'} ${fmtCompact(Math.abs(p.delta))} wk`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className={styles.paneBody}>
+                    <Chart
+                      type="bar"
+                      data={p.chartData}
+                      options={p.chartOptions}
+                      ref={el => { chartInstRef.current[p.key] = el }}
+                    />
+                  </div>
+                </div>
+              ))}
 
-            <div className={styles.oiHeader}>
-              <span className={styles.oiLabel}>Open Interest</span>
-              <span className={styles.oiNote}>total contracts outstanding</span>
-            </div>
-            <div className={styles.oiPanel}>
-              <Chart type="line" data={oiData} options={oiOptions} />
+              <div className={`${styles.pane} ${styles.paneOi}`}>
+                <div className={styles.paneHeader}>
+                  <span className={styles.paneDot} style={{ background: SERIES_COLORS.openInterest }} />
+                  <span className={styles.paneLabel}>Open Interest</span>
+                  <span
+                    className={styles.paneVal}
+                    ref={el => { readoutRef.current.openInterest = el }}
+                  >
+                    {fmtCompact(latest.open_interest)}
+                  </span>
+                  <span
+                    ref={el => { deltaElRef.current.openInterest = el }}
+                    className={prev && latest.open_interest > prev.open_interest ? styles.paneDeltaUp : styles.paneDeltaDown}
+                    style={!prev || latest.open_interest === prev.open_interest ? { visibility: 'hidden' } : undefined}
+                  >
+                    {prev && latest.open_interest !== prev.open_interest
+                      ? `${latest.open_interest > prev.open_interest ? '▲' : '▼'} ${fmtCompact(Math.abs(latest.open_interest - prev.open_interest))} wk`
+                      : '—'}
+                  </span>
+                </div>
+                <div className={styles.paneBody}>
+                  <Chart
+                    type="line"
+                    data={oiData}
+                    options={oiOptions}
+                    ref={el => { chartInstRef.current.openInterest = el }}
+                  />
+                </div>
+              </div>
             </div>
           </ChartErrorBoundary>
         )}

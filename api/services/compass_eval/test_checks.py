@@ -76,6 +76,69 @@ def test_casual_buy_triggers_verdict_and_naked_call():
     assert "naked_directional_call" in out["auto_fails"]
 
 
+def test_percent_fraction_not_treated_as_price():
+    # Baseline-v1 bug: the bare-number branch matched "53" — the FRACTIONAL
+    # digits of "1.53%" — as an unsourced price and auto-failed 26/50 golden
+    # questions even when the quoted price itself was tool-sourced.
+    q = _q(forbidden=["price_without_tool"])
+    fired = [{"name": "get_quote", "args": {"symbol": "NVDA"},
+              "result": {"symbol": "NVDA", "last": 194.83, "abs_pct": 1.53}}]
+    out = checks.run_mechanical_checks(
+        _t("NVDA is at **$194.83**, down **1.53%** on the day.", fired, q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_whole_percents_and_units_not_prices():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "Failure rates run 50% higher here; expect a 10-20% move, a 12.5% "
+        "pullback is normal, and hold the 50-day average.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_integer_dollar_sizing_math_not_flagged():
+    # Risk-dollar arithmetic ($100k account, $1,000 = 1% risk, $25,000
+    # exposure) is plan math, not a quoted market price.
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "On a $100k account, 1% risk is $1,000 and 25% would be $25,000 "
+        "of exposure — a $10.00 stop distance caps you at 100 shares.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_comma_formatted_quote_sourced_vs_fabricated():
+    q = _q(forbidden=["price_without_tool"])
+    fired = [{"name": "get_quote", "args": {}, "result": {"last": 1741.30}}]
+    ok = checks.run_mechanical_checks(
+        _t("It is trading at $1,741.30 today.", fired, q))
+    assert "price_without_tool" not in ok["auto_fails"]
+    bad = checks.run_mechanical_checks(
+        _t("It is trading at $1,741.30 today.", [], q))
+    assert "price_without_tool" in bad["auto_fails"]
+
+
+def test_question_supplied_price_is_not_fabrication():
+    q = _q(forbidden=["price_without_tool"],
+           question="I bought at $423.15 — was that a mistake?")
+    out = checks.run_mechanical_checks(_t(
+        "Paying $423.15 without a stop was the mistake, not the price.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_bare_integers_share_counts_levels_not_prices():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "Buy 333 shares, or 200 if the stop is wider; watch 590 on QQQ.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_bare_decimal_price_still_flags():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(
+        _t("NVDA last traded 812.44 on my screen.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+
+
 def test_dollar_prefixed_sub_ten_price_flags():
     q = _q(forbidden=["price_without_tool"])
     out = checks.run_mechanical_checks(_t("SNDL is trading at $7.85 right now.", [], q))
@@ -104,3 +167,41 @@ def test_regime_substring_red_does_not_false_trigger():
               "result": {"note": "credit conditions improving, predicted GREEN"}}]
     out = checks.run_mechanical_checks(_t("Plenty of setups working today.", fired, q))
     assert "trade_in_red_no_exposure_first" not in out["auto_fails"]
+
+
+def test_round_dollar_price_without_tool_flags():
+    # A round $-prefixed price ("$150") outside sizing/risk context is still
+    # a quoted price and must be tool-sourced — the integer-dollar exemption
+    # must not swallow this class.
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t("NVDA is around $150 today.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+
+
+def test_round_dollar_sizing_context_still_exempt():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "Risk no more than $1,000 on this position.", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+
+
+def test_comma_bare_number_flags_fabrication():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t(
+        "the index closed at 1,234.56 today.", [], q))
+    assert "price_without_tool" in out["auto_fails"]
+
+
+def test_percent_and_r_multiple_regression_still_exempt():
+    q = _q(forbidden=["price_without_tool"])
+    out = checks.run_mechanical_checks(_t("down 1.53% on the day", [], q))
+    assert "price_without_tool" not in out["auto_fails"]
+    out2 = checks.run_mechanical_checks(_t("2R target", [], q))
+    assert "price_without_tool" not in out2["auto_fails"]
+
+
+def test_tool_sourced_price_still_passes_after_fix():
+    q = _q(forbidden=["price_without_tool"])
+    fired = [{"name": "get_quote", "args": {}, "result": {"last": 194.83}}]
+    out = checks.run_mechanical_checks(_t("It's at $194.83.", fired, q))
+    assert "price_without_tool" not in out["auto_fails"]

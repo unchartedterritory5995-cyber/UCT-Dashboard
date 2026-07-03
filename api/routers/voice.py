@@ -4,6 +4,7 @@ Future slices add /oneshot, /session_token, /exec, /transcripts, /tools.
 """
 
 import logging
+import os
 import re
 import secrets
 import threading
@@ -208,7 +209,10 @@ def _purge_prepared(now: float) -> None:
 def tts_prepare(request: Request, body: TtsRequest, user: dict = Depends(requires_voice_access)):
     text, voice, speed, _is_admin = _resolve_tts_params(user, body)
     # Fail fast on misconfig BEFORE the user hits play (only matters on a miss).
-    if get_cached(text, voice=voice, speed=speed) is None:
+    # Precheck the cache under the SAME normalized key /tts/stream serves from —
+    # read-aloud text carries tickers/% so the raw and normalized keys differ, and
+    # a raw-key lookup here always misses (503s a clip that is actually cached).
+    if get_cached(normalize_for_speech(text), voice=voice, speed=speed) is None:
         try:
             from api.services.voice_openai import _get_client
             _get_client()

@@ -208,94 +208,113 @@
   letter-spacing: 0.3px;
 }
 
-/* Stat chips double as the series legend */
-.legendChips {
+/* ── Stacked trader-group panes (multi-pane chart idiom) ─────────── */
+.panesWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.chip {
+/* Dim brand watermark behind all panes — same idiom as StockChart */
+.watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.watermarkSym {
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  line-height: 1;
+  color: rgba(224, 218, 200, 0.05);
+}
+
+.watermarkName {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(224, 218, 200, 0.055);
+}
+
+/* Gold "Week of …" chip — appears top-right while hover-scrubbing weeks */
+.hoverDate {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+.pane + .pane { border-top: 1px solid var(--border); margin-top: 4px; }
+
+.paneOi { flex: 0.85; }
+
+.paneHeader {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 11px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: 7px 0 3px;
 }
 
-.chipDot {
+.paneDot {
   width: 8px;
   height: 8px;
   border-radius: 2px;
   flex-shrink: 0;
 }
 
-.chipBody {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.chipLabel {
-  font-size: 8px;
+.paneLabel {
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.chipVal {
+.paneVal {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-bright);
+  margin-left: 4px;
 }
 
-.chipDeltaUp,
-.chipDeltaDown {
-  margin-left: 6px;
+.paneDeltaUp,
+.paneDeltaDown {
   font-size: 9px;
   font-weight: 600;
 }
-.chipDeltaUp   { color: var(--gain); }
-.chipDeltaDown { color: var(--loss); }
+.paneDeltaUp   { color: var(--gain); }
+.paneDeltaDown { color: var(--loss); }
 
-/* ── Panels — net positioning (main) + open interest strip ───────── */
-.netPanel {
+.paneBody {
   flex: 1;
   min-height: 0;
-  position: relative;
-}
-
-.oiHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 8px 0 4px;
-  margin-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
-.oiLabel {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--ut-cream);
-  opacity: 0.75;
-}
-
-.oiNote {
-  font-size: 9px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.oiPanel {
-  height: 110px;
-  flex-shrink: 0;
   position: relative;
 }
 
