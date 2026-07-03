@@ -9,7 +9,11 @@ import time as _time
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+# ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
+# NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
+# Aliased as JSONResponse so the index-bars response and the 503 error paths below
+# upgrade with no call-site change. Matches api/services/bars_fetch.py.
+from fastapi.responses import ORJSONResponse as JSONResponse
 
 from api.services.bars_fetch import (
     # Core fetch/cache functions (used by routes below)
