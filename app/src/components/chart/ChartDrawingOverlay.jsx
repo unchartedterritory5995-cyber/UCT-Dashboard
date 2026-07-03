@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } fr
 const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
   rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, fibext: 2, channel: 3, measure: 2, avwap: 1,
-  pitchfork: 3, advance: 2,
+  pitchfork: 3, advance: 2, cup: 3,
 }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -195,6 +195,35 @@ function renderArrow(ctx, pts) {
   ctx.stroke()
   ctx.fillStyle = ctx.strokeStyle
   drawArrowhead(ctx, pts[0], pts[1], 10)
+}
+
+// Cup curve (for cup & handle patterns): a smooth arc through three anchors —
+// left rim, bottom, right rim (clicked in that order). Drawn as a single
+// quadratic Bézier whose control point is placed so the curve passes EXACTLY
+// through the bottom anchor at its midpoint, giving a clean U regardless of
+// where the bottom sits horizontally. Two placed points (mid-draw) fall back
+// to a straight guide line.
+function cupControlPoint(L, B, R) {
+  // Quadratic B(0.5) = 0.25·L + 0.5·C + 0.25·R; solve C so B(0.5) === bottom.
+  return { x: 2 * B.x - 0.5 * (L.x + R.x), y: 2 * B.y - 0.5 * (L.y + R.y) }
+}
+
+function renderCup(ctx, pts) {
+  if (pts.length < 2) return
+  const L = pts[0]
+  const R = pts[pts.length - 1]
+  if (pts.length < 3) {
+    ctx.beginPath()
+    ctx.moveTo(L.x, L.y)
+    ctx.lineTo(R.x, R.y)
+    ctx.stroke()
+    return
+  }
+  const c = cupControlPoint(L, pts[1], R)
+  ctx.beginPath()
+  ctx.moveTo(L.x, L.y)
+  ctx.quadraticCurveTo(c.x, c.y, R.x, R.y)
+  ctx.stroke()
 }
 
 function renderText(ctx, pts, drawing, opacity = 1) {
@@ -606,6 +635,21 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'channel':
       if (pts.length < 2) return false
       return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD * 2
+    case 'cup': {
+      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      const L = pts[0], R = pts[2]
+      const c = cupControlPoint(L, pts[1], R)
+      // Sample the quadratic and test each chord against the cursor.
+      let px = L.x, py = L.y
+      for (let i = 1; i <= 20; i++) {
+        const t = i / 20, u = 1 - t
+        const qx = u * u * L.x + 2 * u * t * c.x + t * t * R.x
+        const qy = u * u * L.y + 2 * u * t * c.y + t * t * R.y
+        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD) return true
+        px = qx; py = qy
+      }
+      return false
+    }
     case 'measure': {
       if (pts.length < 2) return false
       const bx1 = Math.min(pts[0].x, pts[1].x), by1 = Math.min(pts[0].y, pts[1].y)
@@ -1084,6 +1128,7 @@ export default function ChartDrawingOverlay({
         case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
         case 'channel': renderChannel(ctx, pts, w, h); break
+        case 'cup': renderCup(ctx, pts); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
         case 'advance': {
           // Recompute the % from the live bars (candle mode) so EXISTING labels are
@@ -1132,6 +1177,7 @@ export default function ChartDrawingOverlay({
           case 'fibext': renderFibExtension(ctx, previewPts, w, toPixelY); break
           case 'pitchfork': renderPitchfork(ctx, previewPts, w, h); break
           case 'channel': renderChannel(ctx, previewPts, w, h); break
+          case 'cup': renderCup(ctx, previewPts); break
           case 'measure': {
             const md = {
               barCount: pendingPoints[0] && mouseCoords
