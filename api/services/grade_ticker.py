@@ -138,13 +138,23 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         pass
 
     # ── sizing (risk-first, tool-sourced) ───────────────────────────────────
+    # Robust to both the injected-fake keys and the real engine's
+    # calculate_position_size keys (max_position_pct / dollar_risk / risk_pct /
+    # r1_target / recommendation). The engine returns recommendation="SKIP" (and
+    # shares 0) when the regime×grade sizing table says do-not-size — an
+    # authoritative veto we surface as a hard flag.
     size_pct = account_risk_pct = first_target = None
     try:
         sized = size_fn(entry, stop, account, band, grade, 1.0) or {}
         if sized.get("ok"):
             size_pct = sized.get("max_position_pct")
-            account_risk_pct = sized.get("account_risk")
-            first_target = sized.get("r1_target")
+            if sized.get("account_risk") is not None:
+                account_risk_pct = sized.get("account_risk")
+            elif sized.get("risk_pct") is not None:
+                account_risk_pct = sized.get("risk_pct")
+            first_target = sized.get("r1_target") or sized.get("first_target")
+            if str(sized.get("recommendation", "")).upper() == "SKIP" or sized.get("shares") == 0:
+                hard_flags.append("size_skip")
             sources.append("size_a_trade (regime-scaled, 2% cap)")
     except Exception:  # noqa: BLE001
         pass
@@ -162,7 +172,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     if extended:
         hard_flags.append("extended")
 
-    if any(f in hard_flags for f in ("regime_red", "no_setup", "grade_below_b", "risk_over_cap")):
+    if any(f in hard_flags for f in ("regime_red", "no_setup", "grade_below_b", "risk_over_cap", "size_skip")):
         verdict = "SKIP"
     elif "extended" in hard_flags or band == "ORANGE" or (band == "YELLOW" and grade == "B"):
         verdict = "HOLD"

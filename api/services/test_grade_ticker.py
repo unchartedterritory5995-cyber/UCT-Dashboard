@@ -103,3 +103,26 @@ def test_never_raises_on_subfn_exception():
         raise RuntimeError("x")
     out = _call(patterns_fn=boom)
     assert out["ok"] in (True, False)  # returned a dict, did not raise
+
+
+def test_reads_real_engine_size_keys():
+    # real calculate_position_size returns max_position_pct + risk_pct (echo) +
+    # r1_target + recommendation — NOT account_risk.
+    def real_size(entry, stop, account, regime="", grade="A", risk_pct=1.0):
+        return {"ok": True, "shares": 50, "max_position_pct": 15.0,
+                "dollar_risk": 350.0, "risk_pct": 0.7,
+                "r1_target": 185.0, "recommendation": "ENTER"}
+    out = _call(size_fn=real_size)
+    assert out["verdict"] == "GO"
+    assert out["size_pct"] == 15.0
+    assert out["account_risk_pct"] == 0.7  # from risk_pct echo
+    assert out["first_target"] == 185.0
+
+
+def test_engine_recommendation_skip_forces_skip():
+    def skip_size(entry, stop, account, regime="", grade="A", risk_pct=1.0):
+        return {"ok": True, "shares": 0, "max_position_pct": 0.0,
+                "recommendation": "SKIP", "risk_pct": 0.0}
+    out = _call(size_fn=skip_size)
+    assert out["verdict"] == "SKIP"
+    assert "size_skip" in out["hard_flags"]
