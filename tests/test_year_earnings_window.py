@@ -74,6 +74,73 @@ def test_sources_merge_fills_missing_quarters(monkeypatch):
     assert next(r for r in rows if r["quarter"] == 4)["eps_actual"] == 3.77
 
 
+def test_get_year_earnings_fresh_caps_incomplete_year_ttl(monkeypatch):
+    # During an earnings window, a fresh=True read of an INCOMPLETE (in-progress)
+    # year must cache with the short fast-path TTL so a just-reported quarter
+    # flips in ~15 min — not the 6h slow TTL that otherwise pins the inner cache.
+    captured = {}
+    monkeypatch.setattr(ee.cache, "get", lambda k: None)
+    monkeypatch.setattr(ee.cache, "set", lambda k, v, ttl=None: captured.__setitem__("ttl", ttl))
+    monkeypatch.setattr(ee, "_year_earnings_from_fmp", lambda t, y: [
+        {"date": "2026-05-01", "quarter": 1, "year": y, "eps_actual": 1.0,
+         "eps_estimate": 0.9, "eps_surprise_pct": 11.0, "revenue_actual": 1e9,
+         "revenue_estimate": 0.9e9, "revenue_surprise_pct": 11.0}])
+    monkeypatch.setattr(ee, "_year_earnings_from_stock", lambda t, y: [])
+    monkeypatch.setattr(ee, "_year_earnings_from_av", lambda t, y: [])
+    from datetime import datetime, timezone
+    cur_y = datetime.now(timezone.utc).year
+    ee.get_year_earnings("ZZFRESH", cur_y, fresh=True)
+    assert captured["ttl"] == ee._FRESH_TTL
+    ee.get_year_earnings("ZZFRESH2", cur_y, fresh=False)
+    assert captured["ttl"] == ee._CACHE_TTL   # unchanged when not in a window
+
+
+def test_fiscal_q_from_period_end():
+    # Same calendar scheme _fiscal_q_from_report uses (report ≈ period-end +1mo),
+    # so estimates keyed by period end share ONE numbering with report-dated actuals.
+    assert ee._fiscal_q_from_period_end("2026-03-31") == (1, 2026)
+    assert ee._fiscal_q_from_period_end("2026-06-30") == (2, 2026)
+    assert ee._fiscal_q_from_period_end("2026-09-30") == (3, 2026)
+    assert ee._fiscal_q_from_period_end("2026-12-31") == (4, 2026)
+    # Offset fiscal quarters ending Jan/Feb belong to the prior label year's Q4
+    # (NVDA/WMT Jan-end report in Feb-Mar).
+    assert ee._fiscal_q_from_period_end("2026-01-25") == (4, 2025)
+    assert ee._fiscal_q_from_period_end("2026-02-28") == (4, 2025)
+    assert ee._fiscal_q_from_period_end("garbage") == (None, None)
+
+
+def test_finnhub_gapfill_uses_calendar_slot_not_finnhub_fiscal(monkeypatch):
+    # AAPL-shape offset filer: FMP fills calendar Q1/Q2/Q4 but MISSES the Sep
+    # quarter (calendar Q3). Finnhub returns the Sep-2025 period, which Finnhub
+    # labels with its TRUE fiscal numbering (quarter=4, year=2025). The gap-fill
+    # must re-derive the calendar slot from the period END → land in Q3 2025,
+    # NOT trust Finnhub's raw quarter=4 (which would duplicate/overwrite Q4 and
+    # drop the Sep quarter).
+    fmp_mapped = [
+        {"date": "2025-05-01", "quarter": 1, "year": 2025, "eps_actual": 1.5,
+         "eps_estimate": 1.4, "eps_surprise_pct": 7.0, "revenue_actual": 90e9,
+         "revenue_estimate": 89e9, "revenue_surprise_pct": 1.0},
+        {"date": "2025-07-31", "quarter": 2, "year": 2025, "eps_actual": 1.6,
+         "eps_estimate": 1.5, "eps_surprise_pct": 6.7, "revenue_actual": 85e9,
+         "revenue_estimate": 84e9, "revenue_surprise_pct": 1.2},
+        {"date": "2026-01-29", "quarter": 4, "year": 2025, "eps_actual": 2.4,
+         "eps_estimate": 2.3, "eps_surprise_pct": 4.3, "revenue_actual": 124e9,
+         "revenue_estimate": 123e9, "revenue_surprise_pct": 0.8},
+    ]
+    monkeypatch.setattr(ee, "_year_earnings_from_fmp", lambda t, y: list(fmp_mapped))
+    finnhub_raw = [{"period": "2025-09-27", "year": 2025, "quarter": 4,
+                    "actual": 1.85, "estimate": 1.80, "surprisePercent": 2.8}]
+    monkeypatch.setattr(ee, "_fh_get", lambda path, params, timeout=None: finnhub_raw)
+    monkeypatch.setattr(ee, "_year_earnings_from_av", lambda t, y: [])
+
+    rows = ee.get_year_earnings("ZZAAPL", 2025)
+    by_q = {r["quarter"]: r for r in rows}
+    assert by_q[3]["eps_actual"] == 1.85     # Sep quarter → calendar Q3 slot
+    assert by_q[2]["eps_actual"] == 1.6      # Jun (FMP) not overwritten
+    assert by_q[4]["eps_actual"] == 2.4      # Dec (FMP) not overwritten by Sep
+    assert [r["quarter"] for r in rows] == [1, 2, 3, 4]
+
+
 def test_merge_stops_early_when_fmp_complete(monkeypatch):
     # When FMP already returns 4 quarters, the EPS-only fills must NOT run (no
     # wasted Finnhub/AV calls, and FMP revenue stays on every row).

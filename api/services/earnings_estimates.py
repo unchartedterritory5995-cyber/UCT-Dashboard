@@ -8,10 +8,12 @@ import logging
 import requests
 
 from api.services.cache import cache
+from api.services import yf_util
 
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 21_600  # 6 hours (used by get_earnings_intel)
+_FRESH_TTL = 900     # 15 min — earnings-window fast path for an incomplete year
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
@@ -153,6 +155,30 @@ def _fiscal_q_from_report(date_str: str):
     return 3, y
 
 
+def _fiscal_q_from_period_end(date_str):
+    """(quarter, year) for a fiscal quarter identified by its PERIOD-END date,
+    using the SAME calendar scheme _fiscal_q_from_report applies to report dates
+    (companies report ~1 month after the period ends). This is the single source
+    of truth so every source that keys a quarter — FMP (report date), Finnhub
+    (period end), AlphaVantage (fiscalDateEnding), and the widget's forward
+    estimates (period end) — shares ONE numbering and lands in the same slot.
+    Period-end months: 12→Q4(y) · 9-11→Q3(y) · 6-8→Q2(y) · 3-5→Q1(y) ·
+    1-2→Q4(y-1) (Jan/Feb-ending quarters report in Feb-Mar, e.g. NVDA/WMT)."""
+    try:
+        y, m = int(str(date_str)[:4]), int(str(date_str)[5:7])
+    except (ValueError, TypeError, IndexError):
+        return None, None
+    if m >= 12:
+        return 4, y
+    if m >= 9:
+        return 3, y
+    if m >= 6:
+        return 2, y
+    if m >= 3:
+        return 1, y
+    return 4, y - 1
+
+
 def _history_limit(year: int, per_year: int = 4, headroom: int = 16, cap: int = 400) -> int:
     """How many of the MOST-RECENT reports to pull to reach back to `year`.
 
@@ -225,17 +251,22 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
     eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": _history_limit(year)})
     if isinstance(eps_raw, list):
         for q in eps_raw:
-            fy = q.get("year")
             period = str(q.get("period") or "")[:10]
-            in_year = (str(fy) == str(year)) if fy is not None else period.startswith(str(year))
-            if not in_year:
+            # Re-derive the fiscal (quarter, year) from the PERIOD END with the
+            # shared calendar scheme rather than trusting Finnhub's raw
+            # quarter/year, which use TRUE fiscal numbering — for an offset-fiscal
+            # filer (AAPL/NVDA/NKE) that disagrees with FMP's calendar labeling
+            # and would slot the same physical quarter under the wrong Q,
+            # duplicating one quarter and dropping another during gap-fill.
+            fq, fyy = _fiscal_q_from_period_end(period)
+            if fq is None or fyy != int(year):
                 continue
             eps_a, eps_e = q.get("actual"), q.get("estimate")
             surp = q.get("surprisePercent")
             rows.append({
                 "date": period,
-                "quarter": q.get("quarter"),
-                "year": fy if fy is not None else int(year),
+                "quarter": fq,
+                "year": fyy,
                 "eps_actual": eps_a,
                 "eps_estimate": eps_e,
                 "eps_surprise_pct": round(float(surp), 1) if surp is not None else _surprise_pct(eps_a, eps_e),
@@ -279,19 +310,14 @@ def _year_earnings_from_av(ticker: str, year: int) -> list:
     if not isinstance(j, dict) or "quarterlyEarnings" not in j:
         # {"Note": ...} / {"Information": ...} (throttled) or {"Error Message": ...}.
         return []
-    q_by_month = {3: 1, 6: 2, 9: 3, 12: 4}  # calendar-fiscal quarter end → Q#
     rows = []
     for q in j.get("quarterlyEarnings", []):
         fde = str(q.get("fiscalDateEnding") or "")[:10]
-        try:
-            fy, fm = int(fde[:4]), int(fde[5:7])
-        except (ValueError, IndexError):
+        # Shared period-end mapper (same scheme as FMP/Finnhub) so offset-fiscal
+        # filers land in the SAME slot rather than being dropped/mislabeled.
+        quarter, fy = _fiscal_q_from_period_end(fde)
+        if quarter is None or fy != int(year):
             continue
-        if fy != int(year):
-            continue
-        quarter = q_by_month.get(fm)
-        if not quarter:
-            continue  # off-calendar period end — skip rather than mislabel
         eps_a, eps_e = _av_num(q.get("reportedEPS")), _av_num(q.get("estimatedEPS"))
         surp = _av_num(q.get("surprisePercentage"))
         rows.append({
@@ -322,13 +348,10 @@ def _year_earnings_from_yf(ticker: str, year: int) -> list:
     except Exception:
         return []
     try:
-        t = yf.Ticker(ticker)
         qf = None
         for attr in ("quarterly_income_stmt", "quarterly_financials"):
-            try:
-                df = getattr(t, attr)
-            except Exception:
-                df = None
+            # Bound the Yahoo fetch so a hung response frees the worker thread.
+            df = yf_util.bounded_call(lambda a=attr: getattr(yf.Ticker(ticker), a, None), None)
             if df is not None and getattr(df, "empty", True) is False:
                 qf = df
                 break
@@ -386,9 +409,14 @@ def _year_earnings_from_yf(ticker: str, year: int) -> list:
         return []
 
 
-def get_year_earnings(ticker: str, year: int, data_symbol: str = None) -> list:
+def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bool = False) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
+
+    `fresh=True` (set by the fundamentals widget inside a ticker's earnings
+    window) caps an INCOMPLETE year's cache to _FRESH_TTL so a just-reported
+    quarter surfaces within ~15 min instead of being pinned by the 6h cache.
+    Model Book callers omit it → unchanged 6h/30d behavior.
 
     MERGES sources by fiscal quarter to maximize coverage (FMP often has GAPS for
     older years / ADRs — e.g. only Q1 2013 for JKS — and the old all-or-nothing
@@ -475,6 +503,10 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None) -> list:
     # (e.g. once an AV rate-limit clears, or a semi-annual filer's H2 report lands).
     complete = real_count >= 4
     ttl = 30 * 86400 if (closed and complete) else _CACHE_TTL
+    if fresh and not complete:
+        # In an earnings window: don't let a stale 6h entry hide a quarter that
+        # just reported — freshen the incomplete year every 15 min.
+        ttl = min(ttl, _FRESH_TTL)
     cache.set(ckey, full, ttl=ttl)
     return full
 

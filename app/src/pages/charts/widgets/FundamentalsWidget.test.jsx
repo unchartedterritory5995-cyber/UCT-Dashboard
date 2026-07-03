@@ -55,6 +55,20 @@ test('forward estimate quarter shows YoY growth % on EPS and Sales estimates', (
   expect(screen.getByText('+8%')).toBeInTheDocument()
 })
 
+test('a forward quarter with no report_date falls back to its period_end date', () => {
+  // A later forward quarter carries no scheduled report date yet — the card must
+  // still show a truthful date (the fiscal period end) rather than a blank line.
+  mockData.mockReturnValue({
+    ticker: 'AAPL',
+    quarterly: [
+      { label: '2025 Q2', eps_actual: 0.64, eps_estimate: 0.57, eps_surprise_pct: 12, rev_actual: 1.63e9, rev_estimate: 1.43e9, rev_surprise_pct: 14, reported: true },
+      { label: '2026 Q3', report_date: null, period_end: '2026-09-30', eps_estimate: 0.60, rev_estimate: 1.1e9, reported: false },
+    ],
+  })
+  render(<Wrap />)
+  expect(screen.getByText('2026-09-30')).toBeInTheDocument()
+})
+
 test('Analyst tab renders the AnalystPanel for the ticker', () => {
   mockData.mockReturnValue(FULL_DATA)
   render(<Wrap initialOpts={{ view: 'analyst' }} />)

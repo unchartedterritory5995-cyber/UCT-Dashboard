@@ -4,12 +4,14 @@ that collapses to 15 min around a ticker's earnings (the event fast-path)."""
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
 import time
 from datetime import datetime, timezone
 
 from api.services import earnings_estimates as ee
+from api.services import yf_util
 from api.services.annual_financials import get_annual_financials
 from api.services.cache import cache
 
@@ -17,6 +19,13 @@ _log = logging.getLogger(__name__)
 
 _FAST_TTL = 900       # 15 min — within the earnings window
 _SLOW_TTL = 21_600    # 6 h — normal cadence
+_EMPTY_TTL = 120      # 2 min — a fully-empty payload (transient outage) self-heals fast
+
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:  # pragma: no cover - zoneinfo always present on 3.9+
+    _ET = timezone.utc
 
 # Indirection so tests can monkeypatch the annual builder by name.
 get_annual_financials_fn = get_annual_financials
@@ -38,6 +47,15 @@ def _next_q_label(label):
         q = 1
         y += 1
     return f"{y} Q{q}"
+
+
+def _label_from_period_end(date_str):
+    """"YYYY QN" label for an estimate row keyed by its fiscal period END date
+    (FMP analyst-estimates' `date` field). Delegates to the single shared mapper
+    (`ee._fiscal_q_from_period_end`) so estimates and actuals — across every
+    source — share ONE fiscal-quarter numbering."""
+    q, y = ee._fiscal_q_from_period_end(date_str)
+    return f"{y} Q{q}" if q else None
 
 
 def _yoy_label(label):
@@ -93,7 +111,9 @@ def _last_report_date(ticker):
     return max(dates) if dates else None
 
 
-def _choose_ttl(ticker, now):
+def _is_fresh_window(ticker, now):
+    """True within ±1 day of the ticker's next/last earnings — the window where
+    the strip must freshen aggressively so a just-reported quarter flips fast."""
     try:
         nxt = _next_earnings(ticker)
     except Exception:
@@ -103,17 +123,40 @@ def _choose_ttl(ticker, now):
     except Exception:
         last = None
     nd = nxt.get("date") if nxt else None
-    return _FAST_TTL if _in_earnings_window(nd, last, now) else _SLOW_TTL
+    return _in_earnings_window(nd, last, now)
+
+
+def _choose_ttl(ticker, now):
+    return _FAST_TTL if _is_fresh_window(ticker, now) else _SLOW_TTL
 
 
 _FWD_QUARTERS = 4   # how many forward-estimate quarters to surface
 
 
 def _num(v):
+    # Coerce to a finite float; NaN/inf → None (yfinance estimate cells are NaN
+    # for thin names — a raw NaN 500s the JSON render via allow_nan=False).
     try:
-        return float(v) if v is not None else None
+        if v is None:
+            return None
+        f = float(v)
     except (TypeError, ValueError):
         return None
+    return f if math.isfinite(f) else None
+
+
+def _sanitize(obj):
+    """Recursively replace non-finite floats (NaN/inf) with None so the payload
+    is always renderable by Starlette's json.dumps(allow_nan=False). Belt-and-
+    suspenders behind the per-source _num guards: a single stray NaN otherwise
+    500s the endpoint AND caches the poison for the full TTL."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
 
 
 def _rev(v):
@@ -125,24 +168,36 @@ def _rev(v):
     return None if (n is None or n == 0) else n
 
 
-def _fmp_forward_quarters(ticker, limit):
-    """Up to `limit` upcoming quarters of analyst consensus (EPS + revenue) from
-    FMP stable/analyst-estimates (period=quarter). Returns chronological
-    [{date, eps_estimate, rev_estimate}] for periods ending today-or-later.
+# Grace window for a fiscal quarter that has ENDED but not yet been REPORTED
+# (10-Qs land ~3-6 weeks after period end; 130d also covers slow foreign
+# filers). An estimate row older than this with still no reported actual is
+# dead/delinquent data — drop it.
+_UNREPORTED_GRACE_DAYS = 130
 
-    GATED OFF by default: this endpoint returns nothing on the current FMP plan
-    (verified 2026-06-28 — yfinance backstop carries forward quarters), so the
-    call is a wasted round-trip on every load. Flip `FUNDAMENTALS_FMP_ANALYST_
-    ESTIMATES=1` to re-enable instantly if the plan is ever upgraded — the
-    4-quarter depth path then lights up with zero code changes."""
+
+def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset()):
+    """Up to `limit` UNREPORTED quarters of analyst consensus (EPS + revenue)
+    from FMP stable/analyst-estimates (period=quarter), chronological
+    [{period_end, label, eps_estimate, rev_estimate}].
+
+    FMP's `date` is the fiscal period END, not the report date — a quarter that
+    ended days ago but reports weeks from now is still a FORWARD quarter. So
+    the filter keeps every row inside the grace window whose derived fiscal
+    label has no reported actual yet (the 2026-07-02 MXL off-by-one: filtering
+    on `period_end < today` dropped the just-ended quarter and shifted all four
+    forward cards one quarter over).
+
+    GATED by FUNDAMENTALS_FMP_ANALYST_ESTIMATES=1 (quarterly analyst-estimates
+    is an FMP Ultimate feature; the yfinance backstop carries forward quarters
+    when off, so the call would be a wasted round-trip on every load)."""
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
     data = ee._fmp_get("/stable/analyst-estimates",
                        {"symbol": ticker, "period": "quarter", "limit": 40})
     if not isinstance(data, list):
         return []
-    from datetime import date
-    today = date.today().isoformat()
+    from datetime import date, timedelta
+    floor = (date.today() - timedelta(days=_UNREPORTED_GRACE_DAYS)).isoformat()
 
     def _pick(row, *keys):
         for k in keys:
@@ -151,17 +206,22 @@ def _fmp_forward_quarters(ticker, limit):
                 return _num(v)
         return None
 
-    fut = []
+    fut, seen = [], set()
     for row in data:
         d = str(row.get("date") or "")[:10]
-        if not d or d < today:
+        if not d or d < floor:
+            continue
+        label = _label_from_period_end(d)
+        if label is None or label in reported_labels or label in seen:
             continue
         eps = _pick(row, "epsAvg", "estimatedEpsAvg")
         rev = _rev(_pick(row, "revenueAvg", "estimatedRevenueAvg"))
         if eps is None and rev is None:
             continue
-        fut.append({"date": d, "eps_estimate": eps, "rev_estimate": rev})
-    fut.sort(key=lambda r: r["date"])
+        seen.add(label)
+        fut.append({"period_end": d, "label": label,
+                    "eps_estimate": eps, "rev_estimate": rev})
+    fut.sort(key=lambda r: r["period_end"])
     return fut[:limit]
 
 
@@ -175,9 +235,9 @@ def _yf_forward_quarters(ticker, limit):
         return []
     out = []
     try:
-        t = yf.Ticker(ticker)
-        eps_df = getattr(t, "earnings_estimate", None)
-        rev_df = getattr(t, "revenue_estimate", None)
+        # Bound each Yahoo fetch so a hung response frees the worker thread.
+        eps_df = yf_util.bounded_call(lambda: yf.Ticker(ticker).earnings_estimate, None)
+        rev_df = yf_util.bounded_call(lambda: yf.Ticker(ticker).revenue_estimate, None)
 
         def _avg(df, idx):
             try:
@@ -225,40 +285,65 @@ def _next_report_date(ticker):
         return None
 
 
-def _forward_quarters(ticker, limit):
+def _stamp_next_report_date(ticker, rows):
+    """Attach the real scheduled report date to the NEAREST forward quarter.
+    Sanity-gated when the row carries a period end: the scheduled report must
+    fall between the period end and ~120 days after it, else a wrong-symbol or
+    stale calendar entry would mislabel the card."""
+    if not rows or rows[0].get("report_date"):
+        return rows
+    d = _next_report_date(ticker)
+    if not d:
+        return rows
+    pe = rows[0].get("period_end")
+    if pe:
+        pe_dt, d_dt = _parse_date(pe), _parse_date(d)
+        if pe_dt is None or d_dt is None:
+            return rows
+        delta = (d_dt - pe_dt).days
+        if not (0 <= delta <= 120):
+            return rows
+    rows[0] = {**rows[0], "report_date": d}
+    return rows
+
+
+def _forward_quarters(ticker, limit, reported_labels=frozenset()):
     """Forward-estimate quarters for the strip, coverage-maximizing chain:
-    FMP analyst-estimates (depth, gated off on current plan) → yfinance (broad
-    backstop, 2 near quarters) → single Finnhub next-earnings event. First
-    non-empty wins; the nearest quarter gets a real report date when missing."""
-    rows = []
-    for src in (_fmp_forward_quarters, _yf_forward_quarters):
+    FMP analyst-estimates (depth, period-labeled, FMP Ultimate) → yfinance
+    (broad backstop, 2 near quarters, no labels) → single Finnhub next-earnings
+    event. First non-empty wins. Rows are normalized to
+    {label?, period_end?, report_date?, eps_estimate, rev_estimate}; the
+    nearest quarter gets the real scheduled report date."""
+    try:
+        rows = _fmp_forward_quarters(ticker, limit, reported_labels)
+    except Exception:
+        rows = []
+    if not rows:
         try:
-            rows = src(ticker, limit)
+            rows = [{"period_end": None, "label": None,
+                     "eps_estimate": r.get("eps_estimate"),
+                     "rev_estimate": r.get("rev_estimate")}
+                    for r in _yf_forward_quarters(ticker, limit)]
         except Exception:
             rows = []
-        if rows:
-            break
     if rows:
-        if not rows[0].get("date"):
-            d = _next_report_date(ticker)
-            if d:
-                rows[0] = {**rows[0], "date": d}
-        return rows[:limit]
+        return _stamp_next_report_date(ticker, rows[:limit])
     try:
         nxt = _next_earnings(ticker)
     except Exception:
         nxt = None
     if nxt and nxt.get("date"):
-        return [{"date": nxt["date"], "eps_estimate": nxt.get("eps_estimate"),
+        return [{"period_end": None, "label": None, "report_date": nxt["date"],
+                 "eps_estimate": nxt.get("eps_estimate"),
                  "rev_estimate": nxt.get("rev_estimate")}]
     return []
 
 
-def _build_quarterly(ticker, now):
-    cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
+def _build_quarterly(ticker, now, fresh=False):
+    cur_y = datetime.fromtimestamp(now, tz=_ET).year   # ET: fiscal/earnings calendar boundary
     reported = []
     for y in (cur_y - 1, cur_y):
-        for r in ee.get_year_earnings(ticker, y):
+        for r in ee.get_year_earnings(ticker, y, fresh=fresh):
             if r.get("eps_actual") is None and r.get("revenue_actual") is None:
                 continue
             reported.append({
@@ -281,15 +366,16 @@ def _build_quarterly(ticker, now):
         r.pop("_sort", None)
 
     out = list(last5)
-    # Forward estimate quarters: label each in sequence with the reported
-    # quarters (increment of the last reported fiscal quarter) so they never
-    # duplicate a reported label and stay fiscal-consistent across sources.
-    last_label = last5[-1]["label"] if last5 else None
-    label = last_label
-    for q in _forward_quarters(ticker, _FWD_QUARTERS):
-        next_label = _next_q_label(label)
+    # Forward estimate quarters. FMP rows carry an authoritative label derived
+    # from their fiscal period end (and rows for already-reported periods were
+    # filtered out upstream); label-less rows (yfinance / Finnhub) fall back to
+    # incrementing the last label in sequence, which never duplicates a
+    # reported label by construction.
+    label = last5[-1]["label"] if last5 else None
+    for q in _forward_quarters(ticker, _FWD_QUARTERS, frozenset(actual_by_label)):
+        next_label = q.get("label") or _next_q_label(label)
         if next_label is None:
-            qd = _parse_date(q.get("date"))
+            qd = _parse_date(q.get("report_date") or q.get("period_end"))
             next_label = _Q_LABEL(qd.year, (qd.month - 1) // 3 + 1) if qd else None
         # YoY growth %: estimate vs the same fiscal quarter a year ago (actual).
         # ee._surprise_pct(a, e) = (a-e)/|e| — exactly the YoY growth of `a` over `e`.
@@ -298,7 +384,8 @@ def _build_quarterly(ticker, now):
         rev_yoy = ee._surprise_pct(q.get("rev_estimate"), ya.get("rev_actual")) if ya else None
         out.append({
             "label": next_label,
-            "report_date": q.get("date"),
+            "report_date": q.get("report_date"),
+            "period_end": q.get("period_end"),
             "eps_estimate": q.get("eps_estimate"),
             "rev_estimate": q.get("rev_estimate"),
             "eps_est_chg_pct": eps_yoy,
@@ -321,9 +408,14 @@ def get_earnings_table(ticker, now=None, debug=False):
         if hit is not None:
             return hit
 
+    # Compute the earnings window ONCE: it both selects the outer TTL and tells
+    # the quarterly builder to freshen the inner year-earnings cache.
+    fresh = _is_fresh_window(ticker, now)
     annual = get_annual_financials_fn(ticker, now=now)
-    quarterly = _build_quarterly(ticker, now)
-    result = {"ticker": ticker, "annual": annual, "quarterly": quarterly}
+    quarterly = _build_quarterly(ticker, now, fresh=fresh)
+    # Sanitize any non-finite float (NaN/inf) → None so the response always
+    # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
+    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly})
     if debug:
         result["_sources"] = {
             "annual": (annual[0].get("_source") if annual else None),
@@ -331,6 +423,10 @@ def get_earnings_table(ticker, now=None, debug=False):
         }
         return result
 
-    ttl = _choose_ttl(ticker, now)
+    ttl = _FAST_TTL if fresh else _SLOW_TTL
+    if not result["annual"] and not result["quarterly"]:
+        # Never pin a blank widget for hours on a transient source outage — the
+        # sub-services deliberately don't cache empties; keep that retry behavior.
+        ttl = _EMPTY_TTL
     cache.set(ckey, result, ttl)
     return result

@@ -6,7 +6,9 @@ earnings_estimate/revenue_estimate (current FY + next FY). YoY % computed here;
 from __future__ import annotations
 
 import logging
+import math
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -17,6 +19,13 @@ _FWD_YEARS = 4
 
 from api.services import earnings_estimates as ee
 from api.services import fundamentals_estimates_store as store
+from api.services import yf_util
+
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:  # pragma: no cover
+    _ET = timezone.utc
 
 _log = logging.getLogger(__name__)
 
@@ -58,8 +67,9 @@ def _annual_actuals_from_yf(ticker: str) -> dict[int, dict]:
     except Exception:
         return {}
     try:
-        t = yf.Ticker(ticker)
-        df = getattr(t, "income_stmt", None)
+        # Bound the (otherwise unlimited) Yahoo fetch so a hung response frees the
+        # worker thread — the 2026-07-01 thread-exhaustion class.
+        df = yf_util.bounded_call(lambda: yf.Ticker(ticker).income_stmt, None)
         if df is None or getattr(df, "empty", True):
             return {}
 
@@ -115,24 +125,35 @@ def _annual_rollup_from_quarters(ticker: str, years: list[int]) -> dict[int, dic
 
 
 # ── Forward estimates (mockable) ─────────────────────────────────────────────
-def _forward_estimates_fmp(ticker: str, now: float) -> list[dict]:
+def _forward_estimates_fmp(ticker: str, now: float, last_actual_year: int | None = None) -> list[dict]:
     """Up to `_FWD_YEARS` forward fiscal-year estimates (mean EPS + revenue) from
-    FMP stable/analyst-estimates (period=annual). Returns chronological
-    [{eps, sales}] for fiscal years ending today-or-later — i.e. the current
-    in-progress FY plus the out-years. Empty when the endpoint is unavailable on
-    the plan (gated; quarterly/annual analyst-estimates are an FMP Ultimate
-    feature) so the yfinance backstop takes over."""
+    FMP stable/analyst-estimates (period=annual), each carrying its authoritative
+    `fiscal_year` (the calendar year of the fiscal period end) so the caller
+    labels rows by real fiscal year rather than a blind sequence.
+
+    FMP's `date` is the fiscal period END, not the report date — a fiscal year
+    that has ENDED but not yet reported (e.g. a Dec filer viewed in January) is
+    still forward-looking. So a row is kept when its fiscal_year is newer than
+    the last reported actual (`last_actual_year`); with no anchor supplied, the
+    in-progress fiscal year (now.year) and beyond are kept. Filtering on
+    `period_end < today` instead would drop the just-ended-but-unreported year
+    and shift every estimate one year (the annual twin of the quarterly
+    off-by-one). Empty when gated off (FMP Ultimate feature) → yfinance backstop."""
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
     data = ee._fmp_get("/stable/analyst-estimates",
                        {"symbol": ticker, "period": "annual", "limit": 20})
     if not isinstance(data, list):
         return []
-    today = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d")
-    fut = []
+    floor = (last_actual_year if last_actual_year is not None
+             else datetime.fromtimestamp(now, tz=timezone.utc).year - 1)
+    fut, seen = [], set()
     for row in data:
-        d = str(row.get("date") or "")[:10]
-        if not d or d < today:
+        m = re.match(r"(\d{4})-\d{2}-\d{2}", str(row.get("date") or "")[:10])
+        if not m:
+            continue
+        fy = int(m.group(1))
+        if fy <= floor or fy in seen:
             continue
         eps = _num(row.get("epsAvg"))
         sales = _num(row.get("revenueAvg"))
@@ -140,14 +161,18 @@ def _forward_estimates_fmp(ticker: str, now: float) -> list[dict]:
             sales = None
         if eps is None and sales is None:
             continue
-        fut.append((d, {"eps": eps, "sales": sales}))
+        seen.add(fy)
+        fut.append((fy, {"fiscal_year": fy, "eps": eps, "sales": sales}))
     fut.sort(key=lambda r: r[0])
     return [v for _, v in fut[:_FWD_YEARS]]
 
 
-def _forward_estimates_yf(ticker: str, now: float) -> list[dict]:
+def _forward_estimates_yf(ticker: str, now: float, last_actual_year: int | None = None) -> list[dict]:
     """Current FY (0y) + next FY (+1y) mean EPS & revenue from yfinance —
-    the broad-coverage backstop when FMP analyst-estimates is gated/empty."""
+    the broad-coverage backstop when FMP analyst-estimates is gated/empty.
+    Yahoo gives no fiscal-year anchor, so rows omit `fiscal_year` and the caller
+    assigns years sequentially (last_actual+1, +2). `last_actual_year` is
+    accepted for a uniform source signature and ignored."""
     try:
         import yfinance as yf
     except Exception:
@@ -155,16 +180,15 @@ def _forward_estimates_yf(ticker: str, now: float) -> list[dict]:
     cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
     out: list[dict] = []
     try:
-        t = yf.Ticker(ticker)
-        eps_df = getattr(t, "earnings_estimate", None)
-        rev_df = getattr(t, "revenue_estimate", None)
+        # Bound each Yahoo fetch so a hung response frees the worker thread.
+        eps_df = yf_util.bounded_call(lambda: yf.Ticker(ticker).earnings_estimate, None)
+        rev_df = yf_util.bounded_call(lambda: yf.Ticker(ticker).revenue_estimate, None)
 
         def _avg(df, idx):
             try:
                 if df is None or idx not in df.index:
                     return None
-                v = float(df.loc[idx].get("avg"))
-                return v
+                return _num(df.loc[idx].get("avg"))   # NaN → None
             except Exception:
                 return None
 
@@ -180,15 +204,16 @@ def _forward_estimates_yf(ticker: str, now: float) -> list[dict]:
     return out
 
 
-def _forward_estimates(ticker: str, now: float) -> list[dict]:
+def _forward_estimates(ticker: str, now: float, last_actual_year: int | None = None) -> list[dict]:
     """Forward annual estimates, depth-maximizing: FMP analyst-estimates
     (~5 yrs, real consensus, FMP Ultimate) → yfinance (2 near FYs). First
-    non-empty wins. Values are returned in chronological order; the caller
-    assigns fiscal years as last_actual+1, +2, … so non-December filers stay
-    correct and no estimate collides with a reported actual."""
+    non-empty wins. Chronological order. FMP rows carry `fiscal_year` (the
+    caller labels by it); yfinance rows omit it and the caller assigns
+    last_actual+1, +2, … so non-December filers stay correct and no estimate
+    collides with a reported actual."""
     for src in (_forward_estimates_fmp, _forward_estimates_yf):
         try:
-            rows = src(ticker, now)
+            rows = src(ticker, now, last_actual_year)
         except Exception:
             rows = []
         if rows:
@@ -197,10 +222,16 @@ def _forward_estimates(ticker: str, now: float) -> list[dict]:
 
 
 def _num(v):
+    # Coerce to a finite float; NaN/inf → None. yfinance estimate cells are NaN
+    # for thin names, and a raw NaN poisons the JSON render (allow_nan=False →
+    # HTTP 500) and every downstream YoY %.
     try:
-        return float(v) if v is not None else None
+        if v is None:
+            return None
+        f = float(v)
     except (TypeError, ValueError):
         return None
+    return f if math.isfinite(f) else None
 
 
 def _contiguous_recent(actuals: dict[int, dict], years_back: int) -> list[int]:
@@ -225,36 +256,48 @@ def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = 
     ticker = (ticker or "").upper().strip()
     if not ticker:
         return []
-    cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year
+    cur_y = datetime.fromtimestamp(now, tz=_ET).year   # ET: fiscal-year boundary
 
     # 1. Actuals — FMP (deepest), then yfinance fills gaps. These are REPORTED
     #    fiscal years labeled by fiscal-year-end (e.g. AAPL FY2024 ended Sep 2024
     #    → 2024); the latest one is the most recent COMPLETED fiscal year.
     actuals = dict(_annual_actuals_from_fmp(ticker))
     source = "fmp" if actuals else None
-    for y, v in _annual_actuals_from_yf(ticker).items():
-        if y not in actuals:
-            actuals[y] = v
-            source = source or "yfinance"
+    # yfinance is a BACKSTOP. Consult it only when FMP did NOT already return a
+    # deep (≥years_back) AND recent (newest ≥ cur_y-1) contiguous window — that
+    # skips a wasted, rate-limited Yahoo fetch on every cold load of the FMP
+    # happy path, while still deepening/refreshing thin or stale FMP coverage.
+    fmp_recent = _contiguous_recent(actuals, years_back)
+    fmp_covers = len(fmp_recent) >= years_back and fmp_recent[-1] >= cur_y - 1
+    if not fmp_covers:
+        for y, v in _annual_actuals_from_yf(ticker).items():
+            if y not in actuals:
+                actuals[y] = v
+                source = source or "yfinance"
 
     actual_years = _contiguous_recent(actuals, years_back)
 
     # Last-resort: if no statement source resolved, roll up quarters for a recent
-    # calendar window, then re-derive the contiguous run.
+    # calendar window, then re-derive the contiguous run. EXCLUDE the in-progress
+    # year (range ends at cur_y, exclusive) — a partial current year would sum to
+    # an understated total that would be mislabeled as a full-year ACTUAL; the
+    # current year's value comes from forward estimates instead.
     if not actual_years:
-        roll = _annual_rollup_from_quarters(ticker, list(range(cur_y - years_back, cur_y + 1)))
+        roll = _annual_rollup_from_quarters(ticker, list(range(cur_y - years_back, cur_y)))
         for y, v in roll.items():
             actuals.setdefault(y, v)
         if roll:
             source = source or "rollup"
         actual_years = _contiguous_recent(actuals, years_back)
 
-    # 2. Forward estimates — VALUES in order [current FY (0y), next FY (+1y)].
-    #    Their fiscal years are assigned as last_actual+1 / +2 (NOT the calendar
-    #    year): that keeps non-December filers correct (NVDA's just-reported
-    #    FY actual stays an actual; its estimate lands on the right fiscal year)
-    #    and guarantees no collision with an actual year.
-    fwd_vals = _forward_estimates(ticker, now)
+    # 2. Forward estimates. FMP rows carry an authoritative `fiscal_year` (from
+    #    their fiscal period end) and are kept when newer than the last actual —
+    #    so a Dec filer's just-ended FY stays visible in January instead of
+    #    being dropped and shifting every estimate a year. yfinance rows lack a
+    #    fiscal anchor and get sequential years (last_actual+1 / +2), which keeps
+    #    non-December filers correct and never collides with an actual year.
+    last_actual_year = actual_years[-1] if actual_years else None
+    fwd_vals = _forward_estimates(ticker, now, last_actual_year)
 
     if not actual_years and not fwd_vals:
         return []
@@ -274,8 +317,16 @@ def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = 
         prev = v
 
     base_year = actual_years[-1] if actual_years else cur_y - 1
-    for i, est in enumerate(fwd_vals[:_FWD_YEARS]):
-        fy = base_year + 1 + i
+    emitted = set(actual_years)
+    seq = 0
+    for est in fwd_vals[:_FWD_YEARS]:
+        fy = est.get("fiscal_year")
+        if fy is None:                      # yfinance rows: no fiscal anchor
+            seq += 1
+            fy = base_year + seq
+        if fy in emitted:                   # never duplicate an actual/estimate year
+            continue
+        emitted.add(fy)
         rev = store.revision_for(ticker, fy, est.get("eps"), est.get("sales"), now=now)
         store.record_snapshot(ticker, fy, est.get("eps"), est.get("sales"), now=now)
         row = {

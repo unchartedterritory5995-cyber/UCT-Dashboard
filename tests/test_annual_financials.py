@@ -1,4 +1,6 @@
 import importlib
+import sys
+import types
 
 
 def _mod(monkeypatch, tmp_path):
@@ -10,6 +12,148 @@ def _mod(monkeypatch, tmp_path):
     return af, s
 
 
+class _FakeSeries:
+    def __init__(self, avg):
+        self._avg = avg
+
+    def get(self, k, default=None):
+        return self._avg if k == "avg" else default
+
+
+class _FakeDF:
+    """Minimal stand-in for a yfinance estimate DataFrame: has .index and
+    .loc[idx].get('avg')."""
+    def __init__(self, avg, idxs):
+        self.index = list(idxs)
+        self.loc = {i: _FakeSeries(avg) for i in idxs}
+        self.empty = False
+
+
+def test_annual_forward_yf_nan_becomes_none(monkeypatch, tmp_path):
+    # yfinance returns NaN in the '+1y'/'0y' 'avg' cell for thin names. A raw
+    # float(NaN) sails through and poisons the JSON payload (Starlette
+    # allow_nan=False → HTTP 500). The helper must normalize NaN → None, and a
+    # row with no finite value contributes nothing.
+    af, _ = _mod(monkeypatch, tmp_path)
+    df = _FakeDF(float("nan"), ["0y", "+1y"])
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(
+        Ticker=lambda tk: types.SimpleNamespace(earnings_estimate=df, revenue_estimate=df)))
+    monkeypatch.setattr(af.yf_util, "bounded_call", lambda fn, default, timeout=12.0: fn())
+    out = af._forward_estimates_yf("ZZNAN", now=1_782_000_000.0)
+    assert out == []   # both cells NaN → nothing emitted (no nan values)
+
+
+def test_rollup_excludes_in_progress_year(monkeypatch, tmp_path):
+    # When BOTH annual statement sources are empty, the last-resort quarter
+    # rollup must NOT surface a partial CURRENT year as a full-year actual.
+    from datetime import datetime, timezone
+    af, _ = _mod(monkeypatch, tmp_path)
+    now = 1_782_000_000.0
+    cur_y = datetime.fromtimestamp(now, tz=timezone.utc).year  # 2026
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {})
+    monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
+
+    def fake_rollup(ticker, years):
+        # The rollup would return a partial for cur_y IF it were asked for it.
+        out = {}
+        for y in years:
+            out[y] = {"eps": 1.0 if y == cur_y else 4.0, "sales": 1e9 if y == cur_y else 4e9}
+        return out
+
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", fake_rollup)
+    rows = af.get_annual_financials("ZZROLL", years_back=8, now=now)
+    years = [r["year"] for r in rows]
+    assert cur_y not in years        # in-progress year not shown as a full-year actual
+    assert (cur_y - 1) in years      # closed years still roll up
+
+
+def test_annual_cur_year_uses_et_not_utc(monkeypatch, tmp_path):
+    # cur_y drives which years' actuals/labels are computed; on Dec-31 evening ET
+    # it must follow ET, not the already-rolled-over UTC year.
+    af, _ = _mod(monkeypatch, tmp_path)
+    import calendar, time
+    now = calendar.timegm(time.strptime("2027-01-01 04:30", "%Y-%m-%d %H:%M"))  # 23:30 ET Dec 31 2026
+    seen = {}
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {})
+    monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
+
+    def fake_rollup(ticker, years):
+        seen["years"] = list(years)
+        return {}
+
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", fake_rollup)
+    af.get_annual_financials("ZZTZ", years_back=8, now=now)
+    # ET year is 2026 → rollup window ends before 2026 (excludes in-progress);
+    # newest requested year is 2025 (2026 is in-progress and excluded), NOT 2026/2027.
+    assert max(seen["years"]) == 2025
+
+
+def test_annual_yf_income_stmt_is_bounded(monkeypatch, tmp_path):
+    # The yfinance annual income_stmt access MUST run under yf_util.bounded_call
+    # (hard wall-clock timeout) so a hung Yahoo response can't pin a request
+    # thread — the 2026-07-01 thread-exhaustion / 524 class.
+    af, _ = _mod(monkeypatch, tmp_path)
+    monkeypatch.setitem(sys.modules, "yfinance",
+                        types.SimpleNamespace(Ticker=lambda tk: types.SimpleNamespace(income_stmt=None)))
+    seen = {"n": 0}
+
+    def spy(fn, default, timeout=12.0):
+        seen["n"] += 1
+        return fn()   # actually exercise the wrapped access
+
+    monkeypatch.setattr(af.yf_util, "bounded_call", spy)
+    out = af._annual_actuals_from_yf("ZZBND")
+    assert seen["n"] >= 1        # yfinance access routed through the timeout guard
+    assert out == {}             # income_stmt None → no rows
+
+
+def test_annual_skips_yf_when_fmp_covers_recent_window(monkeypatch, tmp_path):
+    # FMP already returned a deep, recent window → the (unbounded, rate-limited)
+    # yfinance annual fetch is skipped entirely on the happy path.
+    af, _ = _mod(monkeypatch, tmp_path)
+    called = {"yf": 0}
+    monkeypatch.setattr(af, "_annual_actuals_from_yf",
+                        lambda t: called.__setitem__("yf", called["yf"] + 1) or {})
+    fmp = {y: {"eps": 2.0, "sales": 6e9} for y in range(2019, 2027)}  # 2019..2026 contiguous, ends 2026
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: fmp)
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
+    af.get_annual_financials("ZZCOV", years_back=8, now=1_782_000_000.0)  # now ≈ mid-2026
+    assert called["yf"] == 0
+
+
+def test_annual_calls_yf_when_fmp_thin(monkeypatch, tmp_path):
+    # FMP returned only a couple years (short of the window) → yfinance backstop
+    # is still consulted to deepen/fill.
+    af, _ = _mod(monkeypatch, tmp_path)
+    called = {"yf": 0}
+    monkeypatch.setattr(af, "_annual_actuals_from_yf",
+                        lambda t: called.__setitem__("yf", called["yf"] + 1) or {})
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp",
+                        lambda t: {2024: {"eps": 2.0, "sales": 6e9}, 2025: {"eps": 2.5, "sales": 6.9e9}})
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
+    af.get_annual_financials("ZZTHIN", years_back=8, now=1_782_000_000.0)
+    assert called["yf"] == 1
+
+
+def test_annual_calls_yf_when_fmp_deep_but_stale(monkeypatch, tmp_path):
+    # FMP has years_back rows but the newest is old (lags the current window) →
+    # yfinance IS consulted so a fresher recent year isn't missed.
+    af, _ = _mod(monkeypatch, tmp_path)
+    called = {"yf": 0}
+    monkeypatch.setattr(af, "_annual_actuals_from_yf",
+                        lambda t: called.__setitem__("yf", called["yf"] + 1) or {})
+    fmp = {y: {"eps": 2.0, "sales": 6e9} for y in range(2015, 2023)}  # 2015..2022, ends 2022 (stale vs 2026)
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: fmp)
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
+    af.get_annual_financials("ZZSTALE", years_back=8, now=1_782_000_000.0)
+    assert called["yf"] == 1
+
+
 def test_yoy_pct_and_estimate_rows(monkeypatch, tmp_path):
     af, _ = _mod(monkeypatch, tmp_path)
     # 2024 actual, 2025 actual, plus 2026e + 2027e estimates.
@@ -19,7 +163,7 @@ def test_yoy_pct_and_estimate_rows(monkeypatch, tmp_path):
     })
     monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
     monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [
         {"year": 2026, "eps": 3.00, "sales": 7.8e9},
         {"year": 2027, "eps": 3.30, "sales": 8.6e9},
     ])
@@ -42,7 +186,7 @@ def test_fmp_falls_back_to_rollup(monkeypatch, tmp_path):
         2024: {"eps": 1.0, "sales": 1.0e9},
         2025: {"eps": 1.2, "sales": 1.1e9},
     })
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [])
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
     rows = af.get_annual_financials("ZZROLL", now=1_782_000_000.0)
     assert [r["year"] for r in rows] == [2024, 2025]
     assert rows[0]["_source"] == "rollup"
@@ -57,7 +201,7 @@ def test_estimate_revision_marker(monkeypatch, tmp_path):
     monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {2025: {"eps": 2.5, "sales": 6.9e9}})
     monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
     monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [{"year": 2026, "eps": 3.00, "sales": 7.8e9}])
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [{"year": 2026, "eps": 3.00, "sales": 7.8e9}])
     rows = af.get_annual_financials("ZZREV", now=base)
     r26 = next(r for r in rows if r["year"] == 2026)
     assert r26["eps_revision"] == "up"
@@ -68,7 +212,7 @@ def test_empty_returns_empty(monkeypatch, tmp_path):
     monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {})
     monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
     monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [])
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
     assert af.get_annual_financials("ZZNADA", now=1_782_000_000.0) == []
 
 
@@ -87,7 +231,7 @@ def test_contiguity_drops_orphan_year_and_gap(monkeypatch, tmp_path):
         2025: {"eps": 7.46, "sales": 416e9},
     })
     monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [])
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [])
     rows = af.get_annual_financials("ZZGAP", now=1_782_000_000.0)
     years = [r["year"] for r in rows]
     assert years == [2022, 2023, 2024, 2025]   # 2020 orphan dropped, no 2021 hole
@@ -112,7 +256,7 @@ def test_non_december_fiscal_keeps_latest_actual_and_labels_forward_fiscally(mon
     })
     monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
     # Forward helper returns 0y, +1y values; provisional 'year' is ignored.
-    monkeypatch.setattr(af, "_forward_estimates", lambda t, now: [
+    monkeypatch.setattr(af, "_forward_estimates", lambda t, now, last_actual_year=None: [
         {"year": 2026, "eps": 8.96, "sales": 390e9},
         {"year": 2027, "eps": 12.73, "sales": 550e9},
     ])
@@ -148,9 +292,43 @@ def test_forward_estimates_fmp_parses_caps_and_filters(monkeypatch, tmp_path):
     monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
     out = af._forward_estimates_fmp("ZZF", now=1_782_000_000.0)  # now ≈ mid-2026
     assert len(out) == af._FWD_YEARS == 4          # capped
-    assert out[0] == {"eps": 7.0, "sales": 420e9}  # earliest future first
+    # Earliest future first, carrying its authoritative fiscal year (period-end year).
+    assert out[0] == {"fiscal_year": 2026, "eps": 7.0, "sales": 420e9}
     assert out[2]["sales"] is None                 # 0 revenue normalized
     assert [e["eps"] for e in out] == [7.0, 8.0, 9.0, 10.0]
+
+
+def test_annual_fmp_keeps_ended_but_unreported_fiscal_year(monkeypatch, tmp_path):
+    # Jan-Feb window bug (annual twin of the quarterly one): a calendar filer's
+    # FY2026 ends Dec 31 but reports in Feb. The old `period_end < today` filter
+    # dropped its estimate row, so FY2027's numbers rendered under the "2026e"
+    # label. Estimate rows for fiscal years NEWER than the last reported actual
+    # must be kept regardless of whether their period end has passed.
+    af, _ = _mod(monkeypatch, tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+    monkeypatch.setattr(af, "_annual_actuals_from_fmp", lambda t: {
+        2024: {"eps": 2.00, "sales": 6.0e9},
+        2025: {"eps": 2.50, "sales": 6.9e9},
+    })
+    monkeypatch.setattr(af, "_annual_actuals_from_yf", lambda t: {})
+    monkeypatch.setattr(af, "_annual_rollup_from_quarters", lambda t, y: {})
+
+    def fake_fmp(path, params, timeout=10):
+        return [
+            {"date": "2025-12-31", "epsAvg": 2.55, "revenueAvg": 7.0e9},   # FY reported → skip
+            {"date": "2026-12-31", "epsAvg": 3.00, "revenueAvg": 7.8e9},   # ended, unreported → KEEP
+            {"date": "2027-12-31", "epsAvg": 3.30, "revenueAvg": 8.6e9},
+            {"date": "2028-12-31", "epsAvg": 3.60, "revenueAvg": 9.4e9},
+            {"date": "2029-12-31", "epsAvg": 3.90, "revenueAvg": 10.2e9},
+        ]
+
+    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    import calendar, time
+    now = float(calendar.timegm(time.strptime("2027-01-15", "%Y-%m-%d")))
+    rows = af.get_annual_financials("ZZJAN", years_back=6, now=now)
+    est = [(r["year"], r["eps"]) for r in rows if r["estimate"]]
+    # FY2026's own consensus stays on the 2026e row — values not shifted a year.
+    assert est == [(2026, 3.00), (2027, 3.30), (2028, 3.60), (2029, 3.90)]
 
 
 def test_forward_estimates_gated_off_by_default(monkeypatch, tmp_path):
