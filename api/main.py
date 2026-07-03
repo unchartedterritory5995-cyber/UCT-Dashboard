@@ -2732,7 +2732,12 @@ class _GZipSkipSSE(_GZipBase):
         else:
             await super().__call__(scope, receive, send)
 
-app.add_middleware(_GZipSkipSSE, minimum_size=1000)
+# compresslevel=5 (default is 9): on the ~1.4 MB deep-bar payloads this serves,
+# level 9 burns materially more CPU per request on the single shared event loop
+# for a <3% size gain over level 5. Level 5 is the throughput/size sweet spot;
+# combined with orjson's already-smaller output the wire stays tiny. SSE + hashed
+# /assets/ keep bypassing gzip (unchanged).
+app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

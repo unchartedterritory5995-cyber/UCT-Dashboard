@@ -101,9 +101,25 @@ def _conn() -> sqlite3.Connection:
         #    blew straight past the timeout → ~155 "database is locked"
         #    per 45s, each a wasted Massive fetch + a slower warm. The
         #    worker should simply WAIT it out and succeed.
-        _busy_ms = 30000 if os.environ.get("WORKER_ENABLED") == "1" else 2000
+        _is_worker = os.environ.get("WORKER_ENABLED") == "1"
+        _busy_ms = 30000 if _is_worker else 2000
         c.execute(f"PRAGMA busy_timeout={_busy_ms}")
-        c.execute("PRAGMA cache_size=-8192")   # 8 MB page cache per connection
+        # Per-connection page cache is CONTEXT-AWARE (2026-07-03):
+        #  • WEB serves requests on up to 64 anyio threads, each with its own
+        #    connection. At the old -8192 (8 MB) that is up to 64 × 8 = 512 MB of
+        #    page cache alone on a 512 MB pod — which surfaces as latency spikes /
+        #    OOM (not clean errors) under a chart-load soak. Drop web to -2048
+        #    (2 MB); the mmap below + the OS page cache cover the working set, so
+        #    warm read latency is unchanged while RSS pressure drops ~4×.
+        #  • WORKER (few long-lived prewarm threads, more headroom, heavy writes)
+        #    keeps the larger 8 MB cache.
+        c.execute(f"PRAGMA cache_size={-8192 if _is_worker else -2048}")
+        # Memory-map the DB so reads fault pages straight from the OS page cache
+        # instead of per-read read() syscalls into the per-connection cache. On a
+        # multi-GB bars.db this materially cuts read latency and lets the smaller
+        # web cache_size above lean on shared, evictable, file-backed pages rather
+        # than private RSS. 256 MB cap keeps the mapped window bounded on the pod.
+        c.execute("PRAGMA mmap_size=268435456")
         c.execute("PRAGMA temp_store=MEMORY")
         _local.conn = c
     return _local.conn
