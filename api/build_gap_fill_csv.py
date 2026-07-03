@@ -234,7 +234,12 @@ def event_to_row(evt: Event, target_date_str: str, source: str) -> str:
         "Type": evt.type_,
         "Volume": str(evt.total_size),
         "Price": fmt_price(evt.avg_price),
-        "Side": "",  # filled by build_patches.py later
+        # 2026-07-03: Empty-side SWEEP normalization (Option 3 at ingest).
+        # Type=SWEEP with unknown side -> presume A (buyer-initiated).
+        # Matches generate_patches.py normalization so OptionsFlow's
+        # client-side clustering sees consistent ask-side attribution.
+        # BLOCKs stay empty -- dealer/hedge/rebalance ambiguity.
+        "Side": "A" if evt.type_ == "SWEEP" else "",
         "CallPut": evt.cp,
         "Strike": fmt_strike(evt.strike),
         "Spot": "0",

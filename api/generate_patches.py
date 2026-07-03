@@ -157,6 +157,16 @@ def generate_patches(input_path: str, output_path: str,
         for evt in contract_events:
             # Compute Side via tick test
             side = _tick_test_side(prev_price, evt.avg_price, prev_diff)
+            # 2026-07-03: Empty-side SWEEP normalization (Option 3 at ingest).
+            # When tick-test can't classify AND the event is a SWEEP, presume ASK.
+            # Rationale: sweeps are aggressive market orders that cross the spread
+            # -- market microstructure makes them ~85%+ buyer-initiated. This
+            # unblocks empty-side SWEEPs from being deprioritized in OptionsFlow's
+            # client-side clustering (which reads Side directly, no rescue rule).
+            # BLOCKs stay strict -- unclassifiable BLOCK could be dealer
+            # facilitation / portfolio rebalance, not directional signal.
+            if not side and evt.type_ == 'SWEEP':
+                side = 'A'
             side_counts[side or 'empty'] += 1
 
             # Update prev_price tracking for next event
