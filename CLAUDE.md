@@ -394,6 +394,24 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 > 2026-05-18 (token burn) — enabling it also re-enables the other paused Compass
 > jobs, so treat that flip as a deliberate un-pause decision.
 
+### Known limitations / tuning backlog (surfaced by the final review, deferred to M2)
+- **Shared 8/day insight cap:** `add_insight`'s per-user daily cap is global across
+  ALL kinds. The awareness scan runs 4:00–7:20am before `daily_focus` posts at
+  7:30am, so a very active user's awareness insights can exhaust the budget and
+  silently drop that day's `daily_focus`. If activated, watch for this; the fix
+  (reserve a slot / sub-cap awareness) is M2.
+- **Cold earnings-calendar cache:** `_collect_earnings_window` calls Finnhub up to
+  4× per 20-min cycle when `calendar_weekly` is cold (e.g. right after a redeploy,
+  pre-market before anyone opens /calendar). Bounded + off the request path, but a
+  small per-day memo in the engine would cut Finnhub contention — M2.
+- **`awareness_regime_snapshots` grows unbounded** (~51 rows/weekday, no prune). Trivial
+  for years; add a retention sweep eventually.
+- **Score ceiling:** a near-stop proximity warning and an actual stop breach can both
+  clamp to importance 10 — consumers should key severity off `kind`, not `importance`.
+- **Regime-flip delivery is in-app only** (deliberate, to avoid mass-emailing every
+  position holder on every flip). If you want a "regime changed" email, add it back
+  with a confidence gate.
+
 ## Mobile Navigation
 
 Shown at ≤1024px (desktop uses the left `NavBar`). Two pieces, both in `Layout.jsx`:
