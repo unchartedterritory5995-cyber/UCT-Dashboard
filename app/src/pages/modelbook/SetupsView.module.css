@@ -181,7 +181,7 @@
   font-size: 11px;
   font-weight: 500;
   line-height: 1.4;
-  color: rgba(214, 213, 207, 0.55);
+  color: rgba(214, 213, 207, 0.72);
   padding-left: 15px;
 }
 .railDir_long  { background: #1ae51a; box-shadow: 0 0 6px rgba(26, 229, 26, 0.4); }
@@ -255,7 +255,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  color: rgba(220, 218, 212, 0.5);
+  color: rgba(220, 218, 212, 0.72);
 }
 .jumpChipGrade {
   flex: none;
