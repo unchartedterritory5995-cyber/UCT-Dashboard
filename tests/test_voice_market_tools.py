@@ -197,6 +197,62 @@ def test_earnings_intel_no_data():
     assert out["ok"] is False
 
 
+# ── Sector strength — real SPDR sector-ETF returns, no theme fallback ──────
+
+def test_get_sector_strength_returns_real_sectors_ranked_by_period_return():
+    fake = [
+        {"sector": "Technology", "ticker": "XLK", "change_pct": 3.2},
+        {"sector": "Energy", "ticker": "XLE", "change_pct": -1.1},
+    ]
+    with patch("api.services.sector_strength.get_sector_strength",
+               return_value=fake) as m:
+        out = vmt.get_sector_strength(count=2)
+    m.assert_called_once_with(period="Today")
+    assert out["ok"] is True
+    assert out["sectors"][0]["sector"] == "Technology"
+    assert out["sectors"][0]["change_pct"] == 3.2
+    assert "Technology" in out["narration"]
+    assert "(XLK)" not in out["narration"]  # narration reads sector names, not tickers
+    assert out["period"] == "Today"
+
+
+def test_get_sector_strength_period_changes_the_window():
+    fake = [{"sector": "Financials", "ticker": "XLF", "change_pct": 4.0}]
+    with patch("api.services.sector_strength.get_sector_strength",
+               return_value=fake) as m:
+        out = vmt.get_sector_strength(period="1M", count=1)
+    m.assert_called_once_with(period="1M")
+    assert out["period"] == "1M"
+    assert out["sectors"][0]["sector"] == "Financials"
+
+
+def test_get_sector_strength_period_alias_normalizes():
+    with patch("api.services.sector_strength.get_sector_strength",
+               return_value=[]) as m:
+        vmt.get_sector_strength(period="quarter")
+    m.assert_called_once_with(period="3M")
+
+
+def test_get_sector_strength_no_data_is_honest_not_theme_fallback():
+    with patch("api.services.sector_strength.get_sector_strength", return_value=[]), \
+         patch("api.services.engine.get_themes") as themes_mock:
+        out = vmt.get_sector_strength()
+    themes_mock.assert_not_called()
+    assert out["ok"] is False
+    assert out["sectors"] == []
+    assert "error" in out
+
+
+def test_get_sector_strength_swallows_exceptions_as_unavailable():
+    with patch("api.services.sector_strength.get_sector_strength",
+               side_effect=RuntimeError("boom")), \
+         patch("api.services.engine.get_themes") as themes_mock:
+        out = vmt.get_sector_strength()
+    themes_mock.assert_not_called()
+    assert out["ok"] is False
+    assert out["sectors"] == []
+
+
 # ── Earnings this week ─────────────────────────────────────────────────────
 
 def test_earnings_this_week():

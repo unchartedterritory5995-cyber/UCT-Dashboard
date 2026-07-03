@@ -94,22 +94,21 @@
   transition: background 0.1s;
 }
 .dropdownItem:hover  { background: rgba(255, 255, 255, 0.06); }
-.dropdownItemActive  { background: #3B82F6 !important; }
+.dropdownItemActive  { background: var(--ut-gold-dim) !important; box-shadow: inset 2px 0 0 var(--ut-gold); }
 
 .dropdownSym {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   min-width: 36px;
-  color: #c9a84c;
+  color: var(--ut-gold);
 }
-.dropdownItemActive .dropdownSym { color: white; }
 
 .dropdownName {
   font-size: 11px;
   color: var(--text-primary);
 }
-.dropdownItemActive .dropdownName { color: white; }
+.dropdownItemActive .dropdownName { color: var(--text-bright); }
 
 /* ── Lookback buttons ────────────────────────────────────────────── */
 .lookbackBtns {
@@ -131,20 +130,176 @@
 }
 .lookbackBtn:hover { border-color: rgba(255, 255, 255, 0.3); color: var(--text-primary); }
 .lookbackActive {
-  background: #3B82F6;
-  border-color: #3B82F6;
-  color: white;
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 /* ── Chart container ─────────────────────────────────────────────── */
 .chartWrap {
   position: relative;
-  background: #000000;
+  display: flex;
+  flex-direction: column;
+  background: #14160f;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: 24px;
+  padding: 20px 24px 16px;
   height: calc(100vh - 160px);
   min-height: 400px;
+}
+
+/* ── Chart header — eyebrow + title + stat-chip legend ───────────── */
+.chartHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.chartHeaderLeft {
+  min-width: 220px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  margin-bottom: 6px;
+}
+.eyebrow::before {
+  content: '';
+  width: 18px;
+  height: 1px;
+  background: var(--ut-gold);
+  opacity: 0.6;
+}
+
+.chartTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-heading);
+  letter-spacing: 0.2px;
+}
+
+.chartTitleSym {
+  margin-left: 8px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: 4px;
+  vertical-align: 2px;
+}
+
+.chartSub {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+/* ── Stacked trader-group panes (multi-pane chart idiom) ─────────── */
+.panesWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dim brand watermark behind all panes — same idiom as StockChart */
+.watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.watermarkSym {
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  line-height: 1;
+  color: rgba(224, 218, 200, 0.05);
+}
+
+.watermarkName {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(224, 218, 200, 0.055);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+.pane + .pane { border-top: 1px solid var(--border); margin-top: 4px; }
+
+.paneOi { flex: 0.85; }
+
+.paneHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0 3px;
+}
+
+.paneDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.paneLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.paneVal {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-left: 4px;
+}
+
+.paneDeltaUp,
+.paneDeltaDown {
+  font-size: 9px;
+  font-weight: 600;
+}
+.paneDeltaUp   { color: var(--gain); }
+.paneDeltaDown { color: var(--loss); }
+
+.paneBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 .overlay {

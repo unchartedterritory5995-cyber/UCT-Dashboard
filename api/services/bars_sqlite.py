@@ -190,6 +190,56 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     return cur.rowcount
 
 
+def purge_mis_keyed_weekly_rows() -> int:
+    """Delete weekly rows whose date key is not the FRIDAY of its ISO week.
+
+    Weekly candles are keyed to the calendar Friday of their ISO week
+    (commit e9c75603) — under that scheme a non-Friday `tf='W'` key can only
+    be a leftover from the old Monday keying. Because the date IS the primary
+    key, stale Monday rows coexist with the Friday rows every fetch writes,
+    and the chart shows two identical candles per week.
+
+    Content-based and idempotent on purpose: the original flag-gated one-shot
+    heal only ran in api.main's lifespan, so the worker's bars.db kept its
+    Monday rows and every R2 snapshot pull re-poisoned the web pod while the
+    flag file blocked a re-heal. This runs at EVERY boot on BOTH services and
+    after snapshot restores — a clean DB costs one DISTINCT scan (~ms).
+
+    Returns rows deleted.
+    """
+    import datetime as _dt
+
+    c = _conn()
+    rows = c.execute("SELECT DISTINCT ts FROM ohlcv WHERE tf='W'").fetchall()
+    bad: list[int] = []
+    for (ts,) in rows:
+        s = str(ts)
+        if len(s) != 8:
+            bad.append(ts)  # not a YYYYMMDD key — malformed for a date TF
+            continue
+        try:
+            d = _dt.date(int(s[:4]), int(s[4:6]), int(s[6:]))
+        except ValueError:
+            bad.append(ts)
+            continue
+        if d.weekday() != 4:  # 4 = Friday
+            bad.append(ts)
+    if not bad:
+        return 0
+    deleted = 0
+    with _WRITE_LOCK:
+        # Chunk the IN() list to stay far below SQLite's parameter limit.
+        for i in range(0, len(bad), 500):
+            chunk = bad[i:i + 500]
+            qs = ",".join("?" for _ in chunk)
+            cur = c.execute(f"DELETE FROM ohlcv WHERE tf='W' AND ts IN ({qs})", chunk)
+            deleted += cur.rowcount
+        c.commit()
+    if deleted:
+        _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
+    return deleted
+
+
 def get_last_ts(ticker: str, tf: str) -> int | None:
     """Return the largest stored ts for (ticker, tf), or None if no rows."""
     row = _conn().execute(
