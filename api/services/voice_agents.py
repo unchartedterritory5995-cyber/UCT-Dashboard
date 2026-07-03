@@ -452,6 +452,7 @@ def _compass_tool_union() -> set[str]:
     out.add("setup_winrate")
     out.add("find_historical_analogs")
     out.add("size_a_trade")
+    out.add("grade_ticker")
     return out
 
 
@@ -492,7 +493,7 @@ _COMPASS_CORE_TOOLS: set[str] = {
     # Brain bridge — firm playbook/KB, setup win-rates, historical analogs,
     # risk-first sizing (flag-gated; harmless when unregistered).
     "ask_the_brain", "lookup_playbook", "setup_winrate",
-    "find_historical_analogs", "size_a_trade",
+    "find_historical_analogs", "size_a_trade", "grade_ticker",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",

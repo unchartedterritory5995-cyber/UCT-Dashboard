@@ -1848,6 +1848,11 @@ def _lookup_playbook(setup_name: str) -> dict:
     return brain_service.lookup_playbook(setup_name)
 
 
+def _grade_ticker(symbol: str, account_size: float = 0) -> dict:
+    from api.services import grade_ticker as _gt
+    return _gt.grade_ticker(symbol, account_size=(account_size or None))
+
+
 def _setup_winrate(setup: str, regime: str = "ALL") -> dict:
     from api.services import brain_service
     return brain_service.setup_winrate(setup, regime or "ALL")
@@ -3656,6 +3661,15 @@ def _register_all() -> None:
             parameters={"setup_name": {"type": "string", "description": "Setup name or alias"}},
             contexts=["global"],
         )(_lookup_playbook)
+        _vt.voice_tool(
+            name="grade_ticker",
+            description="Grade a ticker as a trade right now: decisive GO/HOLD/SKIP with"
+                        " regime, setup grade, entry, stop, size %, account-risk % —"
+                        " all tool-sourced. Use for any 'call this trade' / 'grade X' ask.",
+            parameters={"symbol": {"type": "string"},
+                        "account_size": {"type": "number"}},
+            contexts=["global"],
+        )(_grade_ticker)
         _vt.voice_tool(
             name="setup_winrate",
             description="Win-rate and expectancy for a setup, optionally in a specific regime"
