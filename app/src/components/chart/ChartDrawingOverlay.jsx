@@ -689,10 +689,14 @@ export default function ChartDrawingOverlay({
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, drawingId }
   const rafRef = useRef(null)
   // Instant frame-snap handling: LWC updates priceToCoordinate ASYNC (on its next
-  // paint), so right after a snap the price mapping is stale. Blank the layer and
-  // hold it blank until the mapping actually changes (settles), so price-anchored
-  // lines never flash at the pre-snap height. snapBaseYRef = the pre-snap sample.
-  const snapSuppressRef = useRef(false)
+  // paint), so right after a snap the price mapping is stale. To keep price-anchored
+  // annotations instant AND correct, the parent hands us the snap's TARGET price
+  // range and we compute Y from it directly (edge-to-edge over the price pane) until
+  // LWC's own mapping settles to the same range — then we hand back to
+  // priceToCoordinate seamlessly. snapBaseYRef = the pre-snap sample used to detect
+  // the settle.
+  const snapActiveRef = useRef(false)   // formula-based Y active during the snap transient
+  const snapVertRef = useRef(null)      // { lo, hi } edge-to-edge target price range
   const snapBaseYRef = useRef(null)
   const snapSafetyRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -743,6 +747,14 @@ export default function ChartDrawingOverlay({
     return res < 0 ? 0 : res   // before the first bar → first bar
   }, [bars, timeToIndex])
 
+  // Bottom edge (CSS px) of the price pane = pane-0 height. Annotations below it
+  // live in the volume (or index) pane, which the candle price scale doesn't map.
+  const pricePaneBottomPx = useCallback(() => {
+    try { const h = seriesRef?.current?.getPane?.()?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
+    try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
+    return null
+  }, [chartRef, seriesRef])
+
   // ── Coordinate conversion: chart → pixel ──
   // Uses refs at call-time so always gets latest chart/series
   const toPixel = useCallback((time, price) => {
@@ -764,10 +776,20 @@ export default function ChartDrawingOverlay({
     }
     let y = null
     if (price != null) {
-      try { y = series.priceToCoordinate(price) } catch {}
+      // During an instant-snap transient, LWC's priceToCoordinate is still the
+      // pre-snap mapping this frame. Compute Y directly from the snap's target
+      // range (edge-to-edge over the price pane) so the line is instantly at its
+      // correct height; hands back to priceToCoordinate once LWC settles (the tick
+      // clears snapActiveRef), which equals this by construction — no jump.
+      const sv = snapActiveRef.current ? snapVertRef.current : null
+      if (sv && Number.isFinite(sv.lo) && Number.isFinite(sv.hi) && sv.hi > sv.lo) {
+        const H = pricePaneBottomPx()
+        if (H && H > 0) y = H * (sv.hi - price) / (sv.hi - sv.lo)
+      }
+      if (y == null) { try { y = series.priceToCoordinate(price) } catch {} }
     }
     return { x, y }
-  }, [chartRef, seriesRef, bars, nearestIndex])
+  }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx])
 
   // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled.
   // A point with `paneRelY` (placed below the price pane — see toChart) is
@@ -781,14 +803,6 @@ export default function ChartDrawingOverlay({
       return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time }
     }).filter(p => p.x != null || p.y != null)
   }, [toPixel])
-
-  // Bottom edge (CSS px) of the price pane = pane-0 height. Annotations below it
-  // live in the volume (or index) pane, which the candle price scale doesn't map.
-  const pricePaneBottomPx = useCallback(() => {
-    try { const h = seriesRef?.current?.getPane?.()?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
-    try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
-    return null
-  }, [chartRef, seriesRef])
 
   // One-time migration of LEGACY volume-pane annotations (saved before paneRelY
   // existed): they're price-anchored and jump onto the chart after a rescale.
@@ -991,11 +1005,11 @@ export default function ChartDrawingOverlay({
           let y0 = null, y1 = null
           try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
           // Snap settled? Once the price mapping moves off its pre-snap sample,
-          // LWC has repainted at the new scale — release the blank so the very
-          // next redraw resolves the annotations at their correct height.
-          if (snapSuppressRef.current && y0 != null && snapBaseYRef.current != null
+          // LWC has repainted at the new scale (which equals our target range), so
+          // drop the override and hand back to priceToCoordinate — no visible jump.
+          if (snapActiveRef.current && y0 != null && snapBaseYRef.current != null
               && Math.abs(y0 - snapBaseYRef.current) > 0.5) {
-            snapSuppressRef.current = false
+            snapActiveRef.current = false
             if (snapSafetyRef.current) { clearTimeout(snapSafetyRef.current); snapSafetyRef.current = null }
           }
           // Include the text-fade value so the fade renders frame-by-frame even at
@@ -1030,10 +1044,6 @@ export default function ChartDrawingOverlay({
     if (w === 0 || h === 0) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
-
-    // Held blank between an instant frame snap and the moment LWC's price mapping
-    // settles (see the redraw handle + tick), so nothing draws at a stale height.
-    if (snapSuppressRef.current) return
 
     // Clip everything to the plot area (exclude the right price axis) so no line,
     // ray, or label ever renders over the price scale — e.g. an hray streaking to
@@ -1247,13 +1257,21 @@ export default function ChartDrawingOverlay({
   // this frame (its scale updates on its own later paint). So BLANK the layer now
   // and let the rAF tick redraw it the moment the mapping actually changes; that
   // way the lines never appear at the wrong height, they just resolve into place.
-  if (redrawHandleRef) redrawHandleRef.current = () => {
-    snapSuppressRef.current = true
-    try { snapBaseYRef.current = seriesRef?.current?.priceToCoordinate(1) ?? null } catch { snapBaseYRef.current = null }
-    if (snapSafetyRef.current) clearTimeout(snapSafetyRef.current)
-    // Safety net: if the settle is never detected, un-blank anyway.
-    snapSafetyRef.current = setTimeout(() => { snapSuppressRef.current = false; redrawRef.current?.() }, 250)
-    redrawRef.current?.()   // clears the canvas (suppressed → returns after clear)
+  if (redrawHandleRef) redrawHandleRef.current = (vertRange) => {
+    // vertRange = { lo, hi } edge-to-edge target price range for the snapped frame.
+    // Draw Y from it directly (instant + correct) until LWC's own mapping settles
+    // to the same range, at which point the tick clears snapActiveRef and we hand
+    // back to priceToCoordinate. Without a valid range we can't compute Y, so fall
+    // straight through to priceToCoordinate (may pop, but never blanks).
+    if (vertRange && Number.isFinite(vertRange.lo) && Number.isFinite(vertRange.hi) && vertRange.hi > vertRange.lo) {
+      snapVertRef.current = { lo: vertRange.lo, hi: vertRange.hi }
+      snapActiveRef.current = true
+      try { snapBaseYRef.current = seriesRef?.current?.priceToCoordinate(1) ?? null } catch { snapBaseYRef.current = null }
+      if (snapSafetyRef.current) clearTimeout(snapSafetyRef.current)
+      // Safety net: drop the override after a beat even if the settle isn't detected.
+      snapSafetyRef.current = setTimeout(() => { snapActiveRef.current = false; redrawRef.current?.() }, 400)
+    }
+    redrawRef.current?.()   // paint now, at the correct height
   }
 
   // Trigger redraw when any drawing state changes

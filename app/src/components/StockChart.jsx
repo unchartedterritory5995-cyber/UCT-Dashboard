@@ -4257,20 +4257,33 @@ export default function StockChart({
     }
     if (frameChanged && instantFrameFlip) {
       // Instant cut (Setup Library): no glide — snap straight to the new frame,
-      // like loading a fresh chart. Cancel any in-flight glide, drop the focus
-      // vertical so the price scale re-autoscales to the new window, and pin the
-      // new range. yearFramedRef is stamped so the settle-window re-assert burst
+      // like loading a fresh chart. Cancel any in-flight glide and pin the new
+      // frame. yearFramedRef is stamped so the settle-window re-assert burst
       // doesn't fire on top of this.
       if (focusRafRef.current != null) { cancelAnimationFrame(focusRafRef.current); focusRafRef.current = null }
       focusActiveRef.current = false
-      focusPriceRangeRef.current = null
       focusRangeRef.current = null
+      // Compute the snapped frame's EDGE-TO-EDGE vertical (candle window + the same
+      // headroom the default autoscale applies) and pin it via the focus provider,
+      // so LWC settles to EXACTLY this range. Passing the identical range to the
+      // annotation overlay lets it place price-anchored lines at their correct
+      // height in the same frame (LWC's own priceToCoordinate is async), then hand
+      // back seamlessly once LWC catches up.
+      const _ov = fitPriceToCandles ? null : overlayData
+      const _tv = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
+      const _mmI = _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _mt = Math.max(0, Math.min(0.45, _mmI?.top ?? 0))
+      const _mb = Math.max(0, Math.min(0.45, _mmI?.bottom ?? 0))
+      const _raw = _windowPriceRange(filteredBars, fromIdx, _tv, _ov)
+      let targetVert = null
+      if (_raw && (1 - _mt - _mb) > 0) {
+        const _R = (_raw.hi - _raw.lo) / (1 - _mt - _mb)
+        targetVert = { lo: _raw.lo - _mb * _R, hi: _raw.hi + _mt * _R }
+      }
+      focusPriceRangeRef.current = targetVert   // provider pins the chart to this exact range (null → default autoscale)
       applyYear()
-      // Re-resolve the price-anchored annotations against the NOW-snapped mapping,
-      // in this same commit (before paint). The overlay's own redraw already ran
-      // with the pre-snap mapping (child effects fire before this parent effect),
-      // which flashed the lines at their old positions for one frame.
-      try { annRedrawRef.current?.() } catch { /* overlay not mounted */ }
+      // Snap the price-anchored annotations to the same target range immediately.
+      try { annRedrawRef.current?.(targetVert) } catch { /* overlay not mounted */ }
       yearFramedRef.current = `${fk}:${filteredBars.length}`
       if (sliceHoldRef.current) { sliceHoldRef.current = null; setSliceGen(g => g + 1) }
       return
