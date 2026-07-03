@@ -787,6 +787,12 @@ def _massive_raw_to_iso(raw) -> list[dict]:
     return out
 
 
+# Hard deadline for the REQUEST-path yfinance daily tail-fill. 3.5s bounds a cold
+# chart open (Massive-time + this) instead of the 20s a slow Yahoo call could
+# take; the tail heals on the next poll / nightly warm. Env-tunable.
+_REQUEST_YF_DAILY_TIMEOUT = float(_os.environ.get("BARS_REQUEST_YF_TIMEOUT", "3.5"))
+
+
 def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]:
     """Fill the lagging recent tail of a Massive daily series from yfinance.
 
@@ -808,7 +814,15 @@ def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]
     if massive_iso and massive_max >= _expected_latest_session_yyyymmdd():
         return massive_iso  # fresh — no fallback, no yfinance call
     try:
-        yf_daily = _fetch_daily_yf(ticker)
+        # REQUEST PATH: cap the Yahoo call hard. A Massive-lagging thin ticker
+        # (recent SPAC / illiquid small-cap) otherwise blocked a cold chart open
+        # up to 20s on this synchronous tail-fill. With the cap, a slow Yahoo call
+        # simply yields Massive-only bars for the first paint (fresh minus the few
+        # sessions Massive lags); the missing tail heals on a subsequent poll (the
+        # delta path re-runs this) or the nightly deep warm. Live price still
+        # overlays the current bar. The nightly warm / index paths keep the 20s
+        # default by calling _fetch_daily_yf directly.
+        yf_daily = _fetch_daily_yf(ticker, timeout=_REQUEST_YF_DAILY_TIMEOUT)
     except Exception:
         yf_daily = []
     if not yf_daily:
@@ -1048,10 +1062,16 @@ def _yf_daily_record_ok(ticker_up: str) -> None:
         _YF_DAILY_FAIL.pop(ticker_up, None)
 
 
-def _fetch_daily_yf(ticker: str) -> list[dict]:
+def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
     """Fetch daily bars from yfinance period='max' for deep history.
     Returns bars in our normalized format (t = ISO date string).
     Used during nightly warm to get pre-2006 history that Massive lacks.
+
+    ``timeout`` is the hard caller-side deadline (yfinance_pool enforces it via
+    Future.result). Defaults to 20s for the nightly warm / index (yf-only) paths
+    where the deeper data is worth the wait; the REQUEST-path tail-fill passes a
+    tight cap (see _REQUEST_YF_DAILY_TIMEOUT) so a cold chart open never blocks
+    on a slow Yahoo call.
     """
     ticker_up = ticker.upper()
     # Skip tickers in a recent-failure backoff window (Yahoo IP throttle / delisted).
@@ -1060,12 +1080,10 @@ def _fetch_daily_yf(ticker: str) -> list[dict]:
     try:
         from api.services.yfinance_pool import fetch_history as _yf_fetch
         # period='max' on a wide universe is a known yfinance slow-path
-        # (multi-second on cold tickers). Use a longer timeout than the
-        # intraday fast-path because this is invoked from the nightly
-        # warm, not user requests, and the deeper data is worth the wait.
+        # (multi-second on cold tickers). The caller chooses the deadline.
         df = _yf_fetch(
             ticker_up,
-            timeout=20.0,
+            timeout=timeout,
             period='max', interval='1d',
             auto_adjust=False, raise_errors=False,
         )

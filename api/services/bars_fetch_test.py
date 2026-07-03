@@ -677,7 +677,7 @@ class TestDeltaDailyYfFallback:
             {"t": "2026-06-09", "o": 8.17, "h": 8.45, "l": 7.09, "c": 7.35, "v": 2349200},
             {"t": "2026-06-12", "o": 7.17, "h": 7.40, "l": 5.90, "c": 6.18, "v": 2583061},
         ]
-        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t: yf_bars)
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t, timeout=20.0: yf_bars)
         monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
 
         out = _bf._delta_daily("FJET", last_ts)
@@ -697,7 +697,7 @@ class TestDeltaDailyYfFallback:
         )
         called = {"yf": False}
 
-        def _boom(_t):
+        def _boom(_t, timeout=20.0):
             called["yf"] = True
             return []
         monkeypatch.setattr(_bf, "_fetch_daily_yf", _boom)
@@ -729,7 +729,7 @@ class TestWeeklyMonthlyAndFullFetchYfFallback:
             {"t": "2026-06-11", "o": 7.80, "h": 8.08, "l": 6.71, "c": 6.75, "v": 2437200},
             {"t": "2026-06-12", "o": 7.17, "h": 7.40, "l": 5.90, "c": 6.18, "v": 2583061},
         ]
-        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t: yf_bars)
+        monkeypatch.setattr(_bf, "_fetch_daily_yf", lambda t, timeout=20.0: yf_bars)
         monkeypatch.setattr(_bf, "_expected_latest_session_yyyymmdd", lambda *a, **k: 20260612)
 
     def test_delta_weekly_fills_missing_days_from_yfinance(self, monkeypatch):
@@ -768,7 +768,7 @@ class TestWeeklyMonthlyAndFullFetchYfFallback:
         )
         called = {"yf": False}
 
-        def _boom(_t):
+        def _boom(_t, timeout=20.0):
             called["yf"] = True
             return []
         monkeypatch.setattr(_bf, "_fetch_daily_yf", _boom)
