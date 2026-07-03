@@ -11,6 +11,8 @@ be fetched, callers get an honest empty result, never mislabeled theme data.
 """
 
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from api.services.cache import cache
@@ -18,6 +20,16 @@ from api.services.cache import cache
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 900  # 15 min
+
+# Bounded fetch pool for the 11-ETF batch (mirrors rs_ranking's conservative
+# ThreadPoolExecutor sizing for Railway). Worst case wall time drops from
+# ~11 sequential upstream calls to ~ceil(11/6) rounds.
+_MAX_FETCH_WORKERS = 6
+
+# Single-flight guard for the cache-miss path (herd-collapse pattern, cf.
+# live_prices.py's Semaphore + re-check valve): N concurrent cold callers
+# must not fan out N×11 upstream fetches on the single-process web pod.
+_COMPUTE_LOCK = threading.Lock()
 
 SECTOR_ETFS: dict[str, str] = {
     "Technology": "XLK",
@@ -66,22 +78,37 @@ def compute_sector_returns(n_bars: int, *, bars_fetcher=None) -> list[dict]:
     not substitute unrelated data.
     """
     fetcher = bars_fetcher or _fetch_sector_bars
-    out: list[dict] = []
-    for name, ticker in SECTOR_ETFS.items():
-        try:
-            bars = fetcher(ticker, n_bars)
-        except Exception:
-            logger.exception("[sector_strength] bars fetch failed for %s", ticker)
-            continue
+
+    def _one(name: str, ticker: str) -> dict | None:
+        bars = fetcher(ticker, n_bars)  # exceptions handled at future.result()
         if not bars or len(bars) < n_bars + 1:
-            continue
+            return None
         closes = [b.get("c") for b in bars]
         current = closes[-1]
         ref = closes[-(n_bars + 1)]
         if not current or not ref or current <= 0 or ref <= 0:
-            continue
+            return None
         change_pct = (current - ref) / ref * 100
-        out.append({"sector": name, "ticker": ticker, "change_pct": round(change_pct, 2)})
+        return {"sector": name, "ticker": ticker, "change_pct": round(change_pct, 2)}
+
+    # Parallel fetch across the 11 ETFs (bounded pool, mirrors
+    # rs_ranking.compute_rs_scores). Per-ETF failure isolation: one raising
+    # ticker is logged + dropped, never kills the batch.
+    items = list(SECTOR_ETFS.items())
+    out: list[dict] = []
+    max_workers = min(len(items), _MAX_FETCH_WORKERS) or 1
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_one, name, ticker): ticker
+                   for name, ticker in items}
+        for future in as_completed(futures):
+            try:
+                row = future.result()
+            except Exception:
+                logger.exception("[sector_strength] bars fetch failed for %s",
+                                 futures[future])
+                continue
+            if row is not None:
+                out.append(row)
 
     out.sort(key=lambda r: r["change_pct"], reverse=True)
     return out
@@ -100,7 +127,15 @@ def get_sector_strength(period: str = DEFAULT_PERIOD) -> list[dict]:
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    rows = compute_sector_returns(n_bars)
-    if rows:
-        cache.set(cache_key, rows, ttl=_CACHE_TTL)
-    return rows
+    # Single-flight: check -> acquire -> re-check -> compute -> set. On a cold
+    # cache, N racing callers produce exactly ONE upstream compute; the rest
+    # wait briefly and serve the freshly cached result (524-shape hardening —
+    # never fan out N×11 Massive calls from the shared anyio threadpool).
+    with _COMPUTE_LOCK:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        rows = compute_sector_returns(n_bars)
+        if rows:
+            cache.set(cache_key, rows, ttl=_CACHE_TTL)
+        return rows

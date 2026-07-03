@@ -5,6 +5,8 @@ computation (11 SPDR sector ETFs, period returns from daily bars), fully
 testable with an injected fake bars source so no test hits the network.
 """
 
+import threading
+import time
 from unittest.mock import patch
 
 from api.services import sector_strength as ss
@@ -109,3 +111,70 @@ def test_get_sector_strength_does_not_cache_empty_result():
         rows = ss.get_sector_strength(period="Today")
     assert rows == []
     assert ss.cache.get(key) is None
+
+
+# ── parallel fetch (524-shape hardening) ───────────────────────────────────
+
+def test_compute_sector_returns_fetches_etfs_in_parallel():
+    # Two fetches must overlap in time. Each fetcher call waits on a 2-party
+    # barrier: if fetches ran sequentially the first call would block forever
+    # (bounded by the barrier timeout) — parallel execution releases both.
+    barrier = threading.Barrier(2)
+
+    def _barrier_fetch(ticker, n_bars):
+        barrier.wait(timeout=5)  # raises BrokenBarrierError if sequential
+        return [{"c": 100.0}, {"c": 101.0}]
+
+    with patch.object(ss, "SECTOR_ETFS", {"Technology": "XLK", "Financials": "XLF"}):
+        rows = ss.compute_sector_returns(1, bars_fetcher=_barrier_fetch)
+    assert len(rows) == 2  # both survived; and correctness holds under parallelism
+    assert all(r["change_pct"] == 1.0 for r in rows)
+
+
+def test_compute_sector_returns_parallel_one_raising_ticker_survives():
+    barrier = threading.Barrier(2)
+
+    def _flaky_parallel_fetch(ticker, n_bars):
+        barrier.wait(timeout=5)
+        if ticker == "XLK":
+            raise RuntimeError("upstream 502")
+        return [{"c": 50.0}, {"c": 55.0}]
+
+    with patch.object(ss, "SECTOR_ETFS", {"Technology": "XLK", "Financials": "XLF"}):
+        rows = ss.compute_sector_returns(1, bars_fetcher=_flaky_parallel_fetch)
+    assert [r["sector"] for r in rows] == ["Financials"]
+    assert rows[0]["change_pct"] == 10.0
+
+
+# ── single-flight cache-miss guard ─────────────────────────────────────────
+
+def test_get_sector_strength_single_flight_two_racing_threads_one_compute():
+    key = f"sector_strength_{ss.PERIOD_TO_BARS['1W']}"
+    ss.cache.invalidate(key)
+
+    start = threading.Barrier(2)
+    calls = []
+    calls_lock = threading.Lock()
+
+    def _counting_compute(n_bars):
+        with calls_lock:
+            calls.append(n_bars)
+        time.sleep(0.25)  # hold the compute open so the race window is real
+        return [{"sector": "Technology", "ticker": "XLK", "change_pct": 2.0}]
+
+    results = [None, None]
+
+    def _worker(i):
+        start.wait(timeout=5)  # both threads hit the cold cache together
+        results[i] = ss.get_sector_strength(period="1W")
+
+    with patch.object(ss, "compute_sector_returns", side_effect=_counting_compute):
+        t1 = threading.Thread(target=_worker, args=(0,))
+        t2 = threading.Thread(target=_worker, args=(1,))
+        t1.start(); t2.start()
+        t1.join(timeout=10); t2.join(timeout=10)
+
+    assert len(calls) == 1, f"expected single-flight (1 compute), got {len(calls)}"
+    assert results[0] == results[1]
+    assert results[0][0]["sector"] == "Technology"
+    ss.cache.invalidate(key)

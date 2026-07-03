@@ -100,7 +100,7 @@ safe_call("get_breadth()",
 
 safe_call("get_sector_strength()",
           lambda: voice_tools.dispatch("get_sector_strength", {}, user={"id": UID}),
-          expect_nonempty=["top_sectors"])
+          expect_nonempty=["sectors"])
 
 safe_call("get_news()",
           lambda: voice_tools.dispatch("get_news", {"count": 3}, user={"id": UID}),
