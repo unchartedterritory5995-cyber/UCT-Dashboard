@@ -43,7 +43,8 @@ ET = datetime.timezone(datetime.timedelta(hours=-4))
 # Match worker defaults exactly
 MIN_VOLUME = 50
 MIN_PREMIUM = 10_000
-WINDOW_NS = 100_000_000  # 100ms
+WINDOW_NS = 500_000_000  # 500ms (widened 2026-07-03 to match massive_processor.py;
+                          # 100ms was splitting cross-exchange sweeps into BLOCKs)
 
 # Match the FIXED CANCEL set (includes 202, 204)
 CANCEL_CONDITIONS = {201, 202, 203, 204, 205, 207}
@@ -100,14 +101,19 @@ def parse_occ(ticker: str):
 
 
 def classify_type(conditions_seen, n_exchanges) -> str:
-    """Match massive_processor's type classification."""
+    """Match massive_processor's type classification.
+
+    2026-07-03: fallback threshold lowered from >= 3 to >= 2 exchanges.
+    Matches BBS's treatment of 2-exchange same-price bursts as sweeps.
+    See massive_processor.py comment for evidence trace.
+    """
     if conditions_seen & MULTI_LEG_CONDITIONS:
         return "ML/"
     if ISO_CONDITION in conditions_seen:
         return "SWEEP"
     if conditions_seen & SINGLE_LEG_CONDITIONS:
         return "BLOCK"
-    return "SWEEP" if n_exchanges >= 3 else "BLOCK"
+    return "SWEEP" if n_exchanges >= 2 else "BLOCK"
 
 
 def fmt_date(d: datetime.date) -> str:
