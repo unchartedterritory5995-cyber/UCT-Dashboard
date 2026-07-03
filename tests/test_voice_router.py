@@ -199,6 +199,31 @@ def test_tts_stream_supports_range_requests(client, tmp_path, monkeypatch):
     assert r.content == b"456789"
 
 
+def test_tts_prepare_precheck_finds_cache_by_normalized_key(client, tmp_path, monkeypatch):
+    """Regression: /tts/prepare's fail-fast precheck must look up the cache under
+    the SAME normalized key that /tts/stream serves from. Read-aloud text carries
+    tickers/% so normalize_for_speech() changes the string; if prepare keys on the
+    raw text it always misses a real cache hit and — when OpenAI is misconfigured —
+    503s a clip that /tts/stream would have played straight from the cached file."""
+    monkeypatch.setattr(vac, "_CACHE_DIR", str(tmp_path))
+    _login(client, plan="pro")
+    from api.services.voice_text_normalize import normalize_for_speech
+    raw = "Markets closed up 3% today."          # "3%" → "up 3 percent" on normalize
+    norm = normalize_for_speech(raw)
+    assert norm != raw                             # guard: this text really is transformed
+    # Simulate a prewarm cache hit stored under the NORMALIZED key (verse/1.0 defaults).
+    vac.put_cached(norm, "verse", 1.0, b"\xFF\xFB\x90\x00PREWARMED")
+    # OpenAI misconfigured: the client probe raises. A raw-key precheck would miss
+    # the cache, fall into this probe, and 503.
+    with patch(
+        "api.services.voice_openai._get_client",
+        side_effect=RuntimeError("OPENAI_API_KEY not set"),
+    ):
+        r = client.post("/api/voice/tts/prepare", json={"text": raw})
+    assert r.status_code == 200, r.text            # must return a token, not 503
+    assert r.json()["token"]
+
+
 def test_tts_prepare_requires_paid_plan(client):
     _login(client, plan="free")
     r = client.post("/api/voice/tts/prepare", json={"text": "hi"})

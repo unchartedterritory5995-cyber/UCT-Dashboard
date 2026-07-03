@@ -421,6 +421,14 @@ def main():
     # thread, after the purge, so no R2 snapshot is ever taken while the
     # stale Monday rows are still present.
     def _purge_then_start_uploader():
+        # Intentionally the SYNC purge, NOT purge_mis_keyed_weekly_rows_async().
+        # bars_sqlite's docstring says boot callers "MUST use the _async variant" —
+        # that contract is for INLINE/main-thread callers (it keeps the healthcheck
+        # unblocked). Here we are ALREADY on a dedicated daemon thread, and we need
+        # the call to BLOCK so _start_uploader() runs strictly AFTER the purge. The
+        # _async variant returns immediately, which would start the uploader before
+        # the purge finished and re-open the 2026-07-02 snapshot-poisoning window.
+        # Do NOT "fix" this to _async.
         try:
             _wk = _bs.purge_mis_keyed_weekly_rows()
             log.info(f"weekly key purge: removed {_wk} mis-keyed weekly rows")
