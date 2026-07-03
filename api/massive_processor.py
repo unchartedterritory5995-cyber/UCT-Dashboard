@@ -226,8 +226,9 @@ class TradeAggregator:
     def __init__(self, min_premium: float = 10_000, min_volume: int = 50):
         self.min_premium = min_premium
         self.min_volume = min_volume
-        # Active bucket per (ticker, price) -- newest still-growing burst
-        self._pending: dict[tuple[str, float], list[RawTrade]] = {}
+        # Active bucket per ticker -- newest still-growing burst.
+        # Fix 3 (2026-07-03): keyed by ticker only (was ticker+price).
+        self._pending: dict[str, list[RawTrade]] = {}
         # Completed events queued for drain()
         self._ready: list[AggEvent] = []
         self._stats = {
@@ -235,6 +236,17 @@ class TradeAggregator:
             'dropped_below_premium': 0, 'dropped_below_volume': 0,
         }
 
+    # 2026-07-03 (Fix 3): bucket key changed from (ticker, price) to just ticker.
+    # Previously, a sweep that walked prices (e.g., TER $290 CALL 7/17 hitting
+    # $81.80 -> $82.80 in 700ms) got split into 3 sub-$1M events by price
+    # bucket. BBS and Bullflow both aggregate the whole walk as one event
+    # with weighted-average price (matched vol 244 @ $82.157 = $2M).
+    #
+    # The 500ms window still separates temporally-unrelated trades. Weighted-
+    # price computation already exists in _aggregate. Risk of merging genuinely
+    # unrelated sub-500ms activity on the same contract is small in practice --
+    # options tick rates on illiquid strikes rarely have overlapping
+    # independent activity within 500ms.
     def add_trade(self, trade: RawTrade) -> None:
         if trade.size <= 0 or trade.price <= 0:
             return
@@ -245,7 +257,7 @@ class TradeAggregator:
             self._stats['dropped_cancelled'] = self._stats.get('dropped_cancelled', 0) + 1
             return
         self._stats['added'] += 1
-        key = (trade.ticker, round(trade.price, 4))
+        key = trade.ticker
         bucket = self._pending.get(key)
         if bucket is not None:
             gap = trade.ts_ns - bucket[-1].ts_ns

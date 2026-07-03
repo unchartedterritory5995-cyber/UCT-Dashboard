@@ -141,16 +141,20 @@ def fmt_price(p: float) -> str:
 
 
 def aggregate(prints_df: pd.DataFrame) -> List[Event]:
-    """Run the 100ms sliding-gap aggregation per (ticker, rounded price).
-    Mirrors TradeAggregator semantics."""
+    """Run the 500ms sliding-gap aggregation per ticker.
+    Mirrors TradeAggregator semantics.
+
+    Fix 3 (2026-07-03): bucket keyed by ticker only (was ticker + rounded_price).
+    Sweeps that walk prices ($81.80 -> $82.80 in 700ms) now merge into one
+    event with weighted-avg price, matching BBS/Bullflow behavior."""
     events = []
     # Sort by timestamp globally so per-bucket logic works
     prints_df = prints_df.sort_values('sip_timestamp').reset_index(drop=True)
 
     # Group by ticker first (we don't care about cross-ticker order beyond sip_ts)
     for ticker, grp in prints_df.groupby('ticker', sort=False):
-        # Per (ticker, rounded_price) buckets
-        buckets = {}  # rounded_price -> list of (ts, price, size, exch, cond)
+        # Single per-ticker bucket now (was per rounded_price)
+        bucket = None  # list of (ts, price, size, exch, cond) or None
         # Process in time order
         for r in grp.itertuples():
             cond = int(r.conditions)
@@ -158,8 +162,7 @@ def aggregate(prints_df: pd.DataFrame) -> List[Event]:
                 continue
             if r.size <= 0 or r.price <= 0:
                 continue
-            key = round(r.price, 4)
-            bucket = buckets.get(key)
+            tick = (r.sip_timestamp, r.price, r.size, r.exchange, cond)
             if bucket is not None:
                 last_ts = bucket[-1][0]
                 gap = r.sip_timestamp - last_ts
@@ -168,13 +171,13 @@ def aggregate(prints_df: pd.DataFrame) -> List[Event]:
                     evt = _build_event(ticker, bucket)
                     if evt is not None:
                         events.append(evt)
-                    buckets[key] = [(r.sip_timestamp, r.price, r.size, r.exchange, cond)]
+                    bucket = [tick]
                 else:
-                    bucket.append((r.sip_timestamp, r.price, r.size, r.exchange, cond))
+                    bucket.append(tick)
             else:
-                buckets[key] = [(r.sip_timestamp, r.price, r.size, r.exchange, cond)]
-        # Flush remaining buckets at end of ticker stream
-        for bucket in buckets.values():
+                bucket = [tick]
+        # Flush remaining bucket at end of ticker stream
+        if bucket:
             evt = _build_event(ticker, bucket)
             if evt is not None:
                 events.append(evt)
