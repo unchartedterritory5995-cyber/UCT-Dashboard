@@ -622,7 +622,7 @@ def _ts_from_row(created_date: str, created_time: str) -> float:
         return 0.0
 
 
-def _derive_direction(cp: str, side: str):
+def _derive_direction(cp: str, side: str, type_: str = ""):
     """Bull/Bear from Side+CP. Returns None when the side classification
     is too ambiguous to call directional.
 
@@ -645,37 +645,68 @@ def _derive_direction(cp: str, side: str):
     Tunable via thresholds.derive_strict_bid_only_bb. When False, falls back
     to legacy behavior treating B and BB identically (pre-6/30 logic).
 
+    Empty-side SWEEP fallback (added 2026-07-03):
+      When side is empty AND type is SWEEP, presume A (at ask). Sweeps are
+      by definition aggressive orders that cross the spread across venues;
+      market microstructure makes them almost always buyer-initiated
+      (~85%+ per BBS side distribution audit). This lets high-conviction
+      institutional sweeps (e.g. SPCX $2.4M 10:36 CALL SWEEP on 7/2) reach
+      the Premium Override rescue path in _derive_alert_name, which they
+      previously couldn't because empty-side rows exited before the
+      override could run.
+
+      Only applies to SWEEP type (including ISO variants). BLOCKs stay
+      strict — a $3M BLOCK with no side signal is more ambiguous than a
+      SWEEP (could be portfolio rebalance, dealer facilitation, etc.).
+
+      Tunable via thresholds.sweep_empty_side_as_ask (default True).
+      Set False to revert to strict "empty = drop" behavior.
+
     For PUT contracts, direction maps inversely as before.
     """
-    if not side:
-        return None
-    side_norm = side.strip().upper()
+    side_norm = (side or "").strip().upper()
+    type_up = (type_ or "").upper().strip().strip("/")
+    is_sweep = ("SWEEP" in type_up) or ("ISO" in type_up)
 
-    # Check tunable mode (default: strict)
-    try:
-        thresholds = _load_thresholds()
-        strict = thresholds.get("derive_strict_bid_only_bb", True)
-    except Exception:
-        strict = True
-
-    # Aggressive ask-side (always directional)
-    if side_norm in ("A", "AA"):
-        side_is_ask = True
-        side_is_bid = False
-    elif side_norm == "BB":
-        # Below-bid: unambiguous seller aggression, always directional
-        side_is_ask = False
-        side_is_bid = True
-    elif side_norm == "B":
-        if strict:
-            # Strict mode: at-bid alone is ambiguous, drop
+    # Empty-side handling with SWEEP fallback
+    if not side_norm:
+        try:
+            thresholds = _load_thresholds()
+            sweep_fallback = thresholds.get("sweep_empty_side_as_ask", True)
+        except Exception:
+            sweep_fallback = True
+        if sweep_fallback and is_sweep:
+            # Presume ASK — sweeps are buyer-driven
+            side_is_ask = True
+            side_is_bid = False
+        else:
             return None
-        # Legacy mode: treat B same as BB
-        side_is_ask = False
-        side_is_bid = True
     else:
-        # Unknown side string
-        return None
+        # Non-empty side: original strict/legacy logic
+        try:
+            thresholds = _load_thresholds()
+            strict = thresholds.get("derive_strict_bid_only_bb", True)
+        except Exception:
+            strict = True
+
+        # Aggressive ask-side (always directional)
+        if side_norm in ("A", "AA"):
+            side_is_ask = True
+            side_is_bid = False
+        elif side_norm == "BB":
+            # Below-bid: unambiguous seller aggression, always directional
+            side_is_ask = False
+            side_is_bid = True
+        elif side_norm == "B":
+            if strict:
+                # Strict mode: at-bid alone is ambiguous, drop
+                return None
+            # Legacy mode: treat B same as BB
+            side_is_ask = False
+            side_is_bid = True
+        else:
+            # Unknown side string
+            return None
 
     if cp == "CALL":
         if side_is_ask: return "Bull"
@@ -995,7 +1026,7 @@ def _row_to_alert(row: dict) -> dict | None:
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
 
-    direction = _derive_direction(cp_full, side)
+    direction = _derive_direction(cp_full, side, row.get("Type", ""))
     if direction is None:
         # Unclassified side → can't determine bull/bear → skip
         return None
@@ -1314,7 +1345,7 @@ def diagnostic(target_date: str = Query(default=None)):
     for r in rows:
         cp = r["CallPut"]
         side = r["Side"] or ""
-        d = _derive_direction(cp, side)
+        d = _derive_direction(cp, side, r.get("Type", ""))
         if d is None:
             skipped_unclassified += 1
             continue
