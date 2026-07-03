@@ -140,8 +140,11 @@ def get_bars(
     only newer bars are returned — drastically smaller payloads on repeat visits.
     """
     import logging
+    import time as _time
     import traceback
+    from api.services.bars_fetch import get_serve_layer
     _log = logging.getLogger(__name__)
+    _t0 = _time.perf_counter()
     response = None
     try:
         try:
@@ -188,6 +191,17 @@ def get_bars(
         # would re-introduce phantom OHLC bars after a corruption fix ships.
         response.headers["Cache-Control"] = "no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
+        # Server-Timing: expose server-compute ms + which cache tier served, so
+        # cold vs warm (and cold-fetch vs inflight-wait vs disk) is observable in
+        # prod devtools / curl — the cold path was previously unmeasured. Cheap:
+        # one perf_counter diff + a thread-local read. `dur` is milliseconds.
+        try:
+            _dur_ms = (_time.perf_counter() - _t0) * 1000.0
+            response.headers["Server-Timing"] = (
+                f'bars;desc="{get_serve_layer()}";dur={_dur_ms:.1f}'
+            )
+        except Exception:
+            pass
         return response
     except Exception as outer_e:
         # Belt-and-suspenders: ensure no exception ever leaks past this handler
