@@ -112,7 +112,10 @@ def rule_regime_flip(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
     regime = scan_ctx.get("regime") or {}
     label = regime.get("label")
     prev_label = regime.get("prev_label")
-    confidence = regime.get("confidence") or 0.5
+    # Explicit 0.0 is a legitimate zero-confidence reading -- only a MISSING
+    # confidence falls back to the 0.5 default (never `or`, which eats 0.0).
+    confidence = regime.get("confidence")
+    confidence = 0.5 if confidence is None else float(confidence)
     if not label or not prev_label or label == prev_label:
         return []
 

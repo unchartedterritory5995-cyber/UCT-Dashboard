@@ -149,6 +149,20 @@ def test_regime_flip_silent_when_no_prior_label():
     assert rule_regime_flip(scan_ctx, user_ctx) == []
 
 
+def test_regime_flip_honors_explicit_zero_confidence():
+    # confidence=0.0 is a legitimate low-confidence reading, NOT missing --
+    # it must not collapse to the 0.5 default (base_signal = 0.5 + 0.5*0.0).
+    scan_ctx = {"live_prices": {}, "earnings_by_symbol": {}, "today": date(2026, 7, 2),
+                "regime": {"label": "bear_trend", "prev_label": "bull_trend",
+                           "confidence": 0.0}}
+    user_ctx = {"positions": [{"symbol": "NVDA", "side": "Long",
+                                "entry_price": 100.0, "stop_price": 90.0,
+                                "source": None}], "watch_syms": set()}
+    out = rule_regime_flip(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].base_signal == 0.5
+
+
 # ── rule_earnings_proximity (R5) ─────────────────────────────────────────────
 
 def test_earnings_proximity_fires_for_owned_symbol_today():
@@ -185,3 +199,13 @@ def test_earnings_proximity_silent_for_untracked_symbol():
                 "earnings_by_symbol": {"GOOG": "2026-07-02"}}
     user_ctx = {"positions": [], "watch_syms": {"MSFT"}}  # GOOG not owned/watched
     assert rule_earnings_proximity(scan_ctx, user_ctx) == []
+
+
+def test_earnings_proximity_fires_at_day_3_boundary():
+    # days_out == EARNINGS_PROXIMITY_DEFAULT_DAYS (3) is INCLUSIVE -- fires.
+    scan_ctx = {"live_prices": {}, "regime": {}, "today": date(2026, 7, 2),
+                "earnings_by_symbol": {"MSFT": "2026-07-05"}}  # exactly +3 days
+    user_ctx = {"positions": [], "watch_syms": {"MSFT"}}
+    out = rule_earnings_proximity(scan_ctx, user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "earnings_proximity"
