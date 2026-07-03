@@ -320,8 +320,79 @@ Plan: `docs/superpowers/plans/2026-07-02-compass-brain-bridge.md`.
   `--offline`; defaults `BRAIN_TOOLS_ENABLED=1` + `COMPASS_MENTOR_MODE=1` for
   the run).
 - **Deploy-gate rule: exit 1 (any safety break, or any rung below its bar) =
-  do NOT ship that Compass change.** R1-06/R1-07 fail by design in chat mode
-  until the parity gap above is closed.
+  do NOT ship that Compass change.**
+- **First baseline (2026-07-02, v2 post harness-fix): 12/50.** Rungs 1-2 pass
+  ~6/10 each (facts + grounded craft work); Rungs 3-5 (the opinionated verdict
+  tiers) fail — the model **hedges**: it skips the sizing/verdict tools and won't
+  commit to a decisive regime-first GO/HOLD/SKIP + entry/stop/size. That is the
+  Phase-2 "make the 6-step chain unskippable" work, and this baseline is the
+  number every future change is measured against. (Two harness bugs were fixed to
+  reach a trustworthy score: the `price_without_tool` check false-positived on
+  percent fractions, and the judge graded live numbers against its own memory
+  instead of the fired tool results.)
+
+## Awareness Engine — Milestone 1 (dark, flag-gated · 2026-07-02)
+
+Compass now *watches the market and speaks up first* — Milestone 1 of the
+Awareness Engine (mentor-vision §5.4). A background scan cycle produces
+proactive insights that the **existing** delivery surfaces (session-start
+speak, chat-thread mirror, `/api/voice/insights`, email/Discord away-delivery)
+consume unchanged. Everything is DARK behind two flags.
+Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
+
+### What it watches (3 rules, pure functions in `api/services/awareness/rules.py`)
+- **R1/R2 stop-watch** — a position at/through its stop (`stop_hit`, importance
+  10) or nearing it within 3% (`stop_proximity`). Reads only the shared
+  live-price cache — **never** fetches per-position. **Skips broker
+  placeholder stops** (broker imports store `stop_price == entry_price`; without
+  the skip every broker position reads "at stop"). Cooldown keys are
+  namespaced (`{sym}:stop_hit` vs `{sym}:stop_near`) so a proximity warning can
+  never suppress the actual breach alert.
+- **R4 regime-flip** — the market regime label changed since the last cycle, for
+  any user with a position or watchlist at stake. Needs the durable
+  `awareness_regime_snapshots` ledger (below) because the regime classifier
+  recomputes from a 15-min cache and never persisted a prior label.
+- **R5 earnings-proximity** — an owned or watched symbol reporting within the
+  window (`AWARENESS_EARNINGS_PROXIMITY_DAYS`, default 3; threaded through
+  `scan_ctx`). Owned gets a higher personal multiplier than watched.
+
+### Scoring + queue reuse
+- Each candidate's **deterministic relevance score** (`base_signal ×
+  personal_multiplier × urgency`, clamped 1-10) becomes the `add_insight`
+  importance. `add_insight` (`voice_proactive_service.py`) owns dedup, the 8/day
+  cap, and the 6h per-symbol cooldown — the engine adds no new queue logic.
+- Importance **≥ 8 also away-delivers** via `watchlist_alert_service.deliver_alert_payload`
+  (in-app + email + Discord).
+
+### The engine (`api/services/awareness/engine.py`)
+- `run_awareness_scan()` = **one shared market scan per cycle** (regime +
+  earnings window + cached live prices for every held symbol) → **two bulk
+  queries** load all users' open `j2_positions` (`closed_at IS NULL`) +
+  watchlist symbols (no N+1) → rules per user → dedup-fire. Exception-layered:
+  a bad user or a bad `deliver` can't abort the rest of the cycle, and the
+  scheduler job wraps the whole call.
+- `api/services/awareness/regime_snapshots.py` — append-only per-cycle ledger in
+  `auth.db` (`awareness_regime_snapshots`, WAL + `busy_timeout=2000`); schema
+  inits unconditionally at startup (cheap, idempotent).
+
+### Scheduler (double-gated) + the tile
+- Registered in `api/main.py` via `_add_compass_job` (which gates on
+  `COMPASS_AUTOMATION_ENABLED`), and the job function **also** checks
+  `AWARENESS_ENGINE_ENABLED` — **both must be on**. 20-min cadence, weekday
+  market-adjacent hours, `max_instances=1` (the regime read-then-append assumes
+  single-instance — do not raise it).
+- Frontend: the previously-built-but-unmounted `CompassTodayTile.jsx` is revived
+  as a grouped, dismissible **"Compass noticed"** feed (dismiss → the existing
+  `POST /api/voice/insights/{id}/dismiss`) and mounted on the Dashboard below the
+  existing tiles (desktop + mobile). Renders `null` when there's nothing to show.
+
+### Activation
+> Both `COMPASS_AUTOMATION_ENABLED=1` AND `AWARENESS_ENGINE_ENABLED=1` must be set
+> in Railway for the scan to run at all (the job registers only under the first;
+> the job function checks the second). Rollback = unset either one — no code
+> change, no rebuild. **NOTE:** `COMPASS_AUTOMATION_ENABLED` has been OFF since
+> 2026-05-18 (token burn) — enabling it also re-enables the other paused Compass
+> jobs, so treat that flip as a deliberate un-pause decision.
 
 ## Mobile Navigation
 
