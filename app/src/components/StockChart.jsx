@@ -4320,7 +4320,14 @@ export default function StockChart({
         // frame that begins before the first bar (IPO base: the leading blank pad),
         // which is what snapped the first candle to the left edge before the zoom.
         const pr = preFlipRangeRef.current
-        if (pr && Number.isFinite(pr.from) && Number.isFinite(pr.to) && pr.to > pr.from) {
+        // Guard: the captured indices stay valid only when this commit APPENDED
+        // bars (Setup→Result) or left them unchanged. A flip that REMOVES bars
+        // (e.g. Model Book switching to an earlier year, no slice-hold) shifts the
+        // captured `to` past the shrunk array — detect that (to well beyond the new
+        // length, more than a right-pad's worth) and fall back to the date path.
+        const _prValid = pr && Number.isFinite(pr.from) && Number.isFinite(pr.to) && pr.to > pr.from
+          && pr.to <= filteredBars.length + (pr.to - pr.from) * 0.2
+        if (_prValid) {
           sRangeGlide = _padVert(_windowPriceRange(filteredBars, pr.from, pr.to, _glideOverlays))
           try { chart.timeScale().setVisibleLogicalRange({ from: pr.from, to: pr.to }) } catch { /* mid-load */ }
         } else {
