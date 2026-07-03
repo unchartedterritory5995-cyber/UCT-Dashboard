@@ -58,9 +58,16 @@ def add_insight(
 
     conn = get_connection()
     try:
-        cutoff_day = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        # created_at is stored by SQLite's DEFAULT CURRENT_TIMESTAMP, which is
+        # UTC in "YYYY-MM-DD HH:MM:SS" form (SPACE separator, no microseconds,
+        # no tz suffix). These cutoffs are compared as TEXT, so they MUST use
+        # the identical format — `.isoformat()` produces a "T" separator, and
+        # since " " (0x20) < "T" (0x54) a same-day row would always sort BEFORE
+        # the cutoff, silently disabling the cooldown for ~18h of every day.
+        _TS = "%Y-%m-%d %H:%M:%S"
+        cutoff_day = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(_TS)
         cutoff_sym = (datetime.now(timezone.utc)
-                      - timedelta(hours=MIN_SYMBOL_COOLDOWN_HOURS)).isoformat()
+                      - timedelta(hours=MIN_SYMBOL_COOLDOWN_HOURS)).strftime(_TS)
 
         # Per-day cap
         per_day = conn.execute(

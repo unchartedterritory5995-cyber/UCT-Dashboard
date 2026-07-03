@@ -140,6 +140,27 @@ def test_collect_earnings_window_returns_earliest_date_per_symbol(monkeypatch):
     assert out == {"AAPL": "2026-07-02", "MSFT": "2026-07-03"}
 
 
+def test_collect_earnings_window_is_memoized(monkeypatch):
+    from api.services.awareness import engine as eng
+
+    eng._reset_earnings_memo()
+    calls: list[str] = []
+
+    def fake_reporters(d_str):
+        calls.append(d_str)
+        return {"AAPL"} if d_str == "2026-07-02" else set()
+
+    monkeypatch.setattr(
+        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+    )
+    r1 = eng._collect_earnings_window(date(2026, 7, 2), 1)
+    n_after_first = len(calls)
+    r2 = eng._collect_earnings_window(date(2026, 7, 2), 1)  # served from memo
+    assert r1 == r2 == {"AAPL": "2026-07-02"}
+    assert len(calls) == n_after_first  # 2nd call did not re-fetch
+    eng._reset_earnings_memo()
+
+
 # ── _build_market_scan_ctx ───────────────────────────────────────────────────
 
 def test_build_market_scan_ctx_reads_cached_prices_and_regime(db_path, monkeypatch):

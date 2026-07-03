@@ -79,11 +79,33 @@ def _bulk_load_user_contexts() -> dict[str, dict]:
     }
 
 
+# Per-(date, window) memo for the earnings window. The scan runs every 20 min;
+# on a COLD calendar_weekly cache (pre-market, before any /calendar traffic) each
+# lookup falls through to a live Finnhub call, so an unmemoized scan would re-hit
+# Finnhub up to (days+1)x every cycle. Earnings dates inside a ~3-day window don't
+# move hour-to-hour, so a 1h TTL is safe and cuts the cold-window Finnhub load.
+_EARNINGS_MEMO: dict = {}          # (today_iso, days) -> (fetched_at_epoch, result)
+_EARNINGS_MEMO_TTL = 3600          # seconds
+
+
+def _reset_earnings_memo() -> None:
+    """Test hook — clears the earnings-window memo."""
+    _EARNINGS_MEMO.clear()
+
+
 def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
     """{SYMBOL: earliest report date (YYYY-MM-DD)} across the next `days`
     calendar days. Reuses calendar_alerts' per-date reporter lookup
     (calendar_weekly cache, Finnhub fallback) -- one call per day in the
-    (small) window, never per-ticker."""
+    (small) window, never per-ticker. Memoized per (today, days) for
+    _EARNINGS_MEMO_TTL to bound Finnhub calls across scan cycles."""
+    import time as _time
+    key = (today.isoformat(), int(days))
+    hit = _EARNINGS_MEMO.get(key)
+    now = _time.time()
+    if hit is not None and (now - hit[0]) < _EARNINGS_MEMO_TTL:
+        return dict(hit[1])  # copy — callers must not mutate the cache
+
     from api.services.calendar_alerts import _get_reporters_for_date
 
     out: dict[str, str] = {}
@@ -98,6 +120,7 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
         for sym in reporters:
             if sym not in out:  # keep the EARLIEST date per symbol
                 out[sym] = d_str
+    _EARNINGS_MEMO[key] = (now, dict(out))
     return out
 
 
