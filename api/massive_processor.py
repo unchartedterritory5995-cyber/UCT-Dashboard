@@ -213,7 +213,13 @@ class TradeAggregator:
       contracts, so 50 is just below their floor -- tighten later if noisy)
     """
 
-    WINDOW_MS = 100
+    # 2026-07-03: widened from 100ms to 500ms. Empirical: cross-exchange sweeps
+    # on illiquid strikes routinely span 200-700ms as smart routers walk price
+    # levels. At 100ms we were splitting single sweeps into multiple BLOCK
+    # events -- see SPCX $165 12/17/27 CALL 10:36-10:44 trace where a
+    # 494-vol 4-exchange sweep with ISO marker at t+363ms was classified as
+    # BLOCK because the ISO tick fell in the next window.
+    WINDOW_MS = 500
     WINDOW_NS = WINDOW_MS * 1_000_000
     PRICE_EPS = 0.0001
 
@@ -325,7 +331,14 @@ class TradeAggregator:
         #   1. Any ML/combo code in the burst -> 'ML/' (multi-leg)
         #   2. ISOI (219) -> 'SWEEP' (Intermarket Sweep Order)
         #   3. Any single-leg auction/cross/floor code -> 'BLOCK'
-        #   4. Fallback: n_exchanges >= 3 -> 'SWEEP', else 'BLOCK'
+        #   4. Fallback: n_exchanges >= 2 -> 'SWEEP', else 'BLOCK'
+        #
+        # 2026-07-03: fallback threshold lowered from 3 to 2 exchanges.
+        # Empirical: BBS classifies 2-exchange near-simultaneous prints as
+        # SWEEP when combined size is meaningful. Prior 3+ threshold missed
+        # cases like SPCX 10:36:22 (2 exchanges, 480 vol) that BBS surfaced
+        # as $2.4M SWEEP. Bumped ML/SINGLE_LEG explicit codes still win over
+        # this fallback, so genuine blocks marked with 227/229 stay BLOCK.
         conditions_seen = {t.conditions for t in trades}
         if conditions_seen & MULTI_LEG_CONDITIONS:
             type_ = 'ML/'
@@ -334,7 +347,7 @@ class TradeAggregator:
         elif conditions_seen & SINGLE_LEG_CONDITIONS:
             type_ = 'BLOCK'
         else:
-            type_ = 'SWEEP' if len(exchanges) >= 3 else 'BLOCK'
+            type_ = 'SWEEP' if len(exchanges) >= 2 else 'BLOCK'
 
         return AggEvent(
             ticker=trades[0].ticker,
