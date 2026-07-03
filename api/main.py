@@ -3390,6 +3390,74 @@ async def _massive_rebuild_color(target_date: str = "6/26/2026"):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/normalize-sweep-sides")
+async def _massive_normalize_sweep_sides(target_date: str = None):
+    """Normalize empty-side SWEEP rows to Side='A' (Option 3 at storage).
+
+    Rationale: A SWEEP is by definition an aggressive market order that
+    crosses the spread. Market microstructure makes them ~85%+ buyer-
+    initiated. When the live NBBO tick-test can't classify (fast markets,
+    quote gaps), rows land in flow.db with Side='' but should still surface
+    as directional bull signal.
+
+    The /live-massive path handles this via _derive_direction's Option 3
+    rescue rule (added 2026-07-03). But OptionsFlow's client-side clustering
+    reads Side directly from flow.db raw -- it never sees the read-time
+    rescue. Normalizing at storage keeps both views consistent without
+    duplicating rescue logic in JavaScript.
+
+    Only applies to Type=SWEEP. BLOCKs stay empty -- an unclassifiable
+    BLOCK could be dealer facilitation, portfolio rebalance, or hedge,
+    not necessarily directional signal.
+
+    Idempotent: only updates empty->A (never overwrites A, AA, B, BB).
+    Safe to re-run.
+
+    target_date: 'M/D/YYYY' format (e.g. '7/2/2026'). If omitted,
+    normalizes across ALL dates in flow.db.
+    """
+    try:
+        import sqlite3, os
+        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        conn = sqlite3.connect(db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        if target_date:
+            cursor = conn.execute("""
+                UPDATE flow SET Side = 'A'
+                WHERE Type = 'SWEEP'
+                  AND (Side = '' OR Side IS NULL)
+                  AND CreatedDate = ?
+            """, (target_date,))
+        else:
+            cursor = conn.execute("""
+                UPDATE flow SET Side = 'A'
+                WHERE Type = 'SWEEP'
+                  AND (Side = '' OR Side IS NULL)
+            """)
+        rows_updated = cursor.rowcount
+        conn.commit()
+        conn.close()
+        # Bump data-version so client caches invalidate
+        try:
+            from api.flow_router import bump_data_version
+            new_ver = bump_data_version()
+        except Exception:
+            new_ver = None
+        return {
+            "ok": True,
+            "stats": {
+                "target_date": target_date or "ALL",
+                "rows_normalized": rows_updated,
+                "new_data_version": new_ver,
+            }
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/admin/massive/filter-arb")
 async def _massive_filter_arb(target_date: str = "6/26/2026"):
     """Tag arbitrage clusters as Color='ARB'.
