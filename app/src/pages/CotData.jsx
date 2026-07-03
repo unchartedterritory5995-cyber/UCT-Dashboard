@@ -5,7 +5,7 @@ import {
   CategoryScale, LinearScale,
   BarController, BarElement,
   LineController, LineElement, PointElement,
-  Title, Tooltip, Legend,
+  Title, Tooltip, Legend, Filler,
 } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
 import styles from './CotData.module.css'
@@ -17,8 +17,20 @@ ChartJS.register(
   CategoryScale, LinearScale,
   BarController, BarElement,
   LineController, LineElement, PointElement,
-  Title, Tooltip, Legend,
+  Title, Tooltip, Legend, Filler,
 )
+
+// UCT series palette — validated (dark surface #14160f): CVD ΔE 21.8, contrast ≥3:1.
+// Deliberately breaks from the red/blue/yellow COT convention.
+const SERIES_COLORS = {
+  commercials: '#2d8c4e',   // UCT green — the hedgers
+  largeSpecs:  '#b18c33',   // UCT gold — institutional trend money
+  smallSpecs:  '#4a90c2',   // steel blue — the crowd
+  openInterest:'#d4c9a8',   // UCT cream — OI strip
+}
+const AXIS_TEXT  = '#706b5e'
+const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
+const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
 
 // Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
@@ -82,16 +94,18 @@ function roundUpNice(val) {
   return Math.ceil(val / mag) * mag
 }
 
-function roundDownNice(val) {
-  if (val <= 0) return 0
-  const mag = Math.pow(10, Math.floor(Math.log10(val)) - 1)
-  return Math.floor(val / mag) * mag
-}
-
 function fmtNum(v) {
   if (v == null) return ''
   const abs = Math.abs(Math.round(v)).toLocaleString()
   return v < 0 ? `(${abs})` : abs
+}
+
+function fmtCompact(v) {
+  if (v == null) return ''
+  const abs = Math.abs(v)
+  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`
+  if (abs >= 1e3) return `${Math.round(v / 1e3)}K`
+  return String(Math.round(v))
 }
 
 // ── Error boundary ─────────────────────────────────────────────────────────────
@@ -257,10 +271,11 @@ export default function CotData() {
   }, {})
 
   // ── Chart config ─────────────────────────────────────────────────────────────
-  const labels = data ? data.map(d => fmtDate(d.date)) : []
+  const labels  = data ? data.map(d => fmtDate(d.date)) : []
+  const hasData = data && data.length > 0
 
-  // Symmetric left-axis bound — rounded up to a clean number
-  const leftBound = data && data.length > 0
+  // Symmetric net-positioning bound — rounded up to a clean number
+  const netBound = hasData
     ? roundUpNice(Math.max(
         ...data.flatMap(d => [
           Math.abs(d.large_spec_net),
@@ -270,100 +285,96 @@ export default function CotData() {
       ))
     : 250000
 
+  // Latest report + week-over-week deltas for the header stat chips
+  const latest = hasData ? data[data.length - 1] : null
+  const prev   = hasData && data.length > 1 ? data[data.length - 2] : null
+  const chips  = latest ? [
+    { key: 'commercials',  label: 'Commercials', value: latest.commercial_net,
+      delta: prev ? latest.commercial_net - prev.commercial_net : null },
+    { key: 'largeSpecs',   label: 'Large Specs', value: latest.large_spec_net,
+      delta: prev ? latest.large_spec_net - prev.large_spec_net : null },
+    { key: 'smallSpecs',   label: 'Small Specs', value: latest.small_spec_net,
+      delta: prev ? latest.small_spec_net - prev.small_spec_net : null },
+    { key: 'openInterest', label: 'Open Interest', value: latest.open_interest,
+      delta: prev ? latest.open_interest - prev.open_interest : null, compact: true },
+  ] : []
 
+  // Fixed axis width so the two stacked panels align vertically
+  const AXIS_FIT = axis => { axis.width = 64 }
 
-  const chartData = data && data.length > 0 ? {
+  const tooltipStyle = {
+    backgroundColor: '#22251e',
+    titleColor:      '#f0ead8',
+    titleFont:       { weight: 'bold', size: 12 },
+    bodyColor:       '#e0dac8',
+    bodyFont:        { size: 11 },
+    borderColor:     'rgba(201, 168, 76, 0.35)',
+    borderWidth:     1,
+    padding:         10,
+    cornerRadius:    6,
+  }
+
+  const netData = hasData ? {
     labels,
     datasets: [
       {
         type:            'bar',
-        label:           'Small Speculators',
-        data:            data.map(d => d.small_spec_net),
-        backgroundColor: '#FFD700',
-        yAxisID:         'y',
-        order:           3,
+        label:           'Commercials',
+        data:            data.map(d => d.commercial_net),
+        backgroundColor: SERIES_COLORS.commercials,
+        borderRadius:    3,
+        borderSkipped:   'start',
+        maxBarThickness: 14,
+        categoryPercentage: 0.68,
+        barPercentage:   0.9,
+        order:           1,
       },
       {
         type:            'bar',
         label:           'Large Speculators',
         data:            data.map(d => d.large_spec_net),
-        backgroundColor: '#1E90FF',
-        yAxisID:         'y',
+        backgroundColor: SERIES_COLORS.largeSpecs,
+        borderRadius:    3,
+        borderSkipped:   'start',
+        maxBarThickness: 14,
+        categoryPercentage: 0.68,
+        barPercentage:   0.9,
         order:           2,
       },
       {
         type:            'bar',
-        label:           'Commercials',
-        data:            data.map(d => d.commercial_net),
-        backgroundColor: '#FF3333',
-        yAxisID:         'y',
-        order:           1,
-      },
-      {
-        type:            'line',
-        label:           'Open Interest',
-        data:            data.map(d => d.open_interest),
-        borderColor:     'rgba(0, 200, 80, 0.45)',
-        backgroundColor: 'transparent',
-        borderWidth:     2,
-        tension:         0.4,
-        pointRadius:     0,
-        pointHoverRadius:5,
-        yAxisID:         'y2',
-        order:           0,
+        label:           'Small Speculators',
+        data:            data.map(d => d.small_spec_net),
+        backgroundColor: SERIES_COLORS.smallSpecs,
+        borderRadius:    3,
+        borderSkipped:   'start',
+        maxBarThickness: 14,
+        categoryPercentage: 0.68,
+        barPercentage:   0.9,
+        order:           3,
       },
     ],
   } : null
 
-  const chartOptions = {
+  const netOptions = {
     responsive:          true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      title: {
-        display: true,
-        text:    `${SYMBOL_NAMES[symbol] || symbol} — ${symbol}`,
-        color:   'white',
-        font:    { size: 13, weight: 'normal' },
-        padding: { bottom: 18 },
-      },
-      legend: {
-        position: 'bottom',
-        labels: {
-          color:          'rgba(255,255,255,0.75)',
-          usePointStyle:  true,
-          pointStyleWidth:10,
-          padding:        22,
-          font:           { size: 11 },
-        },
-      },
+      legend:  { display: false },
       tooltip: {
-        backgroundColor: '#1a1a1a',
-        titleColor:      'white',
-        titleFont:       { weight: 'bold', size: 12 },
-        bodyFont:        { size: 11 },
-        borderColor:     '#333',
-        borderWidth:     1,
-        padding:         10,
+        ...tooltipStyle,
         callbacks: {
-          title:      items => items[0]?.label || '',
-          label:      ctx  => {
-            const v = ctx.raw
-            const lbl = ctx.dataset.label
-            if (lbl === 'Open Interest') {
-              return `  Open Interest: ${Math.round(v).toLocaleString()}`
-            }
-            return `  ${lbl}: ${fmtNum(v)}`
-          },
-          labelColor: ctx  => {
+          title: items => items[0]?.label || '',
+          label: ctx   => `  ${ctx.dataset.label}: ${fmtNum(ctx.raw)}`,
+          labelColor: ctx => {
             const colors = {
-              'Small Speculators': '#FFD700',
-              'Large Speculators': '#1E90FF',
-              'Commercials':       '#FF3333',
-              'Open Interest':     'rgba(0, 200, 80, 0.45)',
+              'Commercials':       SERIES_COLORS.commercials,
+              'Large Speculators': SERIES_COLORS.largeSpecs,
+              'Small Speculators': SERIES_COLORS.smallSpecs,
             }
-            const c = colors[ctx.dataset.label] || 'white'
-            return { borderColor: c, backgroundColor: c }
+            const c = colors[ctx.dataset.label] || '#f0ead8'
+            return { borderColor: c, backgroundColor: c, borderRadius: 2 }
           },
         },
       },
@@ -371,37 +382,85 @@ export default function CotData() {
     scales: {
       x: {
         grid:   { display: false },
-        border: { color: '#444' },
+        border: { color: 'rgba(168, 162, 144, 0.15)' },
+        ticks:  { display: false },
+      },
+      y: {
+        min:      -netBound,
+        max:       netBound,
+        afterFit:  AXIS_FIT,
+        grid: {
+          color: ctx => ctx.tick.value === 0 ? ZERO_LINE : GRID_FAINT,
+          lineWidth: ctx => ctx.tick.value === 0 ? 1.5 : 1,
+        },
+        border: { display: false },
         ticks:  {
-          color:        'rgba(255,255,255,0.55)',
+          color: AXIS_TEXT,
+          font:  { size: 10 },
+          callback: v => v == null ? '' : v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
+        },
+      },
+    },
+  }
+
+  const oiData = hasData ? {
+    labels,
+    datasets: [
+      {
+        type:            'line',
+        label:           'Open Interest',
+        data:            data.map(d => d.open_interest),
+        borderColor:     SERIES_COLORS.openInterest,
+        backgroundColor: 'rgba(212, 201, 168, 0.10)',
+        fill:            true,
+        borderWidth:     1.5,
+        tension:         0.35,
+        pointRadius:     0,
+        pointHoverRadius:4,
+        pointHoverBackgroundColor: SERIES_COLORS.openInterest,
+      },
+    ],
+  } : null
+
+  const oiOptions = {
+    responsive:          true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend:  { display: false },
+      tooltip: {
+        ...tooltipStyle,
+        callbacks: {
+          title: items => items[0]?.label || '',
+          label: ctx   => `  Open Interest: ${Math.round(ctx.raw).toLocaleString()}`,
+          labelColor: () => ({
+            borderColor:     SERIES_COLORS.openInterest,
+            backgroundColor: SERIES_COLORS.openInterest,
+            borderRadius:    2,
+          }),
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid:   { display: false },
+        border: { color: 'rgba(168, 162, 144, 0.15)' },
+        ticks:  {
+          color:         AXIS_TEXT,
           maxTicksLimit: 13,
           maxRotation:   0,
           font:          { size: 10 },
         },
       },
       y: {
-        min:    -leftBound,
-        max:     leftBound,
-        grid:   { color: '#2a2a2a' },
-        border: { color: '#444', dash: [4, 4] },
-        ticks:  {
-          color: 'rgba(255,255,255,0.6)',
-          font:  { size: 10 },
-          callback: v => v == null ? '' : v < 0 ? `(${Math.abs(v).toLocaleString()})` : v.toLocaleString(),
-        },
-      },
-      y2: {
-        position: 'right',
-        afterDataLimits: axis => {
-          axis.max = roundUpNice(axis.max)
-          axis.min = Math.max(0, roundDownNice(axis.max / 4))
-        },
-        grid:     { display: false },
-        border:   { color: '#333' },
+        afterFit: AXIS_FIT,
+        grid:     { color: GRID_FAINT },
+        border:   { display: false },
         ticks:    {
-          color: 'rgba(0, 200, 80, 0.45)',
-          font:  { size: 10 },
-          callback: v => v == null ? '' : v.toLocaleString(),
+          color:         AXIS_TEXT,
+          maxTicksLimit: 4,
+          font:          { size: 10 },
+          callback: v => fmtCompact(v),
         },
       },
     },
@@ -544,9 +603,55 @@ export default function CotData() {
             {data !== null && ' — database may still be seeding'}
           </div>
         )}
-        {!loading && !error && chartData && (
+        {!loading && !error && netData && (
           <ChartErrorBoundary>
-            <Chart type="bar" data={chartData} options={chartOptions} />
+            <div className={styles.chartHeader}>
+              <div className={styles.chartHeaderLeft}>
+                <div className={styles.eyebrow}>CFTC — Commitment of Traders</div>
+                <div className={styles.chartTitle}>
+                  {SYMBOL_NAMES[symbol] || symbol}
+                  <span className={styles.chartTitleSym}>{symbol}</span>
+                </div>
+                {latest && (
+                  <div className={styles.chartSub}>
+                    Net positioning · latest report {fmtDate(latest.date)}
+                  </div>
+                )}
+              </div>
+              <div className={styles.legendChips}>
+                {chips.map(c => (
+                  <div key={c.key} className={styles.chip}>
+                    <span
+                      className={styles.chipDot}
+                      style={{ background: SERIES_COLORS[c.key] }}
+                    />
+                    <div className={styles.chipBody}>
+                      <span className={styles.chipLabel}>{c.label}</span>
+                      <span className={styles.chipVal}>
+                        {c.compact ? fmtCompact(c.value) : fmtNum(c.value)}
+                        {c.delta != null && c.delta !== 0 && (
+                          <span className={c.delta > 0 ? styles.chipDeltaUp : styles.chipDeltaDown}>
+                            {c.delta > 0 ? '▲' : '▼'} {fmtCompact(Math.abs(c.delta))}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.netPanel}>
+              <Chart type="bar" data={netData} options={netOptions} />
+            </div>
+
+            <div className={styles.oiHeader}>
+              <span className={styles.oiLabel}>Open Interest</span>
+              <span className={styles.oiNote}>total contracts outstanding</span>
+            </div>
+            <div className={styles.oiPanel}>
+              <Chart type="line" data={oiData} options={oiOptions} />
+            </div>
           </ChartErrorBoundary>
         )}
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import useLivePrices from './useLivePrices'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import * as priceStreamManager from '../lib/priceStreamManager'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 /**
@@ -10,8 +11,75 @@ import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } 
  * Per-field merge: stream provides {price, change_pct, updated_at},
  * REST provides {day_open, day_high, day_low, prev_close, volume}.
  * Both combined give the chart everything it needs.
+ *
+ * POOLED (default): all hook instances share the priceStreamManager's
+ * connection pool — one browser-wide EventSource union instead of one per
+ * component (which piled 4-8 stream loops per user onto the single-process
+ * backend). KILL-SWITCH: localStorage 'uct.ssePool.disabled' = '1' (then
+ * refresh) reverts to the legacy per-instance implementation below.
  */
-export default function useRealtimePrices(tickers = []) {
+
+// Idle consumers (empty ticker list — e.g. a closed TickerPopup or a
+// liveUpdates={false} StockChart) must never re-render on unrelated
+// app-wide SSE publishes. This frozen object is a stable reference shared
+// by every idle consumer, so useSyncExternalStore's Object.is check never
+// sees a "change."
+const EMPTY_SNAPSHOT = Object.freeze({ prices: Object.freeze({}), staleSymbols: new Set(), connected: false })
+const getEmptySnapshot = () => EMPTY_SNAPSHOT
+
+function usePooledRealtimePrices(tickers = []) {
+  // Massive REST polling always runs (2s) — provides session OHLC + volume
+  const { prices: polledPrices, isLoading } = useLivePrices(tickers)
+
+  const sorted = [...new Set(tickers)].sort().join(',')
+
+  const subscribeStore = useCallback(
+    (onStoreChange) => {
+      if (!sorted) return () => {}   // idle consumer: never registers, never notified
+      return priceStreamManager.subscribe(sorted.split(','), onStoreChange)
+    },
+    [sorted],
+  )
+  // Idle consumers read a frozen empty snapshot so unrelated app-wide publishes
+  // can never re-render them (the manager's snapshot is one shared object).
+  const getSnap = sorted ? priceStreamManager.getSnapshot : getEmptySnapshot
+  const snap = useSyncExternalStore(subscribeStore, getSnap, getSnap)
+
+  // Per-field merge: REST fields are preserved, stream fields overlay.
+  // CRITICAL: only merge for tickers in the CURRENT subscription set — the
+  // manager's price store is a browser-wide accumulator; without this filter,
+  // consumers would see prices for unrelated tickers from other components.
+  const tickerSet = useMemo(() => new Set(tickers.filter(Boolean)), [sorted]) // eslint-disable-line react-hooks/exhaustive-deps
+  const mergedPrices = useMemo(() => {
+    const result = {}
+    for (const sym of tickerSet) {
+      const merged = { ...polledPrices[sym], ...snap.prices[sym] }
+      if (merged.price != null || merged.day_open != null) result[sym] = merged
+    }
+    return result
+  }, [polledPrices, snap.prices, tickerSet])
+
+  const staleSymbols = useMemo(() => {
+    const filtered = new Set()
+    for (const sym of tickerSet) {
+      if (snap.staleSymbols.has(sym)) filtered.add(sym)
+    }
+    return filtered
+  }, [snap.staleSymbols, tickerSet])
+
+  return {
+    prices: mergedPrices,
+    isLoading: !snap.connected && isLoading,
+    isStreaming: snap.connected,
+    staleSymbols,
+  }
+}
+
+// ── Legacy per-instance implementation (kill-switch fallback) ────────────────
+// This is the pre-pooling implementation, byte-for-byte behavior. Remove only
+// after the pool has weeks of green prod.
+
+function useLegacyRealtimePrices(tickers = []) {
   const [streamPrices, setStreamPrices] = useState({})
   const [connected, setConnected] = useState(false)
   const [staleSymbols, setStaleSymbols] = useState(() => new Set())
@@ -176,3 +244,11 @@ export default function useRealtimePrices(tickers = []) {
 
   return { prices: mergedPrices, isLoading: !connected && isLoading, isStreaming: connected, staleSymbols }
 }
+
+// Kill-switch decided at MODULE LOAD (never per-render — that would violate
+// the rules of hooks). Flipping the flag requires a page refresh.
+const POOL_DISABLED = (() => {
+  try { return localStorage.getItem('uct.ssePool.disabled') === '1' } catch { return false }
+})()
+
+export default POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices

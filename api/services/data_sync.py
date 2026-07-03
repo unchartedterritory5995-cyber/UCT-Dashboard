@@ -500,6 +500,17 @@ def download_snapshot(ts: str) -> bool:
             # at call-time keeps each module independently importable.
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
+            # A restored snapshot may predate the weekly Friday re-keying —
+            # purge any Monday-keyed weekly rows it carried so the duplicate
+            # candle bug can't be resurrected by a snapshot pull (the
+            # 2026-07-02 incident: worker snapshot re-poisoned the healed web
+            # DB while the one-shot heal's flag file blocked a re-heal).
+            try:
+                _wk = bars_sqlite.purge_mis_keyed_weekly_rows()
+                if _wk:
+                    logger.info(f"[data_sync] purged {_wk} mis-keyed weekly rows from restored snapshot")
+            except Exception as e:
+                logger.warning(f"[data_sync] weekly key purge failed (non-fatal): {e}")
         except Exception as e:
             logger.warning(f"[data_sync] bump_db_epoch failed (non-fatal): {e}")
         logger.info(f"[data_sync] downloaded snapshot {ts}")

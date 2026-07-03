@@ -13,6 +13,7 @@ import logging
 import os
 import threading
 import time
+from collections import Counter
 
 _logger = logging.getLogger(__name__)
 
@@ -24,8 +25,16 @@ _WS_URL = f"wss://ws.finnhub.io?token={_FINNHUB_KEY}" if _FINNHUB_KEY else ""
 _prices = {}
 _lock = threading.Lock()
 
-# Subscribed tickers
+# Subscribed tickers — the EFFECTIVE set (count >= 1). Read by get_stream_status()
+# and the WS reconnect re-subscribe loop; semantics are unchanged by refcounting.
 _subscribed = set()
+# Per-ticker refcount: how many SSE connections currently want this ticker.
+# subscribe_tickers()/unsubscribe_tickers() only touch the upstream WS + _subscribed
+# on a 0->1 / 1->0 transition, so overlapping connections (e.g. two SSE clients
+# both watching AAPL) don't tear down the shared subscription when just one of
+# them disconnects. See docs/superpowers/specs/2026-07-02-sse-connection-pooling-design.md
+# "Amendment (final review)".
+_sub_counts: Counter = Counter()
 _ws_connection = None
 _ws_loop = None
 _running = False
@@ -120,12 +129,21 @@ def get_last_seen_ages(now: int | None = None) -> dict[str, int]:
 
 
 def subscribe_tickers(tickers):
-    """Add tickers to the subscription set. Thread-safe."""
+    """Add tickers to the subscription set. Thread-safe. Refcounted: a ticker
+    already wanted by another connection just has its count bumped — only a
+    0->1 transition sends a new upstream WS subscribe / joins the effective
+    _subscribed set. This is what lets multiple SSE connections (or the
+    client-side connection pool's bucket reconnects) share a ticker safely.
+    """
     up = set(t.upper() for t in tickers)
     # Mutate under _lock so the WS reconnect thread never iterates _subscribed
     # mid-mutation ("set changed size during iteration").
     with _lock:
-        new = up - _subscribed
+        new = set()
+        for t in up:
+            _sub_counts[t] += 1
+            if _sub_counts[t] == 1:
+                new.add(t)
         if not new:
             return
         _subscribed.update(new)
@@ -137,10 +155,27 @@ def subscribe_tickers(tickers):
 
 
 def unsubscribe_tickers(tickers):
-    """Remove tickers from the subscription set and send unsubscribe messages."""
+    """Decrement refcounts and remove/unsubscribe upstream only tickers whose
+    count reaches 0. A ticker still wanted by another connection (count stays
+    >= 1) is left alone — this is the fix for the bucket-reconnect / overlapping-
+    connection freeze (see spec amendment). Unsubscribing a ticker that was
+    never subscribed (or already at 0) is a safe no-op — counts are clamped at
+    0, never negative.
+    """
     down = set(t.upper() for t in tickers)
     with _lock:
-        to_remove = down & _subscribed
+        to_remove = set()
+        for t in down:
+            count = _sub_counts.get(t, 0)
+            if count <= 0:
+                _sub_counts.pop(t, None)  # clamp: never go negative
+                continue
+            count -= 1
+            if count <= 0:
+                _sub_counts.pop(t, None)
+                to_remove.add(t)
+            else:
+                _sub_counts[t] = count
         if not to_remove:
             return
         _subscribed.difference_update(to_remove)
