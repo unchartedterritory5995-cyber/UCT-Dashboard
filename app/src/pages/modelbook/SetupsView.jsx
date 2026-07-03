@@ -952,6 +952,10 @@ export default function SetupsView({ onExit }) {
     setScrollReq(prev => ({ exampleId: ex.id, seq: (prev?.seq || 0) + 1 }))
     if (isPhone) setMobileView('detail')
   }
+  // Switching setups always starts fresh at the first example — drop any pending
+  // example-scroll request so a stale one (e.g. the last ticker clicked in a
+  // setup you're returning to) can't re-fire and jump the pane down.
+  useEffect(() => { setScrollReq(null) }, [selectedName])
 
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
