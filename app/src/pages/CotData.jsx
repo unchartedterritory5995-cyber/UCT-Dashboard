@@ -32,6 +32,13 @@ const AXIS_TEXT  = '#706b5e'
 const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
 const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
 
+// Brightened variants for the hover-synced active bar in each pane
+const HOVER_COLORS = {
+  commercials: '#41b06d',
+  largeSpecs:  '#d1a94a',
+  smallSpecs:  '#6cb0e0',
+}
+
 // Match Chart.js canvas text to the app UI font (default is Helvetica/Arial).
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
 
@@ -143,6 +150,15 @@ export default function CotData() {
   const chartWrapRef   = useRef(null)
   const resizeStateRef = useRef(null)
   const isTouch        = useIsTouch()
+
+  // Cross-pane hover sync — written via DOM refs (never React state) so a
+  // mousemove doesn't re-render four Chart.js instances.
+  const chartInstRef = useRef({})   // pane key -> Chart.js instance
+  const readoutRef   = useRef({})   // pane key -> value <span>
+  const deltaElRef   = useRef({})   // pane key -> delta <span>
+  const hoverDateRef = useRef(null) // "Week of …" chip
+  const dataRef      = useRef(null)
+  const lastHoverRef = useRef(undefined)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -281,6 +297,67 @@ export default function CotData() {
   // Fixed axis width so all stacked panes align vertically
   const AXIS_FIT = axis => { axis.width = 64 }
 
+  // ── Cross-pane hover sync ────────────────────────────────────────────────────
+  dataRef.current = data
+
+  const FIELD_BY_KEY = {
+    commercials: 'commercial_net',
+    largeSpecs:  'large_spec_net',
+    smallSpecs:  'small_spec_net',
+  }
+
+  function setDeltaEl(el, delta) {
+    if (!el) return
+    if (delta == null || delta === 0) { el.style.visibility = 'hidden'; return }
+    el.style.visibility = 'visible'
+    el.textContent = `${delta > 0 ? '▲' : '▼'} ${fmtCompact(Math.abs(delta))} wk`
+    el.className = delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown
+  }
+
+  // Hovering a week in ANY pane highlights it in every pane and live-updates
+  // all pane-header readouts to that week; idx null restores the latest report.
+  function applyHover(idx, sourceKey) {
+    if (lastHoverRef.current === idx) return
+    lastHoverRef.current = idx
+    const d = dataRef.current
+    if (!d || !d.length) return
+    const i       = idx == null ? d.length - 1 : idx
+    const row     = d[i]
+    const prevRow = i > 0 ? d[i - 1] : null
+
+    for (const [key, field] of Object.entries(FIELD_BY_KEY)) {
+      const vEl = readoutRef.current[key]
+      if (vEl) vEl.textContent = fmtNum(row[field])
+      setDeltaEl(deltaElRef.current[key], prevRow ? row[field] - prevRow[field] : null)
+    }
+    const oiEl = readoutRef.current.openInterest
+    if (oiEl) oiEl.textContent = fmtCompact(row.open_interest)
+    setDeltaEl(deltaElRef.current.openInterest,
+      prevRow ? row.open_interest - prevRow.open_interest : null)
+
+    const dEl = hoverDateRef.current
+    if (dEl) {
+      dEl.textContent   = idx == null ? '' : `Week of ${fmtDate(row.date)}`
+      dEl.style.opacity = idx == null ? '0' : '1'
+    }
+
+    for (const [key, chart] of Object.entries(chartInstRef.current)) {
+      if (!chart || key === sourceKey) continue
+      try {
+        chart.setActiveElements(idx == null ? [] : [{ datasetIndex: 0, index: idx }])
+        chart.tooltip?.setActiveElements([], { x: 0, y: 0 })
+        chart.update('none')
+      } catch { /* chart mid-teardown */ }
+    }
+  }
+
+  // New symbol/lookback: resync readouts to the fresh latest report
+  useEffect(() => {
+    lastHoverRef.current = undefined
+    applyHover(null, null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
   const tooltipStyle = {
     backgroundColor: '#22251e',
     titleColor:      '#f0ead8',
@@ -330,6 +407,7 @@ export default function CotData() {
           label:           def.label,
           data:            series,
           backgroundColor: color,
+          hoverBackgroundColor: HOVER_COLORS[def.key],
           borderRadius:    2,
           borderSkipped:   'start',
           maxBarThickness: 20,
@@ -341,6 +419,7 @@ export default function CotData() {
         responsive:          true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
+        onHover: (evt, els) => applyHover(els.length ? els[0].index : null, def.key),
         plugins: {
           legend:  { display: false },
           tooltip: {
@@ -409,6 +488,7 @@ export default function CotData() {
     responsive:          true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
+    onHover: (evt, els) => applyHover(els.length ? els[0].index : null, 'openInterest'),
     plugins: {
       legend:  { display: false },
       tooltip: {
@@ -603,28 +683,43 @@ export default function CotData() {
               </div>
             </div>
 
-            <div className={styles.panesWrap}>
+            <div className={styles.panesWrap} onMouseLeave={() => applyHover(null, null)}>
               <div className={styles.watermark} aria-hidden="true">
                 <span className={styles.watermarkSym}>{symbol}</span>
                 <span className={styles.watermarkName}>
                   {SYMBOL_NAMES[symbol] || symbol}
                 </span>
               </div>
+              <div className={styles.hoverDate} ref={hoverDateRef} aria-hidden="true" />
 
               {panes.map(p => (
                 <div key={p.key} className={styles.pane}>
                   <div className={styles.paneHeader}>
                     <span className={styles.paneDot} style={{ background: p.color }} />
                     <span className={styles.paneLabel}>{p.label}</span>
-                    <span className={styles.paneVal}>{fmtNum(p.latest)}</span>
-                    {p.delta != null && p.delta !== 0 && (
-                      <span className={p.delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown}>
-                        {p.delta > 0 ? '▲' : '▼'} {fmtCompact(Math.abs(p.delta))} wk
-                      </span>
-                    )}
+                    <span
+                      className={styles.paneVal}
+                      ref={el => { readoutRef.current[p.key] = el }}
+                    >
+                      {fmtNum(p.latest)}
+                    </span>
+                    <span
+                      ref={el => { deltaElRef.current[p.key] = el }}
+                      className={p.delta > 0 ? styles.paneDeltaUp : styles.paneDeltaDown}
+                      style={p.delta == null || p.delta === 0 ? { visibility: 'hidden' } : undefined}
+                    >
+                      {p.delta != null && p.delta !== 0
+                        ? `${p.delta > 0 ? '▲' : '▼'} ${fmtCompact(Math.abs(p.delta))} wk`
+                        : '—'}
+                    </span>
                   </div>
                   <div className={styles.paneBody}>
-                    <Chart type="bar" data={p.chartData} options={p.chartOptions} />
+                    <Chart
+                      type="bar"
+                      data={p.chartData}
+                      options={p.chartOptions}
+                      ref={el => { chartInstRef.current[p.key] = el }}
+                    />
                   </div>
                 </div>
               ))}
@@ -633,15 +728,29 @@ export default function CotData() {
                 <div className={styles.paneHeader}>
                   <span className={styles.paneDot} style={{ background: SERIES_COLORS.openInterest }} />
                   <span className={styles.paneLabel}>Open Interest</span>
-                  <span className={styles.paneVal}>{fmtCompact(latest.open_interest)}</span>
-                  {prev && latest.open_interest !== prev.open_interest && (
-                    <span className={latest.open_interest > prev.open_interest ? styles.paneDeltaUp : styles.paneDeltaDown}>
-                      {latest.open_interest > prev.open_interest ? '▲' : '▼'} {fmtCompact(Math.abs(latest.open_interest - prev.open_interest))} wk
-                    </span>
-                  )}
+                  <span
+                    className={styles.paneVal}
+                    ref={el => { readoutRef.current.openInterest = el }}
+                  >
+                    {fmtCompact(latest.open_interest)}
+                  </span>
+                  <span
+                    ref={el => { deltaElRef.current.openInterest = el }}
+                    className={prev && latest.open_interest > prev.open_interest ? styles.paneDeltaUp : styles.paneDeltaDown}
+                    style={!prev || latest.open_interest === prev.open_interest ? { visibility: 'hidden' } : undefined}
+                  >
+                    {prev && latest.open_interest !== prev.open_interest
+                      ? `${latest.open_interest > prev.open_interest ? '▲' : '▼'} ${fmtCompact(Math.abs(latest.open_interest - prev.open_interest))} wk`
+                      : '—'}
+                  </span>
                 </div>
                 <div className={styles.paneBody}>
-                  <Chart type="line" data={oiData} options={oiOptions} />
+                  <Chart
+                    type="line"
+                    data={oiData}
+                    options={oiOptions}
+                    ref={el => { chartInstRef.current.openInterest = el }}
+                  />
                 </div>
               </div>
             </div>

@@ -247,6 +247,22 @@
   color: rgba(224, 218, 200, 0.055);
 }
 
+/* Gold "Week of …" chip — appears top-right while hover-scrubbing weeks */
+.hoverDate {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+
 .pane {
   display: flex;
   flex-direction: column;
