@@ -202,14 +202,24 @@ def purge_mis_keyed_weekly_rows() -> int:
     Content-based and idempotent on purpose: the original flag-gated one-shot
     heal only ran in api.main's lifespan, so the worker's bars.db kept its
     Monday rows and every R2 snapshot pull re-poisoned the web pod while the
-    flag file blocked a re-heal. This runs at EVERY boot on BOTH services and
-    after snapshot restores — a clean DB costs one DISTINCT scan (~ms).
+    flag file blocked a re-heal.
+
+    PERFORMANCE (2026-07-03 hard lesson): `WHERE tf='W'` alone cannot use the
+    (ticker, tf, ts) primary key, so a global `DELETE ... WHERE tf='W' AND ts
+    IN (...)` full-scans the ~58M-row table PER CHUNK. The first deploy of
+    this purge did exactly that while holding _WRITE_LOCK at worker boot,
+    blocked the healthcheck past its 600s budget, and FAILED the deploy.
+    This version deletes per-ticker (PK-prefixed → indexed) and takes the
+    write lock per-ticker so the prewarmer is never starved. Callers on a
+    boot path MUST use purge_mis_keyed_weekly_rows_async().
 
     Returns rows deleted.
     """
     import datetime as _dt
 
     c = _conn()
+    # One pass to collect distinct weekly keys. Unavoidable scan (tf is not
+    # a leading index column), but it's a single read pass with no lock held.
     rows = c.execute("SELECT DISTINCT ts FROM ohlcv WHERE tf='W'").fetchall()
     bad: list[int] = []
     for (ts,) in rows:
@@ -226,18 +236,57 @@ def purge_mis_keyed_weekly_rows() -> int:
             bad.append(ts)
     if not bad:
         return 0
+    # Tickers that hold weekly rows — DISTINCT ticker walks the PK index.
+    tickers = [t for (t,) in c.execute(
+        "SELECT DISTINCT ticker FROM ohlcv WHERE tf='W'"
+    ).fetchall()]
     deleted = 0
-    with _WRITE_LOCK:
-        # Chunk the IN() list to stay far below SQLite's parameter limit.
-        for i in range(0, len(bad), 500):
-            chunk = bad[i:i + 500]
-            qs = ",".join("?" for _ in chunk)
-            cur = c.execute(f"DELETE FROM ohlcv WHERE tf='W' AND ts IN ({qs})", chunk)
-            deleted += cur.rowcount
-        c.commit()
+    for tkr in tickers:
+        with _WRITE_LOCK:
+            for i in range(0, len(bad), 500):
+                chunk = bad[i:i + 500]
+                qs = ",".join("?" for _ in chunk)
+                cur = c.execute(
+                    f"DELETE FROM ohlcv WHERE ticker=? AND tf='W' AND ts IN ({qs})",
+                    [tkr, *chunk],
+                )
+                deleted += cur.rowcount
+            c.commit()
     if deleted:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
     return deleted
+
+
+_purge_weekly_thread_lock = threading.Lock()
+_purge_weekly_running = False
+
+
+def purge_mis_keyed_weekly_rows_async() -> None:
+    """Run the weekly-key purge in a daemon thread (deduped).
+
+    The purge's discovery pass scans the ohlcv table — minutes on the
+    worker's ~58M-row DB — so it must NEVER run inline on a boot path
+    (Railway healthcheck budget is 600s; the 2026-07-03 worker deploy
+    failure was this exact mistake). The serve-time weekly guard in
+    _fmt_sqlite_bars keeps charts clean during the window before the
+    background purge lands."""
+    global _purge_weekly_running
+    with _purge_weekly_thread_lock:
+        if _purge_weekly_running:
+            return
+        _purge_weekly_running = True
+
+    def _run():
+        global _purge_weekly_running
+        try:
+            purge_mis_keyed_weekly_rows()
+        except Exception as e:
+            _logger.warning(f"[sqlite] weekly key purge failed (non-fatal): {e}")
+        finally:
+            with _purge_weekly_thread_lock:
+                _purge_weekly_running = False
+
+    threading.Thread(target=_run, daemon=True, name="weekly-key-purge").start()
 
 
 def get_last_ts(ticker: str, tf: str) -> int | None:

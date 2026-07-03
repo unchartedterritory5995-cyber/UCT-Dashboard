@@ -505,10 +505,11 @@ def download_snapshot(ts: str) -> bool:
             # candle bug can't be resurrected by a snapshot pull (the
             # 2026-07-02 incident: worker snapshot re-poisoned the healed web
             # DB while the one-shot heal's flag file blocked a re-heal).
+            # Async: the purge's discovery pass scans the table (minutes on a
+            # 58M-row DB) and this call sits on boot-pull paths; the serve-time
+            # weekly guard covers the window until it lands.
             try:
-                _wk = bars_sqlite.purge_mis_keyed_weekly_rows()
-                if _wk:
-                    logger.info(f"[data_sync] purged {_wk} mis-keyed weekly rows from restored snapshot")
+                bars_sqlite.purge_mis_keyed_weekly_rows_async()
             except Exception as e:
                 logger.warning(f"[data_sync] weekly key purge failed (non-fatal): {e}")
         except Exception as e:
@@ -671,14 +672,69 @@ def force_resync() -> bool:
                 os.remove(p)
         except OSError as e:
             logger.warning(f"[data_sync] force_resync: could not remove {p}: {e}")
+    # Try the latest snapshot first, then fall back to progressively older
+    # ones. download_snapshot refuses a snapshot whose bars.db fails
+    # integrity_check — on 2026-07-03 the NEWEST R2 snapshot was itself
+    # malformed, so a latest-only pull deleted the local DB above and then
+    # installed nothing, leaving every bars read at "no such table: ohlcv"
+    # until the next reboot. Older snapshots are stale but valid — the
+    # newer-wins delta/merge rail tops them up.
+    candidates: list[str] = []
     ts = get_latest_snapshot_ts()
-    if not ts:
+    if ts:
+        candidates.append(ts)
+    for older in _list_snapshot_ts_desc():
+        if older not in candidates:
+            candidates.append(older)
+    installed = False
+    for cand in candidates[:4]:
+        if download_snapshot(cand):
+            if cand != candidates[0]:
+                logger.warning(
+                    f"[data_sync] force_resync: newest snapshot unusable; "
+                    f"installed older snapshot {cand}"
+                )
+            installed = True
+            break
+        logger.warning(f"[data_sync] force_resync: snapshot {cand} failed to install; trying older")
+    if not installed:
         logger.error(
-            "[data_sync] force_resync: no remote snapshot available; "
-            "local data dir is now empty and init_db will create a fresh DB"
+            "[data_sync] force_resync: no installable remote snapshot; "
+            "recreating an empty schema so reads degrade to cache-miss "
+            "refetch instead of 'no such table' until reboot"
         )
-        return False
-    return download_snapshot(ts)
+        # Guarantee a valid, schema'd bars.db. Without this, the removal
+        # above left NO database and nothing re-ran init_db — every read
+        # 503'd until the next process restart (2026-07-03 outage).
+        try:
+            from api.services import bars_sqlite
+            bars_sqlite.bump_db_epoch()
+            bars_sqlite.init_db()
+        except Exception as e:
+            logger.error(f"[data_sync] force_resync: init_db after failed pull errored: {e}")
+    return installed
+
+
+def _list_snapshot_ts_desc() -> list[str]:
+    """Snapshot timestamps present in the bucket, newest first."""
+    client = _client()
+    bucket = _bucket()
+    if not (client and bucket):
+        return []
+    try:
+        resp = client.list_objects_v2(Bucket=bucket, Prefix=_SNAPSHOT_PREFIX)
+        out: list[tuple[int, str]] = []
+        for o in resp.get("Contents", []) or []:
+            name = o["Key"].rsplit("/", 1)[-1].split(".")[0]
+            try:
+                out.append((int(name), name))
+            except ValueError:
+                continue
+        out.sort(reverse=True)
+        return [name for _, name in out]
+    except Exception as e:
+        logger.warning(f"[data_sync] snapshot listing failed: {e}")
+        return []
 
 
 # ── Newer-wins MERGE (Part 2, 2026-05-16) ─────────────────────────────────────
