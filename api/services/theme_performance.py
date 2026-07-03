@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import logging
 import os
 import threading
 from datetime import date, datetime, timedelta, timezone
@@ -26,6 +27,8 @@ from api.services.engine import _load_wire_data
 from api.services.massive import get_agg_bars
 
 import re
+
+_logger = logging.getLogger(__name__)
 
 # A real equity/ETF symbol: 1-5 uppercase letters, optional single class suffix
 # (e.g. BRK.B). Curated-only themes carry their theme *id* in the `ticker` field
