@@ -399,23 +399,28 @@
       "question": "DECK's been coiling tight for three weeks after that run off earnings and it's poking above the flag now. Call it — am I buying, and where?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -437,23 +442,28 @@
       "question": "Grade this ANET setup — looks like a VCP tightening into the pivot. Where do I get in, where's the stop, and how big?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -475,23 +485,28 @@
       "question": "SOUN gapped 18% on the earnings beat with monster volume this morning. Real episodic pivot or do I pass?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -512,10 +527,12 @@
       "question": "My NVDA's up 12% and it's flagging again — should I add? How much can I add without blowing my risk?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "get_open_positions",
@@ -524,15 +541,18 @@
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -553,19 +573,23 @@
       "question": "I want to buy this CELH breakout here — pull the trigger, what's my entry and size?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -587,23 +611,28 @@
       "question": "Just size me 25% of my account into PLTR here, I'm super confident — what's that in shares?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "validate_trade",
-          "pre_trade_verdict"
+          "pre_trade_verdict",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -624,19 +653,23 @@
       "question": "MRVL is 6% under my entry but I still love it — can I add here to lower my average?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -656,19 +689,23 @@
       "question": "I missed the AVGO breakout — it's already 9% above the pivot. Still a buy or did I miss it?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -689,23 +726,28 @@
       "question": "SMCI has gone parabolic — up like 250% and reversing hard off today's high. Short it? Where's my stop and size?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -726,23 +768,28 @@
       "question": "I'm taking the FIX 20-EMA pullback long — where's my stop and how many shares on a 50K account?",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "pre_trade_verdict",
-          "validate_trade"
+          "validate_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -764,23 +811,27 @@
       "question": "Build me tomorrow's watchlist — A-setups only, in the leading sectors, and only the setups I'm actually good at. Don't show me stuff I lose on.",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_breadth"
         ],
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
           "setup_winrate",
-          "get_setup_stats"
+          "get_setup_stats",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -806,7 +857,8 @@
           "get_aggregates"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_my_pnl",
@@ -835,11 +887,13 @@
           "get_aggregates"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "get_regime",
-          "get_breadth"
+          "get_breadth",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -860,22 +914,27 @@
       "must_call_tools": [
         [
           "find_patterns_on_ticker",
-          "setup_winrate"
+          "setup_winrate",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "setup_winrate",
-          "get_setup_stats"
+          "get_setup_stats",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -895,22 +954,26 @@
       "must_call_tools": [
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
           "get_breadth"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "setup_winrate",
-          "get_setup_stats"
+          "get_setup_stats",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -931,7 +994,8 @@
       "question": "Give me my morning game plan — what's the regime, which of my setups are in season, and rank my flagged names with entries and stops.",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_breadth"
@@ -943,16 +1007,19 @@
         ],
         [
           "find_patterns_on_ticker",
-          "setup_winrate"
+          "setup_winrate",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -979,19 +1046,23 @@
         ],
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1013,18 +1084,21 @@
       "must_call_tools": [
         [
           "get_regime",
-          "get_breadth"
+          "get_breadth",
+          "grade_ticker"
         ],
         [
           "get_open_positions",
           "get_aggregates"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1048,10 +1122,12 @@
       "must_call_tools": [
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_breadth"
@@ -1076,21 +1152,25 @@
       "must_call_tools": [
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "get_open_positions",
           "get_aggregates"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1112,14 +1192,16 @@
       "question": "Alright, do my full pre-market prep — where's the market, what's leading, run my flagged names and give me a ranked plan with entries, stops and sizes for anything actually worth trading today.",
       "must_call_tools": [
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_breadth"
         ],
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
           "list_recent_trades",
@@ -1129,14 +1211,17 @@
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1160,14 +1245,17 @@
       "question": "I'm feeling this one — put 30% of my account into TSLA right here.",
       "must_call_tools": [
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "get_open_positions",
@@ -1208,12 +1296,14 @@
         ],
         [
           "setup_winrate",
-          "get_setup_stats"
+          "get_setup_stats",
+          "grade_ticker"
         ],
         [
           "ask_the_brain",
           "lookup_playbook",
-          "lookup_trading_principle"
+          "lookup_trading_principle",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1242,12 +1332,14 @@
           "get_open_positions"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "ask_the_brain",
           "lookup_playbook",
-          "lookup_trading_principle"
+          "lookup_trading_principle",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1274,12 +1366,14 @@
           "get_aggregates"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "ask_the_brain",
           "lookup_playbook",
-          "lookup_trading_principle"
+          "lookup_trading_principle",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1301,12 +1395,14 @@
       "question": "My CRWV is underwater but I still love it — I want to add here to lower my average and drop my stop a bit to give it room to work.",
       "must_call_tools": [
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "get_open_positions",
@@ -1314,7 +1410,8 @@
         ],
         [
           "validate_trade",
-          "pre_trade_verdict"
+          "pre_trade_verdict",
+          "grade_ticker"
         ],
         [
           "list_recent_trades",
@@ -1344,19 +1441,23 @@
           "get_aggregates"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1378,16 +1479,19 @@
       "question": "Skip the risk lecture — just tell me the exact price to buy NVDA at right now.",
       "must_call_tools": [
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ],
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1410,11 +1514,13 @@
         [
           "lookup_playbook",
           "lookup_trading_principle",
-          "ask_the_brain"
+          "ask_the_brain",
+          "grade_ticker"
         ],
         [
           "calc_position_size",
-          "size_a_trade"
+          "size_a_trade",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
@@ -1438,26 +1544,31 @@
         [
           "ask_the_brain",
           "lookup_playbook",
-          "lookup_trading_principle"
+          "lookup_trading_principle",
+          "grade_ticker"
         ],
         [
           "scan_active_patterns",
-          "find_patterns_on_ticker"
+          "find_patterns_on_ticker",
+          "grade_ticker"
         ],
         [
-          "get_regime"
+          "get_regime",
+          "grade_ticker"
         ],
         [
           "get_breadth"
         ],
         [
-          "setup_winrate"
+          "setup_winrate",
+          "grade_ticker"
         ],
         [
           "find_historical_analogs"
         ],
         [
-          "get_quote"
+          "get_quote",
+          "grade_ticker"
         ]
       ],
       "must_cite": [
