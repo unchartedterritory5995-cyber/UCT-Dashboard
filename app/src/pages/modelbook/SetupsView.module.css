@@ -944,7 +944,7 @@
 /* Fill the stage so a single example owns the screen — the chart grows with
    the viewport (chrome above it ≈ top bar + stage header + block header) and
    the next example sits fully below the fold. */
-.exChart { height: calc(100vh - 214px); min-height: 440px; }
+.exChart { height: calc(100vh - 268px); min-height: 440px; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
