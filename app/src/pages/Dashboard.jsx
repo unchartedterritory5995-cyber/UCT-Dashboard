@@ -13,6 +13,7 @@ import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import DeskVideoRail from '../components/dashboard/DeskVideoRail'
+import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import MarketStatusBar from '../components/dashboard/MarketStatusBar'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
 import UIcon from '../components/ui/UIcon'
@@ -102,6 +103,8 @@ export default function Dashboard() {
           </div>
 
           <DeskVideoRail />
+          {/* Compass noticed — self-hiding awareness feed */}
+          <CompassTodayTile />
         </div>
 
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}
@@ -179,6 +182,8 @@ export default function Dashboard() {
             </MobileSection>
             {/* From the Desk — video discovery rail */}
             <DeskVideoRail />
+            {/* Compass noticed — self-hiding awareness feed */}
+            <CompassTodayTile />
           </PullToRefresh>
         </div>
 
