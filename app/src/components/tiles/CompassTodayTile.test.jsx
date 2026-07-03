@@ -87,3 +87,43 @@ test('clicking dismiss posts to the dismiss endpoint', async () => {
     )
   })
 })
+
+test('hides stale insights older than the recency window', () => {
+  // SQLite space-format timestamp, years old -> must be filtered out even
+  // though it is undismissed (fixes: dark-ship leftover rows + frozen
+  // "reports earnings today" wording persisting for days).
+  h.data = {
+    insights: [
+      { id: 7, kind: 'earnings_proximity', symbol: 'AAPL', headline: 'AAPL reports earnings today', body: null, dismissed_at: null, created_at: '2020-01-01 00:00:00' },
+    ],
+  }
+  const { container } = renderWithProviders(<CompassTodayTile />)
+  expect(container.firstChild).toBeNull()
+})
+
+test('shows a fresh insight within the recency window', () => {
+  const fresh = new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1h ago
+  h.data = {
+    insights: [
+      { id: 8, kind: 'earnings_proximity', symbol: 'AAPL', headline: 'AAPL reports earnings today', body: null, dismissed_at: null, created_at: fresh },
+    ],
+  }
+  renderWithProviders(<CompassTodayTile />)
+  expect(screen.getByText('AAPL reports earnings today')).toBeInTheDocument()
+})
+
+test('re-enables the dismiss button when the dismiss request fails', async () => {
+  // A failed POST + trailing revalidation re-surfaces the still-undismissed
+  // row; its dismiss button must not be left permanently disabled.
+  h.data = {
+    insights: [
+      { id: 9, kind: 'stop_hit', symbol: 'MSFT', headline: 'MSFT is AT or THROUGH its stop', body: null, dismissed_at: null },
+    ],
+  }
+  global.fetch = vi.fn().mockRejectedValue(new Error('network down'))
+  renderWithProviders(<CompassTodayTile />)
+  fireEvent.click(screen.getByLabelText(/Dismiss:/))
+  await waitFor(() => {
+    expect(screen.getByLabelText(/Dismiss:/)).not.toBeDisabled()
+  })
+})

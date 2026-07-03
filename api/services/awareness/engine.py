@@ -155,23 +155,35 @@ def _fire_candidate(user_id: str, candidate: InsightCandidate) -> bool:
     importance = rules.compute_relevance_score(
         candidate.base_signal, candidate.personal_multiplier, candidate.urgency,
     )
+    # Persist the CLEAN ticker (candidate.symbol) as the displayed symbol, NOT
+    # the composite dedup_key — the dedup_key (e.g. "NVDA:stop_hit",
+    # "REGIME:bull_trend") is a cooldown-namespace string that must never reach
+    # the UI. add_insight now namespaces the cooldown by (symbol, kind), which
+    # reproduces the dedup_key's stop_hit-vs-stop_near separation while keeping
+    # the symbol column clean. Market-wide insights (regime flips) carry
+    # symbol=None and correctly render no ticker chip.
     insight_id = add_insight(
         user_id,
         kind=candidate.kind,
         headline=candidate.headline,
-        symbol=candidate.dedup_key,
+        symbol=candidate.symbol,
         body=candidate.body,
         importance=importance,
     )
     if insight_id is None:
         return False  # suppressed by daily cap / per-symbol cooldown
 
-    if importance >= _DELIVER_IMPORTANCE_FLOOR:
+    # Away-deliver (email/Discord) only for personal, ticker-specific insights
+    # above the floor. Regime flips are market-wide/systemic (symbol=None) — they
+    # surface in-app + spoken at session start, but must NOT blast every position
+    # holder's inbox on every flip (calm/surgical). Operator can add a dedicated
+    # regime-change email later if desired.
+    if importance >= _DELIVER_IMPORTANCE_FLOOR and candidate.symbol:
         try:
             from api.services.watchlist_alert_service import deliver_alert_payload
             deliver_alert_payload(
                 user_id=user_id,
-                sym=candidate.symbol or "",
+                sym=candidate.symbol,
                 title=candidate.headline,
                 message=candidate.body or candidate.headline,
                 source="awareness_engine",

@@ -41,6 +41,22 @@ function kindLabel(kind) {
   return KIND_LABELS[kind] || 'Compass'
 }
 
+// Only surface RECENT insights. /api/voice/insights returns every undismissed
+// row regardless of age, and dismissal is the only removal path — so without a
+// cutoff, (a) stale pre-existing rows from months ago would make the tile
+// appear even while the awareness engine is dark, and (b) an old
+// "reports earnings today" would still read "today" days later. 36h keeps
+// "yesterday afternoon" visible while dropping anything genuinely stale.
+const RECENCY_MS = 36 * 60 * 60 * 1000
+function isRecent(ins) {
+  const raw = ins?.created_at
+  if (!raw) return true // no timestamp -> don't hide (be permissive)
+  const iso = String(raw).includes('T') ? raw : `${String(raw).replace(' ', 'T')}Z`
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return true // unparseable -> don't hide
+  return Date.now() - t < RECENCY_MS
+}
+
 function groupByKind(insights) {
   const groups = new Map()
   for (const ins of insights) {
@@ -61,9 +77,11 @@ export default function CompassTodayTile() {
   )
 
   const insights = data?.insights || []
-  const todayFocus = insights.find((i) => i.kind === 'daily_focus' && !i.dismissed_at)
+  const todayFocus = insights.find(
+    (i) => i.kind === 'daily_focus' && !i.dismissed_at && isRecent(i),
+  )
   const noticed = useMemo(
-    () => insights.filter((i) => i.kind !== 'daily_focus' && !i.dismissed_at),
+    () => insights.filter((i) => i.kind !== 'daily_focus' && !i.dismissed_at && isRecent(i)),
     [insights],
   )
 
@@ -103,12 +121,26 @@ function CompassTodayBody({ todayFocus, noticed, mutate }) {
       },
       { revalidate: false },
     )
+    let ok = false
     try {
-      await fetch(`/api/voice/insights/${id}/dismiss`, {
+      const r = await fetch(`/api/voice/insights/${id}/dismiss`, {
         method: 'POST',
         credentials: 'include',
       })
+      ok = r.ok
+    } catch {
+      ok = false // network failure — fetch rejected
     } finally {
+      // On failure the revalidation below re-surfaces the (still-undismissed)
+      // row, so we MUST re-enable its dismiss button — otherwise it reappears
+      // permanently greyed-out with no way to retry until a full reload.
+      if (!ok) {
+        setDismissing((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }
       mutate()
     }
   }, [mutate])

@@ -49,43 +49,6 @@
   color: var(--text-bright);
 }
 
-.empty {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed var(--border);
-  border-radius: 4px;
-}
-
-.emptyTitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-bright);
-  margin-bottom: 4px;
-}
-
-.emptySub {
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.recentLine {
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.recentLabel {
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 10px;
-}
-
-.recentText {
-  color: var(--text-bright);
-}
-
 .feedSection {
   display: flex;
   flex-direction: column;

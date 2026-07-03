@@ -241,6 +241,44 @@ def test_fire_candidate_stop_hit_not_suppressed_by_prior_proximity_warning(db_pa
     assert second is True
 
 
+def test_fire_candidate_persists_clean_symbol_not_dedup_key(db_path):
+    """The displayed `symbol` column must be the CLEAN ticker, never the
+    composite cooldown-namespace dedup_key (regression: 'NVDA:stop_hit' /
+    'REGIME:bull_trend' leaking into the UI as a bogus ticker chip)."""
+    from api.services.awareness import engine as eng
+    from api.services.awareness.rules import InsightCandidate
+    from api.services.auth_db import get_connection
+    _seed_user("u8", "u8@x.com")
+
+    ticker_candidate = InsightCandidate(
+        kind="stop_hit", symbol="NVDA", headline="NVDA is AT its stop",
+        body="body", base_signal=1.0, personal_multiplier=1.3, urgency=2.0,
+        dedup_key="NVDA:stop_hit",
+    )
+    regime_candidate = InsightCandidate(
+        kind="regime_flip", symbol=None, headline="Market regime flipped",
+        body="body", base_signal=0.6, personal_multiplier=1.3, urgency=1.4,
+        dedup_key="REGIME:bull_trend",
+    )
+    with mock.patch("api.services.watchlist_alert_service.deliver_alert_payload") as deliver:
+        eng._fire_candidate("u8", ticker_candidate)
+        eng._fire_candidate("u8", regime_candidate)
+
+    conn = get_connection()
+    try:
+        rows = {r["kind"]: r["symbol"] for r in conn.execute(
+            "SELECT kind, symbol FROM voice_proactive_insights WHERE user_id = ?",
+            ("u8",)).fetchall()}
+    finally:
+        conn.close()
+
+    assert rows["stop_hit"] == "NVDA"          # clean ticker, NOT "NVDA:STOP_HIT"
+    assert rows["regime_flip"] is None          # market-wide -> no ticker chip
+    # regime flip (symbol=None) must NOT away-deliver even above the floor
+    assert all(c.kwargs.get("kind") != "regime_flip"
+               for c in [call for call in deliver.call_args_list])
+
+
 def test_fire_candidate_suppressed_by_cooldown_returns_false(db_path):
     from api.services.awareness import engine as eng
     from api.services.awareness.rules import InsightCandidate

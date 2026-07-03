@@ -71,13 +71,18 @@ def add_insight(
         if per_day >= MAX_INSIGHTS_PER_USER_PER_DAY:
             return None
 
-        # Per-symbol cooldown
+        # Per-symbol cooldown, scoped by kind. Scoping by kind lets distinct
+        # insight kinds on the same ticker keep independent cooldown windows —
+        # e.g. a `stop_hit` breach is NOT swallowed by a `stop_proximity`
+        # warning fired minutes earlier on the same symbol. The `symbol` column
+        # therefore stores the CLEAN ticker (for display) and (symbol, kind)
+        # provides the namespacing the caller used to encode into a composite key.
         if symbol:
             recent = conn.execute(
                 """SELECT 1 FROM voice_proactive_insights
-                    WHERE user_id = ? AND symbol = ? AND created_at >= ?
+                    WHERE user_id = ? AND symbol = ? AND kind = ? AND created_at >= ?
                     LIMIT 1""",
-                (user_id, symbol.upper(), cutoff_sym),
+                (user_id, symbol.upper(), kind, cutoff_sym),
             ).fetchone()
             if recent:
                 return None
