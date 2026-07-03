@@ -2279,9 +2279,19 @@ export default function StockChart({
     }
     const t0 = performance.now(), dur = 900
     const ease = x => -(Math.cos(Math.PI * x) - 1) / 2
+    // Throttle the colour repaint to ~33fps. Each paint() re-ingests the whole
+    // candle+volume arrays via setData; doing that every frame stole budget from
+    // the zoom glide's OWN rAF loop, dropping frames and stair-stepping the motion
+    // (worst on big/annotated examples). The MOTION stays 60fps (its own loop);
+    // only the colour eases at 33fps, which is imperceptible. Final frame always
+    // paints so the settled colour is exact.
+    let lastPaint = -1e9
     const tick = (now) => {
       const p = Math.min(1, (now - t0) / dur)
-      paint(from + (to - from) * ease(p))
+      if (p >= 1 || now - lastPaint >= 30) {
+        lastPaint = now
+        paint(from + (to - from) * ease(p))
+      }
       if (p < 1) fadeRafRef.current = requestAnimationFrame(tick)
       else { fadeRafRef.current = null; setFrameFadeAlpha(to) }   // settle React steady state once, at the end
     }
@@ -3945,7 +3955,22 @@ export default function StockChart({
     // pre-setData; setData appends bars so existing indices don't shift, keeping
     // this range valid as the glide's start. (exactDateRange = book/library charts.)
     if (exactDateRange && oldRange && Number.isFinite(oldRange.from) && Number.isFinite(oldRange.to)) {
-      preFlipRangeRef.current = { from: oldRange.from, to: oldRange.to }
+      // Also capture the ACTUAL displayed price (vertical) range so the glide's
+      // vertical starts exactly where the eye last saw it — recomputing it from
+      // the candle window gives a slightly different range and snaps the chart
+      // up/down on the first frame ("skips down before the zoom").
+      let priceLo = null, priceHi = null
+      try {
+        const s = candleSeriesRef.current
+        let ph = 0
+        try { ph = chart.paneSize().height } catch { /* older API */ }
+        if (s && ph > 0) {
+          const hi = s.coordinateToPrice(0)
+          const lo = s.coordinateToPrice(ph)
+          if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) { priceHi = hi; priceLo = lo }
+        }
+      } catch { /* coordinate API unavailable mid-load */ }
+      preFlipRangeRef.current = { from: oldRange.from, to: oldRange.to, priceLo, priceHi }
     }
     const oldBarCount = lastBarCountRef.current
     if (zoomKeyRef.current !== zoomKey) {
@@ -4328,7 +4353,12 @@ export default function StockChart({
         const _prValid = pr && Number.isFinite(pr.from) && Number.isFinite(pr.to) && pr.to > pr.from
           && pr.to <= filteredBars.length + (pr.to - pr.from) * 0.2
         if (_prValid) {
-          sRangeGlide = _padVert(_windowPriceRange(filteredBars, pr.from, pr.to, _glideOverlays))
+          // Vertical: prefer the ACTUAL displayed price range captured pre-flip
+          // (already includes the view's margins) so frame 0 doesn't snap up/down.
+          // Fall back to fitting the candle window if it wasn't captured.
+          sRangeGlide = (Number.isFinite(pr.priceLo) && Number.isFinite(pr.priceHi) && pr.priceHi > pr.priceLo)
+            ? { lo: pr.priceLo, hi: pr.priceHi }
+            : _padVert(_windowPriceRange(filteredBars, pr.from, pr.to, _glideOverlays))
           try { chart.timeScale().setVisibleLogicalRange({ from: pr.from, to: pr.to }) } catch { /* mid-load */ }
         } else {
           // FALLBACK: re-derive the outgoing frame from its dates.
