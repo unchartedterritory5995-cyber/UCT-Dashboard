@@ -524,6 +524,33 @@ function filterByCap(trades, cap) {
 }
 function sum(arr) { return arr.reduce((a,t)=>a+t.P,0); }
 
+// ─── ETF / Index Detection ────────────────────────────────────────────────────
+// BBS CSV rows have stocketf === "ETF"/"INDEX" populated correctly. Massive
+// live-worker rows come through without that field, so we fall back to this
+// hardcoded set. Any change here also needs to be reflected in the backend
+// stocketf tagging (long term fix: populate stocketf in the Massive processor).
+const KNOWN_ETF_TICKERS = new Set([
+  "SPY","QQQ","IWM","IWR","DIA","MDY","SMH","SOXL","SOXS","TQQQ","SQQQ",
+  "TECL","TECS","LABU","LABD","FAS","FAZ","TZA","UPRO","SPXU","URTY","SRTY",
+  "XBI","XLE","XLF","XLK","XLV","XLI","XLU","XLC","XLY","XLP","XLB","XLRE",
+  "XLC","XSD","XPH","XRT","XHB","XME","XOP","XPP",
+  "VIX","VXX","UVXY","SVXY","VIXY",
+  "GLD","SLV","USO","UNG","GDX","GDXJ","SLX",
+  "EEM","EFA","VEA","VWO","EWZ","FXI","INDA","EWJ","EWY","EWT",
+  "AGG","BND","TLT","TMF","TMV","IEF","SHY","LQD","HYG","JNK",
+  "JEPQ","QYLD","JEPI","SCHD","VIG","VYM","VOO","VTI","VT",
+  "ARKK","ARKG","ARKW","ARKF","ARKQ",
+  "DUST","NUGT","JDST","JNUG","GDXU","GDXD",
+  "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
+  "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
+]);
+function isETFSymbol(sym, stocketf) {
+  const s = (stocketf||"").toUpperCase();
+  if (s === "ETF" || s === "INDEX") return true;
+  if (KNOWN_ETF_TICKERS.has((sym||"").toUpperCase())) return true;
+  return false;
+}
+
 // ─── Theme Map ────────────────────────────────────────────────────────────────
 // Tickers can belong to multiple themes. Themes aggregate flow across sectors.
 const THEMES_DEF = {
@@ -4078,7 +4105,13 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? _autoS * 0.4 : _autoS };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
+    // 2026-07-04: exclude ETFs/INDEXes when in Stocks tab (and vice versa).
+    // Watchlist should reflect the same universe as the tab -- SPY/QQQ/SMH
+    // belong on the Indexes tab. Two-layer detection via module-scope
+    // isETFSymbol(): stocketf metadata + KNOWN_ETF_TICKERS ticker fallback.
+    const isStock = (c) => !isETFSymbol(c.sym, c.stocketf);
+    const wlTabFilter = dataMode === "stocks" ? isStock : ((c) => !isStock(c));
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -4092,7 +4125,7 @@ export default function OptionsFlowDashboard() {
         convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -4257,13 +4290,22 @@ export default function OptionsFlowDashboard() {
       const bearSyms = new Set(bears.map(b => b.sym));
       const fallbackBulls = [];
       const fallbackBears = [];
+
+      // 2026-07-04: same ETF/INDEX filter as initial cut - fallback picks
+      // should honor the current tab. Uses module-scope isETFSymbol()
+      // which checks both stocketf CSV metadata and KNOWN_ETF_TICKERS.
+      const _symIsStock = (sym) => !isETFSymbol(sym, flowBy[sym]?.stocketf);
+      const _fallbackTabFilter = dataMode === "stocks" ? _symIsStock : ((s) => !_symIsStock(s));
+
       bears.forEach(b => {
         if (bullSyms.has(b.sym)) return;
+        if (!_fallbackTabFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BULL", true);  // log per ticker
         if (fb) fallbackBulls.push(fb);
       });
       bulls.forEach(b => {
         if (bearSyms.has(b.sym)) return;
+        if (!_fallbackTabFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BEAR", true);
         if (fb) fallbackBears.push(fb);
       });
@@ -4358,6 +4400,7 @@ export default function OptionsFlowDashboard() {
         // Skip if already on either watchlist OR already picked up via cross-direction fallback
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
+        if (!_fallbackTabFilter(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
         // Try the dominant direction (whichever has more flow)
@@ -6266,7 +6309,14 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             {/* Flow Intelligence Summary */}
             {FD && D.clean_confirmed && (()=>{
-              const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+              // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
+              // (and vice versa on the Indexes tab). Matches Watchlist behavior.
+              const _tabOk = (t) => {
+                const isEtf = isETFSymbol(t.S, t.stocketf);
+                return dataMode === "stocks" ? !isEtf : isEtf;
+              };
+              const base = (D.clean_confirmed||[]).filter(_tabOk);
+              const cc = capFilter==="All" ? base : base.filter(t => capBand(t.mktcap)===capFilter);
               if (!cc.length) return null;
               // Per-ticker aggregation (always over the full set, exclusion is applied below)
               let rawTotalBull=0, rawTotalBear=0;
@@ -7451,7 +7501,14 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
-          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+          // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
+          // (and vice versa on the Indexes tab). Matches Watchlist behavior.
+          const _tabOk = (t) => {
+            const isEtf = isETFSymbol(t.S, t.stocketf);
+            return dataMode === "stocks" ? !isEtf : isEtf;
+          };
+          const base = (D.clean_confirmed||[]).filter(_tabOk);
+          const cc = capFilter==="All" ? base : base.filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
           const [cPct, setCPct] = [convictionPct, setConvictionPct];
@@ -7846,8 +7903,15 @@ export default function OptionsFlowDashboard() {
 
         {/* Top Flow — Master List */}
         {tab==="Top Flow" && (()=>{
+          // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
+          // (and vice versa on the Indexes tab). Matches Watchlist behavior.
+          const _tabOk = (t) => {
+            const isEtf = isETFSymbol(t.S, t.stocketf);
+            return dataMode === "stocks" ? !isEtf : isEtf;
+          };
           const tfClusters = {};
           (D.clean_confirmed||[]).forEach(t => {
+            if (!_tabOk(t)) return;
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!tfClusters[k]) tfClusters[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, dir:t.D,
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
@@ -8949,8 +9013,14 @@ export default function OptionsFlowDashboard() {
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
+                  // 2026-07-04: honor the Stocks tab. watchMap doesn't carry
+                  // stocketf, so fall back to ticker-symbol check only.
+                  const _tabOk = (w) => {
+                    const isEtf = isETFSymbol(w.S, "");
+                    return dataMode === "stocks" ? !isEtf : isEtf;
+                  };
+                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -8961,8 +9031,14 @@ export default function OptionsFlowDashboard() {
               </div>
             </div>
             {(() => {
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
+              // 2026-07-04: honor the Stocks tab. watchMap doesn't carry
+              // stocketf, so fall back to ticker-symbol check only.
+              const _tabOk = (w) => {
+                const isEtf = isETFSymbol(w.S, "");
+                return dataMode === "stocks" ? !isEtf : isEtf;
+              };
+              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
@@ -9074,11 +9150,18 @@ export default function OptionsFlowDashboard() {
         {/* Tracker */}
         {tab==="Tracker" && (() => {
           const trackerDates = [...new Set((topFlowPicks.active||[]).map(p=>p.dateSaved).filter(Boolean))].sort().reverse();
+          // 2026-07-04: honor the Stocks tab. Tracker picks came from Watchlist
+          // originally and don't carry stocketf, so fall back to symbol check.
+          const _tabOk = (p) => {
+            const isEtf = isETFSymbol(p.sym, p.stocketf||"");
+            return dataMode === "stocks" ? !isEtf : isEtf;
+          };
+          const afterTab  = (list) => list.filter(_tabOk);
           const afterDateFilter = (list) => trackerDateFilter === "All" ? list : list.filter(p => p.dateSaved === trackerDateFilter);
           const afterCap = (list) => capFilter === "All" ? list : list.filter(p => (p.cap||"Unknown") === capFilter);
           const afterCp  = (list) => trackerCpFilter === "All" ? list : list.filter(p => p.cp === (trackerCpFilter === "Calls" ? "C" : "P"));
-          const filteredActive = afterCp(afterCap(afterDateFilter(topFlowPicks.active)));
-          const filteredArchived = afterCp(afterCap(afterDateFilter(topFlowPicks.archived)));
+          const filteredActive = afterCp(afterCap(afterDateFilter(afterTab(topFlowPicks.active))));
+          const filteredArchived = afterCp(afterCap(afterDateFilter(afterTab(topFlowPicks.archived))));
           const calcPnl = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); return now>0&&p.entry>0?(now-p.entry)/p.entry*100:0; };
           const calcPeak = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); const now=px?(px.mark||px.last||0):0; const hist=p.history||[]; const allPx=[...hist.map(h=>h.price),now,p.finalPrice||0].filter(v=>v>0); const peak=allPx.length>0?Math.max(...allPx):0; return peak>0&&p.entry>0?(peak-p.entry)/p.entry*100:0; };
           const calcNow = (p) => { const px=getPrice(p.sym,p.cp,p.strike,p.exp); return px?(px.mark||px.last||0):(p.history&&p.history.length>0?p.history[p.history.length-1].price:0); };
@@ -9735,8 +9818,13 @@ export default function OptionsFlowDashboard() {
                 if (wlDteFilter === "LT") return dte >= 60 && dte < 180;
                 return dte >= 180;
               };
+              // 2026-07-04: same ETF/INDEX filter as watchlist bulls/bears -
+              // scanner suggestions should honor the current tab.
+              const _isStockSugg = (c) => !isETFSymbol(c.sym, c.stocketf);
+              const _tabFilterSugg = dataMode === "stocks" ? _isStockSugg : ((c) => !_isStockSugg(c));
               const overflow = FD.CONV.filter(c => {
                 if (!dteOkSugg(c)) return false;
+                if (!_tabFilterSugg(c)) return false;
                 const k = c.sym+"|"+c.exp+"|"+(c.K||c.strike);
                 if (c.dir === "BULL" && existingBullSyms.has(k)) return false;
                 if (c.dir === "BEAR" && existingBearSyms.has(k)) return false;
