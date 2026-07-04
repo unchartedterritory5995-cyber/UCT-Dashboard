@@ -1277,6 +1277,96 @@ function processFlowData(rows) {
     });
   }
 
+  // ── Massive ML/ rescue: isolation + same-day flow-shape direction ─────────
+  // Massive uses ML/ as a catch-all for multi-print aggregation it can't
+  // cleanly classify — including legitimate multi-exchange sweeps. Example:
+  // SMCI 31c 8/21 at 1:53:37 — BBS shows 3 AA sweeps V=3035+3581+2876=9492
+  // for $2.5M; Massive delivers a single ML/ V=9492 with empty side. The
+  // default !t.isML filter correctly drops real multi-leg spreads but
+  // silently kills these misclassified sweeps. Rescue them via two rules:
+  //   (B) Isolation: an ML/ with NO sibling ML/ on the same ticker+CP at
+  //       a DIFFERENT (strike, exp) within 5s isn't a real spread. Real
+  //       spreads emit multiple near-simultaneous ML/ rows across legs.
+  //   (C) Direction from same-day flow shape: for rescued ML/, examine
+  //       non-ML SWEEP activity on the same (ticker, cp, strike, exp)
+  //       with side classified. If ASK premium >= 70% of total, mark
+  //       synthetic Si="A" and derive direction from CP; otherwise leave
+  //       empty (won't drive direction but counts toward premium heat).
+  // Rescued ML/ becomes Ty="SWP" so it flows through the existing whale
+  // rescue and CONV pipeline. Guarded: only ML/ with meaningful premium
+  // (>= $100K) is considered — micro ML/ prints stay filtered as noise.
+  {
+    const _parseTs = (ts) => {
+      if (!ts) return -1;
+      const m = ts.match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!m) return -1;
+      let h = parseInt(m[1]);
+      const mm = parseInt(m[2]);
+      const ss = parseInt(m[3]);
+      const pm = (m[4] || "").toUpperCase() === "PM";
+      if (pm && h < 12) h += 12;
+      if (!pm && h === 12) h = 0;
+      return h * 3600 + mm * 60 + ss;
+    };
+    // Same-day flow shape from non-ML SWEEP trades with classified side.
+    const flowShape = {};
+    rawTrades.forEach(t => {
+      if (t.isML || t.Ty !== "SWP" || !t.S || !t.CP) return;
+      const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
+      if (!flowShape[k]) flowShape[k] = { ask: 0, bid: 0 };
+      if (t.Si === "A" || t.Si === "AA") flowShape[k].ask += t.P;
+      else if (t.Si === "B" || t.Si === "BB") flowShape[k].bid += t.P;
+    });
+    // ML/ index by ticker+CP for sibling detection.
+    const mlIndex = {};
+    rawTrades.forEach(t => {
+      if (!t.isML || !t.S || !t.CP) return;
+      const k = t.S + "|" + t.CP;
+      if (!mlIndex[k]) mlIndex[k] = [];
+      mlIndex[k].push({ trade: t, ts: _parseTs(t.time), strike: t.K, exp: t.E });
+    });
+    let _rescued = 0, _rescuedWithDir = 0;
+    rawTrades.forEach(t => {
+      if (!t.isML || !t.S || !t.CP) return;
+      if (t.V <= 0 || t.P < 100000) return;
+      if (mlMatched.has(t)) return;  // already paired with a leg — treat as real spread
+      const myTs = _parseTs(t.time);
+      if (myTs < 0) return;  // unparseable time — safest to leave filtered
+      const symCP = t.S + "|" + t.CP;
+      const siblings = (mlIndex[symCP] || []).filter(o =>
+        o.trade !== t &&
+        (o.strike !== t.K || o.exp !== t.E) &&
+        o.ts >= 0 &&
+        Math.abs(o.ts - myTs) <= 5
+      );
+      if (siblings.length > 0) return;  // real multi-leg spread — leave filtered
+      // Isolated ML/ — rescue as synthetic SWEEP.
+      t.isML = false;
+      t.Ty = "SWP";
+      _rescued++;
+      // Direction attribution from same-day flow shape (Option C).
+      // Gated on DTE >= 14 because short-dated Massive ML/ can't be reliably
+      // attributed: Massive doesn't classify BID sweeps, so the "flow shape"
+      // reads as 100% ASK trivially on every contract. On short-DTE names
+      // (dealer/day-trader window) that false-positive gets attributed BULL
+      // when it's often just churn. Longer-DTE ML/ (institutional swing/
+      // LEAPS positioning) is safer to attribute. Verified against real
+      // data: SMCI 31c 8/21 (DTE 50, real AA sweep) attributes correctly,
+      // AAPL 305c 7/6 (DTE 4, mixed dealer flow) stays empty.
+      const shape = flowShape[t.S + "|" + t.CP + "|" + t.K + "|" + t.E];
+      if (shape && (t.DTE || 0) >= 14) {
+        const total = shape.ask + shape.bid;
+        if (total > 0 && shape.ask / total >= 0.7) {
+          t.Si = "A";
+          t.D = t.CP === "C" ? "BULL" : "BEAR";
+          _rescuedWithDir++;
+        }
+      }
+    });
+    if (_rescued > 0) console.log("[ML/ rescue] rescued " + _rescued +
+      " isolated ML/ trades (" + _rescuedWithDir + " with derived direction from 70%+ ASK flow shape)");
+  }
+
   // Filter: remove ML/, RED + matching originals (cancel pairs), invalid,
   // and ML/-matched trades. The canceledTrades Set built above contains
   // both the red markers AND their matched originals.
