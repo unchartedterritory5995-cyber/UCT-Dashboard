@@ -1,17 +1,36 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
-import StockChart from "../components/StockChart";
-import DarkPool from "./DarkPool";
-import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+
+// ── Inlined DarkPool component (artifact can't import local files) ────────────
+// Stub TickerPopup — just renders children (full version lives in deployed site)
+function TickerPopup({ children }) { return children; }
+
+// Stub StockChart — admin file runs as a Claude artifact so it can't import
+// the real ../components/StockChart. This iframe fallback uses TradingView's
+// embed widget. Public file uses the real StockChart, so colors will differ
+// slightly between the two until/unless admin is migrated to use the real one.
+//
+// NOTE: darkPoolBars prop is accepted but IGNORED — TradingView iframes are
+// sandboxed and we can't draw custom overlays inside them. The toggle and
+// fetch logic in OptionsFlow_admin still run for parity with the public file;
+// the bars just never visually render here. Once admin migrates to the real
+// StockChart, this stub becomes a passthrough and the overlay works.
+function StockChart({ sym, tf, height, darkPoolBars }) {
+  if (!sym) return null;
+  const url = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}&interval=${tf||"D"}&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131722&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&hideideas=1&locale=en`;
+  return (
+    <iframe key={sym+"|"+(tf||"D")} src={url}
+      title={`Chart ${sym}`}
+      style={{ width:"100%", height: typeof height === "number" ? height+"px" : (height||"100%"), border:"none", background:"#131722", display:"block" }}
+      allow="encrypted-media"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+  );
+}
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
-// Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
-// + cluster dark pool prints without depending on DarkPool's internal state.
-// Keeping these inline rather than exporting from DarkPool.jsx avoids cross-
-// component coupling — the chart modal needs its own copy regardless.
-
-// Filter "Cancelled" prints AND the original print they reference, so the
-// chart only shows trades that actually settled (matches DarkPool's logic).
+// Mirror of public file. Same logic as DarkPool.jsx for cancellation filtering
+// and zone clustering. Visually inert in admin until StockChart migrates off
+// the iframe stub above, but kept here so file structure matches public.
 function stripCancelledPrints(prints) {
   if (!prints || prints.length === 0) return [];
   const readNum = (...vals) => { for (const v of vals) if (v != null && v !== "") return Number(v); return 0; };
@@ -69,8 +88,6 @@ function stripCancelledPrints(prints) {
   return prints.filter((_, i) => !excluded.has(i));
 }
 
-// Cluster prints within 2% of each other into single zones. See DarkPool.jsx
-// for the rationale and full algorithm doc.
 function clusterDarkPoolPrintsForOverlay(prints, { zonePct = 0.02 } = {}) {
   if (!prints || prints.length === 0) return [];
   const readPrice    = p => (p?.price ?? p?.p ?? 0);
@@ -111,7 +128,9 @@ function clusterDarkPoolPrintsForOverlay(prints, { zonePct = 0.02 } = {}) {
   });
 }
 
-// ─── Flow Data loaded dynamically from /api/flow/data (SQLite DB) ─────────────
+// ─── Flow Data loaded dynamically from /flow-data.csv ─────────────────────────
+// API_BASE: points to production backend (admin runs as Claude artifact, not from deployed site)
+const API_BASE = "https://uctintelligence.com";
 
 
 // ─── Color Palette ─────────────────────────────────────────────────────────────
@@ -157,7 +176,6 @@ function gradeCluster(c) {
   return "D";
 }
 const GRADE_COLORS = { "A+":"#c9a84c", "A":"#ffab00", "B+":"#3cb868", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
-// Pattern detection — detects anomalous flow patterns on a cluster
 function detectPatterns(c) {
   const patterns = [];
   if ((c.ivs||[]).length >= 3) {
@@ -227,7 +245,7 @@ function Card({ children, title, sub }) {
   );
 }
 
-function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
+function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
@@ -253,13 +271,9 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
           const dOIC = dOI > 0 ? P.bu : dOI < 0 ? P.be : P.dm;
           const rowKey = r.S+"|"+r.CP+"|"+r.K+"|"+r.E+"|"+i;
           const isExpanded = expandedKey === rowKey;
-          // fadeOnStale: subtle fade for rows where live OI is below the
-          // snapshot OI — net closing activity since the trade printed. Used
-          // by the Search tab to visually de-emphasize stale conviction.
-          const isStale = fadeOnStale && dOI < 0;
           return (
             <Fragment key={i}>
-            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer", opacity:isStale?0.55:1 }} title={isStale?"Live OI is below snapshot OI — net closing activity":undefined}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
@@ -316,7 +330,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
           const isExpanded = expandedKey === rowKey;
           return (
             <Fragment key={i}>
-            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer" }}>
+            <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):r.H>=5?(P.ac+"08"):"transparent", cursor:"pointer" }}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
@@ -383,7 +397,6 @@ function parseCSVLine(line) {
 
 function parseCSV(text) {
   const lines = text.split("\n");
-  // Find first non-empty line for headers
   let headerIdx = 0;
   while (headerIdx < lines.length && !lines[headerIdx].trim()) headerIdx++;
   if (headerIdx >= lines.length - 1) return [];
@@ -419,17 +432,14 @@ function parseCSV(text) {
       if (idx >= 0) { colIdx[field] = idx; break; }
     }
   });
-  // Pre-flatten to array for tight inner loop
-  const fieldPairs = Object.entries(colIdx); // [[field, idx], ...]
+  const fieldPairs = Object.entries(colIdx);
   const numFields = fieldPairs.length;
   const tickerIdx = colIdx.ticker;
   const result = [];
   for (let li = headerIdx + 1; li < lines.length; li++) {
     const raw = lines[li];
-    if (!raw || raw.length < 3) continue; // skip empty/whitespace lines
-    // Fast path: no quotes → split on comma (covers 95%+ of flow data rows)
+    if (!raw || raw.length < 3) continue;
     const cols = raw.indexOf('"') === -1 ? raw.replace(/\r$/, "").split(",") : parseCSVLine(raw.replace(/\r$/, ""));
-    // Quick reject: no ticker
     const tk = cols[tickerIdx];
     if (!tk || tk.length === 0) continue;
     const row = {};
@@ -605,7 +615,6 @@ function consistencyTable(trades, n=8) {
 // Recomputes all chart data from a clean_confirmed slice (used by cap filter)
 function buildCharts(cc) {
   const dayMap = {};
-  // Pre-split all trades in one pass into 6 buckets + day map
   const sb=[], sbr=[], lb=[], lbr=[], lpb=[], lpr=[], leapsAll=[];
   let etfCount = 0;
   for (let i = 0; i < cc.length; i++) {
@@ -661,7 +670,7 @@ function buildCharts(cc) {
   const allCons = {}; const consTrades = {};
   cc.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, stocketf:t.stocketf, hits:0, prem:0, vol:0, dir:t.D,
+    if (!allCons[k]) allCons[k] = { sym:t.S, cp:t.CP, K:t.K, exp:t.E, DTE:t.DTE, hits:0, prem:0, vol:0, dir:t.D,
       hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
       bullPrem:0, bearPrem:0, askPrem:0, bidPrem:0, dominantOverride:false, maxOI:0, er:t.er||false,
       uoa:false, mktcap:t.mktcap||0, ivs:[], spots:[], prices:[], sideTimes:[] };
@@ -687,23 +696,6 @@ function buildCharts(cc) {
     if (t.price > 0) allCons[k].prices.push(t.price);
     allCons[k].sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
   });
-
-  // ── B-side conviction override ─────────────────────────────────────────────
-  // Fix: if first trade had D=null but later trades have direction, inherit it
-  // Also: B-side-only confirmed clusters with high premium + sweep = directional
-  Object.values(allCons).forEach(c => {
-    // Fix 1: inherit direction from dirs if c.dir is null but dirs has entries
-    if (!c.dir && c.dirs.size === 1) {
-      c.dir = [...c.dirs][0];
-    }
-    // Fix 2: B-side conviction — confirmed B-side calls/puts with sweep + substantial premium
-    // B-side buying calls = bullish intent when confirmed by YELLOW/MAGENTA + high premium
-    if (!c.dir && c.oiExceeded && c.hasSweep && c.prem >= 200000 && c.bidPrem > 0 && c.askPrem === 0) {
-      if (c.cp === "C") { c.dir = "BULL"; c.dirs.add("BULL"); }
-      else if (c.cp === "P") { c.dir = "BEAR"; c.dirs.add("BEAR"); }
-    }
-  });
-
   const preSort = Object.values(allCons).filter(c=>c.dir).map(c => {
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
@@ -717,7 +709,6 @@ function buildCharts(cc) {
     const grade = gradeCluster(c);
     const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
     // Vol/OI ratio bonus — rewards unusually high activity relative to open interest
-    // 3x+ vol/OI on a mid-cap is far more significant than 0.5x on a mega-cap
     const volOI = c.maxOI > 0 ? c.vol / c.maxOI : 0;
     const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
@@ -726,15 +717,11 @@ function buildCharts(cc) {
       side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
       strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
-    if (!c.clean) return false;
-    // DTE filter: remove dying weeklies UNLESS premium is substantial ($500K+)
-    if (c.DTE <= 7 && c.prem < 500000) return false;
-    // Re-check expiry against today — parse c.exp "M/D" or "M/D/YYYY" at render time
-    // so expired contracts disappear even if DTE in CSV was still positive
+    if (!c.clean || c.DTE <= 7) return false;
     if (c.exp) {
       const p = c.exp.split("/").map(Number);
       const y = p.length >= 3 ? (p[2] < 100 ? p[2] + 2000 : p[2]) : (new Date().getMonth()+1 > p[0] ? new Date().getFullYear()+1 : new Date().getFullYear());  // FIX: 2-digit years from formatExp ("5/21/27") need +2000, else JS Date treats as 1927 and LEAPS get marked "expired"
-      const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59); // end of expiry day
+      const expDate = new Date(y, p[0]-1, p[1], 23, 59, 59);
       if (expDate < new Date()) return false;
     }
     return true;
@@ -865,7 +852,6 @@ function processFlowData(rows) {
     else if (cr === "MAGENTA" || cr === "PURPLE" || cr === "M") color = "MAGENTA";
     else if (cr === "ORANGE") color = "ORANGE";
     else if (cr === "RED" || cr === "#FF0000") color = "RED";
-    else if (cr === "ARB") color = "ARB";
     const expiry = parseExpiry(r.expiry);
     const dteParsed = parseInt(r.dte);
     const dte = !isNaN(dteParsed) && dteParsed >= 0 ? dteParsed : (expiry ? computeDTE(expiry) : -1);
@@ -927,12 +913,7 @@ function processFlowData(rows) {
 
   // Fix BBS misclassifications — these are stocks, not ETFs/indexes
   const ETF_BLACKLIST = new Set(["AAL"]);
-  // Fix BBS misclassifications — these are ETFs, not stocks
-  const STOCK_BLACKLIST = new Set(["DRAM"]);
-  rawTrades.forEach(t => {
-    if (ETF_BLACKLIST.has(t.S)) t.stocketf = "STOCK";
-    if (STOCK_BLACKLIST.has(t.S)) t.stocketf = "ETF";
-  });
+  rawTrades.forEach(t => { if (ETF_BLACKLIST.has(t.S)) t.stocketf = "STOCK"; });
 
   // ML/ Volume Matching: when an ML/ trade has the same volume as a BLOCK/SWEEP
   // at the same ticker+strike+exp, it means the original position was closed/rolled
@@ -941,7 +922,6 @@ function processFlowData(rows) {
   {
     const mlTrades = rawTrades.filter(t => t.isML && t.S && t.V > 0);
     if (mlTrades.length > 0) {
-      // Build hash map for O(1) lookup instead of O(n) .find()
       const nonMLMap = {};
       rawTrades.forEach((t, idx) => {
         if (t.isML || !t.Ty || !t.S || t.V <= 0) return;
@@ -960,74 +940,9 @@ function processFlowData(rows) {
     }
   }
 
-  // ── Cancel-pair filter ─────────────────────────────────────────────────────
-  // BlackBoxStocks marks canceled orders with Color=RED. Each red entry
-  // CANCELS a previously-recorded real trade with the same composite key
-  // (same ticker, CP, strike, exp, type, side, premium) — they are NOT
-  // standalone phantom entries. To compute accurate aggregations, we must
-  // exclude BOTH the original AND the red marker.
-  //
-  // Example QRVO 6/22:
-  //   11:21:50 CALL $115 $5M MAGENTA (original real fill)
-  //   11:26:28 CALL $115 $5M RED     (cancellation of that $5M)
-  // Without this filter, the Top Bullish aggregation would count the $5M
-  // twice (or once, depending on whether the red is filtered). With this
-  // filter, both rows are excluded — net effect: no $5M trade occurred.
-  //
-  // Empirically (June 2026 sample): 54 cancel pairs matched, 81 orphan
-  // reds with no prior match (excluded as just the red row). Matching
-  // is always same-day in practice.
-  const canceledTrades = new Set();
-  {
-    // Parse "H:MM:SS AM/PM" → seconds since midnight for correct time sort.
-    // localeCompare on raw strings would put "12:00 PM" before "9:00 AM"
-    // (because "1" < "9" lexically), so we need real time parsing.
-    const parseTimeToSec = (t) => {
-      if (!t) return 0;
-      const m = t.match(/(\d+):(\d+):(\d+)\s*(AM|PM)/i);
-      if (!m) return 0;
-      let h = parseInt(m[1]);
-      const min = parseInt(m[2]);
-      const sec = parseInt(m[3]);
-      const ampm = m[4].toUpperCase();
-      if (ampm === "PM" && h !== 12) h += 12;
-      if (ampm === "AM" && h === 12) h = 0;
-      return h * 3600 + min * 60 + sec;
-    };
-
-    // Group by (date, composite key). Same-day matching only — cancellations
-    // happen within minutes/hours of the original, never cross-day in
-    // observed data.
-    const groups = {};
-    rawTrades.forEach(t => {
-      const key = `${t.Dt}|${t.S}|${t.CP}|${t.K}|${t.E}|${t.Ty}|${t.Si}|${t.P}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(t);
-    });
-
-    Object.values(groups).forEach(trades => {
-      // Time-sort within group. After sort, iterate; pop most recent
-      // non-red original whenever a red appears.
-      trades.sort((a, b) => parseTimeToSec(a.time) - parseTimeToSec(b.time));
-      const originalStack = [];
-      trades.forEach(t => {
-        if (t.Co === "RED") {
-          if (originalStack.length > 0) {
-            canceledTrades.add(originalStack.pop()); // matched original
-          }
-          canceledTrades.add(t); // always exclude the red marker
-        } else {
-          originalStack.push(t);
-        }
-      });
-    });
-  }
-
-  // Filter: remove ML/, RED + matching originals (cancel pairs), invalid,
-  // and ML/-matched trades. The canceledTrades Set built above contains
-  // both the red markers AND their matched originals.
+  // Filter: remove ML/, RED/canceled, invalid, and ML/-matched trades
   let filtered = rawTrades.filter(t =>
-    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && !canceledTrades.has(t) && !mlMatched.has(t)
+    !t.isML && t.S && t.Ty && t.CP && t.DTE >= 0 && t.V > 0 && t.P > 0 && t.Co !== "RED" && !mlMatched.has(t)
   );
 
   // ── Same-timestamp multi-strike spread filter ────────────────────────────────
@@ -1059,13 +974,6 @@ function processFlowData(rows) {
   // Remove ORANGE (dark pool / delayed) from primary analysis but keep for reference
   const darkPool = filtered.filter(t => t.Co === "ORANGE");
   filtered = filtered.filter(t => t.Co !== "ORANGE");
-
-  // Remove ARB (backend cluster_filter flagged these as structured arbitrage
-  // noise — 4+ same-second multi-contract clusters on same ticker, e.g. LULU
-  // 5-strike PUT block at 15:46:16 = $54M of position management not signal).
-  // The backend tags them so we don't need to re-detect client-side; just
-  // exclude from all aggregation, leaderboards, sectors, and conviction scoring.
-  filtered = filtered.filter(t => t.Co !== "ARB");
 
   // Arb filter: deep ITM/OTM detection
   // Deep ITM = always arb/rebalancing (e.g. MU $210P when spot $413), filter ALL
@@ -1114,39 +1022,31 @@ function processFlowData(rows) {
   const dirtyClusterKeys = new Set();
   {
     const clusterDirs = {};
-    // Build cluster metadata in a single pass (assign _idx + cluster grouping)
-    for (let i = 0; i < filtered.length; i++) {
-      const t = filtered[i];
-      t._idx = i;
+    // Index trades for time ordering (CSV is newest-first, so idx 0 = most recent)
+    filtered.forEach((t, i) => { t._idx = i; });
+
+    // Build cluster metadata from ALL filtered trades (need bid-side presence for DTE≤3 rule)
+    filtered.forEach(t => {
       const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
       if (!clusterDirs[k]) clusterDirs[k] = { dirs: new Set(), askTimes:[], askIVs:[], bidTimes:[], bidIVs:[], bbSweepTimes:[], hasBidSide:false, hasAskSide:false, hasSweep:false, dte:t.DTE, askPrem:0, bidPrem:0 };
-      if (t.Si === "B" || t.Si === "BB") { clusterDirs[k].hasBidSide = true; clusterDirs[k].bidTimes.push(i); clusterDirs[k].bidPrem += t.P; if (t.IV > 0) clusterDirs[k].bidIVs.push(t.IV); }
-      if (t.Si === "A" || t.Si === "AA") { clusterDirs[k].hasAskSide = true; clusterDirs[k].askTimes.push(i); clusterDirs[k].askPrem += t.P; if (t.IV > 0) clusterDirs[k].askIVs.push(t.IV); }
+      if (t.Si === "B" || t.Si === "BB") { clusterDirs[k].hasBidSide = true; clusterDirs[k].bidTimes.push(t._idx); clusterDirs[k].bidPrem += t.P; if (t.IV > 0) clusterDirs[k].bidIVs.push(t.IV); }
+      if (t.Si === "A" || t.Si === "AA") { clusterDirs[k].hasAskSide = true; clusterDirs[k].askTimes.push(t._idx); clusterDirs[k].askPrem += t.P; if (t.IV > 0) clusterDirs[k].askIVs.push(t.IV); }
       if (t.Ty === "SWP") clusterDirs[k].hasSweep = true;
-      if (!t.D) continue;
+      if (!t.D) return; // stop here for non-directional trades
       clusterDirs[k].dirs.add(t.D);
-      if (t.Si === "BB" && t.Ty === "SWP") clusterDirs[k].bbSweepTimes.push(i);
-    }
+      if (t.Si === "BB" && t.Ty === "SWP") clusterDirs[k].bbSweepTimes.push(t._idx);
+    });
 
     Object.entries(clusterDirs).forEach(([k, c]) => {
-      // DTE <= 3: dying weeklies with any bid-side = day trading/scalping noise
+      // DTE ≤ 3: dying weeklies with any bid-side = day trading/scalping noise
       if (c.dte >= 0 && c.dte <= 3 && c.hasBidSide) {
         dirtyClusterKeys.add(k);
         return;
       }
-      // Block-only clusters (no sweep at this strike) = usually noise.
-      // EXCEPTION: institutional BLOCKs with significant premium ($500K+
-      // on the ask side, with no opposing bid-side trades) are conviction
-      // signals. A small mid-cap stock often won't get a sweep but still
-      // surfaces real positioning via a single large block.
-      // For Massive ingestion (which captures broader flow than BBS),
-      // this exception recovers many otherwise-lost institutional trades.
+      // Block-only clusters (no sweep at this strike) = not directional
       if (!c.hasSweep) {
-        const bigAskBlock = c.askPrem >= 500000 && !c.hasBidSide;
-        if (!bigAskBlock) {
-          dirtyClusterKeys.add(k);
-          return;
-        }
+        dirtyClusterKeys.add(k);
+        return;
       }
       // Mixed sides: trades on BOTH bid-side (B/BB) AND ask-side (A/AA)
       if (c.hasBidSide && c.hasAskSide) {
@@ -1181,14 +1081,10 @@ function processFlowData(rows) {
             if (peakAskIV > 0 && lateBidIV > 0 && lateBidIV < peakAskIV) return; // IV falling = de-escalation, not dirty
           }
         }
-        // Exception 4: Premium dominance -- if one side is 70%+ of total
-        // premium, the minor side is noise. Lowered from 85% to 70% to
-        // accommodate Massive ingestion which captures more bid-side noise
-        // alongside dominant ask-side conviction (e.g., 4 ask sweeps at $1M+
-        // each plus one $1M profit-taker on the bid side = still bullish).
+        // Exception 4: Premium dominance — if one side is 85%+ of total premium, the minor side is noise
         const totalSidePrem = c.askPrem + c.bidPrem;
         if (totalSidePrem > 0) {
-          if (c.askPrem / totalSidePrem >= 0.70 || c.bidPrem / totalSidePrem >= 0.70) return; // dominant side is the signal
+          if (c.askPrem / totalSidePrem >= 0.85 || c.bidPrem / totalSidePrem >= 0.85) return; // dominant side is the signal
         }
         dirtyClusterKeys.add(k);
         return;
@@ -1220,83 +1116,47 @@ function processFlowData(rows) {
 
 
 
-  // ── MERGED PASS: UOA cluster OI + WatchMap + TickerDB ────────────────────────
-  // Previously three separate filtered.forEach loops; merged for ~30% speedup on large datasets
+  // UOA (unusual options activity)
+  // Only include UOA trades where the cluster has confirmed OI activity (yellow/magenta)
+  // All-white clusters = volume never exceeded OI = not confirmed, exclude from UOA
+  // White blocks on Bid/BB = always exclude (ambiguous regardless)
   const uoaClusterOI = {}; // track if any yellow/magenta exists per cluster
-  const watchMap = {};
-  const tickerMap = {};
-  for (let i = 0; i < filtered.length; i++) {
-    const t = filtered[i];
-    const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
-
-    // ── UOA cluster OI ──
+  filtered.forEach(t => {
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!uoaClusterOI[k]) uoaClusterOI[k] = false;
     if (t.Co === "YELLOW" || t.Co === "MAGENTA") uoaClusterOI[k] = true;
-
-    // ── WatchMap (OI Watchlist) ──
-    if (t.OI > 0 && t.DTE > 0) {
-      if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
-        hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{}, mktcap:0 };
-      watchMap[k].V += t.V;
-      watchMap[k].P += t.P;
-      watchMap[k].trades++;
-      if (t.price > 0 && watchMap[k].price === 0) watchMap[k].price = t.price;
-      if (t.OI > watchMap[k].OI) watchMap[k].OI = t.OI;
-      if (t.mktcap > watchMap[k].mktcap) watchMap[k].mktcap = t.mktcap;
-      if (t.Ty === "SWP") watchMap[k].hasSweep = true;
-      if (t.Ty === "BLK") watchMap[k].hasBlock = true;
-      const dt = (t.Dt||"").trim();
-      if (dt) {
-        if (!watchMap[k].dailyOI[dt] || t.OI > watchMap[k].dailyOI[dt]) watchMap[k].dailyOI[dt] = t.OI;
-        watchMap[k].dailyVol[dt] = (watchMap[k].dailyVol[dt]||0) + t.V;
-      }
-    }
-
-    // ── TickerDB ──
-    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{}, mktcap:0, er:false, uoa:false, sector:"" };
-    const tk = tickerMap[t.S];
-    tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
-    if (t.mktcap > tk.mktcap) tk.mktcap = t.mktcap;
-    if (t.er) tk.er = true;
-    if (t.uoa) tk.uoa = true;
-    if (t.sector && !tk.sector) tk.sector = t.sector;
-    // Keep running top 10 by premium (avoid sorting huge arrays)
-    if (tk.topTrades.length < 10) {
-      tk.topTrades.push(t);
-      if (tk.topTrades.length === 10) {
-        let mp = tk.topTrades[0].P;
-        for (let j = 1; j < 10; j++) if (tk.topTrades[j].P < mp) mp = tk.topTrades[j].P;
-        tk.minTopP = mp;
-      }
-    } else if (t.P > tk.minTopP) {
-      const minIdx = tk.topTrades.findIndex(x=>x.P===tk.minTopP);
-      if (minIdx >= 0) tk.topTrades[minIdx] = t;
-      let mp = tk.topTrades[0].P;
-      for (let j = 1; j < 10; j++) if (tk.topTrades[j].P < mp) mp = tk.topTrades[j].P;
-      tk.minTopP = mp;
-    }
-    const ck = t.CP+"|"+t.K+"|"+t.E;
-    if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0 };
-    tk.consMap[ck].H++; tk.consMap[ck].P+=t.P; tk.consMap[ck].V+=t.V;
-    if (t.D === "BULL") tk.consMap[ck].bullPrem += t.P;
-    if (t.D === "BEAR") tk.consMap[ck].bearPrem += t.P;
-    if (t.Ty==="SWP") tk.consMap[ck].hasSweep = true;
-    if (t.Ty==="BLK") tk.consMap[ck].hasBlock = true;
-    if (t.Co==="YELLOW"||t.Co==="MAGENTA") tk.consMap[ck].oiExceeded = true;
-    if (t.D) tk.consMap[ck].dirs.add(t.D);
-  }
-
-  // UOA (unusual options activity) — uses pre-built uoaClusterOI from merged pass
+  });
   const UOA_TRADES = filtered.filter(t => {
     if (!t.uoa) return false;
+    // White blocks on bid side = always ambiguous, exclude
     if (t.Co === "WHITE" && t.Ty === "BLK" && (t.Si === "B" || t.Si === "BB")) return false;
+    // All-white cluster (no yellow/magenta anywhere at this strike) = not confirmed, exclude
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (!uoaClusterOI[k]) return false;
     return true;
   }).sort((a,b)=>b.P-a.P).slice(0,10);
 
-  // OI Watchlist — uses pre-built watchMap from merged pass
+  // OI Watchlist — cluster ALL trades by strike, rank by Vol/OI ratio
+  const watchMap = {};
+  filtered.forEach(t => {
+    if (!t.OI || t.OI <= 0 || t.DTE <= 0) return;
+    const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+    if (!watchMap[k]) watchMap[k] = { S:t.S, CP:t.CP, K:t.K, E:t.E, V:0, OI:t.OI, P:0, Si:t.Si, Ty:t.Ty, trades:0,
+      hasSweep:false, hasBlock:false, price:0, DTE:t.DTE, dailyOI:{}, dailyVol:{}, mktcap:0 };
+    watchMap[k].V += t.V;
+    watchMap[k].P += t.P;
+    watchMap[k].trades++;
+    if (t.price > 0 && watchMap[k].price === 0) watchMap[k].price = t.price;
+    if (t.OI > watchMap[k].OI) watchMap[k].OI = t.OI;
+    if (t.mktcap > watchMap[k].mktcap) watchMap[k].mktcap = t.mktcap;
+    if (t.Ty === "SWP") watchMap[k].hasSweep = true;
+    if (t.Ty === "BLK") watchMap[k].hasBlock = true;
+    const dt = (t.Dt||"").trim();
+    if (dt) {
+      if (!watchMap[k].dailyOI[dt] || t.OI > watchMap[k].dailyOI[dt]) watchMap[k].dailyOI[dt] = t.OI;
+      watchMap[k].dailyVol[dt] = (watchMap[k].dailyVol[dt]||0) + t.V;
+    }
+  });
   const WATCH = Object.values(watchMap)
     .map(w => {
       const dates = Object.keys(w.dailyOI).sort((a,b) => {
@@ -1356,7 +1216,36 @@ function processFlowData(rows) {
     ...buildPerfItems("LEAPS Bear", _lp.filter(t=>t.D==="BEAR"), 4),
   ];
 
-  // Ticker DB — uses pre-built tickerMap from merged pass
+  // Ticker DB for Search (all filtered trades, confirmed + unconfirmed)
+  const tickerMap = {};
+  for (let i = 0; i < filtered.length; i++) {
+    const t = filtered[i];
+    if (!tickerMap[t.S]) tickerMap[t.S] = { s:t.S, b:0, r:0, n:0, topTrades:[], minTopP:0, consMap:{}, mktcap:0, er:false, uoa:false, sector:"" };
+    const tk = tickerMap[t.S];
+    tk.n++; if (t.D==="BULL") tk.b+=t.P; else if (t.D==="BEAR") tk.r+=t.P;
+    if (t.mktcap > tk.mktcap) tk.mktcap = t.mktcap;
+    if (t.er) tk.er = true;
+    if (t.uoa) tk.uoa = true;
+    if (t.sector && !tk.sector) tk.sector = t.sector;
+    if (tk.topTrades.length < 10) {
+      tk.topTrades.push(t);
+      if (tk.topTrades.length === 10) tk.minTopP = Math.min(...tk.topTrades.map(x=>x.P));
+    } else if (t.P > tk.minTopP) {
+      const minIdx = tk.topTrades.findIndex(x=>x.P===tk.minTopP);
+      if (minIdx >= 0) tk.topTrades[minIdx] = t;
+      tk.minTopP = Math.min(...tk.topTrades.map(x=>x.P));
+    }
+    const ck = t.CP+"|"+t.K+"|"+t.E;
+    if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0 };
+    tk.consMap[ck].H++; tk.consMap[ck].P+=t.P; tk.consMap[ck].V+=t.V;
+    if (t.D === "BULL") tk.consMap[ck].bullPrem += t.P;
+    if (t.D === "BEAR") tk.consMap[ck].bearPrem += t.P;
+    if (t.Ty==="SWP") tk.consMap[ck].hasSweep = true;
+    if (t.Ty==="BLK") tk.consMap[ck].hasBlock = true;
+    if (t.Co==="YELLOW"||t.Co==="MAGENTA") tk.consMap[ck].oiExceeded = true;
+    if (t.D) tk.consMap[ck].dirs.add(t.D);
+  }
   const TICKER_DB = Object.values(tickerMap)
     .sort((a,b)=>(b.b+b.r)-(a.b+a.r))
     .map(tk => ({
@@ -1423,26 +1312,2155 @@ function processFlowData(rows) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
+
+// ── DarkPool component (inlined as IIFE to avoid naming conflicts) ──────────
+
+// ── DarkPool component (inlined as IIFE to avoid naming conflicts) ──────────
+
+// ── DarkPool component (inlined as IIFE to avoid naming conflicts) ──────────
+const DarkPool = (() => {
+// ── Built-in CSV parser (no external dependencies) ───────────────────────────
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; }
+    else if (line[i] === "," && !inQuotes) { result.push(current.trim().replace(/^"|"$/g, "")); current = ""; }
+    else { current += line[i]; }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ""));
+  return result;
+}
+function parseCSV(text) {
+  const lines = text.split("\n");
+  let headerIdx = 0;
+  while (headerIdx < lines.length && !lines[headerIdx].trim()) headerIdx++;
+  if (headerIdx >= lines.length - 1) return [];
+  const headers = parseCSVLine(lines[headerIdx].replace(/\r$/, ""));
+  const numHeaders = headers.length;
+  const result = [];
+  for (let li = headerIdx + 1; li < lines.length; li++) {
+    const raw = lines[li];
+    if (!raw || raw.length < 3) continue;
+    // Fast path: no quotes → split on comma (covers most dark pool rows)
+    const cols = raw.indexOf('"') === -1 ? raw.replace(/\r$/, "").split(",") : parseCSVLine(raw.replace(/\r$/, ""));
+    const row = {};
+    let hasVal = false;
+    for (let i = 0; i < numHeaders; i++) {
+      const v = (cols[i] || "").trim();
+      if (v) hasVal = true;
+      row[headers[i]] = v;
+    }
+    if (hasVal) result.push(row);
+  }
+  return result;
+}
+
+// ── colours (matched to OptionsFlow dashboard palette) ─────────────────────
+const C = {
+  bg:"#0e0f0d", bg2:"#1a1c17", bg3:"#22251e", bg4:"#1a1c17", bgH:"#2a2d23",
+  bdr:"#2e3127", bdr2:"#3a3d32",
+  tx:"#e0dac8", tx2:"#a8a290", tx3:"#706b5e",
+  blue:"#6ba3be", green:"#3cb868", red:"#e74c3c", amber:"#c9a84c",
+  cyan:"#6ba3be", purple:"#a78bfa", pink:"#c97a8b", orange:"#c9844c",
+};
+const CAT_COLORS = {
+  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#c9a84c","Small Cap":"#e74c3c",
+  "Sector ETFs":"#3cb868","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function fmt(n){
+  if(n>=1e9) return "$"+(n/1e9).toFixed(2)+"B";
+  if(n>=1e6) return "$"+(n/1e6).toFixed(1)+"M";
+  if(n>=1e3) return "$"+(n/1e3).toFixed(0)+"K";
+  return "$"+n;
+}
+function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
+function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#a8a290"; }
+function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
+
+// Format large avg vol percentages readably (897112% → 8,971×)
+function fmtAvgVol(pct) {
+  if (pct >= 10000) return Math.round(pct/100).toLocaleString() + "×";
+  if (pct >= 1000) return (pct/100).toFixed(1) + "×";
+  if (pct >= 100) return Math.round(pct) + "%";
+  return pct.toFixed(0) + "%";
+}
+
+// ── Sparkline ────────────────────────────────────────────────────────────────
+function Sparkline({it, w=140, h=36}){
+  const P=4;
+  const pts = it.prices.map((p,i)=>({p,w:it.w[i]})).filter(x=>x.p!=null);
+  if(pts.length<2) return <span style={{color:C.tx3,fontSize:10}}>–</span>;
+  const allP = pts.map(x=>x.p);
+  const mn=Math.min(...allP), mx=Math.max(...allP);
+  const rng=mx-mn||1;
+  const y=p=>h-P-2-((p-mn)/rng)*(h-P*2-4);
+  const x=i=>(P+(i/(pts.length-1||1))*(w-P*2));
+  const lo=it.lo, hi=it.hi;
+  const zoneY1=y(hi), zoneY2=y(lo);
+  const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
+  const lastP=pts[pts.length-1].p;
+  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#a8a290";
+
+  // Big print level — clamp to visible range
+  const bp = it.bigPrint;
+  const bpInRange = bp!=null && bp>=mn && bp<=mx;
+  const bpY = bp!=null ? Math.max(P, Math.min(h-P, y(bp))) : null;
+  // Zone thickness scales with notional weight (bigger print = thicker zone)
+  const bpThick = it.bigPrintN && it.n ? Math.max(2, Math.min(6, (it.bigPrintN/it.n)*20)) : 3;
+
+  return (
+    <svg width={w} height={h} style={{display:"block"}}>
+      {/* DP zone band */}
+      <rect x={P} y={zoneY1} width={w-P*2} height={Math.max(0,zoneY2-zoneY1)}
+        fill="#6ba3be11" stroke="none"/>
+      <line x1={P} y1={y(lo)} x2={w-P} y2={y(lo)} stroke="#6ba3be33" strokeWidth={0.5}/>
+      <line x1={P} y1={y(hi)} x2={w-P} y2={y(hi)} stroke="#6ba3be33" strokeWidth={0.5}/>
+
+      {/* Largest print level — amber zone */}
+      {bpY!=null && (
+        <>
+          {/* Thick zone band */}
+          <rect x={P} y={bpY - bpThick/2} width={w-P*2} height={bpThick}
+            fill="#c9a84c33" stroke="none" rx={1}/>
+          {/* Center line */}
+          <line x1={P} y1={bpY} x2={w-P} y2={bpY}
+            stroke="#c9a84c" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
+          {/* Left anchor tick */}
+          <line x1={P} y1={bpY-4} x2={P} y2={bpY+4}
+            stroke="#c9a84c" strokeWidth={2} opacity={0.9}/>
+        </>
+      )}
+
+      {/* Price line */}
+      <polyline points={polyline} fill="none" stroke={lineColor} strokeWidth={1.2}/>
+      {pts.map((pt,i)=>{
+        const wt=pt.w||0;
+        const r=Math.max(1.2, wt*3.5);
+        const clr=zC(pt.p,lo,hi);
+        const a=(0.15+wt*0.65).toFixed(2);
+        const fill=lastP>hi?`rgba(45,212,160,${a})`:lastP<lo?`rgba(255,92,114,${a})`:`rgba(200,212,228,${a})`;
+        return <circle key={i} cx={x(i)} cy={y(pt.p)} r={r} fill={fill}/>;
+      })}
+    </svg>
+  );
+}
+
+// ── Tooltip wrapper ───────────────────────────────────────────────────────────
+function TickerCell({it, catColor}){
+  const [show,setShow]=useState(false);
+  return (
+    <div style={{position:"relative",display:"inline-block"}}
+      onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+      <span style={{color:catColor||C.tx,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",
+        fontSize:13,cursor:"default"}}>
+        ${it.t}
+      </span>
+      {it.u && <span style={{marginLeft:4,fontSize:9,color:C.amber,background:C.amber+"18",
+        padding:"1px 4px",borderRadius:4,fontWeight:700}}>UOA</span>}
+      {show && it.top5 && (
+        <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
+          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+          padding:"8px 10px",minWidth:220,boxShadow:"0 4px 20px #00000066",marginTop:2}}>
+          <div style={{color:C.tx2,fontSize:10,fontWeight:700,marginBottom:6,
+            borderBottom:`1px solid ${C.bdr}`,paddingBottom:4}}>
+            ${it.t} Top Blocks ({it.c} total)
+          </div>
+          {it.top5.map((r,i)=>(
+            <div key={i} style={{color:C.tx,fontSize:11,fontFamily:"'Instrument Sans', sans-serif",
+              padding:"2px 0"}}>{r}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Zone display ──────────────────────────────────────────────────────────────
+function ZoneCell({it}){
+  const pos=it.pos;
+  const color=pos==="above"?C.green:pos==="below"?C.red:"#a8a290";
+  const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
+  return (
+    <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",fontSize:13}}>
+      {pct}
+    </span>
+  );
+}
+
+
+// ── Big Print cell (proper component to avoid hook-in-IIFE error) ─────────────
+function BigPrintCell({it}){
+  const [hover,setHover]=useState(false);
+  const [pos,setPos]=useState({top:0,left:0});
+  const ref=useRef(null);
+  const tip = it.bigPrintN ? [
+    it.bigPrintDate,
+    fmt(it.bigPrintN),
+    it.bigPrintPctAvgVol>0 ? it.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : it.avg30>0 ? ((it.bigPrintN/it.avg30)*100).toFixed(1)+"% of avg vol" : null
+  ].filter(Boolean).join(" · ") : null;
+  const handleEnter=()=>{
+    if(ref.current){
+      const r=ref.current.getBoundingClientRect();
+      // Flip left if near right edge
+      const left = r.right+220>window.innerWidth ? r.right-220 : r.left;
+      setPos({top:r.bottom+6, left:Math.max(8,left)});
+    }
+    setHover(true);
+  };
+  return (
+    <div ref={ref} style={{position:"relative",display:"inline-block"}}
+      onMouseEnter={handleEnter} onMouseLeave={()=>setHover(false)}>
+      <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
+        {fP(it.bigPrint)}
+        {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+          verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
+      </span>
+      {hover && tip && (
+        <div style={{position:"fixed",top:pos.top,left:pos.left,zIndex:9999,
+          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+          padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
+          color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
+          fontWeight:500,letterSpacing:"0.01em",pointerEvents:"none"}}>
+          {tip}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Category pill ─────────────────────────────────────────────────────────────
+function CatPill({cat}){
+  const color=CAT_COLORS[cat]||C.tx2;
+  return (
+    <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,
+      background:color+"18",color,fontWeight:600}}>
+      {cat}
+    </span>
+  );
+}
+
+// ── Signal badges ────────────────────────────────────────────────────────────
+const SIG_COLORS={
+  YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c",
+  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c",
+};
+const SIG_SHORT={
+  YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge",
+  RARE_FLOW:"New Flow", SIZE_ESCALATION:"Escalating", ZONE_BREAK_RECORD:"Zone Break",
+};
+function SignalBadges({signals,compact}){
+  if(!signals||signals.length===0) return null;
+  return (
+    <span style={{display:"inline-flex",gap:3,flexWrap:"wrap"}}>
+      {signals.map(s=>{
+        const color=SIG_COLORS[s.type]||C.amber;
+        const label=compact
+          ? (SIG_SHORT[s.type]||s.label)+(s.mult?"·"+s.mult+"×":"")+(s.days?"·"+s.days+"d":"")
+          : s.label+(s.mult?" "+s.mult+"×":"")+(s.days?" "+s.days+"d":"");
+        return (
+          <span key={s.type} style={{fontSize:compact?8:9,padding:compact?"1px 5px":"2px 7px",
+            borderRadius:8,background:color+"18",color,fontWeight:700,whiteSpace:"nowrap",
+            border:`1px solid ${color}33`,lineHeight:1.2}}>
+            {label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+// ── Big Print cell (proper component so hooks are legal) ─────────────────────
+
+// ── Flow table ────────────────────────────────────────────────────────────────
+const TH = ({children,style={}}) => (
+  <th style={{padding:"8px 10px",textAlign:"left",fontSize:11,
+    color:"#706b5e",fontWeight:600,borderBottom:"1px solid #2e3127",
+    position:"sticky",top:0,background:"#22251e",whiteSpace:"nowrap",...style}}>
+    {children}
+  </th>
+);
+const TD = ({children,style={}}) => (
+  <td style={{padding:"7px 10px",borderBottom:"1px solid #2e312733",
+    verticalAlign:"middle",...style}}>
+    {children}
+  </td>
+);
+
+// ── Module-level data ref (set when CSV loads) ─────────────────────────────
+let D = null;
+
+function FlowTable({items, showCat=true, showZone=false}){
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr>
+            <TH>Ticker</TH>
+            {showCat && <TH>Category</TH>}
+            <TH>Last</TH>
+            {showZone && <TH>DP Zone</TH>}
+            <TH>Big Print</TH>
+            <TH>% Move</TH>
+            <TH>Notional</TH>
+            <TH>Trades</TH>
+            <TH>Days</TH>
+            <TH>30-Day</TH>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(it=>{
+            const cc=CAT_COLORS[it.cat]||C.tx;
+            const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
+            const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+            return (
+              <tr key={it.t+it.cat} style={{background:"transparent"}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <TD><TickerCell it={it} catColor={cc}/></TD>
+                {showCat && <TD><CatPill cat={it.cat}/></TD>}
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
+                  {fP(it.last)}
+                </TD>
+                {showZone && (
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
+                    {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                  </TD>
+                )}
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
+                  <BigPrintCell it={it}/>
+                </TD>
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+                  color:bpMoveColor}}>
+                  {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
+                </TD>
+                <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
+                  {fmt(it.n)}
+                </TD>
+                <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
+                <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
+                <TD><Sparkline it={it}/></TD>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Overview stat card ────────────────────────────────────────────────────────
+function StatCard({label, value, sub, color, icon}){
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,
+      padding:"10px 14px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
+        {icon && <span style={{fontSize:10,opacity:0.7}}>{icon}</span>}
+        <span style={{fontSize:9,color:C.tx3,textTransform:"uppercase",
+          letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
+      </div>
+      <div style={{fontSize:18,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>
+        {value}
+      </div>
+      {sub && <div style={{fontSize:10,color:C.tx2,marginTop:2}}>{sub}</div>}
+    </div>
+  );
+}
+
+// ── Zone Gauge — horizontal segmented bar ─────────────────────────────────────
+function ZoneGauge({above,inside,below}){
+  const total=above+inside+below||1;
+  const pA=((above/total)*100).toFixed(1);
+  const pI=((inside/total)*100).toFixed(1);
+  const pB=((below/total)*100).toFixed(1);
+  const seg=(count,pct,color,label,align)=>(
+    <div style={{flex:count||0.01,display:"flex",flexDirection:"column",alignItems:align,gap:3,minWidth:0}}>
+      <div style={{fontSize:10,color,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif",whiteSpace:"nowrap"}}>
+        {count} <span style={{fontWeight:400,color:C.tx3}}>({pct}%)</span>
+      </div>
+      <div style={{width:"100%",height:8,borderRadius:4,background:color,opacity:0.85,
+        transition:"all 0.3s ease"}}/>
+      <div style={{fontSize:9,color:C.tx3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</div>
+    </div>
+  );
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:10}}>Zone Positioning</div>
+      <div style={{display:"flex",gap:3,alignItems:"flex-start"}}>
+        {seg(above,pA,C.green,"Above","flex-start")}
+        {seg(inside,pI,"#706b5e","Inside","center")}
+        {seg(below,pB,C.red,"Below","flex-end")}
+      </div>
+    </div>
+  );
+}
+
+// ── Category Notional Bars ────────────────────────────────────────────────────
+function CategoryBars({categories,onJumpTo}){
+  const maxN=Math.max(...categories.map(c=>c.totalNotional),1);
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:12}}>Notional by Category</div>
+      {categories.filter(c=>c.count>0).map(c=>{
+        const color=CAT_COLORS[c.name]||C.tx2;
+        const pct=Math.max((c.totalNotional/maxN)*100,1);
+        return (
+          <div key={c.name} style={{marginBottom:8,cursor:onJumpTo?"pointer":"default"}}
+            onClick={()=>onJumpTo&&onJumpTo(c.name)}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+              <span style={{fontSize:11,fontWeight:600,color}}>{c.name}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{c.count} tickers</span>
+                <span style={{fontSize:11,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:64,textAlign:"right"}}>
+                  {fmt(c.totalNotional)}
+                </span>
+              </div>
+            </div>
+            <div style={{width:"100%",height:6,background:C.bdr,borderRadius:3,overflow:"hidden"}}>
+              <div style={{width:pct+"%",height:"100%",background:`linear-gradient(90deg, ${color}cc, ${color})`,
+                borderRadius:3,transition:"width 0.4s ease"}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Top Biggest Prints panel (tabbed, sortable, %AvgVol) ─────────────────────
+function BiggestPrintsPanel(){
+  const [catTab,setCatTab]=useState("All");
+  const [sortKey,setSortKey]=useState("bigPrintN");
+  const [sortDir,setSortDir]=useState("desc");
+
+  const PRINT_TABS=[
+    {id:"All",label:"All"},
+    {id:"Indexes",label:"Indexes"},
+    {id:"ETFs",label:"ETFs"},
+    {id:"Large Cap",label:"Large"},
+    {id:"Mid Cap",label:"Mid"},
+    {id:"Small Cap",label:"Small"},
+  ];
+  const ETF_CATS=new Set(["Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"]);
+
+  const universe=(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) if(it.bigPrintN>0) map[it.t]=it;
+    return Object.values(map);
+  })();
+
+  const filtered=useMemo(()=>{
+    let items=universe;
+    if(catTab==="ETFs") items=items.filter(i=>ETF_CATS.has(i.cat));
+    else if(catTab!=="All") items=items.filter(i=>i.cat===catTab);
+
+    const acc={
+      bigPrintN:x=>x.bigPrintN, bigPrint:x=>x.bigPrint, t:x=>x.t,
+      bpMove:x=>x.bigPrint>0?((x.last-x.bigPrint)/x.bigPrint*100):null,
+      avgVol:x=>x.bigPrintPctAvgVol||0,
+    };
+    const fn=acc[sortKey]||(x=>x[sortKey]);
+    items=[...items].sort((a,b)=>{
+      const va=fn(a),vb=fn(b);
+      if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1;
+      if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+      return sortDir==="asc"?va-vb:vb-va;
+    });
+    return items.slice(0,15);
+  },[universe,catTab,sortKey,sortDir]);
+
+  function toggleSort(key){
+    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+  const hdr=(key,label,minW)=>{
+    const active=sortKey===key;
+    const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
+    return (
+      <span onClick={()=>toggleSort(key)}
+        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+          cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>
+        {label}{arrow}
+      </span>
+    );
+  };
+
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+        textTransform:"uppercase",marginBottom:8}}>Biggest Single Prints</div>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+        {PRINT_TABS.map(t=>{
+          const on=catTab===t.id;
+          return (
+            <button key={t.id} onClick={()=>setCatTab(t.id)}
+              style={{padding:"3px 10px",borderRadius:12,fontSize:10,fontWeight:on?700:400,
+                border:`1px solid ${on?C.blue+"88":C.bdr}`,
+                background:on?C.blue+"18":"transparent",color:on?C.blue:C.tx3,
+                cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Column headers */}
+      <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+        borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
+          {hdr("t","Ticker",50)}
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {hdr("bigPrint","Print $",56)}
+          {hdr("bigPrintN","Notional",60)}
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          {hdr("bpMove","% Move",48)}
+          {hdr("avgVol","% AvgVol",52)}
+        </div>
+      </div>
+
+      {/* Rows */}
+      {filtered.map((it,i)=>{
+        const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+        const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+        const cc=CAT_COLORS[it.cat]||C.tx;
+        const avgV=it.bigPrintPctAvgVol;
+        const avgVColor=avgV>=50?C.pink:avgV>=20?C.amber:avgV>0?C.tx2:C.tx3;
+        return (
+          <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans', sans-serif",
+                width:18,textAlign:"center",fontWeight:600}}>{i+1}</span>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+                fontSize:12,color:cc}}>{it.t}</span>
+              <SignalBadges signals={it.signals} compact/>
+              {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                color:it.accDist==="Acc"?C.green:C.red,
+                border:`1px solid ${it.accDist==="Acc"?C.green:C.red}33`}}>{it.accDist}</span>}
+            </div>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
+                fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.cyan,
+                fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:10,color:C.tx3,
+                minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
+                color:bpColor,minWidth:48,textAlign:"right"}}>
+                {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+              </span>
+              <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,fontWeight:700,
+                color:avgVColor,minWidth:52,textAlign:"right"}}>
+                {avgV>0?fmtAvgVol(avgV):"—"}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+      {filtered.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No prints in this category</div>}
+    </div>
+  );
+}
+
+// ── Overview tab ─────────────────────────────────────────────────────────────
+function OverviewPane({onJumpTo}){
+  const sectionLabel = txt => (
+    <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+      textTransform:"uppercase",marginBottom:10}}>{txt}</div>
+  );
+
+  // Compute zone counts across ALL tickers
+  const {aboveN,insideN,belowN,allItems}=(()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
+    const items=Object.values(map);
+    return {
+      aboveN:items.filter(i=>i.pos==="above").length,
+      insideN:items.filter(i=>i.pos==="inside").length,
+      belowN:items.filter(i=>i.pos==="below").length,
+      allItems:items,
+    };
+  })();
+
+  // Net sentiment: bull/bear lean
+  const netLean=aboveN-belowN;
+  const leanColor=netLean>0?C.green:netLean<0?C.red:C.tx2;
+  const leanLabel=netLean>0?"Bullish Lean":netLean<0?"Bearish Lean":"Neutral";
+
+  function MiniRow({item, dir}){
+    const color = dir==="above" ? C.green : C.red;
+    const [bpHover,setBpHover]=useState(false);
+    const bpPct = item.bigPrint>0 ? ((item.last-item.bigPrint)/item.bigPrint*100) : null;
+    const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+    const tip = item.bigPrintN ? [
+      item.bigPrintDate,
+      fmt(item.bigPrintN),
+      item.bigPrintPctAvgVol>0 ? item.bigPrintPctAvgVol.toFixed(1)+"% of avg vol" : null
+    ].filter(Boolean).join(" · ") : null;
+    return (
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"6px 0",borderBottom:`1px solid ${C.bdr}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,
+            fontSize:12,color:C.tx,minWidth:52}}>{item.t}</span>
+          <span style={{fontSize:10,color:C.tx3}}>
+            Zone {fP(item.lo)}–{fP(item.hi)}
+          </span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.tx2}}>
+            {fP(item.last)}
+          </span>
+          <div style={{position:"relative",display:"inline-block"}}
+            onMouseEnter={()=>setBpHover(true)} onMouseLeave={()=>setBpHover(false)}>
+            <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,color:C.amber,
+              fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
+              {fP(item.bigPrint)}
+              {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+                verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
+            </span>
+            {bpHover && tip && (
+              <div style={{position:"absolute",right:0,top:"100%",zIndex:50,
+                background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,
+                padding:"7px 11px",whiteSpace:"nowrap",boxShadow:"0 4px 20px #00000066",
+                marginTop:4,color:C.tx,fontSize:13,fontFamily:"'Instrument Sans', sans-serif",
+                fontWeight:500,letterSpacing:"0.01em"}}>
+                {tip}
+              </div>
+            )}
+          </div>
+          <span style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:12,
+            fontWeight:700,color:bpMoveColor,minWidth:60,textAlign:"right"}}>
+            {bpPct==null ? "—" : (bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
+          </span>
+          <span style={{fontSize:10,color:C.tx3,minWidth:36,textAlign:"right"}}>
+            {fmt(item.n)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Generate narrative summary ──────────────────────────────────────────────
+  const narrative = (()=>{
+    const days = D.meta.tradingDays;
+
+    // Filter out names that ALWAYS print — indexes, mega-caps, popular ETFs
+    const USUAL = new Set([
+      "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+      "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO",
+      "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
+      "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
+      "FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
+      "IWF","IWD","IWB","IWR","IWS","GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT",
+    ]);
+
+    let parts = [];
+
+    if(days >= 3){
+      // Repeat: appeared on 70%+ of days, min 4 days
+      const repeatThresh = Math.max(4, Math.ceil(days * 0.7));
+      const repeats = allItems
+        .filter(i => i.days >= repeatThresh && !USUAL.has(i.t))
+        .sort((a,b) => b.days - a.days || b.bigPrintN - a.bigPrintN);
+      if(repeats.length > 0){
+        const top = repeats.slice(0,5);
+        parts.push(`Repeat: ${top.map(t => `${t.t} (${t.days}/${days}d)`).join(", ")}${repeats.length>5?" +"+( repeats.length-5):""}.`);
+      }
+    }
+
+    // Unusual mid/small cap — $30M+ print, cap at 3
+    const unusual = allItems
+      .filter(i => !USUAL.has(i.t) && (i.cat === "Mid Cap" || i.cat === "Small Cap") && i.bigPrintN >= 30_000_000)
+      .sort((a,b) => b.bigPrintN - a.bigPrintN);
+    if(unusual.length > 0){
+      parts.push(`Unusual: ${unusual.slice(0,3).map(t => `${t.t} (${fmt(t.bigPrintN)}${t.bigPrintPctAvgVol>=30?" · "+fmtAvgVol(t.bigPrintPctAvgVol)+" vol":""})`).join(", ")}.`);
+    }
+
+    // Outsized prints — 50%+ avg vol, $50M+, cap at 3
+    const highVol = allItems
+      .filter(i => !USUAL.has(i.t) && i.bigPrintPctAvgVol >= 50 && i.bigPrintN >= 50_000_000)
+      .sort((a,b) => b.bigPrintPctAvgVol - a.bigPrintPctAvgVol);
+    if(highVol.length > 0){
+      const notShown = highVol.filter(h => !unusual.slice(0,3).some(u => u.t === h.t));
+      if(notShown.length > 0){
+        parts.push(`Outsized: ${notShown.slice(0,3).map(t => `${t.t} (${fmtAvgVol(t.bigPrintPctAvgVol)} vol)`).join(", ")}.`);
+      }
+    }
+
+    // Flagged — cap at 3
+    const flaggedUnusual = allItems
+      .filter(i => i.signals && i.signals.length > 0 && !USUAL.has(i.t))
+      .sort((a,b) => b.signals.length - a.signals.length || b.bigPrintN - a.bigPrintN);
+    if(flaggedUnusual.length > 0){
+      parts.push(`Flagged: ${flaggedUnusual.slice(0,3).map(t => `${t.t} ${t.signals.map(s=>s.icon).join("")}`).join(", ")}${flaggedUnusual.length>3?" +"+(flaggedUnusual.length-3):""}.`);
+    }
+
+    // Zone lean
+    const abovePct = Math.round((aboveN/(allItems.length||1))*100);
+    const belowPct = Math.round((belowN/(allItems.length||1))*100);
+    if(Math.abs(abovePct - belowPct) >= 5){
+      parts.push(`Zone: ${belowPct > abovePct ? "bearish" : "bullish"} (${abovePct}%↑ ${belowPct}%↓).`);
+    }
+
+    return parts.length > 0 ? parts.join(" ") : null;
+  })();
+
+  // ── Structured Intelligence Data ─────────────────────────────────────────────
+  const USUAL = new Set([
+    "SPY","QQQ","IWM","DIA","VOO","IVV","VTI","RSP","MDY","TQQQ","SQQQ","UPRO","SPXL","SOXL","SOXS","TNA","TZA",
+    "XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GLD","SLV","TLT","HYG","LQD","AGG","BND","EEM","EFA","VEA","VWO",
+    "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","JPM","V","MA","UNH","HD","PG","JNJ","XOM","CVX",
+    "BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","BRK.B","COST","LLY","MRK","ABBV","PEP","KO",
+    "FNDX","FNDA","SCHG","SCHI","SCHM","SCHX","VUG","VTV","VO","VB","IEFA","IEMG","ACWI","VGT",
+    "IWF","IWD","IWB","IWR","IWS","GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT",
+  ]);
+  const days=D.meta.tradingDays;
+  const repeatThresh=Math.max(4, Math.ceil(days * 0.7));
+  const repeats=days>=3?allItems.filter(i=>i.days>=repeatThresh&&!USUAL.has(i.t)).sort((a,b)=>b.days-a.days||b.bigPrintN-a.bigPrintN):[];
+  const unusualNames=allItems.filter(i=>!USUAL.has(i.t)&&(i.cat==="Mid Cap"||i.cat==="Small Cap")&&i.bigPrintN>=30_000_000).sort((a,b)=>b.bigPrintN-a.bigPrintN);
+  const outsized=allItems.filter(i=>!USUAL.has(i.t)&&i.bigPrintPctAvgVol>=50&&i.bigPrintN>=50_000_000).sort((a,b)=>b.bigPrintPctAvgVol-a.bigPrintPctAvgVol);
+  const flaggedAll=allItems.filter(i=>i.signals&&i.signals.length>0&&!USUAL.has(i.t)).sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
+  const abovePct=Math.round((aboveN/(allItems.length||1))*100);
+  const belowPct=Math.round((belowN/(allItems.length||1))*100);
+  const hasIntel=repeats.length>0||unusualNames.length>0||outsized.length>0||flaggedAll.length>0;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+      {/* ── Intelligence Panel ────────────────────────────────────── */}
+      {hasIntel && (
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"16px 18px"}}>
+        {/* Title row with zone lean */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+            textTransform:"uppercase"}}>📋 Dark Pool Intelligence — {D.meta.dateRange||"Selected Period"}</div>
+          {Math.abs(abovePct-belowPct)>=5 && (
+            <span style={{fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:12,
+              background:(belowPct>abovePct?C.red:C.green)+"18",
+              color:belowPct>abovePct?C.red:C.green,
+              border:`1px solid ${belowPct>abovePct?C.red:C.green}33`}}>
+              {belowPct>abovePct?"Bearish":"Bullish"} Lean · {abovePct}%↑ {belowPct}%↓
+            </span>
+          )}
+        </div>
+
+        {/* Two-column grid: Repeat Flow + Unusual/Outsized combined */}
+        <div style={{display:"grid",gridTemplateColumns:repeats.length>0&&(unusualNames.length>0||outsized.length>0)?"1fr 1fr":"1fr",gap:12}}>
+
+          {/* Repeat Flow */}
+          {repeats.length>0 && (
+            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+                textTransform:"uppercase",marginBottom:8}}>🔄 Repeat Flow</div>
+              {repeats.slice(0,7).map(t=>{
+                const pct = Math.round((t.days/days)*100);
+                return (
+                  <div key={t.t} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",
+                    borderBottom:`1px solid ${C.bdr}22`}}>
+                    <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                      color:CAT_COLORS[t.cat]||C.tx,minWidth:50}}>{t.t}</span>
+                    {/* Frequency bar */}
+                    <div style={{flex:1,height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:pct+"%",height:"100%",borderRadius:2,
+                        background:pct>=90?C.green:pct>=70?C.amber:C.tx3,opacity:0.7}}/>
+                    </div>
+                    <span style={{fontSize:10,color:C.tx3,fontFamily:"'Instrument Sans',sans-serif",
+                      minWidth:44,textAlign:"right"}}>{t.days}/{days}d</span>
+                  </div>
+                );
+              })}
+              {repeats.length>7 && <div style={{fontSize:10,color:C.tx3,marginTop:4}}>+{repeats.length-7} more</div>}
+            </div>
+          )}
+
+          {/* Unusual + Outsized merged */}
+          {(unusualNames.length>0||outsized.length>0) && (
+            <div style={{background:C.bg3,borderRadius:6,padding:"12px 14px"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+                textTransform:"uppercase",marginBottom:8}}>🔍 Unusual Activity</div>
+              {/* Merge and dedupe unusual names + outsized prints, sort by notional */}
+              {(()=>{
+                const seen = new Set();
+                const merged = [];
+                for (const t of [...unusualNames, ...outsized]) {
+                  if (!seen.has(t.t)) { seen.add(t.t); merged.push(t); }
+                }
+                merged.sort((a,b) => b.bigPrintN - a.bigPrintN);
+                return merged.slice(0,7).map(t => {
+                  const hasVol = t.bigPrintPctAvgVol >= 30;
+                  return (
+                    <div key={t.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                      padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:700,fontSize:12,
+                          color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
+                        {t.accDist && <span style={{fontSize:8,padding:"1px 5px",borderRadius:4,fontWeight:700,
+                          background:t.accDist==="Acc"?C.green+"18":C.red+"18",
+                          color:t.accDist==="Acc"?C.green:C.red}}>{t.accDist}</span>}
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:10,fontWeight:600,color:C.cyan,
+                          fontFamily:"'Instrument Sans',sans-serif"}}>{fmt(t.bigPrintN)}</span>
+                        {hasVol && <span style={{fontSize:9,padding:"1px 6px",borderRadius:8,
+                          background:C.purple+"18",color:C.purple,fontWeight:600,
+                          border:`1px solid ${C.purple}33`}}>
+                          {fmtAvgVol(t.bigPrintPctAvgVol)} vol
+                        </span>}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Flagged tickers — compact grid */}
+        {flaggedAll.length>0 && (
+          <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.bdr}`}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.08em",color:C.tx3,
+              textTransform:"uppercase",marginBottom:6}}>⚡ Flagged ({flaggedAll.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {flaggedAll.slice(0,8).map(t=>(
+                <div key={t.t} style={{display:"flex",alignItems:"center",gap:4,
+                  padding:"3px 8px",borderRadius:6,background:C.bg3,
+                  border:`1px solid ${C.bdr}`}}>
+                  <span style={{fontWeight:700,fontSize:11,color:CAT_COLORS[t.cat]||C.tx}}>{t.t}</span>
+                  <SignalBadges signals={t.signals} compact/>
+                </div>
+              ))}
+              {flaggedAll.length>8 && <span style={{fontSize:10,color:C.tx3,alignSelf:"center"}}>+{flaggedAll.length-8}</span>}
+            </div>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* ── Zone Gauge ────────────────────────────────────────────── */}
+      <ZoneGauge above={aboveN} inside={insideN} below={belowN}/>
+
+      {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
+
+        {/* Notable Activity */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.amber,
+            textTransform:"uppercase",marginBottom:10}}>🔥 Notable Activity</div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+            borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+            <span style={{fontSize:9,color:C.tx3,fontWeight:600}}>Ticker</span>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:30,textAlign:"right"}}>Date</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Print $</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:48,textAlign:"right"}}>Notional</span>
+              <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:40,textAlign:"right"}}>% Move</span>
+            </div>
+          </div>
+          {(()=>{
+            const flagged=allItems.filter(i=>i.signals&&i.signals.length>0)
+              .sort((a,b)=>b.signals.length-a.signals.length||b.bigPrintN-a.bigPrintN);
+            if(flagged.length===0) return <div style={{fontSize:12,color:C.tx3}}>No signals for this period</div>;
+            return flagged.slice(0,15).map(it=>{
+              const cc=CAT_COLORS[it.cat]||C.tx;
+              const bpPct=it.bigPrint>0?((it.last-it.bigPrint)/it.bigPrint*100):null;
+              const bpColor=bpPct==null?C.tx3:bpPct>0?C.green:bpPct<0?C.red:C.tx3;
+              return (
+                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"4px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                    <span style={{fontWeight:700,fontSize:11,color:cc,minWidth:42}}>{it.t}</span>
+                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+                    <SignalBadges signals={it.signals} compact/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                    <span style={{fontSize:9,color:C.tx3}}>{it.bigPrintDate||""}</span>
+                    <span style={{fontSize:10,color:C.amber,minWidth:52,textAlign:"right"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:10,color:C.cyan,fontWeight:700,minWidth:48,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:bpColor,minWidth:40,textAlign:"right"}}>
+                      {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(1)+"%"}
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
+        {/* Biggest Prints */}
+        <BiggestPrintsPanel/>
+      </div>
+
+      {/* ── Sector Rotation + Print Tracker ──────────────────────── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,alignItems:"start"}}>
+
+        {/* Sector Themes */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Sector Rotation — Dark Pool Flow</div>
+          {(D.themes||[]).slice(0,8).map(th=>{
+            const maxN=Math.max(...(D.themes||[]).slice(0,8).map(t=>t.notional),1);
+            const pct=Math.max((th.notional/maxN)*100,2);
+            const lean=th.accCount>th.distCount?"Acc":th.accCount<th.distCount?"Dist":"—";
+            const leanColor=lean==="Acc"?C.green:lean==="Dist"?C.red:C.tx3;
+            const moveColor=th.avgBpMove>0?C.green:th.avgBpMove<0?C.red:C.tx3;
+            return (
+              <div key={th.sector} style={{marginBottom:7}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                  <span style={{fontSize:11,fontWeight:600,color:C.tx}}>{th.sector}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:9,color:C.tx3}}>{th.tickerCount} tickers</span>
+                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:leanColor+"18",color:leanColor,border:`1px solid ${leanColor}33`}}>{lean}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:40,textAlign:"right"}}>
+                      {th.avgBpMove>0?"+":""}{th.avgBpMove.toFixed(1)}%
+                    </span>
+                    <span style={{fontSize:10,fontWeight:700,color:C.cyan,fontFamily:"'Instrument Sans', sans-serif",minWidth:52,textAlign:"right"}}>
+                      {fmt(th.notional)}
+                    </span>
+                  </div>
+                </div>
+                <div style={{width:"100%",height:4,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{width:pct+"%",height:"100%",background:leanColor,borderRadius:2,opacity:0.7,transition:"width 0.4s"}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Post-Print Tracker */}
+        <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:6,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.12em",color:C.tx3,
+            textTransform:"uppercase",marginBottom:10}}>Print Tracker — Where Are They Now?</div>
+          {(()=>{
+            const tracked = (D.allItems||allItems)
+              .filter(i=>i.bigPrint>0 && i.bigPrintN>=50_000_000 && i.bigPrintDate)
+              .sort((a,b)=>b.bigPrintN-a.bigPrintN)
+              .slice(0,10);
+            return tracked.map(it=>{
+              const move=((it.last-it.bigPrint)/it.bigPrint*100);
+              const moveColor=move>0.5?C.green:move<-0.5?C.red:C.tx3;
+              const arrow=move>0.5?"↑":move<-0.5?"↓":"→";
+              const cc=CAT_COLORS[it.cat]||C.tx;
+              return (
+                <div key={it.t} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                  padding:"5px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,fontSize:12,color:cc}}>{it.t}</span>
+                    {it.accDist && <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,fontWeight:700,
+                      background:it.accDist==="Acc"?C.green+"18":C.red+"18",
+                      color:it.accDist==="Acc"?C.green:C.red}}>{it.accDist==="Acc"?"↑ Acc":"↓ Dist"}</span>}
+                    {it.sector && <span style={{fontSize:9,color:C.tx3}}>{it.sector}</span>}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:10,color:C.tx3}}>{it.bigPrintDate}</span>
+                    <span style={{fontSize:10,color:C.amber,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.bigPrint)}</span>
+                    <span style={{fontSize:14,color:moveColor,fontWeight:800}}>{arrow}</span>
+                    <span style={{fontSize:10,color:C.tx,fontFamily:"'Instrument Sans', sans-serif"}}>{fP(it.last)}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:moveColor,fontFamily:"'Instrument Sans', sans-serif",minWidth:48,textAlign:"right"}}>
+                      {move>0?"+":""}{move.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Above / Below tabs ───────────────────────────────────────────────────────
+function AbovePane(){
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.green,marginBottom:4}}>
+          ▲ Trading Above Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.above.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
+          Closed <b style={{color:C.green}}>above</b> the 25th–75th percentile institutional execution range.
+          Sorted by % distance above zone. Bullish momentum signal.
+        </div>
+      </div>
+      <FlowTable items={[...D.above].sort((a,b)=>b.pct-a.pct)}/>
+    </div>
+  );
+}
+
+function BelowPane(){
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.red,marginBottom:4}}>
+          ▼ Trading Below Dark Pool Zone <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.below.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3,lineHeight:1.5}}>
+          Closed <b style={{color:C.red}}>below</b> the institutional execution range.
+          Sorted by % distance below zone. Bearish pressure signal.
+        </div>
+      </div>
+      <FlowTable items={[...D.below].sort((a,b)=>a.pct-b.pct)}/>
+    </div>
+  );
+}
+
+// ── Unusual Flow tab ─────────────────────────────────────────────────────────
+function UnusualPane(){
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.amber,marginBottom:4}}>
+          Unusual Flow Activity <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.unusual.length} tickers)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Tickers with UOA flag — unusual options/dark pool activity relative to historical norms.
+        </div>
+      </div>
+      <FlowTable items={D.unusual}/>
+    </div>
+  );
+}
+
+// ── Phantom Prints tab ───────────────────────────────────────────────────────
+function PhantomPane(){
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.purple,marginBottom:4}}>
+          Phantom Prints <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.phantom.length} entries)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Dark pool prints where the execution price deviated significantly from the concurrent spot price.
+          May indicate delayed reporting or unusual block structures.
+        </div>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr>
+              <TH>Ticker</TH>
+              <TH>Date</TH>
+              <TH>DP Price</TH>
+              <TH>Spot Price</TH>
+              <TH>Deviation</TH>
+              <TH>Volume</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {D.phantom.map((p,i)=>{
+              const dev=((p.dpPrice-p.spotPrice)/p.spotPrice*100);
+              const devColor=dev>0?C.green:C.red;
+              return (
+                <tr key={i} style={{background:"transparent"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <TD><TickerPopup sym={p.ticker}><span style={{color:C.blue,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
+                    ${p.ticker}</span></TickerPopup></TD>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{p.date}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx}}>
+                    {fP(p.dpPrice)}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>
+                    {fP(p.spotPrice)}</TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:devColor,fontWeight:700}}>
+                    {dev>0?"+":""}{dev.toFixed(2)}%</TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>
+                    {p.volume||"—"}</TD>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Options Flow tab ─────────────────────────────────────────────────────────
+function OptionsPane(){
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:C.pink,marginBottom:4}}>
+          Options Flow <span style={{fontSize:13,fontWeight:400,color:C.tx2}}>({D.options.length} alerts)</span>
+        </div>
+        <div style={{fontSize:12,color:C.tx3}}>
+          Notable options activity flagged alongside dark pool data. Repeater, Roulette, Large, and Steady flow types.
+        </div>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr>
+              <TH>Date</TH>
+              <TH>Ticker</TH>
+              <TH>Price</TH>
+              <TH>Alert</TH>
+              <TH>Direction</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {D.options.map((o,i)=>{
+              const isBull=o.message.includes("Bullish");
+              const isBear=o.message.includes("Bearish");
+              const dirColor=isBull?C.green:isBear?C.red:C.tx2;
+              const dir=isBull?"BULL":isBear?"BEAR":"NEUTRAL";
+              return (
+                <tr key={i} style={{background:"transparent"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bgH}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{o.date}</TD>
+                  <TD><TickerPopup sym={o.ticker}><span style={{color:C.pink,fontWeight:700,fontFamily:"'Instrument Sans', sans-serif"}}>
+                    ${o.ticker}</span></TickerPopup></TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2}}>{fP(o.price)}</TD>
+                  <TD style={{color:C.tx,fontSize:11,maxWidth:380}}>{o.message}</TD>
+                  <TD><span style={{color:dirColor,fontWeight:700,fontSize:11,
+                    background:dirColor+"18",padding:"2px 8px",borderRadius:10}}>{dir}</span></TD>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Signals + Search tab ─────────────────────────────────────────────────────
+// ── Search Modal ──────────────────────────────────────────────────────────────
+// ── Search Results Table — shows ticker row + top 5 prints expanded ───────────
+function SearchResultsTable({items}){
+  if(!items||items.length===0) return null;
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr>
+            <TH>Ticker</TH>
+            <TH>Category</TH>
+            <TH>Last</TH>
+            <TH>DP Zone</TH>
+            <TH>Big Print</TH>
+            <TH>% Move</TH>
+            <TH>Notional</TH>
+            <TH>Trades</TH>
+            <TH>Days</TH>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(it=>{
+            const cc=CAT_COLORS[it.cat]||C.tx;
+            const bpPct = it.bigPrint>0 ? ((it.last-it.bigPrint)/it.bigPrint*100) : null;
+            const bpMoveColor = bpPct==null ? C.tx3 : bpPct>0 ? C.green : bpPct<0 ? C.red : C.tx3;
+            return (
+              <>
+                {/* Main ticker row */}
+                <tr key={it.t} style={{background:C.bgH}}>
+                  <TD><TickerCell it={it} catColor={cc}/></TD>
+                  <TD><CatPill cat={it.cat}/></TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:zC(it.last,it.lo,it.hi)}}>
+                    {fP(it.last)}
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.tx2,fontSize:11}}>
+                    {fP(it.lo)}<span style={{color:C.tx3,margin:"0 3px"}}>–</span>{fP(it.hi)}
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11}}>
+                    <BigPrintCell it={it}/>
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",fontWeight:700,color:bpMoveColor}}>
+                    {bpPct==null?"—":(bpPct>0?"+":"")+bpPct.toFixed(2)+"%"}
+                  </TD>
+                  <TD style={{fontFamily:"'Instrument Sans', sans-serif",color:C.cyan,fontWeight:600}}>
+                    {fmt(it.n)}
+                  </TD>
+                  <TD style={{color:C.tx2,fontFamily:"'Instrument Sans', sans-serif"}}>{it.c}</TD>
+                  <TD style={{color:C.tx3,fontFamily:"'Instrument Sans', sans-serif"}}>{it.days}</TD>
+                </tr>
+                {/* Top 5 individual prints */}
+                {it.top5&&it.top5.map((row,i)=>(
+                  <tr key={it.t+"-print-"+i} style={{background:"transparent"}}>
+                    <TD style={{paddingLeft:24,color:C.tx3,fontSize:10,fontFamily:"'Instrument Sans', sans-serif"}}>
+                      #{i+1}
+                    </TD>
+                    <TD colSpan={8} style={{fontFamily:"'Instrument Sans', sans-serif",fontSize:11,
+                      color:i===0?C.amber:C.tx2,padding:"4px 8px",
+                      borderBottom:i===it.top5.length-1?`1px solid ${C.bdr2}`:"none"}}>
+                      {row}
+                    </TD>
+                  </tr>
+                ))}
+              </>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SearchModal({onClose}){
+  const [query,setQuery]=useState("");
+  const allItems = (()=>{
+    const map={};
+    for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
+    for(const it of D.above) map[it.t]=it;
+    for(const it of D.below) map[it.t]=it;
+    for(const it of D.unusual) map[it.t]=it;
+    return Object.values(map);
+  })();
+  const top5 = useMemo(()=>allItems.slice().sort((a,b)=>b.n-a.n).slice(0,20),[allItems]);
+  const results = useMemo(()=>{
+    if(!query||query.length<1) return [];
+    const q=query.toUpperCase().replace(/\$|\s/g,"");
+    return allItems.filter(it=>it.t.includes(q)).slice(0,10);
+  },[query,allItems]);
+
+  // Close on Escape
+  useEffect(()=>{
+    const handler=e=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown",handler);
+    return ()=>window.removeEventListener("keydown",handler);
+  },[onClose]);
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"flex-start",
+      justifyContent:"center",paddingTop:80}}
+      onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      {/* Backdrop */}
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)"}}/>
+      {/* Modal */}
+      <div style={{position:"relative",width:"90%",maxWidth:900,background:C.bg2,
+        border:`1px solid ${C.bdr2}`,borderRadius:10,boxShadow:"0 8px 40px #000000aa",
+        padding:"24px 28px",maxHeight:"80vh",overflowY:"auto"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+          <span style={{fontSize:16,fontWeight:700,color:C.tx}}>Ticker Search</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.tx2,
+            fontSize:20,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>&times;</button>
+        </div>
+        {/* Input */}
+        <input
+          autoFocus
+          value={query}
+          onChange={e=>setQuery(e.target.value)}
+          placeholder="Search any ticker (e.g. NVDA, SPY...)"
+          style={{width:"100%",padding:"10px 16px",borderRadius:6,
+            border:`1px solid ${C.bdr2}`,background:C.bg3,color:C.tx,fontSize:14,
+            fontFamily:"'Instrument Sans', sans-serif",outline:"none",
+            boxSizing:"border-box",marginBottom:16}}
+        />
+        {query.length>0 && (
+          <div style={{color:C.tx3,fontSize:11,marginBottom:10}}>
+            {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
+          </div>
+        )}
+        {results.length>0 && <SearchResultsTable items={results}/>}
+        {query.length>0 && results.length===0 && (
+          <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
+        )}
+        {query.length===0 && (
+          <div>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:C.tx3,
+              textTransform:"uppercase",marginBottom:10}}>Top 20 by Notional</div>
+            <FlowTable items={top5} showZone={true}/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab config ────────────────────────────────────────────────────────────────
+const TABS=[
+  {id:"overview",label:"Overview"},
+  {id:"category",label:"By Category"},
+  {id:"above",label:"▲ Above Zone"},
+  {id:"below",label:"▼ Below Zone"},
+  {id:"unusual",label:"Unusual Flow"},
+  {id:"phantom",label:"Phantom Prints"},
+  {id:"options",label:"Options Flow"},
+];
+
+// ── CSV Processing Engine ─────────────────────────────────────────────────────
+
+const INDEXES = new Set(["SPY","QQQ","IWM","DIA","MDY","RSP","OEF","ONEQ","TQQQ","SQQQ","SPXU","SPXS","UPRO","SH","PSQ","QID","UVXY","VXX","VIXY","SVXY","SOXS","SOXL","TNA","TZA","UDOW","SDOW","SPXL","ERX","ERY"]);
+
+const SECTOR_ETFS = new Set(["XLF","XLE","XLK","XLV","XLI","XLY","XLP","XLU","XLB","XLRE","XLC","GDX","GDXJ","KRE","KBE","XOP","OIH","XBI","IBB","ARKG","ARKK","ARKW","ARKQ","ARKF","ARKVV","SMH","SOXX","HACK","CIBR","FINX","CLOU","BOTZ","ROBO","WCLD","BUG","SKYY","AIQ","KBWB","KIE","IAI","IYF","PNQI","FDN","IPAY","EMQQ","KOMP","LOUP","DTEC","JETS","AIRR","MOO","SOIL","CROP","WEED","MSOS","POTX","MJ","BITO","BLOK","BITQ","IBIT","FBTC","GBTC","HODL","BTCO","EZBC","BTCW","DEFI","XME","PICK","SLX","REMX","LIT","BATT","DRIV","IDRV","KARS","VNQ","SCHH","ICF","REM","MORT","HOMZ","XHB","ITB","PKB","REZ","PHO","CGW","FIW","FWAT","RXL","BBH","PJP","XPH","SBIO","LABD","LABU","TAN","FAN","ICLN","QCLN","ACES","PBD","SMOG","IAT","KBWR","DPST","FAS","FAZ","SKF","UYG","CURE","RXD","MTUM","VLUE","QUAL","USMV","SIZE","IWF","IWD","IWB","IWR","IWS","VTV","VUG","VO","VB","VBR","VBK","MGC","MGK","MGV","ESGU","ESGD","ESGE","DSI","SDGA"]);
+
+const BOND_ETFS = new Set(["TLT","IEF","SHY","IEI","SHV","GOVT","TBT","TMF","TBF","TTT","UBT","PST","AGG","BND","SCHZ","IUSB","SPAB","BOND","LQD","VCIT","IGIB","SPSB","VCSH","IGSB","FLOT","SJNK","BSCN","BSCO","HYG","JNK","FALN","PHB","HYLB","USHY","SHYG","HYEM","BSJN","BSJO","BSJP","EMB","VWOB","PCY","LEMB","ELD","EBND","MUB","TFI","CMF","ITM","PZA","VTEB","MUNI","SUB","HYD","SHYD","TIP","SCHP","STIP","VTIP","RINF","WIP","BWX","BNDX","IGOV","ISHG","PICB","BIL","GBIL","SGOV","CLTL","VGSH","SCHO","FTSM","LQDH","HYGH","IGBH","TOTB","BNDW","PFFD","FPE","IPFF","PFF","PRFD","MINT","NEAR","ICSH","GSY","JPST","PULS","FLRN"]);
+
+const INTL_EM_ETFS = new Set(["EEM","EFA","VEA","VWO","IEMG","ACWI","ACWX","VXUS","VT","FXI","ASHR","MCHI","KWEB","CQQQ","CHIQ","HAO","GXC","KURE","PGJ","EWJ","DBJP","HEWJ","DXJ","EWZ","EWW","EWC","EWY","EWG","EWH","EWT","EWS","EWU","EWA","EWI","EWP","EWQ","EWD","EWN","EWK","EWL","EWO","EIS","INDA","INDY","PIN","EPI","SMIN","VGK","IEV","FEZ","HEDJ","EZU","EURL","RSX","ERUS","RUSL","RUSS","ENZL","EWM","ECH","EPHE","EIDO","TUR","EPOL","ARGT","EZA","AFK","FM","GAF","EMXC","XSOE","DFAE","DFEM","AVEM","GEM","GMF","SPEM","HEFA","DBEF","DEEF","HEEM"]);
+
+const COMMODITY_ETFS = new Set(["GLD","IAU","GLDM","BAR","SGOL","PHYS","AAAU","BGLD","SLV","SIVR","PSLV","DSLV","USLV","USO","UCO","SCO","DBO","OIL","OILU","OILD","UNG","BOIL","KOLD","GAZ","FCG","PDBC","DJP","USCI","COMB","COM","GSG","DBC","RJI","MLPA","DBA","WEAT","CORN","SOYB","CANE","NIB","JO","BAL","COW","TAGS","CPER","COPX","CULL","PALL","PPLT","GLTR","WOOD","NLR","URA","URNM","HURA","LNG","MLPX","AMLP","AMJ","AMJB","ENFR","TPVG","MLPQ"]);
+
+const LARGE_CAP_KNOWN = new Set(["AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","LLY","UNH","JPM","V","XOM","MA","PG","COST","HD","JNJ","MRK","CVX","ABBV","PEP","KO","BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","NOW","ADBE","ACN","TXN","IBM","GS","MS","BLK","AMGN","GILD","REGN","VRTX","TMO","DHR","ABT","MDT","SYK","BMY","PFE","CI","ISRG","ELV","CVS","UNP","HON","RTX","LMT","NOC","BA","CAT","DE","GE","ETN","EMR","WM","RSG","ADP","PAYX","T","VZ","CMCSA","DIS","SBUX","MCD","BKNG","MAR","HLT","NKE","TGT","WMT","PYPL","UBER","ABNB","PLTR","DDOG","NET","CRWD","ZS","PANW","FTNT","SNOW","TEAM","WDAY","VEEV","TWLO","MDB","OKTA","DOCU","ZM","COIN","MSTR","HOOD","SOFI","NU","AFRM","SQ","SHOP","SPOT","PINS","SNAP","ROKU","TTD","RBLX","LYFT","DASH","RIVN","LCID","F","GM","STLA","NIO","LI","XPEV","ENPH","PLUG","NEE","FSLR","OXY","MPC","VLO","PSX","HES","DVN","COP","MRO","SLB","HAL","BKR","FCX","NEM","GOLD","WPM","UPS","FDX","DAL","UAL","AAL","LUV","CCL","NCLH","RCL","BX","KKR","APO","ARES","CME","ICE","CBOE","SPGI","MCO","USB","PNC","TFC","COF","DFS","SYF","AXP","SCHW","ALB","MP","TMUS","AMT","CCI","PSA","IRM","PLD","O","SPG","AWK","NEE","PCG","BRK.B","BRK.A","MKL","CAVA","CMG","TSCO","CHWY"]);
+
+const CAT_ORDER = ["Indexes","Large Cap","Mid Cap","Small Cap","Sector ETFs","Bond ETFs","Intl/EM ETFs","Commodity ETFs"];
+const CAT_DESC = {
+  "Indexes":        "Major U.S. broad-market index ETFs and leveraged derivatives",
+  "Large Cap":      "S&P 500 and mega-cap individual equities",
+  "Mid Cap":        "S&P 400 mid-cap and Russell 1000 individual equities",
+  "Small Cap":      "Russell 2000 and smaller individual equities",
+  "Sector ETFs":    "Sector, thematic, and factor-based domestic ETFs",
+  "Bond ETFs":      "Fixed income ETFs across duration and credit spectrum",
+  "Intl/EM ETFs":   "International developed and emerging market ETFs",
+  "Commodity ETFs": "Commodity ETFs including gold, oil, and natural resources",
+};
+
+function classifyTicker(tk, totalNotional, numDates){
+  const t = tk.toUpperCase();
+  if(INDEXES.has(t)) return "Indexes";
+  if(SECTOR_ETFS.has(t)) return "Sector ETFs";
+  if(BOND_ETFS.has(t)) return "Bond ETFs";
+  if(INTL_EM_ETFS.has(t)) return "Intl/EM ETFs";
+  if(COMMODITY_ETFS.has(t)) return "Commodity ETFs";
+  const avgDaily = totalNotional / Math.max(numDates, 1);
+  if(LARGE_CAP_KNOWN.has(t) || avgDaily >= 50_000_000) return "Large Cap";
+  if(avgDaily >= 5_000_000) return "Mid Cap";
+  return "Small Cap";
+}
+
+function weightedPercentile(prices, weights, pct){
+  if(!prices.length) return null;
+  const combined = prices.map((p,i)=>({p, w:weights[i]})).sort((a,b)=>a.p-b.p);
+  const totalW = combined.reduce((s,x)=>s+x.w, 0);
+  const target = (pct/100)*totalW;
+  let cumsum = 0;
+  for(const {p,w} of combined){
+    cumsum += w;
+    if(cumsum >= target) return Math.round(p*100)/100;
+  }
+  return Math.round(combined[combined.length-1].p*100)/100;
+}
+
+function fmtDateKey(d){ return d.toISOString().slice(0,10); }
+function fmtLabel(d){ return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}); }
+function fmtShort(d){ return (d.getMonth()+1).toString().padStart(2,"0")+"/"+(d.getDate()).toString().padStart(2,"0"); }
+function fmtN(n){ return n>=1e9?"$"+(n/1e9).toFixed(1)+"B":n>=1e6?"$"+(n/1e6).toFixed(0)+"M":"$"+(n/1e3).toFixed(0)+"K"; }
+
+function parseCSVtoD(rows){
+  // Parse & sort by date/time
+  const parseDate = s => { const [m,d,y]=s.split("/"); return new Date(+y,+m-1,+d); };
+
+  // Collect unique trading dates
+  const seenDates = new Set();
+  const allDatesMap = {};
+  for(const r of rows){
+    if(!r.Date) continue;
+    try{ const d=parseDate(r.Date); const k=fmtDateKey(d); if(!seenDates.has(k)){seenDates.add(k);allDatesMap[k]=d;} }catch(e){}
+  }
+  const allDates = Object.keys(allDatesMap).sort().map(k=>allDatesMap[k]);
+  const numDates = allDates.length;
+  const dateIndex = {};
+  allDates.forEach((d,i)=>{ dateIndex[fmtDateKey(d)]=i; });
+
+  // Categorise rows
+  const tradeRows=[], phantomRows=[], cancelledRows=[], optionsList=[], alphaList=[];
+  const uoaTickers = new Set();
+
+  for(const r of rows){
+    const type = (r.Type||"").trim();
+    const msg  = (r.Message||"").trim();
+    const tk   = (r.Ticker||"").trim();
+    if(!tk) continue;
+
+    if(type==="AlphaGold"){
+      try{ alphaList.push({ticker:tk, price:parseFloat(r.Price)||0, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(type==="Options"){
+      try{ optionsList.push({ticker:tk, price:parseFloat(r.Price)||0, message:msg, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(type==="DarkPool"){ uoaTickers.add(tk); continue; }
+    if(type!=="Block") continue;
+
+    if(msg.startsWith("Cancelled")){
+      try{ cancelledRows.push({ticker:tk, price:parseFloat(r.Price)||0, notional:parseFloat(r.Notional)||0, message:msg, date:fmtShort(parseDate(r.Date))}); }catch(e){}
+      continue;
+    }
+    if(msg.startsWith("Phantom Print")){
+      const spotM=msg.match(/Spot:\s*\$([0-9.]+)/);
+      const volM=msg.match(/Volume:\s*(\d+)/);
+      try{ phantomRows.push({ticker:tk, date:fmtShort(parseDate(r.Date)), dpPrice:parseFloat(r.Price)||0, spotPrice:spotM?parseFloat(spotM[1]):0, volume:volM?volM[1]:"0"}); }catch(e){}
+      continue;
+    }
+
+    // Regular block trade
+    try{
+      const price=parseFloat(r.Price);
+      const notional=parseFloat(r.Notional);
+      if(!price||!notional||price<=0||notional<=0) continue;
+      const d=parseDate(r.Date);
+      const avg30=parseFloat(r.Avg30Day)||0;
+      const avgVolM = msg.match(/([0-9.]+)%\s*AvgVol/);
+      const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
+      const industry = (r.Industry||"").trim();
+      const sector = (r.Sector||"").trim();
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector});
+    }catch(e){}
+  }
+
+  // Aggregate per ticker
+  const tickerTrades={};  // tk → [{price,notional,dateKey}]
+  const tickerDaily={};   // tk → {dateKey → {notional,volNotional,count}}
+  const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
+  const tickerIndustry={};// tk → industry (most common)
+  const tickerSector={};  // tk → sector (most common)
+
+  for(const tr of tradeRows){
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector}=tr;
+    if(!tickerTrades[tk]) tickerTrades[tk]=[];
+    tickerTrades[tk].push({p,n,dk,pctAvgVol});
+    if(avg30>0) tickerAvg30[tk]=avg30;
+    if(industry && !tickerIndustry[tk]) tickerIndustry[tk]=industry;
+    if(sector && !tickerSector[tk]) tickerSector[tk]=sector;
+    if(!tickerDaily[tk]) tickerDaily[tk]={};
+    if(!tickerDaily[tk][dk]) tickerDaily[tk][dk]={notional:0,volNotional:0,count:0};
+    tickerDaily[tk][dk].notional+=n;
+    tickerDaily[tk][dk].volNotional+=p*n;
+    tickerDaily[tk][dk].count+=1;
+  }
+
+  // Build items
+  const itemsAll=[];
+  for(const [tk,trades] of Object.entries(tickerTrades)){
+    const allPrices=trades.map(t=>t.p);
+    const allWeights=trades.map(t=>t.n);
+    const totalN=allWeights.reduce((s,w)=>s+w,0);
+    const vwap=Math.round((allPrices.reduce((s,p,i)=>s+p*allWeights[i],0)/totalN)*100)/100;
+
+    let lo=weightedPercentile(allPrices,allWeights,25);
+    let hi=weightedPercentile(allPrices,allWeights,75);
+    if(lo===hi){ lo=Math.round(lo*0.995*100)/100; hi=Math.round(hi*1.005*100)/100; }
+
+    const activeDays=tickerDaily[tk];
+    const days=Object.keys(activeDays).length;
+    const lastDayKey=Object.keys(activeDays).sort().at(-1);
+    const ld=activeDays[lastDayKey];
+    const last=ld.notional>0?Math.round(ld.volNotional/ld.notional*100)/100:vwap;
+
+    let pos,pct;
+    if(last>hi){ pos="above"; pct=Math.round((last-hi)/hi*100*100)/100; }
+    else if(last<lo){ pos="below"; pct=Math.round((last-lo)/lo*100*100)/100; }
+    else{ pos="inside"; const mid=(lo+hi)/2; pct=Math.round((last-mid)/mid*100*100)/100; }
+
+    const maxDailyN=Math.max(...Object.values(activeDays).map(v=>v.notional),1);
+    const pricesArr=[],wArr=[];
+    for(const d of allDates){
+      const dk=fmtDateKey(d);
+      if(activeDays[dk]){
+        const dd=activeDays[dk];
+        pricesArr.push(Math.round(dd.volNotional/dd.notional*100)/100);
+        wArr.push(Math.round(dd.notional/maxDailyN*1000)/1000);
+      } else { pricesArr.push(null); wArr.push(null); }
+    }
+
+    const top5=[...trades].sort((a,b)=>b.n-a.n).slice(0,5).map(({p,n,dk})=>{
+      try{ const d=new Date(dk+"T00:00:00"); return fmtShort(d)+" @ $"+p.toFixed(2)+"  "+fmtN(n); }catch(e){ return ""; }
+    });
+
+    // Largest single print by notional — the level to watch
+    const sortedByN=[...trades].sort((a,b)=>b.n-a.n);
+    const bigPrint = sortedByN[0] ? sortedByN[0].p : null;
+    const bigPrintN = sortedByN[0] ? sortedByN[0].n : 0;
+    const bigPrintDk = sortedByN[0] ? sortedByN[0].dk : null;
+    const bigPrintDate = bigPrintDk ? (()=>{ try{ return fmtShort(new Date(bigPrintDk+"T00:00:00")); }catch(e){ return bigPrintDk; } })() : null;
+    const bigPrintPctAvgVol = sortedByN[0] ? sortedByN[0].pctAvgVol : 0;
+
+    const cat=classifyTicker(tk,totalN,numDates);
+    const avg30=tickerAvg30[tk]||0;
+    const industry=tickerIndustry[tk]||"";
+    const sector=tickerSector[tk]||"";
+    // Accumulation vs Distribution: big print above VWAP = Acc, below = Dist
+    const accDist = bigPrint!=null && vwap>0 ? (bigPrint>=vwap?"Acc":"Dist") : null;
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,signals:[]});
+  }
+
+  // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────
+  const sortedDateKeys = allDates.map(fmtDateKey);
+  const last2Set = new Set(sortedDateKeys.slice(-2));
+  const lastDateKey = sortedDateKeys[sortedDateKeys.length-1];
+
+  for(const item of itemsAll){
+    const signals=[];
+    const tk=item.t;
+    const trades=tickerTrades[tk]||[];
+    const activeDays=tickerDaily[tk]||{};
+    const activeDateKeys=Object.keys(activeDays).sort();
+
+    // Daily max single print per day
+    const dailyMax={};
+    for(const tr of trades){ if(!dailyMax[tr.dk]||tr.n>dailyMax[tr.dk]) dailyMax[tr.dk]=tr.n; }
+
+    // Recent biggest print (last 2 trading days) for this ticker
+    const recentBiggest=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>last2Set.has(dk)).map(([,n])=>n));
+
+    // 1. YEARLY_RECORD — recent print is biggest this ticker has seen across ALL prior data
+    const allPriorMax=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>!last2Set.has(dk)).map(([,n])=>n));
+    if(recentBiggest>=50_000_000 && allPriorMax>0 && recentBiggest>allPriorMax && activeDateKeys.length>=10){
+      signals.push({type:"YEARLY_RECORD",icon:"👑",label:"Yearly Record",mult:+(recentBiggest/allPriorMax).toFixed(1)});
+    }
+
+    // 2. MONTHLY_RECORD — recent print is biggest in last 20 trading days (but not yearly record)
+    const last20Set=new Set(sortedDateKeys.slice(-20));
+    const prior20Set=new Set(sortedDateKeys.slice(0,Math.max(0,sortedDateKeys.length-2)).filter(dk=>last20Set.has(dk)));
+    const monthly20Max=Math.max(0,...Object.entries(dailyMax).filter(([dk])=>prior20Set.has(dk)).map(([,n])=>n));
+    if(recentBiggest>=50_000_000 && monthly20Max>0 && recentBiggest>monthly20Max
+      && !signals.some(s=>s.type==="YEARLY_RECORD") && activeDateKeys.length>=5){
+      signals.push({type:"MONTHLY_RECORD",icon:"🏆",label:"Monthly Record",mult:+(recentBiggest/monthly20Max).toFixed(1)});
+    }
+
+    // 3. NOTIONAL_SPIKE — last day's total notional ≥3× avg, min $100M last day
+    const lastDayN=activeDays[lastDateKey]?.notional||0;
+    const priorNots=activeDateKeys.filter(dk=>dk!==lastDateKey).map(dk=>activeDays[dk].notional);
+    const avgPrior=priorNots.length>=3?priorNots.reduce((s,n)=>s+n,0)/priorNots.length:0;
+    if(lastDayN>=100_000_000 && avgPrior>0 && lastDayN>=3*avgPrior){
+      signals.push({type:"NOTIONAL_SPIKE",icon:"🔥",label:"Volume Surge",mult:+(lastDayN/avgPrior).toFixed(1)});
+    }
+
+    // 4. RARE_FLOW — only appeared in last 2 dates, dataset has 20+ dates
+    const recentCount=activeDateKeys.filter(dk=>last2Set.has(dk)).length;
+    const olderCount=activeDateKeys.filter(dk=>!last2Set.has(dk)).length;
+    if(recentCount>0 && olderCount===0 && sortedDateKeys.length>=20 && item.bigPrintN>=20_000_000){
+      signals.push({type:"RARE_FLOW",icon:"🆕",label:"New Flow"});
+    }
+
+    // 5. SIZE_ESCALATION — 4+ consecutive days, each ≥25% bigger than prior
+    const recentDailyArr=sortedDateKeys.filter(dk=>dailyMax[dk]!=null).slice(-6).map(dk=>dailyMax[dk]);
+    if(recentDailyArr.length>=4){
+      let streak=1;
+      for(let i=recentDailyArr.length-1;i>0;i--){
+        if(recentDailyArr[i]>recentDailyArr[i-1]*1.25) streak++; else break;
+      }
+      if(streak>=4) signals.push({type:"SIZE_ESCALATION",icon:"⬆️",label:"Escalating",days:streak});
+    }
+
+    // 6. ZONE_BREAK_RECORD — outside zone + has record signal
+    if(item.pos!=="inside" && signals.some(s=>s.type==="YEARLY_RECORD"||s.type==="MONTHLY_RECORD")){
+      signals.push({type:"ZONE_BREAK_RECORD",icon:"💥",label:"Zone Break"});
+    }
+
+    item.signals=signals;
+  }
+
+  // Categories
+  const catMap={};
+  for(const item of itemsAll){
+    if(!catMap[item.cat]) catMap[item.cat]=[];
+    catMap[item.cat].push(item);
+  }
+  const categories=CAT_ORDER.map(cat=>{
+    const items=(catMap[cat]||[]).sort((a,b)=>b.n-a.n);
+    return {name:cat,desc:CAT_DESC[cat],totalNotional:items.reduce((s,i)=>s+i.n,0),count:items.length,items};
+  });
+
+  // Above/Below/Unusual
+  const above=itemsAll.filter(i=>i.pos==="above").sort((a,b)=>b.pct-a.pct).slice(0,40);
+  const below=itemsAll.filter(i=>i.pos==="below").sort((a,b)=>a.pct-b.pct).slice(0,40);
+  const unusual=itemsAll.filter(i=>i.u).sort((a,b)=>b.n-a.n).slice(0,30);
+
+  // Phantom dedup
+  const seenPh=new Set();
+  const phantomDeduped=[];
+  for(const ph of phantomRows){
+    const key=ph.ticker+"|"+ph.date+"|"+ph.dpPrice;
+    if(!seenPh.has(key)){ seenPh.add(key); phantomDeduped.push(ph); }
+  }
+  phantomDeduped.sort((a,b)=>Math.abs(b.spotPrice-b.dpPrice)/Math.max(b.dpPrice,0.01)-Math.abs(a.spotPrice-a.dpPrice)/Math.max(a.dpPrice,0.01));
+  const phantom=phantomDeduped.slice(0,15);
+
+  // Options dedup (most recent first)
+  const seenOpts=new Set();
+  const optsDeduped=[];
+  for(const o of [...optionsList].reverse()){
+    const key=o.ticker+"|"+o.message;
+    if(!seenOpts.has(key)){ seenOpts.add(key); optsDeduped.push(o); }
+  }
+  const options=optsDeduped.slice(0,25);
+
+  // Alpha dedup
+  const seenAlpha=new Set();
+  const alphaDeduped=[];
+  for(const a of [...alphaList].reverse()){
+    if(!seenAlpha.has(a.ticker)){ seenAlpha.add(a.ticker); alphaDeduped.push(a); }
+  }
+  const alpha=alphaDeduped.slice(0,10);
+
+  // Cancelled dedup
+  const cancelledSorted=[...cancelledRows].sort((a,b)=>b.notional-a.notional);
+  const seenCan=new Set();
+  const cancelledDeduped=[];
+  for(const c of cancelledSorted){
+    const key=c.ticker+"|"+c.date+"|"+c.notional;
+    if(!seenCan.has(key)){ seenCan.add(key); cancelledDeduped.push(c); }
+  }
+  const cancelled=cancelledDeduped.slice(0,15);
+
+  // Meta
+  const totalNotional=tradeRows.reduce((s,r)=>s+r.notional,0);
+  const dateRange=allDates.length>=2?fmtLabel(allDates[0])+" – "+fmtLabel(allDates.at(-1))+", "+allDates.at(-1).getFullYear():"";
+
+  // ── Thematic Clustering by Sector ──────────────────────────────────────────
+  const sectorMap={};
+  for(const item of itemsAll){
+    const sec = item.sector || "Other";
+    if(!sectorMap[sec]) sectorMap[sec]={sector:sec,notional:0,tickers:[],prints:0,avgMove:0};
+    sectorMap[sec].notional+=item.n;
+    sectorMap[sec].tickers.push(item.t);
+    sectorMap[sec].prints+=item.c;
+  }
+  const themes=Object.values(sectorMap)
+    .filter(s=>s.tickers.length>=2 && s.sector!=="Other" && s.sector!=="")
+    .map(s=>{
+      const items=itemsAll.filter(i=>i.sector===s.sector);
+      const accCount=items.filter(i=>i.accDist==="Acc").length;
+      const distCount=items.filter(i=>i.accDist==="Dist").length;
+      const avgBpMove=items.filter(i=>i.bigPrint>0).reduce((sum,i)=>sum+((i.last-i.bigPrint)/i.bigPrint*100),0)/(items.filter(i=>i.bigPrint>0).length||1);
+      return {...s,accCount,distCount,avgBpMove:Math.round(avgBpMove*100)/100,tickerCount:s.tickers.length};
+    })
+    .sort((a,b)=>b.notional-a.notional);
+
+  return {
+    dates:allDates.map(fmtDateKey),
+    dateLabels:allDates.map(fmtLabel),
+    meta:{
+      generatedAt:new Date().toLocaleString(),
+      dateRange,
+      tradingDays:numDates,
+      totalTrades:tradeRows.length,
+      totalTickers:Object.keys(tickerTrades).length,
+      totalNotional:Math.round(totalNotional),
+    },
+    categories, above, below, unusual, phantom, options, alpha, cancelled,
+    allItems: itemsAll.sort((a,b)=>b.n-a.n),
+    themes,
+  };
+}
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+const mdyToIso = (mdy) => {
+  const p = mdy.split("/").map(Number);
+  if (p.length < 3) return "";
+  const y = p[2] < 100 ? p[2] + 2000 : p[2];
+  return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
+};
+const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
+const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
+const fmtDatePill = (dateStr) => {
+  const parts = dateStr.split("/").map(Number);
+  const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2] + 2000 : parts[2]) : new Date().getFullYear();
+  const d = new Date(y, parts[0] - 1, parts[1] || 1);
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
+};
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function DarkPool({embedded}){
+  const [dpData,setDpData]=useState(null);
+  const [loadErr,setLoadErr]=useState(null);
+  const [loadStatus,setLoadStatus]=useState("Loading…");
+  const [parsedRows,setParsedRows]=useState(null);
+
+  // Date picker state (matches OptionsFlow pattern)
+  const [dateFilter,setDateFilter]=useState("Last1");
+  const [fetchDays,setFetchDays]=useState(1);
+  const [dateFrom,setDateFrom]=useState("");
+  const [dateTo,setDateTo]=useState("");
+  const [showCal,setShowCal]=useState(false);
+  const [calMonth,setCalMonth]=useState(new Date().getMonth());
+  const [calYear,setCalYear]=useState(new Date().getFullYear());
+  const [calStart,setCalStart]=useState(null);
+  const calRef=useRef(null);
+  const [csvLoading,setCsvLoading]=useState(true);
+
+  const csvFile = fetchDays === 0
+    ? (typeof API_BASE !== "undefined" ? API_BASE : "") + "/api/darkpool/data?all_data=true"
+    : (typeof API_BASE !== "undefined" ? API_BASE : "") + `/api/darkpool/data?days=${fetchDays}`;
+
+  // Extract unique dates from parsed rows
+  const availableDates = useMemo(() => {
+    if (!parsedRows || parsedRows.length === 0) return [];
+    const dateSet = new Set();
+    parsedRows.forEach(r => { if (r.Date) dateSet.add(r.Date.trim()); });
+    return [...dateSet].sort((a, b) => {
+      const pa = a.split("/").map(Number);
+      const pb = b.split("/").map(Number);
+      const ya = pa.length >= 3 ? (pa[2] < 100 ? pa[2] + 2000 : pa[2]) : new Date().getFullYear();
+      const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
+      return new Date(ya, pa[0]-1, pa[1]||1) - new Date(yb, pb[0]-1, pb[1]||1);
+    });
+  }, [parsedRows]);
+
+  const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
+
+  // Close calendar on click outside
+  useEffect(() => {
+    if (!showCal) return;
+    const handler = (e) => { if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showCal]);
+
+  // Process data whenever parsedRows or dateFilter changes
+  useEffect(() => {
+    if (!parsedRows || parsedRows.length === 0) return;
+    // Skip processing if a fetch is in-flight that will replace parsedRows.
+    // Eliminates 1-4s wasted intermediate parseCSVtoD runs when user expands
+    // the range. When the fetch completes, loadedFetchDays catches up to
+    // fetchDays and processing fires once with fresh data.
+    if (loadedFetchDays !== fetchDays) return;
+    let filtered;
+    if (dateFrom && dateTo) {
+      const from = isoToDate(dateFrom);
+      const to = isoToDate(dateTo);
+      to.setHours(23,59,59);
+      filtered = parsedRows.filter(r => {
+        if (!r.Date) return false;
+        const d = mdyToDate(r.Date.trim());
+        return d >= from && d <= to;
+      });
+    } else if (dateFilter === "All") {
+      filtered = parsedRows;
+    } else if (dateFilter.startsWith("Last")) {
+      const n = parseInt(dateFilter.replace("Last",""))||1;
+      const recentDates = new Set(availableDates.slice(-n));
+      filtered = parsedRows.filter(r => r.Date && recentDates.has(r.Date.trim()));
+    } else {
+      filtered = parsedRows.filter(r => r.Date && r.Date.trim() === dateFilter);
+    }
+    if (filtered.length === 0) { setDpData(null); return; }
+    try {
+      const d = parseCSVtoD(filtered);
+      setDpData(d);
+    } catch(err) {
+      setLoadErr("Processing error: "+err.message);
+    }
+  }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
+
+  // Fetch data from API
+  useEffect(() => {
+    // Capture fetchDays at fetch initiation so we can record what range this
+    // fetch represents — see processing useEffect for the perf-fix rationale.
+    const fetchDaysAtStart = fetchDays;
+    let cancelled = false;
+    setCsvLoading(true);
+    setLoadErr(null);
+    setLoadStatus("Fetching dark pool data…");
+
+    function tryFetch(url) {
+      return fetch(url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now())
+        .then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.text();
+        })
+        .then(text => {
+          const trimmed = text.trim();
+          if (trimmed.startsWith("<!") || trimmed.startsWith("<html")) throw new Error("HTML");
+          return text;
+        });
+    }
+
+    // Try API first, fall back to static CSV
+    tryFetch(csvFile)
+      .catch(() => {
+        setLoadStatus("API unavailable — loading static CSV…");
+        return tryFetch((typeof API_BASE !== "undefined" ? API_BASE : "") + "/Darkpool-data.csv");
+      })
+      .then(text => {
+        if (cancelled) return;
+        setLoadStatus("Parsing…");
+        setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const rows = parseCSV(text);
+            if (!rows || rows.length === 0) throw new Error("No data returned");
+            setParsedRows(rows);
+            setLoadedFetchDays(fetchDaysAtStart);
+            setCsvLoading(false);
+          } catch(err) {
+            if (!cancelled) { setLoadErr(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); }
+          }
+        }, 0);
+      })
+      .catch(e => { if (!cancelled) { setLoadErr("Could not load data from API or static CSV"); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
+    return () => { cancelled = true; };
+  }, [csvFile]);
+
+
+
+
+  const [tab,setTab]=useState("overview");
+  const [catJump,setCatJump]=useState(null);
+  const [showSearch,setShowSearch]=useState(false);
+
+  function handleJumpTo(name){
+    setCatJump(name);
+    setTab("category");
+  }
+
+  if(loadErr) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:embedded?"40vh":"60vh",background:embedded?"transparent":C.bg,color:C.red,fontFamily:"'Instrument Sans', sans-serif",
+      flexDirection:"column",gap:12,padding:20}}>
+      <div style={{fontSize:20,fontWeight:700}}>⚠ Failed to load data</div>
+      <div style={{fontSize:13,color:C.tx2}}>Attempted: <code style={{color:C.blue}}>{csvFile}</code></div>
+      <div style={{fontSize:12,color:C.red,background:C.bg2,border:`1px solid ${C.red}44`,
+        borderRadius:8,padding:"8px 16px",maxWidth:480,textAlign:"center"}}>
+        {loadErr}
+      </div>
+      <div style={{fontSize:11,color:C.tx3}}>Check that darkpool_router is mounted and DB has data.</div>
+    </div>
+  );
+
+  if(!dpData) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:embedded?"40vh":"100vh",background:embedded?"transparent":C.bg,color:C.blue,fontFamily:"'Instrument Sans', sans-serif",
+      flexDirection:"column",gap:16}}>
+      <div style={{width:40,height:40,border:`3px solid ${C.bdr}`,
+        borderTop:`3px solid ${C.amber}`,borderRadius:"50%",
+        animation:"spin 0.8s linear infinite"}}/>
+      <div style={{fontSize:14,color:C.tx2}}>{loadStatus}</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  D = dpData;
+
+  // Find index tickers by name (not array position)
+  const spyItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="SPY");
+  const qqqItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="QQQ");
+  const iwmItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="IWM");
+
+  return (
+    <div style={{background:embedded?"transparent":C.bg,minHeight:embedded?"auto":"100vh",color:C.tx,
+      fontFamily:"'Instrument Sans', system-ui, sans-serif",fontSize:13}}>
+      {!embedded && <style>{`
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:${C.bg}}
+        ::-webkit-scrollbar-thumb{background:${C.bdr2};border-radius:3px}
+        input:focus{border-color:${C.amber} !important}
+      `}</style>}
+
+      {/* Header */}
+      <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>
+        <div style={{maxWidth:1400,margin:"0 auto"}}>
+        {/* Title row */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
+            boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
+          <span style={{fontSize:18,fontWeight:800,color:C.tx,letterSpacing:"0.02em",
+            fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>DARK POOL SCANNER</span>
+          <span style={{fontSize:11,color:C.tx3,marginLeft:4}}>
+            · {D.meta?.tradingDays??""} trading days · {(D.meta?.totalTrades??0).toLocaleString()} block trades · {(D.meta?.totalTickers??0).toLocaleString()} tickers ·{" "}
+            <span style={{color:C.cyan}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</span>
+          </span>
+        </div>
+        {/* Zone cards */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:10}}>
+          {[
+            {label:`SPY ${D.meta?.tradingDays??30}-DAY ZONE`,item:spyItem},
+            {label:`QQQ ${D.meta?.tradingDays??30}-DAY ZONE`,item:qqqItem},
+            {label:`IWM ${D.meta?.tradingDays??30}-DAY ZONE`,item:iwmItem},
+          ].filter(x=>x.item).map(({label,item})=>{
+            const c=zC(item.last,item.lo,item.hi);
+            return (
+              <div key={label} style={{background:C.bg,border:`1px solid ${C.bdr}`,
+                borderRadius:6,padding:"8px 14px"}}>
+                <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+                  textTransform:"uppercase",marginBottom:2}}>{label}</div>
+                <div style={{fontSize:20,fontWeight:800,color:c,
+                  fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{fP(item.last)}</div>
+                <div style={{fontSize:10,color:C.tx3,marginTop:3}}>
+                  Zone {fP(item.lo)} – {fP(item.hi)}
+                </div>
+              </div>
+            );
+          })}
+          {/* Period card */}
+          <div style={{background:C.bg,border:`1px solid ${C.bdr}`,borderRadius:6,
+            padding:"8px 14px"}}>
+            <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+              textTransform:"uppercase",marginBottom:2}}>PERIOD</div>
+            <div style={{fontSize:20,fontWeight:800,color:C.amber,
+              fontFamily:"'Instrument Sans', sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:12}}>days</span></div>
+            <div style={{fontSize:10,color:C.tx3,marginTop:3}}>{D.meta?.totalNotional?(D.meta.totalNotional>=1e12?`$${(D.meta.totalNotional/1e12).toFixed(2)}T`:`$${(D.meta.totalNotional/1e9).toFixed(0)}B`):"$0"} flow</div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      {/* ── Date Picker Bar ──────────────────────────────────────── */}
+      {availableDates.length > 0 && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"8px 20px", background:C.bg3, borderBottom:`1px solid ${C.bdr}` }}>
+          <div style={{ maxWidth:1400, width:"100%", display:"flex", justifyContent:"center" }}>
+          <div style={{ display:"flex", gap:4, alignItems:"center", background:C.bg2, borderRadius:6, padding:4, border:`1px solid ${C.bdr}`, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+            {[
+              { key:"Last1", label:"1d", days:1 },
+              { key:"Last5", label:"5d", days:5 },
+              { key:"Last20", label:"20d", days:20 },
+              { key:"Last60", label:"60d", days:60 },
+              { key:"Last90", label:"90d", days:90 },
+              { key:"All", label:"All", days:0 },
+            ].map(({key, label, days}) => {
+              const filterKey = days === 0 ? "All" : "Last" + days;
+              const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
+              const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
+              return (
+                <button key={key} onClick={()=>{
+                  if (needsFetch) setFetchDays(days);
+                  setDateFilter(filterKey);
+                  setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
+                }} style={{
+                  padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:isActive?C.bg3:"transparent",
+                  color:isActive?(key==="All"?C.amber:C.tx):C.tx2,
+                  transition:"all 0.15s"
+                }}>
+                  {label}
+                </button>
+              );
+            })}
+            <span style={{ width:1, height:16, background:C.bdr }}/>
+            <button onClick={()=>{
+              if (!showCal) {
+                const last = availableDates[availableDates.length-1];
+                if (last) { const d = mdyToDate(last); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }
+              }
+              setShowCal(!showCal); setCalStart(null);
+            }} style={{
+              padding:"5px 12px", borderRadius:4, border:`1px solid ${dateFrom&&dateTo?C.amber:C.bdr}`,
+              cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+              background:dateFrom&&dateTo?C.amber+"22":showCal?C.bg3:"transparent",
+              color:dateFrom&&dateTo?C.amber:showCal?C.tx:C.tx2, transition:"all 0.15s"
+            }}>
+              {dateFrom && dateTo
+                ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
+                : "📅 Dates"}
+            </button>
+            {dateFrom && dateTo && (
+              <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
+                style={{ background:"transparent", border:"none", color:C.tx3, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+            )}
+            <span style={{ fontSize:9, color:C.tx3 }}>
+              {csvLoading ? "Loading..." : dateFrom && dateTo
+                ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
+                : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
+            </span>
+
+            {/* Calendar dropdown */}
+            {showCal && (
+              <div ref={calRef} style={{
+                position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
+                background:C.bg2, border:`1px solid ${C.bdr2}`, borderRadius:10, padding:14,
+                boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
+              }}>
+                <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
+                  {[
+                    { label:"Today", fn:()=>{ const d=availableDates[availableDates.length-1]; if(d){const iso=mdyToIso(d); setDateFrom(iso); setDateTo(iso); if(fetchDays!==0)setFetchDays(0); setShowCal(false);} }},
+                    { label:"This Week", fn:()=>{ const last=availableDates[availableDates.length-1]; if(!last)return; const ld=mdyToDate(last); const mon=new Date(ld); mon.setDate(ld.getDate()-(ld.getDay()||7)+1); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(mdyToIso(last)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"Last Week", fn:()=>{ const now=new Date(); const mon=new Date(now); mon.setDate(now.getDate()-(now.getDay()||7)+1-7); const fri=new Date(mon); fri.setDate(mon.getDate()+4); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(fri.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"This Month", fn:()=>{ const now=new Date(); const f=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; const last=availableDates[availableDates.length-1]; setDateFrom(f); setDateTo(last?mdyToIso(last):now.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                    { label:"Last Month", fn:()=>{ const now=new Date(); const pm=new Date(now.getFullYear(), now.getMonth()-1, 1); const f=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,"0")}-01`; const lm=new Date(pm.getFullYear(), pm.getMonth()+1, 0); const t=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}-${String(lm.getDate()).padStart(2,"0")}`; setDateFrom(f); setDateTo(t); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
+                  ].map(p => (
+                    <button key={p.label} onClick={p.fn} style={{
+                      padding:"4px 10px", borderRadius:4, border:`1px solid ${C.bdr}`,
+                      background:"transparent", color:C.tx2, fontSize:9, fontWeight:700,
+                      cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
+                    }}
+                      onMouseEnter={e=>{e.target.style.background=C.bg3; e.target.style.color=C.tx;}}
+                      onMouseLeave={e=>{e.target.style.background="transparent"; e.target.style.color=C.tx2;}}
+                    >{p.label}</button>
+                  ))}
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <button onClick={()=>{ if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1); }}
+                    style={{ background:"transparent", border:"none", color:C.tx2, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>◀</button>
+                  <span style={{ fontSize:12, fontWeight:700, color:C.tx }}>
+                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][calMonth]} {calYear}
+                  </span>
+                  <button onClick={()=>{ if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1); }}
+                    style={{ background:"transparent", border:"none", color:C.tx2, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>▶</button>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
+                  {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
+                    <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:C.tx3, padding:2 }}>{d}</div>
+                  ))}
+                </div>
+                {(()=>{
+                  const firstDay = new Date(calYear, calMonth, 1).getDay();
+                  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+                  const cells = [];
+                  for (let i=0; i<firstDay; i++) cells.push(null);
+                  for (let d=1; d<=daysInMonth; d++) cells.push(d);
+                  while (cells.length%7!==0) cells.push(null);
+                  return (
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={i} style={{ padding:4 }}/>;
+                        const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                        const isTrading = tradingDaysSet.has(iso);
+                        const isWeekend = new Date(calYear, calMonth, day).getDay()%6===0;
+                        const isStart = dateFrom===iso;
+                        const isEnd = dateTo===iso;
+                        const inRange = dateFrom && dateTo && iso>=dateFrom && iso<=dateTo;
+                        return (
+                          <button key={i} onClick={()=>{
+                            if (!calStart) {
+                              setCalStart(iso); setDateFrom(iso); setDateTo("");
+                            } else {
+                              let from=calStart, to=iso;
+                              if (iso < calStart) { from=iso; to=calStart; }
+                              setDateFrom(from); setDateTo(to); setCalStart(null);
+                              if (fetchDays!==0) setFetchDays(0);
+                              setShowCal(false);
+                            }
+                          }} style={{
+                            padding:0, borderRadius:4, border:"none", cursor:"pointer",
+                            fontSize:10, fontWeight:isTrading?700:400, fontFamily:"inherit",
+                            background: isStart||isEnd ? C.amber : inRange ? C.amber+"33" : "transparent",
+                            color: isStart||isEnd ? C.bg : inRange ? C.amber : isTrading ? C.tx : isWeekend ? C.bdr : C.tx3+"88",
+                            minWidth:32, minHeight:32, display:"flex", alignItems:"center", justifyContent:"center",
+                            position:"relative", transition:"background 0.1s"
+                          }}
+                            onMouseEnter={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background=C.bg3; }}
+                            onMouseLeave={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background="transparent"; }}
+                          >
+                            {day}
+                            {isTrading && <span style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:3, height:3, borderRadius:"50%", background:isStart||isEnd?C.bg:C.amber }}/>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                <div style={{ marginTop:8, fontSize:9, color:C.tx3, textAlign:"left", paddingLeft:12 }}>
+                  {calStart && !dateTo ? "Click end date" : "Click to start selection"}
+                  {" · "}<span style={{ color:C.amber }}>●</span> trading day
+                </div>
+              </div>
+            )}
+          </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,padding:"0 20px"}}>
+        <div style={{maxWidth:1400,margin:"0 auto",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
+        {TABS.map(t=>{
+          const on=t.id===tab;
+          return (
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:"10px 14px",background:"transparent",border:"none",
+                borderBottom:on?`2px solid ${C.amber}`:"2px solid transparent",
+                color:on?C.amber:C.tx2,fontWeight:on?700:400,fontSize:12,
+                cursor:"pointer",whiteSpace:"nowrap",transition:"color 0.15s",
+                fontFamily:"'Instrument Sans', system-ui, sans-serif"}}>
+              {t.label}
+            </button>
+          );
+        })}
+        {/* Search button */}
+        <button onClick={()=>setShowSearch(true)}
+          style={{marginLeft:"auto",padding:"6px 14px",background:C.blue+"22",
+            border:`1px solid ${C.blue}55`,borderRadius:6,color:C.blue,
+            fontWeight:600,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
+            fontFamily:"'Instrument Sans', system-ui, sans-serif",transition:"all 0.15s",
+            flexShrink:0}}>
+          🔍 Search
+        </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{padding:"14px 20px",maxWidth:1400,margin:"0 auto"}}>
+        {tab==="overview" && <OverviewPane onJumpTo={handleJumpTo}/>}
+        {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)}/>}
+        {tab==="above"    && <AbovePane/>}
+        {tab==="below"    && <BelowPane/>}
+        {tab==="unusual"  && <UnusualPane/>}
+        {tab==="phantom"  && <PhantomPane/>}
+        {tab==="options"  && <OptionsPane/>}
+      </div>
+
+      {showSearch && <SearchModal onClose={()=>setShowSearch(false)}/>}
+    </div>
+  );
+}
+
+// Wrapper to handle jump-to-category
+function CategoryPaneWrapper({jump,onJumpDone}){
+  const [active,setActive]=useState(jump||D.categories[0].name);
+  // If a new jump arrives, switch to it
+  useMemo(()=>{ if(jump){ setActive(jump); onJumpDone(); } },[jump]);
+  const cat=D.categories.find(c=>c.name===active)||D.categories[0];
+  const color=CAT_COLORS[active]||C.tx;
+  return (
+    <div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+        {D.categories.map(c=>{
+          const cc=CAT_COLORS[c.name]||C.tx;
+          const isOn=c.name===active;
+          return (
+            <button key={c.name} onClick={()=>setActive(c.name)}
+              style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${cc}${isOn?"":"33"}`,
+                background:isOn?cc+"22":"transparent",color:isOn?cc:C.tx2,
+                fontWeight:isOn?700:400,fontSize:12,cursor:"pointer",transition:"all 0.15s"}}>
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color,marginBottom:4}}>{cat.name}</div>
+        <div style={{fontSize:12,color:C.tx2}}>{cat.desc}</div>
+        <div style={{fontSize:12,color:C.tx3,marginTop:2}}>
+          Total: <span style={{color:C.cyan,fontWeight:700}}>{fmt(cat.totalNotional)}</span>
+          {" · "}{cat.count} tickers
+        </div>
+      </div>
+      <FlowTable items={cat.items} showCat={false}/>
+    </div>
+  );
+}
+return DarkPool;
+})();
+
+
+
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
-  const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
-  const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
+  const [top5Filter, setTop5Filter] = useState("Both");
+  const [top5Detail, setTop5Detail] = useState(null);
 
   // ─── TradingView Chart modal (Market Read → Top 10 Flow Picks) ──────
   // Click "📈 Chart" on an expanded row to open the underlying ticker in a
   // TradingView widget. Daily / Weekly / Monthly only (per design call).
   const [chartModal, setChartModal] = useState(null);     // { sym: "NVDA" } | null
   const [chartInterval, setChartInterval] = useState("D"); // "D" | "W" | "M"
-  // Local search input inside the chart modal — lets the user pivot to a
-  // different ticker without closing the modal. Submit on Enter.
   const [chartModalSearch, setChartModalSearch] = useState("");
   // Dark pool overlay toggle — global setting persisted to localStorage so it
-  // survives reloads. Applies to the main chart modal (which all ticker-click
-  // entry points across tabs feed into). Default ON since dark pool zones are
-  // useful context for most trade decisions.
+  // survives reloads. Parity with public file (no actual rendering yet since
+  // admin uses a TradingView iframe stub for StockChart).
   const [showDarkPool, setShowDarkPool] = useState(() => {
     try {
       const saved = localStorage.getItem("uct_show_darkpool");
@@ -1452,15 +3470,12 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     try { localStorage.setItem("uct_show_darkpool", String(showDarkPool)); } catch {}
   }, [showDarkPool]);
-  // Fetches + filters + clusters dark pool prints for the active sym. Returns
-  // a stable bars array suitable for the StockChart's darkPoolBars prop, or
-  // an empty array when disabled or no data.
   const useDarkPoolBars = (sym, enabled) => {
     const [raw, setRaw] = useState(null);
     useEffect(() => {
       if (!enabled || !sym) { setRaw(null); return; }
       let cancelled = false;
-      fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=100`)
+      fetch(`${API_BASE}/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=100`)
         .then(r => r.ok ? r.json() : null)
         .then(j => { if (!cancelled) setRaw(j?.prints || j || []); })
         .catch(() => { if (!cancelled) setRaw([]); });
@@ -1488,18 +3503,18 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
-  const [searchGroup, setSearchGroup] = useState(null);
+  const [searchGroup, setSearchGroup] = useState(null); // {type:"theme"|"sector", name:"Semiconductors", tickers:["NVDA","AMD",...]}
   const [batchTickers, setBatchTickers] = useState("");
   const [batchResults, setBatchResults] = useState(null);
   const [batchMode, setBatchMode] = useState(false);
-  const [batchDetail, setBatchDetail] = useState(null); // {sym, trades, contracts, ...}
-  const [batchSort, setBatchSort] = useState("net"); // net|bull|bear|bullpct|pnl|ticker|oi
+  const [batchDetail, setBatchDetail] = useState(null);
+  const [batchSort, setBatchSort] = useState("net");
   const [batchSortDir, setBatchSortDir] = useState("desc");
   const [convictionDte, setConvictionDte] = useState("All");
   const [convictionSort, setConvictionSort] = useState("net");
-  const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
-  const [convictionActivity, setConvictionActivity] = useState("All"); // All, new, uoa
-  const [convictionExpanded, setConvictionExpanded] = useState(null); // expanded ticker // net, bull, bear, trades
+  const [convictionPct, setConvictionPct] = useState("All");
+  const [convictionActivity, setConvictionActivity] = useState("All");
+  const [convictionExpanded, setConvictionExpanded] = useState(null);
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
@@ -1518,20 +3533,28 @@ export default function OptionsFlowDashboard() {
   };
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const autoPopulateLeaders = () => {
-    if (!FD || !FD.TICKER_DB) return;
-    const scored = FD.TICKER_DB.filter(tk => {
-      if (tk.b + tk.r <= 0 || tk.s.length > 5) return false;
-      if (capFilter !== "All" && capBand(tk.mktcap) !== capFilter) return false;
-      return true;
-    }).map(tk => {
-      const total = tk.b + tk.r;
+    if (!D || !D.clean_confirmed) return;
+    // Score by TOTAL clean institutional flow (bull + bear)
+    const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+    const tkMap = {};
+    cc.forEach(t => {
+      if (!t.S || t.S.length > 5) return;
+      if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, uoa:false };
+      if (t.D==="BULL") tkMap[t.S].bull += t.P;
+      if (t.D==="BEAR") tkMap[t.S].bear += t.P;
+      tkMap[t.S].n++;
+      if (t.uoa) tkMap[t.S].uoa = true;
+      if (t.mktcap > tkMap[t.S].mktcap) tkMap[t.S].mktcap = t.mktcap;
+    });
+    const scored = Object.values(tkMap).filter(tk => tk.bull + tk.bear > 0).map(tk => {
+      const total = tk.bull + tk.bear;
       const cap = tk.mktcap || 1;
       const capMultiplier = cap >= 200e9 ? 1 : cap >= 10e9 ? 2.5 : 6;
       const adjTotal = total * capMultiplier;
       const tradeDensity = Math.min(tk.n / 10, 3);
       const uoaBonus = tk.uoa ? 1.3 : 1;
       const score = adjTotal * tradeDensity * uoaBonus;
-      return { sym: tk.s, score, total, bull: tk.b, bear: tk.r };
+      return { sym: tk.sym, score };
     }).sort((a, b) => b.score - a.score);
     const top25 = scored.slice(0, 25).map(t => t.sym);
     saveLeaders(top25);
@@ -1545,14 +3568,14 @@ export default function OptionsFlowDashboard() {
     if (!leaders.length) return;
     setLeaderYtdLoading(true);
     try {
-      const resp = await fetch(`/api/schwab/ytd-performance?symbols=${leaders.join(",")}`);
+      const resp = await fetch(`${API_BASE}/api/schwab/ytd-performance?symbols=${leaders.join(",")}`);
       if (resp.ok) {
         const data = await resp.json();
         setLeaderYtd(data.ytd || {});
         setLeaderOff52(data.off52 || {});
         // Also fetch OI changes
         try {
-          const oiResp = await fetch(`/api/schwab/oi-change-batch?symbols=${leaders.join(",")}`);
+          const oiResp = await fetch(`${API_BASE}/api/schwab/oi-change-batch?symbols=${leaders.join(",")}`);
           if (oiResp.ok) { const oiData = await oiResp.json(); setLeaderOI(oiData.oi_changes || {}); }
         } catch {}
       }
@@ -1561,9 +3584,7 @@ export default function OptionsFlowDashboard() {
   };
   const [tfDteFilter, setTfDteFilter] = useState("All");
   // Top Flow column sort. Default "score" = current behavior (conviction-ranked).
-  // # column always shows score-rank regardless of active sort so the "Top 20"
-  // curation stays intuitive — sorting by another column re-orders the rows
-  // but each one keeps its #N badge from the score ranking.
+  // # column always shows score-rank regardless of active sort.
   const [tfSort, setTfSort] = useState({ col: "score", dir: "desc" });
   const [gexTicker, setGexTicker] = useState("SPY");
   const [gexInput, setGexInput] = useState("SPY");
@@ -1572,19 +3593,15 @@ export default function OptionsFlowDashboard() {
   const [gexDte, setGexDte] = useState("all");
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
-  const [gexChartTf, setGexChartTf] = useState('D');
+  const [gexChartRange, setGexChartRange] = useState("3mo");
   const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
   const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
-  // Dark pool bars for the contract detail panel (renderDetailPanel below) —
-  // opens when you click a ticker/contract in Top Flow, Search, or any other
-  // tab. Separate fetch from chartModal since they can be open simultaneously
-  // for different tickers.
+  // Dark pool bars for renderDetailPanel — parity with public, no-op in admin
+  // until StockChart migrates off the iframe stub.
   const selectedDetailDarkPoolBars = useDarkPoolBars(selectedItem?.sym, showDarkPool && !!selectedItem);
-  const [contractChartTf, setContractChartTf] = useState('D');
-  useEffect(() => { setContractChartTf('D'); }, [selectedItem?.sym, selectedItem?.cp, selectedItem?.K, selectedItem?.exp]);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [earningsCache, setEarningsCache] = useState({});
   const [marketIndices, setMarketIndices] = useState(null);
@@ -1595,86 +3612,54 @@ export default function OptionsFlowDashboard() {
   const fetchingRef = useRef(new Set());
   const backfilledRef = useRef(new Set());
   const convPanelRef = useRef(null);
+  const gexChartRef = useRef(null);
+  const gexChartObjRef = useRef(null);
   const ideaGexModalRef = useRef(null);
   const ideaGexDragRef = useRef({ dragging:false, startX:0, startY:0, offX:0, offY:0 });
   const prevNetDeltaRef = useRef(null);
 
-  // ─── Dynamic CSV Loading ─────────────────────────────────────────────
+  // ─── Admin: Drag-and-Drop CSV Upload ──────────────────────────────────
   const [csvText, setCsvText] = useState(null);
-  const [csvLoading, setCsvLoading] = useState(true);
+  const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState(null);
+  const [dbStatus, setDbStatus] = useState(null); // {type:"ok"|"error", msg:string}
+
+  // Upload CSV to backend DB for persistence
+  async function uploadToDb(text) {
+    const source = dataMode === "index" ? "indexes" : "stocks";
+    setDbStatus({ type: "loading", msg: "Saving to database..." });
+    try {
+      const resp = await fetch(`${API_BASE}/api/flow/upload?source=${source}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: text,
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        setDbStatus({ type: "error", msg: `DB error (${resp.status}): ${errText.slice(0, 200)}` });
+        return;
+      }
+      const data = await resp.json();
+      if (data.status === "ok") {
+        setDbStatus({ type: "ok", msg: `DB: +${data.inserted.toLocaleString()} new rows, ${data.skipped.toLocaleString()} duplicates skipped${data.pruned ? `, ${data.pruned} expired pruned` : ""}` });
+      } else {
+        setDbStatus({ type: "error", msg: "DB error: " + (data.message || "unknown") });
+      }
+    } catch (e) {
+      setDbStatus({ type: "error", msg: "DB upload failed: " + e.message });
+    }
+  }
   const [parsedRows, setParsedRows] = useState(null);
-  // Tracks which fetchDays value the current parsedRows represents. Used to
-  // skip the processing effect when a new fetch is in flight that will deliver
-  // different data — avoids 1-4s of wasted processFlowData on every range
-  // expansion (Last5 → Last20, Last60 → All, etc).
-  const [loadedFetchDays, setLoadedFetchDays] = useState(null);
-  const [dateFilter, setDateFilter] = useState("Last1");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [fetchDays, setFetchDays] = useState(1);
-  const [showCal, setShowCal] = useState(false);
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calStart, setCalStart] = useState(null); // temp start during selection
-  const calRef = useRef(null);
+  const [dateFilter, setDateFilter] = useState("All");
   const [D, setD] = useState(null);
 
-  const [dataVersion, setDataVersion] = useState(null);
-
-// Fetch DB version on mount + when tab regains focus (so a fresh upload in
-  // another tab is picked up immediately). Version is the row count; when it
-  // changes, the csvFile URL changes, useEffect re-runs, fresh data arrives.
-  //
-  // Auto-refresh: also poll every 60s during market hours. The version probe
-  // is cheap (~50ms, returns a single number); only triggers a full CSV
-  // refetch when the DB actually has new rows, so no wasted bandwidth when
-  // nothing's changing. Skipped when tab is hidden (saves CPU + bandwidth)
-  // and outside 9:30 AM – 4:15 PM ET weekdays (data doesn't change overnight).
-  useEffect(() => {
-    const fetchVer = () => {
-      fetch("/api/flow/version", { cache: "no-store" })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d && d.version != null) setDataVersion(String(d.version)); })
-        .catch(() => {});
-    };
-    fetchVer();
-    const onFocus = () => fetchVer();
-    window.addEventListener("focus", onFocus);
-
-    // Periodic polling during market hours, visible tabs only
-    const intervalId = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      // Market hours gate: 9:30 AM – 4:15 PM ET, Mon-Fri.
-      // Add a 15-min after-close grace window so late prints still surface.
-      const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const day = nowET.getDay();
-      if (day === 0 || day === 6) return;  // Sat/Sun
-      const mins = nowET.getHours() * 60 + nowET.getMinutes();
-      if (mins < 9 * 60 + 30 || mins > 16 * 60 + 15) return;  // outside window
-      fetchVer();
-    }, 60_000);
-
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  // Cache-busting version param — fetched from /api/flow/version on mount &
-  // on tab focus. When new data is uploaded, version bumps and Cloudflare
-  // sees a new URL, busting the stale cache entry.
-  const _vsuffix = dataVersion != null ? `&v=${dataVersion}` : "";
-  const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true"+_vsuffix : `/api/flow/indexes-data?days=${fetchDays}${_vsuffix}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true"+_vsuffix : `/api/flow/data?days=${fetchDays}${_vsuffix}`);
+  const [dragOver, setDragOver] = useState(false);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
     if (!parsedRows || parsedRows.length === 0) return [];
     const dateSet = new Set();
     parsedRows.forEach(r => { if (r.date) dateSet.add(r.date.trim()); });
-    // Sort dates chronologically
     return [...dateSet].sort((a, b) => {
       const pa = a.split("/").map(Number);
       const pb = b.split("/").map(Number);
@@ -1686,7 +3671,6 @@ export default function OptionsFlowDashboard() {
     });
   }, [parsedRows]);
 
-  // Format date for pill label: "Mon 4/21"
   const fmtDatePill = (dateStr) => {
     const parts = dateStr.split("/").map(Number);
     const y = parts.length >= 3 ? (parts[2] < 100 ? parts[2] + 2000 : parts[2]) : new Date().getFullYear();
@@ -1695,62 +3679,19 @@ export default function OptionsFlowDashboard() {
     return days[d.getDay()] + " " + parts[0] + "/" + (parts[1] || 1);
   };
 
-  // Convert M/D/YYYY → YYYY-MM-DD for date input
-  const mdyToIso = (mdy) => {
-    const p = mdy.split("/").map(Number);
-    if (p.length < 3) return "";
-    const y = p[2] < 100 ? p[2] + 2000 : p[2];
-    return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
-  };
-  // Convert YYYY-MM-DD → Date object for comparison
-  const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
-  // Convert M/D/YYYY → Date object for comparison
-  const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
-
-  // Date range boundaries from available dates
-  const dateInputMin = availableDates.length > 0 ? mdyToIso(availableDates[0]) : "";
-  const dateInputMax = availableDates.length > 0 ? mdyToIso(availableDates[availableDates.length-1]) : "";
-
-  // Close calendar on click outside
+  // Auto-set to latest date when CSV has many dates
   useEffect(() => {
-    if (!showCal) return;
-    const handler = (e) => { if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showCal]);
-
-  // Set of available trading dates as ISO for calendar dot indicators
-  const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
-
-  // Auto-set dateFilter when data loads
-  useEffect(() => {
-    if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
-      setDateFilter("All");
+    if (availableDates.length > 5 && dateFilter === "All") {
+      setDateFilter(availableDates[availableDates.length - 1]);
     }
   }, [availableDates]);
 
-  // Process data whenever parsedRows or dateFilter or date range changes
+  // Process data whenever parsedRows or dateFilter changes.
+  // No fetch guard here — this component uses local CSV uploads, not fetches.
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
-    // Skip processing if a fetch is in-flight that will replace parsedRows.
-    // This is the key perf fix — eliminates wasted intermediate processFlowData
-    // runs when user expands the range (e.g. Last5 → Last20 → Last60 → All).
-    // When the fetch completes, loadedFetchDays catches up to fetchDays and
-    // processing fires once with the fresh data.
-    if (loadedFetchDays !== fetchDays) return;
-    const t2 = performance.now();
     let filtered;
-    if (dateFrom && dateTo) {
-      // Date range mode
-      const from = isoToDate(dateFrom);
-      const to = isoToDate(dateTo);
-      to.setHours(23,59,59); // include end date fully
-      filtered = parsedRows.filter(r => {
-        if (!r.date) return false;
-        const d = mdyToDate(r.date.trim());
-        return d >= from && d <= to;
-      });
-    } else if (dateFilter === "All") {
+    if (dateFilter === "All") {
       filtered = parsedRows;
     } else if (dateFilter.startsWith("Last")) {
       const n = parseInt(dateFilter.replace("Last",""))||3;
@@ -1762,70 +3703,67 @@ export default function OptionsFlowDashboard() {
     if (filtered.length === 0) { setD(null); return; }
     try {
       const data = processFlowData(filtered);
-      const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
-      console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
       setD(data);
     } catch(err) {
       console.error("processFlowData error:", err);
       setCsvError(err.message);
     }
-  }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
+  }, [parsedRows, dateFilter]);
 
-  useEffect(() => {
-    // Wait for dataVersion before fetching — avoids a double-fetch on mount
-    // (once with no &v=, once with the version). Version arrives within ~50ms,
-    // so the UX delay is imperceptible and we save one full CSV download.
-    if (dataVersion == null) return;
+  function switchMode(m) {
+    if (dataMode === m) return;
+    // Only reset flow data when switching between stocks ↔ index (csvFile changes)
+    const wasFlow = dataMode === "stocks" || dataMode === "index";
+    const toFlow = m === "stocks" || m === "index";
+    if (wasFlow && toFlow) {
+      setD(null); setCsvText(null); setCsvError(null); setParsedRows(null); setDateFilter("All");
+      setSelectedConv(null); setSelectedItem(null); setSelectedTicker(null);
+      setSearch(""); setOiSearch(""); setCapFilter("All"); setTab("Market Read");
+    }
+    setDataMode(m);
+  }
 
-    // Capture fetchDays at fetch initiation so we know what range this fetch
-    // represents — even if user clicks a different range mid-fetch.
-    const fetchDaysAtStart = fetchDays;
-    let cancelled = false;
+  function handleCSV(text) {
     setCsvLoading(true);
     setCsvError(null);
-    setSelectedConv(null);
-    setSelectedItem(null);
-    setSelectedTicker(null);
-    setSearch("");
-    setOiSearch("");
-    setCapFilter("All");
-    setTab("Market Read");
-    const t0 = performance.now();
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+      setCsvError("Got HTML instead of CSV."); setCsvLoading(false); return;
+    }
+    if (!trimmed.includes(",") || trimmed.length < 100) {
+      setCsvError("File appears empty or invalid (no CSV data found)."); setCsvLoading(false); return;
+    }
+    setTimeout(() => {
+      try {
+        const rows = parseCSV(text);
+        if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
+        setCsvText(text);
+        setParsedRows(rows);
+        setDateFilter("All");
+        // Persist to DB in background
+        uploadToDb(text);
+      } catch(err) {
+        setCsvError(err.message);
+      }
+      setCsvLoading(false);
+    }, 0);
+  }
 
-    fetch(csvFile)  // versioned via &v= from /api/flow/version — see useEffect above; CF can cache safely
-        .then(res => {
-          console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
-          if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
-          const ct = res.headers.get("content-type") || "";
-          if (ct.includes("text/html")) throw new Error(`Got HTML instead of CSV — ${csvFile} not found.`);
-          return res.text();
-        })
-        .then(text => {
-          if (cancelled) return;
-          console.log(`[perf] Downloaded: ${(performance.now()-t0).toFixed(0)}ms (${(text.length/1024).toFixed(0)}KB)`);
-          const trimmed = text.trim();
-          if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
-            throw new Error(`Got HTML instead of CSV — ${csvFile} not found on server.`);
-          }
-          if (!trimmed.includes(",") || trimmed.length < 50) {
-            throw new Error("File appears empty or invalid (no CSV data found).");
-          }
-          setTimeout(() => {
-            if (cancelled) return;
-            try {
-              const t1 = performance.now();
-              const rows = parseCSV(text);
-              console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
-              if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-              if (!cancelled) { setParsedRows(rows); setLoadedFetchDays(fetchDaysAtStart); setCsvLoading(false); }
-            } catch(err) {
-              if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); }
-            }
-          }, 0);
-        })
-        .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
-    return () => { cancelled = true; };
-  }, [csvFile]);
+  function onDrop(e) {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+  }
+  function onFileInput(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => handleCSV(ev.target.result);
+    reader.readAsText(file);
+  }
 
 
   // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
@@ -1859,12 +3797,12 @@ export default function OptionsFlowDashboard() {
   const [wlBull, setWlBull] = useState([]);
   const [wlBear, setWlBear] = useState([]);
   const [wlDteFilter, setWlDteFilter] = useState("All");
-  const [wlViewFilter, setWlViewFilter] = useState("both");
+  const [wlViewFilter, setWlViewFilter] = useState("both"); // "both" | "bull" | "bear"
   const [wlDate, setWlDate] = useState(new Date().toISOString().slice(0,10));
   const [wlDates, setWlDates] = useState([]);
   const [wlEditing, setWlEditing] = useState(null);
   const [wlLoaded, setWlLoaded] = useState(false);
-  const [wlCapPref, setWlCapPref] = useState("No Mega"); // All | No Mega | Mid+Small
+  const [wlCapPref, setWlCapPref] = useState("No Mega");
   const [wlAddBull, setWlAddBull] = useState("");
   const [wlAddBear, setWlAddBear] = useState("");
   const [wlRemoving, setWlRemoving] = useState(null);
@@ -1872,8 +3810,6 @@ export default function OptionsFlowDashboard() {
   const [wlRemoved, setWlRemoved] = useState([]);
   const [wlOILoading, setWlOILoading] = useState(false);
   const wlRef = useRef(null);
-  const wlBullRef = useRef(null);
-  const wlBearRef = useRef(null);
   const screenshotWatchlist = async () => {
     if (!wlRef.current) return;
     let h2c = window.html2canvas;
@@ -1901,76 +3837,6 @@ export default function OptionsFlowDashboard() {
     }
   };
 
-  const screenshotPushDiscord = async () => {
-    setDiscordImgPushing(true);
-    try {
-      let h2c = window.html2canvas;
-      if (!h2c) {
-        const s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        document.head.appendChild(s);
-        await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-        h2c = window.html2canvas;
-      }
-      if (!h2c) { setStatus("❌ Could not load screenshot library"); setDiscordImgPushing(false); return; }
-
-      const dateRange = FD ? FD.dateRange || "" : "";
-      const results = [];
-
-      // Capture Bull
-      const bullEl = wlBullRef.current;
-      if (bullEl) {
-        const canvas = await h2c(bullEl, { backgroundColor: P.bg, scale: 2, useCORS: true });
-        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
-        if (blob) {
-          const fd = new FormData();
-          fd.append("file", blob, `UCT_Bull_Watchlist_${wlDate}.png`);
-          fd.append("label", `${discordLabel} — BULL`);
-          fd.append("date_range", dateRange);
-          const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
-          const data = await resp.json();
-          results.push({ side: "Bull", ok: data.ok, kb: data.size_kb, error: data.error });
-        }
-      }
-
-      // Small delay to avoid Discord rate limit
-      await new Promise(r => setTimeout(r, 600));
-
-      // Capture Bear
-      const bearEl = wlBearRef.current;
-      if (bearEl) {
-        const canvas = await h2c(bearEl, { backgroundColor: P.bg, scale: 2, useCORS: true });
-        const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
-        if (blob) {
-          const fd = new FormData();
-          fd.append("file", blob, `UCT_Bear_Watchlist_${wlDate}.png`);
-          fd.append("label", `${discordLabel} — BEAR`);
-          fd.append("date_range", dateRange);
-          const resp = await fetch("/api/discord/push-image", { method: "POST", body: fd });
-          const data = await resp.json();
-          results.push({ side: "Bear", ok: data.ok, kb: data.size_kb, error: data.error });
-        }
-      }
-
-      if (!results.length) {
-        setStatus("⚠️ No watchlist sections to capture");
-      } else {
-        const ok = results.filter(r => r.ok);
-        const fail = results.filter(r => !r.ok);
-        if (ok.length && !fail.length) {
-          const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
-          setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
-        } else if (fail.length) {
-          setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
-        }
-      }
-    } catch (e) {
-      setStatus(`❌ Discord screenshot error: ${e.message}`);
-    }
-    setDiscordImgPushing(false);
-    setTimeout(() => setStatus(""), 4000);
-  };
-
   const wlFetchOI = async () => {
     const all = [...wlBull, ...wlBear];
     if (!all.length) return;
@@ -1978,7 +3844,6 @@ export default function OptionsFlowDashboard() {
     const contracts = all.map(i=>({sym:i.sym, cp:i.cp, strike:i.strike, exp:i.exp}));
     try {
       await fetchPrices(contracts);
-      // After prices fetched, update liveOI from priceMap
       const updateList = (list) => list.map(item => {
         const px = getPrice(item.sym, item.cp, item.strike, item.exp);
         if (!px) return item;
@@ -2119,7 +3984,6 @@ export default function OptionsFlowDashboard() {
 
 
 
-
   // Helper: extract first/latest date and spot from CONV trades
   const _extractDateSpot = (c, dateMap) => {
     // Try 1: this CONV item's own trades
@@ -2132,7 +3996,7 @@ export default function OptionsFlowDashboard() {
       }).sort((a,b)=>a.dt-b.dt);
       return { firstDate: parsed[0].raw, entrySpot: parsed[0].spot, latestSpot: parsed[parsed.length-1].spot };
     }
-    // Try 2: dateMap from clean_confirmed
+    // Try 2: dateMap from clean_confirmed + all_directional + CONV
     if (dateMap && dateMap[c.sym]) {
       return { firstDate: dateMap[c.sym].dt, entrySpot: dateMap[c.sym].spot, latestSpot: dateMap[c.sym].latestSpot || 0 };
     }
@@ -2154,7 +4018,6 @@ export default function OptionsFlowDashboard() {
     return { firstDate:"", entrySpot:0, latestSpot:0 };
   };
 
-  // Build ticker → earliest date map from clean_confirmed (always has Dt)
   // Build ticker → earliest date map from multiple sources
   const _buildDateMap = () => {
     const map = {};
@@ -2172,15 +4035,12 @@ export default function OptionsFlowDashboard() {
         if (d > map[sym].latestDate) { map[sym].latestSpot = spot||0; map[sym].latestDate = d; }
       }
     };
-    // Source 1: clean_confirmed
     if (D && D.clean_confirmed) {
       D.clean_confirmed.forEach(t => _addTrade(t.S, t.Dt, t.Spot));
     }
-    // Source 2: all_directional (broader — includes non-confirmed)
     if (D && D.all_directional) {
       D.all_directional.forEach(t => _addTrade(t.S, t.Dt, t.Spot));
     }
-    // Source 3: CONV trades (in case sources 1-2 miss some)
     if (FD && FD.CONV) {
       FD.CONV.forEach(c => {
         (c.trades||[]).forEach(t => _addTrade(c.sym, t.Dt, t.Spot));
@@ -2192,8 +4052,6 @@ export default function OptionsFlowDashboard() {
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
     const dateMap = _buildDateMap();
-    // Deduplicate by ticker — take highest-scoring contract per ticker
-    // Also apply EXIT penalty so watchlist matches Top Flow ranking
     const dedup = (list) => {
       const seen = new Set();
       return list.map(c => {
@@ -2220,13 +4078,7 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? _autoS * 0.4 : _autoS };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    // 2026-07-03: exclude ETFs/INDEXes when in Stocks tab. Watchlist should
-    // reflect the same universe as the tab -- SPY/QQQ/SMH etc. belong on the
-    // Indexes tab. Untagged tickers (stocketf undefined) treated as STOCK
-    // to avoid false exclusions from missing metadata.
-    const isStock = (c) => c.stocketf !== "ETF" && c.stocketf !== "INDEX";
-    const wlTabFilter = dataMode === "stocks" ? isStock : ((c) => !isStock(c));
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c))).slice(0,20).map(c=>{
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -2240,7 +4092,7 @@ export default function OptionsFlowDashboard() {
         convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c))).slice(0,20).map(c=>{
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -2254,18 +4106,24 @@ export default function OptionsFlowDashboard() {
     setWlBull(bulls);
     setWlBear(bears);
 
-    // ── Fallback fill — cross-direction + heavy ASK-dominant ─────────────
-    // After the primary bull/bear lists are built from FD.CONV, two more
-    // passes find picks that didn't make CONV but are real signals:
-    //   1. Cross-direction — for tickers already on the OPPOSITE list,
-    //      surface their strongest CLEAN ASK position in the other direction
-    //      (BTO call at ASK for bull list; BTO put at ASK for bear list).
-    //      Catches cases like BE where bullish CALL flow exists but got
-    //      filtered out of CONV by DTE<=7 or cluster-cleanliness rules.
-    //   2. Dirty-dominant — for tickers on NEITHER list, surface heavily
-    //      ASK-dominant clusters that CONV flagged dirty due to bid-side
-    //      noise but where 80%+ of premium is ASK side. Catches the SERV
-    //      pattern: 60+ ASK sweeps with ~13% bid-side noise on DTE > 14.
+    // ── Cross-direction fill ────────────────────────────────────────────
+    // After the primary bull/bear lists are built from FD.CONV, look for
+    // tickers that have meaningful flow in BOTH directions but only ended
+    // up in one list. This happens commonly when one direction's clusters
+    // get filtered out of CONV by the DTE<=7 or non-clean checks at the
+    // preSort filter (e.g. BE had bullish 06/12/26 CALLs at 4-DTE — short
+    // enough to be excluded, but real flow worth surfacing).
+    //
+    // IMPORTANT — what counts as a "clean" cross-direction signal:
+    //   BULL fallback → CALL contracts bought aggressively at the ASK
+    //   BEAR fallback → PUT  contracts bought aggressively at the ASK
+    // Selling puts is technically a bullish position, and selling calls
+    // is technically bearish, but showing "PUT in the bull list" or
+    // "CALL in the bear list" is visually wrong and broke trust in the
+    // first iteration of this fill (META PUT $585 appearing in bulls
+    // because of put-selling flow). Restricting to BTO of the matching
+    // option type produces visually unambiguous picks the user can
+    // triage at a glance.
     setTimeout(() => {
       if (!FD.all_directional) {
         console.warn("[wlPopulate] No FD.all_directional — fallback pass skipped entirely");
@@ -2273,18 +4131,26 @@ export default function OptionsFlowDashboard() {
       }
       console.log("[wlPopulate] Fallback pass start. FD.all_directional length:", FD.all_directional.length,
         "| existing bulls:", bulls.length, "| existing bears:", bears.length);
+      // Lowered from $500K → $100K both — the previous bar was too high for
+      // mid-cap names with real but smaller bullish/bearish opposite-side
+      // flow (e.g. BE had ~$3M of bullish CALL action but spread across
+      // multiple short-DTE strikes, none individually hit $500K). The
+      // user wants to triage manually so a lower bar is correct.
       const MIN_CONTRACT_PREMIUM = 100_000;
       const MIN_TOTAL_DIRECTIONAL = 100_000;
 
-      // Build flowBy: per-ticker, per-direction, per-contract aggregate.
-      // CRITICAL: trade objects use UPPERCASE field names (t.CP, t.E) per
-      // processFlowData — earlier iterations used t.cp/t.exp (lowercase)
-      // which made flowBy always empty and silently broke every fallback.
-      // The single-letter "C"/"P" filter downstream matches t.CP's format.
       const flowBy = {};
       for (const t of FD.all_directional) {
+        // BUG FIX: trade objects use UPPERCASE field names (t.CP, t.E) per
+        // line 797 in processFlowData. This loop was checking t.cp and t.exp
+        // (lowercase) — both always undefined, so EVERY trade got skipped
+        // and flowBy was always empty. This is why neither the existing
+        // cross-direction buildFallback nor any subsequent fallback layer
+        // ever actually fired, despite appearing wired up correctly.
         if (!t.S || !t.D || !t.P || !t.CP) continue;
         if (!flowBy[t.S]) flowBy[t.S] = { BULL: null, BEAR: null, mktcap: t.mktcap || 0 };
+        // Keep ticker-level mktcap up to date — take max non-zero across trades
+        // in case some rows have it and others don't (CSV import edge cases).
         if (t.mktcap && t.mktcap > flowBy[t.S].mktcap) flowBy[t.S].mktcap = t.mktcap;
         if (!flowBy[t.S][t.D]) flowBy[t.S][t.D] = { totalPrem: 0, contracts: {} };
         flowBy[t.S][t.D].totalPrem += t.P;
@@ -2304,23 +4170,61 @@ export default function OptionsFlowDashboard() {
         if (t.Si === "A" || t.Si === "AA") cc.askPrem += t.P;
         if (t.Si === "B" || t.Si === "BB") cc.bidPrem += t.P;
       }
-      console.log("[wlPopulate] flowBy built:", Object.keys(flowBy).length, "tickers");
+      const flowBySyms = Object.keys(flowBy);
+      console.log("[wlPopulate] flowBy built:", flowBySyms.length, "tickers");
+      // Targeted SERV diagnostic — quick sanity check that the build worked
+      if (flowBy.SERV) {
+        const bullData = flowBy.SERV.BULL;
+        const bearData = flowBy.SERV.BEAR;
+        console.log("[wlPopulate] SERV in flowBy:",
+          "BULL=", bullData ? `$${Math.round(bullData.totalPrem/1000)}K (${Object.keys(bullData.contracts).length} contracts)` : "none",
+          "BEAR=", bearData ? `$${Math.round(bearData.totalPrem/1000)}K (${Object.keys(bearData.contracts).length} contracts)` : "none",
+          "mktcap=", flowBy.SERV.mktcap);
+      } else {
+        console.log("[wlPopulate] SERV NOT in flowBy — no directional trades for SERV in FD.all_directional today");
+      }
 
-      // Cross-direction fallback: opposite-direction clean ASK signal
-      const buildFallback = (sym, dir) => {
+      // Diagnostic helper — emits a `[wlPopulate diag] {sym}: ...` line
+      // explaining what was found and why a fallback was or wasn't built.
+      // Helps debug "I expected X to appear but it didn't" cases without
+      // needing to instrument the code per-investigation.
+      const buildFallback = (sym, dir, log = false) => {
         const sideData = flowBy[sym]?.[dir];
-        if (!sideData) return null;
-        if (sideData.totalPrem < MIN_TOTAL_DIRECTIONAL) return null;
+        if (!sideData) {
+          if (log) console.log(`[wlPopulate diag] ${sym} ${dir}: no flow data with t.D=${dir}`);
+          return null;
+        }
+        if (sideData.totalPrem < MIN_TOTAL_DIRECTIONAL) {
+          if (log) console.log(`[wlPopulate diag] ${sym} ${dir}: total $${Math.round(sideData.totalPrem/1000)}K < threshold $${MIN_TOTAL_DIRECTIONAL/1000}K`);
+          return null;
+        }
         const cleanCp = dir === "BULL" ? "C" : "P";
+        const cleanCpName = dir === "BULL" ? "call" : "put";
         const allContracts = Object.values(sideData.contracts);
         // Block-only clusters = institutional repositioning, not directional. Skip.
         const withSweep = allContracts.filter(c => c.hasSweep);
         const cpMatching = withSweep.filter(c => c.cp === cleanCp);
         const askDominant = cpMatching.filter(c => c.askPrem > c.bidPrem);
         const qualifying = askDominant.filter(c => c.askPrem >= MIN_CONTRACT_PREMIUM);
+        if (log) {
+          console.log(`[wlPopulate diag] ${sym} ${dir}: total $${Math.round(sideData.totalPrem/1000)}K, ` +
+            `contracts=${allContracts.length} (sweep=${withSweep.length}), ${cleanCpName}=${cpMatching.length}, ` +
+            `ask-dominant=${askDominant.length}, qualifying(>=$${MIN_CONTRACT_PREMIUM/1000}K)=${qualifying.length}`);
+          if (cpMatching.length > 0 && qualifying.length === 0) {
+            const top = cpMatching.sort((a,b)=>b.askPrem-a.askPrem)[0];
+            console.log(`[wlPopulate diag]   ${sym} top ${cleanCpName}: ${top.cp} ${top.K} ${top.exp} ` +
+              `askPrem=$${Math.round(top.askPrem/1000)}K bidPrem=$${Math.round(top.bidPrem/1000)}K`);
+          }
+        }
         if (qualifying.length === 0) return null;
         const top = qualifying.sort((a, b) => b.askPrem - a.askPrem)[0];
+        // Real mktcap from flow data so autoScore's cap-relative tiers fire.
+        // Previously this was 0 → wlCapCheck returned "Unknown" → all
+        // cap-relative scoring silently broke for fallback picks.
         const mc = flowBy[sym].mktcap || 0;
+        // Promote grade for visibly clean+sized fallback contracts so
+        // they don't all uniformly score "C" (0.5). A SWEEP at ASK with
+        // $1M+ premium is at least B territory.
         let grade = "C";
         if (top.askPrem >= 1e6) grade = "B";
         if (top.askPrem >= 3e6) grade = "B+";
@@ -2338,7 +4242,8 @@ export default function OptionsFlowDashboard() {
           strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
           grade, dir, hits: top.hits, prem: top.askPrem,
           side: "ASK", er: false,
-          notes: "",
+          notes: "Cross-direction fill — " + sym + " has both bull & bear flow; this is the strongest CLEAN " +
+                 dir.toLowerCase() + " signal (BTO " + cleanCpName + " at ASK)",
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
           oi: top.maxOI || 0, volume: top.vol || 0, volOI: volOIRatio,
           liveOI: 0, liveOIDelta: 0, actionLog: [],
@@ -2348,31 +4253,77 @@ export default function OptionsFlowDashboard() {
         };
       };
 
-      // Dirty-dominant fallback: heavy ASK-dominant for tickers on NEITHER list
-      const buildDirtyDominantFallback = (sym, dir) => {
+      const bullSyms = new Set(bulls.map(b => b.sym));
+      const bearSyms = new Set(bears.map(b => b.sym));
+      const fallbackBulls = [];
+      const fallbackBears = [];
+      bears.forEach(b => {
+        if (bullSyms.has(b.sym)) return;
+        const fb = buildFallback(b.sym, "BULL", true);  // log per ticker
+        if (fb) fallbackBulls.push(fb);
+      });
+      bulls.forEach(b => {
+        if (bearSyms.has(b.sym)) return;
+        const fb = buildFallback(b.sym, "BEAR", true);
+        if (fb) fallbackBears.push(fb);
+      });
+
+      // ─── Pass 3: Heavy ASK-dominant DIRTY cluster fallback ──────────────
+      // The existing cross-direction buildFallback only fires for tickers
+      // already on the OPPOSITE list (e.g. ticker on bear list → check for
+      // a clean BULL fallback). It misses tickers that have NEITHER a clean
+      // bull NOR clean bear CONV cluster — typically because the cluster is
+      // ≥80% ASK but has enough bid-side noise to fail the dirty/clean
+      // classifier (whose profit-taking exception only fires for DTE ≤ 14).
+      //
+      // SERV/BTDR pattern: 60+ ASK sweeps on the same strike, ~13% bid noise,
+      // DTE ~37 → CONV flags dirty → never reaches FD.CONV → invisible to
+      // both watchlist and Scanner Suggestions. Top 10 still surfaces it via
+      // raw D.all_directional, which is the Top 10 ⊄ Watchlist divergence
+      // that's been showing up across multiple sessions.
+      //
+      // Higher thresholds than cross-direction fallback (cap-relative
+      // notable floors, 80% ASK dominance) keep this selective so it only
+      // promotes genuinely high-conviction dirty clusters.
+      const buildDirtyDominantFallback = (sym, dir, log = false) => {
         const sideData = flowBy[sym]?.[dir];
         if (!sideData) return null;
         const mc = flowBy[sym].mktcap || 0;
         const capName = capBand(mc);
         const minTotalFlow = capName === "Mega" ? 1e6 : capName === "Large" ? 750e3 : 500e3;
-        if (sideData.totalPrem < minTotalFlow) return null;
+        if (sideData.totalPrem < minTotalFlow) {
+          if (log) console.log(`[wlPopulate dirty-dom] ${sym} ${dir}: total $${Math.round(sideData.totalPrem/1000)}K < ${capName} floor $${minTotalFlow/1000}K`);
+          return null;
+        }
         const cleanCp = dir === "BULL" ? "C" : "P";
+        const cleanCpName = dir === "BULL" ? "call" : "put";
         const allContracts = Object.values(sideData.contracts);
         // Block-only clusters = institutional repositioning, not directional. Skip.
         const withSweep = allContracts.filter(c => c.hasSweep);
         const cpMatching = withSweep.filter(c => c.cp === cleanCp);
+        // Heavily ASK-dominant: ≥80% of cluster premium on ASK + at least $250K ASK
         const dominant = cpMatching.filter(c => {
           const tot = c.askPrem + c.bidPrem;
           if (tot <= 0) return false;
           return c.askPrem / tot >= 0.80 && c.askPrem >= 250e3;
         });
+        if (log) {
+          console.log(`[wlPopulate dirty-dom] ${sym} ${dir}: contracts=${allContracts.length} (sweep=${withSweep.length}), ` +
+            `${cleanCpName}=${cpMatching.length}, dominant(≥80% ASK, $250K+)=${dominant.length}`);
+        }
         if (dominant.length === 0) return null;
         const top = dominant.sort((a, b) => b.askPrem - a.askPrem)[0];
+        // Grade promotion — heavy dominance + size = real conviction.
+        // Hits matter: 50+ consistent ASK prints on $1M+ is A+ territory even
+        // though autoScore would otherwise see this as a generic multi-hit
+        // cluster. Top 10 explicitly rewards "sustained accumulation"; we
+        // mirror that intuition here.
         let grade = "C";
         if (top.askPrem >= 250e3) grade = "B";
         if (top.askPrem >= 1e6) grade = "B+";
         if (top.askPrem >= 3e6) grade = "A";
         if (top.askPrem >= 5e6) grade = "A+";
+        // Multi-hit consistency overrides the premium-only ladder
         if (top.hits >= 10 && top.askPrem >= 500e3) grade = "B+";
         if (top.hits >= 20 && top.askPrem >= 750e3) grade = "A";
         if (top.hits >= 50 && top.askPrem >= 1e6) grade = "A+";
@@ -2391,7 +4342,7 @@ export default function OptionsFlowDashboard() {
           strike: top.K || "", exp: top.exp || "", cp: top.cp || "",
           grade, dir, hits: top.hits, prem: top.askPrem,
           side: "ASK", er: false,
-          notes: "",
+          notes: `Heavy ASK-dominant — ${purity}% ASK on ${top.hits} trades (not in CONV: mixed sides)`,
           cap: wlCapCheck({ sym, prem: top.askPrem, mktcap: mc }) || "Mid-Small",
           oi: top.maxOI || 0, volume: top.vol || 0, volOI: volOIRatio,
           liveOI: 0, liveOIDelta: 0, actionLog: [],
@@ -2401,54 +4352,45 @@ export default function OptionsFlowDashboard() {
         };
       };
 
-      const bullSyms = new Set(bulls.map(b => b.sym));
-      const bearSyms = new Set(bears.map(b => b.sym));
-      const fallbackBulls = [];
-      const fallbackBears = [];
-
-      // Pass 1+2: cross-direction
-      bears.forEach(b => {
-        if (bullSyms.has(b.sym)) return;
-        const fb = buildFallback(b.sym, "BULL");
-        if (fb) fallbackBulls.push(fb);
-      });
-      bulls.forEach(b => {
-        if (bearSyms.has(b.sym)) return;
-        const fb = buildFallback(b.sym, "BEAR");
-        if (fb) fallbackBears.push(fb);
-      });
-
-      // Pass 3: dirty-dominant — tickers on NEITHER list with heavy ASK conviction
       const crossFallbackBullSyms = new Set(fallbackBulls.map(f => f.sym));
       const crossFallbackBearSyms = new Set(fallbackBears.map(f => f.sym));
       Object.keys(flowBy).forEach(sym => {
+        // Skip if already on either watchlist OR already picked up via cross-direction fallback
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
+        // Try the dominant direction (whichever has more flow)
         if (bullTotal >= bearTotal && bullTotal > 0) {
-          const fb = buildDirtyDominantFallback(sym, "BULL");
+          const fb = buildDirtyDominantFallback(sym, "BULL", true);
           if (fb) fallbackBulls.push(fb);
         } else if (bearTotal > 0) {
-          const fb = buildDirtyDominantFallback(sym, "BEAR");
+          const fb = buildDirtyDominantFallback(sym, "BEAR", true);
           if (fb) fallbackBears.push(fb);
         }
       });
 
-      console.log("[wlPopulate] Fallback pass complete. Cross-direction:",
+      console.log("[wlPopulate] Fallback pass complete. Cross-direction added:",
         fallbackBulls.filter(f=>!f._isDirtyDominant).length, "bull /",
-        fallbackBears.filter(f=>!f._isDirtyDominant).length, "bear. Dirty-dominant:",
+        fallbackBears.filter(f=>!f._isDirtyDominant).length, "bear.",
+        "Dirty-dominant added:",
         fallbackBulls.filter(f=>f._isDirtyDominant).length, "bull /",
         fallbackBears.filter(f=>f._isDirtyDominant).length, "bear.");
-
-      // Merge with existing, dedup by sym, sort by score, truncate to 20
       if (fallbackBulls.length > 0) {
+        // Merge with existing bulls, re-sort by score, truncate to 20 — so the
+        // watchlist stays at quality top-20 regardless of how many fallbacks
+        // each pass surfaces. Without this, the list balloons (88 tickers
+        // observed when cross-direction + dirty-dominant both fire heavily).
         setWlBull(prev => {
           const merged = [...prev, ...fallbackBulls];
+          // Dedup by sym (in case a fallback duplicates a CONV pick)
           const seen = new Set();
           const unique = merged.filter(x => { if (seen.has(x.sym)) return false; seen.add(x.sym); return true; });
           return unique.sort((a,b)=>(b.score||0)-(a.score||0)).slice(0, 20);
         });
+        console.log("[wlPopulate] Added " + fallbackBulls.length +
+          " BULL fallback candidate(s) (CALL@ASK):", fallbackBulls.map(x => x.sym + (x._isDirtyDominant?"*":"")).join(", "),
+          "  (* = dirty-dominant; list re-sorted + truncated to top 20)");
       }
       if (fallbackBears.length > 0) {
         setWlBear(prev => {
@@ -2457,14 +4399,15 @@ export default function OptionsFlowDashboard() {
           const unique = merged.filter(x => { if (seen.has(x.sym)) return false; seen.add(x.sym); return true; });
           return unique.sort((a,b)=>(b.score||0)-(a.score||0)).slice(0, 20);
         });
+        console.log("[wlPopulate] Added " + fallbackBears.length +
+          " BEAR fallback candidate(s) (PUT@ASK):", fallbackBears.map(x => x.sym + (x._isDirtyDominant?"*":"")).join(", "),
+          "  (* = dirty-dominant; list re-sorted + truncated to top 20)");
       }
     }, 0);
   };
 
   const wlPopulateUnusual = () => {
     if (!FD || !FD.CONV) return;
-    const dateMap = _buildDateMap();
-    // Build unusual items same way as Unusual tab
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
     (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
@@ -2473,36 +4416,26 @@ export default function OptionsFlowDashboard() {
       const thresh = cap==="Mid-Small"?500e3:0;
       if (thresh > 0 && c.prem >= thresh) unusual.push({ ...c, anomaly:"SIZE_VS_CAP", source:"sizecap" });
     });
-    // Dedup by contract
     const seen = new Set();
     const deduped = unusual.filter(u => { const k = u.sym+"|"+u.cp+"|"+u.K+"|"+u.exp; if (seen.has(k)) return false; seen.add(k); return true; });
-    // Dedup by ticker — highest premium per ticker
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const tickerSeen = new Set();
     const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
-    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
-      const ds = _extractDateSpot(c, dateMap);
-      return {
-        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-        dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
-        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
-        // Raw clustering score (unusual path doesn't apply EXIT penalty — sorted by premium)
-        convScore: c.score||0, rankScore: c.score||0, isExit: false
-      };
-    });
-    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
-      const ds = _extractDateSpot(c, dateMap);
-      return {
-        sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
-        strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
-        dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
-        cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
-        firstDate:ds.firstDate, entrySpot:ds.entrySpot, latestSpot:ds.latestSpot,
-        convScore: c.score||0, rankScore: c.score||0, isExit: false
-      };
-    });
+    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+      // Raw clustering score (unusual path doesn't apply EXIT penalty — sorted by premium)
+      convScore: c.score||0, rankScore: c.score||0, isExit: false
+    }));
+    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
+      sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
+      strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
+      dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
+      cap:wlCapCheck(c), oi:c.maxOI||0, volume:c.vol||0, volOI:c.volOI||0, liveOI:0, liveOIDelta:0, actionLog:[],
+      convScore: c.score||0, rankScore: c.score||0, isExit: false
+    }));
     setWlBull(bulls);
     setWlBear(bears);
   };
@@ -2513,9 +4446,7 @@ export default function OptionsFlowDashboard() {
     const setInput = side==="bull"?setWlAddBull:setWlAddBear;
     const setList = side==="bull"?setWlBull:setWlBear;
     const list = side==="bull"?wlBull:wlBear;
-    // Check if already exists
     if (list.some(i=>i.sym===input)) { setInput(""); return; }
-    // Try to find in CONV data for auto-population
     const match = FD?.CONV?.find(c=>c.sym===input);
     const item = match ? {
       sym:input, score:autoScore(match), autoScore:autoScore(match), tier:"WATCH",
@@ -2535,10 +4466,10 @@ export default function OptionsFlowDashboard() {
   };
 
   const wlSave = () => {
-    fetch("/api/watchlist/save",{method:"POST",headers:{"Content-Type":"application/json"},
+    fetch(API_BASE+"/api/watchlist/save",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({date:wlDate,bull:wlBull,bear:wlBear,removed:wlRemoved})
     }).then(r=>r.json()).then(()=>{
-      fetch("/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
+      fetch(API_BASE+"/api/watchlist/dates").then(r=>r.json()).then(d=>setWlDates(d));
     }).catch(()=>{});
     // NOTE: removed previous push of watchlist top 10 bull/bear to /api/top-flow/save.
     // Watchlist saves are now decoupled from Tracker — Tracker is fed only from
@@ -2546,11 +4477,11 @@ export default function OptionsFlowDashboard() {
     // in Market Read.
   };
 
-  // ─── Discord Push ───────────────────────────────────────────────────
+  // ─── Discord Push (admin only) ──────────────────────────────────────
   const [discordPushing, setDiscordPushing] = useState(false);
-  const [discordImgPushing, setDiscordImgPushing] = useState(false);
   const [discordLabel, setDiscordLabel] = useState("WATCHLIST");
   const [discordCount, setDiscordCount] = useState(10);
+  const [discordPayload, setDiscordPayload] = useState("");
 
   const _buildUnusualMidSmall = () => {
     if (!FD || !FD.CONV) return { bull: [], bear: [] };
@@ -2621,81 +4552,34 @@ export default function OptionsFlowDashboard() {
       }
       return { ...item, age, status };
     });
-    try {
-      const resp = await fetch("/api/discord/push",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
+    const payload = {
           bull:_addStatus(wlBull), bear:_addStatus(wlBear),
           unusualBull:[], unusualBear:[],
           overallBull, overallBear, tickerCount,
           label:discordLabel, limit:discordCount,
           dateRange: FD ? FD.dateRange : ""
-        })
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        setStatus(`✅ Pushed to Discord — ${data.messages_sent} message(s)`);
-        // Push hand-picked watchlist top 10 bull + top 10 bear to Tracker.
-        // Discord push is the curation commit moment — those are the picks
-        // worth tracking. This is intentional (not auto-saved on every CSV
-        // load — only when user explicitly pushes to Discord).
-        const todayISO = new Date().toISOString().split("T")[0];
-        const toTracker = (items, dir) => items.slice(0,10).map(item => {
-          // ENTRY = volume-weighted avg CONTRACT price across the cluster's trades.
-          //
-          // Previously this stored item.entrySpot (the underlying STOCK price),
-          // which made the Tracker show massive negative P/L on every row:
-          // calcPnl reads `now` from getPrice() — the live OPTIONS contract
-          // mark (~$12.50) — and divided by entry that was the spot
-          // (~$590). Result: (12.50 - 590) / 590 = -97% on every single
-          // position regardless of how the contract was actually performing.
-          //
-          // Premium $ / (volume × 100) recovers the volume-weighted contract
-          // price the trades actually executed at — the correct comparison
-          // basis for option P/L. This matches the formula already used in
-          // the trade-row P/L table at ~line 138 (r.P / r.V / 100).
-          const vol = item.volume || 0;
-          const prem = item.prem || 0;
-          const entryContractPx = vol > 0 ? prem / (vol * 100) : 0;
-          return {
-            sym: item.sym, cp: item.cp||"C", strike: parseFloat(item.strike)||0,
-            exp: item.exp||"", entry: entryContractPx,
-            grade: item.grade||"B", dir, hits: item.hits||1,
-            prem: item.prem||0, cap: item.cap||capBand(item.mktcap||0),
-            dateSaved: todayISO,
-            entrySpot: item.entrySpot||0, // kept for stock-move reference
-          };
-        });
-        const trackerPicks = [...toTracker(wlBull,"BULL"), ...toTracker(wlBear,"BEAR")];
-        if (trackerPicks.length > 0) {
-          fetch("/api/top-flow/save",{method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify(trackerPicks)
-          }).then(r=>r.ok?r.json():null).then(()=>{
-            fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{ if(d) setTopFlowPicks(d); });
-          }).catch(()=>{});
-        }
-      } else {
-        setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
-      }
-    } catch(e) { setStatus(`❌ Discord push error: ${e.message}`); }
+        };
+    setDiscordPayload(JSON.stringify(payload));
+    setStatus(`📋 Payload ready — copy from box below, paste in discord-push.html`);
     setDiscordPushing(false);
     setTimeout(()=>setStatus(""),4000);
   };
 
   const wlLoad = (day) => {
-    fetch("/api/watchlist/load/"+day).then(r=>r.json()).then(d=>{
+    fetch(API_BASE+"/api/watchlist/load/"+day).then(r=>r.json()).then(d=>{
       setWlBull(d.bull||[]); setWlBear(d.bear||[]); setWlRemoved(d.removed||[]); setWlDate(day); setWlLoaded(true);
     }).catch(()=>{});
   };
 
   useEffect(()=>{
-    fetch("/api/watchlist/dates").then(r=>r.ok?r.json():[]).then(d=>setWlDates(d)).catch(()=>{});
+    fetch(API_BASE+"/api/watchlist/dates").then(r=>r.ok?r.json():[]).then(d=>setWlDates(d)).catch(()=>{});
   },[]);
   const [showArchived, setShowArchived] = useState(false);
 
   // Fetch history after initial render (deferred)
   useEffect(() => {
     const t = setTimeout(() => {
-      fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
+      fetch(API_BASE+"/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
         if (data) setTopFlowPicks(data);
       }).catch(()=>{});
     }, 500);
@@ -2712,84 +4596,166 @@ export default function OptionsFlowDashboard() {
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
   useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
-
-  // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
-  // prop to the StockChart that renders the "AMD Chart with GEX Levels" panel.
-  const gexPriceLines = useMemo(() => {
-    if (!gexData || gexData.error) return [];
-    const cw = gexData.callWall;
-    const pw = gexData.putWall;
-    const zg = gexData.zeroGamma;
-    const sp = gexData.spot || 0;
-    const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
-    const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
-    const getLineWeight = (gexVal) => {
-      const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
-      if (ratio > 0.8) return { lw:4, ls:0, op:"" };
-      if (ratio > 0.5) return { lw:3, ls:0, op:"CC" };
-      if (ratio > 0.25) return { lw:2, ls:0, op:"80" };
-      return { lw:1, ls:2, op:"59" };
-    };
-    const lines = [];
-    if (cw && pw && cw.strike === pw.strike) {
-      const combined = cw.gex + Math.abs(pw.gex);
-      const proximity = sp > 0 ? Math.abs(cw.strike - sp) / sp : 0;
-      const aboveSpot = cw.strike > sp;
-      let title, color;
-      if (proximity < 0.003) { title = "Pin "+fmtG(combined); color = "#c9a84c"; }
-      else if (aboveSpot) { title = "Resistance "+fmtG(combined); color = "#c43030"; }
-      else { title = "Support ↑ "+fmtG(combined); color = "#00BCD4"; }
-      lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
-    } else {
-      if (cw) {
-        const aboveSpot = cw.strike > sp;
-        let title, color;
-        if (aboveSpot) { title = "Ceiling "+fmtG(cw.gex); color = "#c43030"; }
-        else { title = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; }
-        lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
-      }
-      if (pw) {
-        const belowSpot = pw.strike < sp;
-        let title, color;
-        if (belowSpot) { title = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; }
-        else { title = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; }
-        lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
-      }
+  // Lightweight Charts for GEX tab
+  useEffect(() => {
+    if (!showGexChart || !gexTicker || !gexData || gexData.error) {
+      // Cleanup if hidden
+      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
+      return;
     }
-    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
-    const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
-    // Secondary above/below levels: keep the LINES (visible, color-coded so
-    // user still sees support/resistance positions), but suppress the right-
-    // axis $-value LABELS. Each axis label triggers LWC overlap-avoidance
-    // layout work per redraw; with 6 secondary labels stacked near spot,
-    // that compounded into visible crosshair lag. Walls + Danger Line keep
-    // their labels (those carry the most important $ values).
-    const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
-      const callVal = s.callGex > 0 ? s.callGex : 0;
-      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-      return { strike:s.strike, gex:best.val, type:best.type };
-    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    aboveCandidates.forEach(s => {
-      usedStrikes.add(s.strike);
-      const {lw,ls,op} = getLineWeight(s.gex);
-      const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
-    });
-    const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
-      const callVal = s.callGex > 0 ? s.callGex : 0;
-      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-      return { strike:s.strike, gex:best.val, type:best.type };
-    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
-    belowCandidates.forEach(s => {
-      const {lw,ls,op} = getLineWeight(s.gex);
-      const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
-      const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
-    });
-    return lines;
-  }, [gexData]);
+    // Load library from CDN if needed
+    const LWC_URL = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+    const loadAndRender = () => {
+      if (!gexChartRef.current) return;
+      if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; }
+      const LWC = window.LightweightCharts;
+      if (!LWC) return;
+      const el = gexChartRef.current;
+      el.innerHTML = "";
+      const chart = LWC.createChart(el, {
+        width: el.clientWidth, height: 500,
+        layout: { background: { color: "#0d1117" }, textColor: "#7b8fa3", fontSize: 10 },
+        grid: { vertLines: { color: "#1a254033" }, horzLines: { color: "#1a254033" } },
+        crosshair: { mode: 0 },
+        rightPriceScale: { borderColor: "#1a2540" },
+        timeScale: { borderColor: "#1a2540", timeVisible: true, secondsVisible: false,
+          tickMarkFormatter: (time, tickMarkType) => {
+            const d = new Date(time * 1000);
+            const h = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+            const m = parseInt(d.toLocaleString('en-US', { timeZone: 'America/New_York', minute: 'numeric' }));
+            if (h <= 10 && m <= 30) return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+            return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+          }
+        },
+        localization: {
+          timeFormatter: (time) => {
+            const d = new Date(time * 1000);
+            return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+          }
+        },
+      });
+      gexChartObjRef.current = chart;
+      const series = chart.addCandlestickSeries({
+        upColor: "#0a8f55", downColor: "#c43030", borderUpColor: "#0a8f55", borderDownColor: "#c43030",
+        wickUpColor: "#0a8f55", wickDownColor: "#c43030",
+      });
+      // Fetch OHLC data
+      fetch(`${API_BASE}/api/schwab/chart-ohlc?sym=${encodeURIComponent(gexTicker)}&range=${gexChartRange}`)
+        .then(r=>r.ok?r.json():null).then(d=>{
+          if (!d || !d.candles || d.candles.length === 0) return;
+          series.setData(d.candles);
+          chart.timeScale().fitContent();
+          // Draw GEX price lines
+          const cw = gexData.callWall;
+          const pw = gexData.putWall;
+          const zg = gexData.zeroGamma;
+          const sp = gexData.spot || 0;
+          const fmtG = v => { const abs=Math.abs(v); if(abs>=1e9) return "$"+(abs/1e9).toFixed(1)+"B"; if(abs>=1e6) return "$"+(abs/1e6).toFixed(1)+"M"; if(abs>=1e3) return "$"+(abs/1e3).toFixed(0)+"K"; return "$"+abs.toFixed(0); };
+          const wallMax = Math.max(cw?.gex||0, Math.abs(pw?.gex||0));
+          const getLineWeight = (gexVal) => {
+            const ratio = wallMax > 0 ? Math.abs(gexVal) / wallMax : 0;
+            if (ratio > 0.8) return { lw:4, ls:0 };  // wall-level
+            if (ratio > 0.5) return { lw:3, ls:0 };  // major
+            if (ratio > 0.25) return { lw:2, ls:0 }; // solid secondary
+            return { lw:1, ls:2 };                    // minor dashed
+          };
+
+          // Call wall + Put wall
+          if (cw && pw && cw.strike === pw.strike) {
+            // Same strike — combined pin/gravity zone
+            const combined = cw.gex + Math.abs(pw.gex);
+            const proximity = Math.abs(cw.strike - sp) / sp;
+            const aboveSpot = cw.strike > sp;
+            let label, color;
+            if (proximity < 0.003) {
+              label = "Pin "+fmtG(combined); color = "#c9a84c"; // purple — price right at pin
+            } else if (aboveSpot && proximity < 0.02) {
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // metallic silver — contested level, pulling up
+            } else if (aboveSpot) {
+              label = "Resistance "+fmtG(combined); color = "#c43030"; // red — distant resistance
+            } else if (proximity < 0.02) {
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // metallic silver — contested level, pulling down
+            } else {
+              label = "Support ↑ "+fmtG(combined); color = "#00BCD4"; // cyan — distant support
+            }
+            series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+          } else {
+            // Different strikes — draw separately
+            if (cw) {
+              const aboveSpot = cw.strike > sp;
+              const cwProx = Math.abs(cw.strike - sp) / sp;
+              let label, color;
+              if (aboveSpot) {
+                label = "Ceiling "+fmtG(cw.gex); color = "#c43030"; // red ceiling
+              } else if (cwProx < 0.02) {
+                label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // metallic silver — contested, could be support or pull
+              } else {
+                label = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; // cyan — cleared, now support
+              }
+              series.createPriceLine({ price:cw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+            }
+            if (pw) {
+              const belowSpot = pw.strike < sp;
+              const pwProx = Math.abs(pw.strike - sp) / sp;
+              let label, color;
+              if (belowSpot) {
+                label = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; // green bounce
+              } else if (pwProx < 0.02) {
+                label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // metallic silver — contested, could be resistance or pull
+              } else {
+                label = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; // red — broken floor now resistance
+              }
+              series.createPriceLine({ price:pw.strike, color, lineWidth:4, lineStyle:0, axisLabelVisible:true, title:label });
+            }
+          }
+          // Danger line
+          if (zg) series.createPriceLine({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, axisLabelVisible:true, title:"Danger Line" });
+
+          // Secondary levels — thickness/style scales with $ value
+          const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
+
+          // Above spot — all resistance = red
+          const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
+            const callVal = s.callGex > 0 ? s.callGex : 0;
+            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+            return { strike:s.strike, gex:best.val, type:best.type };
+          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+          aboveCandidates.forEach(s => {
+            usedStrikes.add(s.strike);
+            const {lw,ls,op} = getLineWeight(s.gex);
+            const label = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
+            series.createPriceLine({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
+          });
+
+          // Below spot — all support = green/cyan
+          const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
+            const callVal = s.callGex > 0 ? s.callGex : 0;
+            const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
+            const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
+            return { strike:s.strike, gex:best.val, type:best.type };
+          }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+          belowCandidates.forEach(s => {
+            const {lw,ls,op} = getLineWeight(s.gex);
+            const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
+            const label = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
+            series.createPriceLine({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, axisLabelVisible:true, title:label });
+          });
+        }).catch(()=>{});
+      // Resize observer
+      const ro = new ResizeObserver(() => { if (el.clientWidth > 0) chart.applyOptions({ width: el.clientWidth }); });
+      ro.observe(el);
+      return () => { ro.disconnect(); };
+    };
+    if (window.LightweightCharts) { loadAndRender(); }
+    else {
+      const script = document.createElement("script");
+      script.src = LWC_URL;
+      script.onload = loadAndRender;
+      document.head.appendChild(script);
+    }
+    return () => { if (gexChartObjRef.current) { gexChartObjRef.current.remove(); gexChartObjRef.current = null; } };
+  }, [showGexChart, gexTicker, gexChartRange, gexData]);
 
   // ─── Shared detail panel renderer ─────────────────────────────────────────
   function renderDetailPanel(sym, cp, K, exp, onClose) {
@@ -2812,7 +4778,7 @@ export default function OptionsFlowDashboard() {
     const curPrice = px ? (px.mark || px.last || px.mid || 0) : 0;
     // Auto-fetch live price if not in cache yet
     if (!px) {
-      fetch("/api/schwab/options-quotes", {
+      fetch(API_BASE+"/api/schwab/options-quotes", {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify([{symbol:sym, cp, strike:parseFloat(K), expDate:expToISO(exp)}]),
       }).then(r=>r.ok?r.json():null).then(data=>{
@@ -2892,6 +4858,9 @@ export default function OptionsFlowDashboard() {
     const liveEntry = chartData.filter(d=>d.isLive);
     const nonLiveAll = chartData.filter(d=>!d.isLive);
     const trimmed = nonLiveAll.slice(-10).concat(liveEntry);
+    const chartKey = `item_${sym}_${cp}_${K}_${exp}`;
+    const chartRange = (window._chartRange||{})[chartKey] || "3mo";
+    const setChartRange = v => { if(!window._chartRange) window._chartRange={}; window._chartRange[chartKey]=v; setSelectedItem(null); setTimeout(()=>setSelectedItem({sym,cp,K,exp}),10); };
     const dir = cp==="C"?"BULL":"BEAR";
     const totalPrem = allTrades.reduce((s,t)=>s+t.P,0);
 
@@ -2916,45 +4885,49 @@ export default function OptionsFlowDashboard() {
           <button onClick={onClose} style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
-          <div style={{ borderRight:"1px solid "+P.bd, display:"flex", flexDirection:"column", height:320 }}>
-            <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
-              {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label])=>(
-                <button key={val} onClick={()=>setContractChartTf(val)}
-                  style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(contractChartTf===val?P.ac:P.bd+"80"),
-                    background:contractChartTf===val?P.ac+"22":"transparent", color:contractChartTf===val?P.ac:P.dm,
+          <div style={{ borderRight:"1px solid "+P.bd, position:"relative" }}>
+            <div ref={el=>{
+              if (!el || el._tvInit) return;
+              el._tvInit = true;
+              const buildChart = () => {
+                const LWC = window.LightweightCharts;
+                if (!LWC) return;
+                el.innerHTML = "";
+                const chart = LWC.createChart(el, {
+                  width:el.clientWidth, height:320,
+                  layout:{background:{color:"#0d1117"},textColor:"#7b8fa3",fontSize:9},
+                  grid:{vertLines:{color:"#1a254022"},horzLines:{color:"#1a254022"}},
+                  crosshair:{mode:0}, rightPriceScale:{borderColor:"#1a2540"},
+                  timeScale:{borderColor:"#1a2540",timeVisible:true,secondsVisible:false,
+                    tickMarkFormatter:(t)=>{const d=new Date(t*1000);const h=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",hour12:false}));const m=parseInt(d.toLocaleString("en-US",{timeZone:"America/New_York",minute:"numeric"}));if(h<=10&&m<=30)return d.toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric"});return d.toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit",hour12:true});}},
+                  localization:{timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});}},
+                });
+                const s = chart.addCandlestickSeries({upColor:"#0a8f55",downColor:"#c43030",borderUpColor:"#0a8f55",borderDownColor:"#c43030",wickUpColor:"#0a8f55",wickDownColor:"#c43030"});
+                fetch(`${API_BASE}/api/schwab/chart-ohlc?sym=${encodeURIComponent(sym)}&range=${chartRange}`).then(r=>r.ok?r.json():null).then(d=>{
+                  if(d?.candles?.length){s.setData(d.candles);chart.timeScale().fitContent();}
+                }).catch(()=>{});
+                const ro=new ResizeObserver(()=>{if(el.clientWidth>0)chart.applyOptions({width:el.clientWidth});});
+                ro.observe(el);
+                el._tvCleanup=()=>{ro.disconnect();chart.remove();};
+              };
+              if (window.LightweightCharts) { buildChart(); }
+              else {
+                el.innerHTML="<div style='color:#555;padding:20px;font-size:11px'>Loading chart...</div>";
+                const sc=document.createElement("script");
+                sc.src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+                sc.onload=buildChart;
+                document.head.appendChild(sc);
+              }
+            }} style={{ width:"100%", height:320 }} />
+            <div style={{ position:"absolute", top:8, right:8, display:"flex", gap:4, zIndex:2 }}>
+              {[["5m","5m"],["15m","15m"],["1D","1D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                <button key={val} onClick={e=>{e.stopPropagation();setChartRange(val);}}
+                  style={{ padding:"2px 7px", borderRadius:4, border:"1px solid "+(chartRange===val?P.ac:P.bd+"80"),
+                    background:chartRange===val?P.ac+"22":"rgba(6,9,15,0.75)", color:chartRange===val?P.ac:P.dm,
                     fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                   {label}
                 </button>
               ))}
-              {/* Dark Pool toggle — same global setting as the chart modal */}
-              <button onClick={() => setShowDarkPool(v => !v)}
-                title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
-                style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
-                  border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
-                  background:showDarkPool?"#c9a84c22":"transparent",
-                  color:showDarkPool?"#c9a84c":P.dm,
-                  fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-                  display:"flex", alignItems:"center", gap:4 }}>
-                <span style={{ width:6, height:6, borderRadius:"50%",
-                  background:showDarkPool?"#c9a84c":"transparent",
-                  border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
-                Dark Pools
-              </button>
-            </div>
-            <div style={{ flex:1, minHeight:0 }}>
-              <StockChart
-                sym={sym}
-                tf={contractChartTf}
-                height="100%"
-                liveUpdates={true}
-                showDrawingTools={true}
-                onTfChange={setContractChartTf}
-                darkPoolBars={selectedDetailDarkPoolBars}
-                hideReplay
-                hidePatterns
-                hideCompare
-                hideCountdown
-              />
             </div>
           </div>
           <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", height:320 }}>
@@ -3107,7 +5080,7 @@ export default function OptionsFlowDashboard() {
                       const trC = tr.CP==="C"?P.bu:P.be;
                       return (
                         <tr key={i} onClick={e=>{e.stopPropagation(); fetchContractHistory(tr.S,tr.CP,tr.K,tr.E); setSelectedItem({sym:tr.S,cp:tr.CP,K:tr.K,exp:tr.E}); if(onClose) onClose();}}
-                          style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ padding:"3px 6px", fontWeight:800, color:P.wh }}>${tr.K}</td>
@@ -3131,50 +5104,52 @@ export default function OptionsFlowDashboard() {
     );
   }
 
-  // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
-  if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
-  if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center",maxWidth:400}}>
-        <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
-            <button key={m} onClick={()=>{
-              if (m === "liveflow") { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
-              if(dataMode!==m) {
-                const wasFlow = dataMode === "stocks" || dataMode === "index";
-                const toFlow = m === "stocks" || m === "index";
-                if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
-                setDataMode(m);
-              }
-            }} style={{
-              padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
-              fontSize:14, fontWeight:800, fontFamily:"inherit",
-              background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
-            }}>{label}</button>
-          ))}
-        </div>
-        <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#e74c3c",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
-        <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
-        <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
-        <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid "+P.bl+"",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
-      </div>
-    </div>
-  );
-  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
+  // ─── Loading / Error / Upload States (AFTER all hooks) ──────────────
+  if (csvLoading) return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      </div>
+    </div>
+  );
+  if (!D && dataMode !== "gex" && dataMode !== "darkpool") return (
+    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}
+      onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={onDrop}>
+      <div style={{textAlign:"center",maxWidth:460}}>
+        {/* Mode toggle */}
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
+          <div style={{ display:"flex", background:"#111a2e", borderRadius:8, padding:3, border:"1px solid #1a2540" }}>
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
+              <button key={m} onClick={()=>switchMode(m)} style={{
+                padding:"8px 28px", borderRadius:6, border:(m==="gex"||m==="darkpool")?`1px solid ${m==="darkpool"?"#6ba3be55":"#c9a84c55"}`:"none", cursor:"pointer",
+                fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
+                background:dataMode===m?(m==="gex"?"#c9a84c33":m==="darkpool"?"#6ba3be33":"#0d1321"):"transparent",
+                color:dataMode===m?(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":"#f0f4f8"):(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":"#4a5c73"),
+                boxShadow:dataMode===m?"0 2px 8px rgba(0,0,0,0.3)":"none",
+                transition:"all 0.15s"
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{fontSize:32,marginBottom:12}}>📂</div>
+        <div style={{color:"#ffab00",fontSize:16,fontWeight:700,marginBottom:8}}>{dataMode==="index"?"Indexes / ETF's Flow":"Options Flow"} — Admin Upload</div>
+        <div style={{color:"#7b8fa3",fontSize:12,marginBottom:20}}>Drag & drop your <strong style={{color:"#ffab00"}}>{dataMode==="index"?"Indexes-data.csv":"flow-data.csv"}</strong> export here, or click to select.</div>
+        <div style={{
+          border:"2px dashed "+(dragOver?"#3cb868":P.bd), borderRadius:12, padding:"40px 20px",
+          background:dragOver?"#3cb86810":"#0d1321", transition:"all 0.2s", cursor:"pointer", marginBottom:12
+        }} onClick={()=>document.getElementById("csv-admin-input").click()}>
+          <div style={{fontSize:36,marginBottom:8}}>{dragOver?"📥":"📄"}</div>
+          <div style={{color:dragOver?"#3cb868":"#c8d6e5",fontSize:13,fontWeight:600}}>{dragOver?"Drop CSV here":"Click or drag CSV file"}</div>
+          <input id="csv-admin-input" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+        </div>
+        {csvError && (
+          <div style={{marginTop:12}}>
+            <div style={{color:"#e74c3c",fontSize:12,fontWeight:700,marginBottom:4}}>Error</div>
+            <div style={{color:"#7b8fa3",fontSize:11}}>{csvError}</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3209,7 +5184,7 @@ export default function OptionsFlowDashboard() {
         const batch = unique.slice(b, b + BATCH_SIZE);
         setStatus(`Fetching batch ${Math.floor(b/BATCH_SIZE)+1}/${Math.ceil(unique.length/BATCH_SIZE)} (${b+batch.length}/${unique.length} contracts)…`);
         try {
-          let resp = await fetch("/api/schwab/options-quotes", {
+          let resp = await fetch(API_BASE+"/api/schwab/options-quotes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(batch.map(c => ({ symbol:c.symbol, strike:c.strike, expDate:c.expDate, cp:c.cp }))),
@@ -3235,10 +5210,8 @@ export default function OptionsFlowDashboard() {
             }
             successes++;
           });
-          // Update cache progressively so UI shows results as they come in
           setPriceCache({...newCache});
         } catch(e) { failures += batch.length; }
-        // Delay between batches to avoid rate limiting
         if (b + BATCH_SIZE < unique.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
       }
       if (updated) setPerf(updated);
@@ -3271,9 +5244,9 @@ export default function OptionsFlowDashboard() {
     if ((contractHistory[k] == null || force) && !fetchingRef.current.has(k)) {
       fetchingRef.current.add(k);
       try {
-        await fetch(`/api/schwab/backfill-contract?sym=${encodeURIComponent(sym)}&cp=${encodeURIComponent(cp)}&strike=${parseFloat(strike)}&exp=${encodeURIComponent(exp)}`).catch(() => {});
+        await fetch(`${API_BASE}/api/schwab/backfill-contract?sym=${encodeURIComponent(sym)}&cp=${encodeURIComponent(cp)}&strike=${parseFloat(strike)}&exp=${encodeURIComponent(exp)}`).catch(() => {});
         const params = new URLSearchParams({ sym, cp, strike: String(parseFloat(strike)), exp });
-        const resp = await fetch(`/api/schwab/contract-history?${params}`);
+        const resp = await fetch(`${API_BASE}/api/schwab/contract-history?${params}`);
         if (resp.ok) {
           const data = await resp.json();
           setContractHistory(prev => ({ ...prev, [k]: data.history || [] }));
@@ -3291,7 +5264,7 @@ export default function OptionsFlowDashboard() {
     const priceCacheKey = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
     if (!priceCache[priceCacheKey]) {
       try {
-        const resp = await fetch("/api/schwab/options-quotes", {
+        const resp = await fetch(API_BASE+"/api/schwab/options-quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify([{ symbol: sym, cp, strike: parseFloat(strike), expDate: expToISO(exp) }]),
@@ -3318,7 +5291,7 @@ export default function OptionsFlowDashboard() {
     if (!ticker) return;
     setGexLoading(true);
     try {
-      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
+      const resp = await fetch(`${API_BASE}/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
       if (resp.ok) {
         const data = await resp.json();
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
@@ -3335,7 +5308,7 @@ export default function OptionsFlowDashboard() {
   async function fetchIdeaGex(sym) {
     setIdeaGex({ sym, data:null, loading:true });
     try {
-      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(sym)}&dte=month`);
+      const resp = await fetch(`${API_BASE}/api/gex/data?ticker=${encodeURIComponent(sym)}&dte=month`);
       if (resp.ok) {
         const data = await resp.json();
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
@@ -3351,7 +5324,7 @@ export default function OptionsFlowDashboard() {
   async function fetchMarketData() {
     // Fetch index quotes
     try {
-      const resp = await fetch("/api/schwab/market-summary");
+      const resp = await fetch(API_BASE+"/api/schwab/market-summary");
       if (resp.ok) {
         const data = await resp.json();
         setMarketIndices(data.indices || []);
@@ -3360,7 +5333,7 @@ export default function OptionsFlowDashboard() {
     // Fetch AI narrative
     setNarrativeLoading(true);
     try {
-      const resp = await fetch("/api/schwab/market-narrative");
+      const resp = await fetch(API_BASE+"/api/schwab/market-narrative");
       if (resp.ok) {
         const data = await resp.json();
         setMarketNarrative(data.narrative || null);
@@ -3371,193 +5344,72 @@ export default function OptionsFlowDashboard() {
 
 
   return (
-    <div className="of-mroot" style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
+    <div style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
-              // Live Flow navigates to a separate page; other modes switch dataMode in place.
-              const isLive = m === "liveflow";
-              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
-              const hasAccent = accent !== null;
-              return (
-                <button key={m} onClick={()=>{
-                  if (isLive) { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
-                  if(dataMode!==m) {
-                    // Only reset flow data when switching between stocks ↔ index (csvFile changes)
-                    // Switching to/from darkpool or gex preserves cached parsedRows+D for instant return
-                    const wasFlow = dataMode === "stocks" || dataMode === "index";
-                    const toFlow = m === "stocks" || m === "index";
-                    if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setParsedRows(null); setLoadedFetchDays(null); }
-                    setDataMode(m);
-                  }
-                }} style={{
-                  padding:"8px 28px", borderRadius:6,
-                  border: hasAccent ? "1px solid "+(dataMode===m ? accent : accent+"55") : "none",
-                  cursor:"pointer",
-                  fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
-                  background: dataMode===m ? (hasAccent ? accent+"33" : P.cd) : "transparent",
-                  color: dataMode===m ? (hasAccent ? accent : P.wh) : (hasAccent ? accent : P.mt),
-                  boxShadow: dataMode===m ? "0 2px 8px rgba(0,0,0,0.3)" : "none",
-                  transition:"all 0.15s"
-                }}>{label}</button>
-              );
-            })}
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
+              <button key={m} onClick={()=>switchMode(m)} style={{
+                padding:"8px 28px", borderRadius:6, border:(m==="gex"||m==="darkpool")?(dataMode===m?"1px solid "+(m==="darkpool"?"#6ba3be":"#c9a84c"):"1px solid "+(m==="darkpool"?"#6ba3be55":"#c9a84c55")):"none", cursor:"pointer",
+                fontSize:14, fontWeight:800, fontFamily:"inherit", letterSpacing:0.5,
+                background:dataMode===m?(m==="gex"?"#c9a84c33":m==="darkpool"?"#6ba3be33":P.cd):"transparent", color:dataMode===m?(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.wh):(m==="gex"?"#c9a84c":m==="darkpool"?"#6ba3be":P.mt),
+                boxShadow:dataMode===m?("0 2px 8px rgba(0,0,0,0.3)"):"none",
+                transition:"all 0.15s"
+              }}>{label}</button>
+            ))}
           </div>
         </div>
 
-        {/* Date Filter — rolling windows + presets + calendar */}
-        {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
+        {/* Date Filter — pills for ≤5 dates, dropdown for more */}
+        {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 1 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
-            <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
-              {[
-                { key:"Last1", label:"1d", days:1 },
-                { key:"Last5", label:"5d", days:5 },
-                { key:"Last20", label:"20d", days:20 },
-                { key:"Last60", label:"60d", days:60 },
-                { key:"Last90", label:"90d", days:90 },
-                { key:"All", label:"All", days:0 },
-              ].map(({key, label, days}) => {
-                const filterKey = days === 0 ? "All" : "Last" + days;
-                const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
-                const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
-                return (
-                  <button key={key} onClick={()=>{
-                    if (needsFetch) setFetchDays(days);
-                    setDateFilter(filterKey);
-                    setDateFrom(""); setDateTo(""); setShowCal(false); setCalStart(null);
-                  }} style={{
+            {availableDates.length <= 5 ? (
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:6, padding:2, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center" }}>
+                <button onClick={()=>setDateFilter("All")} style={{
+                  padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All · {availableDates.length}d</button>
+                {availableDates.map(d=>(
+                  <button key={d} onClick={()=>setDateFilter(d)} style={{
                     padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
-                    fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:isActive?P.cd:"transparent",
-                    color:isActive?(key==="All"?P.ac:P.wh):P.mt,
-                    transition:"all 0.15s"
-                  }}>
-                    {label}
-                  </button>
-                );
-              })}
-              <span style={{ width:1, height:16, background:P.bd }}/>
-              <button onClick={()=>{
-                if (!showCal) {
-                  const last = availableDates[availableDates.length-1];
-                  if (last) { const d = mdyToDate(last); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }
-                }
-                setShowCal(!showCal); setCalStart(null);
-              }} style={{
-                padding:"5px 12px", borderRadius:4, border:"1px solid "+(dateFrom&&dateTo?P.ac:P.bd),
-                cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                background:dateFrom&&dateTo?P.ac+"22":showCal?P.cd:"transparent",
-                color:dateFrom&&dateTo?P.ac:showCal?P.wh:P.mt, transition:"all 0.15s"
-              }}>
-                {dateFrom && dateTo
-                  ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
-                  : "📅 Dates"}
-              </button>
-              {dateFrom && dateTo && (
-                <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
-                  style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
-              )}
-              <span style={{ fontSize:9, color:P.dm }}>
-                {csvLoading ? "Loading..." : dateFrom && dateTo
-                  ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
-                  : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
-              </span>
-
-              {showCal && (
-                <div ref={calRef} style={{
-                  position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
-                  background:P.cd, border:"1px solid "+P.bl, borderRadius:10, padding:14,
-                  boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
-                }}>
-                  <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
-                    {[
-                      { label:"Today", fn:()=>{ const d=availableDates[availableDates.length-1]; if(d){const iso=mdyToIso(d); setDateFrom(iso); setDateTo(iso); if(fetchDays!==0)setFetchDays(0); setShowCal(false);} }},
-                      { label:"This Week", fn:()=>{ const last=availableDates[availableDates.length-1]; if(!last)return; const ld=mdyToDate(last); const mon=new Date(ld); mon.setDate(ld.getDate()-(ld.getDay()||7)+1); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(mdyToIso(last)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"Last Week", fn:()=>{ const now=new Date(); const mon=new Date(now); mon.setDate(now.getDate()-(now.getDay()||7)+1-7); const fri=new Date(mon); fri.setDate(mon.getDate()+4); setDateFrom(mon.toISOString().slice(0,10)); setDateTo(fri.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"This Month", fn:()=>{ const now=new Date(); const f=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; const last=availableDates[availableDates.length-1]; setDateFrom(f); setDateTo(last?mdyToIso(last):now.toISOString().slice(0,10)); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                      { label:"Last Month", fn:()=>{ const now=new Date(); const pm=new Date(now.getFullYear(), now.getMonth()-1, 1); const f=`${pm.getFullYear()}-${String(pm.getMonth()+1).padStart(2,"0")}-01`; const lm=new Date(pm.getFullYear(), pm.getMonth()+1, 0); const t=`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}-${String(lm.getDate()).padStart(2,"0")}`; setDateFrom(f); setDateTo(t); if(fetchDays!==0)setFetchDays(0); setShowCal(false); }},
-                    ].map(p => (
-                      <button key={p.label} onClick={p.fn} style={{
-                        padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd,
-                        background:"transparent", color:P.mt, fontSize:9, fontWeight:700,
-                        cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
-                      }}
-                        onMouseEnter={e=>{e.target.style.background=P.al; e.target.style.color=P.wh;}}
-                        onMouseLeave={e=>{e.target.style.background="transparent"; e.target.style.color=P.mt;}}
-                      >{p.label}</button>
-                    ))}
-                  </div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <button onClick={()=>{ if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1); }}
-                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>◀</button>
-                    <span style={{ fontSize:12, fontWeight:700, color:P.wh }}>
-                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][calMonth]} {calYear}
-                    </span>
-                    <button onClick={()=>{ if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1); }}
-                      style={{ background:"transparent", border:"none", color:P.mt, cursor:"pointer", fontSize:14, fontFamily:"inherit", padding:"2px 8px" }}>▶</button>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
-                    {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-                      <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:P.dm, padding:2 }}>{d}</div>
-                    ))}
-                  </div>
-                  {(()=>{
-                    const firstDay = new Date(calYear, calMonth, 1).getDay();
-                    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-                    const cells = [];
-                    for (let i=0; i<firstDay; i++) cells.push(null);
-                    for (let d=1; d<=daysInMonth; d++) cells.push(d);
-                    while (cells.length%7!==0) cells.push(null);
-                    return (
-                      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
-                        {cells.map((day, i) => {
-                          if (!day) return <div key={i} style={{ padding:4 }}/>;
-                          const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                          const isTrading = tradingDaysSet.has(iso);
-                          const isWeekend = new Date(calYear, calMonth, day).getDay()%6===0;
-                          const isStart = dateFrom===iso;
-                          const isEnd = dateTo===iso;
-                          const inRange = dateFrom && dateTo && iso>=dateFrom && iso<=dateTo;
-                          return (
-                            <button key={i} onClick={()=>{
-                              if (!calStart) {
-                                setCalStart(iso); setDateFrom(iso); setDateTo("");
-                              } else {
-                                let from=calStart, to=iso;
-                                if (iso < calStart) { from=iso; to=calStart; }
-                                setDateFrom(from); setDateTo(to); setCalStart(null);
-                                if (fetchDays!==0) setFetchDays(0);
-                                setShowCal(false);
-                              }
-                            }} style={{
-                              padding:0, borderRadius:4, border:"none", cursor:"pointer",
-                              fontSize:10, fontWeight:isTrading?700:400, fontFamily:"inherit",
-                              background: isStart||isEnd ? P.ac : inRange ? P.ac+"33" : "transparent",
-                              color: isStart||isEnd ? P.bg : inRange ? P.ac : isTrading ? P.wh : isWeekend ? P.bd : P.dm+"88",
-                              minWidth:32, minHeight:32, display:"flex", alignItems:"center", justifyContent:"center",
-                              position:"relative", transition:"background 0.1s"
-                            }}
-                              onMouseEnter={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background=P.al; }}
-                              onMouseLeave={e=>{ if(!inRange&&!isStart&&!isEnd) e.target.style.background="transparent"; }}
-                            >
-                              {day}
-                              {isTrading && <span style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:3, height:3, borderRadius:"50%", background:isStart||isEnd?P.bg:P.ac }}/>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"left", paddingLeft:12 }}>
-                    {calStart && !dateTo ? "Click end date" : "Click to start selection"}
-                    {" · "}<span style={{ color:P.ac }}>●</span> trading day
-                  </div>
-                </div>
-              )}
-            </div>
+                    fontSize:10, fontWeight:600, fontFamily:"inherit",
+                    background:dateFilter===d?P.cd:"transparent", color:dateFilter===d?P.wh:P.mt
+                  }}>{fmtDatePill(d)}</button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:6, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd }}>
+                {["Last3","Last5"].map(v=>{
+                  const n = parseInt(v.replace("Last",""));
+                  const label = "Last "+n+"d";
+                  return (
+                    <button key={v} onClick={()=>setDateFilter(v)} style={{
+                      padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                      fontSize:10, fontWeight:700, fontFamily:"inherit",
+                      background:dateFilter===v?P.cd:"transparent", color:dateFilter===v?P.ac:P.mt
+                    }}>{label}</button>
+                  );
+                })}
+                <button onClick={()=>setDateFilter("All")} style={{
+                  padding:"5px 12px", borderRadius:4, border:"none", cursor:"pointer",
+                  fontSize:10, fontWeight:700, fontFamily:"inherit",
+                  background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
+                }}>All {availableDates.length}d</button>
+                <span style={{ width:1, height:16, background:P.bd }}/>
+                <select value={dateFilter.startsWith("Last")||dateFilter==="All"?"":dateFilter}
+                  onChange={e=>e.target.value&&setDateFilter(e.target.value)}
+                  style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit", fontWeight:600, minWidth:120 }}>
+                  <option value="">Select date...</option>
+                  {[...availableDates].reverse().map(d=>(
+                    <option key={d} value={d}>{fmtDatePill(d)}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize:9, color:P.dm }}>{availableDates.length} trading days</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -3713,31 +5565,17 @@ export default function OptionsFlowDashboard() {
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
                       <div style={{ display:"flex", gap:4 }}>
-                        {[['1','1min'],['5','5min'],['15','15min'],['30','30min'],['60','1hr'],['D','Daily'],['W','Weekly'],['M','Monthly']].map(([val,label])=>(
-                          <button key={val} onClick={()=>setGexChartTf(val)}
-                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartTf===val?P.ac:P.bd+"80"),
-                              background:gexChartTf===val?P.ac+"22":"transparent", color:gexChartTf===val?P.ac:P.dm,
+                        {[["5min","5m"],["10min","10m"],["15min","15m"],["30min","30m"],["65min","65m"],["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"]].map(([val,label])=>(
+                          <button key={val} onClick={()=>setGexChartRange(val)}
+                            style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartRange===val?P.ac:P.bd+"80"),
+                              background:gexChartRange===val?P.ac+"22":"transparent", color:gexChartRange===val?P.ac:P.dm,
                               fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                             {label}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }}>
-                      <StockChart
-                        sym={gexData.ticker}
-                        tf={gexChartTf}
-                        height={500}
-                        liveUpdates={true}
-                        showDrawingTools={true}
-                        priceLines={gexPriceLines}
-                        onTfChange={setGexChartTf}
-                        hideReplay
-                        hidePatterns
-                        hideCompare
-                        hideCountdown
-                      />
-                    </div>
+                    <div ref={gexChartRef} style={{ width:"100%", height:500, borderRadius:6, overflow:"hidden" }} />
                   </div>
                 )}
 
@@ -3815,18 +5653,6 @@ export default function OptionsFlowDashboard() {
                   const swingPutsBelow = putsBelowSpot.filter(s => sp - s.strike >= minTargetDist);
                   const firstSupBelow = swingPutsBelow.length > 0 ? swingPutsBelow.sort((a,b)=>b.strike-a.strike)[0] : (putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null);
                   const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
-
-                  // Thin zone detection — gaps where price can accelerate
-                  const allStrikesAbove = [...(gexData.strikes||[])].filter(s => s.strike > sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>a.strike-b.strike);
-                  const allStrikesBelow = [...(gexData.strikes||[])].filter(s => s.strike < sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>b.strike-a.strike);
-                  // Thin above: gap between ceiling (or first res) and the next level above it
-                  const ceilingStrike = cwAboveSpot ? cwStrike : (firstResAbove ? firstResAbove.strike : null);
-                  const levelAboveCeiling = ceilingStrike ? allStrikesAbove.find(s => s.strike > ceilingStrike) : null;
-                  const thinAbove = ceilingStrike && (!levelAboveCeiling || (levelAboveCeiling.strike - ceilingStrike) / sp > 0.015);
-                  // Thin below: gap between floor (or first support) and the next level below it
-                  const floorStrike = pwBelowSpot ? pwStrike : (firstSupBelow ? firstSupBelow.strike : null);
-                  const levelBelowFloor = floorStrike ? allStrikesBelow.find(s => s.strike < floorStrike) : null;
-                  const thinBelow = floorStrike && (!levelBelowFloor || (floorStrike - levelBelowFloor.strike) / sp > 0.015);
 
                   let verdictText, verdictIcon, verdictBg, verdictColor;
                   if (pinSetup) {
@@ -3995,8 +5821,8 @@ export default function OptionsFlowDashboard() {
                   const trades = [];
                   const zgNearSpot = zg && Math.abs(sp - zg) / sp < 0.005; // within 0.5%
                   const zgBelowClose = zg && (zg - sp) / sp > -0.01 && zg < sp; // zg just below spot (<1%)
-                  const cwMagnet = !cwAboveSpot; // call wall below spot = support
-                  const pwMagnet = !pwBelowSpot; // put wall above spot = resistance
+                  const cwMagnet = !cwAboveSpot; // call wall below spot = magnet down
+                  const pwMagnet = !pwBelowSpot; // put wall above spot = magnet up
 
                   if (pinSetup) {
                     // Pin setup trades
@@ -4016,8 +5842,6 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is support below. Buy dips toward it — "+fmtGex(cwGex+pwGex)+" catches any pullback." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+pinStrike+". Sell rallies above $"+(pinStrike+pinRange*3)+" and buy dips below $"+(pinStrike-pinRange*3)+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above the pin — if price breaks above $"+(pinStrike+pinRange*3)+", it can run fast. Join the breakout, don't fade it." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below — if $"+(pinStrike-pinRange*3)+" breaks, price can slice through quickly. Protect downside." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+pinStrike+" is the pin strike this week — sell weekly premium around it. Iron fly or short straddle with defined risk." });
                       if (pinAboveSpot) {
@@ -4030,8 +5854,6 @@ export default function OptionsFlowDashboard() {
                         trades.push({ i:"●", bg:P.bu+"33", c:P.bu, t:"$"+pinStrike+" is weekly support below — "+fmtGex(cwGex+pwGex)+" catches pullbacks. Buy dips toward it." });
                       }
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Use $"+(pinStrike+pinRange*3)+" and $"+(pinStrike-pinRange*3)+" as swing fade levels. Enter on daily closes outside the range, target a snap back to $"+pinStrike+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above the pin — a daily close above $"+(pinStrike+pinRange*3)+" can run fast. Join the breakout." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below — a daily close below $"+(pinStrike-pinRange*3)+" means fast downside. Cut longs." });
                     }
                   } else if (squeezeSetup) {
                     // Squeeze setup trades
@@ -4040,13 +5862,9 @@ export default function OptionsFlowDashboard() {
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin air above $"+hi+" — if price breaks the ceiling, it can run fast. Don't fade a breakout above $"+(hi+Math.round(wallSpread))+"." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin air below $"+lo+" — if the floor breaks, price can slice through quickly. Tighten stops." });
                     } else {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"$"+lo+"–$"+hi+" is the weekly range. Sell weekly premium — iron condor with wings outside $"+(lo-Math.round(wallSpread))+" and $"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Swing entries: buy daily closes near $"+lo+", take profits near $"+hi+". Fade daily closes above $"+hi+" back toward $"+mid+"." });
-                      if (thinAbove) trades.push({ i:"↗", bg:P.bu+"33", c:P.bu, t:"Thin resistance above $"+hi+" — a daily close above it can run fast. Don't fade, join the move." });
-                      if (thinBelow) trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Thin support below $"+lo+" — a daily close below it means fast downside. Cut longs." });
                     }
                   } else {
                     // Directional trades
@@ -4123,9 +5941,6 @@ export default function OptionsFlowDashboard() {
 
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
-                  if (thinBelow && !pinSetup && !squeezeSetup) {
-                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
-                  }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
                   trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
 
@@ -4199,7 +6014,7 @@ export default function OptionsFlowDashboard() {
                           parts.push(isIntraday ? "Both about the same strength — choppy range. "+safetyStr : "Expect a choppy week in this range. Swing the edges. "+safetyStr);
                         }
                       } else if (!cwAboveSpot) {
-                        // CW below = support
+                        // CW below = magnet pulling down
                         const cwProxQR = (sp - cwStrike) / sp;
                         if (cwProxQR < 0.02) {
                           parts.push("Spot just above the massive "+cwStr+" level ("+fmtGex(cwGex)+") — now acting as support below.");
@@ -4214,7 +6029,7 @@ export default function OptionsFlowDashboard() {
                           parts.push((firstResAbove ? "Next resistance at $"+firstResAbove.strike+"." : "Room to run higher.")+" "+(isPositive ? (isIntraday?"Pullbacks toward "+cwStr+" are buying opportunities.":"Buy dips toward "+cwStr+" this week — safety net supports.") : "Safety net off — protect below "+cwStr+"."));
                         }
                       } else if (!pwBelowSpot) {
-                        // PW above = resistance
+                        // PW above = magnet pulling up
                         parts.push("Floor at "+pwStr+" is above current price — pulling price UP.");
                         parts.push(fmtGex(pwGex)+" wants price at "+pwStr+"."+(isIntraday?" Bullish pull.":" Bullish weekly bias — look for entries on dips."));
                       }
@@ -4320,10 +6135,23 @@ export default function OptionsFlowDashboard() {
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — ADMIN</h1>
           <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
             {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
           </span>
+          <button onClick={()=>document.getElementById("csv-reupload").click()}
+            style={{ marginLeft:8, padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent",
+              color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            ↑ Re-upload CSV
+          </button>
+          <input id="csv-reupload" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+          {dbStatus && (
+            <span style={{ fontSize:9, fontWeight:600, padding:"3px 10px", borderRadius:4, marginLeft:6,
+              background: dbStatus.type==="ok"?P.bu+"22":dbStatus.type==="error"?P.be+"22":P.al,
+              color: dbStatus.type==="ok"?P.bu:dbStatus.type==="error"?P.be:P.ye }}>
+              {dbStatus.msg}
+            </span>
+          )}
         </div>
 
         {/* ── Market Pulse — compact ticker strip ────────────────────────── */}
@@ -4351,7 +6179,7 @@ export default function OptionsFlowDashboard() {
                 </div>
               )}
               {marketIndices && (
-                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+                <button onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
               )}
             </div>
             {/* AI Narrative */}
@@ -4371,7 +6199,7 @@ export default function OptionsFlowDashboard() {
         )}
 
         {/* Tabs */}
-        <div className="of-tabs" style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:1, marginBottom:14, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
               padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
@@ -4397,7 +6225,7 @@ export default function OptionsFlowDashboard() {
           };
           return (
             <div style={{ marginBottom:10 }}>
-              <div className="of-chiprow-wrap" style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                 <span style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:"0.08em", textTransform:"uppercase" }}>Cap Filter</span>
                 {caps.map(c => {
                   const active = capFilter === c;
@@ -4483,7 +6311,6 @@ export default function OptionsFlowDashboard() {
               // High-concentration warning: top 3 dominate one side
               const concentrationWarn = top3BullPct >= 50 || top3BearPct >= 50;
               const capLabel = capFilter==="All" ? "All Caps" : capFilter;
-              // Flow velocity: today vs average
               const allDates = [...new Set(cc.map(t=>t.Dt).filter(Boolean))];
               const latestDate = allDates.length > 0 ? allDates.sort((a,b)=>{
                 const pa=a.split("/").map(Number), pb=b.split("/").map(Number);
@@ -4498,7 +6325,6 @@ export default function OptionsFlowDashboard() {
               const velRatio = avgDailyPrem > 0 ? todayPrem / avgDailyPrem : 0;
               const velLabel = velRatio >= 1.5 ? "elevated" : velRatio >= 0.8 ? "normal" : "quiet";
               const velC = velRatio >= 1.5 ? P.ac : velRatio >= 0.8 ? P.wh : P.dm;
-              // Earnings callout
               const erTickers = [...new Set(cc.filter(t=>t.er).map(t=>t.S))];
               const erTop = erTickers.slice(0,5);
               return (
@@ -4540,7 +6366,6 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </>}
                       </div>
-{/* Flow Velocity */}
                       {latestDate && avgDailyPrem > 0 && (
                         <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:4 }}>
                           <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>FLOW VELOCITY: </span>
@@ -4557,7 +6382,6 @@ export default function OptionsFlowDashboard() {
                           <span>.</span>
                         </div>
                       )}
-                      {/* Earnings Callout */}
                       {erTop.length > 0 && (
                         <div style={{ fontSize:11, color:P.mt, lineHeight:1.8, marginTop:2 }}>
                           <span style={{ fontWeight:700, color:P.dm, letterSpacing:0.5 }}>EARNINGS FLOW: </span>
@@ -4596,7 +6420,7 @@ export default function OptionsFlowDashboard() {
                             <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
                           </div>
                           {/* Recheck toggle: subtle, sits below the 65% as a "what if" tool */}
-                          <div className="of-chiprow-wrap" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
                             <span style={{ fontSize:9, color:P.dm, fontStyle:"italic" }}>recheck without:</span>
                             {[
                               { val:0, lbl:"none" },
@@ -4730,7 +6554,7 @@ export default function OptionsFlowDashboard() {
             {FD.SECTORS.length > 0 && (
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
-                  <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                  <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                     {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
                       <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
                         padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
@@ -4899,7 +6723,6 @@ export default function OptionsFlowDashboard() {
                                         📈 Chart
                                       </button>
                                     </div>
-                                    {/* Bull/Bear summary */}
                                     <div style={{ display:"flex", gap:10, fontSize:9, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
                                       <span style={{ color:P.bu, fontWeight:700 }}>BULL {fmt(tk.b||0)}</span>
                                       <span style={{ color:P.be, fontWeight:700 }}>BEAR {fmt(tk.r||0)}</span>
@@ -5120,6 +6943,7 @@ export default function OptionsFlowDashboard() {
                 )}
               </Card>
             )}
+
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
             {/* TOP 10 FLOW PICKS */}
@@ -5247,7 +7071,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>TOP 10 FLOW PICKS</div>
-                      <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
+                      <div style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
                         {["Both","Calls","Puts","Unusual"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
                             padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
@@ -5542,7 +7366,6 @@ export default function OptionsFlowDashboard() {
                       background:P.cd, borderRadius:12, overflow:"hidden",
                       display:"flex", flexDirection:"column",
                       boxShadow:"0 24px 80px rgba(0,0,0,0.9)", border:"1px solid "+P.bl }}>
-                    {/* Header — same row layout as renderDetailPanel */}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                       padding:"10px 14px", borderBottom:"1px solid "+P.bd, background:P.cd, flexShrink:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -5558,8 +7381,6 @@ export default function OptionsFlowDashboard() {
                         )}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        {/* Switch-ticker input — type a symbol and press Enter to load
-                            that chart in place. No close-and-reopen needed. */}
                         <input type="text" value={chartModalSearch}
                           onChange={e => setChartModalSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
                           onKeyDown={e => {
@@ -5579,7 +7400,6 @@ export default function OptionsFlowDashboard() {
                           style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
                       </div>
                     </div>
-                    {/* Timeframe row — matches renderDetailPanel pattern */}
                     <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
                       {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label]) => (
                         <button key={val} onClick={() => setChartInterval(val)}
@@ -5589,9 +7409,10 @@ export default function OptionsFlowDashboard() {
                           {label}
                         </button>
                       ))}
-                      {/* Dark Pool toggle — applies globally (persists in localStorage). */}
+                      {/* Dark Pool toggle — applies globally (persists in localStorage).
+                          Visually inert in admin's iframe-based StockChart; here for parity. */}
                       <button onClick={() => setShowDarkPool(v => !v)}
-                        title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
+                        title={showDarkPool ? "Hide dark pool zones (no-op in admin until StockChart migrates)" : "Show dark pool zones"}
                         style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
                           border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
                           background:showDarkPool?"#c9a84c22":"transparent",
@@ -5630,30 +7451,7 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
-          // Use all_directional (not clean_confirmed) so Bull/Bear totals match
-          // the Search tab. clean_confirmed is the strict methodology — only
-          // YELLOW/MAGENTA confirmed clusters — which excludes "dirty-dominant"
-          // trades (80%+ one direction, some opposing). Search was updated to
-          // use all_directional so the header doesn't read $0 for all-WHITE
-          // tickers like SERV. Standardizing Leaderboard here closes the gap
-          // between Search and Leaderboard (previously FRMI showed $3.0M bull
-          // here but $14.3M on Search for the same time window).
-          //
-          // Mid-Small filter also includes "Unknown" mktcap tickers. capBand
-          // returns "Unknown" when mktcap is missing/0 in our data — almost
-          // always small/mid-cap names (mega and large are universally tracked
-          // in market data feeds). Without this, high-flow names like KEEL
-          // silently vanish from every cap filter except "All" just because
-          // their mktcap field is null. The fallback lookup at wlCapCheck
-          // (line 1891) handles individual ticker resolution; this filter
-          // handles bulk leaderboard inclusion.
-          const matchesLBCap = (t) => {
-            if (capFilter === "All") return true;
-            const cap = capBand(t.mktcap);
-            if (cap === capFilter) return true;
-            return capFilter === "Mid-Small" && cap === "Unknown";
-          };
-          const cc = (D.all_directional||[]).filter(matchesLBCap);
+          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
           const [cPct, setCPct] = [convictionPct, setConvictionPct];
@@ -5673,7 +7471,7 @@ export default function OptionsFlowDashboard() {
           const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
@@ -5695,20 +7493,13 @@ export default function OptionsFlowDashboard() {
             if (t.Si==="B"||t.Si==="BB") c.bidPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
           });
-          // Build broader contract totals from D.all_directional — same source
-          // as the Bull/Bear totals above so the Top Contract premium is always
-          // ≤ the ticker's total directional flow. Previously this used
-          // D.all_trades which included NEUT/dirty clusters, producing the
-          // mathematically impossible state where AXTI's Top Contract ($25.4M)
-          // exceeded its Bull total ($7.8M). Same dataset across columns = same
-          // denominator = no more surprises.
+          // Build broader contract totals from D.all_trades — used to overlay
+          // displayPrem/displayHits so the "Top Contract" column reflects TOTAL flow
+          // on the strike (matching Search Top Trades), while the directional values
+          // (used for sort/score) stay strict.
           const lbBroader = {};
-          (D.all_directional || []).forEach(t => {
-            // Use the same matchesLBCap helper as the bull/bear totals above
-            // so the Top Contract column's data source matches exactly.
-            // Without this, Unknown-mktcap tickers (like KEEL) would have
-            // their bull/bear shown but their Top Contract premium missing.
-            if (!matchesLBCap(t)) return;
+          (D.all_trades || []).forEach(t => {
+            if (capFilter !== "All" && capBand(t.mktcap) !== capFilter) return;
             if (!dteF(t)) return;
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!lbBroader[k]) lbBroader[k] = {prem:0, hits:0};
@@ -5791,32 +7582,6 @@ export default function OptionsFlowDashboard() {
             const isExp = cExp === tk.sym;
             const displayPct = side==="bear" ? (100-tk.bullPct) : tk.bullPct;
             const pctColor = displayPct>=80 ? (side==="bear"?P.be:P.bu) : displayPct<=20 ? (side==="bear"?P.bu:P.be) : P.dm;
-
-            // ΔOI computation: liveOI − baselineOI (maxOI seen during the
-            // window). Positive = position growing (new contracts opened net),
-            // negative = position fading (closed net). Returns null when Live
-            // OI hasn't been fetched yet — the badge is silently omitted in
-            // that case, no UI noise. User triggers Live OI fetch via the
-            // "⚡ Fetch Live P/L" button on Search/expand panels; once cached,
-            // it's available everywhere via getPrice().
-            const computeDeltaOI = (c) => {
-              const px = getPrice(tk.sym, c.cp, c.K, c.exp);
-              const liveOI = px ? (px.oi || 0) : 0;
-              const baseOI = c.maxOI || 0;
-              if (liveOI === 0 || baseOI === 0) return null;
-              return liveOI - baseOI;
-            };
-            // Format ΔOI with sign + abbreviation (e.g., "+6.5k", "-2.3k", "+120")
-            const fmtDelta = (d) => {
-              const sign = d > 0 ? "+" : "";
-              if (Math.abs(d) >= 1000) return sign + (d/1000).toFixed(1) + "k";
-              return sign + d.toLocaleString();
-            };
-            // Color: meaningful growth (>100) green, meaningful decay (<-100)
-            // red. Smaller values are noise (rolling activity) and shown gray
-            // so subscribers focus on real position changes.
-            const deltaColor = (d) => d > 100 ? P.bu : d < -100 ? P.be : P.dm;
-
             return (
               <Fragment key={tk.sym}>
               <tr style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer", background:isExp?P.ac+"0a":idx<5?dirC+"06":"transparent" }}
@@ -5844,16 +7609,6 @@ export default function OptionsFlowDashboard() {
                     <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
                     <span style={{ color:(tc_.displayHits||tc_.hits)>=10?P.ac:(tc_.displayHits||tc_.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.displayHits||tc_.hits}x</span>
                     {(tc_.displayPrem||tc_.prem)>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.displayPrem||tc_.prem)}</span>}
-                    {/* ΔOI badge — shows position growth/decay since the trade
-                        window. Only renders when Live OI has been fetched
-                        (getPrice returns a valid oi). Positive = position
-                        building, negative = profit-taking / closing. */}
-                    {(()=>{ const d = computeDeltaOI(tc_); return d !== null ? (
-                      <span style={{ color:deltaColor(d), fontSize:8, marginLeft:4, fontWeight:700, padding:"1px 4px", borderRadius:3, background:deltaColor(d)+"15", border:"1px solid "+deltaColor(d)+"33" }}
-                            title={d > 0 ? "Open interest grew by " + d.toLocaleString() + " contracts since these trades — position is being built" : d < 0 ? "Open interest fell by " + Math.abs(d).toLocaleString() + " contracts — position is being closed (profit-taking or fading)" : "Open interest unchanged"}>
-                        ΔOI {fmtDelta(d)}
-                      </span>
-                    ) : null; })()}
                   </span>)}
                 </td>
               </tr>
@@ -5864,9 +7619,8 @@ export default function OptionsFlowDashboard() {
                     {tk.topContracts.map((c,i) => {
                       const cSide = c.askPrem >= c.bidPrem ? "ask" : "bid";
                       const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
-                      const cDelta = computeDeltaOI(c);
                       return (
-                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, textAlign:"center", cursor:"pointer" }}
+                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
                           onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
@@ -5876,16 +7630,6 @@ export default function OptionsFlowDashboard() {
                           <span style={{ color:(c.displayHits||c.hits)>=10?P.ac:(c.displayHits||c.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.displayHits||c.hits}x</span>
                           <span style={{ color:premC(c.displayPrem||c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.displayPrem||c.prem)}</span>
                           {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:8 }}>{c.volOI.toFixed(1)}x V/OI</span>}
-                          {/* ΔOI badge — same logic as the inline column above,
-                              but only renders when Live OI is cached. Subtle
-                              styling here since chip is already information-
-                              dense; user can hover for the explanatory tooltip. */}
-                          {cDelta !== null && (
-                            <span style={{ color:deltaColor(cDelta), fontSize:8, marginLeft:6, fontWeight:700 }}
-                                  title={cDelta > 0 ? "OI grew by " + cDelta.toLocaleString() + " — position building" : cDelta < 0 ? "OI fell by " + Math.abs(cDelta).toLocaleString() + " — position fading" : "OI unchanged"}>
-                              ΔOI {fmtDelta(cDelta)}
-                            </span>
-                          )}
                         </div>
                       );
                     })}
@@ -6001,55 +7745,7 @@ export default function OptionsFlowDashboard() {
                   <Card>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: P.ac, letterSpacing: 1 }}>FLOW PULSE</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        {/* Fetch button — batches a Schwab call for every top
-                            contract on both bull and bear tables (top 25 each,
-                            deduped). Once cached, ΔOI badges populate on every
-                            row showing whether positions are still being built
-                            or are fading. Without this, ΔOI only shows for
-                            contracts the user already fetched on Search. */}
-                        {(() => {
-                          // Collect top-3 contracts from all visible rows so
-                          // expanded panels also benefit. Dedup by ticker+CP+
-                          // strike+exp since tickers may appear in both lists
-                          // (rare but possible with split direction). Top 3
-                          // gives ~150 contracts max which fits in ~8 batches.
-                          const seen = new Set();
-                          const contracts = [];
-                          [...bulls.slice(0, 25), ...bears.slice(0, 25)].forEach(tk => {
-                            (tk.topContracts || []).slice(0, 3).forEach(c => {
-                              const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
-                              if (!seen.has(k)) {
-                                seen.add(k);
-                                contracts.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp });
-                              }
-                            });
-                          });
-                          // Disabled when zero contracts (no data loaded yet)
-                          // or already fetching. Label includes count so user
-                          // knows the scope before clicking — important since
-                          // a full fetch takes ~5-10 seconds.
-                          return (
-                            <button
-                              onClick={() => fetchPrices(contracts)}
-                              disabled={fetchLoading || contracts.length === 0}
-                              style={{
-                                padding:"4px 12px", borderRadius:6,
-                                border: "1px solid " + (fetchLoading ? P.bd : P.sw),
-                                cursor: fetchLoading || !contracts.length ? "not-allowed" : "pointer",
-                                fontSize:9, fontWeight:700, fontFamily:"inherit",
-                                background: fetchLoading ? P.bd : P.sw + "22",
-                                color: fetchLoading ? P.dm : P.sw,
-                                letterSpacing: 0.5,
-                              }}
-                              title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
-                            >
-                              {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${contracts.length})`}
-                            </button>
-                          );
-                        })()}
-                        <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
-                      </div>
+                      <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
                     </div>
                     {/* Bull/bear ratio bar with premiums */}
                     {grandTotal > 0 && (
@@ -6150,7 +7846,6 @@ export default function OptionsFlowDashboard() {
 
         {/* Top Flow — Master List */}
         {tab==="Top Flow" && (()=>{
-          // Build clusters from ALL clean confirmed trades
           const tfClusters = {};
           (D.clean_confirmed||[]).forEach(t => {
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
@@ -6227,10 +7922,6 @@ export default function OptionsFlowDashboard() {
             else if (tfDteFilter === "LEAPS") filtered = filtered.filter(c => c.dteBand === "LEAPS");
           }
           if (cpFilter !== "All") filtered = filtered.filter(c => c.dir===(cpFilter==="Calls"?"BULL":"BEAR"));
-          // Score-rank cutoff: top 20 by conviction, then user can re-sort within.
-          // Pre-compute display values (now, pnl, peak) once up front so sort and
-          // render both use the same numbers (avoids inconsistency between sort
-          // key and visible value).
           const scoreRanked = filtered.sort((a,b)=>b.score-a.score).slice(0,20);
           const enriched = scoreRanked.map((r, scoreIdx) => {
             const px = getPrice(r.sym, r.cp, r.K, r.exp);
@@ -6248,12 +7939,10 @@ export default function OptionsFlowDashboard() {
             const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
             return { ...r, _now: now, _pnl: pnl, _peakPnl: peakPnl, _peakRetrace: peakRetrace, _isExit, _rank: scoreIdx + 1 };
           });
-          // Sort key extractor — works on the enriched objects so every column
-          // can sort even when values are derived (P&L, Peak, etc.)
           const getSortVal = (r, col) => {
             switch (col) {
               case "Ticker":  return r.sym;
-              case "Exp":     return r.DTE;            // DTE gives chronological order matching the exp display
+              case "Exp":     return r.DTE;
               case "Strike":  return Number(r.K);
               case "C/P":     return r.cp;
               case "Side":    return ({AA:0, ASK:1, BB:2, BID:3})[r.side] ?? 9;
@@ -6297,7 +7986,6 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
             </Card>
-            {/* Filters */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
@@ -6319,7 +8007,6 @@ export default function OptionsFlowDashboard() {
               </div>
               <span style={{ fontSize:10, color:P.dm, alignSelf:"center" }}>{ranked.length} contracts</span>
             </div>
-            {/* Table */}
             <Card>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                 <thead>
@@ -6330,7 +8017,7 @@ export default function OptionsFlowDashboard() {
                       const onClick = isSortable ? () => setTfSort(prev =>
                         prev.col === h
                           ? { col: h, dir: prev.dir === "asc" ? "desc" : "asc" }
-                          : { col: h, dir: "desc" }  // first click defaults to descending
+                          : { col: h, dir: "desc" }
                       ) : undefined;
                       return (
                         <th key={h} onClick={onClick}
@@ -6356,7 +8043,6 @@ export default function OptionsFlowDashboard() {
                     const peakPnl = r._peakPnl;
                     const peakRetrace = r._peakRetrace;
                     const _isExit = r._isExit;
-                    const peakPrice = peakPnl !== 0 ? 1 : 0; // sentinel — peakPnl is the source of truth now
                     return (
                       <tr key={i} onClick={()=>{ fetchContractHistory(r.sym,r.cp,r.K,r.exp); setSelectedItem(prev=>prev&&prev.sym===r.sym&&prev.cp===r.cp&&String(prev.K)===String(r.K)&&prev.exp===r.exp?null:{sym:r.sym,cp:r.cp,K:r.K,exp:r.exp}); }}
                         style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer", background:r._rank<=3?(P.ac+"06"):"transparent" }}
@@ -6417,6 +8103,7 @@ export default function OptionsFlowDashboard() {
           const leaderData = leaders.map(sym => {
             const agg = ccByTicker[sym];
             if (!agg || (agg.bull + agg.bear) <= 0) {
+              // Fall back to TICKER_DB for top contract display even if no clean flow
               const tk = FD.TICKER_DB.find(t=>t.s===sym);
               const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
               return { sym, found:!!tk, bull:0, bear:0, net:0, trades:0, cap:tk?capBand(tk.mktcap):"", er:agg?.er||tk?.er||false,
@@ -6474,6 +8161,7 @@ export default function OptionsFlowDashboard() {
                 </div>
               </div>
             </Card>
+            {/* Summary bar */}
             {leaders.length > 0 && (
             <Card>
               <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:8 }}>
@@ -6494,6 +8182,7 @@ export default function OptionsFlowDashboard() {
               </div>
             </Card>
             )}
+            {/* Leader rows */}
             {leaders.length > 0 ? (
             <Card>
               <div>
@@ -6608,16 +8297,19 @@ export default function OptionsFlowDashboard() {
               {search && search.length >= 1 && !selectedTicker && !searchGroup && (()=>{
                 const q = search.toLowerCase();
                 // Uppercased query for ticker matching — D.ALL_SYMS stores
-                // tickers in canonical upper case ("BE", "AAPL"). Before
-                // this fix the filter used raw `search`, so typing "be"
-                // (the natural way most people type) failed to match "BE"
-                // via startsWith and short tickers were silently absent
+                // tickers in canonical upper case ("BE", "AAPL"). Before this
+                // fix the filter used raw `search`, so typing "be" (lower
+                // case — the natural way most people type) failed to match
+                // "BE" via startsWith and the ticker was silently absent
                 // from suggestions. Theme/sector matchers below correctly
                 // used `q` (lower) against lower-cased haystacks; ticker
                 // path was the odd one out.
                 const qUpper = search.toUpperCase();
+                // Match tickers
                 const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
+                // Match themes
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
+                // Match sectors (unique from TICKER_DB)
                 const allSectors = [...new Set(D.TICKER_DB.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
                 const hasResults = tickerMatches.length > 0 || themeMatches.length > 0 || sectorMatches.length > 0;
@@ -6706,6 +8398,7 @@ export default function OptionsFlowDashboard() {
                     <button onClick={()=>{ setSearchGroup(null); setSearch(""); }}
                       style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:9, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}>✕ Clear</button>
                   </div>
+                  {/* Summary bar */}
                   <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:12 }}>
                     <div>
                       <div style={{ fontSize:8, color:P.dm, fontWeight:600 }}>Group Net Flow</div>
@@ -6722,6 +8415,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                   </div>
+                  {/* Ticker table */}
                   {(()=>{
                     const [gsCol, gsDir] = (searchGroup._sort||"net|desc").split("|");
                     const setGS = (col) => { const nd = gsCol===col&&gsDir==="desc"?"asc":"desc"; setSearchGroup({...searchGroup, _sort:col+"|"+nd}); };
@@ -6827,11 +8521,10 @@ export default function OptionsFlowDashboard() {
                           if(t.D==="BULL") bull+=t.P; if(t.D==="BEAR") bear+=t.P; n++;
                           if(t.Ty==="SWP") hasSwp=true; if(t.Ty==="BLK") hasBlk=true;
                           const ck=t.CP+"|"+t.K+"|"+t.E;
-                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0,prices:[],maxOI:0};
+                          if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,DTE:t.DTE,askPrem:0,bidPrem:0,prices:[]};
                           const c=contracts[ck]; c.hits++; c.prem+=t.P;
                           if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
                           if(t.price>0) c.prices.push(t.price);
-                          if(t.OI>c.maxOI) c.maxOI=t.OI;
                         });
                         const total=bull+bear; const bullPct=total>0?Math.round(bull/total*100):50;
                         const sorted=Object.values(contracts).sort((a,b)=>b.prem-a.prem);
@@ -6871,18 +8564,15 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>
                       {batchResults.filter(r=>r.found).length} of {batchResults.length} tickers found in flow data
                     </div>
-                    {/* Top Ideas from batch */}
                     {(()=>{
                       const found = batchResults.filter(r=>r.found && r.net !== 0);
                       if (found.length < 2) return null;
-                      // Score each
                       const scored = found.map(r => {
                         let sc = 0;
-                        const absNet = Math.abs(r.net);
                         const convPct = r.dir==="BULL" ? r.bullPct : (100-r.bullPct);
                         sc += convPct >= 95 ? 25 : convPct >= 90 ? 20 : convPct >= 80 ? 15 : convPct >= 70 ? 10 : 5;
                         sc += r.hasSwp && r.hasBlk ? 25 : r.hasSwp ? 15 : 5;
-                        sc += absNet >= 50e6 ? 15 : absNet >= 20e6 ? 12 : absNet >= 5e6 ? 9 : absNet >= 1e6 ? 6 : 3;
+                        sc += Math.abs(r.net) >= 50e6 ? 15 : Math.abs(r.net) >= 20e6 ? 12 : Math.abs(r.net) >= 5e6 ? 9 : Math.abs(r.net) >= 1e6 ? 6 : 3;
                         const tc = r.topContract;
                         if (tc) {
                           sc += tc.hits >= 10 ? 10 : tc.hits >= 5 ? 7 : tc.hits >= 3 ? 4 : 2;
@@ -6890,7 +8580,6 @@ export default function OptionsFlowDashboard() {
                           else if (tc.DTE >= 3 && tc.DTE <= 45) sc += 10;
                           else sc += 5;
                         }
-                        // Build reason
                         const reasons = [];
                         if (convPct >= 90) reasons.push(Math.round(convPct)+"% "+r.dir.toLowerCase());
                         if (r.hasSwp && r.hasBlk) reasons.push("sweep+block");
@@ -6910,24 +8599,24 @@ export default function OptionsFlowDashboard() {
                         let tcC = P.dm;
                         if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                         return (
-                          <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", textAlign:"center", cursor:"pointer" }}
+                          <div key={r.sym} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                             onClick={()=>{
-                              const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
-                              const trades = cc.filter(t=>t.S===r.sym);
-                              const contracts = {};
-                              trades.forEach(t => {
-                                const ck=t.CP+"|"+t.K+"|"+t.E;
-                                if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,DTE:t.DTE,askPrem:0,bidPrem:0,maxOI:0,hasSweep:false,hasBlock:false,prices:[]};
-                                const c=contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=t.V;
-                                if(t.Ty==="SWP") c.hasSweep=true; if(t.Ty==="BLK") c.hasBlock=true;
-                                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
-                                if(t.OI>c.maxOI) c.maxOI=t.OI;
-                                if(t.price>0) c.prices.push(t.price);
-                              });
-                              Object.values(contracts).forEach(c=>{ c.entry=c.prices.length>0?c.prices.reduce((a,b)=>a+b,0)/c.prices.length:0; c.volOI=c.maxOI>0?c.vol/c.maxOI:0; });
-                              setBatchDetail({sym:r.sym, bull:r.bull, bear:r.bear, bullPct:r.bullPct, dir:r.dir, net:r.net, n:r.n,
-                                contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
-                            }}>
+                                const cc = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
+                                const trades = cc.filter(t=>t.S===r.sym);
+                                const contracts = {};
+                                trades.forEach(t => {
+                                  const ck=t.CP+"|"+t.K+"|"+t.E;
+                                  if(!contracts[ck]) contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,DTE:t.DTE,askPrem:0,bidPrem:0,maxOI:0,hasSweep:false,hasBlock:false,prices:[]};
+                                  const c=contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=t.V;
+                                  if(t.Ty==="SWP") c.hasSweep=true; if(t.Ty==="BLK") c.hasBlock=true;
+                                  if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
+                                  if(t.OI>c.maxOI) c.maxOI=t.OI;
+                                  if(t.price>0) c.prices.push(t.price);
+                                });
+                                Object.values(contracts).forEach(c=>{ c.entry=c.prices.length>0?c.prices.reduce((a,b)=>a+b,0)/c.prices.length:0; c.volOI=c.maxOI>0?c.vol/c.maxOI:0; });
+                                setBatchDetail({sym:r.sym, bull:r.bull, bear:r.bear, bullPct:r.bullPct, dir:r.dir, net:r.net, n:r.n,
+                                  contracts:Object.values(contracts).sort((a,b)=>b.prem-a.prem), mktcap:r.mktcap});
+                              }}>
                             <span style={{ fontSize:10, color:dirC, fontWeight:900, width:16 }}>{i+1}</span>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:13, minWidth:50 }}>{r.sym}</span>
                             <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(Math.abs(r.net))}</span>
@@ -6983,30 +8672,13 @@ export default function OptionsFlowDashboard() {
                         </div>
                       );
                     })()}
-                    {/* Fetch Live OI & P/L for every visible top contract */}
-                    {batchResults.filter(r=>r.found && r.topContract).length > 0 && (
-                      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-                        <button onClick={()=>{
-                          const all = [];
-                          batchResults.forEach(r => {
-                            if (r.found && r.topContract) all.push({ sym:r.sym, cp:r.topContract.cp, strike:r.topContract.K, exp:r.topContract.exp });
-                          });
-                          if (all.length) fetchPrices(all);
-                        }} disabled={fetchLoading}
-                          title="Fetch live OI and P/L for every Top Contract in this batch."
-                          style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                          {fetchLoading?"Fetching…":"⚡ Fetch Live OI & P/L (all rows)"}
-                        </button>
-                      </div>
-                    )}
                     <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
                       <colgroup>
-                        <col style={{ width:"9%" }}/><col style={{ width:"7%" }}/><col style={{ width:"11%" }}/><col style={{ width:"11%" }}/>
-                        <col style={{ width:"9%" }}/><col style={{ width:"12%" }}/><col style={{ width:"22%" }}/><col style={{ width:"9%" }}/><col style={{ width:"10%" }}/>
+                        <col style={{ width:"11%" }}/><col style={{ width:"8%" }}/><col style={{ width:"13%" }}/><col style={{ width:"13%" }}/>
+                        <col style={{ width:"11%" }}/><col style={{ width:"15%" }}/><col style={{ width:"29%" }}/>
                       </colgroup>
                       <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""],["Live OI",""],["P/L%",""]].map(([h,sk])=>{
+                        {[["Ticker","ticker"],["Bet",""],["Bull","bull"],["Bear","bear"],["Split",""],["Net","net"],["Top Contract",""]].map(([h,sk])=>{
                           const sortable = !!sk;
                           const active = batchSort===sk;
                           const arrow = active ? (batchSortDir==="desc"?" ▼":" ▲") : "";
@@ -7015,8 +8687,7 @@ export default function OptionsFlowDashboard() {
                             else { setBatchSort(sk); setBatchSortDir(sk==="ticker"?"asc":"desc"); }
                           }:undefined}
                             style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:9, fontWeight:active?800:600,
-                              cursor:sortable?"pointer":"default", userSelect:"none" }}
-                            title={h==="Live OI"?"Current OI from Schwab vs the max OI seen in the flow window. Green=position growing, red=fading. Click ⚡ Fetch above to populate.":h==="P/L%"?"Median entry from flow trades → current mark. Click ⚡ Fetch above to populate.":undefined}>
+                              cursor:sortable?"pointer":"default", userSelect:"none" }}>
                             {h}{arrow}
                           </th>;
                         })}
@@ -7035,7 +8706,7 @@ export default function OptionsFlowDashboard() {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh, textAlign:"center" }}>{r.sym}</td>
-                              <td colSpan={8} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                              <td colSpan={6} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
                             </tr>
                           );
                           const dirC = r.dir==="BULL"?P.bu:P.be;
@@ -7043,21 +8714,6 @@ export default function OptionsFlowDashboard() {
                           const tcSide = tc?(tc.askPrem>=tc.bidPrem?"ask":"bid"):"ask";
                           let tcC = P.dm;
                           if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
-                          // Live OI + P/L computation. Both depend on priceCache being
-                          // populated via the ⚡ Fetch button above. Until then, cells show "—".
-                          const px = tc ? getPrice(r.sym, tc.cp, tc.K, tc.exp) : null;
-                          const liveOI = px ? (px.oi || 0) : 0;
-                          const baseOI = tc ? (tc.maxOI || 0) : 0;
-                          const oiDelta = (liveOI > 0 && baseOI > 0) ? liveOI - baseOI : null;
-                          const now = px ? (px.mark || px.last || px.mid || 0) : 0;
-                          const entry = tc ? (tc.entry || 0) : 0;
-                          const pnl = (now > 0 && entry > 0) ? (now-entry)/entry*100 : null;
-                          const fmtDeltaOI = (d) => {
-                            const sign = d > 0 ? "+" : "";
-                            if (Math.abs(d) >= 1000) return sign + (d/1000).toFixed(1) + "k";
-                            return sign + d.toLocaleString();
-                          };
-                          const deltaColor = (d) => d > 100 ? P.bu : d < -100 ? P.be : P.dm;
                           return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
                               onClick={()=>{
@@ -7099,35 +8755,6 @@ export default function OptionsFlowDashboard() {
                                   {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
                               </td>
-                              {/* Live OI cell — current OI with delta vs flow-window max. */}
-                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
-                                  onClick={e=>e.stopPropagation()}>
-                                {liveOI > 0 ? (
-                                  <span>
-                                    <span style={{ color:P.wh, fontWeight:700 }}>{liveOI.toLocaleString()}</span>
-                                    {oiDelta !== null && (
-                                      <span style={{ color:deltaColor(oiDelta), fontWeight:800, marginLeft:4, fontSize:8 }}
-                                            title={`Was ${baseOI.toLocaleString()} during flow window`}>
-                                        {fmtDeltaOI(oiDelta)}
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span style={{ color:P.dm }}>—</span>
-                                )}
-                              </td>
-                              {/* P/L% cell — median entry from flow trades vs current mark. */}
-                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
-                                  onClick={e=>e.stopPropagation()}>
-                                {pnl !== null ? (
-                                  <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800 }}
-                                        title={`Entry $${entry.toFixed(2)} → Now $${now.toFixed(2)}`}>
-                                    {pnl>=0?"+":""}{pnl.toFixed(1)}%
-                                  </span>
-                                ) : (
-                                  <span style={{ color:P.dm }}>—</span>
-                                )}
-                              </td>
                             </tr>
                           );
                           });
@@ -7142,106 +8769,85 @@ export default function OptionsFlowDashboard() {
             {batchDetail && (
               <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.7)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
                 onClick={()=>setBatchDetail(null)}>
-                <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:12, padding:20, maxWidth:960, width:"90%", maxHeight:"80vh", overflow:"auto" }}
+                <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:12, padding:20, maxWidth:900, width:"90%", maxHeight:"80vh", overflow:"auto" }}
                   onClick={e=>e.stopPropagation()}>
                   {(()=>{
                     const d = batchDetail;
                     const dirC = d.dir==="BULL"?P.bu:P.be;
-                    return (
-                      <>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                            <span style={{ fontSize:20, fontWeight:900, color:P.wh }}>{d.sym}</span>
-                            <span style={{ fontSize:8, color:P.dm }}>{capBand(d.mktcap)}</span>
-                            <Tag c={dirC}>{d.dir}</Tag>
-                            <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(Math.abs(d.net))}</span>
-                            <span style={{ fontWeight:800, color:d.bullPct>=80?P.bu:d.bullPct<=20?P.be:P.dm, fontSize:11 }}>{d.bullPct}% bull</span>
-                          </div>
-                          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                            <button onClick={()=>{
-                              fetchPrices(d.contracts.map(c=>({sym:d.sym,cp:c.cp,strike:c.K,exp:c.exp})));
-                            }} disabled={fetchLoading}
-                              style={{ padding:"6px 14px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                                fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                              {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
-                            </button>
-                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
-                              style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer",
-                                fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>
-                              Open in Search →
-                            </button>
-                            <button onClick={()=>setBatchDetail(null)}
-                              style={{ padding:"4px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.dm }}>✕</button>
-                          </div>
+                    return (<>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <span style={{ fontSize:20, fontWeight:900, color:P.wh }}>{d.sym}</span>
+                          <span style={{ fontSize:8, color:P.dm }}>{capBand(d.mktcap)}</span>
+                          <Tag c={dirC}>{d.dir}</Tag>
+                          <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(Math.abs(d.net))}</span>
+                          <span style={{ fontWeight:800, color:d.bullPct>=80?P.bu:d.bullPct<=20?P.be:P.dm, fontSize:11 }}>{d.bullPct}% bull</span>
                         </div>
-                        <div style={{ display:"flex", gap:16, marginBottom:12, fontSize:10 }}>
-                          <span>Bull: <strong style={{ color:P.bu }}>{fmt(d.bull)}</strong></span>
-                          <span>Bear: <strong style={{ color:P.be }}>{fmt(d.bear)}</strong></span>
-                          <span>Trades: <strong style={{ color:P.wh }}>{d.n}</strong></span>
-                          <span>Contracts: <strong style={{ color:P.wh }}>{d.contracts.length}</strong></span>
-                          {status && <span style={{ color:P.dm }}>{status}</span>}
+                        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                          <button onClick={()=>{ fetchPrices(d.contracts.map(c=>({sym:d.sym,cp:c.cp,strike:c.K,exp:c.exp}))); }} disabled={fetchLoading}
+                            style={{ padding:"6px 14px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                            {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}</button>
+                          <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
+                            style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>Open in Search →</button>
+                          <button onClick={()=>setBatchDetail(null)} style={{ padding:"4px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.dm }}>✕</button>
                         </div>
-                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
-                          <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                            {["C/P","Strike","Exp","DTE","Hits","Vol","OI","Vol/OI","Entry","Now","P&L","Premium","Side"].map(h=>(
-                              <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
-                            ))}
-                          </tr></thead>
-                          <tbody>
-                            {d.contracts.slice(0,15).map((c,i) => {
-                              const px = getPrice(d.sym, c.cp, c.K, c.exp);
-                              const now = px ? (px.mark || px.last || px.mid || 0) : 0;
-                              const entry = c.entry || 0;
-                              const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
-                              const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
-                              const cSide = c.askPrem >= c.bidPrem ? "ASK" : "BID";
-                              const sideC = cSide==="ASK" ? P.mt : "#ff9800";
-                              const curOI = px ? px.oi : 0;
-                              return (
-                                <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
-                                  <td style={{ padding:"4px 5px" }}><Tag c={c.cp==="C"?P.bu:P.be}>{c.cp}</Tag></td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:P.wh }}>${c.K}</td>
-                                  <td style={{ padding:"4px 5px", color:P.wh }}>{c.exp}</td>
-                                  <td style={{ padding:"4px 5px", color:c.DTE<=7?P.be:c.DTE<=30?P.ye:P.dm }}>{c.DTE}d</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:c.hits>=10?P.ac:c.hits>=5?P.ye:P.dm }}>{c.hits}x</td>
-                                  <td style={{ padding:"4px 5px", color:P.dm }}>{c.vol.toLocaleString()}</td>
-                                  <td style={{ padding:"4px 5px", color:P.dm }}>{curOI>0?curOI.toLocaleString():c.maxOI.toLocaleString()}</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:c.volOI>=10?P.ac:c.volOI>=3?P.ye:P.dm }}>{c.volOI>0?c.volOI.toFixed(1)+"x":"—"}</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:now>0?P.wh:P.dm }}>{now>0?"$"+now.toFixed(2):"—"}</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
-                                  <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.prem) }}>{fmt(c.prem)}</td>
-                                  <td style={{ padding:"4px 5px", fontSize:9, color:sideC, fontWeight:700 }}>{cSide}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </>
-                    );
+                      </div>
+                      <div style={{ display:"flex", gap:16, marginBottom:12, fontSize:10 }}>
+                        <span>Bull: <strong style={{ color:P.bu }}>{fmt(d.bull)}</strong></span>
+                        <span>Bear: <strong style={{ color:P.be }}>{fmt(d.bear)}</strong></span>
+                        <span>Trades: <strong style={{ color:P.wh }}>{d.n}</strong></span>
+                        <span>Contracts: <strong style={{ color:P.wh }}>{d.contracts.length}</strong></span>
+                        {status && <span style={{ color:P.dm }}>{status}</span>}
+                      </div>
+                      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                        <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
+                          {["C/P","Strike","Exp","DTE","Hits","Vol","OI","Vol/OI","Entry","Now","P&L","Premium","Side"].map(h=>(
+                            <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {d.contracts.slice(0,15).map((c,i) => {
+                            const px = getPrice(d.sym, c.cp, c.K, c.exp);
+                            const now = px ? (px.mark || px.last || px.mid || 0) : 0;
+                            const entry = c.entry || 0;
+                            const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
+                            const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
+                            const cSide = c.askPrem >= c.bidPrem ? "ASK" : "BID";
+                            const sideC = cSide==="ASK" ? P.mt : "#ff9800";
+                            const curOI = px ? px.oi : 0;
+                            return (
+                              <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10" }}>
+                                <td style={{ padding:"4px 5px" }}><Tag c={c.cp==="C"?P.bu:P.be}>{c.cp}</Tag></td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:P.wh }}>${c.K}</td>
+                                <td style={{ padding:"4px 5px", color:P.wh }}>{c.exp}</td>
+                                <td style={{ padding:"4px 5px", color:c.DTE<=7?P.be:c.DTE<=30?P.ye:P.dm }}>{c.DTE}d</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:c.hits>=10?P.ac:c.hits>=5?P.ye:P.dm }}>{c.hits}x</td>
+                                <td style={{ padding:"4px 5px", color:P.dm }}>{c.vol.toLocaleString()}</td>
+                                <td style={{ padding:"4px 5px", color:P.dm }}>{curOI>0?curOI.toLocaleString():c.maxOI.toLocaleString()}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:c.volOI>=10?P.ac:c.volOI>=3?P.ye:P.dm }}>{c.volOI>0?c.volOI.toFixed(1)+"x":"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:now>0?P.wh:P.dm }}>{now>0?"$"+now.toFixed(2):"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
+                                <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.prem) }}>{fmt(c.prem)}</td>
+                                <td style={{ padding:"4px 5px", fontSize:9, color:sideC, fontWeight:700 }}>{cSide}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </>);
                   })()}
                 </div>
               </div>
             )}
             {selectedTicker && (() => {
               // Re-resolve against current D each render to avoid stale snapshot.
-              // selectedTicker is captured at setSelectedTicker time (line 5048); if
+              // selectedTicker is captured at setSelectedTicker time; if
               // dateFilter or cap changes after, D regenerates but selectedTicker
               // still holds the old TICKER_DB entry — which makes tk.n / tk.t /
               // tk.c reflect a different date window than ccAll / BULL / BEAR.
               const tk = (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s) || selectedTicker;
-              // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
-              // Source changed from D.clean_confirmed → D.all_directional so the
-              // Search header reflects the same directional flow the watchlist
-              // surfaces via the dirty-dominant fallback. clean_confirmed is
-              // empty for all-WHITE-color tickers like SERV (60+ ASK sweeps,
-              // no YELLOW/MAGENTA confirmation) which made the header read $0
-              // even when the table below clearly showed $1.3M of directional
-              // flow. all_directional includes any trade with t.D assigned —
-              // catches the dirty-dominant pattern without losing precision
-              // (B-side ambiguous trades still don't get direction so they're
-              // excluded automatically).
               const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s);
               const ccTrades = ccAll.filter(dteF);
               let ccB=0, ccR=0;
@@ -7250,66 +8856,6 @@ export default function OptionsFlowDashboard() {
               const total = ccB + ccR;
               const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
-
-              // ─── STILL-OPEN computation ────────────────────────────────
-              // Per-contract attribution of "how much of this period's
-              // directional flow is still open today, vs already closed out".
-              // Groups trades by contract, computes ΔOI = liveOI - earliestOI,
-              // derives an openFraction = clamp(0,1, ΔOI / V_total). Apply
-              // uniformly to all trades on that contract. This is the best we
-              // can do without per-trade time-stamped OI history: we know how
-              // much NET position-building happened on the contract, not which
-              // specific trades stayed open vs closed.
-              //
-              // openFraction = 0 → all positions closed since
-              // openFraction = 1 → all volume net-added to OI (full retention)
-              // computable = at least one contract had usable live OI data
-              //
-              // We track BOTH total bull/bear premium AND priced bull/bear
-              // premium separately. The % displayed alongside "Still open"
-              // uses the PRICED subset as denominator — otherwise the %
-              // gets dragged down by unpriced contracts (which contribute
-              // to total but not to the still-open numerator), which would
-              // mislead users into thinking more positions closed than
-              // actually did.
-              let ccBOpen = 0, ccROpen = 0;
-              let pricedBullPrem = 0, pricedBearPrem = 0;
-              let openContractsPriced = 0, openContractsTotal = 0;
-              {
-                const byCt = {};
-                ccTrades.forEach(t => {
-                  const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-                  if (!byCt[k]) byCt[k] = { trades:[], V_total:0, minOI:Infinity };
-                  byCt[k].trades.push(t);
-                  byCt[k].V_total += (t.V||0);
-                  if ((t.OI||0) > 0) byCt[k].minOI = Math.min(byCt[k].minOI, t.OI);
-                });
-                Object.entries(byCt).forEach(([k, g]) => {
-                  openContractsTotal++;
-                  const [s, cp, kK, e] = k.split("|");
-                  const px = getPrice(s, cp, parseFloat(kK), e);
-                  // Need live OI + a baseline OI + nonzero volume to attribute.
-                  if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
-                  openContractsPriced++;
-                  // Accumulate this contract's premium into the "priced"
-                  // bucket so we can compute an honest % later.
-                  g.trades.forEach(t => {
-                    if (t.D==="BULL") pricedBullPrem += (t.P||0);
-                    else if (t.D==="BEAR") pricedBearPrem += (t.P||0);
-                  });
-                  const deltaOI = px.oi - g.minOI;
-                  const openFrac = Math.max(0, Math.min(1, deltaOI / g.V_total));
-                  g.trades.forEach(t => {
-                    if (t.D==="BULL") ccBOpen += (t.P||0) * openFrac;
-                    else if (t.D==="BEAR") ccROpen += (t.P||0) * openFrac;
-                  });
-                });
-              }
-              const stillOpenComputable = openContractsPriced > 0;
-              const totalOpen = ccBOpen + ccROpen;
-              const netOpen = ccBOpen - ccROpen;
-              const dirOpen = totalOpen===0?"NEUTRAL":netOpen>0?"BULL":"BEAR";
-
               // DTE counts for pills
               const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
               const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
@@ -7342,48 +8888,12 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
-                      {/* Still-open net direction — shows if the net read
-                          flips once you account for closures. */}
-                      {stillOpenComputable && (
-                        <div style={{ fontSize:9, color:P.dm, marginTop:6, paddingTop:6, borderTop:"1px dashed "+P.bd }}>
-                          Still open:{" "}
-                          <span style={{ color:dirOpen==="BULL"?P.bu:dirOpen==="BEAR"?P.be:P.dm, fontWeight:700 }}>
-                            {dirOpen}
-                          </span>
-                          {dirOpen !== dir && total > 0 && (
-                            <span style={{ marginLeft:4, color:P.ac, fontWeight:700 }} title="Net direction flips once closures are accounted for">⚠ flipped</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccB)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccB/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
-                      </div>
-                      {/* Still-open bull premium — what's actually still on
-                          the books after subtracting closures. % is computed
-                          against PRICED bull premium (not total), so the
-                          metric stays honest when coverage is partial. The
-                          "missing OI" suffix is the gap between contracts we
-                          tried to price vs contracts where Schwab returned
-                          usable open interest — typically 0 once a fresh
-                          fetch completes for all data; larger when corp
-                          actions / expired contracts return quote without OI. */}
-                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
-                        Still open:{" "}
-                        {stillOpenComputable ? (
-                          <>
-                            <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccBOpen)}</span>
-                            <span style={{ marginLeft:4 }}>
-                              ({pricedBullPrem > 0 ? Math.round(ccBOpen/pricedBullPrem*100) : 0}% of priced
-                              {openContractsPriced < openContractsTotal && `, ${openContractsTotal - openContractsPriced} missing OI`})
-                            </span>
-                          </>
-                        ) : (
-                          <span style={{ fontStyle:"italic" }}>Fetch Live OI to compute</span>
-                        )}
                       </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
@@ -7392,44 +8902,13 @@ export default function OptionsFlowDashboard() {
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccR/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
                       </div>
-                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
-                        Still open:{" "}
-                        {stillOpenComputable ? (
-                          <>
-                            <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccROpen)}</span>
-                            <span style={{ marginLeft:4 }}>
-                              ({pricedBearPrem > 0 ? Math.round(ccROpen/pricedBearPrem*100) : 0}% of priced
-                              {openContractsPriced < openContractsTotal && `, ${openContractsTotal - openContractsPriced} missing OI`})
-                            </span>
-                          </>
-                        ) : (
-                          <span style={{ fontStyle:"italic" }}>Fetch Live OI to compute</span>
-                        )}
-                      </div>
                     </div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <button onClick={()=>{
-                      // Send ALL unique directional contracts for the ticker to
-                      // Schwab, not just the top-10 visible + consolidated.
-                      // Without this, "Still open" % was capped by tiny coverage
-                      // (e.g., 14/106 contracts). Schwab batches dynamically so
-                      // 100+ contracts still completes in a few seconds.
-                      const seen = new Set();
                       const contracts = [];
-                      const pushUnique = (S, CP, K, E) => {
-                        const key = S+"|"+CP+"|"+K+"|"+E;
-                        if (seen.has(key)) return;
-                        seen.add(key);
-                        contracts.push({sym:S, cp:CP, strike:K, exp:E});
-                      };
-                      // ccAll = all directional trades for this ticker
-                      // (unfiltered by DTE; user might switch DTE later and
-                      // we want priced data ready regardless)
-                      ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      // Also include consolidated rows in case any aren't
-                      // covered by trade-level data
-                      (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                      (tk.t||[]).forEach(r => contracts.push({sym:r.S,cp:r.CP,strike:r.K,exp:r.E}));
+                      (tk.c||[]).forEach(r => contracts.push({sym:r.S,cp:r.CP,strike:r.K,exp:r.E}));
                       fetchPrices(contracts);
                     }} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -7439,12 +8918,8 @@ export default function OptionsFlowDashboard() {
                     <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
                     {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
                   </div>
-                  {/* Top Trades table — panelFn intentionally omitted. The
-                      outer modal-version of renderDetailPanel (just below)
-                      handles the expanded view. Passing panelFn made TT also
-                      render an inline copy, creating a double-layer panel
-                      that required two clicks to close. */}
-                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  {/* panelFn omitted — modal version handles expanded view, prevents double-layer */}
+                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
@@ -7475,7 +8950,7 @@ export default function OptionsFlowDashboard() {
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <button onClick={()=>{
                   const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
-                    : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
+                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -7488,7 +8963,6 @@ export default function OptionsFlowDashboard() {
             {(() => {
               const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).sort((a,b)=>b.P-a.P).slice(0,40)
                 : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).slice(0,100);
-              // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
@@ -7499,7 +8973,6 @@ export default function OptionsFlowDashboard() {
                 const pctDOI = baseOI > 0 && bestDOI !== 0 ? Math.round(bestDOI / baseOI * 100) : 0;
                 return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI };
               });
-              // Sort
               const getVal = (r, key) => {
                 if (key==="sym") return r.S||"";
                 if (key==="exp") return new Date(r.E||0).getTime();
@@ -7673,7 +9146,7 @@ export default function OptionsFlowDashboard() {
                 <button onClick={()=>setTrackerDateFilter("All")}
                   style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerDateFilter==="All"?P.ac:P.bd),
                     background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
-                    fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>All</button>
+                    fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>All</button>
                 {trackerDates.length > 0 && (
                   <select value={trackerDateFilter==="All"?"":trackerDateFilter}
                     onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
@@ -7688,7 +9161,6 @@ export default function OptionsFlowDashboard() {
             {cappedActive.length > 0 ? (
               <Card title="Active Picks" sub={cappedActive.length+(cappedActive.length<filteredActive.length?" of "+filteredActive.length:"")+" contracts"}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                  {/* C/P filter — All / Calls / Puts. Direction-colored for fast visual scan. */}
                   <div style={{ display:"flex", gap:4 }}>
                     {["All","Calls","Puts"].map(v => {
                       const active = trackerCpFilter === v;
@@ -7709,7 +9181,7 @@ export default function OptionsFlowDashboard() {
                     <button onClick={()=>{
                       const contracts = cappedActive.map(p=>({sym:p.sym,cp:p.cp,strike:p.strike,exp:p.exp}));
                       fetchPrices(contracts).then(()=>{
-                        fetch("/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
+                        fetch(API_BASE+"/api/top-flow/snapshot",{method:"POST"}).then(()=>fetch(API_BASE+"/api/top-flow/history").then(r=>r.ok?r.json():null).then(d=>{if(d)setTopFlowPicks(d);})).catch(()=>{});
                       });
                     }} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -7757,7 +9229,6 @@ export default function OptionsFlowDashboard() {
                       const trendC = trend==="↑"?P.bu:trend==="↓"?P.be:P.dm;
                       const dirC = p.dir==="BULL"?P.bu:p.dir==="BEAR"?P.be:P.dm;
                       const showSep = activeResult.split > 0 && i === activeResult.split;
-                      // OI: prefer CSV cross-reference, fallback to snapshot history
                       const csvMatch = D?.WATCH?.find(w=>w.S===p.sym&&w.CP===p.cp&&String(w.K)===String(p.strike)&&w.E===p.exp);
                       const oiHist = hist.filter(h=>(h.oi||0)>0);
                       let curOI, prevOI, deltaOI;
@@ -7783,7 +9254,7 @@ export default function OptionsFlowDashboard() {
                         <Fragment key={p.id||i}>
                         {showSep && <tr><td colSpan={12} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
                         <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
-                          style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
+                          style={{ borderBottom:"1px solid "+P.bd+"10", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
@@ -7907,7 +9378,6 @@ export default function OptionsFlowDashboard() {
                     })()}
                   </div>
                 </div>
-                {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
                     {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
@@ -7941,7 +9411,6 @@ export default function OptionsFlowDashboard() {
                     </div>
                   )}
                 </div>
-                {/* Meta + Remove */}
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, minWidth:50 }}>
                   <Tag c={GRADE_COLORS[item.grade]||P.mt}>{item.grade}</Tag>
                   <span style={{ fontSize:11 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:800 }}>{fmt(item.prem)}</span></span>
@@ -7974,7 +9443,6 @@ export default function OptionsFlowDashboard() {
                   );
                 })()}
               </div>
-              {/* Removal reason prompt */}
               {isRemoving && (
                 <div style={{ padding:"8px 10px", background:P.be+"06", border:"1px solid "+P.be+"40", borderTop:"none", borderRadius:"0 0 6px 6px" }}
                   onClick={e=>e.stopPropagation()}>
@@ -7982,7 +9450,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:6 }}>
                     {REMOVE_REASONS.map(r=>(
                       <button key={r} onClick={()=>confirmRemove(r)}
-                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}
+                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", cursor:"pointer" }}
                         onMouseEnter={e=>{e.currentTarget.style.background=P.be+"22";e.currentTarget.style.color=P.be;}}
                         onMouseLeave={e=>{e.currentTarget.style.background=P.al;e.currentTarget.style.color=P.dm;}}>{r}</button>
                     ))}
@@ -7993,7 +9461,7 @@ export default function OptionsFlowDashboard() {
                       placeholder="Or type a custom reason..."
                       style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}/>
                     <button onClick={()=>{setWlRemoving(null); setWlRemoveReason("");}}
-                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>Cancel</button>
+                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -8022,15 +9490,15 @@ export default function OptionsFlowDashboard() {
                     </select>
                   )}
                   <button onClick={wlPopulate}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={wlSave}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"none", background:P.sw, color:P.bg, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     💾 Save Watchlist
                   </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
@@ -8063,7 +9531,19 @@ export default function OptionsFlowDashboard() {
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
                     {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
                   </button>
+                  <button onClick={screenshotWatchlist}
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    📸 Screenshot
+                  </button>
                 </div>
+                {discordPayload && (
+                  <div style={{ marginTop:8, position:"relative" }}>
+                    <div style={{ fontSize:9, color:P.ac, marginBottom:3, fontWeight:700 }}>📋 PAYLOAD — Select All (Ctrl+A) → Copy (Ctrl+C) → Paste in discord-push.html</div>
+                    <textarea readOnly value={discordPayload} onFocus={e=>e.target.select()}
+                      style={{ width:"100%", height:60, background:P.bg, color:P.dm, border:"1px solid "+P.ac, borderRadius:6, padding:8, fontSize:9, fontFamily:"monospace", resize:"none", boxSizing:"border-box" }}/>
+                    <button onClick={()=>setDiscordPayload("")} style={{ position:"absolute", top:0, right:0, background:"none", border:"none", color:P.dm, cursor:"pointer", fontSize:10 }}>✕</button>
+                  </div>
+                )}
               </div>
             </Card>
             {/* DTE + View Filter Bar */}
@@ -8101,7 +9581,6 @@ export default function OptionsFlowDashboard() {
             {/* Two-column layout */}
             <div ref={wlRef}>
             {(()=>{
-              // Compute DTE and filter
               const getDTE = (item) => {
                 if (!item.exp) return -1;
                 const parts = item.exp.split("/").map(Number);
@@ -8121,8 +9600,10 @@ export default function OptionsFlowDashboard() {
               };
               const filtBull = wlBull.filter(dteOk);
               const filtBear = wlBear.filter(dteOk);
+              // Sort indices by score for rendering
               const sortedBullIdx = filtBull.map((_,i)=>i).sort((a,b)=>(filtBull[b].score||0)-(filtBull[a].score||0));
               const sortedBearIdx = filtBear.map((_,i)=>i).sort((a,b)=>(filtBear[b].score||0)-(filtBear[a].score||0));
+              // For solo view: split items across 2 columns
               const splitHalf = (sorted) => {
                 const mid = Math.ceil(sorted.length / 2); return [sorted.slice(0, mid), sorted.slice(mid)];
               };
@@ -8137,7 +9618,7 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {wlViewFilter==="both" ? (
                 <>
-                <div ref={wlBullRef}>
+                {/* Bull */}
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
@@ -8153,12 +9634,11 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bull")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </div>
                 </Card>
-                </div>
-                <div ref={wlBearRef}>
+                {/* Bear */}
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
@@ -8174,11 +9654,10 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bear")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </div>
                 </Card>
-                </div>
                 </>
               ) : wlViewFilter==="bull" ? (
                 <>
@@ -8199,7 +9678,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bull")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.bu+"22", color:P.bu, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </Card>
                 </>); })()}
@@ -8223,7 +9702,7 @@ export default function OptionsFlowDashboard() {
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
                       <button onClick={()=>wlAddTicker("bear")}
-                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+ Add</button>
+                        style={{ padding:"5px 12px", borderRadius:4, border:"none", background:P.be+"22", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>+ Add</button>
                     </div>
                   </Card>
                 </>); })()}
@@ -8233,9 +9712,21 @@ export default function OptionsFlowDashboard() {
               );
             })()}
             </div>
-            {/* Scanner Suggestions — overflow picks not yet on watchlist */}
+            {/* Scanner Suggestions — overflow picks not yet on watchlist,
+                PLUS cross-direction picks for tickers already on the
+                opposite-side watchlist. So BE (which lives in bear watchlist)
+                can still appear in bull suggestions if it has bullish CALL
+                flow that didn't survive the FD.CONV filters. */}
             {FD && FD.CONV && (() => {
-              const existingSyms = new Set([...wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike), ...wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike)]);
+              // Direction-aware dedup keys — a ticker on bear watchlist
+              // doesn't block its bull-side suggestion (different contract
+              // anyway). Same-direction same-contract is still deduped.
+              const existingBullSyms = new Set(wlBull.map(i=>i.sym+"|"+i.exp+"|"+i.strike));
+              const existingBearSyms = new Set(wlBear.map(i=>i.sym+"|"+i.exp+"|"+i.strike));
+              // Track which tickers are already in each list (by symbol only)
+              // so we don't double-count when surfacing cross-direction.
+              const bullListSyms = new Set(wlBull.map(i=>i.sym));
+              const bearListSyms = new Set(wlBear.map(i=>i.sym));
               const dteOkSugg = (c) => {
                 if (wlDteFilter === "All") return true;
                 const dte = c.DTE || 0;
@@ -8244,16 +9735,80 @@ export default function OptionsFlowDashboard() {
                 if (wlDteFilter === "LT") return dte >= 60 && dte < 180;
                 return dte >= 180;
               };
-              // 2026-07-03: same ETF/INDEX filter as bulls/bears above -
-              // scanner suggestions should honor the current tab.
-              const _isStockSugg = (c) => c.stocketf !== "ETF" && c.stocketf !== "INDEX";
-              const _tabFilterSugg = dataMode === "stocks" ? _isStockSugg : ((c) => !_isStockSugg(c));
-              const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c) && _tabFilterSugg(c))
+              const overflow = FD.CONV.filter(c => {
+                if (!dteOkSugg(c)) return false;
+                const k = c.sym+"|"+c.exp+"|"+(c.K||c.strike);
+                if (c.dir === "BULL" && existingBullSyms.has(k)) return false;
+                if (c.dir === "BEAR" && existingBearSyms.has(k)) return false;
+                return true;
+              })
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
                 .sort((a,b)=>b._score-a._score);
               const bullSugg = overflow.filter(c=>c.dir==="BULL").slice(0,15);
               const bearSugg = overflow.filter(c=>c.dir==="BEAR").slice(0,15);
-              if (!bullSugg.length && !bearSugg.length) return null;
+
+              // ── Cross-direction suggestion fill ──────────────────────
+              // For each ticker on bear watchlist that isn't on bull list,
+              // try to surface a clean bull pick. Same the other way.
+              // Bypasses FD.CONV's DTE>7/clean filters by reading raw
+              // FD.all_directional. Marked with _isCrossDir so the row
+              // can render a small ⚡ flag to flag manual review.
+              const crossPicks = { BULL: [], BEAR: [] };
+              if (FD.all_directional) {
+                const MIN_C = 100_000;
+                const flowBy = {};
+                for (const t of FD.all_directional) {
+                  // Same field-name fix as wlPopulate flowBy build —
+                  // trade objects use UPPERCASE CP and E, not cp/exp.
+                  if (!t.S || !t.D || !t.P || !t.CP) continue;
+                  if (!flowBy[t.S]) flowBy[t.S] = {};
+                  if (!flowBy[t.S][t.D]) flowBy[t.S][t.D] = { totalPrem: 0, contracts: {} };
+                  flowBy[t.S][t.D].totalPrem += t.P;
+                  const cKey = t.CP + "|" + t.K + "|" + t.E;
+                  if (!flowBy[t.S][t.D].contracts[cKey]) {
+                    flowBy[t.S][t.D].contracts[cKey] = { cp: t.CP, K: t.K, exp: t.E, hits: 0, askPrem: 0, bidPrem: 0 };
+                  }
+                  const cc = flowBy[t.S][t.D].contracts[cKey];
+                  cc.hits++;
+                  if (t.Si === "A" || t.Si === "AA") cc.askPrem += t.P;
+                  if (t.Si === "B" || t.Si === "BB") cc.bidPrem += t.P;
+                }
+                const buildCross = (sym, dir) => {
+                  const sideData = flowBy[sym]?.[dir];
+                  if (!sideData || sideData.totalPrem < MIN_C) return null;
+                  const cleanCp = dir === "BULL" ? "C" : "P";
+                  const matching = Object.values(sideData.contracts)
+                    .filter(c => c.cp === cleanCp && c.askPrem > c.bidPrem && c.askPrem >= MIN_C)
+                    .sort((a,b) => b.askPrem - a.askPrem);
+                  if (matching.length === 0) return null;
+                  const top = matching[0];
+                  const pseudo = { sym, cp: top.cp, K: top.K, exp: top.exp, hits: top.hits,
+                    prem: top.askPrem, side: "ASK", askPrem: top.askPrem, bidPrem: top.bidPrem,
+                    dir, grade: "C", vol: top.hits, maxOI: 0, volOI: 0, mktcap: 0, er: false };
+                  return { ...pseudo, _score: autoScore(pseudo), _cap: wlCapCheck(pseudo),
+                    _isCrossDir: true, strike: top.K };
+                };
+                // Bear watchlist tickers missing from bull → try bull pick
+                bearListSyms.forEach(sym => {
+                  if (bullListSyms.has(sym)) return;
+                  // Skip if same ticker is already in regular bull suggestions
+                  if (bullSugg.some(s => s.sym === sym)) return;
+                  const p = buildCross(sym, "BULL");
+                  if (p) crossPicks.BULL.push(p);
+                });
+                bullListSyms.forEach(sym => {
+                  if (bearListSyms.has(sym)) return;
+                  if (bearSugg.some(s => s.sym === sym)) return;
+                  const p = buildCross(sym, "BEAR");
+                  if (p) crossPicks.BEAR.push(p);
+                });
+              }
+              // Append cross-direction picks at the END so the high-conviction
+              // overflow stays on top. Cap each list at 15 total.
+              const bullAll = [...bullSugg, ...crossPicks.BULL].slice(0, 15);
+              const bearAll = [...bearSugg, ...crossPicks.BEAR].slice(0, 15);
+
+              if (!bullAll.length && !bearAll.length) return null;
 
               const addFromSugg = (c, side) => {
                 const item = {
@@ -8269,8 +9824,15 @@ export default function OptionsFlowDashboard() {
               const renderSuggRow = (c, side) => (
                 <div key={c.sym+c.exp+(c.K||c.strike)} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 14px", background:P.al, borderRadius:4 }}>
                   <button onClick={()=>addFromSugg(c,side)}
-                    style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+</button>
+                    style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", cursor:"pointer" }}>+</button>
                   <span style={{ fontSize:12, fontWeight:800, color:P.wh, minWidth:50 }}>{c.sym}</span>
+                  {c._isCrossDir && (
+                    <span style={{ fontSize:9, color:"#c9a84c", fontWeight:700, cursor:"help" }}
+                      title={"Cross-direction pick. " + c.sym + " is on the opposite-side watchlist " +
+                        "but also has clean " + (side==="bull"?"bullish CALL":"bearish PUT") + " flow " +
+                        "at ASK. Surfaced for manual triage — didn't qualify for FD.CONV due to DTE<=7 " +
+                        "or non-clean direction split."}>⚡</span>
+                  )}
                   {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
                   <span style={{ fontSize:10, fontWeight:800, color:c._score>=7?P.bu:c._score>=5?"#ff9800":P.ye }}>{Math.round(c._score*10)}%</span>
                   {(c.score||0) > 0 && (
@@ -8291,17 +9853,23 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:8 }}>📋 SCANNER SUGGESTIONS — not yet on watchlist</div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                     <div>
-                      <div style={{ fontSize:10, fontWeight:700, color:P.bu, marginBottom:4 }}>▲ Bull ({bullSugg.length})</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.bu, marginBottom:4 }}>
+                        ▲ Bull ({bullAll.length})
+                        {crossPicks.BULL.length > 0 && <span style={{ color:P.dm, fontWeight:400, marginLeft:4 }}>· {crossPicks.BULL.length} cross-dir</span>}
+                      </div>
                       <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-                        {bullSugg.map(c=>renderSuggRow(c,"bull"))}
-                        {!bullSugg.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bull suggestions</div>}
+                        {bullAll.map(c=>renderSuggRow(c,"bull"))}
+                        {!bullAll.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bull suggestions</div>}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize:10, fontWeight:700, color:P.be, marginBottom:4 }}>▼ Bear ({bearSugg.length})</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.be, marginBottom:4 }}>
+                        ▼ Bear ({bearAll.length})
+                        {crossPicks.BEAR.length > 0 && <span style={{ color:P.dm, fontWeight:400, marginLeft:4 }}>· {crossPicks.BEAR.length} cross-dir</span>}
+                      </div>
                       <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-                        {bearSugg.map(c=>renderSuggRow(c,"bear"))}
-                        {!bearSugg.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bear suggestions</div>}
+                        {bearAll.map(c=>renderSuggRow(c,"bear"))}
+                        {!bearAll.length && <div style={{ fontSize:10, color:P.dm, padding:8 }}>No more bear suggestions</div>}
                       </div>
                     </div>
                   </div>
