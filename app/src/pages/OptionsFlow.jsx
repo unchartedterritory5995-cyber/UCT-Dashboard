@@ -571,6 +571,215 @@ Object.entries(THEMES_DEF).forEach(([theme, tickers]) => {
     if (!THEME_LOOKUP[sym].includes(theme)) THEME_LOOKUP[sym].push(theme);
   });
 });
+
+// ─── Sector resolution ────────────────────────────────────────────────────────
+// Massive backfill rows come through with an empty Sector column, which
+// aggregates every ticker into "Unknown" on the Market Read sectors panel.
+// BBS CSV uploads DO populate the field. To close the gap we derive a sector
+// client-side when the CSV value is missing:
+//   1) Trade's own t.sector (BBS-supplied). Preferred.
+//   2) THEME_TO_SECTOR lookup — resolve first theme this ticker belongs to
+//      via THEME_LOOKUP, map to a GICS sector.
+//   3) TICKER_SECTOR_FALLBACK — hardcoded overrides for mega-caps and other
+//      liquid names that aren't in any theme.
+//   4) "Unknown" if none of the above match.
+//
+// Ordering: 3 overrides 2 (the fallback map wins over theme resolution) so
+// we can pin the correct sector for ambiguous tickers like HOOD (in Crypto
+// theme but sector is Financials).
+const THEME_TO_SECTOR = {
+  "Semiconductors": "Information Technology",
+  "Software": "Information Technology",
+  "AI Infra": "Information Technology",
+  "Cybersecurity": "Information Technology",
+  "Quantum": "Information Technology",
+  "Crypto": "Financials",
+  "Nuclear": "Utilities",
+  "China": "Consumer Discretionary",
+  "EV": "Consumer Discretionary",
+  "Defense": "Industrials",
+  "Biotech": "Health Care",
+  "Financials": "Financials",
+  "Energy": "Energy",
+  "Metal Miners": "Materials",
+  "Solar": "Utilities",
+  "Retail": "Consumer Discretionary",
+  "Airlines": "Industrials",
+  "Homebuilders": "Consumer Discretionary",
+};
+const TICKER_SECTOR_FALLBACK = {
+  // Mega-cap tech not in any theme
+  "AAPL": "Information Technology",
+  "MSFT": "Information Technology",
+  "GOOGL": "Communication Services",
+  "GOOG": "Communication Services",
+  "META": "Communication Services",
+  "AMZN": "Consumer Discretionary",
+  "NFLX": "Communication Services",
+  "DIS": "Communication Services",
+  "TMUS": "Communication Services",
+  "T": "Communication Services",
+  "VZ": "Communication Services",
+  "CMCSA": "Communication Services",
+  "WBD": "Communication Services",
+  "PARA": "Communication Services",
+  "SPOT": "Communication Services",
+  "RBLX": "Communication Services",
+  "PINS": "Communication Services",
+  "SNAP": "Communication Services",
+  "ROKU": "Communication Services",
+  "TTD": "Communication Services",
+  // Semis / memory / IT not in Semiconductors theme
+  "DRAM": "Information Technology",
+  "SNDK": "Information Technology",
+  "STX": "Information Technology",
+  "WDC": "Information Technology",
+  "DELL": "Information Technology",
+  "HPE": "Information Technology",
+  "HPQ": "Information Technology",
+  "IBM": "Information Technology",
+  "ACN": "Information Technology",
+  "NOW": "Information Technology",
+  // Financials not in theme
+  "BRK.B": "Financials",
+  "BRK.A": "Financials",
+  "BX": "Financials",
+  "KKR": "Financials",
+  "APO": "Financials",
+  "ARES": "Financials",
+  "CBOE": "Financials",
+  "DFS": "Financials",
+  "SYF": "Financials",
+  "TFC": "Financials",
+  "MET": "Financials",
+  "PRU": "Financials",
+  "AIG": "Financials",
+  "ALL": "Financials",
+  "TRV": "Financials",
+  "CB": "Financials",
+  "PGR": "Financials",
+  // Health Care not in Biotech theme
+  "UNH": "Health Care",
+  "ELV": "Health Care",
+  "CVS": "Health Care",
+  "CI": "Health Care",
+  "HUM": "Health Care",
+  "CNC": "Health Care",
+  "TMO": "Health Care",
+  "DHR": "Health Care",
+  "ABT": "Health Care",
+  "MDT": "Health Care",
+  "SYK": "Health Care",
+  "BSX": "Health Care",
+  "EW": "Health Care",
+  "ZTS": "Health Care",
+  "IDXX": "Health Care",
+  // Industrials
+  "SPCX": "Industrials",
+  "CAT": "Industrials",
+  "DE": "Industrials",
+  "GE": "Industrials",
+  "EMR": "Industrials",
+  "HON": "Industrials",
+  "MMM": "Industrials",
+  "UPS": "Industrials",
+  "FDX": "Industrials",
+  "UNP": "Industrials",
+  "CSX": "Industrials",
+  "NSC": "Industrials",
+  "WM": "Industrials",
+  "RSG": "Industrials",
+  "ADP": "Industrials",
+  "PAYX": "Industrials",
+  "URI": "Industrials",
+  // Consumer Discretionary
+  "MCD": "Consumer Discretionary",
+  "SBUX": "Consumer Discretionary",
+  "CMG": "Consumer Discretionary",
+  "CAVA": "Consumer Discretionary",
+  "BKNG": "Consumer Discretionary",
+  "MAR": "Consumer Discretionary",
+  "HLT": "Consumer Discretionary",
+  "ABNB": "Consumer Discretionary",
+  "UBER": "Consumer Discretionary",
+  "LYFT": "Consumer Discretionary",
+  "DASH": "Consumer Discretionary",
+  "CCL": "Consumer Discretionary",
+  "NCLH": "Consumer Discretionary",
+  "RCL": "Consumer Discretionary",
+  "TSCO": "Consumer Discretionary",
+  "CHWY": "Consumer Discretionary",
+  "SHOP": "Consumer Discretionary",
+  // Consumer Staples
+  "WMT": "Consumer Staples",
+  "COST": "Consumer Staples",
+  "PG": "Consumer Staples",
+  "KO": "Consumer Staples",
+  "PEP": "Consumer Staples",
+  "MDLZ": "Consumer Staples",
+  "MO": "Consumer Staples",
+  "PM": "Consumer Staples",
+  "CL": "Consumer Staples",
+  "KMB": "Consumer Staples",
+  "GIS": "Consumer Staples",
+  "K": "Consumer Staples",
+  // Real Estate
+  "AMT": "Real Estate",
+  "CCI": "Real Estate",
+  "PSA": "Real Estate",
+  "IRM": "Real Estate",
+  "PLD": "Real Estate",
+  "O": "Real Estate",
+  "SPG": "Real Estate",
+  "EQIX": "Real Estate",
+  "DLR": "Real Estate",
+  "VNQ": "Real Estate",
+  // Utilities
+  "NEE": "Utilities",
+  "DUK": "Utilities",
+  "SO": "Utilities",
+  "AEP": "Utilities",
+  "SRE": "Utilities",
+  "EXC": "Utilities",
+  "PCG": "Utilities",
+  "AWK": "Utilities",
+  "D": "Utilities",
+  "BE": "Industrials",
+  // Additional flow-heavy names outside themes
+  "POET": "Information Technology",
+  "AXTI": "Information Technology",
+  "TER": "Information Technology",
+  "COHR": "Information Technology",
+  "ANET": "Information Technology",
+  "PACS": "Health Care",
+  "BMNR": "Financials",
+  "SMCI": "Information Technology",
+  "AVGO": "Information Technology",
+  "QCOM": "Information Technology",
+  "MRVL": "Information Technology",
+  "TSM": "Information Technology",
+  "MPWR": "Information Technology",
+};
+
+// Prebuilt ticker→sector map: theme resolution first, hardcoded fallback last (wins).
+const _TICKER_SECTOR_MAP = (() => {
+  const m = {};
+  for (const [sym, themes] of Object.entries(THEME_LOOKUP)) {
+    for (const th of themes) {
+      const sec = THEME_TO_SECTOR[th];
+      if (sec) { m[sym] = sec; break; }  // first mapped theme wins
+    }
+  }
+  for (const [sym, sec] of Object.entries(TICKER_SECTOR_FALLBACK)) m[sym] = sec;
+  return m;
+})();
+
+function resolveSector(sym, csvSector) {
+  const s = (csvSector||"").trim();
+  if (s && s !== "Unknown" && s !== "None") return s;
+  return _TICKER_SECTOR_MAP[(sym||"").toUpperCase()] || "Unknown";
+}
+
 function netByTicker(trades, n=8) {
   const m = {};
   trades.forEach(t => {
@@ -798,7 +1007,7 @@ function buildCharts(cc) {
   const sectorMap = {};
   const tickerFlowMap = {};
   cc.forEach(t => {
-    const sec = t.sector || "Unknown";
+    const sec = resolveSector(t.S, t.sector);
     if (!sectorMap[sec]) sectorMap[sec] = { name:sec, bull:0, bear:0, count:0, tickers:{} };
     sectorMap[sec].count++;
     t.D === "BULL" ? (sectorMap[sec].bull += t.P) : (sectorMap[sec].bear += t.P);
@@ -1286,7 +1495,10 @@ function processFlowData(rows) {
     if (t.mktcap > tk.mktcap) tk.mktcap = t.mktcap;
     if (t.er) tk.er = true;
     if (t.uoa) tk.uoa = true;
-    if (t.sector && !tk.sector) tk.sector = t.sector;
+    if (!tk.sector) {
+      const _resolved = resolveSector(t.S, t.sector);
+      if (_resolved !== "Unknown") tk.sector = _resolved;
+    }
     // Keep running top 10 by premium (avoid sorting huge arrays)
     if (tk.topTrades.length < 10) {
       tk.topTrades.push(t);
