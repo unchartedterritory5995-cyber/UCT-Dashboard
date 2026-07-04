@@ -3853,6 +3853,70 @@ async def _ticker_types_stats():
         return {"ok": False, "error": str(e)}
 
 
+# ── Bulk ETF/INDEX symbol list ────────────────────────────────────────────────
+# Public, cacheable list of every ticker classified as ETF or INDEX in the
+# ticker_types cache. Used by the OptionsFlow frontend to filter ETFs out of
+# the Stocks tab (and vice versa) without maintaining a hardcoded list.
+#
+# Payload shape:
+#   {"ok": True, "symbols": ["SPY","QQQ",...], "count": N, "last_synced": "..."}
+#
+# Response is small (~150KB gzipped for ~18k symbols) and stable between sync
+# runs, so we set an aggressive Cache-Control header to let Cloudflare cache
+# it at the edge. Invalidation happens naturally when the next sync bumps
+# last_synced -- clients can key off that if they need to force-refresh.
+_ETF_INDEX_SYMBOLS_CACHE = {"payload": None, "cached_at": None}
+
+@app.get("/api/ticker-types/etf-index-symbols")
+async def _ticker_types_etf_index_symbols():
+    """Return every ticker classified as ETF or INDEX (bulk).
+
+    Cached in-process for 5 minutes to avoid hitting SQLite on every page
+    load. Cache invalidates on sync/backfill or via ?fresh=1.
+    """
+    import sqlite3, time
+    from fastapi.responses import JSONResponse
+    try:
+        # In-process cache: 5min TTL
+        now = time.time()
+        cached = _ETF_INDEX_SYMBOLS_CACHE.get("payload")
+        cached_at = _ETF_INDEX_SYMBOLS_CACHE.get("cached_at") or 0
+        if cached is not None and (now - cached_at) < 300:
+            resp = JSONResponse(cached)
+            resp.headers["Cache-Control"] = "public, max-age=300"
+            return resp
+
+        from api.ticker_types import DB_PATH, ensure_schema
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            ensure_schema(conn)
+            cur = conn.execute("""
+                SELECT ticker FROM ticker_types
+                WHERE asset_type IN ('ETF', 'INDEX')
+                ORDER BY ticker
+            """)
+            symbols = [r[0] for r in cur.fetchall()]
+            cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
+            last_synced = cur.fetchone()[0]
+            payload = {
+                "ok": True,
+                "symbols": symbols,
+                "count": len(symbols),
+                "last_synced": last_synced,
+            }
+            _ETF_INDEX_SYMBOLS_CACHE["payload"] = payload
+            _ETF_INDEX_SYMBOLS_CACHE["cached_at"] = now
+            resp = JSONResponse(payload)
+            resp.headers["Cache-Control"] = "public, max-age=300"
+            return resp
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e), "symbols": []}
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
