@@ -818,6 +818,12 @@ function consistencyTable(trades, n=8) {
     if (t.D) m[k].dirs.add(t.D);
   });
   return Object.values(m).filter(c=>c.H>=2).map(c => {
+    // Derive oiExceeded from cluster-level V vs maxOI when the Color-based
+    // signal wasn't set. YELLOW/MAGENTA is BBS's flag that day volume pushed
+    // past OI — Massive rows come through as WHITE by default so we compute
+    // it here once maxOI is enriched by the on-demand OI fetch. Guarded on
+    // maxOI > 0 so unfetched contracts don't false-positive.
+    if (!c.oiExceeded && c.maxOI > 0 && c.V > c.maxOI) c.oiExceeded = true;
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
     if (!c.clean) {
@@ -922,6 +928,18 @@ function buildCharts(cc) {
     if (t.Spot > 0) allCons[k].spots.push(t.Spot);
     if (t.price > 0) allCons[k].prices.push(t.price);
     allCons[k].sideTimes.push({ si:t.Si, time:t.time||"", prem:t.P });
+  });
+
+  // ── Derived oiExceeded pass ────────────────────────────────────────────────
+  // Set oiExceeded from cluster-level vol vs maxOI on any cluster where the
+  // Color-based signal wasn't already set. YELLOW/MAGENTA is BBS's flag that
+  // day volume pushed past OI — Massive-sourced rows come through as WHITE
+  // by default, so we compute the same condition ourselves once maxOI has
+  // been enriched (on-demand OI fetch runs at ~95% populated rate). Runs
+  // BEFORE the B-side conviction override below so its oiExceeded check
+  // benefits from the derived signal too.
+  Object.values(allCons).forEach(c => {
+    if (!c.oiExceeded && c.maxOI > 0 && c.vol > c.maxOI) c.oiExceeded = true;
   });
 
   // ── B-side conviction override ─────────────────────────────────────────────
