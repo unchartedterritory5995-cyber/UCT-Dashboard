@@ -2307,8 +2307,9 @@ export default function OptionsFlowDashboard() {
       const flowBy = {};
       for (const t of FD.all_directional) {
         if (!t.S || !t.D || !t.P || !t.CP) continue;
-        if (!flowBy[t.S]) flowBy[t.S] = { BULL: null, BEAR: null, mktcap: t.mktcap || 0 };
+        if (!flowBy[t.S]) flowBy[t.S] = { BULL: null, BEAR: null, mktcap: t.mktcap || 0, stocketf: t.stocketf };
         if (t.mktcap && t.mktcap > flowBy[t.S].mktcap) flowBy[t.S].mktcap = t.mktcap;
+        if (!flowBy[t.S].stocketf && t.stocketf) flowBy[t.S].stocketf = t.stocketf;
         if (!flowBy[t.S][t.D]) flowBy[t.S][t.D] = { totalPrem: 0, contracts: {} };
         flowBy[t.S][t.D].totalPrem += t.P;
         const cKey = t.CP + "|" + t.K + "|" + t.E;
@@ -2429,14 +2430,28 @@ export default function OptionsFlowDashboard() {
       const fallbackBulls = [];
       const fallbackBears = [];
 
+      // 2026-07-03: same ETF/INDEX filter as initial cut - fallback picks
+      // should honor the current tab. Uses both flowBy.stocketf (from CSV
+      // metadata) and KNOWN_ETF_TICKERS (fallback for Massive rows without
+      // stocketf populated).
+      const _symIsStock = (sym) => {
+        if (KNOWN_ETF_TICKERS.has(sym)) return false;
+        const se = flowBy[sym]?.stocketf;
+        if (se === "ETF" || se === "INDEX") return false;
+        return true;
+      };
+      const _fallbackTabFilter = dataMode === "stocks" ? _symIsStock : ((s) => !_symIsStock(s));
+
       // Pass 1+2: cross-direction
       bears.forEach(b => {
         if (bullSyms.has(b.sym)) return;
+        if (!_fallbackTabFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BULL");
         if (fb) fallbackBulls.push(fb);
       });
       bulls.forEach(b => {
         if (bearSyms.has(b.sym)) return;
+        if (!_fallbackTabFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BEAR");
         if (fb) fallbackBears.push(fb);
       });
@@ -2447,6 +2462,7 @@ export default function OptionsFlowDashboard() {
       Object.keys(flowBy).forEach(sym => {
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
+        if (!_fallbackTabFilter(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
         if (bullTotal >= bearTotal && bullTotal > 0) {
