@@ -1432,6 +1432,7 @@ function processFlowData(rows) {
         if (total > 0 && shape.ask / total >= 0.7) {
           t.Si = "A";
           t.D = t.CP === "C" ? "BULL" : "BEAR";
+          t._rescueDerived = true; // marker: direction inferred from flow shape, not clean-classified
           _rescuedWithDir++;
         }
       }
@@ -1573,6 +1574,7 @@ function processFlowData(rows) {
     if (!dir) return;
     t.D = dir;
     t._rescuedBlock = true;
+    t._rescueDerived = true; // marker: direction inherited from whale, not clean-classified
   });
 
   const confirmed_trades = filtered.filter(t => (t.confirmed && t.D) || _isRescuableWhale(t) || t._rescuedBlock);
@@ -7825,7 +7827,14 @@ export default function OptionsFlowDashboard() {
               // catches the dirty-dominant pattern without losing precision
               // (B-side ambiguous trades still don't get direction so they're
               // excluded automatically).
-              const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s);
+              // Also exclude trades where direction was derived by our rescue
+              // rules (ML/ isolation attribution, sibling BLOCK inheritance) —
+              // Search should show BBS-comparable clean directional flow. The
+              // rescues stay active in the watchlist scoring pipeline where
+              // they help; here they'd inflate the totals ~3x because Massive
+              // lacks BID-side classification (so rescue attribution is
+              // trivially one-directional per CP).
+              const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
