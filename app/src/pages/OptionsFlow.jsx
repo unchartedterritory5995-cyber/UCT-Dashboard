@@ -818,12 +818,6 @@ function consistencyTable(trades, n=8) {
     if (t.D) m[k].dirs.add(t.D);
   });
   return Object.values(m).filter(c=>c.H>=2).map(c => {
-    // Derive oiExceeded from cluster-level V vs maxOI when the Color-based
-    // signal wasn't set. YELLOW/MAGENTA is BBS's flag that day volume pushed
-    // past OI — Massive rows come through as WHITE by default so we compute
-    // it here once maxOI is enriched by the on-demand OI fetch. Guarded on
-    // maxOI > 0 so unfetched contracts don't false-positive.
-    if (!c.oiExceeded && c.maxOI > 0 && c.V > c.maxOI) c.oiExceeded = true;
     c.clean = c.dirs.size <= 1;
     // 80% dominant direction override — if one side has 80%+ of premium, treat as clean
     if (!c.clean) {
@@ -832,6 +826,22 @@ function consistencyTable(trades, n=8) {
         if (c.bullPrem / totalDir >= 0.8) { c.clean = true; c.D = "BULL"; c.dominantOverride = true; }
         else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.D = "BEAR"; c.dominantOverride = true; }
       }
+    }
+    // Derived oiExceeded — YELLOW/MAGENTA is BBS's flag that day volume pushed
+    // past OI. Massive rows come through as WHITE by default so we derive:
+    //   (1) Direct: vol > maxOI when OI enrichment populated maxOI (post-fetch)
+    //   (2) Pattern: when maxOI=0 (Massive, un-enriched), credit oiExceeded
+    //       if the cluster shows the unmistakable institutional signature
+    //       — SWEEP + BLOCK + clean + directional + $2M+ premium. That's
+    //       definitionally what the flag signals on BBS-sourced data.
+    //       Example: SPCX 165c 12/17/27 (5 whale sweeps + 2 blocks, $9.8M,
+    //       clean BULL) — impossible to have this pattern without vol>OI.
+    if (!c.oiExceeded) {
+      if (c.maxOI > 0 && c.V > c.maxOI) c.oiExceeded = true;
+      // Pattern rule gated on DTE >= 3 to avoid 0-2 DTE dealer hedging noise
+      // (TSLA/QQQ/SPY 0DTE puts show SWEEP+BLOCK+clean+$5M+ patterns that
+      // aren't directional positioning, they're expiration-day mechanics).
+      else if (c.maxOI === 0 && (c.DTE || 0) >= 3 && c.hasSweep && c.hasBlock && c.clean && c.D && c.P >= 2e6) c.oiExceeded = true;
     }
     c.grade = gradeCluster(c);
     // Median entry price from individual trades
@@ -968,6 +978,16 @@ function buildCharts(cc) {
         else if (c.bearPrem / totalDir >= 0.8) { c.clean = true; c.dir = "BEAR"; c.dominantOverride = true; }
       }
     }
+    // ── Pattern-based oiExceeded (Massive maxOI=0 rescue) ──────────────────
+    // When maxOI is 0 (Massive-sourced, un-enriched), credit oiExceeded if
+    // the cluster shows the institutional signature: SWEEP + BLOCK + clean
+    // + direction + $2M+ premium AND DTE >= 3. The DTE floor excludes 0-2
+    // DTE dealer hedging (TSLA/QQQ/SPY 0DTE puts with SWEEP+BLOCK patterns
+    // are mechanical expiration-day activity, not directional positioning).
+    if (!c.oiExceeded && c.maxOI === 0 && (c.DTE || 0) >= 3 && c.hasSweep && c.hasBlock &&
+        c.clean && c.dir && c.prem >= 2e6) {
+      c.oiExceeded = true;
+    }
     const grade = gradeCluster(c);
     const scoreMap = {"A+":600,"A":500,"B+":400,"B":300,"C":200,"D":100};
     // Vol/OI ratio bonus — rewards unusually high activity relative to open interest
@@ -976,7 +996,36 @@ function buildCharts(cc) {
     const voiBonus = Math.min(volOI, 5) * 80; // caps at 5x = +400
     const k = c.sym+"|"+c.cp+"|"+c.K+"|"+c.exp;
     const trades = (consTrades[k]||[]).sort((a,b)=>b.P-a.P);
-    return { ...c, grade, volOI, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus + (c.hits<=1 && c.hasSweep && c.askPrem>c.bidPrem && c.oiExceeded && c.prem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
+    // ── Time concentration ────────────────────────────────────────────────
+    // Max # of ASK-side SWEEP prints in any 10-minute window on this contract.
+    // Signals institutional urgency: SPCX-style 5 whale sweeps in ~8 min
+    // is qualitatively different from BE-style 20 sweeps spread over 90 min.
+    // Feeds into autoScore's time-concentration bonus downstream.
+    let _timeConc = 0;
+    {
+      const parseT = (ts) => {
+        const m = (ts||"").match(/(\d+):(\d+):(\d+)\s*(AM|PM)?/i);
+        if (!m) return -1;
+        let h = parseInt(m[1]);
+        const pm = (m[4]||"").toUpperCase() === "PM";
+        if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0;
+        return h*3600 + parseInt(m[2])*60 + parseInt(m[3]);
+      };
+      const askTs = trades
+        .filter(t => t.Ty === "SWP" && (t.Si === "A" || t.Si === "AA"))
+        .map(t => parseT(t.time))
+        .filter(ts => ts >= 0)
+        .sort((a,b) => a - b);
+      if (askTs.length >= 3) {
+        let l = 0, best = 1;
+        for (let r = 0; r < askTs.length; r++) {
+          while (askTs[r] - askTs[l] > 600) l++;
+          if (r - l + 1 > best) best = r - l + 1;
+        }
+        _timeConc = best;
+      }
+    }
+    return { ...c, grade, volOI, _timeConc, score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus + (c.hits<=1 && c.hasSweep && c.askPrem>c.bidPrem && c.oiExceeded && c.prem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
       side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
       strike:"$"+c.K+c.cp, trades, patterns:detectPatterns(c) };
   }).filter(c => {
@@ -1345,16 +1394,29 @@ function processFlowData(rows) {
       t.Ty = "SWP";
       _rescued++;
       // Direction attribution from same-day flow shape (Option C).
-      // Gated on DTE >= 14 because short-dated Massive ML/ can't be reliably
-      // attributed: Massive doesn't classify BID sweeps, so the "flow shape"
-      // reads as 100% ASK trivially on every contract. On short-DTE names
-      // (dealer/day-trader window) that false-positive gets attributed BULL
-      // when it's often just churn. Longer-DTE ML/ (institutional swing/
-      // LEAPS positioning) is safer to attribute. Verified against real
-      // data: SMCI 31c 8/21 (DTE 50, real AA sweep) attributes correctly,
-      // AAPL 305c 7/6 (DTE 4, mixed dealer flow) stays empty.
+      // Base gate: DTE >= 14. Short-dated Massive ML/ can't be reliably
+      // attributed via flow shape because Massive doesn't classify BID
+      // sweeps — the shape reads 100% ASK trivially. On short-DTE names
+      // (dealer/day-trader window) that false-positive gets attributed
+      // BULL when it's often just churn (verified against AAPL 305c 7/6).
+      // Exception: allow attribution on short-DTE ML/ if it's a clean
+      // isolated whale event — single ML/ on this specific contract same
+      // day AND premium >= $2M. The AAPL 305c pattern (7 ML/ scattered
+      // through the day) fails this check; a NBIS-style single $2M+
+      // whale hitting one strike passes. "Size + clean" per user note.
       const shape = flowShape[t.S + "|" + t.CP + "|" + t.K + "|" + t.E];
-      if (shape && (t.DTE || 0) >= 14) {
+      const sameContractML = (mlIndex[symCP] || []).filter(o =>
+        o.strike === t.K && o.exp === t.E
+      );
+      // Clean-whale exception: allow short-DTE attribution when the ML/ is
+      // a genuinely isolated large event on the contract (single ML/ same
+      // day, premium >= $2M). DTE >= 3 floor excludes 0-2 DTE where the
+      // pattern is dominated by expiration-day mechanics (block cleanup,
+      // synthetic position close, spread legs) rather than directional
+      // positioning — verified MU $1120 PUT 7/2 DTE=0 $3.1M correctly
+      // stays direction-less under this rule.
+      const isCleanWhale = t.P >= 2e6 && sameContractML.length === 1 && (t.DTE || 0) >= 3;
+      if (shape && ((t.DTE || 0) >= 14 || isCleanWhale)) {
         const total = shape.ask + shape.bid;
         if (total > 0 && shape.ask / total >= 0.7) {
           t.Si = "A";
@@ -2502,6 +2564,18 @@ export default function OptionsFlowDashboard() {
     if (h >= 50 && p >= 1e6) s += 1.5;
     else if (h >= 30 && p >= 750e3) s += 1.0;
     else if (h >= 20 && p >= 500e3) s += 0.5;
+    // ── Time-concentration bonus ─────────────────────────────────────────
+    // Multiple ASK sweeps bunched into a short window signal institutional
+    // urgency — different from hits-count alone. SPCX 165c 12/17/27 pattern
+    // (5 whale sweeps in 8 min on a LEAPS strike) is qualitatively distinct
+    // from BE-style flow spread over 90 min at similar hit count. Precomputed
+    // at cluster-build time as _timeConc = max # of ASK SWEEPs in any 10-min
+    // window on this contract. DTE >= 3 gate — 0-2 DTE clusters showing this
+    // pattern are dealer hedging, not directional (TSLA/SPY 0DTE puts).
+    if ((c.DTE || 0) >= 3) {
+      if ((c._timeConc||0) >= 5) s += 1.0;
+      else if ((c._timeConc||0) >= 3) s += 0.5;
+    }
     // Cap-relative premium multiplier — premium dominance principle.
     // Sub-notable premium gets penalized regardless of how impressive V/OI,
     // side urgency, or single-trade conviction looks. A $137K trade with
