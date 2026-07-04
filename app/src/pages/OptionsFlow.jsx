@@ -1855,14 +1855,24 @@ export default function OptionsFlowDashboard() {
   }, [csvFile]);
 
 
-  // Cap-filtered view: recompute charts using only the selected cap band's clean_confirmed
+  // Cap-filtered view: recompute charts using only the selected cap band's
+  // clean_confirmed. Also honors the current tab (Stocks vs Indexes) so that
+  // SECTORS/THEMES/SBLC-etc bins on Market Read exclude the wrong universe.
   const FD = useMemo(() => {
     if (!D) return null;
-    if (capFilter === "All") return D;
-    const cc = filterByCap(D.clean_confirmed, capFilter);
+    const needsTabFilter = dataMode === "stocks" || dataMode === "index";
+    if (capFilter === "All" && !needsTabFilter) return D;
+    let cc = D.clean_confirmed;
+    if (needsTabFilter) {
+      cc = cc.filter(t => {
+        const isEtf = isETFSymbol(t.S, t.stocketf);
+        return dataMode === "stocks" ? !isEtf : isEtf;
+      });
+    }
+    if (capFilter !== "All") cc = filterByCap(cc, capFilter);
     const charts = buildCharts(cc);
     return { ...D, ...charts };
-  }, [D, capFilter]);
+  }, [D, capFilter, dataMode]);
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
@@ -5172,14 +5182,22 @@ export default function OptionsFlowDashboard() {
 
             {/* TOP 10 FLOW PICKS */}
             {D && D.all_directional && (()=>{
-              const ad = capFilter==="All" ? (D.all_directional||[]) : (D.all_directional||[]).filter(t=>capBand(t.mktcap)===capFilter);
+              // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
+              // (and vice versa on the Indexes tab). Matches Watchlist behavior.
+              const _tabOk = (t) => {
+                const isEtf = isETFSymbol(t.S, t.stocketf);
+                return dataMode === "stocks" ? !isEtf : isEtf;
+              };
+              const baseAd = (D.all_directional||[]).filter(_tabOk);
+              const ad = capFilter==="All" ? baseAd : baseAd.filter(t=>capBand(t.mktcap)===capFilter);
               if (!ad.length) return null;
               // Pre-build TOTAL premium per (ticker,contract) from broader trade list
               // (includes B-side MAGENTA call buys etc. that don't get a direction
               // assigned per the strict A/AA-only rule, but are real flow on the strike).
               // Used for DISPLAY ONLY — scoring/exit detection still use the directional
               // subset to avoid misclassifying ambiguous flow as conviction.
-              const allTrades = capFilter==="All" ? (D.all_trades||[]) : (D.all_trades||[]).filter(t=>capBand(t.mktcap)===capFilter);
+              const baseAllTrades = (D.all_trades||[]).filter(_tabOk);
+              const allTrades = capFilter==="All" ? baseAllTrades : baseAllTrades.filter(t=>capBand(t.mktcap)===capFilter);
               const contractTotals = {};
               for (const t of allTrades) {
                 const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
