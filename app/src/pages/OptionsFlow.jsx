@@ -2222,9 +2222,32 @@ export default function OptionsFlowDashboard() {
     };
     // 2026-07-03: exclude ETFs/INDEXes when in Stocks tab. Watchlist should
     // reflect the same universe as the tab -- SPY/QQQ/SMH etc. belong on the
-    // Indexes tab. Untagged tickers (stocketf undefined) treated as STOCK
-    // to avoid false exclusions from missing metadata.
-    const isStock = (c) => c.stocketf !== "ETF" && c.stocketf !== "INDEX";
+    // Indexes tab.
+    //
+    // Two-layer detection:
+    //  1. stocketf === "ETF" or "INDEX" (from BBS CSV metadata)
+    //  2. Ticker in KNOWN_ETF_TICKERS (fallback for Massive rows where
+    //     stocketf is empty because the live worker doesn't populate it)
+    const KNOWN_ETF_TICKERS = new Set([
+      "SPY","QQQ","IWM","IWR","DIA","MDY","SMH","SOXL","SOXS","TQQQ","SQQQ",
+      "TECL","TECS","LABU","LABD","FAS","FAZ","TZA","UPRO","SPXU","URTY","SRTY",
+      "XBI","XLE","XLF","XLK","XLV","XLI","XLU","XLC","XLY","XLP","XLB","XLRE",
+      "XLC","XSD","XPH","XRT","XHB","XME","XOP","XPP",
+      "VIX","VXX","UVXY","SVXY","VIXY",
+      "GLD","SLV","USO","UNG","GDX","GDXJ","SLX",
+      "EEM","EFA","VEA","VWO","EWZ","FXI","INDA","EWJ","EWY","EWT",
+      "AGG","BND","TLT","TMF","TMV","IEF","SHY","LQD","HYG","JNK",
+      "JEPQ","QYLD","JEPI","SCHD","VIG","VYM","VOO","VTI","VT",
+      "ARKK","ARKG","ARKW","ARKF","ARKQ",
+      "DUST","NUGT","JDST","JNUG","GDXU","GDXD",
+      "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
+      "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
+    ]);
+    const isStock = (c) => {
+      if (c.stocketf === "ETF" || c.stocketf === "INDEX") return false;
+      if (KNOWN_ETF_TICKERS.has(c.sym)) return false;
+      return true;
+    };
     const wlTabFilter = dataMode === "stocks" ? isStock : ((c) => !isStock(c));
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
@@ -8246,7 +8269,28 @@ export default function OptionsFlowDashboard() {
               };
               // 2026-07-03: same ETF/INDEX filter as bulls/bears above -
               // scanner suggestions should honor the current tab.
-              const _isStockSugg = (c) => c.stocketf !== "ETF" && c.stocketf !== "INDEX";
+              // isStock() from wlPopulate scope isn't reachable here, so
+              // inline the same two-layer check.
+              const _KNOWN_ETF_TICKERS = new Set([
+                "SPY","QQQ","IWM","IWR","DIA","MDY","SMH","SOXL","SOXS","TQQQ","SQQQ",
+                "TECL","TECS","LABU","LABD","FAS","FAZ","TZA","UPRO","SPXU","URTY","SRTY",
+                "XBI","XLE","XLF","XLK","XLV","XLI","XLU","XLC","XLY","XLP","XLB","XLRE",
+                "XLC","XSD","XPH","XRT","XHB","XME","XOP","XPP",
+                "VIX","VXX","UVXY","SVXY","VIXY",
+                "GLD","SLV","USO","UNG","GDX","GDXJ","SLX",
+                "EEM","EFA","VEA","VWO","EWZ","FXI","INDA","EWJ","EWY","EWT",
+                "AGG","BND","TLT","TMF","TMV","IEF","SHY","LQD","HYG","JNK",
+                "JEPQ","QYLD","JEPI","SCHD","VIG","VYM","VOO","VTI","VT",
+                "ARKK","ARKG","ARKW","ARKF","ARKQ",
+                "DUST","NUGT","JDST","JNUG","GDXU","GDXD",
+                "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
+                "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
+              ]);
+              const _isStockSugg = (c) => {
+                if (c.stocketf === "ETF" || c.stocketf === "INDEX") return false;
+                if (_KNOWN_ETF_TICKERS.has(c.sym)) return false;
+                return true;
+              };
               const _tabFilterSugg = dataMode === "stocks" ? _isStockSugg : ((c) => !_isStockSugg(c));
               const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c) && _tabFilterSugg(c))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
