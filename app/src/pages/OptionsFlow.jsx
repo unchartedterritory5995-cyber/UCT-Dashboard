@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
@@ -1455,6 +1455,38 @@ const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracke
 export default function OptionsFlowDashboard() {
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
+  // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
+  // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges
+  // with module-scope KNOWN_ETF_TICKERS to form the effective ETF universe
+  // used by all tab filters. Empty initial value means first render falls
+  // back to the ~90 hardcoded tickers; once fetch resolves (~200ms), memos
+  // that depend on `isETF` recompute and the full ~18k list takes effect.
+  // If the fetch fails, we silently keep the hardcoded fallback.
+  const [remoteETFSet, setRemoteETFSet] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ticker-types/etf-index-symbols")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data || !Array.isArray(data.symbols)) return;
+        const s = new Set();
+        for (const sym of data.symbols) s.add(String(sym||"").toUpperCase());
+        setRemoteETFSet(s);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  // Effective ETF check — hardcoded fallback set UNION remote-fetched set.
+  // Component-scope so it closes over remoteETFSet and forces memos that
+  // depend on it to recompute when the fetch resolves.
+  const isETF = useCallback((sym, stocketf) => {
+    const st = (stocketf||"").toUpperCase();
+    if (st === "ETF" || st === "INDEX") return true;
+    const upper = (sym||"").toUpperCase();
+    if (KNOWN_ETF_TICKERS.has(upper)) return true;
+    if (remoteETFSet && remoteETFSet.has(upper)) return true;
+    return false;
+  }, [remoteETFSet]);
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
 
@@ -1865,14 +1897,14 @@ export default function OptionsFlowDashboard() {
     let cc = D.clean_confirmed;
     if (needsTabFilter) {
       cc = cc.filter(t => {
-        const isEtf = isETFSymbol(t.S, t.stocketf);
+        const isEtf = isETF(t.S, t.stocketf);
         return dataMode === "stocks" ? !isEtf : isEtf;
       });
     }
     if (capFilter !== "All") cc = filterByCap(cc, capFilter);
     const charts = buildCharts(cc);
     return { ...D, ...charts };
-  }, [D, capFilter, dataMode]);
+  }, [D, capFilter, dataMode, isETF]);
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
@@ -2261,11 +2293,11 @@ export default function OptionsFlowDashboard() {
     // reflect the same universe as the tab -- SPY/QQQ/SMH etc. belong on the
     // Indexes tab.
     //
-    // Two-layer detection via module-scope isETFSymbol():
+    // Two-layer detection via component-scope isETF():
     //  1. stocketf === "ETF" or "INDEX" (from BBS CSV metadata)
     //  2. Ticker in KNOWN_ETF_TICKERS (fallback for Massive rows where
     //     stocketf is empty because the live worker doesn't populate it)
-    const isStock = (c) => !isETFSymbol(c.sym, c.stocketf);
+    const isStock = (c) => !isETF(c.sym, c.stocketf);
     const wlTabFilter = dataMode === "stocks" ? isStock : ((c) => !isStock(c));
     const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
@@ -2449,9 +2481,9 @@ export default function OptionsFlowDashboard() {
       const fallbackBears = [];
 
       // 2026-07-03: same ETF/INDEX filter as initial cut - fallback picks
-      // should honor the current tab. Uses module-scope isETFSymbol()
+      // should honor the current tab. Uses component-scope isETF()
       // which checks both stocketf CSV metadata and KNOWN_ETF_TICKERS.
-      const _symIsStock = (sym) => !isETFSymbol(sym, flowBy[sym]?.stocketf);
+      const _symIsStock = (sym) => !isETF(sym, flowBy[sym]?.stocketf);
       const _fallbackTabFilter = dataMode === "stocks" ? _symIsStock : ((s) => !_symIsStock(s));
 
       // Pass 1+2: cross-direction
@@ -4492,7 +4524,7 @@ export default function OptionsFlowDashboard() {
               // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
               // (and vice versa on the Indexes tab). Matches Watchlist behavior.
               const _tabOk = (t) => {
-                const isEtf = isETFSymbol(t.S, t.stocketf);
+                const isEtf = isETF(t.S, t.stocketf);
                 return dataMode === "stocks" ? !isEtf : isEtf;
               };
               const base = (D.clean_confirmed||[]).filter(_tabOk);
@@ -5185,7 +5217,7 @@ export default function OptionsFlowDashboard() {
               // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
               // (and vice versa on the Indexes tab). Matches Watchlist behavior.
               const _tabOk = (t) => {
-                const isEtf = isETFSymbol(t.S, t.stocketf);
+                const isEtf = isETF(t.S, t.stocketf);
                 return dataMode === "stocks" ? !isEtf : isEtf;
               };
               const baseAd = (D.all_directional||[]).filter(_tabOk);
@@ -5722,7 +5754,7 @@ export default function OptionsFlowDashboard() {
           // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
           // (and vice versa on the Indexes tab). Matches Watchlist behavior.
           const _tabOk = (t) => {
-            const isEtf = isETFSymbol(t.S, t.stocketf);
+            const isEtf = isETF(t.S, t.stocketf);
             return dataMode === "stocks" ? !isEtf : isEtf;
           };
           const cc = (D.all_directional||[]).filter(_tabOk).filter(matchesLBCap);
@@ -6225,7 +6257,7 @@ export default function OptionsFlowDashboard() {
           // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
           // (and vice versa on the Indexes tab). Matches Watchlist behavior.
           const _tabOk = (t) => {
-            const isEtf = isETFSymbol(t.S, t.stocketf);
+            const isEtf = isETF(t.S, t.stocketf);
             return dataMode === "stocks" ? !isEtf : isEtf;
           };
           // Build clusters from ALL clean confirmed trades (tab-filtered)
@@ -7556,7 +7588,7 @@ export default function OptionsFlowDashboard() {
                   // 2026-07-04: honor the Stocks tab. watchMap doesn't carry
                   // stocketf, so fall back to ticker-symbol check only.
                   const _tabOk = (w) => {
-                    const isEtf = isETFSymbol(w.S, "");
+                    const isEtf = isETF(w.S, "");
                     return dataMode === "stocks" ? !isEtf : isEtf;
                   };
                   const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
@@ -7574,7 +7606,7 @@ export default function OptionsFlowDashboard() {
               // 2026-07-04: honor the Stocks tab. watchMap doesn't carry
               // stocketf, so fall back to ticker-symbol check only.
               const _tabOk = (w) => {
-                const isEtf = isETFSymbol(w.S, "");
+                const isEtf = isETF(w.S, "");
                 return dataMode === "stocks" ? !isEtf : isEtf;
               };
               const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
@@ -7695,7 +7727,7 @@ export default function OptionsFlowDashboard() {
           // 2026-07-04: honor the Stocks tab. Tracker picks came from Watchlist
           // originally and don't carry stocketf, so fall back to symbol check.
           const _tabOk = (p) => {
-            const isEtf = isETFSymbol(p.sym, p.stocketf||"");
+            const isEtf = isETF(p.sym, p.stocketf||"");
             return dataMode === "stocks" ? !isEtf : isEtf;
           };
           const afterTab  = (list) => list.filter(_tabOk);
@@ -8344,8 +8376,8 @@ export default function OptionsFlowDashboard() {
               };
               // 2026-07-03: same ETF/INDEX filter as bulls/bears above -
               // scanner suggestions should honor the current tab. Uses
-              // module-scope isETFSymbol().
-              const _isStockSugg = (c) => !isETFSymbol(c.sym, c.stocketf);
+              // component-scope isETF().
+              const _isStockSugg = (c) => !isETF(c.sym, c.stocketf);
               const _tabFilterSugg = dataMode === "stocks" ? _isStockSugg : ((c) => !_isStockSugg(c));
               const overflow = FD.CONV.filter(c=>!existingSyms.has(c.sym+"|"+c.exp+"|"+(c.K||c.strike)) && dteOkSugg(c) && _tabFilterSugg(c))
                 .map(c=>({...c, _score:autoScore(c), _cap:wlCapCheck(c)}))
