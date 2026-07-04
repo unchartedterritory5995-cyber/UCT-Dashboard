@@ -1353,7 +1353,30 @@ function processFlowData(rows) {
   // Mega cap premium filter
   filtered = filtered.filter(t => premiumFilter(t.P, t.mktcap));
 
-  const confirmed_trades = filtered.filter(t => t.confirmed && t.D);
+  // ── Confirmed-trade rescue for Massive-sourced whales ──────────────────────
+  // BBS uses Color=YELLOW/MAGENTA to signal vol>OI, which drives t.confirmed
+  // and gates the entire clean_confirmed → allCons → CONV → watchlist path.
+  // Massive rows come through as Color=WHITE by default (Massive doesn't
+  // publish Color info), so genuine institutional whales like SNDK $2730
+  // 6/17/27 ($5.6M single SWEEP at ASK) get filtered out here BEFORE they
+  // ever reach clustering — no downstream scoring or oiExceeded derivation
+  // can help. Rescue two well-defined patterns:
+  //   (a) Whale premium ($1M+) SWEEP at ASK — legit whale regardless of
+  //       data source. BBS would surface these under any Color scheme.
+  //   (b) Massive-sourced (identified by OI==0, since Massive rows come in
+  //       without OI enrichment) SWEEP at ASK with $500K+ premium — the
+  //       BBS pattern that lost its Color info in the Massive pipeline.
+  // Guardrails: SWEEP + ASK-side only (no BLOCK, no BID-side), premium
+  // floors, and t.D must be set (direction inferred).
+  const _isRescuableWhale = (t) => {
+    if (!t.D) return false;
+    if (t.Ty !== "SWP") return false;
+    if (t.Si !== "A" && t.Si !== "AA") return false;
+    if (t.P >= 1e6) return true;
+    if ((t.OI||0) === 0 && t.P >= 500e3) return true;
+    return false;
+  };
+  const confirmed_trades = filtered.filter(t => (t.confirmed && t.D) || _isRescuableWhale(t));
   const unconfirmed = filtered.filter(t => !t.confirmed);
   // Also include Ask/Above Ask WHITE trades in directional analysis (they have direction but need OI check)
   const directional = filtered.filter(t => t.D);
