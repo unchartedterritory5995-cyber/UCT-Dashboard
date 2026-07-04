@@ -1528,7 +1528,43 @@ function processFlowData(rows) {
     if ((t.OI||0) === 0 && t.P >= 500e3) return true;
     return false;
   };
-  const confirmed_trades = filtered.filter(t => (t.confirmed && t.D) || _isRescuableWhale(t));
+
+  // ── Sibling BLOCK rescue ──────────────────────────────────────────────────
+  // Empty-side BLOCKs on Massive contracts get filtered because t.D is null,
+  // but they're often part of the same institutional flow as a rescued whale
+  // SWEEP on the same contract. Losing them drops `hasBlock=false` on the
+  // cluster, which prevents grade A+ upgrade even when the pattern is clearly
+  // institutional. Example: SPCX 165c 12/17/27 has 5 whale SWEEPs (rescued)
+  // + 2 empty-side BLOCKs (would be dropped). Without the blocks, cluster
+  // grade caps at B+ instead of A+, autoScore ~70% instead of ~78%.
+  //
+  // Rescue rule: if a BLOCK has empty side, premium >= $500K, OI=0 (Massive
+  // signature), AND same contract has a rescued whale SWEEP — inherit the
+  // whale's direction. Defensible because institutional flow typically
+  // executes SWEEP + BLOCK on the same strike within the same window.
+  const _rescuedContractDir = {};
+  filtered.forEach(t => {
+    if (!_isRescuableWhale(t)) return;
+    const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
+    if (!_rescuedContractDir[k]) _rescuedContractDir[k] = t.D;
+  });
+  // Mark and set direction on eligible BLOCKs. Uses a marker (_rescuedBlock)
+  // because the check runs both before assignment (identifying eligible
+  // BLOCKs) and after (letting them through confirmed_trades) — needs a
+  // stable flag independent of t.D mutation.
+  filtered.forEach(t => {
+    if (t.Ty !== "BLK") return;
+    if (t.D) return;
+    if (t.P < 500e3) return;
+    if ((t.OI||0) !== 0) return;
+    const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
+    const dir = _rescuedContractDir[k];
+    if (!dir) return;
+    t.D = dir;
+    t._rescuedBlock = true;
+  });
+
+  const confirmed_trades = filtered.filter(t => (t.confirmed && t.D) || _isRescuableWhale(t) || t._rescuedBlock);
   const unconfirmed = filtered.filter(t => !t.confirmed);
   // Also include Ask/Above Ask WHITE trades in directional analysis (they have direction but need OI check)
   const directional = filtered.filter(t => t.D);
