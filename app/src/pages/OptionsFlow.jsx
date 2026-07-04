@@ -534,10 +534,21 @@ const KNOWN_ETF_TICKERS = new Set([
   "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
   "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
 ]);
+// Tickers frequently misclassified as ETF/INDEX by external data providers
+// (Massive's ticker_types, etc.) that ARE regular equities. Whitelisted here
+// so they never get filtered from the Stocks tab regardless of upstream tags.
+// SPCX: SpaceX-tracking company, trades as regular stock. Add tickers here
+// as we discover them being incorrectly dropped from the watchlist.
+const STOCK_OVERRIDE_TICKERS = new Set([
+  "SPCX",
+]);
+
 function isETFSymbol(sym, stocketf) {
+  const upper = (sym||"").toUpperCase();
+  if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
   const s = (stocketf||"").toUpperCase();
   if (s === "ETF" || s === "INDEX") return true;
-  if (KNOWN_ETF_TICKERS.has((sym||"").toUpperCase())) return true;
+  if (KNOWN_ETF_TICKERS.has(upper)) return true;
   return false;
 }
 
@@ -1921,9 +1932,17 @@ export default function OptionsFlowDashboard() {
   // Component-scope so it closes over remoteETFSet and forces memos that
   // depend on it to recompute when the fetch resolves.
   const isETF = useCallback((sym, stocketf) => {
+    const upper = (sym||"").toUpperCase();
+    // Whitelist wins over ALL other classifications, including Massive's
+    // ticker_types remote data and the trade's own stocketf column. Some
+    // stocks get misclassified as ETF/INDEX by external data providers
+    // (SPCX is a known example — SpaceX-tracking company that trades like
+    // a regular equity but was tagged ETF upstream). Without this override,
+    // legitimate stock flow gets filtered off the Stocks tab and never
+    // reaches scoring or watchlist.
+    if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
     const st = (stocketf||"").toUpperCase();
     if (st === "ETF" || st === "INDEX") return true;
-    const upper = (sym||"").toUpperCase();
     if (KNOWN_ETF_TICKERS.has(upper)) return true;
     if (remoteETFSet && remoteETFSet.has(upper)) return true;
     return false;
