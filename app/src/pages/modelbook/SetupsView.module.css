@@ -465,14 +465,21 @@
   margin: 0;
   text-shadow: 0 0 1px rgba(240, 212, 121, 0.4), 0 2px 20px rgba(240, 212, 121, 0.2);
 }
-.stageHeadMeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+/* Stay on ONE line so the header keeps a fixed height as the pane narrows
+   (e.g. when the left sidebar hover-expands) — the essence truncates with an
+   ellipsis rather than wrapping and pushing the header taller. */
+.stageHeadMeta { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
 .stageEssence {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
   color: rgba(214, 213, 207, 0.6);
+  flex: 1 1 auto;
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .stageHeadRight {
   flex: none;
@@ -782,6 +789,10 @@
   .stageWrap { overflow: visible; }
   .stage { padding: 8px 2px 0; overflow: visible; }
   .stageHeader { flex-wrap: wrap; gap: 10px; }
+  /* No hover-sidebar on phones and plenty of vertical room — let the essence
+     wrap and read in full instead of truncating. */
+  .stageHeadMeta { flex-wrap: wrap; }
+  .stageEssence { white-space: normal; overflow: visible; }
   .stagePbHint { display: none; }   /* no hover on touch — popover is disabled */
   .stageExamplesFull { overflow: visible; padding: 14px 0 24px; }
 }
