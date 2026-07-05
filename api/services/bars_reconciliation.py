@@ -56,11 +56,27 @@ _BARS_PER_AUDIT = int(os.environ.get("RECONCILE_BARS_PER_AUDIT", "200"))
 #         fetches Polygon clock-hour native; they don't align, so reconciling
 #         60m would DELETE correct bars. 60m heals indirectly: once its 30m
 #         source is clean, the 60m resample is clean.
-#   D    — audits 100% clean already (native daily matches); no need to spend
-#         audit budget on it.
+#   D    — HEALING excluded (a mis-heal on the default TF is the worst case),
+#         but Daily previously had ZERO drift VISIBILITY — if a bad daily bar
+#         ever landed, nothing caught it. Daily now runs a DETECT-ONLY pass
+#         (audits vs canonical, records + alerts fail-severity drift, NEVER
+#         deletes) so the default timeframe is monitored with zero mis-heal
+#         risk. See _run_detect_only below.
 #   W/M  — resampled in-app and not yet verified against the canonical fetch;
 #         exclude until audit.py resamples canonical to match (avoid mis-heal).
 _TFS = ("1", "5", "15", "30")
+
+# Detect-only timeframes: audited every cycle but NEVER healed (no deletion).
+# Daily is the DEFAULT chart TF, so silent drift there is the highest-impact
+# data-doubt failure — but auto-deleting daily rows on any audit false-positive
+# is more dangerous than the drift itself. Detect-only threads the needle:
+# full visibility, zero deletion. Only FAIL-severity diffs are reported (a
+# genuine >~0.5% divergence); benign yfinance-tail cent differences classify
+# as 'ok'/'warn' and are ignored, so the signal stays clean.
+_DETECT_TFS = tuple(
+    t.strip() for t in os.environ.get("RECONCILE_DETECT_TFS", "D").split(",") if t.strip()
+) if os.environ.get("RECONCILE_DAILY_DETECT_ENABLED", "1") != "0" else ()
+_DETECT_PAIRS_PER_CYCLE = int(os.environ.get("RECONCILE_DETECT_PAIRS_PER_CYCLE", "12"))
 
 _PRIORITY_TICKERS = (
     "SPY", "QQQ", "IWM", "DIA", "AAPL", "NVDA", "MSFT", "TSLA",
@@ -81,9 +97,28 @@ _state = {
     "audits_errored": 0,
     "drift_detected_count": 0,
     "rows_healed_total": 0,
+    "detect_only_drift_count": 0,   # Daily (+ any _DETECT_TFS) drift seen, NOT healed
     "last_cycle_at": None,
-    "last_drift": [],  # ring buffer, last 30 drifts detected
+    "last_drift": [],  # ring buffer, last 30 healed drifts detected
+    "last_detect_drift": [],  # ring buffer, last 30 detect-only (unhealed) drifts
 }
+
+
+def _record_detect_drift(ticker: str, tf: str, fail_count: int, warn_count: int,
+                         bad_ts: list[int]):
+    """Record a DETECT-ONLY drift — audited, flagged, but deliberately NOT healed.
+    A hit here means a default-TF (Daily) bar looks wrong AND we did not delete
+    it; an operator should investigate (it could be a real upstream/write bug, or
+    an audit edge case). Surfaced on /api/admin/reconciliation-status."""
+    with _state_lock:
+        _state["detect_only_drift_count"] += 1
+        _state["last_detect_drift"].append({
+            "ticker": ticker, "tf": tf,
+            "fail_count": fail_count, "warn_count": warn_count,
+            "sample_ts": bad_ts[:5],
+            "at": datetime.utcnow().isoformat() + "Z",
+        })
+        _state["last_detect_drift"] = _state["last_detect_drift"][-30:]
 
 
 def _record_drift(ticker: str, tf: str, fail_count: int, warn_count: int, healed: int):
@@ -236,6 +271,70 @@ def _heal_companion_60m(ticker: str, bad_30m_ts: list[int]) -> int:
     return _heal_drift(ticker, "60", buckets)
 
 
+def _detect_only_pairs() -> list[tuple[str, str]]:
+    """Sample (ticker, tf) pairs for the DETECT-ONLY pass. Weighted to the same
+    hot + priority tickers users actually watch, each paired with every
+    detect-only TF (Daily). Bounded by _DETECT_PAIRS_PER_CYCLE tickers so the
+    extra Polygon audit calls stay small."""
+    if not _DETECT_TFS:
+        return []
+    tickers: list[str] = []
+    try:
+        from api.services.bars_fetch import get_hot_intraday_tickers
+        hot = get_hot_intraday_tickers(100)
+    except Exception:
+        hot = []
+    n_hot = max(1, _DETECT_PAIRS_PER_CYCLE // 2)
+    if hot:
+        tickers.extend(random.sample(hot, min(n_hot, len(hot))))
+    remaining = _DETECT_PAIRS_PER_CYCLE - len(tickers)
+    if remaining > 0:
+        tickers.extend(random.sample(_PRIORITY_TICKERS, min(remaining, len(_PRIORITY_TICKERS))))
+    seen: set[str] = set()
+    pairs: list[tuple[str, str]] = []
+    for t in tickers:
+        if t in seen:
+            continue
+        seen.add(t)
+        for tf in _DETECT_TFS:
+            pairs.append((t, tf))
+    return pairs
+
+
+def _run_detect_only(audit) -> None:
+    """Audit the detect-only TFs (Daily) and RECORD fail-severity drift WITHOUT
+    healing. Zero deletion → cannot mis-heal the default timeframe; pure
+    visibility into whether Daily ever drifts."""
+    for ticker, tf in _detect_only_pairs():
+        try:
+            result = audit.audit_ticker(ticker, tf, bars=_BARS_PER_AUDIT)
+            if result.error or result.fail_count <= 0:
+                continue
+            bad_ts = sorted({d.timestamp for d in result.diffs if d.severity == "fail"})
+            _logger.warning(
+                "[reconcile] DETECT-ONLY DRIFT %s/%s: %d fail / %d warn — NOT healed "
+                "(default-TF, investigate); sample ts=%s",
+                ticker, tf, result.fail_count, result.warn_count, bad_ts[:5],
+            )
+            _record_detect_drift(ticker, tf, result.fail_count, result.warn_count, bad_ts)
+            # Route to the same ops alert channel the intraday watchdog uses, so a
+            # real daily-drift event pages someone instead of hiding in logs.
+            try:
+                from api.services import chart_health_alerts
+                chart_health_alerts.emit(
+                    "daily_drift_detected",
+                    "warn",
+                    f"{ticker}/{tf}: {result.fail_count} daily bar(s) diverge from canonical "
+                    f"(detect-only, not auto-healed) — investigate",
+                    {"ticker": ticker, "tf": tf, "fail_count": result.fail_count,
+                     "sample_ts": bad_ts[:5]},
+                )
+            except Exception:
+                pass
+        except Exception:
+            _logger.exception(f"[reconcile] detect-only audit crashed for {ticker}/{tf}")
+
+
 def _run_cycle():
     """One reconciliation pass: sample pairs, audit each, heal drift."""
     from api.services import audit
@@ -278,6 +377,13 @@ def _run_cycle():
         except Exception:
             audits_err += 1
             _logger.exception(f"[reconcile] cycle: audit crashed for {ticker}/{tf}")
+
+    # Detect-only pass (Daily) — audits + alerts drift but NEVER deletes. Runs
+    # after the heal loop so it never competes with a heal on the same tick.
+    try:
+        _run_detect_only(audit)
+    except Exception:
+        _logger.exception("[reconcile] detect-only pass crashed")
 
     with _state_lock:
         _state["cycles_completed"] += 1
