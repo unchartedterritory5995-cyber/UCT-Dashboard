@@ -1573,6 +1573,22 @@ function processFlowData(rows) {
   // whale's direction. Defensible because institutional flow typically
   // executes SWEEP + BLOCK on the same strike within the same window.
   const _rescuedContractDir = {};
+  // Track total premium and whale-ASK premium per contract for the
+  // dominance gate below. When ASK-classified whale sweeps don't dominate
+  // a contract's flow, sibling BLOCKs are likely BID-side (BBS shows BID;
+  // Massive shows empty) and rescuing them would flip mixed flow to
+  // spuriously one-sided. Example: BE 9/18 $370c has ~$4M AA sweeps + ~$18M
+  // B-side blocks per BBS. Massive shows the same as $4M SWEEP-A + $18M
+  // empty-side blocks. Without the gate, we rescue all $18M as BULL —
+  // completely inverting the actual net-BEAR flow.
+  const _contractPrem = {};
+  filtered.forEach(t => {
+    if (!t.S || !t.CP) return;
+    const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
+    if (!_contractPrem[k]) _contractPrem[k] = { total: 0, whaleAsk: 0 };
+    _contractPrem[k].total += t.P;
+    if (_isRescuableWhale(t)) _contractPrem[k].whaleAsk += t.P;
+  });
   filtered.forEach(t => {
     if (!_isRescuableWhale(t)) return;
     const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
@@ -1590,6 +1606,14 @@ function processFlowData(rows) {
     const k = t.S + "|" + t.CP + "|" + t.K + "|" + t.E;
     const dir = _rescuedContractDir[k];
     if (!dir) return;
+    // Dominance gate: only rescue if whale ASK sweeps represent >= 60% of
+    // total premium on this contract. Under 60% suggests significant
+    // non-ASK flow (either BID blocks or BID sweeps in the empty-side
+    // pool) — mixed flow that shouldn't get one-directional attribution.
+    // SPCX 165 12/17/27 passes: $8.58M whaleAsk / $9.79M total = 87%.
+    // BE 9/18 $370c fails: $4.35M whaleAsk / ~$25M+ total ≈ 15%.
+    const cp = _contractPrem[k];
+    if (!cp || cp.total <= 0 || cp.whaleAsk / cp.total < 0.6) return;
     t.D = dir;
     t._rescuedBlock = true;
     t._rescueDerived = true; // marker: direction inherited from whale, not clean-classified
