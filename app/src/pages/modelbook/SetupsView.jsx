@@ -183,17 +183,19 @@ export function SetupGlyph({ setup, className }) {
 // One entry in the setup index: name + full description + a direction dot.
 // Selecting it loads the setup into the stage — the same "click a row, study
 // the chart" rhythm as a stock in Throughout the Years.
-function RailRow({ setup, active, expanded, onSelect, onHover, onLeave }) {
+function RailRow({ setup, active, expanded, onSelect, onLearn }) {
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   return (
-    <button
-      type="button"
+    // A div (not a button) so the "Learn more" button can nest inside it without
+    // an invalid button-in-button. The whole row still selects on click/Enter.
+    <div
+      role="button"
+      tabIndex={0}
       data-setup-name={setup.name}
       className={`${styles.railRow} ${active ? styles.railRowActive : ''}`}
       aria-expanded={expanded}
       onClick={() => onSelect(setup)}
-      onMouseEnter={e => onHover?.(setup, e.currentTarget)}
-      onMouseLeave={onLeave}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(setup) } }}
     >
       <span className={styles.railText}>
         <span className={styles.railNameRow}>
@@ -202,8 +204,18 @@ function RailRow({ setup, active, expanded, onSelect, onHover, onLeave }) {
         </span>
         <span className={styles.railEssence}>{setup.essence}</span>
       </span>
-      <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
-    </button>
+      <span className={styles.railAside}>
+        <button
+          type="button"
+          className={styles.railLearn}
+          onClick={e => { e.stopPropagation(); onLearn?.(setup) }}
+          title={`Learn more about ${setup.name}`}
+        >
+          Learn more
+        </button>
+        <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
+      </span>
+    </div>
   )
 }
 
@@ -286,60 +298,46 @@ function Playbook({ pb, hideIntro }) {
   )
 }
 
-// ── Playbook hover panel ───────────────────────────────────────────────────────
-// Hovering a setup name (in the rail, or the stage identity header) pops up its
-// full playbook in a floating panel — the same hover-to-read rhythm as the
-// year-recap popover in Throughout the Years. The charts own the stage; the
-// write-up lives one hover away. pointer-events stay ON so a long dossier can be
-// scrolled (the parent keeps it open via a short close delay while the cursor
-// crosses from the row into the panel).
-function PlaybookPopover({ setup, anchor, onEnter, onLeave }) {
-  if (!setup || !anchor) return null
+// ── Playbook modal ─────────────────────────────────────────────────────────────
+// Clicking "Learn more" on a setup opens its full playbook centered on screen
+// over a dimmed backdrop. Click the backdrop / ✕ / Escape to dismiss — the view
+// returns to exactly where it was. Replaces the old hover popover, which didn't
+// fit the screen well.
+function PlaybookModal({ setup, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  if (!setup) return null
   const pb = SETUP_PLAYBOOKS[setup.name]
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
-  const gap = 10
-  const W = Math.min(440, window.innerWidth - 24)
-  // Prefer popping to the RIGHT of the anchor (out over the chart area); fall
-  // back to the left, then below, so a wide stage header still lands cleanly.
-  let left = anchor.right + gap
-  let top = Math.min(Math.max(8, anchor.top - 6), Math.max(8, window.innerHeight - 120))
-  if (left + W > window.innerWidth - 8) {
-    const leftAlt = anchor.left - W - gap
-    if (leftAlt >= 8) {
-      left = leftAlt
-    } else {
-      left = Math.min(Math.max(8, anchor.left), window.innerWidth - W - 8)
-      top = anchor.bottom + gap
-    }
-  }
-  const maxH = Math.max(160, window.innerHeight - top - 14)
   return (
-    <div
-      className={styles.pbPop}
-      role="tooltip"
-      style={{ top, left, width: W, maxHeight: maxH }}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-    >
-      <div className={styles.pbPopHead}>
-        <SetupGlyph setup={setup} className={styles.pbPopGlyph} />
-        <div className={styles.pbPopId}>
-          <span className={styles.pbPopName}>{setup.name}</span>
-          <span className={styles.pbPopChips}>
-            <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
-            <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
-          </span>
+    <div className={styles.pbModalBackdrop} onClick={onClose} role="dialog" aria-modal="true">
+      <div className={styles.pbModal} onClick={e => e.stopPropagation()}>
+        <button className={styles.pbModalClose} onClick={onClose} aria-label="Close" title="Close">
+          <UIcon name="x" size={18} />
+        </button>
+        <div className={styles.pbPopHead}>
+          <SetupGlyph setup={setup} className={styles.pbPopGlyph} />
+          <div className={styles.pbPopId}>
+            <span className={styles.pbPopName}>{setup.name}</span>
+            <span className={styles.pbPopChips}>
+              <span className={`${styles.dirChip} ${styles[dir.cls]}`}>{dir.label}</span>
+              <span className={styles.catChip}>{setup.family.toUpperCase()}</span>
+            </span>
+          </div>
         </div>
-      </div>
-      <div className={styles.pbPopBody}>
-        {pb ? (
-          <Playbook pb={pb} />
-        ) : (
-          <p className={styles.placeholderText}>
-            The full write-up for this setup — definition, qualifying criteria, entry trigger,
-            risk placement, and trade management — is being authored and will live here.
-          </p>
-        )}
+        <div className={styles.pbModalBody}>
+          {pb ? (
+            <Playbook pb={pb} />
+          ) : (
+            <p className={styles.placeholderText}>
+              The full write-up for this setup — definition, qualifying criteria, entry trigger,
+              risk placement, and trade management — is being authored and will live here.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -551,13 +549,6 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
   // Inline header "advance" blurb (e.g. "160% in 26 days"), admin-editable.
   const [advance, setAdvance] = useState(ex.advance_note || '')
   useEffect(() => { setAdvance(ex.advance_note || '') }, [ex.advance_note])
-  // Local mirror of the watermark position so a drag-commit sticks across
-  // re-renders without waiting on a refetch (and never snaps back).
-  const [wmPos, setWmPos] = useState({ x: ex.watermark_x ?? 0.2, y: ex.watermark_y ?? 0.2 })
-  useEffect(() => {
-    setWmPos({ x: ex.watermark_x ?? 0.2, y: ex.watermark_y ?? 0.2 })
-  }, [ex.watermark_x, ex.watermark_y])
-
   // PUT a partial field update on this example (admin-only paths).
   async function patchExample(body) {
     await fetch(`/api/modelbook/setup-example/${ex.id}`, {
@@ -580,13 +571,11 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
     patchExample({ [activeField]: JSON.stringify(next) }).then(() => onChanged?.())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotating, isAdmin, ex.id, onChanged, activeField])
-  // Per-example watermark position: drag commits persist HERE only, never the
-  // global chart_settings, so other charts site-wide are unaffected.
-  function saveWatermark({ x, y }) {
-    setWmPos({ x, y })            // keep the dragged spot across re-renders
-    if (!isAdmin) return
-    patchExample({ watermark_x: x, watermark_y: y })
-  }
+  // Watermarks are pinned top-left on every example chart (below), so there's no
+  // per-example position to persist. This stub stays wired as onWatermarkCommit
+  // purely so a stray drag can never fall through to writing the GLOBAL
+  // chart_settings watermark position (which would affect charts site-wide).
+  function saveWatermark() { /* position is fixed top-left — nothing to save */ }
   // Setup annotations PERSIST into the Result view — they stay anchored to their
   // candles/prices. In the Result view any result-specific annotations layer
   // additively on top, switched in immediately with the flip (keyed on `view`).
@@ -796,8 +785,9 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           priceScaleTopMargin={0.07}
           priceScaleBottomMargin={0.07}
           watermarkOpacity={0.62}
-          watermarkX={wmPos.x}
-          watermarkY={wmPos.y}
+          watermarkX={0}
+          watermarkY={0}
+          watermarkPad={24}
           onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
           watermarkSector={ex.sector || null}
@@ -837,7 +827,7 @@ function ExamplesPane({ setup, scrollReq, isAdmin, adding, setAdding }) {
   useEffect(() => {
     if (!scrollReq?.exampleId || !examples.length) return
     const el = document.getElementById(`setup-ex-${scrollReq.exampleId}`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (el) el.scrollIntoView({ behavior: scrollReq.smooth === false ? 'auto' : 'smooth', block: 'start' })
   }, [scrollReq, examples])
 
   return (
@@ -871,7 +861,7 @@ function ExamplesPane({ setup, scrollReq, isAdmin, adding, setAdding }) {
 // row) pops up the full playbook in a floating panel instead of spending a
 // permanent column on it. The `key` forces a fresh mount per setup so the
 // cascade + chart reset cleanly.
-function DetailStage({ setup, scrollReq }) {
+function DetailStage({ setup, scrollReq, onLearn }) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [adding, setAdding] = useState(false)
@@ -896,7 +886,7 @@ function DetailStage({ setup, scrollReq }) {
           </div>
         </div>
         <div className={styles.stageHeadRight}>
-          <span className={styles.stagePbHint} aria-hidden="true">Hover a setup for its playbook</span>
+          <button className={styles.stageLearnBtn} onClick={() => onLearn?.()}>Learn more</button>
           {isAdmin && (
             <button className={styles.stageAddBtn} onClick={() => setAdding(a => !a)}>
               {adding ? 'Close' : '+ Add Example'}
@@ -932,27 +922,10 @@ export default function SetupsView({ onExit }) {
   const isPhone = useIsPhone()
   const [mobileView, setMobileView] = useState('list')   // phone: list ⇄ detail
 
-  // Playbook hover panel. A short enter-debounce so scrubbing the rail doesn't
-  // flash a panel for every row in passing; a short close-delay bridges the gap
-  // between the row and the panel so the cursor can move onto it (and scroll a
-  // long dossier). Disabled on phones — there's no hover, and tapping selects.
-  const [hoverPb, setHoverPb] = useState({ setup: null, anchor: null })
-  const pbEnterTimer = useRef(null)
-  const pbLeaveTimer = useRef(null)
-  const onPbHover = useCallback((setup, el) => {
-    if (isPhone) return
-    clearTimeout(pbLeaveTimer.current)
-    clearTimeout(pbEnterTimer.current)
-    const rect = el.getBoundingClientRect()
-    pbEnterTimer.current = setTimeout(() => setHoverPb({ setup, anchor: rect }), 180)
-  }, [isPhone])
-  const onPbLeave = useCallback(() => {
-    clearTimeout(pbEnterTimer.current)
-    clearTimeout(pbLeaveTimer.current)
-    pbLeaveTimer.current = setTimeout(() => setHoverPb({ setup: null, anchor: null }), 140)
-  }, [])
-  const onPbPopEnter = useCallback(() => clearTimeout(pbLeaveTimer.current), [])
-  useEffect(() => () => { clearTimeout(pbEnterTimer.current); clearTimeout(pbLeaveTimer.current) }, [])
+  // Playbook write-up: opened on demand via the "Learn more" button on each rail
+  // row (and the stage header), shown centered over a dimmed backdrop. Null = no
+  // modal. Clicking out / ✕ / Escape closes it and returns to where you were.
+  const [learnSetup, setLearnSetup] = useState(null)
 
   // Click a setup → a dropdown of its charted examples under the row. The menu
   // belongs to the selected setup; picking an example scrolls the right pane to
@@ -964,8 +937,11 @@ export default function SetupsView({ onExit }) {
   // Which example within the open setup is arrow-highlighted (−1 = the setup
   // itself, no example yet). Drives ↑/↓ ticker stepping + the chip highlight.
   const [exampleIdx, setExampleIdx] = useState(-1)
-  function jumpToExample(ex) {
-    setScrollReq(prev => ({ exampleId: ex.id, seq: (prev?.seq || 0) + 1 }))
+  // smooth:false = instant jump (keyboard nav — no scroll-through, so a reverse
+  // entry into a category lands on its last ticker with no flash of the first).
+  // Mouse chip clicks keep the smooth scroll.
+  function jumpToExample(ex, { smooth = true } = {}) {
+    setScrollReq(prev => ({ exampleId: ex.id, smooth, seq: (prev?.seq || 0) + 1 }))
     if (isPhone) setMobileView('detail')
   }
   // Switching setups always starts fresh at the first example — drop any pending
@@ -983,17 +959,19 @@ export default function SetupsView({ onExit }) {
   const curExamples = useMemo(() => exListData?.examples || [], [exListData])
   const activeExampleId = exampleIdx >= 0 ? (curExamples[exampleIdx]?.id ?? null) : null
 
-  // Entering a setup via the arrows lands straight on a ticker — its FIRST
-  // example going down, its LAST going up — but the list loads async, so defer
-  // the landing until the examples arrive ('start' | 'end' | false).
-  const pendingLandRef = useRef(false)
+  // Entering a setup ALWAYS lands (and highlights) straight on a ticker — its
+  // FIRST example on any forward/mouse/initial entry, its LAST when arrowing up
+  // into it — so ↓ immediately advances to the next chart. The list loads async,
+  // so defer the landing until the examples arrive ('start' | 'end' | false).
+  // Seeded 'start' so the very first setup highlights ticker #1 on load.
+  const pendingLandRef = useRef('start')
   useEffect(() => {
     const want = pendingLandRef.current
     if (!want || !curExamples.length) return
     pendingLandRef.current = false
     const li = want === 'end' ? curExamples.length - 1 : 0
     setExampleIdx(li)
-    jumpToExample(curExamples[li])
+    jumpToExample(curExamples[li], { smooth: false })
   }, [curExamples])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {
@@ -1028,14 +1006,22 @@ export default function SetupsView({ onExit }) {
   const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
 
   function openSetup(s) {
-    pendingLandRef.current = false
     if (s.name === selectedName) {
-      setExMenuOpen(o => !o)          // re-click the open setup → toggle its menu
+      // Re-click the open setup → toggle its menu. When (re)opening, highlight
+      // its first ticker so ↓ moves straight to the next chart.
+      const opening = !exMenuOpen
+      setExMenuOpen(opening)
+      if (opening) {
+        if (curExamples.length) { setExampleIdx(0); jumpToExample(curExamples[0], { smooth: false }) }
+        else setExampleIdx(-1)
+      }
     } else {
+      // New setup → open its menu and land on its first ticker once loaded.
+      pendingLandRef.current = 'start'
       setSelectedName(s.name)
-      setExMenuOpen(true)             // new setup → open its examples menu
+      setExMenuOpen(true)
+      setExampleIdx(-1)
     }
-    setExampleIdx(-1)                 // start fresh at the setup, not an example
     if (isPhone) setMobileView('detail')
   }
 
@@ -1063,7 +1049,7 @@ export default function SetupsView({ onExit }) {
         if (onSetup && exMenuOpen && exampleIdx < curExamples.length - 1) {
           const ni = exampleIdx + 1
           setExampleIdx(ni)
-          jumpToExample(curExamples[ni])
+          jumpToExample(curExamples[ni], { smooth: false })
           return
         }
         // …else roll into the next setup, landing straight on its first example.
@@ -1080,7 +1066,7 @@ export default function SetupsView({ onExit }) {
         if (onSetup && exMenuOpen && exampleIdx > 0) {
           const ni = exampleIdx - 1
           setExampleIdx(ni)
-          jumpToExample(curExamples[ni])
+          jumpToExample(curExamples[ni], { smooth: false })
           return
         }
         const prev = idx <= 0 ? visibleFlat[0] : visibleFlat[idx - 1]
@@ -1102,10 +1088,17 @@ export default function SetupsView({ onExit }) {
   function selectFilter(cat) {
     setFilter(cat)
     setExMenuOpen(true)              // open the new first setup's examples dropdown
-    setExampleIdx(-1)
-    pendingLandRef.current = false
     const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
-    if (first) setSelectedName(first.name)
+    if (first && first.name === selectedName) {
+      // Already showing this setup — highlight its first ticker synchronously
+      // (selectedName won't change, so the pending-land effect wouldn't fire).
+      if (curExamples.length) { setExampleIdx(0); jumpToExample(curExamples[0], { smooth: false }) }
+      else setExampleIdx(-1)
+    } else {
+      setExampleIdx(-1)
+      pendingLandRef.current = 'start' // highlight its first ticker once loaded
+      if (first) setSelectedName(first.name)
+    }
   }
 
   return (
@@ -1173,8 +1166,7 @@ export default function SetupsView({ onExit }) {
                         active={s.name === selectedName}
                         expanded={exMenuOpen && s.name === selectedName}
                         onSelect={openSetup}
-                        onHover={onPbHover}
-                        onLeave={onPbLeave}
+                        onLearn={setLearnSetup}
                       />
                       {exMenuOpen && s.name === selectedName && (
                         <ExampleJumpList
@@ -1202,20 +1194,13 @@ export default function SetupsView({ onExit }) {
               <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
             )}
             {selected
-              ? <DetailStage setup={selected} scrollReq={scrollReq} />
+              ? <DetailStage setup={selected} scrollReq={scrollReq} onLearn={() => setLearnSetup(selected)} />
               : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
           </main>
         )}
       </div>
 
-      {!isPhone && (
-        <PlaybookPopover
-          setup={hoverPb.setup}
-          anchor={hoverPb.anchor}
-          onEnter={onPbPopEnter}
-          onLeave={onPbLeave}
-        />
-      )}
+      {learnSetup && <PlaybookModal setup={learnSetup} onClose={() => setLearnSetup(null)} />}
     </div>
   )
 }

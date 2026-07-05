@@ -196,10 +196,17 @@
 .railDir_both  { background: #e6c965; box-shadow: 0 0 6px rgba(230, 201, 101, 0.4); }
 
 /* Expand caret — hints the click-for-examples dropdown; flips when open. */
+/* Right-side stack: "Learn more" at the top-right, expand caret beneath it. */
+.railAside {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding-left: 8px;
+}
 .railCaret {
   flex: none;
-  align-self: center;
-  margin-left: 6px;
   font-size: 10px;
   line-height: 1;
   color: rgba(201, 168, 76, 0.45);
@@ -391,6 +398,11 @@
   letter-spacing: 1px;
   border-radius: 4px;
   padding: 2.5px 7px;
+  /* Never shrink or wrap their text — when the stage narrows (sidebar
+     hover-expand) the essence ellipsizes to absorb it, so the header keeps a
+     fixed height instead of the chips going two-line and pushing it taller. */
+  flex: none;
+  white-space: nowrap;
 }
 .catChip {
   color: rgba(220, 218, 212, 0.7);
@@ -519,12 +531,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  /* First chart sits right under the identity strip — the section label/Add
-     button moved into the header, so no wasted band here. */
-  padding: 8px 4px 48px 0;
-  /* One example fills the stage; scrolling settles on whole charts, never a
-     half-peek of the next one. */
-  scroll-snap-type: y proximity;
+  /* Minimal padding so a full-height example block fills the viewport exactly
+     (the block sizes to this content box) — no bottom band that would let the
+     next example peek. */
+  padding: 6px 4px 0 0;
+  /* Each example is a full-viewport slide; mandatory snapping always lands on a
+     whole chart, so the next setup is never partly visible at the bottom. */
+  scroll-snap-type: y mandatory;
 }
 
 /* ── Playbook hover panel ── */
@@ -570,6 +583,102 @@
 .pbPopBody .pbBody { font-size: 12.5px; }
 .pbPopBody .pbMistakes { padding: 11px 16px 12px; }
 .pbPopBody .pbMistake { font-size: 12.5px; }
+
+/* ── "Learn more" button on each rail row (opens the playbook modal) ── */
+.railLearn {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.8);
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  border-radius: 999px;
+  padding: 2px 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.13s, background 0.13s, border-color 0.13s;
+}
+.railLearn:hover {
+  color: #f7e296;
+  background: rgba(201, 168, 76, 0.16);
+  border-color: rgba(201, 168, 76, 0.6);
+}
+
+/* "Learn more" in the stage header (replaces the old hover hint). */
+.stageLearnBtn {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.8);
+  background: rgba(201, 168, 76, 0.07);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.stageLearnBtn:hover {
+  color: #f7e296;
+  background: rgba(201, 168, 76, 0.14);
+  border-color: rgba(201, 168, 76, 0.55);
+}
+
+/* ── Playbook modal: centered dossier over a dimmed backdrop ── */
+.pbModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 7, 10, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: pbBackdropIn 0.16s ease both;
+}
+@keyframes pbBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+.pbModal {
+  position: relative;
+  width: min(580px, 100%);
+  max-height: min(88vh, 940px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated, #15171c);
+  border: 1px solid var(--border);
+  border-top: 2px solid rgba(201, 168, 76, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.66);
+  overflow: hidden;
+  animation: pbModalIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pbModalIn { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.pbModalBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 20px 20px; }
+.pbModalClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: rgba(214, 213, 207, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.pbModalClose:hover { color: #f7e296; background: rgba(201, 168, 76, 0.1); border-color: rgba(201, 168, 76, 0.5); }
 
 /* legacy single-column detail wrapper (kept for safety) */
 .detail {
@@ -631,32 +740,32 @@
   margin: 0 0 18px;
 }
 
-/* Section rows: mono gold label + diamond on the left, body on the right. */
+/* Section rows: a small gold label line (accent diamond + name) with the body
+   text stacked full-width beneath it — a clean hanging-indent, so no dead left
+   column and the whole width is used. */
 .pbGrid {
   border: 1px solid rgba(201, 168, 76, 0.18);
   border-radius: 14px;
   background:
     linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
     rgba(14, 15, 19, 0.6);
-  padding: 4px 26px;
+  padding: 2px 22px;
 }
 .pbRow {
   display: flex;
-  align-items: baseline;
-  gap: 20px;
-  padding: 14px 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px 0;
 }
 .pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
 .pbLabel {
-  flex: none;
-  width: 185px;
   display: flex;
   align-items: center;
   gap: 9px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.7px;
   text-transform: uppercase;
   color: rgba(201, 168, 76, 0.85);
 }
@@ -675,13 +784,13 @@
 .pbAccent_exit { color: #f0d479; }
 .pbAccent_exit .pbDiamond { background: #e6c965; box-shadow: 0 0 8px rgba(230, 201, 101, 0.5); }
 .pbBody {
-  flex: 1;
   min-width: 0;
+  padding-left: 16px;   /* align the body under the label text (past the diamond) */
   font-family: var(--font-sans);
   font-size: 13.5px;
   font-weight: 500;
-  line-height: 1.5;
-  color: rgba(222, 221, 215, 0.82);
+  line-height: 1.6;
+  color: rgba(222, 221, 215, 0.85);
   margin: 0;
 }
 
@@ -798,7 +907,7 @@
 }
 
 /* ── Charted examples (right pane) ── */
-.exPane { display: flex; flex-direction: column; gap: 14px; }
+.exPane { display: flex; flex-direction: column; gap: 14px; height: 100%; }
 .exHead {
   display: flex;
   align-items: center;
@@ -843,6 +952,12 @@
   overflow: hidden;
   scroll-snap-align: start;
   scroll-margin-top: 6px;
+  /* Fill the scroll viewport so the CURRENT example owns the whole stage and the
+     next one never peeks at the bottom — scrolling reveals the next full-height. */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 0 0 auto;
   /* Each example is a full-viewport chart and they stack several deep. Skip
      rendering the off-screen ones so that when the sidebar hover-expands (or on
      any resize) only the on-screen chart re-lays-out — not all of them at once,
@@ -971,7 +1086,8 @@
 /* Fill the stage so a single example owns the screen — the chart grows with
    the viewport (chrome above it ≈ top bar + stage header + block header) and
    the next example sits fully below the fold. */
-.exChart { height: calc(100vh - 268px); min-height: 440px; }
+/* Chart fills the block (which fills the viewport) minus its header/notes. */
+.exChart { flex: 1 1 auto; min-height: 0; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
@@ -1091,7 +1207,11 @@
 }
 
 @media (max-width: 640px) {
-  .exChart { height: 340px; }
+  /* On phones the page scrolls normally (no full-height slides) — give the
+     block back its natural height and the chart a fixed height. */
+  .exPane { height: auto; }
+  .exBlock { height: auto; }
+  .exChart { height: 340px; flex: none; min-height: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
