@@ -29,7 +29,7 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from slowapi import _rate_limit_exceeded_handler
