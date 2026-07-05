@@ -3884,13 +3884,22 @@ export default function OptionsFlowDashboard() {
       setOiConfirmMeta(null);
       return;
     }
+    // Format Date → "M/D/YYYY" to match the storage format the backend
+    // expects. t.E is a Date object per parseExpiry; JSON.stringify would
+    // otherwise serialize it as "2026-12-17T00:00:00.000Z" which the
+    // backend can't match against stored keys like "SPCX|C|165.0|12/17/2027".
+    const fmtDate = (v) => {
+      if (!v) return "";
+      if (v instanceof Date) return (v.getMonth()+1)+"/"+v.getDate()+"/"+v.getFullYear();
+      return String(v);
+    };
     // Group by contract, keep earliest trade date per contract
     const byContract = {};
     allDirectionalForTicker.forEach(t => {
       const k = `${t.S}|${t.CP}|${t.K}|${t.E}`;
-      const dt = (t.Dt || "").trim();
+      const dt = fmtDate(t.Dt).trim();
       if (!byContract[k]) {
-        byContract[k] = { sym: t.S, cp: t.CP, strike: t.K, expiry: t.E, first_trade_date: dt };
+        byContract[k] = { sym: t.S, cp: t.CP, strike: t.K, expiry: fmtDate(t.E), first_trade_date: dt };
       } else if (dt) {
         // Keep the earliest date (US format M/D/YYYY)
         const cur = byContract[k].first_trade_date;
