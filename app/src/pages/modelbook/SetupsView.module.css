@@ -739,32 +739,32 @@
   margin: 0 0 18px;
 }
 
-/* Section rows: mono gold label + diamond on the left, body on the right. */
+/* Section rows: a small gold label line (accent diamond + name) with the body
+   text stacked full-width beneath it — a clean hanging-indent, so no dead left
+   column and the whole width is used. */
 .pbGrid {
   border: 1px solid rgba(201, 168, 76, 0.18);
   border-radius: 14px;
   background:
     linear-gradient(180deg, rgba(201, 168, 76, 0.04), rgba(201, 168, 76, 0.005)),
     rgba(14, 15, 19, 0.6);
-  padding: 4px 26px;
+  padding: 2px 22px;
 }
 .pbRow {
   display: flex;
-  align-items: baseline;
-  gap: 20px;
-  padding: 14px 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px 0;
 }
 .pbRow + .pbRow { border-top: 1px solid rgba(201, 168, 76, 0.1); }
 .pbLabel {
-  flex: none;
-  width: 185px;
   display: flex;
   align-items: center;
   gap: 9px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.7px;
   text-transform: uppercase;
   color: rgba(201, 168, 76, 0.85);
 }
@@ -783,13 +783,13 @@
 .pbAccent_exit { color: #f0d479; }
 .pbAccent_exit .pbDiamond { background: #e6c965; box-shadow: 0 0 8px rgba(230, 201, 101, 0.5); }
 .pbBody {
-  flex: 1;
   min-width: 0;
+  padding-left: 16px;   /* align the body under the label text (past the diamond) */
   font-family: var(--font-sans);
   font-size: 13.5px;
   font-weight: 500;
-  line-height: 1.5;
-  color: rgba(222, 221, 215, 0.82);
+  line-height: 1.6;
+  color: rgba(222, 221, 215, 0.85);
   margin: 0;
 }
 
