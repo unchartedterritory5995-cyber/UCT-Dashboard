@@ -30,13 +30,27 @@ const EDGE_PAD = 14
 // padX = left/right gutter (default 14); padTop = top gutter (default 0, i.e.
 // flush to the pane top). Callers can raise padTop to match padX for an even
 // top-left corner inset (Setup Library).
-export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0) {
-  const cx = pos.x * mediaSize.width
+//
+// hardCenterXFrac (0..1, nullable): when set, the block's horizontal CENTER is
+// pinned to this fraction of the pane width and is NOT edge-clamped — so the
+// centre lands in the exact same spot on every chart regardless of how wide the
+// widest line is (e.g. a long company/industry name). This is what keeps the
+// Setup Library watermarks from drifting left/right as you scroll tickers; the
+// edge-clamped `padX` path (default) instead keeps a fixed gutter and lets the
+// centre move.
+export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXFrac = null) {
   const cy = pos.y * mediaSize.height
-  let x = cx - block.w / 2
   let y = cy - block.h / 2
-  x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
   y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
+  let x
+  if (hardCenterXFrac != null) {
+    // Exact centre — no horizontal clamp, so the centre never shifts by width.
+    x = hardCenterXFrac * mediaSize.width - block.w / 2
+  } else {
+    const cx = pos.x * mediaSize.width
+    x = cx - block.w / 2
+    x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
+  }
   return { x, y, w: block.w, h: block.h }
 }
 
@@ -48,7 +62,7 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXFrac: null, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
@@ -72,7 +86,7 @@ export function createWatermarkPrimitive(initial) {
         if (!opts.lines.length || opts.opacity <= 0) { lastRect = null; return }
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const block = measureBlock(ctx)
-          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop)
+          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXFrac)
           lastRect = rect
           const [r, g, b] = hexToRgb(opts.color)
           const alpha = armed ? Math.min(1, opts.opacity * 2.4) : opts.opacity
