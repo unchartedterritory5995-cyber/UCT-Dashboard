@@ -4015,16 +4015,7 @@ async def _oi_confirmation_map(request: Request):
     def _orig_key(c):
         return f"{c.get('sym','')}|{c.get('cp','')}|{c.get('strike','')}|{c.get('expiry','')}"
 
-    # Build variant → original mapping
-    orig_by_variant = {}
-    variant_list = []
-    for c in contracts:
-        for v in _key_variants(c):
-            if v not in orig_by_variant:
-                orig_by_variant[v] = _orig_key(c)
-                variant_list.append(v)
-
-    # Init confirmations for every requested contract
+    # Init confirmations for every requested contract (default = unconfirmed)
     confirmations = {}
     for c in contracts:
         confirmations[_orig_key(c)] = {
@@ -4040,11 +4031,68 @@ async def _oi_confirmation_map(request: Request):
         from api.flow_db import FlowDB
         db = FlowDB()
         with sqlite3.connect(db.db_path, timeout=10) as conn:
-            # Batch query snapshots — SQLite param limit is ~999 so chunk.
-            rows_by_variant = {}
+            # ── Step 1: Detect actual contract_key format from a single sample
+            # Instead of trying all 7 variants for every contract (which was
+            # timing out at Cloudflare's 100s limit on large ticker searches),
+            # we detect the format once by looking up the first contract with
+            # each variant format, then use only the winning format for the
+            # batch query. If no format matches, we return early with
+            # matched_variant_examples=[] so the caller can diagnose.
+            detected_format = None
+            if contracts:
+                sample_c = contracts[0]
+                sample_variants = _key_variants(sample_c)
+                # Also try a broader sample — a few random contracts — because
+                # the first one might be a new contract with no snapshots.
+                probe_contracts = contracts[:min(20, len(contracts))]
+                for probe in probe_contracts:
+                    if detected_format is not None:
+                        break
+                    for i, v in enumerate(_key_variants(probe)):
+                        cur = conn.execute(
+                            "SELECT 1 FROM contract_oi_snapshots "
+                            "WHERE contract_key = ? LIMIT 1",
+                            (v,),
+                        )
+                        if cur.fetchone():
+                            detected_format = i  # index into _key_variants()
+                            matched_variant_examples.append(v)
+                            break
+
+            if detected_format is None:
+                # No format matched any probe — return early with diagnostics
+                confirmed_count = 0
+                no_snapshots = len(confirmations)
+                resp = JSONResponse({
+                    "ok": True,
+                    "confirmations": confirmations,
+                    "total": len(confirmations),
+                    "confirmed_count": confirmed_count,
+                    "no_snapshots_count": no_snapshots,
+                    "matched_variant_examples": [],
+                    "window_days": window_days,
+                    "threshold_pct": threshold_pct,
+                    "note": "Could not detect contract_key format from any of the "
+                            "7 candidates on 20 probe contracts. Hit /api/admin/"
+                            "massive/diagnose and share oi_sample_keys.",
+                })
+                resp.headers["Cache-Control"] = "private, max-age=60"
+                return resp
+
+            # ── Step 2: Build the ONE key variant per contract using detected format
+            key_to_orig = {}
+            for c in contracts:
+                variants = _key_variants(c)
+                if detected_format < len(variants):
+                    k = variants[detected_format]
+                    key_to_orig[k] = _orig_key(c)
+
+            # ── Step 3: Batch-fetch snapshots using only the winning format
+            rows_by_key = {}
+            key_list = list(key_to_orig.keys())
             BATCH = 400
-            for i in range(0, len(variant_list), BATCH):
-                batch = variant_list[i:i + BATCH]
+            for i in range(0, len(key_list), BATCH):
+                batch = key_list[i:i + BATCH]
                 placeholders = ",".join(["?"] * len(batch))
                 cur = conn.execute(
                     f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
@@ -4054,9 +4102,9 @@ async def _oi_confirmation_map(request: Request):
                 )
                 for r in cur.fetchall():
                     k, sd, oi = r[0], r[1], int(r[2] or 0)
-                    rows_by_variant.setdefault(k, []).append((sd, oi))
+                    rows_by_key.setdefault(k, []).append((sd, oi))
 
-            # Compute confirmation per requested contract
+            # ── Step 4: Compute confirmation per requested contract
             for c in contracts:
                 original = _orig_key(c)
                 trade_date_raw = str(c.get("first_trade_date") or "").strip()
@@ -4075,19 +4123,13 @@ async def _oi_confirmation_map(request: Request):
                 if trade_dt is None:
                     continue
 
-                # Find the variant that had snapshot rows
-                match_rows = None
-                for v in _key_variants(c):
-                    if v in rows_by_variant:
-                        match_rows = rows_by_variant[v]
-                        if len(matched_variant_examples) < 3:
-                            matched_variant_examples.append(v)
-                        break
-
+                variants = _key_variants(c)
+                if detected_format >= len(variants):
+                    continue
+                match_rows = rows_by_key.get(variants[detected_format])
                 if not match_rows:
                     continue
 
-                # Filter to snapshots within the window after trade_date
                 window_end = trade_dt + timedelta(days=window_days)
                 in_window = []
                 for sd, oi in match_rows:
