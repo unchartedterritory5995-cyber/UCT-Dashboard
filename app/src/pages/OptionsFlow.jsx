@@ -2051,6 +2051,17 @@ export default function OptionsFlowDashboard() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchDte, setSearchDte] = useState("All");
+  // ─── OI-Confirmation state for Search ─────────────────────────────────────
+  // Toggle to filter Search bull/bear totals to only trades on contracts
+  // whose OI grew in the days after the trade — separating real position
+  // adds from same-day churn. Backed by /api/oi/confirmation-map which
+  // reads contract_oi_snapshots table.
+  const [oiConfirmedOnly, setOiConfirmedOnly] = useState(false);
+  const [oiConfirmWindow, setOiConfirmWindow] = useState(5); // days after trade
+  const [oiConfirmMap, setOiConfirmMap] = useState({}); // key = "sym|cp|K|exp"
+  const [oiConfirmLoading, setOiConfirmLoading] = useState(false);
+  const [oiConfirmError, setOiConfirmError] = useState(null);
+  const [oiConfirmMeta, setOiConfirmMeta] = useState(null); // { total, confirmed_count, no_snapshots_count }
   const [searchGroup, setSearchGroup] = useState(null);
   const [batchTickers, setBatchTickers] = useState("");
   const [batchResults, setBatchResults] = useState(null);
@@ -3863,6 +3874,74 @@ export default function OptionsFlowDashboard() {
   }
 
   // ─── Fetch contract history + live quote on hover ───────────────────
+  // ─── OI Confirmation fetch ────────────────────────────────────────────────
+  // Given the current ticker + trades in Search, build a per-contract list
+  // (with earliest trade date per contract), POST to the backend, cache
+  // the confirmation map for use in filtering totals.
+  async function fetchOIConfirmations(ticker, allDirectionalForTicker) {
+    if (!ticker || !allDirectionalForTicker || allDirectionalForTicker.length === 0) {
+      setOiConfirmMap({});
+      setOiConfirmMeta(null);
+      return;
+    }
+    // Group by contract, keep earliest trade date per contract
+    const byContract = {};
+    allDirectionalForTicker.forEach(t => {
+      const k = `${t.S}|${t.CP}|${t.K}|${t.E}`;
+      const dt = (t.Dt || "").trim();
+      if (!byContract[k]) {
+        byContract[k] = { sym: t.S, cp: t.CP, strike: t.K, expiry: t.E, first_trade_date: dt };
+      } else if (dt) {
+        // Keep the earliest date (US format M/D/YYYY)
+        const cur = byContract[k].first_trade_date;
+        if (!cur) { byContract[k].first_trade_date = dt; return; }
+        const parse = (s) => { const p = s.split("/"); if (p.length < 3) return null;
+          let y = parseInt(p[2]); if (y < 100) y += 2000;
+          return new Date(y, parseInt(p[0]) - 1, parseInt(p[1])).getTime();
+        };
+        const a = parse(cur), b = parse(dt);
+        if (a && b && b < a) byContract[k].first_trade_date = dt;
+      }
+    });
+    const contracts = Object.values(byContract).filter(c => c.first_trade_date);
+    if (contracts.length === 0) {
+      setOiConfirmMap({});
+      setOiConfirmMeta(null);
+      return;
+    }
+    setOiConfirmLoading(true);
+    setOiConfirmError(null);
+    try {
+      const resp = await fetch("/api/oi/confirmation-map", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contracts,
+          window_days: oiConfirmWindow,
+          threshold_pct: 10,
+        }),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Backend ${resp.status}: ${errText.slice(0, 150)}`);
+      }
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Unknown backend error");
+      setOiConfirmMap(data.confirmations || {});
+      setOiConfirmMeta({
+        total: data.total || 0,
+        confirmed: data.confirmed_count || 0,
+        no_snapshots: data.no_snapshots_count || 0,
+        window_days: data.window_days || oiConfirmWindow,
+      });
+    } catch (e) {
+      setOiConfirmError(e.message || String(e));
+      setOiConfirmMap({});
+      setOiConfirmMeta(null);
+    }
+    setOiConfirmLoading(false);
+  }
+
   async function fetchContractHistory(sym, cp, strike, exp, force = false) {
     const k = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
 
@@ -7222,7 +7301,7 @@ export default function OptionsFlowDashboard() {
             <Card>
               <div style={{ position:"relative" }}>
               <input type="text" value={search}
-                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); }}
+                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
                 placeholder="Search ticker, theme, or sector..."
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
@@ -7894,10 +7973,28 @@ export default function OptionsFlowDashboard() {
               // trivially one-directional per CP).
               const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
+              // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
-              const net = ccB - ccR;
-              const total = ccB + ccR;
+              // Confirmed-only totals — same trades but restricted to contracts
+              // whose OI actually grew in the days after the trade (real adds
+              // vs same-day churn). Populated by fetchOIConfirmations. If a
+              // contract has no snapshot data yet (weekends / no data / new
+              // contract), treat as unconfirmed (excluded) so the confirmed
+              // number is strictly a subset of raw.
+              let ccBConf=0, ccRConf=0;
+              ccTrades.forEach(t => {
+                const k = `${t.S}|${t.CP}|${t.K}|${t.E}`;
+                const conf = oiConfirmMap[k];
+                if (!conf || !conf.confirmed) return;
+                if (t.D === "BULL") ccBConf += t.P;
+                else if (t.D === "BEAR") ccRConf += t.P;
+              });
+              // Which totals to display in the top-line — user-toggled.
+              const ccBDisplay = oiConfirmedOnly ? ccBConf : ccB;
+              const ccRDisplay = oiConfirmedOnly ? ccRConf : ccR;
+              const net = ccBDisplay - ccRDisplay;
+              const total = ccBDisplay + ccRDisplay;
               const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
               const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
 
@@ -7986,6 +8083,45 @@ export default function OptionsFlowDashboard() {
                         </button>
                       );
                     })}
+                    {/* OI-Confirmation controls — filter Search totals to
+                        contracts whose OI grew in the days after the trade.
+                        Reveals real institutional adds vs same-day churn.
+                        Load button only enabled until data is fetched, then
+                        toggle switches display. Window selector picks how
+                        many post-trade days to look at (5/10/20/60). */}
+                    <div style={{ marginLeft:12, display:"flex", gap:6, alignItems:"center", borderLeft:"1px solid "+P.bd, paddingLeft:12 }}>
+                      <span style={{ fontSize:9, color:P.dm, fontWeight:600 }}>OI window:</span>
+                      {[5, 10, 20, 60].map(d => (
+                        <button key={d} onClick={()=>{ setOiConfirmWindow(d); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); }} style={{
+                          padding:"3px 8px", borderRadius:12, border:"1px solid "+(oiConfirmWindow===d?P.ac:P.bd),
+                          cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                          background:oiConfirmWindow===d?P.ac+"22":"transparent", color:oiConfirmWindow===d?P.ac:P.mt,
+                        }}>{d}d</button>
+                      ))}
+                      <button
+                        onClick={()=>{
+                          if (oiConfirmMeta) {
+                            setOiConfirmedOnly(v=>!v);
+                          } else {
+                            // First-time load — fetch then toggle on
+                            fetchOIConfirmations(tk.s, ccAll).then(()=>setOiConfirmedOnly(true));
+                          }
+                        }}
+                        disabled={oiConfirmLoading}
+                        style={{
+                          padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
+                          cursor:oiConfirmLoading?"wait":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          background:oiConfirmedOnly?P.bu+"22":"transparent",
+                          color:oiConfirmedOnly?P.bu:P.mt,
+                        }}
+                        title={oiConfirmMeta ? `${oiConfirmMeta.confirmed}/${oiConfirmMeta.total} contracts confirmed, ${oiConfirmMeta.no_snapshots} lack snapshot data` : "Click to fetch OI confirmation status for contracts in view"}
+                      >
+                        {oiConfirmLoading ? "Loading…" : oiConfirmedOnly ? "✓ Confirmed only" : oiConfirmMeta ? "Show confirmed only" : "⚡ Load confirmations"}
+                      </button>
+                      {oiConfirmError && (
+                        <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
@@ -8007,20 +8143,25 @@ export default function OptionsFlowDashboard() {
                       )}
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
-                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccB)}</div>
+                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow{oiConfirmedOnly?" (Confirmed)":""}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccBDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(total>0?(ccB/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(ccBDisplay/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                       </div>
-                      {/* Still-open bull premium — what's actually still on
-                          the books after subtracting closures. % is computed
-                          against PRICED bull premium (not total), so the
-                          metric stays honest when coverage is partial. The
-                          "missing OI" suffix is the gap between contracts we
-                          tried to price vs contracts where Schwab returned
-                          usable open interest — typically 0 once a fresh
-                          fetch completes for all data; larger when corp
-                          actions / expired contracts return quote without OI. */}
+                      {/* When confirmed toggle is OFF but we have confirmation
+                          data, show what's confirmed as subtitle. When ON, show
+                          the raw baseline instead. Lets the user compare at a
+                          glance without toggling back and forth. */}
+                      {oiConfirmMeta && (
+                        <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                          {oiConfirmedOnly ? (
+                            <>Raw: <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccB)}</span></>
+                          ) : (
+                            <>Confirmed: <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccBConf)}</span>
+                              {ccB>0 && <span style={{ marginLeft:4 }}>({Math.round(ccBConf/ccB*100)}%)</span>}</>
+                          )}
+                        </div>
+                      )}
                       <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
@@ -8037,11 +8178,21 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
-                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccR)}</div>
+                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow{oiConfirmedOnly?" (Confirmed)":""}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccRDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
-                        <div style={{ width:(total>0?(ccR/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
+                        <div style={{ width:(total>0?(ccRDisplay/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
                       </div>
+                      {oiConfirmMeta && (
+                        <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                          {oiConfirmedOnly ? (
+                            <>Raw: <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccR)}</span></>
+                          ) : (
+                            <>Confirmed: <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccRConf)}</span>
+                              {ccR>0 && <span style={{ marginLeft:4 }}>({Math.round(ccRConf/ccR*100)}%)</span>}</>
+                          )}
+                        </div>
+                      )}
                       <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
