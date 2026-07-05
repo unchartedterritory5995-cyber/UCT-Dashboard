@@ -983,13 +983,15 @@ export default function SetupsView({ onExit }) {
   const curExamples = useMemo(() => exListData?.examples || [], [exListData])
   const activeExampleId = exampleIdx >= 0 ? (curExamples[exampleIdx]?.id ?? null) : null
 
-  // When ↑ rolls UP into a setup we want to land on its LAST example, but the
-  // list loads async — defer the landing until the examples arrive.
-  const pendingEndRef = useRef(false)
+  // Entering a setup via the arrows lands straight on a ticker — its FIRST
+  // example going down, its LAST going up — but the list loads async, so defer
+  // the landing until the examples arrive ('start' | 'end' | false).
+  const pendingLandRef = useRef(false)
   useEffect(() => {
-    if (!pendingEndRef.current || !curExamples.length) return
-    pendingEndRef.current = false
-    const li = curExamples.length - 1
+    const want = pendingLandRef.current
+    if (!want || !curExamples.length) return
+    pendingLandRef.current = false
+    const li = want === 'end' ? curExamples.length - 1 : 0
     setExampleIdx(li)
     jumpToExample(curExamples[li])
   }, [curExamples])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -1026,7 +1028,7 @@ export default function SetupsView({ onExit }) {
   const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
 
   function openSetup(s) {
-    pendingEndRef.current = false
+    pendingLandRef.current = false
     if (s.name === selectedName) {
       setExMenuOpen(o => !o)          // re-click the open setup → toggle its menu
     } else {
@@ -1064,29 +1066,26 @@ export default function SetupsView({ onExit }) {
           jumpToExample(curExamples[ni])
           return
         }
-        // …else roll into the next setup, opening its dropdown fresh.
+        // …else roll into the next setup, landing straight on its first example.
         const next = idx === -1 ? visibleFlat[0] : visibleFlat[Math.min(idx + 1, visibleFlat.length - 1)]
         if (!next || next.name === selectedName) return
-        pendingEndRef.current = false
+        pendingLandRef.current = 'start'
         setSelectedName(next.name)
         setExMenuOpen(true)
-        setExampleIdx(-1)              // land on the setup; next ↓ hits its first example
+        setExampleIdx(-1)
         scrollRailTo(next.name)
       } else {
-        // ArrowUp — reverse back through the examples, then up to the prior setup.
+        // ArrowUp — reverse back through the examples, then straight to the prior
+        // setup's last example (no header stop).
         if (onSetup && exMenuOpen && exampleIdx > 0) {
           const ni = exampleIdx - 1
           setExampleIdx(ni)
           jumpToExample(curExamples[ni])
           return
         }
-        if (onSetup && exMenuOpen && exampleIdx === 0) {
-          setExampleIdx(-1)           // back up to the setup itself (dropdown stays open)
-          return
-        }
         const prev = idx <= 0 ? visibleFlat[0] : visibleFlat[idx - 1]
         if (!prev || prev.name === selectedName) return
-        pendingEndRef.current = true  // land on its last example once loaded
+        pendingLandRef.current = 'end'
         setSelectedName(prev.name)
         setExMenuOpen(true)
         setExampleIdx(-1)
@@ -1104,7 +1103,7 @@ export default function SetupsView({ onExit }) {
     setFilter(cat)
     setExMenuOpen(true)              // open the new first setup's examples dropdown
     setExampleIdx(-1)
-    pendingEndRef.current = false
+    pendingLandRef.current = false
     const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
     if (first) setSelectedName(first.name)
   }
