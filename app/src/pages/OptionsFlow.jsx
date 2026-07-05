@@ -3884,22 +3884,48 @@ export default function OptionsFlowDashboard() {
       setOiConfirmMeta(null);
       return;
     }
-    // Format Date → "M/D/YYYY" to match the storage format the backend
-    // expects. t.E is a Date object per parseExpiry; JSON.stringify would
-    // otherwise serialize it as "2026-12-17T00:00:00.000Z" which the
-    // backend can't match against stored keys like "SPCX|C|165.0|12/17/2027".
+    // Format Date → "M/D/YYYY" (4-digit year required to match the storage
+    // format the backend expects, e.g. "SPCX|C|165.0|12/17/2027").
     const fmtDate = (v) => {
       if (!v) return "";
       if (v instanceof Date) return (v.getMonth()+1)+"/"+v.getDate()+"/"+v.getFullYear();
       return String(v);
     };
+    // Reconstruct full date "M/D/YYYY" from "M/D" (stripped by t.Dt). Assume
+    // current year unless the month is later than the current month (implies
+    // trade happened in the previous calendar year — e.g. viewing Dec data
+    // during Jan).
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const fmtTradeDate = (md) => {
+      if (!md) return "";
+      const s = String(md).trim();
+      const parts = s.split("/");
+      if (parts.length === 3) {
+        // Already has year (2 or 4 digit) — normalize to 4-digit
+        let y = parseInt(parts[2]);
+        if (isNaN(y)) return s;
+        if (y < 100) y += 2000;
+        return parts[0]+"/"+parts[1]+"/"+y;
+      }
+      if (parts.length !== 2) return s;
+      const m = parseInt(parts[0]);
+      if (isNaN(m)) return s;
+      const yr = m > currentMonth + 1 ? currentYear - 1 : currentYear;
+      return parts[0]+"/"+parts[1]+"/"+yr;
+    };
     // Group by contract, keep earliest trade date per contract
     const byContract = {};
     allDirectionalForTicker.forEach(t => {
       const k = `${t.S}|${t.CP}|${t.K}|${t.E}`;
-      const dt = fmtDate(t.Dt).trim();
+      const dt = fmtTradeDate(t.Dt).trim();
+      // Use t.expiry (Date object) NOT t.E (short string like "7/17" without
+      // year). t.E is the display string built by formatExp which drops year
+      // when it matches current year — breaks OI lookup against stored
+      // "M/D/YYYY" keys.
+      const expStr = fmtDate(t.expiry);
       if (!byContract[k]) {
-        byContract[k] = { sym: t.S, cp: t.CP, strike: t.K, expiry: fmtDate(t.E), first_trade_date: dt };
+        byContract[k] = { sym: t.S, cp: t.CP, strike: t.K, expiry: expStr, first_trade_date: dt };
       } else if (dt) {
         // Keep the earliest date (US format M/D/YYYY)
         const cur = byContract[k].first_trade_date;
