@@ -3917,6 +3917,111 @@ async def _ticker_types_etf_index_symbols():
         return {"ok": False, "error": str(e), "symbols": []}
 
 
+@app.get("/api/admin/oi/zero-analysis")
+async def _oi_zero_analysis(ticker: str = ""):
+    """Analyze OI=0 patterns in contract_oi_snapshots.
+
+    Some tickers have all-zero OI in snapshots (BE, FRMI observed) while
+    others populate correctly (SPCX, MU). This helps identify whether the
+    zero writes are:
+      - Concentrated on specific tickers (systemic issue for those tickers)
+      - Concentrated on specific dates (cron misfire on those days)
+      - Concentrated on specific strike types (deep OTM/ITM issue)
+
+    Query params:
+      ?ticker=BE  → focus analysis on one ticker
+      (default)   → aggregate stats across the whole table
+
+    URL: /api/admin/oi/zero-analysis?ticker=BE
+    """
+    import sqlite3
+    from fastapi.responses import JSONResponse
+    out = {}
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=30) as conn:
+            conn.execute("PRAGMA query_only = 1")
+            # Overall zero rate
+            cur = conn.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) "
+                "FROM contract_oi_snapshots"
+            )
+            total, zeros = cur.fetchone()
+            out["overall"] = {
+                "total_rows": total,
+                "zero_oi_rows": zeros,
+                "zero_pct": round(zeros / total * 100, 1) if total else 0,
+            }
+
+            # If ticker filter specified, focus on it
+            if ticker:
+                t = ticker.upper().strip()
+                cur = conn.execute(
+                    "SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+                    "WHERE contract_key LIKE ? "
+                    "ORDER BY snap_date DESC, contract_key LIMIT 30",
+                    (f"{t}|%",)
+                )
+                out["ticker_samples"] = [
+                    {"key": r[0], "snap_date": r[1], "oi": r[2]}
+                    for r in cur.fetchall()
+                ]
+                cur = conn.execute(
+                    "SELECT COUNT(*), SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) "
+                    "FROM contract_oi_snapshots WHERE contract_key LIKE ?",
+                    (f"{t}|%",)
+                )
+                t_total, t_zeros = cur.fetchone()
+                out["ticker_stats"] = {
+                    "ticker": t,
+                    "total_rows": t_total,
+                    "zero_oi_rows": t_zeros,
+                    "zero_pct": round(t_zeros / t_total * 100, 1) if t_total else 0,
+                }
+            else:
+                # Aggregate: which tickers have >90% zero-OI?
+                cur = conn.execute("""
+                    SELECT
+                        substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
+                        COUNT(*) AS total,
+                        SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
+                        ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
+                    FROM contract_oi_snapshots
+                    GROUP BY ticker
+                    HAVING zero_pct >= 90
+                    ORDER BY zero_pct DESC, total DESC
+                    LIMIT 30
+                """)
+                out["all_zero_tickers"] = [
+                    {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
+                    for r in cur.fetchall()
+                ]
+                # Also: which tickers are healthy (< 10% zero)?
+                cur = conn.execute("""
+                    SELECT
+                        substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
+                        COUNT(*) AS total,
+                        SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
+                        ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
+                    FROM contract_oi_snapshots
+                    GROUP BY ticker
+                    HAVING zero_pct < 10 AND total > 50
+                    ORDER BY total DESC
+                    LIMIT 15
+                """)
+                out["healthy_tickers"] = [
+                    {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
+                    for r in cur.fetchall()
+                ]
+
+            return JSONResponse(out)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e), "partial": out}
+
+
 @app.get("/api/admin/oi/table-diagnose")
 async def _oi_table_diagnose():
     """Lightweight diagnostic for contract_oi_snapshots — replaces the slower
@@ -4342,6 +4447,21 @@ async def _oi_confirmation_map(request: Request):
                         continue
 
                 pct = ((peak_oi - baseline_oi) / baseline_oi * 100.0) if baseline_oi > 0 else 0
+                # When baseline_oi is 0 but peak_oi > 0, the contract went from
+                # no open interest to some — a NEW position being established.
+                # That's a strong confirmation signal (institutional opening
+                # trades). Flag as confirmed if peak > some minimum threshold.
+                # We use 50 contracts as a floor to filter out trivial noise.
+                if baseline_oi == 0 and peak_oi >= 50:
+                    confirmations[original] = {
+                        "confirmed": True,
+                        "first_oi": 0,
+                        "peak_oi": peak_oi,
+                        "pct_change": 100,  # sentinel for "new position opened"
+                        "snapshots_found": snapshots_used,
+                        "baseline_source": baseline_source + "_new_position",
+                    }
+                    continue
                 confirmations[original] = {
                     "confirmed": pct >= threshold_pct,
                     "first_oi": baseline_oi,
