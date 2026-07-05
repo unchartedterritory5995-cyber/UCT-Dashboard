@@ -4127,17 +4127,31 @@ async def _oi_confirmation_map(request: Request):
         cp_letter = cp[0] if cp else ""
         cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
         strike = c.get("strike")
-        strike_s = str(strike) if strike is not None else ""
+        # Strike format: `XOM|P|140.0|8/21/2026` — one decimal place always.
+        # Try both "140.0" (verified format) and "140" (integer fallback) plus
+        # the raw incoming string in case it has cents like "140.5".
+        try:
+            strike_num = float(strike)
+            if strike_num == int(strike_num):
+                strike_1dp = f"{int(strike_num)}.0"   # 140 -> "140.0"
+                strike_int = f"{int(strike_num)}"      # 140 -> "140"
+            else:
+                strike_1dp = f"{strike_num}"           # 140.5 -> "140.5"
+                strike_int = f"{strike_num}"
+        except (TypeError, ValueError):
+            strike_1dp = str(strike) if strike is not None else ""
+            strike_int = strike_1dp
         expiry_raw = str(c.get("expiry") or "").strip()
         expiry_iso = _iso(expiry_raw)
+        # Verified format first (matches sample_keys from oi/table-diagnose):
         return [
-            f"{sym}|{cp_letter}|{strike_s}|{expiry_raw}",
-            f"{sym}|{cp_word}|{strike_s}|{expiry_raw}",
-            f"{sym}|{cp_letter}|{strike_s}|{expiry_iso}",
-            f"{sym}|{cp_word}|{strike_s}|{expiry_iso}",
-            f"{sym} {cp_word} {strike_s} {expiry_raw}",
-            f"{sym} {cp_letter} {strike_s} {expiry_raw}",
-            f"{sym}_{cp_letter}_{strike_s}_{expiry_iso}",
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_raw}",   # e.g. "XOM|P|140.0|8/21/2026"
+            f"{sym}|{cp_letter}|{strike_int}|{expiry_raw}",   # "XOM|P|140|8/21/2026" fallback
+            f"{sym}|{cp_word}|{strike_1dp}|{expiry_raw}",
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_iso}",
+            f"{sym}|{cp_word}|{strike_int}|{expiry_raw}",
+            f"{sym} {cp_letter} {strike_1dp} {expiry_raw}",
+            f"{sym}_{cp_letter}_{strike_1dp}_{expiry_iso}",
         ]
 
     def _orig_key(c):
