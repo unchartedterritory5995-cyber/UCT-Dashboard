@@ -837,7 +837,7 @@ function ExamplesPane({ setup, scrollReq, isAdmin, adding, setAdding }) {
   useEffect(() => {
     if (!scrollReq?.exampleId || !examples.length) return
     const el = document.getElementById(`setup-ex-${scrollReq.exampleId}`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (el) el.scrollIntoView({ behavior: scrollReq.smooth === false ? 'auto' : 'smooth', block: 'start' })
   }, [scrollReq, examples])
 
   return (
@@ -964,8 +964,11 @@ export default function SetupsView({ onExit }) {
   // Which example within the open setup is arrow-highlighted (−1 = the setup
   // itself, no example yet). Drives ↑/↓ ticker stepping + the chip highlight.
   const [exampleIdx, setExampleIdx] = useState(-1)
-  function jumpToExample(ex) {
-    setScrollReq(prev => ({ exampleId: ex.id, seq: (prev?.seq || 0) + 1 }))
+  // smooth:false = instant jump (keyboard nav — no scroll-through, so a reverse
+  // entry into a category lands on its last ticker with no flash of the first).
+  // Mouse chip clicks keep the smooth scroll.
+  function jumpToExample(ex, { smooth = true } = {}) {
+    setScrollReq(prev => ({ exampleId: ex.id, smooth, seq: (prev?.seq || 0) + 1 }))
     if (isPhone) setMobileView('detail')
   }
   // Switching setups always starts fresh at the first example — drop any pending
@@ -983,17 +986,19 @@ export default function SetupsView({ onExit }) {
   const curExamples = useMemo(() => exListData?.examples || [], [exListData])
   const activeExampleId = exampleIdx >= 0 ? (curExamples[exampleIdx]?.id ?? null) : null
 
-  // Entering a setup via the arrows lands straight on a ticker — its FIRST
-  // example going down, its LAST going up — but the list loads async, so defer
-  // the landing until the examples arrive ('start' | 'end' | false).
-  const pendingLandRef = useRef(false)
+  // Entering a setup ALWAYS lands (and highlights) straight on a ticker — its
+  // FIRST example on any forward/mouse/initial entry, its LAST when arrowing up
+  // into it — so ↓ immediately advances to the next chart. The list loads async,
+  // so defer the landing until the examples arrive ('start' | 'end' | false).
+  // Seeded 'start' so the very first setup highlights ticker #1 on load.
+  const pendingLandRef = useRef('start')
   useEffect(() => {
     const want = pendingLandRef.current
     if (!want || !curExamples.length) return
     pendingLandRef.current = false
     const li = want === 'end' ? curExamples.length - 1 : 0
     setExampleIdx(li)
-    jumpToExample(curExamples[li])
+    jumpToExample(curExamples[li], { smooth: false })
   }, [curExamples])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {
@@ -1028,14 +1033,22 @@ export default function SetupsView({ onExit }) {
   const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
 
   function openSetup(s) {
-    pendingLandRef.current = false
     if (s.name === selectedName) {
-      setExMenuOpen(o => !o)          // re-click the open setup → toggle its menu
+      // Re-click the open setup → toggle its menu. When (re)opening, highlight
+      // its first ticker so ↓ moves straight to the next chart.
+      const opening = !exMenuOpen
+      setExMenuOpen(opening)
+      if (opening) {
+        if (curExamples.length) { setExampleIdx(0); jumpToExample(curExamples[0], { smooth: false }) }
+        else setExampleIdx(-1)
+      }
     } else {
+      // New setup → open its menu and land on its first ticker once loaded.
+      pendingLandRef.current = 'start'
       setSelectedName(s.name)
-      setExMenuOpen(true)             // new setup → open its examples menu
+      setExMenuOpen(true)
+      setExampleIdx(-1)
     }
-    setExampleIdx(-1)                 // start fresh at the setup, not an example
     if (isPhone) setMobileView('detail')
   }
 
@@ -1063,7 +1076,7 @@ export default function SetupsView({ onExit }) {
         if (onSetup && exMenuOpen && exampleIdx < curExamples.length - 1) {
           const ni = exampleIdx + 1
           setExampleIdx(ni)
-          jumpToExample(curExamples[ni])
+          jumpToExample(curExamples[ni], { smooth: false })
           return
         }
         // …else roll into the next setup, landing straight on its first example.
@@ -1080,7 +1093,7 @@ export default function SetupsView({ onExit }) {
         if (onSetup && exMenuOpen && exampleIdx > 0) {
           const ni = exampleIdx - 1
           setExampleIdx(ni)
-          jumpToExample(curExamples[ni])
+          jumpToExample(curExamples[ni], { smooth: false })
           return
         }
         const prev = idx <= 0 ? visibleFlat[0] : visibleFlat[idx - 1]
@@ -1102,10 +1115,17 @@ export default function SetupsView({ onExit }) {
   function selectFilter(cat) {
     setFilter(cat)
     setExMenuOpen(true)              // open the new first setup's examples dropdown
-    setExampleIdx(-1)
-    pendingLandRef.current = false
     const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
-    if (first) setSelectedName(first.name)
+    if (first && first.name === selectedName) {
+      // Already showing this setup — highlight its first ticker synchronously
+      // (selectedName won't change, so the pending-land effect wouldn't fire).
+      if (curExamples.length) { setExampleIdx(0); jumpToExample(curExamples[0], { smooth: false }) }
+      else setExampleIdx(-1)
+    } else {
+      setExampleIdx(-1)
+      pendingLandRef.current = 'start' // highlight its first ticker once loaded
+      if (first) setSelectedName(first.name)
+    }
   }
 
   return (
