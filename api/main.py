@@ -3917,6 +3917,234 @@ async def _ticker_types_etf_index_symbols():
         return {"ok": False, "error": str(e), "symbols": []}
 
 
+@app.post("/api/oi/confirmation-map")
+async def _oi_confirmation_map(request: Request):
+    """Return OI-growth confirmation status for a batch of contracts.
+
+    Used by Search to filter historical flow to only trades whose contract
+    had subsequent OI growth (i.e. real position adds vs same-day churn).
+    For each contract, we look at OI snapshots within `window_days` of the
+    trade's `first_trade_date` and flag as confirmed if peak OI grew by
+    `threshold_pct` or more from the earliest snapshot in the window.
+
+    Request body:
+        {
+            "contracts": [
+                {"sym": "BE", "cp": "C", "strike": 370,
+                 "expiry": "9/18/2026", "first_trade_date": "7/2/2026"},
+                ...
+            ],
+            "window_days": 5,        # default 5
+            "threshold_pct": 10      # default 10 (i.e. 10% growth)
+        }
+
+    Response:
+        {
+            "ok": true,
+            "confirmations": {
+                "BE|C|370|9/18/2026": {
+                    "confirmed": true,
+                    "first_oi": 21823,
+                    "peak_oi": 26430,
+                    "pct_change": 21.1,
+                    "snapshots_found": 3
+                },
+                ...
+            },
+            "total": 240,
+            "confirmed_count": 42,
+            "no_snapshots_count": 30,
+            "matched_variant_examples": ["BE|C|370|9/18/2026"]
+        }
+
+    Contract-key format detection: because the storage format of
+    contract_key in `contract_oi_snapshots` is set by api/oi_snapshots.py
+    (not in this file), we try several plausible formats and use whichever
+    matches. `matched_variant_examples` in the response shows what worked
+    so we can standardize on it later.
+    """
+    import sqlite3
+    from datetime import datetime, timedelta
+    from fastapi.responses import JSONResponse
+
+    body = await request.json()
+    contracts = body.get("contracts") or []
+    window_days = int(body.get("window_days") or 5)
+    threshold_pct = float(body.get("threshold_pct") or 10)
+
+    if not contracts:
+        return {"ok": False, "error": "No contracts provided"}
+    if len(contracts) > 5000:
+        return {"ok": False, "error": "Too many contracts (limit 5000)"}
+
+    def _iso(date_str):
+        s = (date_str or "").strip()
+        if not s:
+            return ""
+        parts = s.split("/")
+        if len(parts) == 3:
+            m, d, y = parts[0], parts[1], parts[2]
+            if len(y) == 2:
+                y = "20" + y
+            try:
+                return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+            except Exception:
+                return s
+        return s
+
+    def _key_variants(c):
+        """Candidate storage formats for contract_key."""
+        sym = str(c.get("sym") or "").upper().strip()
+        cp = str(c.get("cp") or "").upper().strip()
+        cp_letter = cp[0] if cp else ""
+        cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
+        strike = c.get("strike")
+        strike_s = str(strike) if strike is not None else ""
+        expiry_raw = str(c.get("expiry") or "").strip()
+        expiry_iso = _iso(expiry_raw)
+        return [
+            f"{sym}|{cp_letter}|{strike_s}|{expiry_raw}",
+            f"{sym}|{cp_word}|{strike_s}|{expiry_raw}",
+            f"{sym}|{cp_letter}|{strike_s}|{expiry_iso}",
+            f"{sym}|{cp_word}|{strike_s}|{expiry_iso}",
+            f"{sym} {cp_word} {strike_s} {expiry_raw}",
+            f"{sym} {cp_letter} {strike_s} {expiry_raw}",
+            f"{sym}_{cp_letter}_{strike_s}_{expiry_iso}",
+        ]
+
+    def _orig_key(c):
+        return f"{c.get('sym','')}|{c.get('cp','')}|{c.get('strike','')}|{c.get('expiry','')}"
+
+    # Build variant → original mapping
+    orig_by_variant = {}
+    variant_list = []
+    for c in contracts:
+        for v in _key_variants(c):
+            if v not in orig_by_variant:
+                orig_by_variant[v] = _orig_key(c)
+                variant_list.append(v)
+
+    # Init confirmations for every requested contract
+    confirmations = {}
+    for c in contracts:
+        confirmations[_orig_key(c)] = {
+            "confirmed": False,
+            "first_oi": 0,
+            "peak_oi": 0,
+            "pct_change": 0,
+            "snapshots_found": 0,
+        }
+
+    matched_variant_examples = []
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=10) as conn:
+            # Batch query snapshots — SQLite param limit is ~999 so chunk.
+            rows_by_variant = {}
+            BATCH = 400
+            for i in range(0, len(variant_list), BATCH):
+                batch = variant_list[i:i + BATCH]
+                placeholders = ",".join(["?"] * len(batch))
+                cur = conn.execute(
+                    f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+                    f"WHERE contract_key IN ({placeholders}) "
+                    f"ORDER BY contract_key, snap_date",
+                    batch,
+                )
+                for r in cur.fetchall():
+                    k, sd, oi = r[0], r[1], int(r[2] or 0)
+                    rows_by_variant.setdefault(k, []).append((sd, oi))
+
+            # Compute confirmation per requested contract
+            for c in contracts:
+                original = _orig_key(c)
+                trade_date_raw = str(c.get("first_trade_date") or "").strip()
+                try:
+                    parts = trade_date_raw.split("/")
+                    if len(parts) == 3:
+                        m, d, y = parts[0], parts[1], parts[2]
+                        if len(y) == 2:
+                            y = "20" + y
+                        trade_dt = datetime(int(y), int(m), int(d))
+                    else:
+                        trade_dt = None
+                except Exception:
+                    trade_dt = None
+
+                if trade_dt is None:
+                    continue
+
+                # Find the variant that had snapshot rows
+                match_rows = None
+                for v in _key_variants(c):
+                    if v in rows_by_variant:
+                        match_rows = rows_by_variant[v]
+                        if len(matched_variant_examples) < 3:
+                            matched_variant_examples.append(v)
+                        break
+
+                if not match_rows:
+                    continue
+
+                # Filter to snapshots within the window after trade_date
+                window_end = trade_dt + timedelta(days=window_days)
+                in_window = []
+                for sd, oi in match_rows:
+                    snap_dt = None
+                    try:
+                        snap_dt = datetime.strptime(sd, "%Y-%m-%d")
+                    except Exception:
+                        try:
+                            parts = sd.split("/")
+                            if len(parts) == 3:
+                                mm, dd, yy = parts[0], parts[1], parts[2]
+                                if len(yy) == 2:
+                                    yy = "20" + yy
+                                snap_dt = datetime(int(yy), int(mm), int(dd))
+                        except Exception:
+                            continue
+                    if snap_dt is None:
+                        continue
+                    if trade_dt <= snap_dt <= window_end:
+                        in_window.append((snap_dt, oi))
+
+                if not in_window:
+                    continue
+
+                in_window.sort(key=lambda x: x[0])
+                first_oi = in_window[0][1]
+                peak_oi = max(oi for _, oi in in_window)
+                pct = ((peak_oi - first_oi) / first_oi * 100.0) if first_oi > 0 else 0
+                confirmations[original] = {
+                    "confirmed": pct >= threshold_pct,
+                    "first_oi": first_oi,
+                    "peak_oi": peak_oi,
+                    "pct_change": round(pct, 1),
+                    "snapshots_found": len(in_window),
+                }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e), "confirmations": confirmations}
+
+    confirmed_count = sum(1 for v in confirmations.values() if v["confirmed"])
+    no_snapshots = sum(1 for v in confirmations.values() if v["snapshots_found"] == 0)
+    resp = JSONResponse({
+        "ok": True,
+        "confirmations": confirmations,
+        "total": len(confirmations),
+        "confirmed_count": confirmed_count,
+        "no_snapshots_count": no_snapshots,
+        "matched_variant_examples": matched_variant_examples,
+        "window_days": window_days,
+        "threshold_pct": threshold_pct,
+    })
+    # Cache for 60s so repeated toggle-on/off doesn't re-query
+    resp.headers["Cache-Control"] = "private, max-age=60"
+    return resp
+
+
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
