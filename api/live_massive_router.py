@@ -1182,6 +1182,52 @@ def _get_worker_status() -> dict:
 _STALE_THRESHOLD_SEC = 120
 
 
+# --- Backward-compatible shims for pre-consolidation frontend --------------
+# Added 2026-07-05 during pre-market debug of 404s on /status and /curated.
+#
+# Before the /recent consolidation these two paths were independent endpoints.
+# The refactor absorbed /status into /recent's response envelope ({status,
+# alerts}) and turned /curated into a `?curated=true` query param on /recent.
+# Cleaner server-side, but the frontend was never migrated -- OptionsFlow.jsx,
+# OptionsFlow_admin.jsx, and LiveFlowMassive.jsx still call the old paths,
+# which now fall through to the SPA catch-all and return the React 404 page.
+#
+# These shims restore the pre-consolidation contract without changing the
+# frontend. Both delegate to the same underlying logic /recent uses, so there
+# is no risk of divergence and no double-maintenance -- when the frontend is
+# eventually updated to read status from /recent's envelope and pass
+# ?curated=true directly, these can be deleted with no other change.
+@router.get("/status")
+def status_shim():
+    """
+    Backward-compat: worker status dict, matches pre-consolidation contract.
+    New frontend code should read `status` from GET /recent's response instead.
+    """
+    return _get_worker_status()
+
+
+@router.get("/curated")
+def curated_shim(
+    limit: int = Query(default=200, ge=1, le=20000),
+    min_grade: str = Query(default="D", description="Min letter grade A+/A/B/C/D"),
+    target_date: str = Query(default=None, description="M/D/YYYY override (default=today)"),
+    sort_by: str = Query(default="recent", description="recent|conviction|premium"),
+    tier: str = Query(default=None, description="Filter to one tier"),
+):
+    """
+    Backward-compat: equivalent to GET /recent?curated=true.
+    New frontend code should call GET /recent?curated=true directly.
+    """
+    return recent_massive_alerts(
+        limit=limit,
+        min_grade=min_grade,
+        target_date=target_date,
+        sort_by=sort_by,
+        tier=tier,
+        curated=True,
+    )
+
+
 @router.get("/recent")
 def recent_massive_alerts(
     limit: int = Query(default=200, ge=1, le=20000),
