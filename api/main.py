@@ -4481,6 +4481,21 @@ async def _oi_confirmation_map(request: Request):
                     peak_oi = max(oi for _, oi in post_trade)
                     snapshots_used = len(post_trade)
                     baseline_source = "forward_window"
+                elif pre_trade and len(pre_trade) >= 2:
+                    # Pre-trade accumulation signal: contract was being built
+                    # BEFORE the flow event. Baseline = earliest pre-trade,
+                    # peak = latest pre-trade. Different semantic than post-
+                    # trade confirmation (measures pre-flow accumulation vs
+                    # post-flow adds), but equally actionable — flow event
+                    # was a continuation of an existing accumulation trend.
+                    # Example: BE 9/18 $370c snapshots at 6/25 (306), 6/26
+                    # (306), 6/29 (6574) — 21x growth in 4 days leading up
+                    # to the 7/2 flow. Strong signal even without post-trade
+                    # data yet.
+                    baseline_oi = pre_trade[0][1]
+                    peak_oi = max(oi for _, oi in pre_trade)
+                    snapshots_used = len(pre_trade)
+                    baseline_source = "pre_trade_accumulation"
                 else:
                     # Not enough data — need at minimum a baseline + comparison
                     # Include trade_dt itself as candidate baseline if present.
