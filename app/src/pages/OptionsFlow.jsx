@@ -1390,6 +1390,14 @@ function processFlowData(rows) {
       if (!t.isML || !t.S || !t.CP) return;
       if (t.V <= 0 || t.P < 100000) return;
       if (mlMatched.has(t)) return;  // already paired with a leg — treat as real spread
+      // Skip BBS-sourced ML/ rows. BBS's ML/ label means "leg of a multi-leg
+      // spread" — each leg emitted as its own row with real side classification.
+      // Isolated BBS ML/ (single-leg events, ~19% of BBS ML/) are orphan legs
+      // whose siblings didn't cluster within 5s, NOT directional signals.
+      // Massive uses ML/ as a catch-all for multi-print aggregations, which
+      // IS what our rescue was designed for. Discriminate by OI: Massive rows
+      // ingest with OI=0 (enrichment happens later); BBS populates OI upstream.
+      if ((t.OI || 0) > 0) return;
       const myTs = _parseTs(t.time);
       if (myTs < 0) return;  // unparseable time — safest to leave filtered
       const symCP = t.S + "|" + t.CP;
