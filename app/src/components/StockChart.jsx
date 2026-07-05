@@ -35,6 +35,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
 import { resample } from '../utils/resampleBars'
+import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
@@ -1096,6 +1097,7 @@ export default function StockChart({
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
+  const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
   const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
   const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
@@ -2920,7 +2922,50 @@ export default function StockChart({
       for (const s of overlaySeriesRefs.current) {
         try { s.setData([]) } catch {}
       }
+      lastCfgSigRef.current = null
       return
+    }
+
+    // ── A2: incremental last-bar render (kills the 30s full repaint) ──────────
+    // During RTH the 30s SWR poll delivers a changed DEVELOPING bar, which re-runs
+    // this whole function and full-`setData`s every series (candle + volume + all
+    // MAs + all indicators + markers) — a periodic wholesale repaint. When ONLY
+    // the last bar's OHLCV changed AND the render config is byte-identical to the
+    // last paint, we instead `series.update()` just the last point of each series
+    // (which also makes MAs/indicators track the developing bar in real time
+    // instead of lagging 30s). `_applyData` below routes every setData call
+    // through this decision; it self-corrects to a full setData on ANY edge
+    // (empty series, timestamp mismatch) so a wrong incremental can't stick.
+    // Config guard: a config-only change yields plan 'noop' (bars identical) →
+    // not 'incremental' → full paint; a config change coinciding with a bar tick
+    // is caught by the cfgSig compare. Bias is hard to 'full' — a needless full
+    // repaint is a wasted frame; a wrong incremental would be a data bug.
+    let _cfgSig
+    try {
+      _cfgSig = JSON.stringify({
+        sym, resolvedTf, chartType: cs.chartType, showVolume,
+        cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
+        modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
+        watermark, watermarkOpacity,
+        ovN: overlayData?.length ?? 0,
+        mkN: mergedMarkers?.length ?? 0,
+        plN: mergedPriceLines?.length ?? 0,
+        cmpN: comparisonData?.length ?? 0,
+      })
+    } catch {
+      // A non-serializable setting must never break the chart — fail safe to a
+      // full paint (null cfgSig guarantees _incr is false this run).
+      _cfgSig = null
+    }
+    const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
+    const _incr = _cfgSig != null && _plan.mode === 'incremental' && _cfgSig === lastCfgSigRef.current
+    lastCfgSigRef.current = _cfgSig
+    const _applyData = (series, data) => {
+      if (!series || !data) return
+      if (_incr && data.length) {
+        try { series.update(data[data.length - 1]); return } catch { /* fall through to full setData */ }
+      }
+      try { series.setData(data) } catch {}
     }
 
     let chart = chartRef.current
@@ -3173,7 +3218,7 @@ export default function StockChart({
     // as a dep), so we keep plain data here — pulling highlightTimeSet into THIS
     // effect's deps would re-run the whole updateChart (incl. the visible-range /
     // zoom logic) on every focus change and fight the setup focus zoom.
-    candleSeriesRef.current.setData(isOhlcType(cs.chartType) ? ohlcData : closeData)
+    _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? ohlcData : closeData)
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -3328,7 +3373,7 @@ export default function StockChart({
         const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
         volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
       }
-      volumeSeriesRef.current.setData(volData)
+      _applyData(volumeSeriesRef.current, volData)
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
       if (volumeMa && volMaData.length) {
@@ -3347,7 +3392,7 @@ export default function StockChart({
         if (!volMaSeriesRef.current) {
           volMaSeriesRef.current = chart.addSeries(LineSeries, { color: VOL_MA_COLOR, ..._vmOpts }, _vmPane)
         }
-        volMaSeriesRef.current.setData(baseVM)
+        _applyData(volMaSeriesRef.current, baseVM)
         if (_vmFade) {
           const vmTailColor = colorMulAlpha(VOL_MA_COLOR, frameFadeAlphaRef.current)
           if (!volMaTailSeriesRef.current) {
@@ -3418,7 +3463,7 @@ export default function StockChart({
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
         overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
-        overlaySeriesRefs.current[i].setData(baseData)
+        _applyData(overlaySeriesRefs.current[i], baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
         const ls = chart.addSeries(LineSeries, {
@@ -3473,7 +3518,7 @@ export default function StockChart({
         } else {
           ref.current.applyOptions({ color: bbColor })
         }
-        ref.current.setData(data)
+        _applyData(ref.current, data)
       } else if (ref.current) {
         try { chart.removeSeries(ref.current) } catch {}
         ref.current = null
@@ -3493,7 +3538,7 @@ export default function StockChart({
       } else {
         vwapSeriesRef.current.applyOptions({ color: vwapColor, lineWidth: _vwapWidth })
       }
-      vwapSeriesRef.current.setData(indicatorData.vwap)
+      _applyData(vwapSeriesRef.current, indicatorData.vwap)
     } else if (vwapSeriesRef.current) {
       try { chart.removeSeries(vwapSeriesRef.current) } catch {}
       vwapSeriesRef.current = null
@@ -3520,7 +3565,7 @@ export default function StockChart({
         rsiSeriesRef.current.applyOptions({ color: rsiColor })
         applyIndScale('rsi', rsiSeriesRef.current, rsiTgt)
       }
-      rsiSeriesRef.current.setData(indicatorData.rsi)
+      _applyData(rsiSeriesRef.current, indicatorData.rsi)
     } else if (rsiSeriesRef.current) {
       try { chart.removeSeries(rsiSeriesRef.current) } catch {}
       rsiSeriesRef.current = null
@@ -3553,8 +3598,8 @@ export default function StockChart({
         stochDRef.current.applyOptions({ color: stochCfg?.dColor || '#4ECDC4' })
         applyIndScale('stoch', stochKRef.current, stochTgt)
       }
-      stochKRef.current.setData(stochD.k)
-      stochDRef.current.setData(stochD.d)
+      _applyData(stochKRef.current, stochD.k)
+      _applyData(stochDRef.current, stochD.d)
     } else {
       for (const ref of [stochKRef, stochDRef]) {
         if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
@@ -3591,9 +3636,9 @@ export default function StockChart({
         macdSignalRef.current.applyOptions({ color: macdCfg?.signalColor || '#FF9800' })
         applyIndScale('macd', macdLineRef.current, macdTgt)
       }
-      macdLineRef.current.setData(macdD.macd)
-      macdSignalRef.current.setData(macdD.signal)
-      macdHistRef.current.setData(macdD.histogram)
+      _applyData(macdLineRef.current, macdD.macd)
+      _applyData(macdSignalRef.current, macdD.signal)
+      _applyData(macdHistRef.current, macdD.histogram)
     } else {
       for (const ref of [macdLineRef, macdSignalRef, macdHistRef]) {
         if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
@@ -3618,7 +3663,7 @@ export default function StockChart({
         atrSeriesRef.current.applyOptions({ color: atrColor })
         applyIndScale('atr', atrSeriesRef.current, atrTgt)
       }
-      atrSeriesRef.current.setData(indicatorData.atr)
+      _applyData(atrSeriesRef.current, indicatorData.atr)
     } else if (atrSeriesRef.current) {
       try { chart.removeSeries(atrSeriesRef.current) } catch {}
       atrSeriesRef.current = null
@@ -3642,7 +3687,7 @@ export default function StockChart({
       } else {
         sarSeriesRef.current.applyOptions({ color: sarColor })
       }
-      sarSeriesRef.current.setData(indicatorData.sar.map(p => ({ time: p.time, value: p.value })))
+      _applyData(sarSeriesRef.current, indicatorData.sar.map(p => ({ time: p.time, value: p.value })))
     } else if (sarSeriesRef.current) {
       try { chart.removeSeries(sarSeriesRef.current) } catch {}
       sarSeriesRef.current = null
@@ -3669,11 +3714,11 @@ export default function StockChart({
       createIfNeeded(ichimokuSpanARef,  { color: ichiCfg?.spanAColor  || 'rgba(76,175,80,0.5)', lineWidth: 1 })
       createIfNeeded(ichimokuSpanBRef,  { color: ichiCfg?.spanBColor  || 'rgba(239,83,80,0.5)', lineWidth: 1 })
       createIfNeeded(ichimokuChikouRef, { color: ichiCfg?.chikouColor || 'rgba(255,235,59,0.7)', lineWidth: 1, lineStyle: 2 })
-      ichimokuTenkanRef.current.setData(ichiD.tenkan)
-      ichimokuKijunRef.current.setData(ichiD.kijun)
-      ichimokuSpanARef.current.setData(ichiD.spanA)
-      ichimokuSpanBRef.current.setData(ichiD.spanB)
-      ichimokuChikouRef.current.setData(ichiD.chikou)
+      _applyData(ichimokuTenkanRef.current, ichiD.tenkan)
+      _applyData(ichimokuKijunRef.current, ichiD.kijun)
+      _applyData(ichimokuSpanARef.current, ichiD.spanA)
+      _applyData(ichimokuSpanBRef.current, ichiD.spanB)
+      _applyData(ichimokuChikouRef.current, ichiD.chikou)
     } else {
       for (const ref of [ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef]) {
         if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
@@ -3698,7 +3743,7 @@ export default function StockChart({
         mfiSeriesRef.current.applyOptions({ color: mfiColor })
         applyIndScale('mfi', mfiSeriesRef.current, mfiTgt)
       }
-      mfiSeriesRef.current.setData(indicatorData.mfi)
+      _applyData(mfiSeriesRef.current, indicatorData.mfi)
     } else if (mfiSeriesRef.current) {
       try { chart.removeSeries(mfiSeriesRef.current) } catch {}
       mfiSeriesRef.current = null
@@ -3723,7 +3768,7 @@ export default function StockChart({
         cciSeriesRef.current.applyOptions({ color: cciColor })
         applyIndScale('cci', cciSeriesRef.current, cciTgt)
       }
-      cciSeriesRef.current.setData(indicatorData.cci)
+      _applyData(cciSeriesRef.current, indicatorData.cci)
     } else if (cciSeriesRef.current) {
       try { chart.removeSeries(cciSeriesRef.current) } catch {}
       cciSeriesRef.current = null
@@ -3747,7 +3792,7 @@ export default function StockChart({
         williamsRSeriesRef.current.applyOptions({ color: wrColor })
         applyIndScale('williamsR', williamsRSeriesRef.current, wrTgt)
       }
-      williamsRSeriesRef.current.setData(indicatorData.williamsR)
+      _applyData(williamsRSeriesRef.current, indicatorData.williamsR)
     } else if (williamsRSeriesRef.current) {
       try { chart.removeSeries(williamsRSeriesRef.current) } catch {}
       williamsRSeriesRef.current = null
@@ -3785,9 +3830,9 @@ export default function StockChart({
         adxMinusDIRef.current.applyOptions({ color: adxCfg?.minusDIColor || '#ef4444' })
         applyIndScale('adx', adxSeriesRef.current, adxTgt)
       }
-      adxSeriesRef.current.setData(adxD.adx)
-      adxPlusDIRef.current.setData(adxD.plusDI)
-      adxMinusDIRef.current.setData(adxD.minusDI)
+      _applyData(adxSeriesRef.current, adxD.adx)
+      _applyData(adxPlusDIRef.current, adxD.plusDI)
+      _applyData(adxMinusDIRef.current, adxD.minusDI)
     } else {
       for (const ref of [adxSeriesRef, adxPlusDIRef, adxMinusDIRef]) {
         if (ref.current) { try { chart.removeSeries(ref.current) } catch {}; ref.current = null }
@@ -3810,7 +3855,7 @@ export default function StockChart({
         obvSeriesRef.current.applyOptions({ color: obvColor })
         applyIndScale('obv', obvSeriesRef.current, obvTgt)
       }
-      obvSeriesRef.current.setData(indicatorData.obv)
+      _applyData(obvSeriesRef.current, indicatorData.obv)
     } else if (obvSeriesRef.current) {
       try { chart.removeSeries(obvSeriesRef.current) } catch {}
       obvSeriesRef.current = null
@@ -3834,7 +3879,7 @@ export default function StockChart({
         } else {
           ref.current.applyOptions({ color: donchianColor })
         }
-        ref.current.setData(data)
+        _applyData(ref.current, data)
       } else if (ref.current) {
         try { chart.removeSeries(ref.current) } catch {}
         ref.current = null
@@ -3859,7 +3904,7 @@ export default function StockChart({
           visible: false,  // hide the right-axis label — value shown in legend instead
         })
       }
-      compareSeriesRef.current.setData(comparisonData)
+      _applyData(compareSeriesRef.current, comparisonData)
     } else if (compareSeriesRef.current) {
       try { chart.removeSeries(compareSeriesRef.current) } catch {}
       compareSeriesRef.current = null
