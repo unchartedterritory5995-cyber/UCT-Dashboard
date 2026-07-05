@@ -11,6 +11,10 @@
   flex-direction: column;
   height: calc(100vh - 16px);
   padding: 8px 14px 0;
+  /* While the left sidebar hover-expands, this pane's width animates; clip any
+     one-frame horizontal overshoot from the charts' canvases so no horizontal
+     scrollbar flickers in and out (which jitters the whole view). */
+  overflow-x: hidden;
 }
 
 /* Soft gold/green ambient glow, echoing the hub. */
@@ -243,6 +247,12 @@
   background: rgba(201, 168, 76, 0.12);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+/* Arrow-key-highlighted ticker as you step through a setup's examples. */
+.jumpChipActive {
+  border-color: rgba(201, 168, 76, 0.85);
+  background: rgba(201, 168, 76, 0.2);
+  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 .jumpChipLogo { flex: none; display: flex; align-items: center; }
 .jumpChipSym {
@@ -822,6 +832,12 @@
   overflow: hidden;
   scroll-snap-align: start;
   scroll-margin-top: 6px;
+  /* Each example is a full-viewport chart and they stack several deep. Skip
+     rendering the off-screen ones so that when the sidebar hover-expands (or on
+     any resize) only the on-screen chart re-lays-out — not all of them at once,
+     which is what made the stage feel glitchy here vs. lighter pages. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 860px;
 }
 .exBlockHead {
   display: flex;

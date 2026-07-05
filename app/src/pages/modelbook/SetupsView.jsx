@@ -210,12 +210,17 @@ function RailRow({ setup, active, expanded, onSelect, onHover, onLeave }) {
 // Click a setup → a dropdown of its charted examples (logo · symbol · year ·
 // grade). Picking one scrolls the right pane to that example. Shares the SWR
 // cache key with ExamplesPane, so opening the menu warms the same data.
-function ExampleJumpList({ setup, onPick }) {
+function ExampleJumpList({ setup, onPick, activeId }) {
   const { data } = useSWR(
     `/api/modelbook/setup-examples?setup=${encodeURIComponent(setup.name)}`,
     fetcher, { revalidateOnFocus: false },
   )
   const examples = data?.examples || []
+  // Keep the arrow-key-highlighted chip in view as you step through them.
+  const activeRef = useRef(null)
+  useEffect(() => {
+    if (activeId != null) activeRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
   return (
     <div className={styles.jumpWrap} role="menu">
       {!data && <div className={styles.jumpMsg}>Loading examples…</div>}
@@ -225,9 +230,10 @@ function ExampleJumpList({ setup, onPick }) {
           {examples.map(ex => (
               <button
                 key={ex.id}
+                ref={ex.id === activeId ? activeRef : null}
                 type="button"
                 role="menuitem"
-                className={styles.jumpChip}
+                className={`${styles.jumpChip} ${ex.id === activeId ? styles.jumpChipActive : ''}`}
                 onClick={() => onPick(ex)}
               >
                 <span className={styles.jumpChipLogo}>
@@ -951,8 +957,13 @@ export default function SetupsView({ onExit }) {
   // Click a setup → a dropdown of its charted examples under the row. The menu
   // belongs to the selected setup; picking an example scrolls the right pane to
   // it via a bumped request (so re-picking the same one re-scrolls).
-  const [exMenuOpen, setExMenuOpen] = useState(false)
+  // Open on load so the first setup's examples show immediately (and ↓ starts
+  // stepping through them right away).
+  const [exMenuOpen, setExMenuOpen] = useState(true)
   const [scrollReq, setScrollReq] = useState(null)
+  // Which example within the open setup is arrow-highlighted (−1 = the setup
+  // itself, no example yet). Drives ↑/↓ ticker stepping + the chip highlight.
+  const [exampleIdx, setExampleIdx] = useState(-1)
   function jumpToExample(ex) {
     setScrollReq(prev => ({ exampleId: ex.id, seq: (prev?.seq || 0) + 1 }))
     if (isPhone) setMobileView('detail')
@@ -961,6 +972,27 @@ export default function SetupsView({ onExit }) {
   // example-scroll request so a stale one (e.g. the last ticker clicked in a
   // setup you're returning to) can't re-fire and jump the pane down.
   useEffect(() => { setScrollReq(null) }, [selectedName])
+
+  // Examples for the currently-selected setup. Shares the SWR cache key with the
+  // rail dropdown + ExamplesPane (so it's essentially free) and drives ↑/↓
+  // stepping through a setup's tickers before rolling to the next setup.
+  const { data: exListData } = useSWR(
+    selectedName ? `/api/modelbook/setup-examples?setup=${encodeURIComponent(selectedName)}` : null,
+    fetcher, { revalidateOnFocus: false },
+  )
+  const curExamples = useMemo(() => exListData?.examples || [], [exListData])
+  const activeExampleId = exampleIdx >= 0 ? (curExamples[exampleIdx]?.id ?? null) : null
+
+  // When ↑ rolls UP into a setup we want to land on its LAST example, but the
+  // list loads async — defer the landing until the examples arrive.
+  const pendingEndRef = useRef(false)
+  useEffect(() => {
+    if (!pendingEndRef.current || !curExamples.length) return
+    pendingEndRef.current = false
+    const li = curExamples.length - 1
+    setExampleIdx(li)
+    jumpToExample(curExamples[li])
+  }, [curExamples])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {
     const c = { All: SETUP_CATALOG.length }
@@ -994,17 +1026,21 @@ export default function SetupsView({ onExit }) {
   const visibleFlat = useMemo(() => groups.flatMap(g => g.setups), [groups])
 
   function openSetup(s) {
+    pendingEndRef.current = false
     if (s.name === selectedName) {
       setExMenuOpen(o => !o)          // re-click the open setup → toggle its menu
     } else {
       setSelectedName(s.name)
       setExMenuOpen(true)             // new setup → open its examples menu
     }
+    setExampleIdx(-1)                 // start fresh at the setup, not an example
     if (isPhone) setMobileView('detail')
   }
 
-  // ↑/↓ steps through the rail (like the arrow nav in Throughout the Years).
-  // Ignored while typing in the search box; off on phones (rail is view-switched).
+  // ↑/↓ navigation: step through the selected setup's charted examples first
+  // (scrolling the stage to each ticker), and only once you've clicked through
+  // them all roll into the next setup — closing this dropdown and opening the
+  // next one seamlessly. Ignored while typing in the search box; off on phones.
   useEffect(() => {
     if (isPhone) return
     function onKey(e) {
@@ -1013,29 +1049,62 @@ export default function SetupsView({ onExit }) {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
       if (!visibleFlat.length) return
       e.preventDefault()
+
       const idx = visibleFlat.findIndex(s => s.name === selectedName)
-      const next = idx === -1
-        ? visibleFlat[0]
-        : visibleFlat[e.key === 'ArrowDown' ? Math.min(idx + 1, visibleFlat.length - 1) : Math.max(idx - 1, 0)]
-      if (!next) return
-      // Keep the examples menu's open/closed state as-is: since the dropdown is a
-      // single element gated on `exMenuOpen && name === selectedName`, changing the
-      // selection makes it close under the old setup and re-open under the new one.
-      setSelectedName(next.name)
-      requestAnimationFrame(() => {
-        document.querySelector(`[data-setup-name="${next.name}"]`)?.scrollIntoView({ block: 'nearest' })
+      const onSetup = idx !== -1
+      const scrollRailTo = name => requestAnimationFrame(() => {
+        document.querySelector(`[data-setup-name="${name}"]`)?.scrollIntoView({ block: 'nearest' })
       })
+
+      if (e.key === 'ArrowDown') {
+        // Next example within this setup…
+        if (onSetup && exMenuOpen && exampleIdx < curExamples.length - 1) {
+          const ni = exampleIdx + 1
+          setExampleIdx(ni)
+          jumpToExample(curExamples[ni])
+          return
+        }
+        // …else roll into the next setup, opening its dropdown fresh.
+        const next = idx === -1 ? visibleFlat[0] : visibleFlat[Math.min(idx + 1, visibleFlat.length - 1)]
+        if (!next || next.name === selectedName) return
+        pendingEndRef.current = false
+        setSelectedName(next.name)
+        setExMenuOpen(true)
+        setExampleIdx(-1)              // land on the setup; next ↓ hits its first example
+        scrollRailTo(next.name)
+      } else {
+        // ArrowUp — reverse back through the examples, then up to the prior setup.
+        if (onSetup && exMenuOpen && exampleIdx > 0) {
+          const ni = exampleIdx - 1
+          setExampleIdx(ni)
+          jumpToExample(curExamples[ni])
+          return
+        }
+        if (onSetup && exMenuOpen && exampleIdx === 0) {
+          setExampleIdx(-1)           // back up to the setup itself (dropdown stays open)
+          return
+        }
+        const prev = idx <= 0 ? visibleFlat[0] : visibleFlat[idx - 1]
+        if (!prev || prev.name === selectedName) return
+        pendingEndRef.current = true  // land on its last example once loaded
+        setSelectedName(prev.name)
+        setExMenuOpen(true)
+        setExampleIdx(-1)
+        scrollRailTo(prev.name)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [visibleFlat, selectedName, isPhone])
+  }, [visibleFlat, selectedName, isPhone, exMenuOpen, exampleIdx, curExamples])
 
   // Clicking a family pill filters the rail AND loads that family's first setup
   // into the stage, so the filter feels responsive instead of leaving a stale
   // selection on screen. Stays in list view on phone (you're still browsing).
   function selectFilter(cat) {
     setFilter(cat)
-    setExMenuOpen(false)
+    setExMenuOpen(true)              // open the new first setup's examples dropdown
+    setExampleIdx(-1)
+    pendingEndRef.current = false
     const first = cat === 'All' ? SETUP_CATALOG[0] : SETUP_CATALOG.find(s => s.family === cat)
     if (first) setSelectedName(first.name)
   }
@@ -1109,7 +1178,15 @@ export default function SetupsView({ onExit }) {
                         onLeave={onPbLeave}
                       />
                       {exMenuOpen && s.name === selectedName && (
-                        <ExampleJumpList setup={s} onPick={jumpToExample} />
+                        <ExampleJumpList
+                          setup={s}
+                          activeId={activeExampleId}
+                          onPick={ex => {
+                            const i = curExamples.findIndex(x => x.id === ex.id)
+                            if (i >= 0) setExampleIdx(i)
+                            jumpToExample(ex)
+                          }}
+                        />
                       )}
                     </Fragment>
                   ))}
