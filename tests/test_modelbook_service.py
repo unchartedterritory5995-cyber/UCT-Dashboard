@@ -406,3 +406,57 @@ def test_stock_bars_cascade_on_stock_delete(s):
     s.set_stock_bars(sid, '[{"t":"2021-01-04","o":1,"h":1,"l":1,"c":1,"v":1}]')
     assert s.delete_stock(sid) is True
     assert s.get_stock_bars(sid) is None  # FK cascade removed the bars row
+
+
+def _example(setup_name="Flat Top Breakout (VCP)", symbol="NIO", **kw):
+    return {
+        "setup_name": setup_name,
+        "symbol": symbol,
+        "company": kw.get("company"),
+        "sector": kw.get("sector"),
+        "industry": kw.get("industry"),
+        "year": kw.get("year", 2020),
+        "label_date": kw.get("label_date", "2020-07-10"),
+        "sort_order": kw.get("sort_order", 1),
+    }
+
+
+def test_setup_example_sector_industry_settable_on_create(s):
+    ex = s.create_setup_example(
+        _example(company="NIO Inc.", sector="Consumer Cyclical",
+                 industry="Auto Manufacturers"))
+    assert ex["sector"] == "Consumer Cyclical"
+    assert ex["industry"] == "Auto Manufacturers"
+    # Comes back through the list read too.
+    got = s.list_setup_examples("Flat Top Breakout (VCP)")[0]
+    assert got["sector"] == "Consumer Cyclical"
+    assert got["industry"] == "Auto Manufacturers"
+
+
+def test_backfill_example_meta_fills_gaps_and_never_clobbers(s):
+    ex = s.create_setup_example(_example(company="NIO Inc."))
+    eid = ex["id"]
+    assert ex["sector"] is None and ex["industry"] is None and ex["meta_at"] is None
+    # Backfill fills the blanks and stamps the attempt.
+    s.backfill_example_meta(eid, company="OVERRIDE", sector="Consumer Cyclical",
+                            industry="Auto Manufacturers")
+    got = s.get_setup_example(eid)
+    assert got["company"] == "NIO Inc."          # COALESCE keeps the existing name
+    assert got["sector"] == "Consumer Cyclical"
+    assert got["industry"] == "Auto Manufacturers"
+    assert got["meta_at"] is not None
+    # A later pass must NOT clobber the now-set values.
+    s.backfill_example_meta(eid, sector="WRONG", industry="WRONG")
+    got2 = s.get_setup_example(eid)
+    assert got2["sector"] == "Consumer Cyclical"
+    assert got2["industry"] == "Auto Manufacturers"
+
+
+def test_mark_example_meta_attempt_stamps_without_values(s):
+    ex = s.create_setup_example(_example(symbol="SPY", company="SPDR S&P 500 ETF"))
+    assert ex["meta_at"] is None
+    # An ETF yields no sector/industry — stamp the attempt so it isn't retried.
+    s.mark_example_meta_attempt(ex["id"])
+    got = s.get_setup_example(ex["id"])
+    assert got["meta_at"] is not None
+    assert got["sector"] is None and got["industry"] is None

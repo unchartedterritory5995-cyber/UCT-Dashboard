@@ -794,6 +794,8 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           watermarkY={wmPos.y}
           onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
+          watermarkSector={ex.sector || null}
+          watermarkIndustry={ex.industry || null}
           priceLines={priceLines}
           hideJournalOverlay
           annotations={annotating ? draft : (drawings.length ? drawings : null)}

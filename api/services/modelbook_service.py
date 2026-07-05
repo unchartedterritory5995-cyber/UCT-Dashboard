@@ -155,7 +155,8 @@ _SETUP_FIELDS = ("setup_type", "label_date", "frame_start_date", "timeframe",
                  "marker_side", "marker_shape", "drawings_json")
 _CATALYST_FIELDS = ("catalyst_date", "title", "description", "move_pct",
                     "sort_order", "source")
-_EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "data_symbol", "year",
+_EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "sector", "industry",
+                   "data_symbol", "year",
                    "label_date", "timeframe", "frame_start_date", "result_start_date",
                    "result_end_date", "entry_price", "stop_price",
                    "target_price", "grade", "notes", "advance_note",
@@ -202,6 +203,9 @@ def _init_db() -> None:
             ("modelbook_setup_examples", "timeframe", "TEXT"),
             ("modelbook_setup_examples", "result_drawings_json", "TEXT"),  # annotations shown only in the Result view (separate from drawings_json = Setup view)
             ("modelbook_setup_examples", "scale_mode", "TEXT"),  # 'arith' | 'log' — price-scale mode for this example's chart
+            ("modelbook_setup_examples", "sector", "TEXT"),          # curated watermark sector (ADRs/renamed/delisted tickers the live meta can't resolve — e.g. NIO, TASR)
+            ("modelbook_setup_examples", "industry", "TEXT"),        # curated watermark industry (paired with sector)
+            ("modelbook_setup_examples", "meta_at", "INTEGER"),      # epoch of last watermark company/sector/industry backfill attempt (the "already tried, don't loop" marker)
         ):
             try:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
@@ -612,12 +616,12 @@ def create_setup_example(payload: dict) -> dict:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute(
             """INSERT INTO modelbook_setup_examples
-               (setup_name, symbol, company, data_symbol, year, label_date,
+               (setup_name, symbol, company, sector, industry, data_symbol, year, label_date,
                 timeframe, frame_start_date, result_start_date, result_end_date,
                 entry_price, stop_price, target_price, grade,
                 notes, advance_note, watermark_x, watermark_y,
                 drawings_json, scale_mode, sort_order, created_at)
-               VALUES (:setup_name, :symbol, :company, :data_symbol, :year,
+               VALUES (:setup_name, :symbol, :company, :sector, :industry, :data_symbol, :year,
                        :label_date, :timeframe, :frame_start_date, :result_start_date,
                        :result_end_date, :entry_price, :stop_price,
                        :target_price, :grade, :notes, :advance_note,
@@ -646,6 +650,38 @@ def update_setup_example(example_id: int, payload: dict) -> Optional[dict]:
         if cur.rowcount == 0:
             return None
     return get_setup_example(example_id)
+
+
+def backfill_example_meta(example_id: int, company=None, sector=None,
+                          industry=None) -> None:
+    """Fill the example's watermark company/sector/industry ONLY where still empty
+    (COALESCE — never clobber a curated/manually-entered value), then stamp the
+    attempt. Lets the chart watermark always show TICKER · Company · Sector ·
+    Industry even for ADRs / renamed / delisted tickers the live meta can't
+    resolve (e.g. NIO, TASR)."""
+    company = (company or "").strip() or None
+    sector = (sector or "").strip() or None
+    industry = (industry or "").strip() or None
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """UPDATE modelbook_setup_examples
+               SET company  = COALESCE(NULLIF(company, ''), ?),
+                   sector   = COALESCE(NULLIF(sector, ''), ?),
+                   industry = COALESCE(NULLIF(industry, ''), ?),
+                   meta_at  = ?
+               WHERE id = ?""",
+            (company, sector, industry, int(time.time()), int(example_id)),
+        )
+        c.commit()
+
+
+def mark_example_meta_attempt(example_id: int) -> None:
+    """Stamp that we attempted a watermark-meta backfill (even when it yielded
+    nothing — e.g. an ETF has no sector) so we don't retry in a tight loop."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE modelbook_setup_examples SET meta_at = ? WHERE id = ?",
+                  (int(time.time()), int(example_id)))
+        c.commit()
 
 
 def delete_setup_example(example_id: int) -> bool:

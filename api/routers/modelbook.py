@@ -106,6 +106,8 @@ class ExampleIn(BaseModel):
     setup_name: str
     symbol: str
     company: Optional[str] = None
+    sector: Optional[str] = None       # curated watermark sector (ADR/renamed/delisted); AI-filled if blank
+    industry: Optional[str] = None     # curated watermark industry
     data_symbol: Optional[str] = None
     year: int
     label_date: Optional[str] = None
@@ -129,6 +131,8 @@ class ExamplePatch(BaseModel):
     setup_name: Optional[str] = None
     symbol: Optional[str] = None
     company: Optional[str] = None
+    sector: Optional[str] = None
+    industry: Optional[str] = None
     data_symbol: Optional[str] = None
     year: Optional[int] = None
     label_date: Optional[str] = None
@@ -1385,9 +1389,128 @@ def edit_index_drawings(payload: IndexDrawingsPatch, symbol: str = Query("^IXIC"
 
 # ── Setup Library examples ────────────────────────────────────────────────────
 
+_ex_meta_lock = _threading.Lock()
+_ex_meta_generating = set()  # example ids with a watermark-meta backfill in flight
+
+
+def _ai_watermark_meta(symbol, company, year):
+    """Claude → {sector, industry} GICS for a ticker AS OF a given year — the
+    historical fallback for ADRs / renamed / delisted symbols the live ticker-meta
+    can't resolve (e.g. TASR = the old TASER/Axon ticker). Returns both null for an
+    ETF/fund/index (which correctly carries no sector/industry). None on failure."""
+    if not _DESC_ENABLED:
+        return None
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        system = ("You return only GICS classification data as strict JSON. No prose.")
+        prompt = (
+            f"Ticker: {symbol} ({company or symbol}). Year: {year}.\n"
+            'Return JSON exactly: {"sector": "...", "industry": "...", "is_fund": false}\n'
+            "- sector: the company's GICS sector AS OF that year (e.g. \"Technology\", "
+            "\"Industrials\", \"Consumer Discretionary\"). Use the classification the "
+            "company traded under that year, even if later renamed/acquired.\n"
+            "- industry: the specific GICS industry that year (e.g. \"Aerospace & "
+            "Defense\", \"Automobiles\").\n"
+            "- is_fund: true ONLY if this ticker is an ETF, fund, or index (then set "
+            "sector and industry to null).\n"
+            "Return null for any field you are not confident about. JSON only."
+        )
+        text = None
+        for attempt in range(2):
+            try:
+                msg = client.messages.create(
+                    model=_DESC_MODEL, max_tokens=150, temperature=0.2,
+                    system=system, messages=[{"role": "user", "content": prompt}],
+                )
+                text = "".join(getattr(b, "text", "") for b in msg.content).strip()
+                if text:
+                    break
+            except Exception:
+                text = None
+            _time_mod.sleep(1.2 * (attempt + 1))
+        obj = _parse_desc_json(text) if text else None
+        if obj is None:
+            return None
+        if obj.get("is_fund"):
+            return {"sector": None, "industry": None}
+        return {
+            "sector": (obj.get("sector") or "").strip() or None,
+            "industry": (obj.get("industry") or "").strip() or None,
+        }
+    except Exception:
+        return None
+
+
+def _needs_example_meta(ex) -> bool:
+    """True if a setup example still needs a watermark-meta backfill: it's missing
+    its company name OR its sector OR its industry, and we haven't recently tried
+    (the meta_at stamp gates re-spend so ETFs — which legitimately have no
+    sector/industry — aren't retried in a tight loop)."""
+    if bool(ex.get("company")) and bool(ex.get("sector")) and bool(ex.get("industry")):
+        return False
+    ma = ex.get("meta_at")
+    return (not ma) or (int(_time_mod.time()) - ma > _DESC_RETRY_AFTER)
+
+
+def _gen_example_meta_async(ex):
+    """Deduped background backfill of one example's watermark company/sector/
+    industry: live ticker-meta first (fast, cached), then an AI GICS pass for what
+    the live source can't resolve (delisted/renamed). COALESCE-persisted so a
+    curated value is never clobbered; the attempt is always stamped."""
+    eid = ex.get("id")
+    if not eid:
+        return
+    with _ex_meta_lock:
+        if eid in _ex_meta_generating:
+            return
+        _ex_meta_generating.add(eid)
+
+    def _run():
+        try:
+            company = ex.get("company")
+            sector = ex.get("sector")
+            industry = ex.get("industry")
+            lookup_sym = ex.get("data_symbol") or ex.get("symbol")
+            # 1. Live ticker-meta (same source the watermark uses) — fills most.
+            try:
+                from api.services.ticker_meta import get_ticker_meta as _gtm
+                m = _gtm(lookup_sym) or {}
+                company = company or m.get("name")
+                sector = sector or m.get("sector")
+                industry = industry or m.get("industry")
+            except Exception:
+                pass
+            # 2. AI GICS fallback for a still-missing sector/industry (delisted/
+            #    renamed tickers the provider can't classify). ETFs resolve to null.
+            if not (sector and industry):
+                d = _ai_watermark_meta(ex.get("symbol"), company, ex.get("year"))
+                if d:
+                    sector = sector or d.get("sector")
+                    industry = industry or d.get("industry")
+            if company or sector or industry:
+                svc.backfill_example_meta(eid, company=company, sector=sector,
+                                          industry=industry)
+            else:
+                svc.mark_example_meta_attempt(eid)  # stamp so we don't tight-loop
+        finally:
+            with _ex_meta_lock:
+                _ex_meta_generating.discard(eid)
+    _threading.Thread(target=_run, daemon=True, name=f"mb-exmeta-{eid}").start()
+
+
 @router.get("/setup-examples")
 def get_setup_examples(setup: str = Query(...), _user: dict = Depends(get_current_user)):
-    return {"setup": setup, "examples": svc.list_setup_examples(setup)}
+    examples = svc.list_setup_examples(setup)
+    # Auto-fill each example's watermark company/sector/industry on view (once,
+    # then kept permanently) so every chart shows TICKER · Company · Sector ·
+    # Industry — even ADRs (NIO) and renamed/delisted tickers (TASR).
+    for ex in examples:
+        if _needs_example_meta(ex):
+            _gen_example_meta_async(ex)
+    return {"setup": setup, "examples": examples}
 
 
 @router.post("/setup-examples")
