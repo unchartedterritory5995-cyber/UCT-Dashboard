@@ -1513,7 +1513,17 @@ function processFlowData(rows) {
     const isITM = (t.CP === "C" && t.K < t.Spot) || (t.CP === "P" && t.K > t.Spot);
     // Deep ITM blocks = arb/rebalancing, filter. Deep ITM sweeps = urgency, keep.
     if (isITM && t.Ty === "BLK") return false;
-    if (isITM) return true;
+    if (isITM) {
+      // Additional guard: very deep ITM sweeps (intrinsic > 50% of spot) are
+      // synthetic rolls / position transfers, not directional urgency. AXTI
+      // $130p at spot $55 = intrinsic $75 (136% of spot) with trade prices
+      // at $74.50 = essentially zero extrinsic = synthetic short roll, not
+      // a bear signal. Any option this deep ITM has ~delta 1.0 and functions
+      // as underlying stock, no directional information content.
+      const intrinsic = t.CP === "C" ? (t.Spot - t.K) : (t.K - t.Spot);
+      if (t.Spot > 0 && intrinsic > t.Spot * 0.5) return false;
+      return true;
+    }
     // Deep OTM: keep if both sweep and block exist at same strike
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
     if (deepOTMBlockKeys.has(k) && deepOTMSweepKeys.has(k)) return true;
