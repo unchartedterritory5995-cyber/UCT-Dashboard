@@ -653,22 +653,9 @@
       "question": "MRVL is 6% under my entry but I still love it — can I add here to lower my average?",
       "must_call_tools": [
         [
-          "get_regime",
-          "grade_ticker"
-        ],
-        [
-          "get_quote",
-          "grade_ticker"
-        ],
-        [
           "lookup_playbook",
           "lookup_trading_principle",
           "ask_the_brain",
-          "grade_ticker"
-        ],
-        [
-          "pre_trade_verdict",
-          "validate_trade",
           "grade_ticker"
         ]
       ],

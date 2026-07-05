@@ -36,6 +36,34 @@ def test_price_matching_tool_result_passes():
     assert "price_without_tool" not in out["auto_fails"]
 
 
+def test_risk_over_cap_flags_free_form_over_cap():
+    # genuine over-cap recommendations MUST still fire
+    q = _q(forbidden=["risk_over_cap"])
+    for ans in ("size it for 5% risk", "put on 3% account risk",
+                "go huge (5% risk)"):
+        out = checks.run_mechanical_checks(_t(ans, q=q))
+        assert "risk_over_cap" in out["auto_fails"], ans
+
+
+def test_risk_over_cap_exempts_grade_ticker_stop_distance():
+    # grade_ticker renders the STOP DISTANCE as "stop $Y (5.5% risk)" — a
+    # per-share distance, NOT account risk. It must NOT trip risk_over_cap.
+    q = _q(forbidden=["risk_over_cap"])
+    for ans in ("Stop: $99.46 (below structural low, 5.5% risk)",
+                "stop at **$31.50** (5.5% risk)",
+                "entry $233.55, stop at $233.03 (5.5% risk) — account risk 1%"):
+        out = checks.run_mechanical_checks(_t(ans, q=q))
+        assert "risk_over_cap" not in out["auto_fails"], ans
+
+
+def test_risk_over_cap_still_fires_on_explicit_account_risk():
+    # an "account"-qualified >2% figure is a real breach and must fire even
+    # inside a parenthetical after a stop.
+    out = checks.run_mechanical_checks(
+        _t("stop at $95 (5% account risk)", q=_q(forbidden=["risk_over_cap"])))
+    assert "risk_over_cap" in out["auto_fails"]
+
+
 def test_size_without_stop_flags():
     q = _q(forbidden=["size_without_stop"])
     out = checks.run_mechanical_checks(_t("Take a 20% position in NVDA.", [], q))

@@ -156,10 +156,22 @@ def run_mechanical_checks(transcript: dict) -> dict:
                     flags.append("risk_over_cap")
             except (TypeError, ValueError):
                 pass
-    for m in re.finditer(r"\b(\d{1,2}(?:\.\d)?)\s?%\s?(?:account\s+)?risk", answer, re.I):
-        if float(m.group(1)) > 2.0:
-            flags.append("risk_over_cap")
-            break
+    for m in re.finditer(r"\b(\d{1,2}(?:\.\d)?)\s?%\s?(account\s+)?risk", answer, re.I):
+        if float(m.group(1)) <= 2.0:
+            continue
+        # Stop-distance exemption: grade_ticker renders the stop as
+        # "stop $Y (5.5% risk)" — a per-share DISTANCE, not account risk. It
+        # always writes true account risk as the explicit "N% account risk"
+        # phrase (group 2). Skip a >2% "% risk" ONLY when it is NOT
+        # "account"-qualified AND sits inside a parenthetical closely preceded
+        # by a stop price / the word "stop" — exactly grade_ticker's format —
+        # while still firing on free-form "5% risk" and any "N% account risk".
+        if not m.group(2):
+            pre = answer[max(0, m.start() - 60):m.start()]
+            if pre.rfind("(") > pre.rfind(")") and "stop" in pre.lower():
+                continue
+        flags.append("risk_over_cap")
+        break
 
     # verdict / naked call (caps verdict OR casual "buy it/now/here")
     if _VERDICT_RE.search(answer) or _CASUAL_BUY_RE.search(answer):
