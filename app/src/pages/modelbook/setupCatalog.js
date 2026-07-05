@@ -30,8 +30,8 @@
 
 export const SETUP_FAMILIES = [
   'Bases & Breakouts',
-  'Momentum & Trend',
   'Gaps & Catalysts',
+  'Momentum & Trend',
   'Reversals & Reclaims',
   'Intraday',
 ]
