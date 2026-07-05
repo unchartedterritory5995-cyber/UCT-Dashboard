@@ -6761,9 +6761,21 @@ export default function OptionsFlowDashboard() {
               hasAA:false, hasBB:false, hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true,
               mktcap:t.mktcap||0, sector:t.sector||"", prices:[], volumes:0, maxOI:0,
               bullPrem:0, bearPrem:0, askPrem:0, bidPrem:0, dominantOverride:false, er:t.er||false,
-              ivs:[], spots:[], sideTimes:[], vol:0 };
+              ivs:[], spots:[], sideTimes:[], vol:0,
+              cleanHits:0, cleanPrem:0, cleanAskPrem:0 };
             const c = tfClusters[k];
             c.hits++; c.prem += t.P; c.volumes += t.V; c.vol += t.V;
+            // Clean accumulators exclude rescue-derived direction so the score
+            // formula reflects raw classified signal, not empty-side attribution.
+            // Prevents cases like NBIS 7/17 $180p (BBS: 2 rows $470K) from ranking
+            // at 143x $21.4M A+ HEAVY because rescue attribution counted every
+            // empty-side put print as bearish. Grade/hasSweep/hasBlock/oiExceeded
+            // still respect the rescued signals — the pattern signature is real,
+            // just the volume magnitude shouldn't be inflated.
+            if (!t._rescueDerived) {
+              c.cleanHits++; c.cleanPrem += t.P;
+              if (t.Si==="A"||t.Si==="AA") c.cleanAskPrem += t.P;
+            }
             if (t.D === "BULL") c.bullPrem += t.P;
             if (t.D === "BEAR") c.bearPrem += t.P;
             if (t.OI > c.maxOI) c.maxOI = t.OI;
@@ -6817,7 +6829,11 @@ export default function OptionsFlowDashboard() {
             const volOI = c.maxOI > 0 ? c.volumes / c.maxOI : 0;
             const voiBonus = Math.min(volOI, 5) * 80;
             return { ...c, grade, entry, cap, dteBand,
-              score:(scoreMap[grade]||0)+c.hits*20+c.prem/5e3+voiBonus + (c.hits<=1 && c.hasSweep && c.askPrem>c.bidPrem && c.oiExceeded && c.prem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
+              // Score reflects clean classified signal (cleanHits + cleanPrem),
+              // NOT rescue-inflated totals. Grade/side/patterns still use the
+              // full pattern including rescues so the pattern signature stays
+              // accurate; only ranking magnitude is de-inflated.
+              score:(scoreMap[grade]||0)+c.cleanHits*20+c.cleanPrem/5e3+voiBonus + (c.cleanHits<=1 && c.hasSweep && c.cleanAskPrem>c.bidPrem && c.oiExceeded && c.cleanPrem >= ((c.mktcap||0)>=500e9 ? 5e6 : 1e6) ? 250 : 0),
               side: c.askPrem >= c.bidPrem ? (c.hasAA ? "AA" : "ASK") : (c.hasBB ? "BB" : "BID"),
               patterns:detectPatterns(c) };
           }).filter(c => c.clean && c.DTE > 7);
