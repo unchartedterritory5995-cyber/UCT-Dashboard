@@ -3917,6 +3917,56 @@ async def _ticker_types_etf_index_symbols():
         return {"ok": False, "error": str(e), "symbols": []}
 
 
+@app.get("/api/admin/oi/lookup-key")
+async def _oi_lookup_key(key: str):
+    """Look up all snapshots for a specific contract_key. Debugging tool
+    to verify the exact format the endpoint should be matching against.
+
+    Example: /api/admin/oi/lookup-key?key=BE|C|370.0|9/18/2026
+
+    Also tries LIKE variations to catch near-misses (different case,
+    missing decimals, etc.)
+    """
+    import sqlite3
+    from fastapi.responses import JSONResponse
+    if not key:
+        return {"ok": False, "error": "key parameter required"}
+    out = {"query_key": key}
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=15) as conn:
+            conn.execute("PRAGMA query_only = 1")
+            # Exact match
+            cur = conn.execute(
+                "SELECT snap_date, oi FROM contract_oi_snapshots "
+                "WHERE contract_key = ? ORDER BY snap_date",
+                (key,)
+            )
+            exact = [{"snap_date": r[0], "oi": r[1]} for r in cur.fetchall()]
+            out["exact_match"] = {"count": len(exact), "rows": exact}
+
+            # LIKE fuzzy match — extract prefix before the strike
+            parts = key.split("|")
+            if len(parts) >= 3:
+                sym_cp = f"{parts[0]}|{parts[1]}|"
+                strike_prefix = parts[2].split(".")[0] if "." in parts[2] else parts[2]
+                # Look for any keys starting with SYM|CP| and containing strike
+                cur = conn.execute(
+                    "SELECT DISTINCT contract_key FROM contract_oi_snapshots "
+                    "WHERE contract_key LIKE ? "
+                    "AND contract_key LIKE ? "
+                    "LIMIT 20",
+                    (f"{sym_cp}%", f"%{strike_prefix}%")
+                )
+                out["similar_keys"] = [r[0] for r in cur.fetchall()]
+        return JSONResponse(out)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e), "partial": out}
+
+
 @app.get("/api/admin/oi/zero-analysis")
 async def _oi_zero_analysis(ticker: str = ""):
     """Analyze OI=0 patterns in contract_oi_snapshots.
