@@ -4272,8 +4272,19 @@ async def _oi_confirmation_map(request: Request):
                 if not match_rows:
                     continue
 
+                # Two-phase baseline strategy for sparse snapshot data:
+                #   1. Prefer pre-trade OI as baseline (closest snapshot AT or
+                #      BEFORE trade_date within a 10d lookback). This measures
+                #      the true "did OI grow after the trade" signal.
+                #   2. Fallback: earliest snapshot IN the forward window as
+                #      baseline. Weaker signal but still usable — captures OI
+                #      change across days after the trade if pre-trade data
+                #      isn't available.
+                # Peak: max OI across snapshots in the forward window.
                 window_end = trade_dt + timedelta(days=window_days)
-                in_window = []
+                lookback_start = trade_dt - timedelta(days=10)
+                # Parse all snapshot dates once
+                parsed_rows = []
                 for sd, oi in match_rows:
                     snap_dt = None
                     try:
@@ -4290,22 +4301,54 @@ async def _oi_confirmation_map(request: Request):
                             continue
                     if snap_dt is None:
                         continue
-                    if trade_dt <= snap_dt <= window_end:
-                        in_window.append((snap_dt, oi))
+                    parsed_rows.append((snap_dt, oi))
 
-                if not in_window:
-                    continue
+                # Baseline candidate: latest snapshot in [lookback_start, trade_dt]
+                pre_trade = [(dt, oi) for dt, oi in parsed_rows
+                             if lookback_start <= dt <= trade_dt]
+                pre_trade.sort(key=lambda x: x[0])
+                # Forward-window snapshots (trade_dt < dt <= window_end)
+                # Note: strict > trade_dt if we have pre-trade baseline, so we
+                # don't double-count trade_dt in both baseline and peak.
+                post_trade = [(dt, oi) for dt, oi in parsed_rows
+                              if trade_dt < dt <= window_end]
+                post_trade.sort(key=lambda x: x[0])
 
-                in_window.sort(key=lambda x: x[0])
-                first_oi = in_window[0][1]
-                peak_oi = max(oi for _, oi in in_window)
-                pct = ((peak_oi - first_oi) / first_oi * 100.0) if first_oi > 0 else 0
+                if pre_trade and post_trade:
+                    # Best case: baseline from pre-trade, peak from post-trade
+                    baseline_dt, baseline_oi = pre_trade[-1]  # most recent pre-trade
+                    peak_oi = max(oi for _, oi in post_trade)
+                    snapshots_used = len(pre_trade) + len(post_trade)
+                    baseline_source = "pre_trade"
+                elif post_trade and len(post_trade) >= 2:
+                    # Fallback: first vs peak within forward window
+                    baseline_oi = post_trade[0][1]
+                    peak_oi = max(oi for _, oi in post_trade)
+                    snapshots_used = len(post_trade)
+                    baseline_source = "forward_window"
+                else:
+                    # Not enough data — need at minimum a baseline + comparison
+                    # Include trade_dt itself as candidate baseline if present.
+                    same_day = [(dt, oi) for dt, oi in parsed_rows if dt == trade_dt]
+                    forward = [(dt, oi) for dt, oi in parsed_rows if dt > trade_dt and dt <= window_end]
+                    if same_day and forward:
+                        baseline_oi = same_day[0][1]
+                        peak_oi = max(oi for _, oi in forward)
+                        snapshots_used = 1 + len(forward)
+                        baseline_source = "same_day"
+                    else:
+                        # Record the snapshot count so caller can see coverage
+                        confirmations[original]["snapshots_found"] = len(parsed_rows)
+                        continue
+
+                pct = ((peak_oi - baseline_oi) / baseline_oi * 100.0) if baseline_oi > 0 else 0
                 confirmations[original] = {
                     "confirmed": pct >= threshold_pct,
-                    "first_oi": first_oi,
+                    "first_oi": baseline_oi,
                     "peak_oi": peak_oi,
                     "pct_change": round(pct, 1),
-                    "snapshots_found": len(in_window),
+                    "snapshots_found": snapshots_used,
+                    "baseline_source": baseline_source,
                 }
     except Exception as e:
         import traceback
