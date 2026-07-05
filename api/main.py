@@ -3917,6 +3917,134 @@ async def _ticker_types_etf_index_symbols():
         return {"ok": False, "error": str(e), "symbols": []}
 
 
+@app.get("/api/admin/oi/table-diagnose")
+async def _oi_table_diagnose():
+    """Lightweight diagnostic for contract_oi_snapshots — replaces the slower
+    massive/diagnose for this specific table.
+
+    Returns row count, existing indexes, and a few sample contract_key values
+    so we can see what format they're stored in. All queries use ~30s timeout
+    so we don't hit Cloudflare's 100s limit even on locked/slow DBs.
+
+    URL: /api/admin/oi/table-diagnose
+    """
+    import sqlite3
+    from fastapi.responses import JSONResponse
+    out = {}
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        # Longer timeout in case cron is holding a write lock
+        with sqlite3.connect(db.db_path, timeout=30) as conn:
+            # Read-only optimization
+            conn.execute("PRAGMA query_only = 1")
+            # 1. Row count (this is the query most likely to be slow if
+            #    the table is huge — do it first so we know if it hangs)
+            try:
+                cur = conn.execute("SELECT COUNT(*) FROM contract_oi_snapshots")
+                out["row_count"] = cur.fetchone()[0]
+            except Exception as e:
+                out["row_count_error"] = str(e)
+
+            # 2. Existing indexes on the table
+            try:
+                cur = conn.execute(
+                    "SELECT name, sql FROM sqlite_master "
+                    "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
+                )
+                out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
+            except Exception as e:
+                out["indexes_error"] = str(e)
+
+            # 3. Sample contract_key values (5 recent) — critical for format
+            #    detection. Order by snap_date DESC so we see fresh snapshots.
+            try:
+                cur = conn.execute(
+                    "SELECT contract_key, snap_date, oi "
+                    "FROM contract_oi_snapshots "
+                    "ORDER BY snap_date DESC LIMIT 5"
+                )
+                out["sample_keys"] = [
+                    {"key": r[0], "snap_date": r[1], "oi": r[2]}
+                    for r in cur.fetchall()
+                ]
+            except Exception as e:
+                out["sample_keys_error"] = str(e)
+
+            # 4. Distinct snap_dates (how far back does data go)
+            try:
+                cur = conn.execute(
+                    "SELECT snap_date, COUNT(*) FROM contract_oi_snapshots "
+                    "GROUP BY snap_date ORDER BY snap_date DESC LIMIT 10"
+                )
+                out["snap_dates"] = [
+                    {"snap_date": r[0], "count": r[1]} for r in cur.fetchall()
+                ]
+            except Exception as e:
+                out["snap_dates_error"] = str(e)
+
+        return JSONResponse(out)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e), "partial": out}
+
+
+@app.post("/api/admin/oi/create-indexes")
+async def _oi_create_indexes():
+    """One-shot: create missing indexes on contract_oi_snapshots for fast lookup.
+
+    Safe to call multiple times — uses CREATE INDEX IF NOT EXISTS. Only
+    creates the indexes we know we need for the /api/oi/confirmation-map
+    endpoint to work fast.
+
+    URL: POST /api/admin/oi/create-indexes
+    """
+    import sqlite3, time
+    from fastapi.responses import JSONResponse
+    try:
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=60) as conn:
+            results = []
+            for idx_name, ddl in [
+                ("idx_oi_snapshots_key",
+                 "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key "
+                 "ON contract_oi_snapshots(contract_key)"),
+                ("idx_oi_snapshots_key_date",
+                 "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key_date "
+                 "ON contract_oi_snapshots(contract_key, snap_date)"),
+            ]:
+                t0 = time.time()
+                try:
+                    conn.execute(ddl)
+                    conn.commit()
+                    results.append({
+                        "index": idx_name, "ok": True,
+                        "elapsed_sec": round(time.time() - t0, 2),
+                    })
+                except Exception as e:
+                    results.append({
+                        "index": idx_name, "ok": False, "error": str(e),
+                        "elapsed_sec": round(time.time() - t0, 2),
+                    })
+            # Confirm what's there now
+            cur = conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
+            )
+            existing = [r[0] for r in cur.fetchall()]
+            return JSONResponse({
+                "ok": True,
+                "created": results,
+                "indexes_now": existing,
+            })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/oi/confirmation-map")
 async def _oi_confirmation_map(request: Request):
     """Return OI-growth confirmation status for a batch of contracts.
