@@ -8018,8 +8018,17 @@ export default function OptionsFlowDashboard() {
               // contract), treat as unconfirmed (excluded) so the confirmed
               // number is strictly a subset of raw.
               let ccBConf=0, ccRConf=0;
+              // Rebuild lookup key using same format sent to backend
+              // (M/D/YYYY expiry, not the short "M/D" from t.E). Otherwise the
+              // server returns confirmations keyed like "SPCX|C|165|12/17/2027"
+              // but we'd look up "SPCX|C|165|12/17" locally and miss every match.
+              const _fmtExpFull = (v) => {
+                if (!v) return "";
+                if (v instanceof Date) return (v.getMonth()+1)+"/"+v.getDate()+"/"+v.getFullYear();
+                return String(v);
+              };
               ccTrades.forEach(t => {
-                const k = `${t.S}|${t.CP}|${t.K}|${t.E}`;
+                const k = `${t.S}|${t.CP}|${t.K}|${_fmtExpFull(t.expiry)}`;
                 const conf = oiConfirmMap[k];
                 if (!conf || !conf.confirmed) return;
                 if (t.D === "BULL") ccBConf += t.P;
