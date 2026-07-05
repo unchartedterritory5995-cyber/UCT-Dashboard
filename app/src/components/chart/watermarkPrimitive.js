@@ -27,13 +27,16 @@ export function watermarkFontPx(lineIndex, sizeScale) {
 // gutter wins, so the name reads from a consistent left inset.
 const EDGE_PAD = 14
 
-export function computeWatermarkRect(pos, mediaSize, block) {
+// padX = left/right gutter (default 14); padTop = top gutter (default 0, i.e.
+// flush to the pane top). Callers can raise padTop to match padX for an even
+// top-left corner inset (Setup Library).
+export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0) {
   const cx = pos.x * mediaSize.width
   const cy = pos.y * mediaSize.height
   let x = cx - block.w / 2
   let y = cy - block.h / 2
-  x = Math.max(EDGE_PAD, Math.min(x, mediaSize.width - block.w - EDGE_PAD))
-  y = Math.max(0, Math.min(y, mediaSize.height - block.h))
+  x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
+  y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
   return { x, y, w: block.w, h: block.h }
 }
 
@@ -45,7 +48,7 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
@@ -69,7 +72,7 @@ export function createWatermarkPrimitive(initial) {
         if (!opts.lines.length || opts.opacity <= 0) { lastRect = null; return }
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const block = measureBlock(ctx)
-          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block)
+          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop)
           lastRect = rect
           const [r, g, b] = hexToRgb(opts.color)
           const alpha = armed ? Math.min(1, opts.opacity * 2.4) : opts.opacity

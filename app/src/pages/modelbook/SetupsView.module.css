@@ -531,12 +531,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  /* First chart sits right under the identity strip — the section label/Add
-     button moved into the header, so no wasted band here. */
-  padding: 8px 4px 48px 0;
-  /* One example fills the stage; scrolling settles on whole charts, never a
-     half-peek of the next one. */
-  scroll-snap-type: y proximity;
+  /* Minimal padding so a full-height example block fills the viewport exactly
+     (the block sizes to this content box) — no bottom band that would let the
+     next example peek. */
+  padding: 6px 4px 0 0;
+  /* Each example is a full-viewport slide; mandatory snapping always lands on a
+     whole chart, so the next setup is never partly visible at the bottom. */
+  scroll-snap-type: y mandatory;
 }
 
 /* ── Playbook hover panel ── */
@@ -906,7 +907,7 @@
 }
 
 /* ── Charted examples (right pane) ── */
-.exPane { display: flex; flex-direction: column; gap: 14px; }
+.exPane { display: flex; flex-direction: column; gap: 14px; height: 100%; }
 .exHead {
   display: flex;
   align-items: center;
@@ -951,6 +952,12 @@
   overflow: hidden;
   scroll-snap-align: start;
   scroll-margin-top: 6px;
+  /* Fill the scroll viewport so the CURRENT example owns the whole stage and the
+     next one never peeks at the bottom — scrolling reveals the next full-height. */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 0 0 auto;
   /* Each example is a full-viewport chart and they stack several deep. Skip
      rendering the off-screen ones so that when the sidebar hover-expands (or on
      any resize) only the on-screen chart re-lays-out — not all of them at once,
@@ -1079,7 +1086,8 @@
 /* Fill the stage so a single example owns the screen — the chart grows with
    the viewport (chrome above it ≈ top bar + stage header + block header) and
    the next example sits fully below the fold. */
-.exChart { height: calc(100vh - 268px); min-height: 440px; }
+/* Chart fills the block (which fills the viewport) minus its header/notes. */
+.exChart { flex: 1 1 auto; min-height: 0; }
 .exNotes {
   font-family: var(--font-sans);
   font-size: 12.5px;
@@ -1199,7 +1207,11 @@
 }
 
 @media (max-width: 640px) {
-  .exChart { height: 340px; }
+  /* On phones the page scrolls normally (no full-height slides) — give the
+     block back its natural height and the chart a fixed height. */
+  .exPane { height: auto; }
+  .exBlock { height: auto; }
+  .exChart { height: 340px; flex: none; min-height: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
