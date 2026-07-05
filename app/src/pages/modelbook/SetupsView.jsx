@@ -199,20 +199,22 @@ function RailRow({ setup, active, expanded, onSelect, onLearn }) {
     >
       <span className={styles.railText}>
         <span className={styles.railNameRow}>
-          <button
-            type="button"
-            className={styles.railLearn}
-            onClick={e => { e.stopPropagation(); onLearn?.(setup) }}
-            title={`Learn more about ${setup.name}`}
-          >
-            Learn more
-          </button>
           <span className={`${styles.railDot} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
           <span className={styles.railName}>{setup.name}</span>
         </span>
         <span className={styles.railEssence}>{setup.essence}</span>
       </span>
-      <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
+      <span className={styles.railAside}>
+        <button
+          type="button"
+          className={styles.railLearn}
+          onClick={e => { e.stopPropagation(); onLearn?.(setup) }}
+          title={`Learn more about ${setup.name}`}
+        >
+          Learn more
+        </button>
+        <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
+      </span>
     </div>
   )
 }

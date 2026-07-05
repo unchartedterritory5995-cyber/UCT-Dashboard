@@ -196,10 +196,17 @@
 .railDir_both  { background: #e6c965; box-shadow: 0 0 6px rgba(230, 201, 101, 0.4); }
 
 /* Expand caret — hints the click-for-examples dropdown; flips when open. */
+/* Right-side stack: "Learn more" at the top-right, expand caret beneath it. */
+.railAside {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding-left: 8px;
+}
 .railCaret {
   flex: none;
-  align-self: center;
-  margin-left: 6px;
   font-size: 10px;
   line-height: 1;
   color: rgba(201, 168, 76, 0.45);
@@ -391,6 +398,11 @@
   letter-spacing: 1px;
   border-radius: 4px;
   padding: 2.5px 7px;
+  /* Never shrink or wrap their text — when the stage narrows (sidebar
+     hover-expand) the essence ellipsizes to absorb it, so the header keeps a
+     fixed height instead of the chips going two-line and pushing it taller. */
+  flex: none;
+  white-space: nowrap;
 }
 .catChip {
   color: rgba(220, 218, 212, 0.7);
