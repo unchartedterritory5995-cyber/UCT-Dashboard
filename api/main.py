@@ -2751,6 +2751,26 @@ async def lifespan(app: FastAPI):
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
     yield
+    # -- Massive WS graceful stop (deploy-survival P1) ---------------------
+    # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
+    # so Massive frees the OPRA slot in seconds and the replacement deploy
+    # doesn't hit max_connections. Defensive getattr: if this deploys before
+    # the massive_ws_worker patch, it's a no-op (dangling-import playbook --
+    # merge order can't crash boot OR shutdown).
+    try:
+        import asyncio as _aio
+        from api import massive_ws_worker as _mww
+        _mww_stop = getattr(_mww, "stop", None)
+        if callable(_mww_stop):
+            # stop() blocks up to ~5s in thread.join -- run in a worker thread
+            # so the event loop keeps servicing uvicorn's shutdown work.
+            _clean = await _aio.to_thread(_mww_stop, 5.0)
+            print(f"[shutdown] Massive WS consumer stop: "
+                  f"{'clean' if _clean else 'join timed out (daemon finishing in drain window)'}")
+        else:
+            print("[shutdown] Massive WS stop() not present -- skipping (pre-patch module)")
+    except Exception as e:
+        print(f"[shutdown] Massive WS stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
