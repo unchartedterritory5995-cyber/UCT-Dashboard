@@ -1635,6 +1635,18 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     directional even when one leg happens to print at ask, so excluding them
     gives a cleaner "directional conviction only" read.
     """
+    # Include WHITE rows that could pass premium override in _row_to_alert,
+    # mirroring the same visibility rule /recent uses (line 1360-1378). Without
+    # this, on days where the classifier didn't lift anything to MAGENTA/YELLOW
+    # (e.g. 7/2 backfill where every row landed WHITE because OI=0 at write
+    # time), the alert list shows N alerts via premium override but this card
+    # reports "0 alerts" — a visibility mismatch that misrepresents the day.
+    #
+    # Absolute SQL floor of $500K is conservative; the actual premium_override
+    # threshold gate lives in _derive_alert_name and is stricter. Loading a few
+    # extra WHITE rows here that get dropped in _row_to_alert costs microseconds
+    # per row and keeps the two code paths visually consistent.
+    override_sql_floor = 500_000
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -1645,8 +1657,9 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
               FROM flow
              WHERE source = 'stocks'
                AND CreatedDate = ?
-               AND Color IN ('MAGENTA', 'YELLOW')
-        """, (today,))
+               AND (Color IN ('MAGENTA', 'YELLOW')
+                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+        """, (today, override_sql_floor))
         rows = cur.fetchall()
     finally:
         conn.close()
@@ -2289,4 +2302,265 @@ def side_diagnostic(target_date: str = Query(default=None, description="Trading 
             "NBBO data stale, Q subscription not active, or first trade on a "
             "contract before raw print history existed."
         ),
+    }
+
+
+# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no Schwab) ──
+# The frontend "fetch OI" button was previously wired to /api/oi-snapshot/
+# bulk-fetch, which tries snapshot lookup with an incorrect key format then
+# falls through to Schwab options_quotes_batch for the (100%) miss set.
+# For historical views (?date=<past>) Schwab returns nothing — its quotes
+# API is current-only — and the underlying HTTP call has no timeout on that
+# code path, so the endpoint hangs indefinitely. Symptom: button spinner
+# never resolves, subsequent /recent requests back up behind the stuck
+# call due to SQLite lock contention.
+#
+# This endpoint is the surgical replacement:
+#   1. Snapshot table ONLY. Never touches Schwab, so no hang risk.
+#   2. Uses the contract_key format proven correct by tonight's confirmation-
+#      map endpoint (`TICKER|C_or_P|STRIKE.0|M/D/YYYY`), with the same 7-
+#      variant probe fallback if that format ever changes.
+#   3. Optional target_date param clamps snap_date <= target_date so
+#      historical views return pre-trade OI (not lookahead post-trade OI).
+#   4. Batched query pattern from confirmation-map (400 keys per IN clause)
+#      keeps this fast even at 1000+ contracts.
+#
+# The daily snapshot job runs at 5:30 UTC (1:30 AM ET), so for any historical
+# view of date D the "latest snap <= D" returns D's row, which was written at
+# 1:30 AM ET the morning of D and holds D-1's EOD OI — exactly the pre-trade
+# figure we want to show in the priorOI column.
+
+@router.post("/enrich-oi")
+async def enrich_oi(
+    request: Request,
+    target_date: str = Query(default=None, description="M/D/YYYY. Clamp lookup to snap_date <= this date so historical views return pre-trade OI instead of post-trade lookahead. Omit for latest available."),
+):
+    """Enrich a batch of contracts with prior OI from contract_oi_snapshots.
+
+    Request body: bare JSON array of contracts:
+        [{"ticker": "MU", "cp": "C", "strike": 1000, "exp": "9/18/2026"},
+         {"ticker": "BE", "cp": "P", "strike": 250, "exp": "7/17/2026"},
+         ...]
+
+    Query param:
+        target_date=7/2/2026  →  return latest snap where snap_date <= 7/2/2026
+        (omit)                →  return latest snap overall for each contract
+
+    Response:
+        {
+            "ok": true,
+            "results": [
+                {"ticker": "MU", "cp": "C", "strike": 1000,
+                 "exp": "9/18/2026", "oi": 4287, "snap_date": "2026-07-02"},
+                ...
+            ],
+            "total_requested": 30,
+            "matched": 28,
+            "unmatched": 2,
+            "matched_variant_examples": ["MU|C|1000.0|9/18/2026"],
+            "target_date": "7/2/2026"
+        }
+
+    Missing contracts (no snapshot ever recorded, or all snapshots later
+    than target_date) are silently omitted from `results` — the caller
+    already knows what it asked for and can diff request vs response.
+    Format detection failures return the same shape with matched=0 and
+    an empty matched_variant_examples list.
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"invalid JSON body: {e}")
+
+    # Accept bare list (JSX current shape) or {contracts: [...]} for parity
+    # with confirmation-map. Some future clients may prefer the wrapped form.
+    if isinstance(body, list):
+        contracts = body
+    elif isinstance(body, dict):
+        contracts = body.get("contracts") or []
+    else:
+        contracts = []
+
+    if not contracts:
+        return {"ok": False, "error": "No contracts provided",
+                "results": [], "total_requested": 0, "matched": 0}
+    if len(contracts) > 5000:
+        raise HTTPException(status_code=400,
+                            detail="Too many contracts (limit 5000)")
+
+    def _iso(date_str: str) -> str:
+        s = (date_str or "").strip()
+        if not s:
+            return ""
+        parts = s.split("/")
+        if len(parts) == 3:
+            m, d, y = parts[0], parts[1], parts[2]
+            if len(y) == 2:
+                y = "20" + y
+            try:
+                return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+            except Exception:
+                return s
+        return s
+
+    def _key_variants(c: dict) -> list[str]:
+        """Candidate storage formats for contract_key. Verified format first."""
+        sym = str(c.get("ticker") or c.get("sym") or "").upper().strip()
+        cp = str(c.get("cp") or "").upper().strip()
+        cp_letter = cp[0] if cp else ""
+        cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
+        strike = c.get("strike")
+        try:
+            strike_num = float(strike)
+            if strike_num == int(strike_num):
+                strike_1dp = f"{int(strike_num)}.0"
+                strike_int = f"{int(strike_num)}"
+            else:
+                strike_1dp = f"{strike_num}"
+                strike_int = f"{strike_num}"
+        except (TypeError, ValueError):
+            strike_1dp = str(strike) if strike is not None else ""
+            strike_int = strike_1dp
+        expiry_raw = str(c.get("exp") or c.get("expiry") or "").strip()
+        expiry_iso = _iso(expiry_raw)
+        return [
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_raw}",   # verified: BE|C|370.0|9/18/2026
+            f"{sym}|{cp_letter}|{strike_int}|{expiry_raw}",   # BE|C|370|9/18/2026
+            f"{sym}|{cp_word}|{strike_1dp}|{expiry_raw}",
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_iso}",
+            f"{sym}|{cp_word}|{strike_int}|{expiry_raw}",
+            f"{sym} {cp_letter} {strike_1dp} {expiry_raw}",
+            f"{sym}_{cp_letter}_{strike_1dp}_{expiry_iso}",
+        ]
+
+    def _echo_key(c: dict) -> str:
+        """Original-key echo used by JSX to reconcile the response with its
+        outstanding request. Must match the JSX side's dedup key exactly:
+        `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`.
+        """
+        return (f"{c.get('ticker','')}|{c.get('cp','')}|"
+                f"{c.get('strike','')}|{c.get('exp','')}")
+
+    # Convert target_date (M/D/YYYY) → ISO (YYYY-MM-DD) for snap_date comparison.
+    # snap_date in contract_oi_snapshots is stored as ISO per api/oi_snapshots.py.
+    target_iso = _iso(target_date) if target_date else None
+
+    results: list[dict] = []
+    matched_variant_examples: list[str] = []
+    unmatched_count = 0
+
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+            # ── Step 1: Detect stored key format from a small probe set.
+            # Reuses confirmation-map's proven approach — try up to 20 probe
+            # contracts, use the first variant that hits, then commit to that
+            # format for the whole batch. Avoids the 7×N table scans that
+            # timed out on Cloudflare for large batches.
+            detected_format = None
+            probe_contracts = contracts[:min(20, len(contracts))]
+            for probe in probe_contracts:
+                if detected_format is not None:
+                    break
+                for i, v in enumerate(_key_variants(probe)):
+                    cur = conn.execute(
+                        "SELECT 1 FROM contract_oi_snapshots "
+                        "WHERE contract_key = ? LIMIT 1",
+                        (v,),
+                    )
+                    if cur.fetchone():
+                        detected_format = i
+                        matched_variant_examples.append(v)
+                        break
+
+            if detected_format is None:
+                return {
+                    "ok": True,
+                    "results": [],
+                    "total_requested": len(contracts),
+                    "matched": 0,
+                    "unmatched": len(contracts),
+                    "matched_variant_examples": [],
+                    "target_date": target_date,
+                    "note": ("Could not detect contract_key format from any of "
+                             "the 7 candidates on 20 probe contracts. Hit "
+                             "/api/admin/oi/table-diagnose and share "
+                             "oi_sample_keys."),
+                }
+
+            # ── Step 2: Build the one winning-format key per contract.
+            key_to_contract: dict[str, dict] = {}
+            for c in contracts:
+                variants = _key_variants(c)
+                if detected_format < len(variants):
+                    k = variants[detected_format]
+                    # Last-wins if the same key appears twice — fine, we only
+                    # need one lookup result per unique contract.
+                    key_to_contract[k] = c
+
+            # ── Step 3: Batch-fetch latest snapshot per contract with snap_date
+            # ceiling. We pull all rows for the contract set and reduce to the
+            # target row in Python — one round-trip per BATCH of 400 keys.
+            snap_by_key: dict[str, tuple[str, int]] = {}  # key → (snap_date, oi)
+            key_list = list(key_to_contract.keys())
+            BATCH = 400
+            for i in range(0, len(key_list), BATCH):
+                batch = key_list[i:i + BATCH]
+                placeholders = ",".join(["?"] * len(batch))
+                if target_iso:
+                    # Clamp to snap_date <= target_iso. Ordering by snap_date
+                    # ASC means the LAST row we see per key is the desired one.
+                    q = (f"SELECT contract_key, snap_date, oi "
+                         f"FROM contract_oi_snapshots "
+                         f"WHERE contract_key IN ({placeholders}) "
+                         f"  AND snap_date <= ? "
+                         f"ORDER BY contract_key, snap_date")
+                    params = batch + [target_iso]
+                else:
+                    q = (f"SELECT contract_key, snap_date, oi "
+                         f"FROM contract_oi_snapshots "
+                         f"WHERE contract_key IN ({placeholders}) "
+                         f"ORDER BY contract_key, snap_date")
+                    params = batch
+                cur = conn.execute(q, params)
+                for r in cur.fetchall():
+                    k, sd, oi_val = r[0], r[1], int(r[2] or 0)
+                    # Keep only the latest snap per key (last-wins after ORDER BY).
+                    # Skip zero-OI snapshots so a real earlier value isn't
+                    # shadowed by a later Schwab-write-failed sentinel row.
+                    if oi_val <= 0:
+                        continue
+                    prev = snap_by_key.get(k)
+                    if prev is None or sd > prev[0]:
+                        snap_by_key[k] = (sd, oi_val)
+
+            # ── Step 4: Assemble results in the JSX-expected shape.
+            for k, c in key_to_contract.items():
+                snap = snap_by_key.get(k)
+                if snap is None:
+                    unmatched_count += 1
+                    continue
+                sd, oi_val = snap
+                results.append({
+                    "ticker": c.get("ticker", ""),
+                    "cp": c.get("cp", ""),
+                    "strike": c.get("strike"),
+                    "exp": c.get("exp", ""),
+                    "oi": oi_val,
+                    "snap_date": sd,
+                })
+
+    except sqlite3.OperationalError as e:
+        # SQLite lock timeout / disk error — surface it cleanly rather than
+        # letting the request hang. flow.db can lock under write pressure.
+        raise HTTPException(status_code=503,
+                            detail=f"contract_oi_snapshots read failed: {e}")
+
+    return {
+        "ok": True,
+        "results": results,
+        "total_requested": len(contracts),
+        "matched": len(results),
+        "unmatched": unmatched_count,
+        "matched_variant_examples": matched_variant_examples[:3],
+        "target_date": target_date,
     }
