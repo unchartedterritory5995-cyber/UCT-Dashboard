@@ -42,6 +42,7 @@ def test_detect_drift_records_and_alerts_but_never_deletes():
     _reset_state()
     audit = SimpleNamespace(audit_ticker=lambda t, tf, bars: _result(fail_ts=[20260701, 20260702]))
     with patch.object(R, "_detect_only_pairs", return_value=[("AAPL", "D")]), \
+         patch.object(R, "_current_session_date_key", return_value=20200101), \
          patch.object(R, "_heal_drift") as heal, \
          patch("api.services.chart_health_alerts.emit") as emit:
         R._run_detect_only(audit)
@@ -94,3 +95,38 @@ def test_audit_error_is_skipped_gracefully():
         R._run_detect_only(audit)  # must not raise
     heal.assert_not_called()
     assert R._state["detect_only_drift_count"] == 0
+
+
+def test_developing_daily_bar_is_excluded():
+    # Today's still-forming daily bar is legitimately in flux during RTH; a fail on
+    # ONLY today's bar must NOT record drift or alert. This is the false detect-only
+    # drift that fired on NVDA/AAPL at the 2026-07-06 open (cold-restart warmup).
+    _reset_state()
+    audit = SimpleNamespace(audit_ticker=lambda t, tf, bars: _result(fail_ts=[20260706]))
+    with patch.object(R, "_detect_only_pairs", return_value=[("NVDA", "D")]), \
+         patch.object(R, "_current_session_date_key", return_value=20260706), \
+         patch.object(R, "_heal_drift") as heal, \
+         patch("api.services.chart_health_alerts.emit") as emit:
+        R._run_detect_only(audit)
+    heal.assert_not_called()
+    assert R._state["detect_only_drift_count"] == 0
+    assert not emit.called
+
+
+def test_closed_bar_drift_still_fires_when_today_also_drifts():
+    # A fail on a CLOSED bar is real; today's developing-bar fail is dropped, so
+    # fail_count reflects only the closed bar(s) and the alert still fires.
+    _reset_state()
+    audit = SimpleNamespace(
+        audit_ticker=lambda t, tf, bars: _result(fail_ts=[20260706, 20260702, 20260701]))
+    with patch.object(R, "_detect_only_pairs", return_value=[("AAPL", "D")]), \
+         patch.object(R, "_current_session_date_key", return_value=20260706), \
+         patch.object(R, "_heal_drift") as heal, \
+         patch("api.services.chart_health_alerts.emit") as emit:
+        R._run_detect_only(audit)
+    heal.assert_not_called()
+    assert R._state["detect_only_drift_count"] == 1
+    last = R._state["last_detect_drift"][-1]
+    assert last["fail_count"] == 2                 # today excluded, two closed bars remain
+    assert 20260706 not in last["sample_ts"]
+    assert emit.called
