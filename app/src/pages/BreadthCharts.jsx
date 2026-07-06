@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import UIcon from '../components/ui/UIcon'
+import ErrorState from '../components/ErrorState'
 import styles from './BreadthCharts.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -112,7 +113,7 @@ function offsetDate(days) {
 }
 
 export default function BreadthCharts() {
-  const { data, isLoading } = useSWR('/api/breadth-monitor?days=365', fetcher)
+  const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', fetcher)
 
   const [selected, setSelected] = useState(['breadth_score', 'pct_above_50sma'])
   const [expanded, setExpanded] = useState({})
@@ -336,8 +337,11 @@ export default function BreadthCharts() {
 
       {/* ── Chart ────────────────────────────────────────────────────── */}
       <div className={styles.chartWrap}>
-        {isLoading && <div className={styles.placeholder}>Loading data…</div>}
-        {!isLoading && rows.length === 0 && (
+        {error && !data && (
+          <ErrorState message="Couldn't load breadth history right now." onRetry={mutate} compact />
+        )}
+        {!error && isLoading && <div className={styles.placeholder}>Loading data…</div>}
+        {!error && !isLoading && rows.length === 0 && (
           <div className={styles.placeholder}>No data in selected range.</div>
         )}
         {!isLoading && rows.length > 0 && selected.length === 0 && (

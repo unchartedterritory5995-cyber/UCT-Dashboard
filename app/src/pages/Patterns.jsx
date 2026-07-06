@@ -3,6 +3,8 @@ import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import PatternFilter from './patterns/PatternFilter'
 import PatternResultCard from './patterns/PatternResultCard'
+import ErrorState from '../components/ErrorState'
+import EmptyState from '../components/EmptyState'
 import styles from './Patterns.module.css'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -27,7 +29,7 @@ export default function Patterns() {
     return params.toString()
   }, [filters])
 
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     `/api/patterns/scan?${queryString}`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: true }
@@ -51,18 +53,18 @@ export default function Patterns() {
       <PatternFilter filters={filters} onChange={setFilters} />
 
       {error && (
-        <div className={styles.error}>Failed to load: {error.message || 'unknown error'}</div>
+        <ErrorState message="Couldn't load patterns right now." onRetry={mutate} compact />
       )}
       {isLoading && !data && (
         <div className={styles.loading}>Scanning universe...</div>
       )}
       {!isLoading && data && (data.detections || []).length === 0 && (
-        <div className={styles.empty}>
-          No active patterns match the current filters.
-          <div className={styles.emptyHint}>
-            Try lowering the confidence threshold, switching timeframe, or clearing pattern filters.
-          </div>
-        </div>
+        <EmptyState
+          icon="search"
+          title="No active patterns match the current filters."
+          hint="Try lowering the confidence threshold, switching timeframe, or clearing pattern filters."
+          compact
+        />
       )}
 
       <div className={styles.grid}>
