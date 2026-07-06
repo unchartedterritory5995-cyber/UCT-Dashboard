@@ -4561,6 +4561,7 @@ async def _oi_confirmation_map(request: Request):
 async def _flow_delete_by_date(
     target_date: str,
     source: str = "",
+    tickers: str = "",
     confirm: bool = False,
 ):
     """Delete all flow rows for a given date. Destructive; used when a date's
@@ -4582,6 +4583,10 @@ async def _flow_delete_by_date(
 
     target_date: 'M/D/YYYY' (required, no default — safety)
     source: 'stocks' | 'indexes' | '' for both (default: both)
+    tickers: optional comma-separated ticker list to restrict deletion to
+             (e.g. 'SPY,QQQ,IWM,SMH,SLV'). If provided, only rows matching
+             these tickers are deleted. Useful for cleaning up ETFs
+             misrouted into source='stocks' by upstream Massive classifier.
     confirm: must be true to actually delete (default: false → returns preview count)
 
     Preview mode (confirm=false): returns the count that WOULD be deleted
@@ -4604,22 +4609,37 @@ async def _flow_delete_by_date(
         if source and source not in ("stocks", "indexes"):
             return {"ok": False, "error": f"source must be 'stocks', 'indexes', or empty; got: {source!r}"}
 
+        # Ticker filter parse (uppercase, dedupe, strip whitespace)
+        ticker_list = []
+        if tickers:
+            ticker_list = sorted(set(
+                t.strip().upper() for t in tickers.split(",") if t.strip()
+            ))
+            if not ticker_list:
+                return {"ok": False, "error": f"tickers parsed to empty list from: {tickers!r}"}
+
         db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
         conn = sqlite3.connect(db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
 
-        # Count first — always safe, no mutation
+        # Build WHERE clause dynamically
+        where = ["CreatedDate = ?"]
+        params = [target_date]
         if source:
-            cur = conn.execute(
-                "SELECT COUNT(*) FROM flow WHERE CreatedDate = ? AND source = ?",
-                (target_date, source)
-            )
-        else:
-            cur = conn.execute(
-                "SELECT COUNT(*) FROM flow WHERE CreatedDate = ?",
-                (target_date,)
-            )
+            where.append("source = ?")
+            params.append(source)
+        if ticker_list:
+            placeholders = ",".join(["?"] * len(ticker_list))
+            where.append(f"Symbol IN ({placeholders})")
+            params.extend(ticker_list)
+        where_sql = " AND ".join(where)
+
+        # Count first — always safe, no mutation
+        cur = conn.execute(
+            f"SELECT COUNT(*) FROM flow WHERE {where_sql}",
+            params
+        )
         row_count = cur.fetchone()[0]
 
         # Preview mode — no mutation
@@ -4631,22 +4651,17 @@ async def _flow_delete_by_date(
                 "stats": {
                     "target_date": target_date,
                     "source": source or "ALL",
+                    "tickers": ticker_list or "ALL",
                     "would_delete": row_count,
                     "message": "Preview only. Pass confirm=true to actually delete.",
                 }
             }
 
         # Live mode — perform the delete
-        if source:
-            cursor = conn.execute(
-                "DELETE FROM flow WHERE CreatedDate = ? AND source = ?",
-                (target_date, source)
-            )
-        else:
-            cursor = conn.execute(
-                "DELETE FROM flow WHERE CreatedDate = ?",
-                (target_date,)
-            )
+        cursor = conn.execute(
+            f"DELETE FROM flow WHERE {where_sql}",
+            params
+        )
         rows_deleted = cursor.rowcount
         conn.commit()
         conn.close()
@@ -4664,15 +4679,9 @@ async def _flow_delete_by_date(
             "stats": {
                 "target_date": target_date,
                 "source": source or "ALL",
+                "tickers": ticker_list or "ALL",
                 "rows_deleted": rows_deleted,
                 "new_data_version": new_ver,
-                "next_steps": [
-                    f"POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-stocks.csv&source=stocks",
-                    f"POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-indexes.csv&source=indexes",
-                    f"POST /api/admin/massive/backfill-from-patches?patches_file=patches-7-2.json&target_date={target_date}",
-                    f"POST /api/admin/massive/rebuild-color?target_date={target_date}",
-                    f"POST /api/admin/massive/normalize-sweep-sides?target_date={target_date}",
-                ]
             }
         }
     except Exception as e:
