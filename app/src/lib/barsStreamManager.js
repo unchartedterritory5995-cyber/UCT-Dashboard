@@ -29,7 +29,8 @@ const BARS_WATCHDOG_TICK_MS = 10000
 // `bar` for this key arrived within this window the feed is effectively dead even if
 // the SSE keeps heartbeating — `delivering` must go false so the consumer falls back
 // to Finnhub instead of freezing the candle with Finnhub suppressed (review blocker #2).
-export const BARS_LIVE_STALE_MS = 120000
+export const BARS_LIVE_STALE_MS = 120000       // engage: a bar within 2min = push is live
+export const BARS_LIVE_DISENGAGE_MS = 300000   // hysteresis: once live, hold until 5min of silence
 
 let _nextId = 1
 const _subscribers = new Map()  // id -> { sym, tf, key, onBar, onReconnect, onStatus }
@@ -103,8 +104,17 @@ export function getStatus(sym, tf) {
   // watchdog recovery (review blocker #2). Also closes the resubscribe case (#3): a
   // freshly reconnected key has a stale lastBarAt so delivering stays false until a
   // fresh bar arrives, keeping Finnhub authoritative through the gap.
+  // HYSTERESIS: ENGAGE when a bar arrived within BARS_LIVE_STALE_MS, but once delivering stay
+  // so until a LONGER silence (BARS_LIVE_DISENGAGE_MS). Massive emits AM only for minutes WITH
+  // trades, so a thin name on a 1m chart can cross 120s with no print; a single global boundary
+  // would flip delivering false→push-off→Finnhub→true on the next tick, and each handoff is a
+  // potential seam (the two feeds disagree on the developing close/volume). Hysteresis turns
+  // that recurring thrash into a one-time fallback only when the feed is GENUINELY dead.
+  const recent = ks ? Date.now() - ks.lastBarAt : Infinity
+  const wasDelivering = !!(ks && ks.delivering)
   const delivering = connected && !!(ks && ks.everDelivered) &&
-    (Date.now() - (ks?.lastBarAt || 0) < BARS_LIVE_STALE_MS)
+    recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
+  if (ks) ks.delivering = delivering   // persist for next call's hysteresis
   return { connected, healthy, delivering }
 }
 

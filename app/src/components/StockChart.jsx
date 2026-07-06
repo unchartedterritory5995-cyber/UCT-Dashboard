@@ -243,17 +243,16 @@ function getETOffset() {
 
 const _ET_OFFSET = getETOffset()
 
-// Phase C single-writer ENABLE gate — DEFAULT OFF. Even though VITE_REALTIME_BARS is
-// already '1' in prod, the developing bar is NOT handed to the Massive push writer
-// (and the Finnhub writers suppressed) until this runtime flag is opted in per browser.
-// So STREAM_BARS_ENABLED=1 alone activates nothing for anyone; the canary sets
-// localStorage 'uct.barsPush.enabled'='1'; full rollout flips the default later. This
-// is the instant, runtime revert the plan requires (VITE is compile-time, not instant).
-// WIDEN DIAL — percentage of browsers that get push by DEFAULT (no explicit opt-in/out).
-// 0 = canary-only (today's state; ships dark). Ramp 0→25→50→100 (bump + deploy) to widen,
-// watching the backend between steps: every eligible chart holds ONE /api/stream/bars loop on
-// the single shared event loop, so this is a SCALING step, not a feature flag. Per-browser
-// revert is always instant via localStorage; a full backend kill is STREAM_BARS_ENABLED=0.
+// Phase C single-writer ENABLE gate. Resolves per browser: explicit localStorage
+// 'uct.barsPush.enabled'='1' (force on) / '0' (force off — instant per-browser revert), else a
+// staged percentage rollout keyed by a stable per-browser bucket. When enabled, the developing
+// bar is handed to the Massive push writer and the Finnhub writers early-return.
+// WIDEN DIAL — % of browsers that get push BY DEFAULT (no explicit opt-in/out).
+// CURRENTLY 100 = FULLY ROLLED OUT (2026-07-06): every eligible intraday chart streams push by
+// default; a user opts OUT with localStorage 'uct.barsPush.enabled'='0'. (History: ramped
+// 0→25→100 under monitoring.) Each eligible chart holds ONE /api/stream/bars loop on the single
+// shared event loop, so CHANGING this is a SCALING step. Narrow = lower this + deploy (~10min);
+// full backend kill = STREAM_BARS_ENABLED=0; instant per-browser = the localStorage '0' opt-out.
 export const BARS_PUSH_ROLLOUT_PCT = 100
 
 // Stable per-browser rollout bucket [0,100), assigned once + persisted so a browser's in/out
@@ -2883,6 +2882,12 @@ export default function StockChart({
     // here too (belt-and-suspenders against any future pool regression).
     if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
     if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
+    // B only paints when push is AUTHORITATIVE (delivering). In the transient connected-but-
+    // -not-yet-delivering window (the first bar; a flap near the recency boundary) the Finnhub
+    // writers are still active, so painting here too would DUAL-WRITE the developing bar (jitter
+    // on thin tickers). delivering is tracked independently by the pool, so this is a clean
+    // one-bar handoff — Finnhub covers the transition bar, then B takes over.
+    if (!barsPushActiveRef.current) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -2925,28 +2930,13 @@ export default function StockChart({
           color: data.bar.c >= data.bar.o ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
         })
       }
-      // Sync the tick-logic refs. When push is the SOLE writer (barsPushActive), B
-      // OWNS these refs — create-or-advance for THIS bar UNCONDITIONALLY, so at a
-      // bucket rollover the refs follow the new bar even though the Finnhub writers
-      // are suppressed (match-only sync would leave liveBarRef pinned to the prior
-      // bucket = the rollover gap the plan review flagged). Otherwise keep the
-      // conservative match-only sync (the Finnhub path still owns geometry).
-      if (barsPushActiveRef.current) {
-        liveBarRef.current = { time: tSec, open: o, high: h, low: l, close: c }
-        lastBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
-      } else {
-        if (liveBarRef.current && liveBarRef.current.time === tSec) {
-          liveBarRef.current = {
-            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
-          }
-        }
-        if (lastBarRef.current && lastBarRef.current.time === tSec) {
-          lastBarRef.current = {
-            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
-            volume: data.bar.v,
-          }
-        }
-      }
+      // B is the SOLE writer here (gated on barsPushActive above), so it OWNS these refs —
+      // create-or-advance for THIS bar unconditionally, so at a bucket rollover they follow the
+      // new bar even though the Finnhub writers are suppressed. Carry VOLUME on liveBarRef so the
+      // post-setData re-top can restore it (else the developing bar shows ~30s-stale server
+      // volume until the next AM push — a volume flicker every SWR poll, retro-audit #5).
+      liveBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
+      lastBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
     } catch {
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
@@ -2993,11 +2983,16 @@ export default function StockChart({
     }
   }, [])
 
-  // ONLY canary browsers (localStorage 'uct.barsPush.enabled'='1') subscribe to the
-  // bars pool, so STREAM_BARS_ENABLED=1 is truly user-neutral (review blocker #1): a
-  // non-canary browser opens no connection and paints no push bar. VITE_REALTIME_BARS
-  // is an additional compile-time cohort gate inside the hook.
-  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates
+  // Whether THIS chart subscribes to the bars pool + paints push, per _barsPushEnabled()
+  // (currently default-ON at 100% rollout; a browser opts out with localStorage
+  // 'uct.barsPush.enabled'='0'). Gating the SUBSCRIPTION on it is what made the rollout %
+  // the real cohort lever (review blocker #1). VITE_REALTIME_BARS is an additional
+  // compile-time cohort gate inside the hook.
+  // !cs.heikinAshi: HA needs the full-series toHeikinAshi() recompute (which the 15s SWR
+  // refresh does), NOT incremental raw-OHLC push updates. Under HA the chart neither
+  // subscribes nor suppresses Finnhub — writers A/C already `if (cs.heikinAshi) return`, and
+  // without this push writer B would paint a RAW candle amid HA-smoothed bars (retro-audit bug).
+  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates && !cs.heikinAshi
   const _barsPush = useRealtimeBars({
     symbol: _pushOptIn ? sym : null,
     tf: _pushOptIn ? resolvedTf : null,
@@ -3350,6 +3345,14 @@ export default function StockChart({
             candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
           } else {
             candleSeriesRef.current.update({ time: lb.time, value: lb.close })
+          }
+          // Restore the push-owned volume too — else the volume bar shows ~30s-stale server
+          // volume until the next AM push (a flicker every SWR poll, retro-audit #5).
+          if (volumeSeriesRef.current && Number.isFinite(lb.volume)) {
+            volumeSeriesRef.current.update({
+              time: lb.time, value: lb.volume,
+              color: lb.close >= lb.open ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+            })
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
       }

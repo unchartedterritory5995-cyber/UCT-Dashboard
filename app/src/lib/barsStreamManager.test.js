@@ -118,7 +118,7 @@ describe('barsStreamManager', () => {
     expect(bars._getBuckets().length).toBe(0)
   })
 
-  it('delivering goes FALSE once bars go stale, even while connected + heartbeating (review #2)', () => {
+  it('delivering goes FALSE once bars go GENUINELY stale (past the disengage grace) (review #2)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
     try {
@@ -128,9 +128,27 @@ describe('barsStreamManager', () => {
       es._open()
       es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
       expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
-      // No new bar for > BARS_LIVE_STALE_MS (feed dead but SSE would keep heartbeating).
-      vi.setSystemTime(Date.now() + bars.BARS_LIVE_STALE_MS + 5000)
-      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)  // must fall back to Finnhub
+      // Feed dead (SSE would keep heartbeating) past the DISENGAGE grace → fall back to Finnhub.
+      vi.setSystemTime(Date.now() + bars.BARS_LIVE_DISENGAGE_MS + 5000)
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('HYSTERESIS: once delivering, stays true through a short gap (STALE<gap<DISENGAGE) — no thrash', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
+    try {
+      bars.subscribe('AAPL', '1', {})
+      bars._flushRebuild()
+      const es = MockES.instances[0]
+      es._open()
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+      // A thin ticker with no print for > engage but < disengage must NOT flip (would seam).
+      vi.setSystemTime(Date.now() + bars.BARS_LIVE_STALE_MS + 10000)  // ~130s: past engage, under disengage
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)       // held by hysteresis
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 2, c: 1 } })  // a late print
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)       // still live, never flapped
     } finally { vi.useRealTimers() }
   })
 
@@ -147,8 +165,8 @@ describe('barsStreamManager', () => {
       expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
       const before = status.mock.calls.length
       // Connection stays alive via heartbeats (no reconnect), but no BARS arrive past the
-      // recency window — the sweep must still re-notify so the consumer sees delivering flip.
-      for (let i = 0; i < 12; i++) { es._emit('heartbeat'); vi.advanceTimersByTime(12000) }
+      // disengage grace (~312s) — the sweep must still re-notify so the consumer sees the flip.
+      for (let i = 0; i < 26; i++) { es._emit('heartbeat'); vi.advanceTimersByTime(12000) }
       expect(status.mock.calls.length).toBeGreaterThan(before)     // sweeps re-notified
       expect(bars.getStatus('AAPL', '1').delivering).toBe(false)    // recency gate observed
     } finally { vi.useRealTimers() }
