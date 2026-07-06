@@ -807,7 +807,8 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "setup_winrate",
@@ -841,7 +842,8 @@
       "must_call_tools": [
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_regime",
@@ -849,7 +851,8 @@
         ],
         [
           "get_my_pnl",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ]
       ],
       "must_cite": [
@@ -871,7 +874,8 @@
       "must_call_tools": [
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_quote",
@@ -902,7 +906,8 @@
         [
           "find_patterns_on_ticker",
           "setup_winrate",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_quote",
@@ -942,7 +947,8 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_breadth"
@@ -990,12 +996,14 @@
         [
           "list_recent_trades",
           "get_aggregates",
-          "get_open_positions"
+          "get_open_positions",
+          "portfolio_heat"
         ],
         [
           "find_patterns_on_ticker",
           "setup_winrate",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "calc_position_size",
@@ -1029,12 +1037,14 @@
       "must_call_tools": [
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_regime",
@@ -1076,7 +1086,8 @@
         ],
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_quote",
@@ -1110,7 +1121,8 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_regime",
@@ -1140,7 +1152,8 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_quote",
@@ -1153,7 +1166,8 @@
         ],
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_regime",
@@ -1188,12 +1202,14 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "list_recent_trades",
           "get_aggregates",
-          "get_open_positions"
+          "get_open_positions",
+          "portfolio_heat"
         ],
         [
           "lookup_playbook",
@@ -1246,11 +1262,13 @@
         ],
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_my_pnl",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ]
       ],
       "must_cite": [
@@ -1274,12 +1292,14 @@
       "must_call_tools": [
         [
           "get_my_pnl",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "list_recent_trades",
           "get_aggregates",
-          "get_open_positions"
+          "get_open_positions",
+          "portfolio_heat"
         ],
         [
           "setup_winrate",
@@ -1311,12 +1331,14 @@
       "must_call_tools": [
         [
           "get_my_pnl",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "list_recent_trades",
           "get_aggregates",
-          "get_open_positions"
+          "get_open_positions",
+          "portfolio_heat"
         ],
         [
           "get_regime",
@@ -1350,7 +1372,8 @@
         [
           "check_active_interventions",
           "get_my_pnl",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_regime",
@@ -1393,7 +1416,8 @@
         ],
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "validate_trade",
@@ -1403,7 +1427,8 @@
         [
           "list_recent_trades",
           "get_aggregates",
-          "get_open_positions"
+          "get_open_positions",
+          "portfolio_heat"
         ]
       ],
       "must_cite": [
@@ -1425,7 +1450,8 @@
       "must_call_tools": [
         [
           "get_open_positions",
-          "get_aggregates"
+          "get_aggregates",
+          "portfolio_heat"
         ],
         [
           "get_quote",
@@ -1537,7 +1563,8 @@
         [
           "scan_active_patterns",
           "find_patterns_on_ticker",
-          "grade_ticker"
+          "grade_ticker",
+          "grade_watchlist"
         ],
         [
           "get_regime",
