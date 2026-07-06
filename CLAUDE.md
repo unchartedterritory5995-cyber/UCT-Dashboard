@@ -361,6 +361,46 @@ can't run).
   Spec: `docs/superpowers/specs/2026-07-02-compass-grade-ticker-verdict-design.md`;
   plan: `docs/superpowers/plans/2026-07-02-compass-grade-ticker.md`.
 
+### Rung-4/5 mentor — multi-name + portfolio verdicts (Phase 2 cont. · dark · 2026-07-05)
+`grade_ticker` graded ONE name; Rungs 4-5 (grade-my-watchlist / heat / can-I-add)
+still hedged. Three structural artifacts close it (spec
+`docs/superpowers/specs/2026-07-05-compass-rung4-5-mentor-design.md`, plan
+`…/plans/2026-07-05-compass-rung4-5-mentor.md`), reshaped by a 4-lens adversarial
+end-shape analysis. All behind `BRAIN_TOOLS_ENABLED`, both surfaces.
+- **`api/services/portfolio_heat.py`** — structural STATE read, **NO GO-path**. Two
+  metrics NEVER blended: risk-heat `Σ(entry−stop)·shares/capital` vs the **10%
+  Desjardins aggregate cap** (read from brain via `brain_service.aggregate_heat_cap_pct()`,
+  fail-soft 10), notional exposure vs the regime ceiling. **SAFETY-CRITICAL:
+  detects broker placeholder stops (`stop==entry`) → excludes them from the
+  confident heat number + surfaces them** (counting them 0-risk under-reports heat
+  → would green-light an over-cap add). Wraps `voice_position_sizing`'s
+  aggregator (which computes risk-heat $, verified) + adds per-position at-risk +
+  by-sector 40% concentration flags. NO separate `portfolio_stress` tool.
+- **`api/services/grade_watchlist.py`** — funnel (cheap filter → `grade_ticker` on
+  survivors) + compute-once market ctx + **MANDATORY list-level synthesis**: 0-GO
+  "sit on your hands" on a RED/hostile regime, same-sector correlation-collapse,
+  behavioral note. Edge-annotated per name; failed names returned INLINE
+  (`failed:true`), never dropped/fabricated. `source ∈ watchlist|flagged|positions|
+  explicit|scan` via `watchlist_source.resolve` (states which set it graded).
+- **`api/services/personal_edge.py`** — the Rung-4 MOAT (the USER's per-setup
+  expectancy, distinct from firm `setup_winrate`): `get_aggregates`-by-setup
+  (`avg_r`/`total_r`) normalized to template keys via `resolve_setup_name`. **Edge
+  = expectancy/R, not W-L. SOFT**: hard-mute ONLY at n≥25 AND negative expectancy;
+  thin sample annotated with uncertainty, never dropped; cold-start → firm
+  win-rate. Share store with `awareness_preferences` (avoid split-brain) — follow-up.
+- **Add-verdict = persona COMPOSITION (not a tool):** `§11b` in `MENTOR_TWO_LANE`
+  routes list→grade_watchlist, heat/add→portfolio_heat, and gates the add so GO is
+  the terminal branch (tilt/average-down/widen-stop/RED → REFUSE; placeholder →
+  confirm-first; over 2%/10% → SKIP). `validate_trade` already enforces the sizing caps.
+- **Golden set** credits both on Rung-4/5 gates (grade_watchlist +9, portfolio_heat +18).
+- **SCOPED OUT:** T3 agentic premarket-prep + theme research (Phase 3), conditional
+  "if QQQ loses 590" stress, pure-refusal traps (persona, never a grade tool).
+- ⚠️ **REMAINING before flag-flip:** `source='scan'` wiring (plan Task 8), **report-card
+  HARDENING** (Task 11 — mechanical checks that edge+heat were actually applied, a
+  RED-tape 0-GO fixture, a placeholder-stop-no-GO fixture; without it a shallow grid
+  can game the score into a WORSE mentor — the biggest risk), then re-run the report
+  card (Task 13) — Rungs 4-5 must climb HONESTLY before `COMPASS_MENTOR_MODE` past `admin`.
+
 ## Awareness Engine — Milestone 1 (dark, flag-gated · 2026-07-02)
 
 Compass now *watches the market and speaks up first* — Milestone 1 of the
