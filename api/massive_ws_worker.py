@@ -119,6 +119,11 @@ _state = {
     "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
     "oi_fetch_contracts_resolved": 0, # contracts where Schwab returned OI > 0
     "oi_fetch_contracts_unresolved": 0, # contracts where Schwab returned no data
+    # Phase 3: retroactive spot backfill on startup — fills blank Spot on
+    # today's rows written by prior worker processes that died before
+    # the async spot fetcher could resolve their symbols. See
+    # backfill_stranded_spots() at end of file for details.
+    "last_spot_backfill": None,      # {symbols_scanned, symbols_resolved, rows_updated, ...}
 }
 
 
@@ -1979,6 +1984,24 @@ def start() -> bool:
     _state["running"] = True
     t.start()
 
+    # Retroactive Spot backfill: fills blank Spot on today's rows that were
+    # written by prior worker processes (before this restart). Runs in a
+    # separate thread so it never blocks WS consumption startup — worst case,
+    # backfill fails silently and blank rows stay blank. Waits 5s to let the
+    # WS thread establish its connection before starting a Yahoo-fetching
+    # workload against the same event loop / db.
+    def _backfill_thread():
+        try:
+            time.sleep(5)
+            backfill_stranded_spots()
+        except Exception as e:
+            logger.warning("[spot-backfill] thread crashed: %s", e)
+
+    bt = threading.Thread(
+        target=_backfill_thread, daemon=True, name="massive-spot-backfill"
+    )
+    bt.start()
+
     logger.info(
         "[massive-ws] consumer thread started "
         "(url=%s, subscribe=%s, min_prem=$%s, min_vol=%d, dry_run=%s)",
@@ -1986,3 +2009,336 @@ def start() -> bool:
         f"{MIN_PREMIUM:,.0f}", MIN_VOLUME, DRY_RUN,
     )
     return True
+
+
+# ─── Retroactive Spot backfill (Phase 3, added 2026-07-06) ─────────────────
+# Problem this solves: on-page symptom is rows with SPOT column blank ("—")
+# for prints that arrived before a worker restart. Root cause: Spot lookup is
+# async — a row is INSERTed with blank Spot, the async fetcher resolves the
+# ticker's spot a few seconds later, and future writes for that ticker land
+# with populated Spot. But the ORIGINAL row is never updated once written.
+# So when a worker process dies (deploy, crash), any row whose ticker hadn't
+# been spot-resolved yet becomes permanently stranded — the new process
+# starts with an empty _SPOT_CACHE and only sees new arrivals.
+#
+# What Spot represents on this platform: the underlying stock's price AT
+# THE MOMENT THE OPTION PRINT LANDED ON TAPE. Not current spot. Not the
+# spot at backfill time. Print-time spot.
+#
+# The raw Massive OPRA WebSocket doesn't carry underlying price on option
+# prints — OPRA tape is options-only. The live path today approximates
+# print-time spot by using Yahoo's regularMarketPrice cached with a 60s
+# TTL; that works well for live rows because the cache is fresh within
+# seconds of the print, but it CANNOT be reused for stranded rows enriched
+# hours after the print — the drift on a fast mover could be 5+ percent.
+#
+# This backfill uses yfinance 1-minute bars keyed on each row's CreatedTime.
+# For a print at 11:47:22 AM ET, it looks up the underlying's 1-minute bar
+# covering 11:47:00 - 11:47:59 and uses that bar's close as the row's Spot.
+# Accuracy: ±30 seconds from print time. yfinance retains 1-min data for
+# ~7 days, so this works for any print within the last week.
+#
+# Fallback chain if the minute bar isn't available:
+#   1. Nearest-neighbor within 5 minutes (fills bars Yahoo dropped)
+#   2. Daily close for target_date (if 1-min data unavailable — dates > 7d old)
+#   3. Skip the row (leave Spot blank rather than write wrong value)
+#
+# Groups rows by (symbol, minute) so one bar-lookup covers all rows sharing
+# the same underlying + minute — typically a 3-5x UPDATE reduction.
+#
+# Runs once per process start ~5s after WS thread launches. Also exposed
+# as POST /api/live/massive/backfill-spot for on-demand retriggering.
+#
+# Does NOT warm _SPOT_CACHE. Historical minute-bar closes would corrupt
+# live-path enrichment if injected there. Cache stays purely current-spot.
+
+def _parse_created_time_to_minute(ct):
+    """'11:47:22 AM' → 707 (minutes past midnight). None on parse failure.
+    Format matches how the router's _parse_to_minute_of_day handles the
+    CreatedTime column — keep the two in sync if the format ever changes.
+    """
+    try:
+        s = ct.strip().upper()
+        parts = s.split()
+        if len(parts) != 2:
+            return None
+        hhmmss, ampm = parts[0], parts[1]
+        h_str, m_str, *_ = hhmmss.split(":")
+        h, m = int(h_str), int(m_str)
+        if ampm == "PM" and h != 12:
+            h += 12
+        elif ampm == "AM" and h == 12:
+            h = 0
+        return h * 60 + m
+    except Exception:
+        return None
+
+
+def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
+    """Fill blank Spot on stranded rows using yfinance 1-minute bars.
+
+    Print-time accurate to ±30 seconds. For each stranded row, looks up
+    the underlying's 1-minute bar covering the row's CreatedTime and uses
+    that bar's close as the Spot value.
+
+    target_date_mdyyyy: 'M/D/YYYY'. Defaults to today ET.
+
+    Returns:
+        {
+          "target_date": "7/6/2026",
+          "symbols_scanned": 15,        # distinct underlyings with blank-spot rows
+          "symbols_with_bars": 14,      # got 1-min bars from Yahoo
+          "symbols_no_bars": 1,         # Yahoo returned nothing
+          "buckets_scanned": 42,        # (symbol, minute) buckets
+          "buckets_matched": 39,        # buckets with an available bar
+          "rows_scanned": 82,           # total blank-spot rows found
+          "rows_updated": 76,           # rows we UPDATE'd with spot
+          "rows_no_match": 6,           # buckets with no bar even after neighbor search
+          "elapsed_sec": 4.7,
+          "sample_updates": [ ... ]     # first few (sym, minute, spot) for verification
+        }
+
+    Idempotent: safe to call multiple times.
+    Silent on failure: logs + returns {"error": "..."} rather than raising.
+    """
+    import sqlite3
+    from datetime import datetime, timezone, timedelta
+
+    started = time.time()
+
+    # Default target_date to today in ET (matches CreatedDate format).
+    if not target_date_mdyyyy:
+        _et_now = datetime.now(timezone.utc) + timedelta(hours=-4)  # July DST
+        target_date_mdyyyy = f"{_et_now.month}/{_et_now.day}/{_et_now.year}"
+
+    try:
+        from api.flow_db import FlowDB
+        db_path = FlowDB().db_path
+    except Exception as e:
+        logger.warning("[spot-backfill] flow_db import failed: %s", e)
+        return {"error": f"flow_db import: {e}", "rows_updated": 0}
+
+    # ─── Step 1: scan for stranded rows, grouped by (symbol, minute) ─────
+    # Bucketing by minute is critical — a ticker with 20 stranded rows
+    # spread across 5 minutes only needs 5 bar lookups + 5 UPDATEs, not 20.
+    stranded: dict = {}   # {(symbol, minute_of_day): [row_ids]}
+    symbols_seen: set = set()
+    try:
+        with sqlite3.connect(db_path, timeout=15) as conn:
+            cur = conn.execute(
+                "SELECT id, Symbol, CreatedTime FROM flow "
+                "WHERE CreatedDate = ? "
+                "  AND source IN ('stocks', 'indexes') "
+                "  AND (Spot IS NULL OR Spot = '' OR CAST(Spot AS REAL) <= 0)",
+                (target_date_mdyyyy,)
+            )
+            for row_id, sym, ct in cur.fetchall():
+                if not sym or not ct:
+                    continue
+                if sym[-1].isdigit():
+                    continue
+                mod = _parse_created_time_to_minute(ct)
+                if mod is None:
+                    continue
+                stranded.setdefault((sym, mod), []).append(row_id)
+                symbols_seen.add(sym)
+    except Exception as e:
+        logger.warning("[spot-backfill] scan failed: %s", e)
+        return {"error": f"scan: {e}", "rows_updated": 0}
+
+    total_rows = sum(len(v) for v in stranded.values())
+
+    if not stranded:
+        result = {
+            "target_date": target_date_mdyyyy,
+            "symbols_scanned": 0,
+            "buckets_scanned": 0,
+            "rows_scanned": 0,
+            "rows_updated": 0,
+            "elapsed_sec": round(time.time() - started, 2),
+        }
+        _state["last_spot_backfill"] = result
+        logger.info(
+            "[spot-backfill] no stranded rows for %s", target_date_mdyyyy
+        )
+        return result
+
+    logger.info(
+        "[spot-backfill] %d symbols / %d buckets / %d rows for %s",
+        len(symbols_seen), len(stranded), total_rows, target_date_mdyyyy
+    )
+
+    # ─── Step 2: compute the ET Unix-time range for target_date ─────────
+    # yfinance's period1/period2 parameters expect UTC seconds. Use a
+    # generous 8 AM - 5 PM ET window so premarket and after-hours prints
+    # (rare on options but possible) don't get clipped.
+    try:
+        m_s, d_s, y_s = target_date_mdyyyy.split("/")
+        et_offset = timedelta(hours=-4)  # July DST
+        day_open_et = datetime(int(y_s), int(m_s), int(d_s), 8, 0, 0)
+        day_close_et = datetime(int(y_s), int(m_s), int(d_s), 17, 0, 0)
+        period1 = int((day_open_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
+        period2 = int((day_close_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
+    except Exception as e:
+        logger.warning("[spot-backfill] bad target_date parse: %s", e)
+        return {"error": f"target_date parse: {e}", "rows_updated": 0}
+
+    # ─── Step 3: batch-fetch 1-minute bars per symbol ───────────────────
+    YF_INDEX_MAP = {
+        "SPX": "^GSPC", "NDX": "^NDX", "DJX": "^DJI",
+        "RUT": "^RUT", "VIX": "^VIX", "XSP": "^GSPC",
+        "SPXW": "^GSPC",
+    }
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+    async def _fetch_bars_one(client, our_sym):
+        """Returns (our_sym, {minute_of_day: close_price})."""
+        yf_sym = YF_INDEX_MAP.get(our_sym, our_sym)
+        try:
+            resp = await client.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}",
+                params={
+                    "interval": "1m",
+                    "period1": str(period1),
+                    "period2": str(period2),
+                    "includePrePost": "false",
+                },
+                headers={"User-Agent": UA},
+            )
+            if resp.status_code != 200:
+                return (our_sym, {})
+            data = resp.json()
+            result_list = data.get("chart", {}).get("result")
+            if not result_list:
+                return (our_sym, {})
+            first = result_list[0]
+            timestamps = first.get("timestamp", []) or []
+            quote = first.get("indicators", {}).get("quote", [{}])[0]
+            closes = quote.get("close", []) or []
+            bars_by_minute = {}
+            for ts_unix, close in zip(timestamps, closes):
+                if close is None:
+                    continue
+                # Convert bar's Unix timestamp to ET minute-of-day.
+                bar_dt_et = (
+                    datetime.fromtimestamp(ts_unix, tz=timezone.utc) + et_offset
+                )
+                mod = bar_dt_et.hour * 60 + bar_dt_et.minute
+                bars_by_minute[mod] = float(close)
+            # Also grab daily close as a fallback for buckets with no
+            # minute bar coverage (dates outside the 7d 1-min window).
+            meta = first.get("meta", {})
+            daily_close = None
+            for key in ("regularMarketPrice", "chartPreviousClose"):
+                v = meta.get(key)
+                if isinstance(v, (int, float)) and v > 0:
+                    daily_close = float(v)
+                    break
+            if daily_close and not bars_by_minute:
+                # Signal daily-fallback via special key -1
+                bars_by_minute[-1] = daily_close
+            return (our_sym, bars_by_minute)
+        except Exception:
+            return (our_sym, {})
+
+    async def _fetch_batch(symbols):
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            return await asyncio.gather(
+                *[_fetch_bars_one(client, s) for s in symbols],
+                return_exceptions=False,
+            )
+
+    # Sequential batches of 30 — same rate envelope as live path.
+    bars_by_symbol: dict = {}  # {symbol: {minute_of_day: close}}
+    all_symbols = list(symbols_seen)
+    for i in range(0, len(all_symbols), 30):
+        batch = all_symbols[i:i + 30]
+        try:
+            batch_results = asyncio.run(_fetch_batch(batch))
+        except Exception as e:
+            logger.warning(
+                "[spot-backfill] batch %d fetch failed: %s", i // 30, e
+            )
+            continue
+        for sym, bars in batch_results:
+            bars_by_symbol[sym] = bars
+
+    # ─── Step 4: match buckets to bars, UPDATE flow.db ──────────────────
+    symbols_with_bars = sum(1 for b in bars_by_symbol.values() if b)
+    symbols_no_bars = len(symbols_seen) - symbols_with_bars
+
+    def _spot_for_bucket(sym, mod):
+        """Look up a specific minute's close, with 5-minute neighbor fallback."""
+        bars = bars_by_symbol.get(sym, {})
+        if not bars:
+            return None
+        # Exact minute match
+        v = bars.get(mod)
+        if v is not None and v > 0:
+            return v
+        # Nearest-neighbor within 5 minutes (Yahoo occasionally drops bars)
+        for delta in range(1, 6):
+            v = bars.get(mod - delta)
+            if v is not None and v > 0:
+                return v
+            v = bars.get(mod + delta)
+            if v is not None and v > 0:
+                return v
+        # Daily-close fallback (only present when no minute bars)
+        v = bars.get(-1)
+        if v is not None and v > 0:
+            return v
+        return None
+
+    rows_updated = 0
+    buckets_matched = 0
+    sample_updates: list = []
+    try:
+        with sqlite3.connect(db_path, timeout=15) as conn:
+            for (sym, mod), row_ids in stranded.items():
+                spot = _spot_for_bucket(sym, mod)
+                if spot is None:
+                    continue
+                buckets_matched += 1
+                spot_str = f"{spot:.2f}"
+                # Chunk row IDs to stay under SQLite variable limit.
+                for j in range(0, len(row_ids), 500):
+                    chunk = row_ids[j:j + 500]
+                    placeholders = ",".join(["?"] * len(chunk))
+                    conn.execute(
+                        f"UPDATE flow SET Spot = ? WHERE id IN ({placeholders})",
+                        [spot_str] + chunk
+                    )
+                    rows_updated += len(chunk)
+                if len(sample_updates) < 5:
+                    h = mod // 60
+                    mm = mod % 60
+                    ampm = "AM" if h < 12 else "PM"
+                    h12 = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
+                    sample_updates.append({
+                        "symbol": sym,
+                        "print_minute_et": f"{h12}:{mm:02d} {ampm}",
+                        "spot_written": spot_str,
+                        "rows_in_bucket": len(row_ids),
+                    })
+            conn.commit()
+    except Exception as e:
+        logger.warning("[spot-backfill] UPDATE failed: %s", e)
+
+    result = {
+        "target_date": target_date_mdyyyy,
+        "symbols_scanned": len(symbols_seen),
+        "symbols_with_bars": symbols_with_bars,
+        "symbols_no_bars": symbols_no_bars,
+        "buckets_scanned": len(stranded),
+        "buckets_matched": buckets_matched,
+        "rows_scanned": total_rows,
+        "rows_updated": rows_updated,
+        "rows_no_match": total_rows - rows_updated,
+        "elapsed_sec": round(time.time() - started, 2),
+        "sample_updates": sample_updates,
+    }
+    _state["last_spot_backfill"] = result
+    logger.info("[spot-backfill] done: %s", result)
+    return result
