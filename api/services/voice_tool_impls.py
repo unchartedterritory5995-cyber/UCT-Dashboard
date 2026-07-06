@@ -4055,14 +4055,34 @@ def _get_sector_strength(period: str = "", count: int = 3) -> dict:
 
 
 def _get_company_info(symbol: str) -> dict:
+    """Company name / sector / industry (+ best-effort market cap) from the real
+    ticker_meta source (same data behind chart watermarks). Fail-soft: returns
+    what it has; an honest 'not available' only when the sources truly have none."""
     sym = (symbol or "").upper().strip()
-    return {
-        "symbol": sym,
-        "sector": "not available",
-        "industry": "not available",
-        "market_cap_b": 0,
-        "note": "company-info data source not yet wired",
-    }
+    if not sym:
+        return {"symbol": "", "note": "no symbol given"}
+    meta = {}
+    try:
+        from api.services import ticker_meta
+        meta = ticker_meta.get_ticker_meta(sym) or {}
+    except Exception as e:  # noqa: BLE001
+        _log.warning("get_company_info meta failed for %s: %s", sym, e)
+    mcap_b = None
+    try:
+        from api.services import fundamentals
+        f = fundamentals.get_fundamentals(sym) or {}
+        mc = f.get("market_cap") or f.get("marketCap")
+        if mc:
+            mcap_b = round(float(mc) / 1e9, 2)
+    except Exception:  # noqa: BLE001
+        pass
+    name = meta.get("name")
+    sector = meta.get("sector")
+    industry = meta.get("industry")
+    if not any([name, sector, industry, mcap_b]):
+        return {"symbol": sym, "note": "no company data available for this ticker"}
+    return {"symbol": sym, "name": name, "sector": sector, "industry": industry,
+            "market_cap_b": mcap_b}
 
 
 def _compare_tickers(symbols: list[str]) -> dict:
