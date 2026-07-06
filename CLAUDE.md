@@ -748,6 +748,44 @@ bug classes that survived the May-16/17 freshness overhaul. **Locked invariants:
 - **Startup fingerprint line** for grep verification:
   `[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=4 reconciliation_worker=on|off`
 
+### Bars Push Feed — Phase C streaming (LIVE 100%, 2026-07-06 — CRITICAL, do not regress)
+
+TradingView-grade continuous live bars via a Massive WebSocket **push** feed, replacing the
+Finnhub 250ms SSE **poll** for the developing bar. **LIVE for all ~200 users.** Rides the ONE
+shared uvicorn event loop (the 524-outage surface) — it was ramped canary→25→100% under
+event-loop monitoring, held flat. Session detail: memory `project_charts_dominance_2026_07_03`.
+
+- **Two feeds, client-side arbitration.** Finnhub poll (`priceStreamManager`, always on) +
+  Massive push (`app/src/lib/barsStreamManager.js`, a BYTE-SEPARATE pool — a bug in the bars
+  path can never break live prices). `useRealtimeBars.js` subscribes; `stream.py::stream_bars`
+  serves `/api/stream/bars?bars=SYM:TF,…` (250ms idle sleep, named heartbeat); ingest via
+  `bar_stream.py` (Massive WS) → `bar_broadcaster.py` (per-(sym,tf) queue fan-out, maxsize=64
+  drop-oldest).
+- **🔒 LOCKED single-writer invariant** (`StockChart.jsx`): exactly ONE developing-bar writer per
+  (sym,tf). `barsPushActive = _barsPushEnabled() && eligible && liveUpdates && !heikinAshi &&
+  delivering`. When true, push writer B owns the bar + `liveBarRef`/`lastBarRef`; the Finnhub
+  writers early-return. **FOUR writer sites, indexed at the `barsPushActiveRef` declaration** —
+  A (livePrices tick), B (onRealtimeBar), C (registry), D (post-setData re-top). **Any new
+  developing-bar writer MUST consult barsPushActiveRef** (a missing guard = the Heikin-Ashi
+  raw-candle bug that shipped 2026-07-06). HA is EXCLUDED from push (needs the full-series
+  `toHeikinAshi()` recompute — falls back to the SWR path).
+- **`delivering` is recency-gated with hysteresis** (`barsStreamManager.js`): engage when a bar
+  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after 300s (`BARS_LIVE_DISENGAGE_MS`)
+  so a thin ticker doesn't thrash push↔Finnhub. A silent-but-heartbeating feed hands the bar back
+  to Finnhub within ~10s (watchdog `_notifyAllStatus`). NEVER make delivering sticky/no-recency.
+- **Rollout + revert.** `export const BARS_PUSH_ROLLOUT_PCT = 100` in `StockChart.jsx` = % of
+  browsers on push by default (stable per-browser bucket). Cohort narrow = lower it + deploy
+  (~10min). Full backend kill = `STREAM_BARS_ENABLED=0` + redeploy. **Instant per-browser:**
+  DevTools `window.__uctBarsPush(false)` (localStorage `uct.barsPush.enabled`='0'); pool kill =
+  `uct.barsPool.disabled`.
+- **Observability:** `GET /api/admin/bars-stream-status` (no-auth) — WS connected + subscribers +
+  `bars_emitted_total`/`bars_dropped_total`/`last_emit_age_s`. Flat emitted while subscribers>0
+  during RTH = "push silently dead, everyone fell back to Finnhub". Boot fingerprint:
+  `[startup] bars-push-rail: …`. `tools/market_open_chart_check.py` reads the stream directly
+  (the scheduled 9:45 ET agent's push-render proof).
+- **Env (web pod):** `STREAM_BARS_ENABLED=1` (backend push on) · `VITE_REALTIME_BARS=1`. Deliberately
+  NOT multi-worker (in-process SSE state). Deferred backlog (measure-first / insurance) in memory.
+
 ### Chart Settings System
 - `app/src/components/chart/chartDefaults.js` — schema, defaults, 3 presets (Classic Dark / OLED Black / TradingView)
 - `chart_settings` JSON blob stored server-side via `usePreferences` (`POST /api/auth/preferences`)
