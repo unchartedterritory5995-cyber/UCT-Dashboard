@@ -1,0 +1,74 @@
+/* EmptyState — compact (tile) and full (page) branded empty UI. Mirrors ErrorState. */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+}
+
+.wrapperFull {
+  composes: wrapper;
+  min-height: 50vh;
+  gap: var(--space-md);
+}
+
+.icon {
+  display: inline-flex;
+  user-select: none;
+  opacity: 0.9;
+}
+
+.title {
+  font-size: var(--text-base, 14px);
+  font-weight: 650;
+  color: var(--text-bright, var(--text));
+  margin: 0;
+  max-width: 340px;
+}
+
+.message {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0;
+}
+
+.hint {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+  opacity: 0.8;
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0;
+}
+
+.cta {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  min-height: var(--tap-min);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.cta:hover {
+  background: var(--ut-gold-glow);
+  border-color: var(--ut-gold);
+}
+.cta:active { transform: scale(0.97); }

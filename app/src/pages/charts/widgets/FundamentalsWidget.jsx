@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
+import SymbolSearch from '../../../components/chart/SymbolSearch'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
@@ -81,7 +82,7 @@ function QuarterBlock({ q }) {
 }
 
 export default function FundamentalsWidget({ color, opts, onOptsChange }) {
-  const { groupSyms } = useWorkspace()
+  const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
   // View choice persists per-widget through the workspace layout save path
@@ -92,7 +93,12 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
     onOptsChange?.({ ...(opts || {}), view: next })
   }, [opts, onOptsChange])
 
-  if (!sym) return <div className={styles.hint}>Pick a ticker (link this widget to a chart by color).</div>
+  if (!sym) return (
+    <div className={styles.pick}>
+      <div className={styles.hint}>Pick a ticker — or match a chart's color to follow it.</div>
+      <SymbolSearch sym={sym} onSymbolChange={(s) => s && setGroupSym(color, s.toUpperCase())} />
+    </div>
+  )
 
   const hasAnnual = data?.annual?.length
   const hasQ = data?.quarterly?.length

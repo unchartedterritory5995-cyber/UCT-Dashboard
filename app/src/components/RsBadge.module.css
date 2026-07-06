@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--font-mono, ui-monospace, "IBM Plex Mono", Consolas, monospace);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 8px 4px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.badge.sm { font-size: 12px; padding: 2px 6px; }
+
+.lab {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+  align-self: center;
+}
+
+/* RS is higher = stronger. Leadership reads green→gold; laggards read red. */
+.lead {
+  color: #6ee7a8;
+  background: rgba(74, 222, 128, 0.15);
+  border-color: rgba(74, 222, 128, 0.42);
+}
+.strong {
+  color: #b7d98a;
+  background: rgba(140, 190, 90, 0.13);
+  border-color: rgba(140, 190, 90, 0.34);
+}
+.neutral {
+  color: var(--gold-ink, #c9a84c);
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.34);
+}
+.lag {
+  color: #f0938c;
+  background: rgba(248, 113, 113, 0.13);
+  border-color: rgba(248, 113, 113, 0.38);
+}

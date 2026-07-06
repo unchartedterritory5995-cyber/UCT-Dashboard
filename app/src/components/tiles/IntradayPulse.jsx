@@ -33,20 +33,11 @@ export default function IntradayPulse() {
       <span className={styles.time}>{timeLabel} ET</span>
       <span className={styles.sep}>|</span>
       <span className={`${styles.phase} ${phaseBg(regime.phase)}`}>{regime.phase || '—'}</span>
-      {regime.exposure_pct != null && (
-        <>
-          <span className={styles.sep}>|</span>
-          <span className={styles.label}>Exposure</span>
-          <span className={styles.val}>{regime.exposure_pct}%</span>
-        </>
-      )}
-      {regime.distribution_days != null && (
-        <>
-          <span className={styles.sep}>|</span>
-          <span className={styles.label}>Dist Days</span>
-          <span className={styles.val}>{regime.distribution_days}</span>
-        </>
-      )}
+      {/* Exposure + Dist Days intentionally NOT shown here — the canonical daily
+          UCT Exposure lives in the MarketStatusBar chip + the MarketBreadth bar
+          (both from breadth.exposure.score). Showing this tile's intraday
+          regime.exposure_pct too made the signature rating disagree with itself
+          on one screen. IntradayPulse keeps session phase + notes. */}
       {data.ep_updates?.length > 0 && (
         <>
           <span className={styles.sep}>|</span>

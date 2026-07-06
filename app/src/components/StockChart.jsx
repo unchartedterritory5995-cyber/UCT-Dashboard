@@ -44,7 +44,7 @@ import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import UIcon from './ui/UIcon'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBackfill'
+import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 
 const NOOP = () => {}
 
@@ -242,6 +242,18 @@ function getETOffset() {
 }
 
 const _ET_OFFSET = getETOffset()
+
+// Phase C single-writer ENABLE gate — DEFAULT OFF. Even though VITE_REALTIME_BARS is
+// already '1' in prod, the developing bar is NOT handed to the Massive push writer
+// (and the Finnhub writers suppressed) until this runtime flag is opted in per browser.
+// So STREAM_BARS_ENABLED=1 alone activates nothing for anyone; the canary sets
+// localStorage 'uct.barsPush.enabled'='1'; full rollout flips the default later. This
+// is the instant, runtime revert the plan requires (VITE is compile-time, not instant).
+export function _barsPushEnabled() {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('uct.barsPush.enabled') === '1'
+  } catch { return false }
+}
 
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
@@ -570,6 +582,7 @@ export default function StockChart({
   watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
   watermarkPad = null,       // px inset used for BOTH the left/right gutter and the top when corner-pinned (Setup Library — even top-left gap). null = default (14px sides, flush top).
+  watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
   onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
@@ -1116,6 +1129,11 @@ export default function StockChart({
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
+  // Phase C single-writer gate (updated each render below the useRealtimeBars call).
+  // When true, the Massive push writer (onRealtimeBar) is the SOLE developing-bar
+  // writer and the Finnhub-fed writers (livePrices effect, registry, post-setData
+  // re-apply) early-return. A ref so those writers read the latest without re-subscribing.
+  const barsPushActiveRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
 
   // ── Extended hours toggle (regular session only vs all hours) ──
@@ -1666,13 +1684,13 @@ export default function StockChart({
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
-  // Viewport-first backfill: once we've bumped to the full depth, drop `since`
-  // so the server returns the full (older) range. `since` only returns the
-  // newer tail, which would never load the deep history the user panned to see.
-  // The bar count grows FIRST_PAINT_BARS→full and the existing same-ticker
-  // re-anchor (the `else if … lastBarCountRef.current !== filteredBars.length`
-  // branch in the zoom effect) holds the view steady across the swap.
-  if (fetchDepth >= _fullTarget || _pinnedFull) _sinceParam = null
+  // Viewport-first backfill: once we've bumped PAST the shallow first-paint depth
+  // (any progressive step, not only the full target), drop `since` so the server
+  // returns the full (older) range. `since` only returns the newer tail, which
+  // would never load the deep history the user panned to see — so a progressive
+  // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
+  // bar count grows and the existing same-ticker re-anchor holds the view steady.
+  if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
@@ -2691,6 +2709,11 @@ export default function StockChart({
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
     if (cs.heikinAshi) return
+    // Phase C single-writer: when the Massive push feed is authoritative, freeze this
+    // Finnhub tick writer ENTIRELY — no series write AND no latestLiveRef update (the
+    // post-setData re-apply reads latestLiveRef; a stale value there would repaint an
+    // old developing bar over the fresh push bar = the 30s seam the plan review flagged).
+    if (barsPushActiveRef.current) return
     // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
     // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
     // into liveBarRef.current.high or .low persists across setData() refreshes
@@ -2817,6 +2840,16 @@ export default function StockChart({
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return
+    // Never paint a live bar onto a historical replay (mirror of writers A + C). When
+    // push is authoritative B is THE writer, so without this it would append a live
+    // candle onto the replayed slice (review #4).
+    if (replayMode) return
+    // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
+    // dispatches by key, but never apply a bar that isn't ours — cross-symbol
+    // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
+    // here too (belt-and-suspenders against any future pool regression).
+    if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
+    if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -2859,25 +2892,33 @@ export default function StockChart({
           color: data.bar.c >= data.bar.o ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
         })
       }
-      // Sync the tick-logic refs so the next tick starts from authoritative state.
-      // Only sync if the AM bar matches the current developing/last bar's time —
-      // otherwise this is an older bar's update and shouldn't disturb live state.
-      if (liveBarRef.current && liveBarRef.current.time === tSec) {
-        liveBarRef.current = {
-          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+      // Sync the tick-logic refs. When push is the SOLE writer (barsPushActive), B
+      // OWNS these refs — create-or-advance for THIS bar UNCONDITIONALLY, so at a
+      // bucket rollover the refs follow the new bar even though the Finnhub writers
+      // are suppressed (match-only sync would leave liveBarRef pinned to the prior
+      // bucket = the rollover gap the plan review flagged). Otherwise keep the
+      // conservative match-only sync (the Finnhub path still owns geometry).
+      if (barsPushActiveRef.current) {
+        liveBarRef.current = { time: tSec, open: o, high: h, low: l, close: c }
+        lastBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
+      } else {
+        if (liveBarRef.current && liveBarRef.current.time === tSec) {
+          liveBarRef.current = {
+            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+          }
         }
-      }
-      if (lastBarRef.current && lastBarRef.current.time === tSec) {
-        lastBarRef.current = {
-          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
-          volume: data.bar.v,
+        if (lastBarRef.current && lastBarRef.current.time === tSec) {
+          lastBarRef.current = {
+            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+            volume: data.bar.v,
+          }
         }
       }
     } catch {
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
     }
-  }, [cs.chartType])
+  }, [cs.chartType, sym, resolvedTf, replayMode])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
@@ -2901,12 +2942,40 @@ export default function StockChart({
       })
   }, [sym, resolvedTf, onRealtimeBar])
 
-  useRealtimeBars({
-    symbol: realtimeTfEligible && liveUpdates ? sym : null,
-    tf: realtimeTfEligible && liveUpdates ? resolvedTf : null,
+  // Reactivity for the canary flag: setting/clearing localStorage 'uct.barsPush.enabled'
+  // takes effect on the next render with NO page reload (the plan's instant runtime
+  // revert). 'storage' fires cross-tab; a same-tab write dispatches 'uct-barspush-change'.
+  const [, _bumpPushGate] = useState(0)
+  useEffect(() => {
+    const onChange = (e) => {
+      if (!e || e.key == null || e.key === 'uct.barsPush.enabled' || e.type === 'uct-barspush-change') {
+        _bumpPushGate(n => n + 1)
+      }
+    }
+    window.addEventListener('storage', onChange)
+    window.addEventListener('uct-barspush-change', onChange)
+    return () => {
+      window.removeEventListener('storage', onChange)
+      window.removeEventListener('uct-barspush-change', onChange)
+    }
+  }, [])
+
+  // ONLY canary browsers (localStorage 'uct.barsPush.enabled'='1') subscribe to the
+  // bars pool, so STREAM_BARS_ENABLED=1 is truly user-neutral (review blocker #1): a
+  // non-canary browser opens no connection and paints no push bar. VITE_REALTIME_BARS
+  // is an additional compile-time cohort gate inside the hook.
+  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates
+  const _barsPush = useRealtimeBars({
+    symbol: _pushOptIn ? sym : null,
+    tf: _pushOptIn ? resolvedTf : null,
     onBar: onRealtimeBar,
     onReconnect: onRealtimeReconnect,
   })
+  // Single-writer gate: engage push ONLY when opted-in, AND the pool is actually
+  // DELIVERING recent bars for this (sym,tf) — never suppress the Finnhub writers on a
+  // merely-connected or silently-frozen feed (that would freeze the candle while ● LIVE
+  // still shows). delivering is bar-recency-gated in barsStreamManager.
+  barsPushActiveRef.current = _pushOptIn && _barsPush.delivering
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -3114,6 +3183,7 @@ export default function StockChart({
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPad } : {}),
+        hardCenterXPx: watermarkCenterX,
       })
     }
 
@@ -3233,10 +3303,24 @@ export default function StockChart({
       if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
     }
 
-    // Re-apply live price immediately after setData() to prevent snap-back.
-    // setData() overwrites with API data (stale by seconds/minutes), so we
-    // re-apply the latest WebSocket tick to keep the current candle accurate.
-    if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
+    // Re-apply the live developing bar immediately after setData() to prevent snap-back —
+    // setData() overwrites with API data (stale by seconds/minutes).
+    if (barsPushActiveRef.current) {
+      // Push is authoritative: re-top with the PUSH-owned developing bar (liveBarRef,
+      // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
+      // the ~30s-stale server developing bar from _applyData would seam every SWR poll
+      // (review #7). Guard time-regress (server tail may be ahead of the last push bar).
+      const lb = liveBarRef.current
+      if (lb && lb.time != null && Number.isFinite(lb.close) && lb.close > 0) {
+        try {
+          if (isOhlcType(cs.chartType)) {
+            candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
+          } else {
+            candleSeriesRef.current.update({ time: lb.time, value: lb.close })
+          }
+        } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
+      }
+    } else if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
       const lp = latestLiveRef.current.price
       const tickSec = latestLiveRef.current.updated_at
       const last = lastBarRef.current
@@ -5563,7 +5647,12 @@ export default function StockChart({
           loadedCount: lastBarCountRef.current,
           fullTarget: _fullTarget,
         })) {
-          setFetchDepth(_fullTarget)
+          // Progressive: step to the next depth tier, not straight to full. A
+          // deep intraday jump (600->20000) is a single ~20s fetch before any
+          // history appears; stepping lands a fast first chunk and only fetches
+          // full if the user keeps panning past it. The re-anchor holds the view
+          // across each step. (D/W/M reach full in one step or via dwell-warm.)
+          setFetchDepth(d => nextBackfillDepth(d, _fullTarget))
         }
       })
     }
@@ -5655,6 +5744,9 @@ export default function StockChart({
 
     const update = () => {
       if (!candleSeriesRef.current) return
+      // Phase C: the Finnhub-fed registry is suppressed when the Massive push feed
+      // is the authoritative developing-bar writer (onRealtimeBar owns it).
+      if (barsPushActiveRef.current) return
       const candle = realtimeCandle.getCandle(sym, '1')
       if (!candle) return
       const price = candle.c
@@ -5668,6 +5760,14 @@ export default function StockChart({
           // Registry's 1m candle IS the developing bar. Apply it directly,
           // but offset to ET like all other series timestamps.
           const tSec = candle.t + _ET_OFFSET
+          // Never apply a BACKWARDS update. The SSE tick feed and the 30s REST/SWR
+          // poll have different latencies, so at a minute rollover the registry can
+          // momentarily lag the series' newest bar; a stale/lagged tick applied at an
+          // older time throws LWC "Cannot update oldest data" (once/minute console
+          // spam) and is lost anyway. Skip it — equal time updates in place, newer
+          // appends a legit new bar. (The deeper single-writer fix is Phase C.)
+          const _lastT = lastBarRef.current?.time
+          if (typeof _lastT === 'number' && tSec < _lastT) return
           if (useOhlc) {
             candleSeriesRef.current.update({
               time: tSec,
@@ -5720,7 +5820,12 @@ export default function StockChart({
           lastBarRef.current = { ...updated, volume: last.volume }
         }
       } catch (e) {
-        if (e?.message) console.warn('[StockChart] registry tick update error:', e.message)
+        // "Cannot update oldest data" is the benign rollover race guarded above (the
+        // candle is never corrupted — LWC just refuses the backwards write). Don't
+        // spam the console for it; surface any other, genuinely unexpected error.
+        if (e?.message && !/oldest data/i.test(e.message)) {
+          console.warn('[StockChart] registry tick update error:', e.message)
+        }
       }
     }
 

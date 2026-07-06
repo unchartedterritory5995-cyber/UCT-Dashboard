@@ -53,7 +53,8 @@ const NAV_SECTIONS = [
   },
 ]
 
-const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
+// Keep in sync with FREE_PAGES in AuthGuard.jsx + NavBar.jsx.
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function MoreSheet({ open, onClose }) {
@@ -109,27 +110,33 @@ export default function MoreSheet({ open, onClose }) {
 
       <div className={styles.list}>
         {NAV_SECTIONS.map((section) => {
-          const items = showAll ? section.items : section.items.filter((i) => FREE_PAGES.includes(i.to))
-          if (items.length === 0) return null
+          // Show every tool. Paid ones a free user can't open are dimmed + locked
+          // and route to the upgrade page instead of being hidden.
           return (
             <div key={section.label} className={styles.section}>
               <div className={styles.sectionLabel}>{section.label}</div>
-              {items.map((l) => (
-                <button
-                  key={l.to}
-                  type="button"
-                  className={`${styles.item} ${isActive(l.to) ? styles.active : ''}`}
-                  aria-current={isActive(l.to) ? 'page' : undefined}
-                  onClick={() => go(l.to)}
-                >
-                  <span className={styles.icon} aria-hidden="true"><UIcon name={l.icon} size={20} /></span>
-                  <span className={styles.itemLabel}>{l.label}</span>
-                  {l.to === '/journal' && compassUnread > 0 && (
-                    <span className={styles.badge}>{compassUnread > 9 ? '9+' : compassUnread}</span>
-                  )}
-                  <span className={styles.chev} aria-hidden="true"><UIcon name="chevronRight" size={16} /></span>
-                </button>
-              ))}
+              {section.items.map((l) => {
+                const locked = !showAll && !FREE_PAGES.includes(l.to)
+                return (
+                  <button
+                    key={l.to}
+                    type="button"
+                    className={`${styles.item} ${isActive(l.to) ? styles.active : ''} ${locked ? styles.locked : ''}`}
+                    aria-current={isActive(l.to) ? 'page' : undefined}
+                    aria-label={locked ? `${l.label} — unlock with Pro` : undefined}
+                    onClick={() => go(locked ? '/subscribe' : l.to)}
+                  >
+                    <span className={styles.icon} aria-hidden="true"><UIcon name={l.icon} size={20} /></span>
+                    <span className={styles.itemLabel}>{l.label}</span>
+                    {!locked && l.to === '/journal' && compassUnread > 0 && (
+                      <span className={styles.badge}>{compassUnread > 9 ? '9+' : compassUnread}</span>
+                    )}
+                    <span className={styles.chev} aria-hidden="true">
+                      <UIcon name={locked ? 'lock' : 'chevronRight'} size={16} />
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )
         })}

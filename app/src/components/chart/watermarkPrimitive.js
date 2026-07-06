@@ -30,13 +30,29 @@ const EDGE_PAD = 14
 // padX = left/right gutter (default 14); padTop = top gutter (default 0, i.e.
 // flush to the pane top). Callers can raise padTop to match padX for an even
 // top-left corner inset (Setup Library).
-export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0) {
-  const cx = pos.x * mediaSize.width
+//
+// hardCenterXPx (px from the pane's left edge, nullable): when set, the block's
+// horizontal CENTRE is pinned to this ABSOLUTE offset and is NOT edge-clamped.
+// An absolute offset (not a fraction) keeps the watermark tucked the same fixed
+// distance from the top-left corner no matter how wide the pane is — a fraction
+// drifts toward the middle on a wide pane. It also keeps every ticker's centre
+// in the identical spot regardless of the widest line's width (long company /
+// industry names), so the mark doesn't appear to move as you scroll tickers.
+// The edge-clamped `padX` path (default) instead keeps a fixed gutter and lets
+// the centre move with width.
+export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null) {
   const cy = pos.y * mediaSize.height
-  let x = cx - block.w / 2
   let y = cy - block.h / 2
-  x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
   y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
+  let x
+  if (hardCenterXPx != null) {
+    // Exact centre — no horizontal clamp, so the centre never shifts by width.
+    x = hardCenterXPx - block.w / 2
+  } else {
+    const cx = pos.x * mediaSize.width
+    x = cx - block.w / 2
+    x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
+  }
   return { x, y, w: block.w, h: block.h }
 }
 
@@ -48,7 +64,7 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
@@ -72,7 +88,7 @@ export function createWatermarkPrimitive(initial) {
         if (!opts.lines.length || opts.opacity <= 0) { lastRect = null; return }
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const block = measureBlock(ctx)
-          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop)
+          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXPx)
           lastRect = rect
           const [r, g, b] = hexToRgb(opts.color)
           const alpha = armed ? Math.min(1, opts.opacity * 2.4) : opts.opacity

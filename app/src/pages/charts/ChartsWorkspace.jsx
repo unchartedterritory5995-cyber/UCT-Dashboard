@@ -72,6 +72,20 @@ function nextColor(currentColors) {
   return 'A'
 }
 
+// Color to assign a NEWLY added widget. Prefer the group of an existing chart
+// that already has a symbol (so the new widget lands on the ticker you're
+// looking at — not an empty group showing a blank Fundamentals panel or a chart
+// stuck on the SPY fallback). Fall back to the first populated group, then to
+// the next free color for a genuinely empty board.
+function pickWidgetColor(widgets, groupSyms) {
+  const g = groupSyms || {}
+  const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
+  if (chartW) return chartW.color
+  const anyW = widgets.find((w) => g[w.color])
+  if (anyW) return anyW.color
+  return nextColor(widgets.map((w) => w.color))
+}
+
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref } = usePreferences()
@@ -200,8 +214,7 @@ export default function ChartsWorkspace() {
 
   const handleAddWidget = useCallback((type) => {
     setLayout(prev => {
-      const usedColors = prev.widgets.map(w => w.color)
-      const color = nextColor(usedColors)
+      const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
       // Place into the first logical open spot (row-major scan), not column 0:
       // RGL vertical compaction preserves x, so a hardcoded x:0 stacks new
@@ -219,7 +232,7 @@ export default function ChartsWorkspace() {
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave])
+  }, [scheduleSave, groupSyms])
 
   const handleResetLayout = useCallback(() => {
     setLayout(DEFAULT_LAYOUT)

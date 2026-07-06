@@ -79,12 +79,13 @@ export default function AuthGuard() {
     return <Navigate to="/verify-pending" replace />
   }
 
-  // Free tier: ONLY these four pages are accessible without a paid plan.
-  // Keep in sync with FREE_PAGES in NavBar.jsx + MobileNav.jsx.
-  const FREE_PAGES = ['/breadth', '/charts', '/options-flow', '/journal']
-  // Where to bounce a non-paid user who hits a locked page. MUST be a free
-  // page — bouncing to /dashboard (now paid-only) would infinite-loop.
-  const FREE_HOME = '/breadth'
+  // Free tier: these pages are accessible without a paid plan. Matches the
+  // Landing page's "five tools, no card required" promise (Dashboard + Breadth
+  // + Charts + Options Flow + Journal) plus the free Model Book library.
+  // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
+  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
+  // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
+  const FREE_HOME = '/dashboard'
 
   // Admin-only pages
   if (location.pathname.startsWith('/admin') && user.role !== 'admin') {

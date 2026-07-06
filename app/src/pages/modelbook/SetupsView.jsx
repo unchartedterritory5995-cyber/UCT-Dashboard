@@ -197,12 +197,9 @@ function RailRow({ setup, active, expanded, onSelect, onLearn }) {
       onClick={() => onSelect(setup)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(setup) } }}
     >
-      <span className={styles.railText}>
-        <span className={styles.railNameRow}>
-          <span className={`${styles.railDot} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
-          <span className={styles.railName}>{setup.name}</span>
-        </span>
-        <span className={styles.railEssence}>{setup.essence}</span>
+      <span className={styles.railNameRow}>
+        <span className={`${styles.railDot} ${styles['railDir_' + dir.cls]}`} title={dir.label} aria-hidden="true" />
+        <span className={styles.railName}>{setup.name}</span>
       </span>
       <span className={styles.railAside}>
         <button
@@ -213,8 +210,8 @@ function RailRow({ setup, active, expanded, onSelect, onLearn }) {
         >
           Learn more
         </button>
-        <span className={`${styles.railCaret} ${expanded ? styles.railCaretOpen : ''}`} aria-hidden="true">▾</span>
       </span>
+      <span className={styles.railEssence}>{setup.essence}</span>
     </div>
   )
 }
@@ -784,10 +781,11 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           volumeMa={50}
           priceScaleTopMargin={0.07}
           priceScaleBottomMargin={0.07}
-          watermarkOpacity={0.62}
+          watermarkOpacity={0.82}
           watermarkX={0}
           watermarkY={0}
           watermarkPad={24}
+          watermarkCenterX={175}
           onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
           watermarkSector={ex.sector || null}
@@ -895,8 +893,12 @@ function DetailStage({ setup, scrollReq, onLearn }) {
         </div>
       </div>
 
-      {/* Charted examples — full width */}
-      <div className={styles.stageExamplesFull}>
+      {/* Charted examples — full width. Mandatory snapping keeps each example a
+          whole-chart slide, but it fights the tall "+ Add Example" form (not a
+          snap point + taller than the viewport → scroll gets yanked back to the
+          nearest chart). Drop snapping while the form is open so it scrolls
+          freely. */}
+      <div className={`${styles.stageExamplesFull} ${adding ? styles.stageExamplesFullNoSnap : ''}`}>
         <ExamplesPane
           setup={setup}
           scrollReq={scrollReq}

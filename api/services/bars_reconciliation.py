@@ -301,22 +301,46 @@ def _detect_only_pairs() -> list[tuple[str, str]]:
     return pairs
 
 
+def _current_session_date_key() -> int:
+    """Today's date in ET as a YYYYMMDD int — matches the audit's daily bar key."""
+    import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        now = _dt.datetime.now(ZoneInfo("America/New_York"))
+    except Exception:  # pragma: no cover
+        now = _dt.datetime.utcnow()
+    return now.year * 10000 + now.month * 100 + now.day
+
+
 def _run_detect_only(audit) -> None:
     """Audit the detect-only TFs (Daily) and RECORD fail-severity drift WITHOUT
     healing. Zero deletion → cannot mis-heal the default timeframe; pure
     visibility into whether Daily ever drifts."""
+    today_key = _current_session_date_key()
     for ticker, tf in _detect_only_pairs():
         try:
             result = audit.audit_ticker(ticker, tf, bars=_BARS_PER_AUDIT)
-            if result.error or result.fail_count <= 0:
+            if result.error:
                 continue
-            bad_ts = sorted({d.timestamp for d in result.diffs if d.severity == "fail"})
+            # Exclude the CURRENT-SESSION developing daily bar: during RTH it is
+            # legitimately in flux, so comparing it to canonical at a random instant
+            # is noisy and self-correcting — it produced false detect-only drift on
+            # NVDA/AAPL at the 2026-07-06 open (right after a cold-restart ingestion
+            # warmup). Only CLOSED daily bars are real, actionable drift.
+            fails = [d for d in result.diffs
+                     if d.severity == "fail" and not (tf == "D" and d.timestamp == today_key)]
+            if not fails:
+                continue
+            fail_count = len(fails)
+            warn_count = sum(1 for d in result.diffs
+                             if d.severity == "warn" and not (tf == "D" and d.timestamp == today_key))
+            bad_ts = sorted({d.timestamp for d in fails})
             _logger.warning(
                 "[reconcile] DETECT-ONLY DRIFT %s/%s: %d fail / %d warn — NOT healed "
-                "(default-TF, investigate); sample ts=%s",
-                ticker, tf, result.fail_count, result.warn_count, bad_ts[:5],
+                "(default-TF, closed bars only, investigate); sample ts=%s",
+                ticker, tf, fail_count, warn_count, bad_ts[:5],
             )
-            _record_detect_drift(ticker, tf, result.fail_count, result.warn_count, bad_ts)
+            _record_detect_drift(ticker, tf, fail_count, warn_count, bad_ts)
             # Route to the same ops alert channel the intraday watchdog uses, so a
             # real daily-drift event pages someone instead of hiding in logs.
             try:
@@ -324,9 +348,9 @@ def _run_detect_only(audit) -> None:
                 chart_health_alerts.emit(
                     "daily_drift_detected",
                     "warn",
-                    f"{ticker}/{tf}: {result.fail_count} daily bar(s) diverge from canonical "
-                    f"(detect-only, not auto-healed) — investigate",
-                    {"ticker": ticker, "tf": tf, "fail_count": result.fail_count,
+                    f"{ticker}/{tf}: {fail_count} daily bar(s) diverge from canonical "
+                    f"(detect-only, closed bars, not auto-healed) — investigate",
+                    {"ticker": ticker, "tf": tf, "fail_count": fail_count,
                      "sample_ts": bad_ts[:5]},
                 )
             except Exception:

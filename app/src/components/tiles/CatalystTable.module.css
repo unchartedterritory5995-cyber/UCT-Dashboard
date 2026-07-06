@@ -62,7 +62,14 @@
   padding: 24px 12px;
   font-size: 12px;
   color: var(--text-muted);
+  line-height: 1.7;
 }
+.emptyLink {
+  color: var(--gold, #c9a84c);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.emptyLink:hover { text-decoration: underline; }
 
 .tableWrap {
   width: 100%;

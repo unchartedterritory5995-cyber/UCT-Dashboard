@@ -7,6 +7,7 @@ import { timeAgo, formatET } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import CompanyLogo from '../CompanyLogo'
 import { useAuth } from '../../context/AuthContext'
+import useMarketOpen from '../../hooks/useMarketOpen'
 import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
@@ -294,6 +295,7 @@ export default function CatalystTable() {
   const { data, mutate, isValidating } = useCatalysts()
   const auth = useAuth() || {}
   const isAdmin = auth?.user?.role === 'admin'
+  const { isOpen, isPremarket } = useMarketOpen()
   const myTickers = useUserTickerSet()
   const [refreshing, setRefreshing] = useState(false)
   const [activeTags, setActiveTags] = useState(new Set(ALL_TAGS))
@@ -543,7 +545,13 @@ export default function CatalystTable() {
 
       {allRows.length === 0 ? (
         <div className={styles.empty}>
-          No catalysts yet. Click the ↻ refresh button to pull fresh data.
+          {isOpen
+            ? "Scanning today's tape — no catalysts have surfaced yet. They populate as the session develops."
+            : isPremarket
+              ? 'Pre-market scan in progress — catalysts fill in ahead of the 9:30 AM ET open.'
+              : 'Markets are closed. The next catalyst scan runs pre-market, before the open.'}
+          {' '}
+          <a href="/catalysts/history" className={styles.emptyLink}>Browse recent days →</a>
         </div>
       ) : filteredRows.length === 0 ? (
         <div className={styles.empty}>

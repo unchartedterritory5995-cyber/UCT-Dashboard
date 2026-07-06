@@ -1,5 +1,6 @@
 import CompanyLogo from '../../components/CompanyLogo'
 import SymbolSearch from '../../components/chart/SymbolSearch'
+import RsBadge from '../../components/RsBadge'
 import RatingBadges from './RatingBadges'
 import styles from './ResearchPage.module.css'
 
@@ -21,6 +22,9 @@ export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChang
         <div className={styles.hdrSub}>
           {[meta?.exchange, meta?.sector, meta?.industry].filter(Boolean).join(' · ')}
         </div>
+      </div>
+      <div className={styles.hdrRs}>
+        <RsBadge sym={sym} />
       </div>
       <div className={styles.hdrPx}>
         {live?.price != null && (

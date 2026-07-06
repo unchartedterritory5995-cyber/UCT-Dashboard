@@ -1041,6 +1041,94 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
+    # ─── Noise filter 0: Spot-independent deep-ITM heuristic ────────────────
+    # When Spot is missing (backfilled historical data), the % from spot
+    # can't be computed. Fall back to a heuristic using option price vs
+    # strike: deep-ITM options are priced near their intrinsic value,
+    # which is a large fraction of the strike.
+    #
+    # Example: CSCO $80c at $32.5 → price/strike = 40.6% → clearly deep
+    # ITM (spot must be ~$112). Normal near-money calls are 2-5% of strike.
+    #
+    # Combined with DTE < 90 to avoid false-positives on LEAPS that
+    # legitimately have high time-value prices.
+    #
+    # Only fires when: Type is BLOCK AND price >= 15% of strike AND
+    # DTE < 90. This is spot-independent so it works on 7/2 backfill
+    # data where the strike/spot filter can't fire.
+    type_str_for_early = (row.get("Type") or "").upper().strip()
+    is_block_for_early = type_str_for_early == "BLOCK" or "BLK" in type_str_for_early
+    if is_block_for_early and strike > 0 and price > 0 and dte < 90:
+        price_strike_ratio = price / strike
+        if price_strike_ratio >= 0.15:
+            return None  # deep-ITM BLOCK detected via price/strike heuristic
+
+    # ─── Noise filter 1: Deep-money classification (matches OptionsFlow.jsx) ─
+    # Ports the exact isDeep + BLK-filter logic that OptionsFlow uses to
+    # kill CSCO $80c-style noise (spot $112, 28.8% ITM BLOCKs at $32.5 =
+    # arb/rebalancing spread legs, not directional).
+    #
+    # isDeep threshold varies by type:
+    #   - BLOCK: 10% from spot (more aggressive; blocks at moderate ITM
+    #     depth are usually spread legs)
+    #   - SWEEP: 20% from spot (kept as "urgency" unless very deep)
+    #
+    # Filter rules:
+    #   1. Deep ITM BLOCK → FILTER (arb/rebalancing)
+    #   2. Very deep ITM SWEEP (intrinsic > 50% spot) → FILTER (synthetic roll,
+    #      matches AXTI $130p at spot $55 case)
+    #   3. Deep ITM SWEEP at 20-50% ITM → KEEP (urgency signal)
+    #
+    # Only applies when spot > 0. Missing spot skips this check (but
+    # noise filter 0 above catches the deep-ITM BLOCK case via
+    # price/strike heuristic).
+    type_str = (row.get("Type") or "").upper().strip()
+    is_block = type_str == "BLOCK" or "BLK" in type_str
+    is_sweep = type_str == "SWEEP" or "SWP" in type_str or "SWEEP" in type_str
+    if spot > 0 and strike > 0:
+        pct_from_spot = abs(strike - spot) / spot * 100.0
+        is_deep_by_type = pct_from_spot >= (10.0 if is_block else 20.0)
+        is_itm = (cp_full == "CALL" and strike < spot) or (cp_full == "PUT" and strike > spot)
+        if is_deep_by_type and is_itm:
+            # Rule 1: Deep ITM BLOCK → always filter (arb/rebalancing/spread leg)
+            if is_block:
+                return None
+            # Rule 2: Very deep ITM SWEEP (intrinsic > 50% spot) → filter
+            if cp_full == "CALL":
+                intrinsic = spot - strike
+            elif cp_full == "PUT":
+                intrinsic = strike - spot
+            else:
+                intrinsic = 0
+            if intrinsic > spot * 0.5:
+                return None  # synthetic roll
+
+    # ─── Noise filter 2: Deep-OTM lottery ticket ─────────────────────────────
+    # Trades that are >40% OTM AND have DTE < 365 are lottery tickets.
+    # Legitimate deep-OTM LEAPS (DTE≥365) are institutional tail hedges
+    # and should stay. Short-dated deep-OTM is retail gambling — high
+    # noise, low signal. Matches OptionsFlow's deep-OTM guard.
+    if spot > 0 and dte < 365:
+        if cp_full == "CALL" and strike > spot * 1.4:
+            return None  # >40% OTM call, short-dated → lottery
+        if cp_full == "PUT" and strike < spot * 0.6:
+            return None  # >40% OTM put, short-dated → lottery
+
+    # ─── Noise filter 3: BBS-format ML/ skip ─────────────────────────────────
+    # Distinguish real multi-leg spreads from Massive's aggregation label:
+    #   - BBS ML/ (real spread legs): comes with populated OI (BBS enriches
+    #     upstream). Each leg emitted with side classification. These ARE
+    #     legit spread activity — not directional, should be skipped from
+    #     directional tiers.
+    #   - Massive ML/ (aggregation catch-all): ingests with OI=0. Often
+    #     misclassified multi-exchange sweeps that should be rescued.
+    #
+    # If Type='ML/' AND OI>0, it's a BBS-format spread leg. Skip from
+    # directional tier assignment (would still land in algo tier via
+    # tier detection, which is always excluded from curated).
+    if type_str == "ML/" and oi > 0:
+        return None  # BBS-format spread leg, not a directional signal
+
     result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
@@ -1348,6 +1436,51 @@ def recent_massive_alerts(
                 skipped_curated += 1
         all_alerts = kept
 
+        # ─── Contract-level dedupe (added 2026-07-05) ────────────────────
+        # In curated mode, collapse multiple alerts on the same contract
+        # (ticker + cp + strike + exp) to a single representative row. Fixes
+        # the "Alpha Gold fired 20 times on same CSCO $80c" symptom where
+        # each raw print became its own alert badge.
+        #
+        # Representative selection: highest-premium row wins (keeps its
+        # timestamp, side, type). Premium and volume aggregate across the
+        # group so downstream displays show the contract-level total.
+        # _hitCount was already set to the true group size in the earlier
+        # pass so the ×N badge still reflects raw activity.
+        #
+        # Only in curated mode — All Flow stays raw firehose for tape
+        # scanning where every print matters.
+        by_contract: dict = {}
+        for a in all_alerts:
+            k = f"{a.get('ticker')}|{a.get('cp')}|{a.get('strike')}|{a.get('exp')}"
+            entry = by_contract.get(k)
+            if entry is None:
+                by_contract[k] = {
+                    "rep": a,
+                    "premium_sum": a.get("alertPremium") or 0,
+                    "volume_sum": a.get("tradeSize") or 0,
+                }
+            else:
+                entry["premium_sum"] += a.get("alertPremium") or 0
+                entry["volume_sum"] += a.get("tradeSize") or 0
+                # Promote to new representative if higher premium
+                if (a.get("alertPremium") or 0) > (entry["rep"].get("alertPremium") or 0):
+                    entry["rep"] = a
+        deduped = []
+        for k, entry in by_contract.items():
+            rep = dict(entry["rep"])  # shallow copy so we don't mutate original
+            rep["alertPremium"] = entry["premium_sum"]
+            rep["tradeSize"] = entry["volume_sum"]
+            deduped.append(rep)
+        # Preserve prior sort order (conviction / premium / recent) on deduped set
+        if sort_by == "conviction":
+            deduped.sort(key=lambda a: a.get("convictionScore") or 0, reverse=True)
+        elif sort_by == "premium":
+            deduped.sort(key=lambda a: a.get("alertPremium") or 0, reverse=True)
+        else:  # recent — use timestamp
+            deduped.sort(key=lambda a: a.get("timestamp") or 0, reverse=True)
+        all_alerts = deduped
+
     alerts = all_alerts[:limit]
 
     status = _get_worker_status()
@@ -1502,6 +1635,18 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     directional even when one leg happens to print at ask, so excluding them
     gives a cleaner "directional conviction only" read.
     """
+    # Include WHITE rows that could pass premium override in _row_to_alert,
+    # mirroring the same visibility rule /recent uses (line 1360-1378). Without
+    # this, on days where the classifier didn't lift anything to MAGENTA/YELLOW
+    # (e.g. 7/2 backfill where every row landed WHITE because OI=0 at write
+    # time), the alert list shows N alerts via premium override but this card
+    # reports "0 alerts" — a visibility mismatch that misrepresents the day.
+    #
+    # Absolute SQL floor of $500K is conservative; the actual premium_override
+    # threshold gate lives in _derive_alert_name and is stricter. Loading a few
+    # extra WHITE rows here that get dropped in _row_to_alert costs microseconds
+    # per row and keeps the two code paths visually consistent.
+    override_sql_floor = 500_000
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -1512,8 +1657,9 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
               FROM flow
              WHERE source = 'stocks'
                AND CreatedDate = ?
-               AND Color IN ('MAGENTA', 'YELLOW')
-        """, (today,))
+               AND (Color IN ('MAGENTA', 'YELLOW')
+                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+        """, (today, override_sql_floor))
         rows = cur.fetchall()
     finally:
         conn.close()
@@ -2155,5 +2301,397 @@ def side_diagnostic(target_date: str = Query(default=None, description="Trading 
             "Common causes: trades printing mid-market (Lee-Ready can't decide), "
             "NBBO data stale, Q subscription not active, or first trade on a "
             "contract before raw print history existed."
+        ),
+    }
+
+
+# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no Schwab) ──
+# The frontend "fetch OI" button was previously wired to /api/oi-snapshot/
+# bulk-fetch, which tries snapshot lookup with an incorrect key format then
+# falls through to Schwab options_quotes_batch for the (100%) miss set.
+# For historical views (?date=<past>) Schwab returns nothing — its quotes
+# API is current-only — and the underlying HTTP call has no timeout on that
+# code path, so the endpoint hangs indefinitely. Symptom: button spinner
+# never resolves, subsequent /recent requests back up behind the stuck
+# call due to SQLite lock contention.
+#
+# This endpoint is the surgical replacement:
+#   1. Snapshot table ONLY. Never touches Schwab, so no hang risk.
+#   2. Uses the contract_key format proven correct by tonight's confirmation-
+#      map endpoint (`TICKER|C_or_P|STRIKE.0|M/D/YYYY`), with the same 7-
+#      variant probe fallback if that format ever changes.
+#   3. Optional target_date param clamps snap_date <= target_date so
+#      historical views return pre-trade OI (not lookahead post-trade OI).
+#   4. Batched query pattern from confirmation-map (400 keys per IN clause)
+#      keeps this fast even at 1000+ contracts.
+#
+# The daily snapshot job runs at 5:30 UTC (1:30 AM ET), so for any historical
+# view of date D the "latest snap <= D" returns D's row, which was written at
+# 1:30 AM ET the morning of D and holds D-1's EOD OI — exactly the pre-trade
+# figure we want to show in the priorOI column.
+
+@router.post("/enrich-oi")
+async def enrich_oi(
+    request: Request,
+    target_date: str = Query(default=None, description="M/D/YYYY. Clamp lookup to snap_date <= this date so historical views return pre-trade OI instead of post-trade lookahead. Omit for latest available."),
+):
+    """Enrich a batch of contracts with prior OI from contract_oi_snapshots.
+
+    Request body: bare JSON array of contracts:
+        [{"ticker": "MU", "cp": "C", "strike": 1000, "exp": "9/18/2026"},
+         {"ticker": "BE", "cp": "P", "strike": 250, "exp": "7/17/2026"},
+         ...]
+
+    Query param:
+        target_date=7/2/2026  →  return latest snap where snap_date <= 7/2/2026
+        (omit)                →  return latest snap overall for each contract
+
+    Response:
+        {
+            "ok": true,
+            "results": [
+                {"ticker": "MU", "cp": "C", "strike": 1000,
+                 "exp": "9/18/2026", "oi": 4287, "snap_date": "2026-07-02"},
+                ...
+            ],
+            "total_requested": 30,
+            "matched": 28,
+            "unmatched": 2,
+            "matched_variant_examples": ["MU|C|1000.0|9/18/2026"],
+            "target_date": "7/2/2026"
+        }
+
+    Missing contracts (no snapshot ever recorded, or all snapshots later
+    than target_date) are silently omitted from `results` — the caller
+    already knows what it asked for and can diff request vs response.
+    Format detection failures return the same shape with matched=0 and
+    an empty matched_variant_examples list.
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"invalid JSON body: {e}")
+
+    # Accept bare list (JSX current shape) or {contracts: [...]} for parity
+    # with confirmation-map. Some future clients may prefer the wrapped form.
+    if isinstance(body, list):
+        contracts = body
+    elif isinstance(body, dict):
+        contracts = body.get("contracts") or []
+    else:
+        contracts = []
+
+    if not contracts:
+        return {"ok": False, "error": "No contracts provided",
+                "results": [], "total_requested": 0, "matched": 0}
+    if len(contracts) > 5000:
+        raise HTTPException(status_code=400,
+                            detail="Too many contracts (limit 5000)")
+
+    def _iso(date_str: str) -> str:
+        s = (date_str or "").strip()
+        if not s:
+            return ""
+        parts = s.split("/")
+        if len(parts) == 3:
+            m, d, y = parts[0], parts[1], parts[2]
+            if len(y) == 2:
+                y = "20" + y
+            try:
+                return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+            except Exception:
+                return s
+        return s
+
+    def _key_variants(c: dict) -> list[str]:
+        """Candidate storage formats for contract_key. Verified format first."""
+        sym = str(c.get("ticker") or c.get("sym") or "").upper().strip()
+        cp = str(c.get("cp") or "").upper().strip()
+        cp_letter = cp[0] if cp else ""
+        cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
+        strike = c.get("strike")
+        try:
+            strike_num = float(strike)
+            if strike_num == int(strike_num):
+                strike_1dp = f"{int(strike_num)}.0"
+                strike_int = f"{int(strike_num)}"
+            else:
+                strike_1dp = f"{strike_num}"
+                strike_int = f"{strike_num}"
+        except (TypeError, ValueError):
+            strike_1dp = str(strike) if strike is not None else ""
+            strike_int = strike_1dp
+        expiry_raw = str(c.get("exp") or c.get("expiry") or "").strip()
+        expiry_iso = _iso(expiry_raw)
+        return [
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_raw}",   # verified: BE|C|370.0|9/18/2026
+            f"{sym}|{cp_letter}|{strike_int}|{expiry_raw}",   # BE|C|370|9/18/2026
+            f"{sym}|{cp_word}|{strike_1dp}|{expiry_raw}",
+            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_iso}",
+            f"{sym}|{cp_word}|{strike_int}|{expiry_raw}",
+            f"{sym} {cp_letter} {strike_1dp} {expiry_raw}",
+            f"{sym}_{cp_letter}_{strike_1dp}_{expiry_iso}",
+        ]
+
+    def _echo_key(c: dict) -> str:
+        """Original-key echo used by JSX to reconcile the response with its
+        outstanding request. Must match the JSX side's dedup key exactly:
+        `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`.
+        """
+        return (f"{c.get('ticker','')}|{c.get('cp','')}|"
+                f"{c.get('strike','')}|{c.get('exp','')}")
+
+    # Convert target_date (M/D/YYYY) → ISO (YYYY-MM-DD) for snap_date comparison.
+    # snap_date in contract_oi_snapshots is stored as ISO per api/oi_snapshots.py.
+    target_iso = _iso(target_date) if target_date else None
+
+    results: list[dict] = []
+    matched_variant_examples: list[str] = []
+    unmatched_count = 0
+
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+            # ── Step 1: Detect stored key format from a small probe set.
+            # Reuses confirmation-map's proven approach — try up to 20 probe
+            # contracts, use the first variant that hits, then commit to that
+            # format for the whole batch. Avoids the 7×N table scans that
+            # timed out on Cloudflare for large batches.
+            detected_format = None
+            probe_contracts = contracts[:min(20, len(contracts))]
+            for probe in probe_contracts:
+                if detected_format is not None:
+                    break
+                for i, v in enumerate(_key_variants(probe)):
+                    cur = conn.execute(
+                        "SELECT 1 FROM contract_oi_snapshots "
+                        "WHERE contract_key = ? LIMIT 1",
+                        (v,),
+                    )
+                    if cur.fetchone():
+                        detected_format = i
+                        matched_variant_examples.append(v)
+                        break
+
+            if detected_format is None:
+                return {
+                    "ok": True,
+                    "results": [],
+                    "total_requested": len(contracts),
+                    "matched": 0,
+                    "unmatched": len(contracts),
+                    "matched_variant_examples": [],
+                    "target_date": target_date,
+                    "note": ("Could not detect contract_key format from any of "
+                             "the 7 candidates on 20 probe contracts. Hit "
+                             "/api/admin/oi/table-diagnose and share "
+                             "oi_sample_keys."),
+                }
+
+            # ── Step 2: Build the one winning-format key per contract.
+            key_to_contract: dict[str, dict] = {}
+            for c in contracts:
+                variants = _key_variants(c)
+                if detected_format < len(variants):
+                    k = variants[detected_format]
+                    # Last-wins if the same key appears twice — fine, we only
+                    # need one lookup result per unique contract.
+                    key_to_contract[k] = c
+
+            # ── Step 3: Batch-fetch latest snapshot per contract with snap_date
+            # ceiling. We pull all rows for the contract set and reduce to the
+            # target row in Python — one round-trip per BATCH of 400 keys.
+            snap_by_key: dict[str, tuple[str, int]] = {}  # key → (snap_date, oi)
+            key_list = list(key_to_contract.keys())
+            BATCH = 400
+            for i in range(0, len(key_list), BATCH):
+                batch = key_list[i:i + BATCH]
+                placeholders = ",".join(["?"] * len(batch))
+                if target_iso:
+                    # Clamp to snap_date <= target_iso. Ordering by snap_date
+                    # ASC means the LAST row we see per key is the desired one.
+                    q = (f"SELECT contract_key, snap_date, oi "
+                         f"FROM contract_oi_snapshots "
+                         f"WHERE contract_key IN ({placeholders}) "
+                         f"  AND snap_date <= ? "
+                         f"ORDER BY contract_key, snap_date")
+                    params = batch + [target_iso]
+                else:
+                    q = (f"SELECT contract_key, snap_date, oi "
+                         f"FROM contract_oi_snapshots "
+                         f"WHERE contract_key IN ({placeholders}) "
+                         f"ORDER BY contract_key, snap_date")
+                    params = batch
+                cur = conn.execute(q, params)
+                for r in cur.fetchall():
+                    k, sd, oi_val = r[0], r[1], int(r[2] or 0)
+                    # Keep only the latest snap per key (last-wins after ORDER BY).
+                    # Skip zero-OI snapshots so a real earlier value isn't
+                    # shadowed by a later Schwab-write-failed sentinel row.
+                    if oi_val <= 0:
+                        continue
+                    prev = snap_by_key.get(k)
+                    if prev is None or sd > prev[0]:
+                        snap_by_key[k] = (sd, oi_val)
+
+            # ── Step 4: Assemble results in the JSX-expected shape.
+            for k, c in key_to_contract.items():
+                snap = snap_by_key.get(k)
+                if snap is None:
+                    unmatched_count += 1
+                    continue
+                sd, oi_val = snap
+                results.append({
+                    "ticker": c.get("ticker", ""),
+                    "cp": c.get("cp", ""),
+                    "strike": c.get("strike"),
+                    "exp": c.get("exp", ""),
+                    "oi": oi_val,
+                    "snap_date": sd,
+                })
+
+    except sqlite3.OperationalError as e:
+        # SQLite lock timeout / disk error — surface it cleanly rather than
+        # letting the request hang. flow.db can lock under write pressure.
+        raise HTTPException(status_code=503,
+                            detail=f"contract_oi_snapshots read failed: {e}")
+
+    return {
+        "ok": True,
+        "results": results,
+        "total_requested": len(contracts),
+        "matched": len(results),
+        "unmatched": unmatched_count,
+        "matched_variant_examples": matched_variant_examples[:3],
+        "target_date": target_date,
+    }
+
+
+# ─── Spot diagnostic: is flow.db actually storing Spot for this date? ────
+# Ravi asserts the Massive OPRA source data carries spot on every print,
+# so a missing Spot column in the UI must be a pipeline loss (either
+# build_gap_fill_csv.py stripping it during CSV generation, or
+# apply_gap_fill.py dropping it on insert). This endpoint reads flow.db
+# directly and reports the true Spot state per date so we can pinpoint
+# the failure side without guessing.
+#
+# Interpretation:
+#   spot_pct_populated == 0.0 for a backfilled day  →  pipeline is losing
+#     Spot somewhere between the flat file and flow.db. Next check: view
+#     fill-<DATE>-stocks.csv in the repo and confirm whether the Spot
+#     column has real values there. If yes → apply_gap_fill.py is dropping
+#     it on insert. If no → build_gap_fill_csv.py isn't extracting it.
+#   spot_pct_populated > 0.0 but UI shows "—"  →  read-path bug in
+#     _row_to_alert or _parse_float. Very unlikely; those helpers are
+#     shared across sources and live rows populate correctly.
+#   spot_pct_populated ≈ 100% for live-worker-written days  →  ingestion
+#     path from massive_ws_worker is fine; only the backfill path is broken.
+
+@router.get("/spot-check")
+def spot_check(target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET.")):
+    """Report Spot-column population state in flow.db for a given date.
+
+    Returns row counts by Spot state (populated / zero / null) plus a small
+    sample of rows from each bucket so we can eyeball whether the missing
+    column is a pipeline loss or a display bug.
+    """
+    today = target_date or _today_mdyyyy()
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+
+        # Total rows on this date across all sources
+        total_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM flow WHERE CreatedDate = ?", (today,)
+        ).fetchone()
+        total = total_row["n"] if total_row else 0
+
+        # Spot state breakdown. SQLite stores Spot as TEXT; treat both empty
+        # string and "0" / "0.0" as unpopulated. CAST to REAL for numeric
+        # comparison — non-numeric text CASTs to 0, which folds correctly
+        # into the "zero_or_null" bucket.
+        populated_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM flow "
+            "WHERE CreatedDate = ? "
+            "  AND Spot IS NOT NULL "
+            "  AND Spot != '' "
+            "  AND CAST(Spot AS REAL) > 0",
+            (today,)
+        ).fetchone()
+        populated = populated_row["n"] if populated_row else 0
+
+        # Sample: 3 rows with populated Spot (to prove format), 3 without
+        sample_populated = [
+            {"Symbol": r["Symbol"], "CreatedTime": r["CreatedTime"],
+             "CallPut": r["CallPut"], "Strike": r["Strike"],
+             "Spot": r["Spot"], "Price": r["Price"], "source": r["source"]}
+            for r in conn.execute(
+                "SELECT source, Symbol, CreatedTime, CallPut, Strike, Spot, Price "
+                "FROM flow "
+                "WHERE CreatedDate = ? "
+                "  AND Spot IS NOT NULL "
+                "  AND Spot != '' "
+                "  AND CAST(Spot AS REAL) > 0 "
+                "ORDER BY id DESC LIMIT 3",
+                (today,)
+            ).fetchall()
+        ]
+        sample_missing = [
+            {"Symbol": r["Symbol"], "CreatedTime": r["CreatedTime"],
+             "CallPut": r["CallPut"], "Strike": r["Strike"],
+             "Spot": r["Spot"], "Price": r["Price"], "source": r["source"]}
+            for r in conn.execute(
+                "SELECT source, Symbol, CreatedTime, CallPut, Strike, Spot, Price "
+                "FROM flow "
+                "WHERE CreatedDate = ? "
+                "  AND (Spot IS NULL OR Spot = '' OR CAST(Spot AS REAL) <= 0) "
+                "ORDER BY id DESC LIMIT 3",
+                (today,)
+            ).fetchall()
+        ]
+
+        # By-source breakdown so we can see if live (worker) vs backfill
+        # (gap-fill) differ. Same-day mixed-source ingestion is possible;
+        # a per-source view isolates the guilty path.
+        by_source_rows = conn.execute(
+            "SELECT source, "
+            "       COUNT(*) AS total, "
+            "       SUM(CASE WHEN Spot IS NOT NULL AND Spot != '' "
+            "                 AND CAST(Spot AS REAL) > 0 THEN 1 ELSE 0 END) AS populated "
+            "FROM flow "
+            "WHERE CreatedDate = ? "
+            "GROUP BY source",
+            (today,)
+        ).fetchall()
+        by_source = {
+            r["source"]: {
+                "total": r["total"],
+                "populated": r["populated"],
+                "pct": round(100.0 * r["populated"] / r["total"], 1) if r["total"] else 0.0,
+            }
+            for r in by_source_rows
+        }
+
+    finally:
+        conn.close()
+
+    return {
+        "target_date": today,
+        "total_rows": total,
+        "spot_populated": populated,
+        "spot_zero_or_null": total - populated,
+        "spot_pct_populated": round(100.0 * populated / total, 1) if total else 0.0,
+        "by_source": by_source,
+        "sample_rows_with_spot": sample_populated,
+        "sample_rows_without_spot": sample_missing,
+        "interpretation": (
+            "Zero populated → Spot lost somewhere between Massive flat file "
+            "and flow.db. Next check the CSV column in fill-<DATE>-stocks.csv. "
+            "If CSV has Spot values → apply_gap_fill.py isn't reading it. "
+            "If CSV has Spot=0 → build_gap_fill_csv.py isn't extracting it."
+            if populated == 0 and total > 0 else
+            "Some rows have Spot. Compare by_source to see which ingestion "
+            "path is missing it (worker vs gap-fill)."
+            if populated > 0 else
+            "No rows on this date."
         ),
     }

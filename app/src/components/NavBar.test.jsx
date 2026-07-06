@@ -1,23 +1,20 @@
 import { renderWithProviders, screen } from '../test-utils'
 import NavBar from './NavBar'
 
-test('renders nav sidebar with free-tier links by default', () => {
-  // Free tier (default, no paid plan) shows ONLY the four FREE_PAGES:
-  // Breadth, Charts, Options Flow, Journal. Everything else (Dashboard,
-  // Morning Wire, UCT 20, Calendar, Screener, Patterns, Post Market, Model
-  // Book, Support) is paid-only and hidden from the nav.
+test('free tier: free tools link to their page, paid tools are locked to upgrade', () => {
+  // Free tier (default, no paid plan). The six FREE_PAGES (Dashboard, Breadth,
+  // Charts, Options Flow, Journal, Model Book) link to their page. Paid tools
+  // are no longer hidden — they render dimmed + locked and route to /subscribe
+  // so a free user can see what Pro unlocks.
   renderWithProviders(<NavBar />)
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /breadth/i })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /^charts$/i })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /options flow/i })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /journal/i })).toBeInTheDocument()
-  // Paid-only pages are absent for free users
-  expect(screen.queryByRole('link', { name: /dashboard/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /model book/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /calendar/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /theme tracker/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /watchlists/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard')
+  expect(screen.getByRole('link', { name: /breadth/i })).toHaveAttribute('href', '/breadth')
+  expect(screen.getByRole('link', { name: /^charts$/i })).toHaveAttribute('href', '/charts')
+  expect(screen.getByRole('link', { name: /model book/i })).toHaveAttribute('href', '/model-book')
+  // Paid tools are VISIBLE now, routed to the upgrade page
+  expect(screen.getByRole('link', { name: /calendar/i })).toHaveAttribute('href', '/subscribe')
+  expect(screen.getByRole('link', { name: /morning wire/i })).toHaveAttribute('href', '/subscribe')
 })
 
 test('active link has active class', () => {

@@ -35,15 +35,18 @@ test('renders the full directory for a paid user', () => {
   )
 })
 
-test('free users only see free pages + account', () => {
+test('free users see every tool; paid ones render locked (not hidden)', () => {
   mockPlan = 'free'
   renderSheet()
+  // Free tools
+  expect(screen.getByText('Dashboard')).toBeInTheDocument()
   expect(screen.getByText('Breadth')).toBeInTheDocument()
   expect(screen.getByText('Charts')).toBeInTheDocument()
+  expect(screen.getByText('Model Book')).toBeInTheDocument()
   expect(screen.getByText('Settings')).toBeInTheDocument()
-  // Paid-only destinations are hidden for free users
-  expect(screen.queryByText('Model Book')).toBeNull()
-  expect(screen.queryByText('UCT 20')).toBeNull()
+  // Paid tools now render (locked → upgrade) instead of being hidden
+  expect(screen.getByText('Morning Wire')).toBeInTheDocument()
+  expect(screen.getByText('UCT 20')).toBeInTheDocument()
 })
 
 test('admin sees the Admin link', () => {

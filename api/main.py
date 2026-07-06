@@ -43,6 +43,7 @@ from api.routers import ticker_meta as ticker_meta_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
+from api.routers import sector_strength as sector_strength_router
 from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
 from api import top_flow_tracker as _top_flow_tracker
@@ -2829,6 +2830,7 @@ app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
+app.include_router(sector_strength_router.router)
 app.include_router(top_flow_router)
 app.include_router(schwab_router)
 app.include_router(calendar_router.router)
@@ -4555,6 +4557,139 @@ async def _oi_confirmation_map(request: Request):
     # Cache for 60s so repeated toggle-on/off doesn't re-query
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
+
+
+@app.post("/api/admin/flow/delete-by-date")
+async def _flow_delete_by_date(
+    target_date: str,
+    source: str = "",
+    tickers: str = "",
+    confirm: bool = False,
+):
+    """Delete all flow rows for a given date. Destructive; used when a date's
+    data needs to be rebuilt clean (e.g. 7/2/2026 had V1+V2+V3 backfills
+    inserted while iterating on Fix 1+2+3 in the 7/3 session — duplicate
+    rows produced 1000+ curated alerts vs. the ~30-50 the tune expects).
+
+    Recommended workflow after delete:
+      1. POST this endpoint with confirm=true
+      2. Re-apply the fill:
+         POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-stocks.csv&source=stocks
+         POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-indexes.csv&source=indexes
+      3. Re-apply patches:
+         POST /api/admin/massive/backfill-from-patches?patches_file=patches-7-2.json&target_date=7/2/2026
+      4. Rebuild color:
+         POST /api/admin/massive/rebuild-color?target_date=7/2/2026
+      5. Normalize sweep sides:
+         POST /api/admin/massive/normalize-sweep-sides?target_date=7/2/2026
+
+    target_date: 'M/D/YYYY' (required, no default — safety)
+    source: 'stocks' | 'indexes' | '' for both (default: both)
+    tickers: optional comma-separated ticker list to restrict deletion to
+             (e.g. 'SPY,QQQ,IWM,SMH,SLV'). If provided, only rows matching
+             these tickers are deleted. Useful for cleaning up ETFs
+             misrouted into source='stocks' by upstream Massive classifier.
+    confirm: must be true to actually delete (default: false → returns preview count)
+
+    Preview mode (confirm=false): returns the count that WOULD be deleted
+    without touching the data. Use this first to verify scope.
+
+    Only touches the `flow` table. contract_oi_snapshots, aggregates, etc.
+    are untouched — their per-date rows remain valid.
+    """
+    try:
+        import sqlite3, os
+        if not target_date:
+            return {"ok": False, "error": "target_date is required (M/D/YYYY format)"}
+
+        # Basic format validation
+        parts = target_date.split("/")
+        if len(parts) != 3:
+            return {"ok": False, "error": f"target_date must be M/D/YYYY, got: {target_date!r}"}
+
+        # Source filter validation
+        if source and source not in ("stocks", "indexes"):
+            return {"ok": False, "error": f"source must be 'stocks', 'indexes', or empty; got: {source!r}"}
+
+        # Ticker filter parse (uppercase, dedupe, strip whitespace)
+        ticker_list = []
+        if tickers:
+            ticker_list = sorted(set(
+                t.strip().upper() for t in tickers.split(",") if t.strip()
+            ))
+            if not ticker_list:
+                return {"ok": False, "error": f"tickers parsed to empty list from: {tickers!r}"}
+
+        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        conn = sqlite3.connect(db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+
+        # Build WHERE clause dynamically
+        where = ["CreatedDate = ?"]
+        params = [target_date]
+        if source:
+            where.append("source = ?")
+            params.append(source)
+        if ticker_list:
+            placeholders = ",".join(["?"] * len(ticker_list))
+            where.append(f"Symbol IN ({placeholders})")
+            params.extend(ticker_list)
+        where_sql = " AND ".join(where)
+
+        # Count first — always safe, no mutation
+        cur = conn.execute(
+            f"SELECT COUNT(*) FROM flow WHERE {where_sql}",
+            params
+        )
+        row_count = cur.fetchone()[0]
+
+        # Preview mode — no mutation
+        if not confirm:
+            conn.close()
+            return {
+                "ok": True,
+                "preview": True,
+                "stats": {
+                    "target_date": target_date,
+                    "source": source or "ALL",
+                    "tickers": ticker_list or "ALL",
+                    "would_delete": row_count,
+                    "message": "Preview only. Pass confirm=true to actually delete.",
+                }
+            }
+
+        # Live mode — perform the delete
+        cursor = conn.execute(
+            f"DELETE FROM flow WHERE {where_sql}",
+            params
+        )
+        rows_deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        # Bump data-version so client caches invalidate
+        try:
+            from api.flow_router import bump_data_version
+            new_ver = bump_data_version()
+        except Exception:
+            new_ver = None
+
+        return {
+            "ok": True,
+            "preview": False,
+            "stats": {
+                "target_date": target_date,
+                "source": source or "ALL",
+                "tickers": ticker_list or "ALL",
+                "rows_deleted": rows_deleted,
+                "new_data_version": new_ver,
+            }
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
 
 
 def serve_csv():

@@ -138,11 +138,18 @@
   background: linear-gradient(90deg, rgba(201, 168, 76, 0.28), transparent);
 }
 
-/* one setup row: glyph thumbnail + name/essence + direction tick */
+/* one setup row: name + "Learn more" share the top line; the description then
+   spans the FULL width beneath both (including under the Learn more button) so
+   it wraps to fewer lines and the row stays short. */
 .railRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name aside"
+    "essence essence";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
   width: 100%;
   text-align: left;
   padding: 9px 8px;
@@ -164,8 +171,7 @@
 }
 /* Don't draw a separator line directly above the highlighted row. */
 .railRowActive, .railRowActive + .railRow { border-top-color: transparent; }
-.railText { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
-.railNameRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.railNameRow { grid-area: name; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .railDot {
   flex: none;
   width: 7px;
@@ -184,6 +190,7 @@
 }
 .railRowActive .railName { color: #f0d479; }
 .railEssence {
+  grid-area: essence;
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
@@ -195,25 +202,12 @@
 .railDir_short { background: #e05252; box-shadow: 0 0 6px rgba(224, 82, 82, 0.4); }
 .railDir_both  { background: #e6c965; box-shadow: 0 0 6px rgba(230, 201, 101, 0.4); }
 
-/* Expand caret — hints the click-for-examples dropdown; flips when open. */
-/* Right-side stack: "Learn more" at the top-right, expand caret beneath it. */
+/* "Learn more" sits at the top-right, on the same line as the setup name. */
 .railAside {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
+  grid-area: aside;
+  align-self: center;
   padding-left: 8px;
 }
-.railCaret {
-  flex: none;
-  font-size: 10px;
-  line-height: 1;
-  color: rgba(201, 168, 76, 0.45);
-  transition: transform 0.15s, color 0.15s;
-}
-.railRow:hover .railCaret { color: rgba(201, 168, 76, 0.75); }
-.railCaretOpen { transform: rotate(180deg); color: #f0d479; }
 
 /* ── Charted-examples dropdown (under a clicked setup) ──
    Compact ticker "tokens" that wrap, hung off a gold rail that ties them to the
@@ -539,6 +533,10 @@
      whole chart, so the next setup is never partly visible at the bottom. */
   scroll-snap-type: y mandatory;
 }
+/* While the admin add/edit form is open, disable snapping — the form is taller
+   than the viewport and isn't a snap point, so mandatory snapping would keep
+   pulling the scroll back down to the selected chart. */
+.stageExamplesFullNoSnap { scroll-snap-type: none; }
 
 /* ── Playbook hover panel ── */
 .pbPop {
@@ -952,6 +950,14 @@
   overflow: hidden;
   scroll-snap-align: start;
   scroll-margin-top: 6px;
+  /* Each example mounts a full live StockChart. Skip layout/paint for the
+     off-screen ones so the NavBar's 60→200px hover expansion (which reflows the
+     whole content column) only ever re-lays-out the ONE visible chart instead of
+     all N at once — that all-charts-at-once reflow was the choppiness. The `auto`
+     keyword makes the browser remember each block's real size once rendered, so
+     skipped blocks reserve the right space and scrolling never jumps. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
   /* Fill the scroll viewport so the CURRENT example owns the whole stage and the
      next one never peeks at the bottom — scrolling reveals the next full-height. */
   display: flex;

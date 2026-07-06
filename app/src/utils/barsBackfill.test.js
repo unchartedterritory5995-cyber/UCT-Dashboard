@@ -1,5 +1,40 @@
 import { describe, it, expect } from 'vitest'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from './barsBackfill'
+import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from './barsBackfill'
+
+describe('nextBackfillDepth (progressive deep-pan)', () => {
+  it('first step from the 600 shallow window lands a fast intermediate chunk', () => {
+    // 600*8=4800 >= 600+4000=4600 -> 4800. Fast (~5s) vs the full 20000 (~20s).
+    expect(nextBackfillDepth(600, 20000)).toBe(4800)
+  })
+
+  it('second pan reaches (and caps at) the full target', () => {
+    // 4800*8 = 38400, capped to 20000.
+    expect(nextBackfillDepth(4800, 20000)).toBe(20000)
+  })
+
+  it('small targets (W/M) reach full in one step — no visible progression', () => {
+    expect(nextBackfillDepth(600, 4000)).toBe(4000)   // 600->4000 directly
+    expect(nextBackfillDepth(600, 1200)).toBe(1200)
+  })
+
+  it('never exceeds the target and is idempotent at/above it', () => {
+    expect(nextBackfillDepth(20000, 20000)).toBe(20000)
+    expect(nextBackfillDepth(25000, 20000)).toBe(20000)
+  })
+
+  it('degenerate inputs fall back to the full target', () => {
+    expect(nextBackfillDepth(0, 20000)).toBe(20000)
+    expect(nextBackfillDepth(600, 0)).toBe(0)
+  })
+
+  it('reaches full for the deepest intraday targets within a few steps', () => {
+    // 5m target 26000: 600 -> 4800 -> 26000 (4800*8=38400 capped).
+    let d = 600, steps = 0
+    while (d < 26000 && steps < 10) { d = nextBackfillDepth(d, 26000); steps++ }
+    expect(d).toBe(26000)
+    expect(steps).toBeLessThanOrEqual(3)
+  })
+})
 
 describe('barsBackfill', () => {
   it('FIRST_PAINT_BARS is a small shallow window', () => {
