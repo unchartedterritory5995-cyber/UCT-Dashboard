@@ -443,6 +443,15 @@ def main():
     _start_prewarmer()
     _start_massive_ws()
     _start_keepwarm()
+    # Live-flow outage monitor + daily scorecard (deploy-survival P3).
+    # Independent oracle: watches the WEB pod's OPRA write freshness from
+    # this separate process/volume. Gated by LIVEFLOW_MONITOR_ENABLED=1 +
+    # a Discord webhook. Daemon thread; nothing slow before uvicorn.
+    try:
+        from api.services.liveflow_monitor import start_liveflow_monitor
+        start_liveflow_monitor()
+    except Exception as e:
+        log.warning(f"liveflow monitor failed to start (non-fatal): {e}")
     _start_memwatch()
 
     # Boot fingerprint — one grep-able line so an operator can confirm which
