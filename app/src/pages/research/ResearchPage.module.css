@@ -6,6 +6,7 @@
 .hdrName { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .hdrCo { color: var(--text); font-weight: 600; font-size: 14px; }
 .hdrSub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.hdrRs { display: flex; align-items: center; }
 .hdrPx { margin-left: auto; text-align: right; }
 .hdrPxBig { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .hdrSearch { margin-top: 4px; }
