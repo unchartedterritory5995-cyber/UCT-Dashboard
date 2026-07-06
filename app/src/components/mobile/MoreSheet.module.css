@@ -80,6 +80,9 @@
   transition: background var(--duration-fast) var(--ease-out);
 }
 .item:active { background: var(--bg-hover); }
+/* Paid tools shown to free users: dimmed, lock in place of the chevron. */
+.locked { opacity: 0.55; }
+.locked:active { opacity: 0.8; }
 .item.active { background: var(--bg-hover); color: var(--ut-gold); }
 .item.active .icon { color: var(--ut-gold); }
 

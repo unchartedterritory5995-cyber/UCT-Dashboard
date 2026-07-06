@@ -65,26 +65,47 @@ export default function NavBar() {
       </Link>
 
       <div className={styles.mainItems}>
-        {NAV_ITEMS.filter(item => showAll || FREE_PAGES.includes(item.to)).map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
-            }
-            title={item.label}
-            aria-label={item.label}
-          >
-            <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
-            <span className={styles.label}>{item.label}</span>
-            {item.to === '/journal' && compassUnread > 0 && (
-              <span className={styles.compassBadge}
-                    title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
-                {compassUnread > 9 ? '9+' : compassUnread}
-              </span>
-            )}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map(item => {
+          // Show paid tools instead of hiding them — a free user can't want what
+          // they can't see. Locked rows are dimmed with a gold lock and route to
+          // the upgrade page rather than the tool.
+          const locked = !showAll && !FREE_PAGES.includes(item.to)
+          if (locked) {
+            return (
+              <Link
+                key={item.to}
+                to="/subscribe"
+                className={`${styles.item} ${styles.locked}`}
+                title={`${item.label} — unlock with Pro`}
+                aria-label={`${item.label} — unlock with Pro`}
+              >
+                <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+                <span className={styles.label}>{item.label}</span>
+                <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+              </Link>
+            )
+          }
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+              }
+              title={item.label}
+              aria-label={item.label}
+            >
+              <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+              <span className={styles.label}>{item.label}</span>
+              {item.to === '/journal' && compassUnread > 0 && (
+                <span className={styles.compassBadge}
+                      title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
+                  {compassUnread > 9 ? '9+' : compassUnread}
+                </span>
+              )}
+            </NavLink>
+          )
+        })}
       </div>
       <div className={styles.bottomItems}>
         <div className={styles.alertSlot}>

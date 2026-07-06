@@ -87,6 +87,10 @@
   color: var(--text-bright);
   background: var(--bg-hover);
 }
+/* Paid tools shown to free users: dimmed, with a gold lock, → upgrade page. */
+.locked { opacity: 0.5; }
+.locked:hover { opacity: 0.85; color: var(--text-bright); background: var(--bg-hover); }
+.lock { margin-left: auto; display: inline-flex; flex: none; opacity: 0.9; }
 .active {
   color: var(--ut-green-bright) !important;
   background: var(--ut-green-dim);
