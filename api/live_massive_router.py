@@ -2726,30 +2726,28 @@ def worker_history(
     min_gap_minutes: int = Query(default=2, ge=1, le=30,
                                   description="Minimum consecutive empty minutes to count as a downtime window."),
 ):
-    """Retrospective outage detection from flow.db write timestamps.
+    """Retrospective outage detection from flow.db write timestamps — wrapper.
 
-    Scans the target date's rows during market hours (9:30-16:00 ET),
-    buckets by minute, and reports every run of ≥min_gap_minutes consecutive
-    minutes with zero rows written. Each window is a probable worker-down
-    (or Massive-outage) event.
-
-    Returns:
-        {
-          "target_date": "7/6/2026",
-          "market_minutes_total": 390,
-          "market_minutes_with_writes": 388,
-          "market_minutes_empty": 2,
-          "downtime_windows_strict": [   # ≥ min_gap_minutes consecutive
-              {"start": "10:42 AM", "end": "10:44 AM",
-               "duration_min": 2, "est_dropped_events": 1400}
-          ],
-          "downtime_windows_permissive": 3,   # any single empty minute counts
-          "sample_hour_rates": {
-              "09": 12403, "10": 45201, ...   # rows per hour, sanity floor
-          },
-          "interpretation": "..."
-        }
+    Delegates to _worker_history_impl and catches any exception so a bug
+    surfaces as a usable JSON error instead of an upstream-gateway null.
     """
+    try:
+        return _worker_history_impl(target_date, min_gap_minutes)
+    except Exception as _err:
+        import traceback as _tb
+        return {
+            "ok": False,
+            "error": str(_err),
+            "error_type": type(_err).__name__,
+            "target_date": target_date,
+            "traceback_last_frames": _tb.format_exc().splitlines()[-6:],
+            "note": "worker-history handler raised. Common causes: DB path "
+                    "missing, unexpected CreatedTime format, SQLite lock.",
+        }
+
+
+def _worker_history_impl(target_date, min_gap_minutes):
+    """Actual retrospective outage detection. See worker_history() docstring."""
     today = target_date or _today_mdyyyy()
 
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -2775,8 +2773,15 @@ def worker_history(
                     "was down the entire session).",
         }
 
-    def _parse_to_minute_of_day(t: str) -> int | None:
-        """'2:58:37 PM' → 898 (minutes past midnight). None on parse failure."""
+    def _parse_to_minute_of_day(t):
+        """'2:58:37 PM' → 898 (minutes past midnight). None on parse failure.
+
+        NOTE: Return annotation intentionally omitted — using PEP 604 union
+        syntax (`int | None`) here breaks on Python 3.9, which is Railway's
+        default runtime for older FastAPI templates. The whole handler falls
+        over at first call because annotation eval happens when this nested
+        def statement executes. Removing the annotation is the cleanest fix.
+        """
         try:
             s = t.strip().upper()
             # Handle both 'H:MM:SS AM' and 'HH:MM:SS AM' plus stray whitespace
