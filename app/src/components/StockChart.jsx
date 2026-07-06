@@ -44,7 +44,7 @@ import { matchShortcut } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import UIcon from './ui/UIcon'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill } from '../utils/barsBackfill'
+import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 
 const NOOP = () => {}
 
@@ -1667,13 +1667,13 @@ export default function StockChart({
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
-  // Viewport-first backfill: once we've bumped to the full depth, drop `since`
-  // so the server returns the full (older) range. `since` only returns the
-  // newer tail, which would never load the deep history the user panned to see.
-  // The bar count grows FIRST_PAINT_BARS→full and the existing same-ticker
-  // re-anchor (the `else if … lastBarCountRef.current !== filteredBars.length`
-  // branch in the zoom effect) holds the view steady across the swap.
-  if (fetchDepth >= _fullTarget || _pinnedFull) _sinceParam = null
+  // Viewport-first backfill: once we've bumped PAST the shallow first-paint depth
+  // (any progressive step, not only the full target), drop `since` so the server
+  // returns the full (older) range. `since` only returns the newer tail, which
+  // would never load the deep history the user panned to see — so a progressive
+  // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
+  // bar count grows and the existing same-ticker re-anchor holds the view steady.
+  if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
@@ -5565,7 +5565,12 @@ export default function StockChart({
           loadedCount: lastBarCountRef.current,
           fullTarget: _fullTarget,
         })) {
-          setFetchDepth(_fullTarget)
+          // Progressive: step to the next depth tier, not straight to full. A
+          // deep intraday jump (600->20000) is a single ~20s fetch before any
+          // history appears; stepping lands a fast first chunk and only fetches
+          // full if the user keeps panning past it. The re-anchor holds the view
+          // across each step. (D/W/M reach full in one step or via dwell-warm.)
+          setFetchDepth(d => nextBackfillDepth(d, _fullTarget))
         }
       })
     }

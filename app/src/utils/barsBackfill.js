@@ -52,3 +52,23 @@ export function shouldBackfill({
   if (!(width > 0)) return false
   return width < loadedCount * maxViewFrac
 }
+
+// Progressive backfill depth: the next fetch depth to jump to when the user pans
+// into deep history, instead of leaping straight to fullTarget in one shot.
+//
+// A full intraday scroll-back is fullBarsFor('1') = 20000 bars, and Massive
+// paginates that ~1ms/bar → a single ~20s fetch before ANY deeper history
+// appears (measured on prod). Stepping (e.g. 600 -> ~4800 -> full) lands a fast
+// first chunk (~5s, usually several days of intraday — enough for the common
+// pan) and only fetches the full depth if the user keeps panning past it. Each
+// step reuses the same setFetchDepth path, so the view re-anchor holds steady.
+//
+// `step` is the growth multiplier; the `+4000` floor guarantees a meaningful
+// jump from the 600-bar first-paint even on the first step. Small targets
+// (W=4000, M=1200) reach full in one step, so slow-fetch intraday is the only
+// place the progression is visible — which is exactly where the tail lives.
+export function nextBackfillDepth(current, fullTarget, step = 8) {
+  if (!(current > 0) || !(fullTarget > 0) || current >= fullTarget) return fullTarget
+  const next = Math.max(current * step, current + 4000)
+  return Math.min(next, fullTarget)
+}
