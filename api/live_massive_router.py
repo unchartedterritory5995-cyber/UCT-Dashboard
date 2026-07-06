@@ -1041,6 +1041,28 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
+    # ─── Noise filter 0: Spot-independent deep-ITM heuristic ────────────────
+    # When Spot is missing (backfilled historical data), the % from spot
+    # can't be computed. Fall back to a heuristic using option price vs
+    # strike: deep-ITM options are priced near their intrinsic value,
+    # which is a large fraction of the strike.
+    #
+    # Example: CSCO $80c at $32.5 → price/strike = 40.6% → clearly deep
+    # ITM (spot must be ~$112). Normal near-money calls are 2-5% of strike.
+    #
+    # Combined with DTE < 90 to avoid false-positives on LEAPS that
+    # legitimately have high time-value prices.
+    #
+    # Only fires when: Type is BLOCK AND price >= 15% of strike AND
+    # DTE < 90. This is spot-independent so it works on 7/2 backfill
+    # data where the strike/spot filter can't fire.
+    type_str_for_early = (row.get("Type") or "").upper().strip()
+    is_block_for_early = type_str_for_early == "BLOCK" or "BLK" in type_str_for_early
+    if is_block_for_early and strike > 0 and price > 0 and dte < 90:
+        price_strike_ratio = price / strike
+        if price_strike_ratio >= 0.15:
+            return None  # deep-ITM BLOCK detected via price/strike heuristic
+
     # ─── Noise filter 1: Deep-money classification (matches OptionsFlow.jsx) ─
     # Ports the exact isDeep + BLK-filter logic that OptionsFlow uses to
     # kill CSCO $80c-style noise (spot $112, 28.8% ITM BLOCKs at $32.5 =
@@ -1057,7 +1079,9 @@ def _row_to_alert(row: dict) -> dict | None:
     #      matches AXTI $130p at spot $55 case)
     #   3. Deep ITM SWEEP at 20-50% ITM → KEEP (urgency signal)
     #
-    # Only applies when spot > 0. Missing spot skips this check.
+    # Only applies when spot > 0. Missing spot skips this check (but
+    # noise filter 0 above catches the deep-ITM BLOCK case via
+    # price/strike heuristic).
     type_str = (row.get("Type") or "").upper().strip()
     is_block = type_str == "BLOCK" or "BLK" in type_str
     is_sweep = type_str == "SWEEP" or "SWP" in type_str or "SWEEP" in type_str
