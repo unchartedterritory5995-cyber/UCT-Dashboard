@@ -1041,26 +1041,43 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
-    # ─── Noise filter 1: Deep-ITM synthetic roll ─────────────────────────────
-    # Trades where intrinsic value > 50% of spot are synthetic stock
-    # substitutes (delta ~1.0), not directional bets. Priced at intrinsic
-    # value with essentially zero extrinsic. Example: AXTI $130p at spot
-    # $55 → intrinsic $75 (136% of spot) with trade prices $74.5-77.2 =
-    # synthetic short roll, not bearish conviction. Matches OptionsFlow's
-    # client-side deep-ITM filter shipped earlier this session.
+    # ─── Noise filter 1: Deep-money classification (matches OptionsFlow.jsx) ─
+    # Ports the exact isDeep + BLK-filter logic that OptionsFlow uses to
+    # kill CSCO $80c-style noise (spot $112, 28.8% ITM BLOCKs at $32.5 =
+    # arb/rebalancing spread legs, not directional).
     #
-    # Only applies when we have spot data. Missing spot (e.g. 7/2's OI=0
-    # legacy rows) skips this check — better to over-emit than filter
-    # based on missing data.
-    if spot > 0:
-        if cp_full == "CALL":
-            intrinsic = spot - strike
-        elif cp_full == "PUT":
-            intrinsic = strike - spot
-        else:
-            intrinsic = 0
-        if intrinsic > spot * 0.5:
-            return None  # synthetic roll, not directional signal
+    # isDeep threshold varies by type:
+    #   - BLOCK: 10% from spot (more aggressive; blocks at moderate ITM
+    #     depth are usually spread legs)
+    #   - SWEEP: 20% from spot (kept as "urgency" unless very deep)
+    #
+    # Filter rules:
+    #   1. Deep ITM BLOCK → FILTER (arb/rebalancing)
+    #   2. Very deep ITM SWEEP (intrinsic > 50% spot) → FILTER (synthetic roll,
+    #      matches AXTI $130p at spot $55 case)
+    #   3. Deep ITM SWEEP at 20-50% ITM → KEEP (urgency signal)
+    #
+    # Only applies when spot > 0. Missing spot skips this check.
+    type_str = (row.get("Type") or "").upper().strip()
+    is_block = type_str == "BLOCK" or "BLK" in type_str
+    is_sweep = type_str == "SWEEP" or "SWP" in type_str or "SWEEP" in type_str
+    if spot > 0 and strike > 0:
+        pct_from_spot = abs(strike - spot) / spot * 100.0
+        is_deep_by_type = pct_from_spot >= (10.0 if is_block else 20.0)
+        is_itm = (cp_full == "CALL" and strike < spot) or (cp_full == "PUT" and strike > spot)
+        if is_deep_by_type and is_itm:
+            # Rule 1: Deep ITM BLOCK → always filter (arb/rebalancing/spread leg)
+            if is_block:
+                return None
+            # Rule 2: Very deep ITM SWEEP (intrinsic > 50% spot) → filter
+            if cp_full == "CALL":
+                intrinsic = spot - strike
+            elif cp_full == "PUT":
+                intrinsic = strike - spot
+            else:
+                intrinsic = 0
+            if intrinsic > spot * 0.5:
+                return None  # synthetic roll
 
     # ─── Noise filter 2: Deep-OTM lottery ticket ─────────────────────────────
     # Trades that are >40% OTM AND have DTE < 365 are lottery tickets.
@@ -1085,7 +1102,6 @@ def _row_to_alert(row: dict) -> dict | None:
     # If Type='ML/' AND OI>0, it's a BBS-format spread leg. Skip from
     # directional tier assignment (would still land in algo tier via
     # tier detection, which is always excluded from curated).
-    type_str = (row.get("Type") or "").upper().strip()
     if type_str == "ML/" and oi > 0:
         return None  # BBS-format spread leg, not a directional signal
 
