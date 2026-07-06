@@ -188,20 +188,30 @@ def run(base: str) -> Report:
         rep.add(f"bar sanity {tk}/{tf}", bad == 0 and future == 0,
                 f"{len(bars)} bars, {bad} bad-OHLC, {future} future-dated")
 
-    # 5. live-bar liveness (RTH only)
+    # 5. live-bar liveness (RTH only) — RECENCY-based. The old "did it advance over
+    # 35s" test false-FAILed at ~60s bar granularity (two polls land in one bucket).
+    # Instead: a liquid name's newest CLOSED bar should be recent. Genuine staleness
+    # (frozen chart / dead ingestion) shows as a large age. A ~20-min open-warmup
+    # grace covers the post-deploy cold-pod catch-up we observed 2026-07-06.
     if rth:
-        tk, tf = "AAPL", "1"
-        st, _, _, b1 = _get(base, f"/api/bars/{tk}?tf={tf}&bars=600")
-        d1 = _json(b1) or {}
-        last1 = (d1.get("bars") or [{}])[-1]
-        time.sleep(35)
-        st, _, _, b2 = _get(base, f"/api/bars/{tk}?tf={tf}&bars=600")
-        d2 = _json(b2) or {}
-        last2 = (d2.get("bars") or [{}])[-1]
-        advanced = (last2.get("t") != last1.get("t")) or (last2.get("c") != last1.get("c")) or (last2.get("v") != last1.get("v"))
-        rep.add("live-bar liveness (RTH)", bool(advanced),
-                f"{tk}/{tf} last bar {'ADVANCED' if advanced else 'FROZEN'} over 35s "
-                f"(t {last1.get('t')}->{last2.get('t')}, c {last1.get('c')}->{last2.get('c')})")
+        tk, tf = "SPY", "1"
+        _get(base, f"/api/bars/{tk}?tf={tf}&bars=5")  # first hit triggers stale-while-revalidate
+        time.sleep(12)
+        _st, _, _, b2 = _get(base, f"/api/bars/{tk}?tf={tf}&bars=5")
+        bars = (_json(b2) or {}).get("bars") or []
+        lt = bars[-1].get("t") if bars else None
+        age = (time.time() - lt) if isinstance(lt, (int, float)) else None
+        mins_since_open = (now_et.hour * 60 + now_et.minute) - (9 * 60 + 30)
+        warmup = 0 <= mins_since_open <= 20
+        if age is None:
+            rep.add("live-bar liveness (RTH)", False, f"{tk}/{tf} no bars returned")
+        elif age <= 180:
+            rep.add("live-bar liveness (RTH)", True, f"{tk}/{tf} newest bar {age:.0f}s old (fresh)")
+        elif age <= 420 or warmup:
+            rep.add("live-bar liveness (RTH)", True,
+                    f"{tk}/{tf} newest bar {age:.0f}s old ({'open-warmup' if warmup else 'mild lag/low-vol'})", warn=True)
+        else:
+            rep.add("live-bar liveness (RTH)", False, f"{tk}/{tf} newest bar {age:.0f}s old -- STALE (frozen ingestion?)")
     else:
         rep.add("live-bar liveness", True, "market closed -- skipped (run again during RTH)", warn=True)
 
