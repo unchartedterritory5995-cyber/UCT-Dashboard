@@ -1505,6 +1505,18 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
+        # Match /recent's row selection: pull MAGENTA + YELLOW always, plus
+        # WHITE rows above the premium override floor. Massive rows come in
+        # as Color=WHITE at ingest (only get promoted to YELLOW/MAGENTA by
+        # downstream Color rebuild). Without the WHITE clause, day-stats
+        # misses every tier-promoted alert (Alpha Gold, Size, Bullish etc.)
+        # that _row_to_alert built from a WHITE + premium_override row. That
+        # under-count is why the Live Market Read card showed $0 bull / $0
+        # bear while the alert table below showed hundreds of classified
+        # alerts on the same day. Uses a conservative $500K SQL floor
+        # matching the /recent endpoint; further refinement happens in
+        # _row_to_alert via _load_thresholds().
+        override_sql_floor = 500_000
         cur = conn.execute("""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -1512,8 +1524,9 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
               FROM flow
              WHERE source = 'stocks'
                AND CreatedDate = ?
-               AND Color IN ('MAGENTA', 'YELLOW')
-        """, (today,))
+               AND (Color IN ('MAGENTA', 'YELLOW')
+                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+        """, (today, override_sql_floor))
         rows = cur.fetchall()
     finally:
         conn.close()
