@@ -1848,6 +1848,22 @@ def _lookup_playbook(setup_name: str) -> dict:
     return brain_service.lookup_playbook(setup_name)
 
 
+def _portfolio_heat(user: dict, account_size: float = 0) -> dict:
+    from api.services import portfolio_heat as _ph
+    uid = user["id"]
+    return _ph.portfolio_heat(uid, account_id=_voice_account_id(uid),
+                              account_size=(account_size or None))
+
+
+def _grade_watchlist(user: dict, source: str = "watchlist", symbols=None,
+                     account_size: float = 0) -> dict:
+    from api.services import grade_watchlist as _gw
+    uid = user["id"]
+    return _gw.grade_watchlist(uid, account_id=_voice_account_id(uid),
+                               symbols=symbols, source=source or "watchlist",
+                               account_size=(account_size or None))
+
+
 def _grade_ticker(symbol: str, account_size: float = 0) -> dict:
     from api.services import grade_ticker as _gt
     return _gt.grade_ticker(symbol, account_size=(account_size or None))
@@ -3670,6 +3686,27 @@ def _register_all() -> None:
                         "account_size": {"type": "number"}},
             contexts=["global"],
         )(_grade_ticker)
+        _vt.voice_tool(
+            name="portfolio_heat",
+            description="Read the trader's portfolio heat: open risk-heat vs the 10% aggregate"
+                        " cap, notional vs the regime ceiling, per-position at-risk, sector"
+                        " concentration, and any positions with no real stop. Use for"
+                        " 'what's my heat / am I too exposed / most at risk'. State-read only.",
+            parameters={"account_size": {"type": "number"}},
+            contexts=["global"],
+        )(_portfolio_heat)
+        _vt.voice_tool(
+            name="grade_watchlist",
+            description="Grade a LIST of names to a per-name GO/HOLD/SKIP grid ranked through the"
+                        " trader's own edge, with a list-level verdict (0-GO on a hostile regime),"
+                        " sector-correlation flags, and a behavioral note. source ="
+                        " watchlist|flagged|positions|scan, or pass explicit symbols. Use for"
+                        " 'grade my watchlist / rank these / what's in play'.",
+            parameters={"source": {"type": "string"},
+                        "symbols": {"type": "array", "items": {"type": "string"}},
+                        "account_size": {"type": "number"}},
+            contexts=["global"],
+        )(_grade_watchlist)
         _vt.voice_tool(
             name="setup_winrate",
             description="Win-rate and expectancy for a setup, optionally in a specific regime"

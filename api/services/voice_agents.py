@@ -453,6 +453,8 @@ def _compass_tool_union() -> set[str]:
     out.add("find_historical_analogs")
     out.add("size_a_trade")
     out.add("grade_ticker")
+    out.add("portfolio_heat")
+    out.add("grade_watchlist")
     return out
 
 
@@ -494,6 +496,7 @@ _COMPASS_CORE_TOOLS: set[str] = {
     # risk-first sizing (flag-gated; harmless when unregistered).
     "ask_the_brain", "lookup_playbook", "setup_winrate",
     "find_historical_analogs", "size_a_trade", "grade_ticker",
+    "portfolio_heat", "grade_watchlist",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",
