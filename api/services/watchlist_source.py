@@ -65,9 +65,55 @@ def _flagged_syms(user_id, account_id):
     return syms
 
 
+_SCAN_MAX = 15
+_SCAN_MIN_CONF = 60
+
+
+def _raw_scan(user_id, account_id):
+    """ONE bounded deterministic scan: active pattern detections (fixed query,
+    NOT an LLM-planned DAG) -> high-confidence names in leading sectors. Kept a
+    primitive so it stays on the correct side of the T3 boundary."""
+    from api.services.journal_two import coach_chat_tools as cct
+    out = cct._exec_scan_active_patterns(user_id=user_id, account_id=account_id,
+                                         args={"min_conf": _SCAN_MIN_CONF})
+    dets = out.get("detections") or []
+    # leading-sector membership (best-effort; if unavailable, keep all)
+    leading = _leading_sectors()
+    ranked = sorted(dets, key=lambda d: (d.get("confidence") or 0), reverse=True)
+    picked, seen = [], set()
+    for d in ranked:
+        sym = (d.get("sym") or d.get("symbol") or "").upper()
+        if not sym or sym in seen:
+            continue
+        if leading and not (_sectors_of(sym) & leading):
+            continue
+        seen.add(sym)
+        picked.append(sym)
+        if len(picked) >= _SCAN_MAX:
+            break
+    return picked
+
+
+def _leading_sectors() -> set:
+    try:
+        from api.services.sector_strength import get_sector_strength
+        rows = get_sector_strength() or []
+        ranked = sorted(rows, key=lambda r: (r.get("pct") or r.get("return_pct") or 0), reverse=True)
+        return {(r.get("sector") or r.get("name") or "").strip() for r in ranked[:4] if r.get("sector") or r.get("name")}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+def _sectors_of(sym: str) -> set:
+    try:
+        from api.services.voice_position_sizing import _sectors_for_symbol
+        return _sectors_for_symbol(sym) or set()
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 def _scan_syms(user_id, account_id):
-    """Wired in the scan task. Base module returns nothing (no scan yet)."""
-    raise NotImplementedError("scan source not wired yet")
+    return _raw_scan(user_id, account_id)
 
 
 def resolve(user_id, account_id, source, symbols=None):
