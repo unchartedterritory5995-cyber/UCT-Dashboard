@@ -438,20 +438,30 @@ async def _fetch_oi_all_async(
     # incidents on 6/29 where the worker container stayed alive but
     # stopped writing rows.
     #
-    # 10s is generous; a healthy Schwab batch call returns in 1-3s.
+    # Timeout scales with batch size. options_quotes_batch groups by
+    # underlying internally and makes one chain call per distinct symbol.
+    # A batch of 1 finishes in 1-2s; a chunk of 200 spans 30-50 distinct
+    # symbols and needs 30-60s of real work. Using a single 10s ceiling
+    # meant every cron chunk timed out unconditionally regardless of
+    # Schwab health (root cause of the 6/30–7/6 coverage collapse to
+    # `failures: 37782, inserted: 0` on 7/6). The 10s guard is kept for
+    # on-demand paths (single-contract enrich-oi and Bullflow first-fires)
+    # where hang protection matters and real work is short.
+    #
     # If it does time out, we fall through to Massive fallback below;
     # the watchdog in massive_ws_worker.py is the second line of defense
     # for the WS event loop itself.
+    schwab_timeout = 15.0 if len(payload) <= 10 else 90.0
     response = None
     try:
         response = await asyncio.wait_for(
-            options_quotes_batch(payload), timeout=10.0
+            options_quotes_batch(payload), timeout=schwab_timeout
         )
     except asyncio.TimeoutError:
         logger.warning(
-            "[oi-snapshot] Schwab batch call timed out (>10s, %d contracts) — "
+            "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
             "falling through to Massive fallback.",
-            len(payload),
+            schwab_timeout, len(payload),
         )
         response = None
     except Exception as e:
@@ -515,17 +525,21 @@ async def _fetch_oi_all_async(
     unresolved_idx = [i for i, (_, oi) in enumerate(results) if oi is None]
     if unresolved_idx and not massive_disabled:
         massive_batch = [contracts[i] for i in unresolved_idx]
+        # Same size-scaled timeout logic as the Schwab call above: 12s
+        # ceiling for small on-demand batches (hang protection), 60s
+        # for cron chunks that span dozens of underlyings.
+        massive_timeout = 12.0 if len(massive_batch) <= 10 else 60.0
         try:
             from api.massive_oi_snapshots import (
                 _fetch_oi_all_async as _fetch_oi_massive
             )
             massive_results = await asyncio.wait_for(
-                _fetch_oi_massive(massive_batch), timeout=12.0
+                _fetch_oi_massive(massive_batch), timeout=massive_timeout
             )
         except asyncio.TimeoutError:
             logger.warning(
-                "[oi-snapshot] Massive OI fallback timed out (>12s, %d contracts)",
-                len(massive_batch),
+                "[oi-snapshot] Massive OI fallback timed out (>%.0fs, %d contracts)",
+                massive_timeout, len(massive_batch),
             )
             massive_results = []
         except Exception as e:
@@ -666,7 +680,15 @@ _STALE_OK_DAYS = 5   # how far back to walk for "stale-but-OK" snapshot match
 # Chunked processing — split contracts into chunks, fetch + commit per chunk.
 # Means partial progress is durable: if the job crashes or gets cancelled
 # mid-run, snapshots from completed chunks are already in the DB.
-CHUNK_SIZE = 500
+#
+# CHUNK_SIZE tuning history:
+#   500 → too big: a chunk spans 80-120 distinct underlyings, each an
+#         internal chain call, and the fixed 10s wait_for on the Schwab
+#         batch could never accommodate that. Every cron chunk timed out.
+#   200 → bounds a chunk to ~30-50 distinct underlyings, well within the
+#         size-scaled 90s Schwab timeout below. Full universe of ~38K
+#         contracts = ~190 chunks; run completes in under 30 min.
+CHUNK_SIZE = 200
 
 
 def daily_snapshot_job() -> Dict:
