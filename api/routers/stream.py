@@ -259,7 +259,13 @@ async def stream_bars(
                     await asyncio.sleep(0.05)
 
                 if time.time() - last_heartbeat > 15:
-                    yield ": heartbeat\n\n"
+                    # NAMED event (not a `:` comment): a bare comment keeps the
+                    # connection alive through proxies but is NOT surfaced to
+                    # EventSource as a JS event, so the pooled client's liveness
+                    # watchdog could never see it and would false-reconnect a
+                    # healthy-but-idle stream. A named heartbeat both keeps the
+                    # pipe warm AND lets the client touch its last-seen timer.
+                    yield "event: heartbeat\ndata: {}\n\n"
                     last_heartbeat = time.time()
         finally:
             for (sym, tf, q) in queues:

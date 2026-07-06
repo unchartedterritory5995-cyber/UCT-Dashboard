@@ -1,85 +1,59 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
+import { useEffect, useRef, useState } from 'react'
+import * as barsStreamManager from '../lib/barsStreamManager'
 
 /**
- * Real-time bar streaming via Server-Sent Events.
+ * Real-time bar streaming via the SHARED /api/stream/bars connection pool.
  *
- * Opens an EventSource for `/api/stream/bars?bars=<sym>:<tf>` and invokes
- * `onBar({sym, tf, bar})` for every incoming event. On connection drop, retries
- * with exponential backoff (5s → 10s → 20s cap). On (re)connect, calls
- * `onReconnect(lastBarT)` so the consumer can fire a REST gap-backfill.
+ * Subscribes (sym, tf) to barsStreamManager — ONE pooled EventSource serves every
+ * chart (was one per chart, the connection-multiplication class the price stream
+ * was pooled to kill), and each `bar` event is dispatched only to its own (sym,tf)
+ * so a pooled bar can never land on the wrong chart. Invokes `onBar({sym,tf,bar})`
+ * per bar and `onReconnect(lastBarT)` on (re)connect (for a REST gap-backfill).
  *
- * Disabled entirely when VITE_REALTIME_BARS !== '1' — returns {connected:false}
- * and never opens an EventSource.
- *
- * Pass empty `symbol` or `tf` to disable.
+ * Disabled entirely when VITE_REALTIME_BARS !== '1' — never subscribes and reports
+ * not-delivering. Returns the pool's liveness for the consumer's single-writer gate:
+ *   connected  — the pooled EventSource is open
+ *   healthy    — connected AND a bar/heartbeat arrived within the watchdog window
+ *   delivering — healthy AND a real bar for THIS (sym,tf) has arrived (so the chart
+ *                only suppresses the Finnhub writers once push is PROVEN live)
  */
 export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
   const enabled = import.meta.env.VITE_REALTIME_BARS === '1' && !!symbol && !!tf
-  const [connected, setConnected] = useState(false)
-  const esRef = useRef(null)
-  const reconnectRef = useRef(null)
-  const retryDelayRef = useRef(5000)
-  const lastBarTRef = useRef(null)
+  const [status, setStatus] = useState({ connected: false, healthy: false, delivering: false })
   const onBarRef = useRef(onBar)
   const onReconnectRef = useRef(onReconnect)
+  const lastBarTRef = useRef(null)
 
-  // Keep refs current without re-running connect()
+  // Keep callbacks current without re-subscribing.
   useEffect(() => { onBarRef.current = onBar }, [onBar])
   useEffect(() => { onReconnectRef.current = onReconnect }, [onReconnect])
 
-  const connect = useCallback(() => {
-    if (!enabled || esRef.current) return
-
-    const url = `/api/stream/bars?bars=${encodeURIComponent(symbol)}:${encodeURIComponent(tf)}`
-    const es = new EventSource(url)
-    esRef.current = es
-
-    es.onopen = () => {
-      setConnected(true)
-      retryDelayRef.current = 5000
-      if (reconnectRef.current) {
-        clearTimeout(reconnectRef.current)
-        reconnectRef.current = null
-      }
-      // On (re)connect, ask consumer to backfill from last seen bar.
-      if (onReconnectRef.current) {
-        try { onReconnectRef.current(lastBarTRef.current) } catch {}
-      }
+  useEffect(() => {
+    if (!enabled) {
+      setStatus({ connected: false, healthy: false, delivering: false })
+      return undefined
     }
-
-    es.addEventListener('bar', (event) => {
-      try {
-        const data = JSON.parse(event.data)  // {sym, tf, bar:{t,o,h,l,c,v}}
+    const refresh = () => setStatus(barsStreamManager.getStatus(symbol, tf))
+    const unsub = barsStreamManager.subscribe(symbol, tf, {
+      onBar: (data) => {
         if (data?.bar?.t != null) lastBarTRef.current = data.bar.t
         if (onBarRef.current) onBarRef.current(data)
-      } catch {}
+      },
+      onReconnect: (lastBarT) => {
+        if (onReconnectRef.current) {
+          try { onReconnectRef.current(lastBarT ?? lastBarTRef.current) } catch { /* ignore */ }
+        }
+      },
+      onStatus: refresh,
     })
-
-    es.onerror = () => {
-      setConnected(false)
-      es.close()
-      esRef.current = null
-      const delay = retryDelayRef.current
-      retryDelayRef.current = Math.min(delay * 2, STREAM_RECONNECT_CAP_MS)  // cap at 20s (was 120s)
-      reconnectRef.current = setTimeout(() => connect(), delay)
-    }
+    refresh()
+    return () => unsub()
   }, [enabled, symbol, tf])
 
-  useEffect(() => {
-    if (enabled) connect()
-    return () => {
-      if (esRef.current) {
-        esRef.current.close()
-        esRef.current = null
-      }
-      if (reconnectRef.current) {
-        clearTimeout(reconnectRef.current)
-        reconnectRef.current = null
-      }
-      setConnected(false)
-    }
-  }, [enabled, connect])
-
-  return { connected, lastBarT: lastBarTRef }
+  return {
+    connected: status.connected,
+    healthy: status.healthy,
+    delivering: status.delivering,
+    lastBarT: lastBarTRef,
+  }
 }

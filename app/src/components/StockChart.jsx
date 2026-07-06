@@ -2818,6 +2818,12 @@ export default function StockChart({
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return
+    // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
+    // dispatches by key, but never apply a bar that isn't ours — cross-symbol
+    // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
+    // here too (belt-and-suspenders against any future pool regression).
+    if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
+    if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -2878,7 +2884,7 @@ export default function StockChart({
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
     }
-  }, [cs.chartType])
+  }, [cs.chartType, sym, resolvedTf])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
