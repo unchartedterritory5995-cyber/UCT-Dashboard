@@ -1436,6 +1436,51 @@ def recent_massive_alerts(
                 skipped_curated += 1
         all_alerts = kept
 
+        # ─── Contract-level dedupe (added 2026-07-05) ────────────────────
+        # In curated mode, collapse multiple alerts on the same contract
+        # (ticker + cp + strike + exp) to a single representative row. Fixes
+        # the "Alpha Gold fired 20 times on same CSCO $80c" symptom where
+        # each raw print became its own alert badge.
+        #
+        # Representative selection: highest-premium row wins (keeps its
+        # timestamp, side, type). Premium and volume aggregate across the
+        # group so downstream displays show the contract-level total.
+        # _hitCount was already set to the true group size in the earlier
+        # pass so the ×N badge still reflects raw activity.
+        #
+        # Only in curated mode — All Flow stays raw firehose for tape
+        # scanning where every print matters.
+        by_contract: dict = {}
+        for a in all_alerts:
+            k = f"{a.get('ticker')}|{a.get('cp')}|{a.get('strike')}|{a.get('exp')}"
+            entry = by_contract.get(k)
+            if entry is None:
+                by_contract[k] = {
+                    "rep": a,
+                    "premium_sum": a.get("alertPremium") or 0,
+                    "volume_sum": a.get("tradeSize") or 0,
+                }
+            else:
+                entry["premium_sum"] += a.get("alertPremium") or 0
+                entry["volume_sum"] += a.get("tradeSize") or 0
+                # Promote to new representative if higher premium
+                if (a.get("alertPremium") or 0) > (entry["rep"].get("alertPremium") or 0):
+                    entry["rep"] = a
+        deduped = []
+        for k, entry in by_contract.items():
+            rep = dict(entry["rep"])  # shallow copy so we don't mutate original
+            rep["alertPremium"] = entry["premium_sum"]
+            rep["tradeSize"] = entry["volume_sum"]
+            deduped.append(rep)
+        # Preserve prior sort order (conviction / premium / recent) on deduped set
+        if sort_by == "conviction":
+            deduped.sort(key=lambda a: a.get("convictionScore") or 0, reverse=True)
+        elif sort_by == "premium":
+            deduped.sort(key=lambda a: a.get("alertPremium") or 0, reverse=True)
+        else:  # recent — use timestamp
+            deduped.sort(key=lambda a: a.get("timestamp") or 0, reverse=True)
+        all_alerts = deduped
+
     alerts = all_alerts[:limit]
 
     status = _get_worker_status()
