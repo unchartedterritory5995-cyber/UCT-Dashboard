@@ -134,3 +134,18 @@ def test_unsizable_setup_forces_skip():
     assert out["verdict"] == "SKIP"
     assert "size_unavailable" in out["hard_flags"]
     assert out["size_pct"] is None
+
+
+def test_default_size_fn_converts_brain_fraction_to_percent(monkeypatch):
+    # the real brain returns max_position_pct as a 0-1 FRACTION (0.2 = 20%);
+    # _default_size_fn must normalize it to PERCENT so the basis reads "20.0%".
+    import api.services.grade_ticker as gt
+
+    def fake_brain_size(**kw):
+        return {"ok": True, "shares": 200, "max_position_pct": 0.2,
+                "risk_pct": 1.0, "r1_target": 105.0, "recommendation": "ENTER"}
+
+    monkeypatch.setattr("api.services.brain_service.size_a_trade", fake_brain_size)
+    out = gt._default_size_fn(100.0, 95.0, 100000.0, regime="GREEN", grade="A")
+    assert out["max_position_pct"] == 20.0        # 0.2 fraction -> 20.0 percent
+    assert out["risk_pct"] == 1.0                 # already percent, untouched

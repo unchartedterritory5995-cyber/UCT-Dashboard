@@ -69,8 +69,17 @@ def _default_playbook_fn(setup_name):
 
 def _default_size_fn(entry, stop, account, regime="", grade="A", risk_pct=1.0):
     from api.services import brain_service
-    return brain_service.size_a_trade(entry=entry, stop=stop, account=account,
-                                      regime=regime, grade=grade, risk_pct=risk_pct)
+    out = brain_service.size_a_trade(entry=entry, stop=stop, account=account,
+                                     regime=regime, grade=grade, risk_pct=risk_pct)
+    # The engine returns `max_position_pct` as a 0-1 FRACTION (0.2 == 20%), but
+    # grade_ticker + `account_risk_pct` speak PERCENT — so the "size {size_pct}%"
+    # basis would read "0.2%" (100x low) without this. Normalize the one field.
+    if isinstance(out, dict) and out.get("max_position_pct") is not None:
+        try:
+            out = {**out, "max_position_pct": round(float(out["max_position_pct"]) * 100, 1)}
+        except (TypeError, ValueError):
+            pass
+    return out
 
 
 def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
