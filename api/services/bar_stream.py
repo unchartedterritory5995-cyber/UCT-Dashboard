@@ -145,16 +145,6 @@ class BarStreamClient:
         self.pending_subscribe -= gone
 
 
-def get_status() -> dict:
-    """Snapshot of the Massive bars WebSocket ingest (for /api/admin/bars-stream-status)."""
-    return {
-        "ws_running": _running,
-        "ws_connected": _ws_connection is not None,
-        "active_symbols": len(_active),
-        "sample_symbols": sorted(_active)[:15],
-    }
-
-
 def _build_subscribe_message(syms: Iterable[str]) -> str:
     """Polygon-compatible subscribe message: subscribes to AM.*, A.*, and T.* for each symbol.
 

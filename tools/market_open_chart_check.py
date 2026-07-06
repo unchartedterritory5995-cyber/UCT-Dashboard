@@ -252,7 +252,8 @@ def run(base: str) -> Report:
     else:
         ws = ss.get("websocket") or {}
         bc = ss.get("broadcaster") or {}
-        detail = (f"ws_connected={ws.get('ws_connected')}, subscribers={bc.get('subscriber_pairs')}, "
+        ws_connected = ws.get("connected")
+        detail = (f"ws_connected={ws_connected}, subscribers={bc.get('subscriber_pairs')}, "
                   f"emitted_total={bc.get('bars_emitted_total')}, last_emit_age={bc.get('last_emit_age_s')}s, "
                   f"drops={bc.get('bars_dropped_total')}")
         if rth:
@@ -271,12 +272,12 @@ def run(base: str) -> Report:
                     pass
             if bars_seen > 0 and bad == 0:
                 rep.add("push-stream (Phase C)", True, f"{bars_seen} live bar events in 12s, OHLC sane; {detail}")
-            elif ws.get("ws_connected") and bars_seen == 0:
+            elif ws_connected and bars_seen == 0:
                 rep.add("push-stream (Phase C)", True, f"0 bar events in 12s (quiet symbols?) but WS connected; {detail}", warn=True)
             else:
-                rep.add("push-stream (Phase C)", False, f"{bars_seen} bars, {bad} bad-OHLC, WS={ws.get('ws_connected')}; {detail}")
+                rep.add("push-stream (Phase C)", False, f"{bars_seen} bars, {bad} bad-OHLC, WS={ws_connected}; {detail}")
         else:
-            rep.add("push-stream (Phase C)", bool(ws.get("ws_connected")), f"market closed; {detail}", warn=not ws.get("ws_connected"))
+            rep.add("push-stream (Phase C)", bool(ws_connected), f"market closed; {detail}", warn=not ws_connected)
 
     # 6. accuracy monitor (reconciliation-status)
     st, _, _, b = _get(base, "/api/admin/reconciliation-status")
