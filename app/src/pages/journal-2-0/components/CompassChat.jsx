@@ -356,6 +356,14 @@ export default function CompassChat({ accountId }) {
           >Send</button>
         </div>
       </div>
+      <div style={{
+        fontSize: 10, color: 'var(--color-text-muted, #8a8a8a)', textAlign: 'center',
+        padding: '6px 12px 2px', lineHeight: 1.4,
+      }}>
+        Compass is an educational trading coach — not personalized financial advice. Its
+        verdicts grade setups against the firm's own method; they are not recommendations
+        to buy or sell for your account.
+      </div>
     </section>
   )
 }
