@@ -16,6 +16,7 @@ import DeskVideoRail from '../components/dashboard/DeskVideoRail'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
 import MarketStatusBar from '../components/dashboard/MarketStatusBar'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
+import SectorRotation from '../components/tiles/SectorRotation'
 import UIcon from '../components/ui/UIcon'
 import styles from './Dashboard.module.css'
 
@@ -96,6 +97,9 @@ export default function Dashboard() {
             <TapeFeed />
           </div>
 
+          {/* Sector rotation — SPDR sectors ranked strongest→weakest */}
+          <SectorRotation />
+
           {/* Row D — earnings + flow */}
           <div className={styles.rowD}>
             <CatalystFlow />
@@ -135,6 +139,15 @@ export default function Dashboard() {
             <FuturesStrip />
             <IntradayPulse />
             {/* 6. The rest — collapsible */}
+            <MobileSection
+              icon={<UIcon name="flow" />}
+              title="Sector Rotation"
+              subtitle="Where money is rotating"
+              expanded={openSection === 'sectors'}
+              onToggle={() => toggle('sectors')}
+            >
+              <SectorRotation />
+            </MobileSection>
             <MobileSection
               icon={<UIcon name="flow" />}
               title="Theme Tracker"
