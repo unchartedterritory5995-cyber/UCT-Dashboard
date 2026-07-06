@@ -1161,10 +1161,19 @@ export default function StockChart({
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
-  // Phase C single-writer gate (updated each render below the useRealtimeBars call).
-  // When true, the Massive push writer (onRealtimeBar) is the SOLE developing-bar
-  // writer and the Finnhub-fed writers (livePrices effect, registry, post-setData
-  // re-apply) early-return. A ref so those writers read the latest without re-subscribing.
+  // ── Phase C single-writer invariant (updated each render below the useRealtimeBars
+  // call) ── When barsPushActiveRef.current is true, the Massive push writer is the SOLE
+  // developing-bar writer; the Finnhub-fed writers early-return. A ref so writers read the
+  // latest without re-subscribing.
+  //
+  // ⚠️ EVERY developing-bar writer MUST consult this flag — the FOUR that exist today, and
+  // any FIFTH one added later. A writer that forgets the guard dual-writes or paints the
+  // wrong candle — exactly how the Heikin-Ashi raw-candle bug shipped (retro audit 2026-07-06).
+  // The four writer sites (grep `barsPushActiveRef` to find them; keep these refs ~in sync):
+  //   • Writer A — livePrices tick effect      (~L2748):  if (barsPushActiveRef.current) return
+  //   • Writer B — onRealtimeBar, Massive push (~L2890):  if (!barsPushActiveRef.current) return  ← B IS the writer
+  //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
+  //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
   const barsPushActiveRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
 
@@ -2741,10 +2750,11 @@ export default function StockChart({
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
     if (cs.heikinAshi) return
-    // Phase C single-writer: when the Massive push feed is authoritative, freeze this
-    // Finnhub tick writer ENTIRELY — no series write AND no latestLiveRef update (the
-    // post-setData re-apply reads latestLiveRef; a stale value there would repaint an
-    // old developing bar over the fresh push bar = the 30s seam the plan review flagged).
+    // Writer A of the single-writer invariant (index @ barsPushActiveRef decl): when the
+    // Massive push feed is authoritative, freeze this Finnhub tick writer ENTIRELY — no
+    // series write AND no latestLiveRef update (the post-setData re-apply reads latestLiveRef;
+    // a stale value there would repaint an old developing bar over the fresh push bar = the
+    // 30s seam the plan review flagged).
     if (barsPushActiveRef.current) return
     // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
     // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
@@ -2882,11 +2892,12 @@ export default function StockChart({
     // here too (belt-and-suspenders against any future pool regression).
     if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
     if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
-    // B only paints when push is AUTHORITATIVE (delivering). In the transient connected-but-
-    // -not-yet-delivering window (the first bar; a flap near the recency boundary) the Finnhub
-    // writers are still active, so painting here too would DUAL-WRITE the developing bar (jitter
-    // on thin tickers). delivering is tracked independently by the pool, so this is a clean
-    // one-bar handoff — Finnhub covers the transition bar, then B takes over.
+    // Writer B of the single-writer invariant (index @ barsPushActiveRef decl) — B IS the
+    // push writer, so it paints ONLY when push is AUTHORITATIVE (delivering). In the transient
+    // connected-but-not-yet-delivering window (the first bar; a flap near the recency boundary)
+    // the Finnhub writers are still active, so painting here too would DUAL-WRITE the developing
+    // bar (jitter on thin tickers). delivering is tracked independently by the pool, so this is a
+    // clean one-bar handoff — Finnhub covers the transition bar, then B takes over.
     if (!barsPushActiveRef.current) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
@@ -3334,7 +3345,8 @@ export default function StockChart({
     // Re-apply the live developing bar immediately after setData() to prevent snap-back —
     // setData() overwrites with API data (stale by seconds/minutes).
     if (barsPushActiveRef.current) {
-      // Push is authoritative: re-top with the PUSH-owned developing bar (liveBarRef,
+      // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
+      // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
       // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
       // the ~30s-stale server developing bar from _applyData would seam every SWR poll
       // (review #7). Guard time-regress (server tail may be ahead of the last push bar).
@@ -5780,8 +5792,9 @@ export default function StockChart({
 
     const update = () => {
       if (!candleSeriesRef.current) return
-      // Phase C: the Finnhub-fed registry is suppressed when the Massive push feed
-      // is the authoritative developing-bar writer (onRealtimeBar owns it).
+      // Writer C of the single-writer invariant (index @ barsPushActiveRef decl): the
+      // Finnhub-fed registry is suppressed when the Massive push feed is the authoritative
+      // developing-bar writer (onRealtimeBar owns it).
       if (barsPushActiveRef.current) return
       const candle = realtimeCandle.getCandle(sym, '1')
       if (!candle) return
