@@ -14,7 +14,6 @@ import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import DeskVideoRail from '../components/dashboard/DeskVideoRail'
 import CompassTodayTile from '../components/tiles/CompassTodayTile'
-import MarketStatusBar from '../components/dashboard/MarketStatusBar'
 import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
 import SectorRotation from '../components/tiles/SectorRotation'
 import UIcon from '../components/ui/UIcon'
@@ -72,8 +71,10 @@ export default function Dashboard() {
       <div className={styles.content}>
         {/* ── Desktop: command-center grid (2026-07-02 restyle) ──────────── */}
         <div className={styles.desktopOnly}>
-          {/* Slim status header: session · index chips · exposure · quote */}
-          <MarketStatusBar />
+          {/* Index boxes (QQQ/SPY/IWM/DIA/BTC/VIX) + Quote of the Day */}
+          <div className={styles.row1}>
+            <FuturesStrip />
+          </div>
           <IntradayPulse />
 
           {/* Row B — the decision row: catalysts hero + journal/movers rail */}
