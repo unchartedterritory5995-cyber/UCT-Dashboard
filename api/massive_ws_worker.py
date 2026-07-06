@@ -82,6 +82,25 @@ MIN_VOLUME = int(os.environ.get("MASSIVE_MIN_VOLUME", "50"))
 # 2s = events appear in OptionsFlow.jsx within 2-3 seconds of the trade.
 FLUSH_INTERVAL_SEC = float(os.environ.get("MASSIVE_FLUSH_INTERVAL", "2.0"))
 
+# Minimum gap between ANY two connection attempts -- clean close OR error.
+# Massive support guidance: leave 10-30s between reconnections so their
+# server fully reaps the old session before a new one arrives; reconnecting
+# into a still-counted session trips max_connections. We take the high end.
+# Module-level + env-tunable so unit tests and after-hours smokes can shrink
+# it, and ops can raise it (e.g. to 45) without a code change.
+MIN_RECONNECT_GAP = float(os.environ.get("MASSIVE_MIN_RECONNECT_GAP", "30"))
+
+# max_connections backoff ladder -- replaces the old blind 600s cooldown.
+# Strike count resets ONLY on auth_success. While process uptime is under
+# MAXCONN_YOUNG_UPTIME_SEC (i.e. right after a deploy), the cooldown is
+# capped at MAXCONN_YOUNG_CAP_SEC: a young process's max_connections is
+# almost always the 10-30s zombie-session overlap from the deploy handoff,
+# not a real lockout -- sleeping 600s there is 10 minutes of lost tape.
+# NOTE: no rung and no cap is ever below 30s (Massive 10-30s guidance).
+MAXCONN_LADDER = (30.0, 60.0, 120.0, 300.0, 600.0)
+MAXCONN_YOUNG_UPTIME_SEC = float(os.environ.get("MASSIVE_MAXCONN_YOUNG_UPTIME", "900"))
+MAXCONN_YOUNG_CAP_SEC = float(os.environ.get("MASSIVE_MAXCONN_YOUNG_CAP", "60"))
+
 
 # -- Module-level state (read via get_status() for health endpoint) ---
 
@@ -98,6 +117,16 @@ _state = {
     "reconnect_count": 0,
     "last_error": None,
     "thread": None,
+    # Graceful-stop plumbing (2026-07-06 deploy-survival patch). Captured by
+    # _consumer_root() at thread start; consumed by stop(). NOT JSON-
+    # serializable -- get_status() strips them (like "thread").
+    "loop": None,            # asyncio loop owned by the consumer thread
+    "root_task": None,       # root Task wrapping _consume_forever
+    "stop_requested": False, # set by stop(); guards against double-cancel
+    # Reconnect-discipline telemetry (post-deploy verification via /status)
+    "maxconn_strikes": 0,     # consecutive max_connections since last auth_success
+    "last_cooldown_sec": None, # duration of the most recent reconnect sleep
+    "clean_reconnects": 0,     # sessions that ended with a clean close (e.g. watchdog 1001)
     # Enrichment diagnostics (Phase 2a debugging)
     "last_meta_lookup_size": 0,      # symbols passed to _load_ticker_metadata
     "last_meta_lookup_resolved": 0,  # symbols that returned non-empty meta
@@ -214,13 +243,19 @@ def _reconstruct_occ_symbol(root: str, expiry, cp: str, strike: float) -> str:
 def get_status() -> dict:
     """Snapshot of worker state. Wire to a health endpoint if useful."""
     s = dict(_state)
+    # Non-serializable runtime handles -- never expose via JSON endpoints
+    # (/api/live/massive/status would 500 and blind external monitors).
     s.pop("thread", None)
+    s.pop("loop", None)
+    s.pop("root_task", None)
     if s["started_at"]:
         s["uptime_sec"] = round(time.time() - s["started_at"], 1)
     s["dry_run"] = DRY_RUN
     s["enabled"] = ENABLED
     s["min_premium"] = MIN_PREMIUM
     s["min_volume"] = MIN_VOLUME
+    s["min_reconnect_gap"] = MIN_RECONNECT_GAP
+    s["graceful_stop"] = True  # feature-detect for monitors / smoke checks
     return s
 
 
@@ -1222,33 +1257,29 @@ def _write_events(events: list) -> None:
 # -- WebSocket consumer ---------------------------------------------
 
 async def _consume_forever():
-    """Outer loop: connect, run, reconnect on failure with backoff.
+    """Outer loop: connect, run, reconnect with backoff.
 
-    Backoff semantics: starts at MIN_RECONNECT_GAP (20s) per Massive support
-    guidance -- their server takes 10-30s to notice an unexpected client
-    disconnect. Reconnecting faster than that means the SERVER thinks both
-    connections are active, which trips max_connections and locks you out.
-    Doubles on each failure to MAX_BACKOFF.
-
-    The backoff resets to MIN_RECONNECT_GAP ONLY after a successful
-    authentication -- NOT when TCP connects. Massive will happily accept
-    the TCP connection and then immediately respond with auth_failed or
-    max_connections; if we reset backoff on TCP-open, an account that's
-    locked out gets hammered too fast, which makes the lockout worse.
-
-    Special-case: max_connections triggers a long cooldown (MAX_CONN_COOLDOWN)
-    regardless of backoff. This error means Massive thinks you have too many
-    connections; retrying every minute won't help and may extend the lockout.
+    Reconnect discipline (2026-07-06 deploy-survival patch):
+    - EVERY reconnect -- clean session end or error -- waits at least
+      MIN_RECONNECT_GAP (30s). Massive's server keeps counting a dead session
+      for 10-30s after it drops; reconnecting inside that window trips
+      max_connections. The old code slept only in the error path, so a
+      watchdog-initiated clean close (code 1001) reconnected with ZERO gap,
+      hit max_connections, and fell into a blind 600s cooldown.
+    - max_connections uses the MAXCONN_LADDER (30/60/120/300/600s) instead of
+      a blind 600s. Strikes reset ONLY on auth_success. While process uptime
+      < MAXCONN_YOUNG_UPTIME_SEC the cooldown is capped at
+      MAXCONN_YOUNG_CAP_SEC -- a young process's max_connections is deploy-
+      handoff overlap, not a real lockout.
+    - Exponential backoff for other errors resets ONLY on auth_success
+      (unchanged) -- NOT on TCP connect, so a locked-out account is never
+      hammered.
     """
     import websockets
 
-    # Per Massive support: leave 10-30s gap between automatic reconnections
-    # so both client and server have time to fully close the old connection
-    # before a new one is established. We pick the high end (20s) for safety.
-    MIN_RECONNECT_GAP = 20.0
     backoff = MIN_RECONNECT_GAP
     MAX_BACKOFF = 120.0
-    MAX_CONN_COOLDOWN = 600.0  # 10 min -- long enough for server-side cleanup
+    maxconn_strikes = 0
 
     while ENABLED:
         try:
@@ -1257,6 +1288,9 @@ async def _consume_forever():
                 MASSIVE_OPTIONS_WS_URL,
                 ping_interval=20,
                 ping_timeout=20,
+                close_timeout=3,   # bound the closing handshake: shutdown and
+                                   # watchdog closes must not hang on a dead
+                                   # peer (library default is 10s)
                 max_size=2**24,  # 16 MB frames; bursts can be large
             ) as ws:
                 _state["connected"] = True
@@ -1267,7 +1301,7 @@ async def _consume_forever():
                 logger.info("[massive-ws] hello: %s", first[:200])
                 # Detect immediate rejection (e.g. max_connections) and fail
                 # fast so we don't waste an auth attempt that's guaranteed to
-                # be rejected too. Triggers the cooldown path below.
+                # be rejected too. Triggers the ladder path below.
                 if "max_connections" in first:
                     raise RuntimeError(f"max_connections at hello: {first[:300]}")
 
@@ -1281,10 +1315,12 @@ async def _consume_forever():
                 if "auth_success" not in auth_resp:
                     raise RuntimeError(f"auth failed: {auth_resp[:300]}")
 
-                # Auth successful -- NOW it's safe to reset backoff. From here
-                # on, any disconnect is something to retry quickly (but still
-                # honoring the 20s server-cleanup window).
+                # Auth successful -- NOW reset backoff AND the max_connections
+                # strike ladder. (Resetting on TCP-open would hammer a locked
+                # account; resetting only here is the safe anchor.)
                 backoff = MIN_RECONNECT_GAP
+                maxconn_strikes = 0
+                _state["maxconn_strikes"] = 0
 
                 # 3. Subscribe to trades
                 await ws.send(json.dumps({
@@ -1300,6 +1336,23 @@ async def _consume_forever():
                 # the warm-started pool.
                 await _run_session(ws)
 
+            # ---- clean session end (watchdog 1001 / server clean close) ----
+            # The async-with has fully closed our side of the socket by the
+            # time we get here. Honor the same server-cleanup window as the
+            # error path before reconnecting: the old zero-gap loop here is
+            # what turned every watchdog close into a max_connections spiral
+            # ending in the blind 600s cooldown (7/6 Class B).
+            _state["connected"] = False
+            _state["clean_reconnects"] += 1
+            if not ENABLED:
+                break
+            _state["last_cooldown_sec"] = MIN_RECONNECT_GAP
+            logger.info(
+                "[massive-ws] session ended cleanly -- reconnect in %.0fs "
+                "(server cleanup window)", MIN_RECONNECT_GAP,
+            )
+            await asyncio.sleep(MIN_RECONNECT_GAP)
+
         except asyncio.CancelledError:
             logger.info("[massive-ws] cancelled -- exiting")
             raise
@@ -1308,15 +1361,24 @@ async def _consume_forever():
             _state["last_error"] = str(e)
             _state["reconnect_count"] += 1
 
-            # Pick cooldown: max_connections gets a long sleep, everything
-            # else gets normal exponential backoff.
             err_str = str(e)
             if "max_connections" in err_str:
-                sleep_for = MAX_CONN_COOLDOWN
+                idx = min(maxconn_strikes, len(MAXCONN_LADDER) - 1)
+                sleep_for = MAXCONN_LADDER[idx]
+                maxconn_strikes += 1
+                _state["maxconn_strikes"] = maxconn_strikes
+                uptime = time.time() - (_state.get("started_at") or time.time())
+                capped = ""
+                if uptime < MAXCONN_YOUNG_UPTIME_SEC and sleep_for > MAXCONN_YOUNG_CAP_SEC:
+                    # Deploy-overlap residual: the zombie session dies within
+                    # 10-30s server-side; probe again soon instead of eating
+                    # a 5-10 minute hole in the tape.
+                    sleep_for = MAXCONN_YOUNG_CAP_SEC
+                    capped = " [young-process cap]"
                 logger.warning(
-                    "[massive-ws] max_connections -- long cooldown %.0fs "
-                    "(retrying won't help; check account limit / contact support)",
-                    sleep_for,
+                    "[massive-ws] max_connections -- cooldown %.0fs%s "
+                    "(strike %d, uptime %.0fs)",
+                    sleep_for, capped, maxconn_strikes, uptime,
                 )
             else:
                 sleep_for = backoff
@@ -1326,9 +1388,10 @@ async def _consume_forever():
                 )
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
+            _state["last_cooldown_sec"] = sleep_for
             await asyncio.sleep(sleep_for)
 
-    logger.info("[massive-ws] disabled via env -- consumer stopping")
+    logger.info("[massive-ws] consumer loop exiting (ENABLED=False)")
 
 
 async def _run_session(ws):
@@ -1347,6 +1410,14 @@ async def _run_session(ws):
     _q_pending_unsubscribe.clear()
     _state["q_subscribed_count"] = 0
     _state["quotes_received"] = 0
+
+    # Deploy-survival patch: reset the watchdog's staleness anchor for the
+    # NEW session. Without this, a fresh session inherits the pre-disconnect
+    # last_trade_ts; if the outage exceeded STALE_THRESHOLD_SEC the watchdog
+    # kills the brand-new healthy connection on its first 10s check --
+    # making the watchdog->reconnect->cooldown loop self-sustaining.
+    # None re-arms the watchdog's grace path ("no events yet -- give it time").
+    _state["last_trade_ts"] = None
 
     # Phase 2f: clear OI fetch queue on each session. Contracts that were
     # unresolved last session might now be in the cron snapshot (5:30 AM run);
@@ -1457,6 +1528,11 @@ async def _run_session(ws):
                 await asyncio.wait_for(stop_event.wait(), timeout=5.0)
             except asyncio.TimeoutError:
                 pass
+            else:
+                # Session tearing down: the socket is dying and Massive clears
+                # subscriptions on disconnect anyway. Skipping the final send
+                # keeps stop() teardown inside its 5s join budget.
+                break
             # Take a snapshot of pending lists, then clear them so the event
             # loop can continue queuing while we send.
             subs = _q_pending_subscribe[:]
@@ -1557,6 +1633,10 @@ async def _run_session(ws):
                 await asyncio.wait_for(stop_event.wait(), timeout=10.0)
             except asyncio.TimeoutError:
                 pass
+            else:
+                # Session tearing down: skip the final Yahoo batch (up to 8s)
+                # during teardown so stop() stays inside its join budget.
+                break
             if not _spot_fetch_queue:
                 continue
             batch = _spot_fetch_queue[:]
@@ -1613,6 +1693,10 @@ async def _run_session(ws):
                 await asyncio.wait_for(stop_event.wait(), timeout=20.0)
             except asyncio.TimeoutError:
                 pass
+            else:
+                # Session tearing down: skip the final Schwab batch during
+                # teardown; the next session re-queues unresolved contracts.
+                break
             if not _oi_fetch_queue:
                 continue
             # Snapshot and clear the queue
@@ -1944,16 +2028,96 @@ async def _run_session(ws):
 
 # -- Thread entry point ---------------------------------------------
 
+async def _consumer_root():
+    """Root coroutine for the consumer thread's event loop.
+
+    Exists so stop() -- called from ANOTHER thread (uvicorn's lifespan
+    teardown) -- has a Task handle to cancel and a loop to schedule the cancel
+    on. Captures both into _state BEFORE the first await so the
+    stop()-before-refs race window is microseconds.
+    """
+    _state["loop"] = asyncio.get_running_loop()
+    _state["root_task"] = asyncio.current_task()
+    try:
+        await _consume_forever()
+    except asyncio.CancelledError:
+        # Terminal cancel from stop(). Swallow it HERE -- not in
+        # _consume_forever, which must re-raise so the websockets context
+        # manager's __aexit__ runs the closing handshake -- so asyncio.run()
+        # returns instead of dumping a CancelledError via threading.excepthook.
+        logger.info("[massive-ws] root task cancelled -- graceful stop complete")
+    finally:
+        _state["loop"] = None
+        _state["root_task"] = None
+
+
 def _thread_main():
     """Run the asyncio loop in this dedicated thread."""
     try:
-        asyncio.run(_consume_forever())
+        asyncio.run(_consumer_root())
     except Exception as e:
         logger.exception("[massive-ws] thread crashed: %s", e)
         _state["last_error"] = f"thread_crash: {e}"
     finally:
         _state["running"] = False
         _state["connected"] = False
+
+
+def stop(timeout: float = 5.0) -> bool:
+    """Gracefully stop the WS consumer. Safe from any thread, any number of
+    times, whether or not start() ever ran.
+
+    Sequence:
+      1. Flip module-level ENABLED so `while ENABLED` exits even if the cancel
+         below is lost (e.g. thread hasn't registered loop/task refs yet).
+         No module does `from ... import ENABLED`, so the reassignment is
+         seen everywhere.
+      2. call_soon_threadsafe(root_task.cancel) -- FIRST call only. Lands
+         CancelledError at the consumer's current await; the websockets
+         context manager's __aexit__ then performs the closing handshake
+         (close frame, bounded by close_timeout=3), so Massive sees a CLEAN
+         disconnect and frees the slot in seconds instead of holding a zombie
+         session for 10-30s+ that trips the next process into max_connections.
+      3. join(timeout): bounded. On timeout we return False -- the daemon
+         thread finishes behind us inside the Railway drain window.
+    """
+    global ENABLED
+    already_requested = _state.get("stop_requested", False)
+    _state["stop_requested"] = True
+    ENABLED = False
+
+    t = _state.get("thread")
+    if t is None or not t.is_alive():
+        logger.info("[massive-ws] stop(): consumer not running -- nothing to do")
+        return True
+
+    if not already_requested:
+        loop = _state.get("loop")
+        task = _state.get("root_task")
+        if loop is not None and task is not None:
+            try:
+                loop.call_soon_threadsafe(task.cancel)
+                logger.info("[massive-ws] stop(): cancel scheduled on consumer loop")
+            except RuntimeError:
+                pass  # loop already closed -- thread exiting on its own
+        else:
+            logger.info(
+                "[massive-ws] stop(): no loop/task refs yet -- relying on "
+                "ENABLED flag"
+            )
+    # else: a second stop() must NOT cancel again -- a second CancelledError
+    # would land inside _run_session's finally (BaseException escapes the
+    # `except Exception` guards there) and abort the final flush.
+
+    t.join(timeout)
+    if t.is_alive():
+        logger.warning(
+            "[massive-ws] stop(): thread still alive after %.1fs -- daemon "
+            "thread finishes during the remaining drain window", timeout,
+        )
+        return False
+    logger.info("[massive-ws] stop(): consumer thread exited cleanly")
+    return True
 
 
 def start() -> bool:
