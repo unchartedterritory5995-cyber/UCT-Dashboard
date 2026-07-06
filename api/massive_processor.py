@@ -53,12 +53,7 @@ INDEX_SYMBOLS = frozenset({
     # Crypto ETFs
     'IBIT', 'FBTC', 'BITX', 'BITO', 'GBTC', 'ETHA', 'ETHU', 'FETH',
     # Volatility / niche
-    # Volatility / niche.
-    # NOTE: SPCH stays as index (Spirit Airlines derivative). SPCX was
-    # previously here (misclassified upstream from Massive's ticker_types)
-    # but is actually a SpaceX-tracking company — pure stock. Client-side
-    # override was patching this in OptionsFlow; fix at source instead.
-    'VXX', 'JNUG', 'REMX', 'EUAD', 'EUV', 'FXY', 'SPCH',
+    'VXX', 'JNUG', 'REMX', 'EUAD', 'EUV', 'FXY', 'SPCH', 'SPCX',
 })
 
 

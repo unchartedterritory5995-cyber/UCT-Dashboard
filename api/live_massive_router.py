@@ -1492,7 +1492,7 @@ _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
 _DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
 
 
-def _build_day_stats(today: str, exclude_algo: bool = True) -> dict:
+def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     """Compute aggregate stats for all Y/M classifiable stocks rows on `today`.
     Heavy SQL + Python pass over potentially 5K-10K rows; cache the result
     via the wrapper endpoint so repeated polls within 30s don't re-process.
@@ -1505,10 +1505,6 @@ def _build_day_stats(today: str, exclude_algo: bool = True) -> dict:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
-        # Match /recent's row selection: also include WHITE rows above the
-        # premium override floor. Massive rows ingest as Color=WHITE by
-        # default; without this clause, day-stats miss the tier-promoted
-        # alerts that /recent surfaces and returns $0 bull / $0 bear.
         cur = conn.execute("""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -1516,8 +1512,7 @@ def _build_day_stats(today: str, exclude_algo: bool = True) -> dict:
               FROM flow
              WHERE source = 'stocks'
                AND CreatedDate = ?
-               AND (Color IN ('MAGENTA', 'YELLOW')
-                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= 500000))
+               AND Color IN ('MAGENTA', 'YELLOW')
         """, (today,))
         rows = cur.fetchall()
     finally:
@@ -1684,7 +1679,7 @@ def _build_day_stats(today: str, exclude_algo: bool = True) -> dict:
 @router.get("/day-stats")
 def day_stats(
     target_date: str = Query(default=None),
-    exclude_algo: bool = Query(default=True, description="Exclude multi-leg/Algo tier from the bull/bear/DTE/top-tickers aggregation. Default TRUE — multi-leg trades aren't directional even when one leg prints at ask, so the aggregate should ignore them by default."),
+    exclude_algo: bool = Query(default=False, description="Exclude multi-leg/Algo tier from the bull/bear/DTE/top-tickers aggregation. Useful for a 'pure directional' read since multi-leg trades aren't truly directional even when one leg prints at ask."),
 ):
     """
     Aggregated bull/bear stats for ALL classifiable Y/M stocks rows on the

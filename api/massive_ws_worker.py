@@ -398,32 +398,12 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None,
     er_map = er_map or {}
     buf = StringIO()
     buf.write(",".join(COLUMNS) + "\n")
-    filtered_synthetic = 0
     for i, evt in enumerate(events):
         meta = ticker_meta.get(evt.root, {})
         oi = oi_map.get(i, 0)
         cum_vol = cum_vol_map.get(i)
         spot = spot_map.get(evt.root, 0.0)
         er_flag = er_map.get(evt.root, 'F')
-
-        # Deep-ITM synthetic roll filter: skip events where intrinsic value
-        # exceeds 50% of spot. These are position transfers (delta ~1.0
-        # options priced at essentially intrinsic value) not directional
-        # bets. Example: AXTI $130p at spot $55 -> intrinsic $75 (136% of
-        # spot). Bullflow tape showed $30M of such prints on 7/2 with OI
-        # dropping from 4041 to 2029 (unwind pattern). Not a bear signal;
-        # a synthetic short being rolled. BBS filters these; we should too.
-        #
-        # Requires spot > 0 to compute; if we don't have spot, keep the
-        # event (better to over-emit than to filter based on missing data).
-        if spot > 0:
-            if evt.cp == 'C':
-                intrinsic = spot - evt.strike
-            else:  # 'P'
-                intrinsic = evt.strike - spot
-            if intrinsic > spot * 0.5:
-                filtered_synthetic += 1
-                continue
         row = event_to_bbs_row(
             evt, source=source,
             mktcap=meta.get("mktcap", 0),
@@ -435,9 +415,6 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None,
         )
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
         buf.write(line + "\n")
-    if filtered_synthetic > 0:
-        logger.info("[massive-ws] deep-ITM synthetic roll filter: skipped %d events "
-                    "(intrinsic > 50%% of spot)", filtered_synthetic)
     return buf.getvalue()
 
 
