@@ -117,8 +117,12 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_company_info", "compare_tickers", "get_news",
             "get_earnings_today", "get_earnings_this_week",
             "get_theme_status", "get_theme_laggards", "get_theme_holdings",
-            "get_theme_history", "get_options_flow", "get_dark_pool",
-            "get_economic_calendar", "get_scanner_candidates",
+            "get_theme_history", "get_scanner_candidates",
+            # get_options_flow / get_dark_pool / get_economic_calendar removed:
+            # all three import functions that don't exist (always return empty ->
+            # the mentor falsely claims "no options flow"/"no macro events"), and
+            # options/dark-pool are out of the owner's scope. Re-add only after
+            # each is wired to a real source (econ: FMP stable/economic-calendar).
             "get_uct20_picks", "get_uct20_portfolio_stats", "get_cot_data",
             "get_breadth_analogues", "get_breadth_metric",
             "get_insider_activity", "get_earnings_intel",
@@ -297,7 +301,7 @@ AGENTS: dict[str, dict[str, Any]] = {
         "tool_allowlist": {
             # Scanner + opportunity surfaces
             "get_scanner_candidates", "get_uct20_picks", "get_movers",
-            "get_options_flow", "get_dark_pool", "get_news",
+            "get_news",  # get_options_flow/get_dark_pool removed (broken + out of scope)
             "get_earnings_today", "get_earnings_this_week",
             "get_theme_status", "get_theme_holdings", "get_breadth_analogues",
             # P9: pattern detection + bar summary help scout confirm setups
