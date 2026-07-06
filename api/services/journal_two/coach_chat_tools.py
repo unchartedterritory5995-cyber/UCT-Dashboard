@@ -1662,6 +1662,19 @@ def _exec_grade_ticker(*, user_id, account_id, args, conn=None) -> dict:
                             account_size=args.get("account_size"))
 
 
+def _exec_portfolio_heat(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import portfolio_heat as _ph
+    return _ph.portfolio_heat(user_id, account_id=account_id,
+                              account_size=args.get("account_size"))
+
+
+def _exec_grade_watchlist(*, user_id, account_id, args, conn=None) -> dict:
+    from api.services import grade_watchlist as _gw
+    return _gw.grade_watchlist(user_id, account_id=account_id, symbols=args.get("symbols"),
+                               source=str(args.get("source") or "watchlist"),
+                               account_size=args.get("account_size"))
+
+
 def _voice_delegate(tool_name):
     def _exec(*, user_id, account_id, args, conn=None) -> dict:
         from api.services import voice_tools
@@ -1721,6 +1734,29 @@ _BRAIN_TOOLS = {
             "grade": {"type": "string", "default": "A"},
             "risk_pct": {"type": "number", "default": 1.0}},
             "required": ["entry", "stop", "account"]},
+    },
+    "portfolio_heat": {
+        "name": "portfolio_heat",
+        "requires_confirm": False,
+        "executor": _exec_portfolio_heat,
+        "description": "Read the trader's current portfolio heat: open risk-heat vs the 10% "
+                       "aggregate cap, notional exposure vs the regime ceiling, per-position "
+                       "at-risk, sector concentration, and any positions with no real stop. "
+                       "Use for 'what's my heat / am I too exposed / most at risk'. State-read only.",
+        "input_schema": {"type": "object", "properties": {"account_size": {"type": "number"}}},
+    },
+    "grade_watchlist": {
+        "name": "grade_watchlist",
+        "requires_confirm": False,
+        "executor": _exec_grade_watchlist,
+        "description": "Grade a LIST of names to a per-name GO/HOLD/SKIP grid, ranked through the "
+                       "trader's own per-setup edge, with a list-level verdict (0-GO on a hostile "
+                       "regime), sector-correlation flags, and a behavioral note. source = "
+                       "watchlist|flagged|positions|scan, or pass explicit symbols. Use for "
+                       "'grade my watchlist / rank these / what's in play'.",
+        "input_schema": {"type": "object", "properties": {
+            "symbols": {"type": "array", "items": {"type": "string"}},
+            "source": {"type": "string"}, "account_size": {"type": "number"}}},
     },
     "grade_ticker": {
         "name": "grade_ticker",
