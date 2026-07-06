@@ -5675,6 +5675,14 @@ export default function StockChart({
           // Registry's 1m candle IS the developing bar. Apply it directly,
           // but offset to ET like all other series timestamps.
           const tSec = candle.t + _ET_OFFSET
+          // Never apply a BACKWARDS update. The SSE tick feed and the 30s REST/SWR
+          // poll have different latencies, so at a minute rollover the registry can
+          // momentarily lag the series' newest bar; a stale/lagged tick applied at an
+          // older time throws LWC "Cannot update oldest data" (once/minute console
+          // spam) and is lost anyway. Skip it — equal time updates in place, newer
+          // appends a legit new bar. (The deeper single-writer fix is Phase C.)
+          const _lastT = lastBarRef.current?.time
+          if (typeof _lastT === 'number' && tSec < _lastT) return
           if (useOhlc) {
             candleSeriesRef.current.update({
               time: tSec,
@@ -5727,7 +5735,12 @@ export default function StockChart({
           lastBarRef.current = { ...updated, volume: last.volume }
         }
       } catch (e) {
-        if (e?.message) console.warn('[StockChart] registry tick update error:', e.message)
+        // "Cannot update oldest data" is the benign rollover race guarded above (the
+        // candle is never corrupted — LWC just refuses the backwards write). Don't
+        // spam the console for it; surface any other, genuinely unexpected error.
+        if (e?.message && !/oldest data/i.test(e.message)) {
+          console.warn('[StockChart] registry tick update error:', e.message)
+        }
       }
     }
 
