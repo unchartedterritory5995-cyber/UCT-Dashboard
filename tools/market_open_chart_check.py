@@ -74,6 +74,32 @@ def _json(body: bytes):
         return None
 
 
+def _sse_read(base: str, path: str, seconds: float = 12.0):
+    """Open an SSE endpoint and collect (event, data) frames for ~`seconds`."""
+    req = urllib.request.Request(base + path, headers={"User-Agent": _UA, "Accept": "text/event-stream"})
+    events, cur = [], None
+    t0 = time.perf_counter()
+    try:
+        resp = urllib.request.urlopen(req, timeout=seconds)
+        while time.perf_counter() - t0 < seconds:
+            raw = resp.readline()
+            if not raw:
+                break
+            line = raw.decode("utf-8", "replace").strip()
+            if line.startswith("event:"):
+                cur = line.split(":", 1)[1].strip()
+            elif line.startswith("data:"):
+                events.append((cur or "message", line.split(":", 1)[1].strip()))
+                cur = None
+        try:
+            resp.close()
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception:  # noqa: BLE001
+        pass
+    return events
+
+
 def _market_is_open(now_et: dt.datetime) -> bool:
     if now_et.weekday() >= 5:
         return False
@@ -214,6 +240,43 @@ def run(base: str) -> Report:
             rep.add("live-bar liveness (RTH)", False, f"{tk}/{tf} newest bar {age:.0f}s old -- STALE (frozen ingestion?)")
     else:
         rep.add("live-bar liveness", True, "market closed -- skipped (run again during RTH)", warn=True)
+
+    # 5b. push-stream (Phase C) — the ONLY automated proof the push feed actually delivers
+    # (the REST checks above never touch /api/stream/bars, so they'd stay green while push
+    # is silently frozen and every user invisibly fell back to Finnhub).
+    _st, _, _, b = _get(base, "/api/admin/bars-stream-status")
+    ss = _json(b) or {}
+    rep.metrics["bars_stream_status"] = ss
+    if not ss.get("enabled"):
+        rep.add("push-stream (Phase C)", True, "STREAM_BARS_ENABLED off — push feed disabled", warn=True)
+    else:
+        ws = ss.get("websocket") or {}
+        bc = ss.get("broadcaster") or {}
+        detail = (f"ws_connected={ws.get('ws_connected')}, subscribers={bc.get('subscriber_pairs')}, "
+                  f"emitted_total={bc.get('bars_emitted_total')}, last_emit_age={bc.get('last_emit_age_s')}s, "
+                  f"drops={bc.get('bars_dropped_total')}")
+        if rth:
+            evs = _sse_read(base, "/api/stream/bars?bars=SPY:1,AAPL:1", 12.0)
+            bars_seen = sum(1 for (e, _d) in evs if e == "bar")
+            bad = 0
+            for (e, d) in evs:
+                if e != "bar":
+                    continue
+                try:
+                    bar = json.loads(d).get("bar", {})
+                    o, h, l, c = bar.get("o"), bar.get("h"), bar.get("l"), bar.get("c")
+                    if None in (o, h, l, c) or min(o, h, l, c) <= 0 or h < l:
+                        bad += 1
+                except Exception:  # noqa: BLE001
+                    pass
+            if bars_seen > 0 and bad == 0:
+                rep.add("push-stream (Phase C)", True, f"{bars_seen} live bar events in 12s, OHLC sane; {detail}")
+            elif ws.get("ws_connected") and bars_seen == 0:
+                rep.add("push-stream (Phase C)", True, f"0 bar events in 12s (quiet symbols?) but WS connected; {detail}", warn=True)
+            else:
+                rep.add("push-stream (Phase C)", False, f"{bars_seen} bars, {bad} bad-OHLC, WS={ws.get('ws_connected')}; {detail}")
+        else:
+            rep.add("push-stream (Phase C)", bool(ws.get("ws_connected")), f"market closed; {detail}", warn=not ws.get("ws_connected"))
 
     # 6. accuracy monitor (reconciliation-status)
     st, _, _, b = _get(base, "/api/admin/reconciliation-status")
