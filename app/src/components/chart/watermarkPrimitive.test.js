@@ -59,15 +59,18 @@ describe('computeWatermarkRect', () => {
     expect(r2.x).toBe(786)
     expect(r2.y).toBe(280)
   })
-  it('hardCenterXFrac pins the block CENTRE to the fraction regardless of width — no edge clamp', () => {
-    // Two blocks of very different widths on the same pane → identical centre.
-    const wide = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 300, h: 120 }, 24, 24, 0.3)
-    const narrow = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 80, h: 120 }, 24, 24, 0.3)
-    expect(wide.x + wide.w / 2).toBe(300)   // 0.3 * 1000
-    expect(narrow.x + narrow.w / 2).toBe(300)
+  it('hardCenterXPx pins the block CENTRE to a fixed px offset regardless of block/pane width — no edge clamp', () => {
+    // Two blocks of very different widths → identical centre at the px offset.
+    const wide = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 300, h: 120 }, 24, 24, 150)
+    const narrow = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 80, h: 120 }, 24, 24, 150)
+    expect(wide.x + wide.w / 2).toBe(150)
+    expect(narrow.x + narrow.w / 2).toBe(150)
+    // Same px offset holds on a much WIDER pane (a fraction would drift right).
+    const widePane = computeWatermarkRect({ x: 0, y: 0 }, { width: 2400, height: 400 }, { w: 80, h: 120 }, 24, 24, 150)
+    expect(widePane.x + widePane.w / 2).toBe(150)
     // Even a block wide enough to overflow the gutter stays centred (not shifted).
-    const huge = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 700, h: 120 }, 24, 24, 0.3)
-    expect(huge.x + huge.w / 2).toBe(300)
+    const huge = computeWatermarkRect({ x: 0, y: 0 }, { width: 1000, height: 400 }, { w: 400, h: 120 }, 24, 24, 150)
+    expect(huge.x + huge.w / 2).toBe(150)
     expect(huge.x).toBeLessThan(24)         // deliberately no left clamp
     // Vertical still top-pins with padTop.
     expect(wide.y).toBe(24)

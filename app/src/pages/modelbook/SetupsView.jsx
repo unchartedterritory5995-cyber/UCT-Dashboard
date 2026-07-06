@@ -785,7 +785,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           watermarkX={0}
           watermarkY={0}
           watermarkPad={24}
-          watermarkCenterXFrac={0.32}
+          watermarkCenterX={150}
           onWatermarkCommit={saveWatermark}
           watermarkName={ex.company || null}
           watermarkSector={ex.sector || null}
