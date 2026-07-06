@@ -4,6 +4,7 @@ All actual fetch/cache/dedup logic lives in bars_fetch so the worker
 service can import it without dragging in FastAPI router decorators.
 This file only owns route registration."""
 
+import os
 import threading as _threading
 import time as _time
 from datetime import datetime
@@ -319,6 +320,30 @@ def reconciliation_status():
     that code path)."""
     from api.services import bars_reconciliation
     return bars_reconciliation.get_state()
+
+
+@router.get("/api/admin/bars-stream-status")
+def bars_stream_status():
+    """Push-feed (Phase C) health (no auth — read-only). The ONLY way to answer, without an
+    SSH: is the Massive WS connected, how many (sym,tf) are fanning out, is anyone subscribed,
+    and — the key signal — is it actually EMITTING (bars_emitted_total climbing / last_emit_age
+    small) vs silently dead while users invisibly fell back to Finnhub. `bars_dropped_total` > 0
+    = slow-consumer data loss. `enabled=false` = the whole rail is off (STREAM_BARS_ENABLED)."""
+    enabled = os.environ.get("STREAM_BARS_ENABLED") == "1"
+    out = {"enabled": enabled}
+    if not enabled:
+        return out
+    try:
+        from api.services.bar_broadcaster import get_broadcaster
+        out["broadcaster"] = get_broadcaster().get_status()
+    except Exception as e:  # noqa: BLE001
+        out["broadcaster_error"] = str(e)[:200]
+    try:
+        from api.services import bar_stream
+        out["websocket"] = bar_stream.get_status()
+    except Exception as e:  # noqa: BLE001
+        out["websocket_error"] = str(e)[:200]
+    return out
 
 
 @router.get("/api/admin/warm-universe-status")

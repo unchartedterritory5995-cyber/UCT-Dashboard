@@ -1448,6 +1448,15 @@ async def lifespan(app: FastAPI):
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
     )
 
+    # Phase C bars-push rail fingerprint — grep-able state of the streaming feed.
+    print(
+        "[startup] bars-push-rail: "
+        f"stream_bars_enabled={'on' if os.environ.get('STREAM_BARS_ENABLED') == '1' else 'off'} "
+        "keyed_dispatch=on single_writer_arbitration=on delivering_recency=120s/300s_hysteresis "
+        "heartbeat=named watchdog_renotify=10s idle_sleep=250ms "
+        "status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)"
+    )
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:

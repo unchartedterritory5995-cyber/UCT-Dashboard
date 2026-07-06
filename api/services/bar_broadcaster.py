@@ -40,6 +40,14 @@ _logger = logging.getLogger(__name__)
 ROLLUP_TFS = ("5", "15", "30", "60")  # "1" is pass-through. "60" added 2026-05-22 via canonical ET-anchored bucket (bars_fetch.bucket_60_et_unix_seconds).
 
 
+# ── Telemetry (GIL-atomic plain ints/floats, off the _lock hot path) ──
+# The single clearest "push is silently dead — everyone fell back to Finnhub" signal is
+# bars_emitted_total flat + last_emit_at old while stream_bars connections > 0 during RTH.
+_bars_emitted_total = 0     # AM/A/T emits actually dispatched to >=1 subscriber
+_bars_dropped_total = 0     # slow-consumer QueueFull drops (was silently swallowed)
+_last_emit_at = 0.0         # epoch seconds of the last dispatch
+
+
 class BarBroadcaster:
     def __init__(self,
                  on_first_subscribe: Optional[Callable[[str], None]] = None,
@@ -230,14 +238,16 @@ class BarBroadcaster:
     @staticmethod
     def _safe_put(q: asyncio.Queue, msg: dict) -> None:
         """Runs on the queue's owner loop via call_soon_threadsafe."""
+        global _bars_dropped_total
         try:
             q.put_nowait(msg)
         except asyncio.QueueFull:
             # Slow consumer — drop the oldest, push the new. Real-time data:
-            # freshness > completeness.
+            # freshness > completeness. Count it (was silently swallowed = invisible loss).
             try:
                 q.get_nowait()
                 q.put_nowait(msg)
+                _bars_dropped_total += 1
             except Exception:
                 pass
 
@@ -270,6 +280,10 @@ class BarBroadcaster:
             except RuntimeError:
                 # Loop already closed — subscriber's session is dead. Skip.
                 pass
+        if pairs:
+            global _bars_emitted_total, _last_emit_at
+            _bars_emitted_total += 1
+            _last_emit_at = _time.time()
 
     def get_status(self) -> dict:
         with self._lock:
@@ -277,6 +291,10 @@ class BarBroadcaster:
                 "subscriber_pairs": len(self._subscribers),
                 "tracked_partials": len(self._partials),
                 "symbols": sorted({s for (s, _) in self._subscribers.keys()}),
+                "bars_emitted_total": _bars_emitted_total,
+                "bars_dropped_total": _bars_dropped_total,
+                "last_emit_at": _last_emit_at,
+                "last_emit_age_s": (round(_time.time() - _last_emit_at, 1) if _last_emit_at else None),
             }
 
 
