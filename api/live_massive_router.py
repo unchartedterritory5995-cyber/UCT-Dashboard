@@ -1041,6 +1041,54 @@ def _row_to_alert(row: dict) -> dict | None:
 
     money_pct, money_label = _moneyness(strike, spot, cp_full)
 
+    # ─── Noise filter 1: Deep-ITM synthetic roll ─────────────────────────────
+    # Trades where intrinsic value > 50% of spot are synthetic stock
+    # substitutes (delta ~1.0), not directional bets. Priced at intrinsic
+    # value with essentially zero extrinsic. Example: AXTI $130p at spot
+    # $55 → intrinsic $75 (136% of spot) with trade prices $74.5-77.2 =
+    # synthetic short roll, not bearish conviction. Matches OptionsFlow's
+    # client-side deep-ITM filter shipped earlier this session.
+    #
+    # Only applies when we have spot data. Missing spot (e.g. 7/2's OI=0
+    # legacy rows) skips this check — better to over-emit than filter
+    # based on missing data.
+    if spot > 0:
+        if cp_full == "CALL":
+            intrinsic = spot - strike
+        elif cp_full == "PUT":
+            intrinsic = strike - spot
+        else:
+            intrinsic = 0
+        if intrinsic > spot * 0.5:
+            return None  # synthetic roll, not directional signal
+
+    # ─── Noise filter 2: Deep-OTM lottery ticket ─────────────────────────────
+    # Trades that are >40% OTM AND have DTE < 365 are lottery tickets.
+    # Legitimate deep-OTM LEAPS (DTE≥365) are institutional tail hedges
+    # and should stay. Short-dated deep-OTM is retail gambling — high
+    # noise, low signal. Matches OptionsFlow's deep-OTM guard.
+    if spot > 0 and dte < 365:
+        if cp_full == "CALL" and strike > spot * 1.4:
+            return None  # >40% OTM call, short-dated → lottery
+        if cp_full == "PUT" and strike < spot * 0.6:
+            return None  # >40% OTM put, short-dated → lottery
+
+    # ─── Noise filter 3: BBS-format ML/ skip ─────────────────────────────────
+    # Distinguish real multi-leg spreads from Massive's aggregation label:
+    #   - BBS ML/ (real spread legs): comes with populated OI (BBS enriches
+    #     upstream). Each leg emitted with side classification. These ARE
+    #     legit spread activity — not directional, should be skipped from
+    #     directional tiers.
+    #   - Massive ML/ (aggregation catch-all): ingests with OI=0. Often
+    #     misclassified multi-exchange sweeps that should be rescued.
+    #
+    # If Type='ML/' AND OI>0, it's a BBS-format spread leg. Skip from
+    # directional tier assignment (would still land in algo tier via
+    # tier detection, which is always excluded from curated).
+    type_str = (row.get("Type") or "").upper().strip()
+    if type_str == "ML/" and oi > 0:
+        return None  # BBS-format spread leg, not a directional signal
+
     result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
