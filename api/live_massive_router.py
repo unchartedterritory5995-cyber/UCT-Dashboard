@@ -2803,6 +2803,22 @@ def _worker_history_impl(target_date, min_gap_minutes):
     # the downtime analysis: 9:30 = minute 570, 16:00 = minute 960.
     MARKET_OPEN = 9 * 60 + 30    # 570
     MARKET_CLOSE = 16 * 60       # 960
+
+    # Cap the scan at "now" when target_date is today. Otherwise every
+    # minute from now to 4:00 PM is counted as empty, producing a fake
+    # multi-hour downtime window at the tail. (Bug caught mid-session
+    # 7/6/2026 when a legitimate ~80-minute downtime finding was
+    # buried under a bogus 160-minute future-hours "gap".)
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    _now_et = _dt.now(_tz.utc) + _td(hours=-4)  # July DST
+    _today_str = f"{_now_et.month}/{_now_et.day}/{_now_et.year}"
+    if today == _today_str:
+        scan_end = min(MARKET_CLOSE, _now_et.hour * 60 + _now_et.minute)
+    else:
+        scan_end = MARKET_CLOSE
+    # Never scan backwards if called before market open on a live day.
+    scan_end = max(scan_end, MARKET_OPEN)
+
     minute_counts: dict[int, int] = {}
     hour_counts: dict[int, int] = {}
     for t in times:
@@ -2812,10 +2828,12 @@ def _worker_history_impl(target_date, min_gap_minutes):
         minute_counts[m] = minute_counts.get(m, 0) + 1
         hour_counts[m // 60] = hour_counts.get(m // 60, 0) + 1
 
-    # Scan 570..959 for zero-count minutes and group into consecutive runs.
-    empty_minutes = [m for m in range(MARKET_OPEN, MARKET_CLOSE)
+    # Scan MARKET_OPEN..scan_end for zero-count minutes and group into
+    # consecutive runs. scan_end excludes future minutes on the live day.
+    empty_minutes = [m for m in range(MARKET_OPEN, scan_end)
                      if minute_counts.get(m, 0) == 0]
-    market_minutes_with_writes = (MARKET_CLOSE - MARKET_OPEN) - len(empty_minutes)
+    market_minutes_in_scan = scan_end - MARKET_OPEN
+    market_minutes_with_writes = market_minutes_in_scan - len(empty_minutes)
 
     # Group consecutive empty minutes into windows.
     windows: list[dict] = []
@@ -2902,6 +2920,8 @@ def _worker_history_impl(target_date, min_gap_minutes):
         "target_date": today,
         "min_gap_minutes": min_gap_minutes,
         "market_minutes_total": MARKET_CLOSE - MARKET_OPEN,
+        "market_minutes_scanned": market_minutes_in_scan,
+        "scan_ended_at_market_minute": scan_end,
         "market_minutes_with_writes": market_minutes_with_writes,
         "market_minutes_empty": len(empty_minutes),
         "downtime_windows_strict_count": len(strict_windows),
