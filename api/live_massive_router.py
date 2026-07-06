@@ -2564,3 +2564,134 @@ async def enrich_oi(
         "matched_variant_examples": matched_variant_examples[:3],
         "target_date": target_date,
     }
+
+
+# ─── Spot diagnostic: is flow.db actually storing Spot for this date? ────
+# Ravi asserts the Massive OPRA source data carries spot on every print,
+# so a missing Spot column in the UI must be a pipeline loss (either
+# build_gap_fill_csv.py stripping it during CSV generation, or
+# apply_gap_fill.py dropping it on insert). This endpoint reads flow.db
+# directly and reports the true Spot state per date so we can pinpoint
+# the failure side without guessing.
+#
+# Interpretation:
+#   spot_pct_populated == 0.0 for a backfilled day  →  pipeline is losing
+#     Spot somewhere between the flat file and flow.db. Next check: view
+#     fill-<DATE>-stocks.csv in the repo and confirm whether the Spot
+#     column has real values there. If yes → apply_gap_fill.py is dropping
+#     it on insert. If no → build_gap_fill_csv.py isn't extracting it.
+#   spot_pct_populated > 0.0 but UI shows "—"  →  read-path bug in
+#     _row_to_alert or _parse_float. Very unlikely; those helpers are
+#     shared across sources and live rows populate correctly.
+#   spot_pct_populated ≈ 100% for live-worker-written days  →  ingestion
+#     path from massive_ws_worker is fine; only the backfill path is broken.
+
+@router.get("/spot-check")
+def spot_check(target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET.")):
+    """Report Spot-column population state in flow.db for a given date.
+
+    Returns row counts by Spot state (populated / zero / null) plus a small
+    sample of rows from each bucket so we can eyeball whether the missing
+    column is a pipeline loss or a display bug.
+    """
+    today = target_date or _today_mdyyyy()
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+
+        # Total rows on this date across all sources
+        total_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM flow WHERE CreatedDate = ?", (today,)
+        ).fetchone()
+        total = total_row["n"] if total_row else 0
+
+        # Spot state breakdown. SQLite stores Spot as TEXT; treat both empty
+        # string and "0" / "0.0" as unpopulated. CAST to REAL for numeric
+        # comparison — non-numeric text CASTs to 0, which folds correctly
+        # into the "zero_or_null" bucket.
+        populated_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM flow "
+            "WHERE CreatedDate = ? "
+            "  AND Spot IS NOT NULL "
+            "  AND Spot != '' "
+            "  AND CAST(Spot AS REAL) > 0",
+            (today,)
+        ).fetchone()
+        populated = populated_row["n"] if populated_row else 0
+
+        # Sample: 3 rows with populated Spot (to prove format), 3 without
+        sample_populated = [
+            {"Symbol": r["Symbol"], "CreatedTime": r["CreatedTime"],
+             "CallPut": r["CallPut"], "Strike": r["Strike"],
+             "Spot": r["Spot"], "Price": r["Price"], "source": r["source"]}
+            for r in conn.execute(
+                "SELECT source, Symbol, CreatedTime, CallPut, Strike, Spot, Price "
+                "FROM flow "
+                "WHERE CreatedDate = ? "
+                "  AND Spot IS NOT NULL "
+                "  AND Spot != '' "
+                "  AND CAST(Spot AS REAL) > 0 "
+                "ORDER BY id DESC LIMIT 3",
+                (today,)
+            ).fetchall()
+        ]
+        sample_missing = [
+            {"Symbol": r["Symbol"], "CreatedTime": r["CreatedTime"],
+             "CallPut": r["CallPut"], "Strike": r["Strike"],
+             "Spot": r["Spot"], "Price": r["Price"], "source": r["source"]}
+            for r in conn.execute(
+                "SELECT source, Symbol, CreatedTime, CallPut, Strike, Spot, Price "
+                "FROM flow "
+                "WHERE CreatedDate = ? "
+                "  AND (Spot IS NULL OR Spot = '' OR CAST(Spot AS REAL) <= 0) "
+                "ORDER BY id DESC LIMIT 3",
+                (today,)
+            ).fetchall()
+        ]
+
+        # By-source breakdown so we can see if live (worker) vs backfill
+        # (gap-fill) differ. Same-day mixed-source ingestion is possible;
+        # a per-source view isolates the guilty path.
+        by_source_rows = conn.execute(
+            "SELECT source, "
+            "       COUNT(*) AS total, "
+            "       SUM(CASE WHEN Spot IS NOT NULL AND Spot != '' "
+            "                 AND CAST(Spot AS REAL) > 0 THEN 1 ELSE 0 END) AS populated "
+            "FROM flow "
+            "WHERE CreatedDate = ? "
+            "GROUP BY source",
+            (today,)
+        ).fetchall()
+        by_source = {
+            r["source"]: {
+                "total": r["total"],
+                "populated": r["populated"],
+                "pct": round(100.0 * r["populated"] / r["total"], 1) if r["total"] else 0.0,
+            }
+            for r in by_source_rows
+        }
+
+    finally:
+        conn.close()
+
+    return {
+        "target_date": today,
+        "total_rows": total,
+        "spot_populated": populated,
+        "spot_zero_or_null": total - populated,
+        "spot_pct_populated": round(100.0 * populated / total, 1) if total else 0.0,
+        "by_source": by_source,
+        "sample_rows_with_spot": sample_populated,
+        "sample_rows_without_spot": sample_missing,
+        "interpretation": (
+            "Zero populated → Spot lost somewhere between Massive flat file "
+            "and flow.db. Next check the CSV column in fill-<DATE>-stocks.csv. "
+            "If CSV has Spot values → apply_gap_fill.py isn't reading it. "
+            "If CSV has Spot=0 → build_gap_fill_csv.py isn't extracting it."
+            if populated == 0 and total > 0 else
+            "Some rows have Spot. Compare by_source to see which ingestion "
+            "path is missing it (worker vs gap-fill)."
+            if populated > 0 else
+            "No rows on this date."
+        ),
+    }
