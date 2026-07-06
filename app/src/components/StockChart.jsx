@@ -243,6 +243,18 @@ function getETOffset() {
 
 const _ET_OFFSET = getETOffset()
 
+// Phase C single-writer ENABLE gate — DEFAULT OFF. Even though VITE_REALTIME_BARS is
+// already '1' in prod, the developing bar is NOT handed to the Massive push writer
+// (and the Finnhub writers suppressed) until this runtime flag is opted in per browser.
+// So STREAM_BARS_ENABLED=1 alone activates nothing for anyone; the canary sets
+// localStorage 'uct.barsPush.enabled'='1'; full rollout flips the default later. This
+// is the instant, runtime revert the plan requires (VITE is compile-time, not instant).
+export function _barsPushEnabled() {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('uct.barsPush.enabled') === '1'
+  } catch { return false }
+}
+
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
 const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -1117,6 +1129,11 @@ export default function StockChart({
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
+  // Phase C single-writer gate (updated each render below the useRealtimeBars call).
+  // When true, the Massive push writer (onRealtimeBar) is the SOLE developing-bar
+  // writer and the Finnhub-fed writers (livePrices effect, registry, post-setData
+  // re-apply) early-return. A ref so those writers read the latest without re-subscribing.
+  const barsPushActiveRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
 
   // ── Extended hours toggle (regular session only vs all hours) ──
@@ -2692,6 +2709,11 @@ export default function StockChart({
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
     if (cs.heikinAshi) return
+    // Phase C single-writer: when the Massive push feed is authoritative, freeze this
+    // Finnhub tick writer ENTIRELY — no series write AND no latestLiveRef update (the
+    // post-setData re-apply reads latestLiveRef; a stale value there would repaint an
+    // old developing bar over the fresh push bar = the 30s seam the plan review flagged).
+    if (barsPushActiveRef.current) return
     // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
     // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
     // into liveBarRef.current.high or .low persists across setData() refreshes
@@ -2866,18 +2888,26 @@ export default function StockChart({
           color: data.bar.c >= data.bar.o ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
         })
       }
-      // Sync the tick-logic refs so the next tick starts from authoritative state.
-      // Only sync if the AM bar matches the current developing/last bar's time —
-      // otherwise this is an older bar's update and shouldn't disturb live state.
-      if (liveBarRef.current && liveBarRef.current.time === tSec) {
-        liveBarRef.current = {
-          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+      // Sync the tick-logic refs. When push is the SOLE writer (barsPushActive), B
+      // OWNS these refs — create-or-advance for THIS bar UNCONDITIONALLY, so at a
+      // bucket rollover the refs follow the new bar even though the Finnhub writers
+      // are suppressed (match-only sync would leave liveBarRef pinned to the prior
+      // bucket = the rollover gap the plan review flagged). Otherwise keep the
+      // conservative match-only sync (the Finnhub path still owns geometry).
+      if (barsPushActiveRef.current) {
+        liveBarRef.current = { time: tSec, open: o, high: h, low: l, close: c }
+        lastBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
+      } else {
+        if (liveBarRef.current && liveBarRef.current.time === tSec) {
+          liveBarRef.current = {
+            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+          }
         }
-      }
-      if (lastBarRef.current && lastBarRef.current.time === tSec) {
-        lastBarRef.current = {
-          time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
-          volume: data.bar.v,
+        if (lastBarRef.current && lastBarRef.current.time === tSec) {
+          lastBarRef.current = {
+            time: tSec, open: data.bar.o, high: data.bar.h, low: data.bar.l, close: data.bar.c,
+            volume: data.bar.v,
+          }
         }
       }
     } catch {
@@ -2908,12 +2938,17 @@ export default function StockChart({
       })
   }, [sym, resolvedTf, onRealtimeBar])
 
-  useRealtimeBars({
+  const _barsPush = useRealtimeBars({
     symbol: realtimeTfEligible && liveUpdates ? sym : null,
     tf: realtimeTfEligible && liveUpdates ? resolvedTf : null,
     onBar: onRealtimeBar,
     onReconnect: onRealtimeReconnect,
   })
+  // Single-writer gate: engage push ONLY when opted-in (default OFF), the TF is
+  // stream-eligible, live updates are on, AND the pool is actually DELIVERING bars
+  // for this (sym,tf) — never suppress the Finnhub writers on a merely-connected or
+  // silently-frozen feed (that would freeze the candle while ● LIVE still shows).
+  barsPushActiveRef.current = _barsPushEnabled() && realtimeTfEligible && liveUpdates && _barsPush.delivering
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -3244,7 +3279,11 @@ export default function StockChart({
     // Re-apply live price immediately after setData() to prevent snap-back.
     // setData() overwrites with API data (stale by seconds/minutes), so we
     // re-apply the latest WebSocket tick to keep the current candle accurate.
-    if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
+    // Phase C: when push is authoritative, DON'T re-apply the (frozen) Finnhub
+    // latestLiveRef over the fresh REST tail — onRealtimeBar owns the developing bar,
+    // so this would repaint a stale bar every 30s (the seam the plan review flagged).
+    // The lastBarRef/lastServerCloseRef seed just above still runs, priming B cleanly.
+    if (!barsPushActiveRef.current && latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
       const lp = latestLiveRef.current.price
       const tickSec = latestLiveRef.current.updated_at
       const last = lastBarRef.current
@@ -5668,6 +5707,9 @@ export default function StockChart({
 
     const update = () => {
       if (!candleSeriesRef.current) return
+      // Phase C: the Finnhub-fed registry is suppressed when the Massive push feed
+      // is the authoritative developing-bar writer (onRealtimeBar owns it).
+      if (barsPushActiveRef.current) return
       const candle = realtimeCandle.getCandle(sym, '1')
       if (!candle) return
       const price = candle.c
