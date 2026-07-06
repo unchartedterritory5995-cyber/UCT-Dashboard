@@ -30,10 +30,28 @@ export default function Subscribe() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>UCT</div>
-        <h1 className={styles.title}>Subscribe to Continue</h1>
+        <h1 className={styles.title}>Unlock the Intelligence Layer</h1>
         <p className={styles.subtitle}>
-          Hey{user?.display_name ? ` ${user.display_name}` : ''} — you need an active subscription to access the dashboard.
+          Hey{user?.display_name ? ` ${user.display_name}` : ''} — Pro adds these on top of your free tools:
         </p>
+
+        <ul style={{
+          listStyle: 'none', margin: '16px 0 0', padding: 0, textAlign: 'left',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          {[
+            'Morning Wire — daily pre-market brief & top picks',
+            'Screener & Patterns — the setup scanner + pattern engine',
+            'UCT 20 leadership, Theme Tracker & Calendar',
+            'Research dossiers — fundamentals, analyst & ownership depth',
+            'Compass — AI coaching, voice & pre-trade verdicts',
+          ].map((b) => (
+            <li key={b} style={{ position: 'relative', paddingLeft: 22, fontSize: 13, color: '#ddd', lineHeight: 1.4 }}>
+              <span style={{ position: 'absolute', left: 0, color: 'var(--ut-gold, #c9a84c)', fontWeight: 700 }}>✓</span>
+              {b}
+            </li>
+          ))}
+        </ul>
 
         {error && <div className={styles.error}>{error}</div>}
 

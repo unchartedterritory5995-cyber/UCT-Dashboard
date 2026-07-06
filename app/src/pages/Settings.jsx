@@ -1043,9 +1043,17 @@ export default function Settings() {
                   <span className={styles.freeDot} />
                   <span className={styles.planTitle}>Free Plan</span>
                 </div>
-                <p className={styles.hint} style={{ margin: '8px 0 16px' }}>
-                  Upgrade to Pro for full access to every tool in the dashboard.
+                <p className={styles.hint} style={{ margin: '8px 0 10px' }}>
+                  You have Dashboard, Breadth, Charts, Options Flow, Journal &amp; Model Book.
+                  Pro unlocks the full intelligence layer:
                 </p>
+                <ul className={styles.proList}>
+                  <li>Morning Wire — daily pre-market brief &amp; top picks</li>
+                  <li>Screener &amp; Patterns — the setup scanner + pattern engine</li>
+                  <li>UCT 20 leadership, Theme Tracker &amp; Calendar</li>
+                  <li>Research dossiers — fundamentals, analyst &amp; ownership depth</li>
+                  <li>Compass — AI coaching, voice &amp; pre-trade verdicts</li>
+                </ul>
                 <button className={styles.btnPro} onClick={() => startCheckout()}>
                   Upgrade to Pro — $20/mo
                 </button>
