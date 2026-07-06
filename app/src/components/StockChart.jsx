@@ -249,9 +249,30 @@ const _ET_OFFSET = getETOffset()
 // So STREAM_BARS_ENABLED=1 alone activates nothing for anyone; the canary sets
 // localStorage 'uct.barsPush.enabled'='1'; full rollout flips the default later. This
 // is the instant, runtime revert the plan requires (VITE is compile-time, not instant).
+// WIDEN DIAL — percentage of browsers that get push by DEFAULT (no explicit opt-in/out).
+// 0 = canary-only (today's state; ships dark). Ramp 0→25→50→100 (bump + deploy) to widen,
+// watching the backend between steps: every eligible chart holds ONE /api/stream/bars loop on
+// the single shared event loop, so this is a SCALING step, not a feature flag. Per-browser
+// revert is always instant via localStorage; a full backend kill is STREAM_BARS_ENABLED=0.
+export const BARS_PUSH_ROLLOUT_PCT = 0
+
+// Stable per-browser rollout bucket [0,100), assigned once + persisted so a browser's in/out
+// status doesn't flip between renders (or as the dial ramps) — a user won't flap push↔Finnhub.
+function _rolloutBucket() {
+  try {
+    let b = localStorage.getItem('uct.barsPush.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsPush.bucket', b) }
+    const n = parseInt(b, 10)
+    return Number.isFinite(n) ? n : 100
+  } catch { return 100 }  // no storage → out of rollout (safe default-off)
+}
+
 export function _barsPushEnabled() {
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem('uct.barsPush.enabled') === '1'
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsPush.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary / power user)
+    if (ls === '0') return false    // explicit opt-out (per-browser revert)
+    return _rolloutBucket() < BARS_PUSH_ROLLOUT_PCT   // default: staged percentage rollout
   } catch { return false }
 }
 
