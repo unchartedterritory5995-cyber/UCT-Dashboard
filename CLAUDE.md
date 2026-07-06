@@ -2149,6 +2149,31 @@ this closes that gap.
   surfaced anomaly, not a false positive. Grace-window tightening in
   `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
 
+## Live Options Flow — Deploy Survival (2026-07-06 · LOCKED invariants)
+
+The Massive OPRA WS consumer (`api/massive_ws_worker.py`, partner-owned) runs on the **WEB service**
+(env: web `MASSIVE_WS_ENABLED=1`; worker `=0` + `DRY_RUN=1` staging). Massive OPRA does NOT replay —
+every feed gap is permanent until the T+1 flat file. Full design:
+`docs/superpowers/specs/2026-07-06-liveflow-worker-deploy-survival-design.md` · outage runbook:
+`docs/runbooks/liveflow-unstick.md`.
+
+- **`api/main.py` uses `FastAPI(lifespan=lifespan)` — `@app.on_event` handlers are SILENTLY IGNORED.**
+  Register any shutdown hook inside the lifespan context manager AFTER the `yield`, next to
+  `_scheduler.shutdown(wait=False)`, defensively (`fn = getattr(module, "stop", None)`).
+- **railway.json startCommand must keep `exec`** in both branches (without it `sh` is PID 1 and
+  swallows SIGTERM — no graceful shutdown can ever run) plus `--timeout-graceful-shutdown 5` (bounds
+  the never-ending SSE streams so lifespan shutdown is reached) and `deploy.drainingSeconds: 30`.
+  These three are a unit — never remove one alone.
+- **`watchPatterns` are set per-service in the Railway dashboard ONLY — NEVER in railway.json**
+  (the file is shared by web + worker; an api-only list there would stop web frontend deploys).
+  Worker patterns: `/api/**` + build files.
+- **Shipping window:** anything that deploys web ships **≥4:20 PM ET or <9:15 AM ET** (options tape
+  runs to 4:15). Batch market-hours work; a failed build is free, only a successful swap kills the feed.
+- **`MASSIVE_WS_DRY_RUN=1` does NOT protect the prod connection slot** — any local run with the prod
+  key kicks production off the feed (Massive allows ~1 conn/key). Local tests use a localhost mock WS.
+- Consumer shutdown contract (P1): `massive_ws_worker.stop()` (no args). The main.py hook uses
+  defensive getattr so it merges safely before/after the partner's patch.
+
 ## Known Issues / Gotchas
 
 - **Cache resets on redeploy** — FIXED (2026-02-23). Railway volume at `/data` persists wire_data.json. Startup event seeds cache automatically. First boot after volume creation still requires one engine run.
