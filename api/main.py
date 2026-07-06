@@ -2726,6 +2726,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
+# Fail-closed admin gate for /api/admin/* + /api/live/admin/* (ops/mutation endpoints
+# were unauthenticated — anyone could corrupt/wipe the Options Flow DB). Read-only
+# status dashboards stay open via admin_guard.OPEN_ADMIN_PATHS.
+from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
+app.add_middleware(_AdminGuard)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase

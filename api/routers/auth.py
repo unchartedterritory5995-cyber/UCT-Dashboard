@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 
 from api.limiter import limiter
+from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
     verify_password,
@@ -164,7 +165,7 @@ def login(request: Request, req: LoginRequest, response: Response):
         finally:
             _conn.close()
 
-    log_activity(user["id"], "login", ip_address=request.client.host)
+    log_activity(user["id"], "login", ip_address=client_ip(request))
 
     token = create_session(user["id"])
     _set_session_cookie(response, token)

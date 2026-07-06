@@ -5,7 +5,7 @@
     "buildCommand": "pip install -r requirements.txt && cd app && npm install && NODE_OPTIONS='--max-old-space-size=4096' npm run build"
   },
   "deploy": {
-    "startCommand": "if [ \"${WORKER_ENABLED:-0}\" = \"1\" ]; then python -m api.worker_main; else uvicorn api.main:app --host 0.0.0.0 --port $PORT; fi",
+    "startCommand": "if [ \"${WORKER_ENABLED:-0}\" = \"1\" ]; then python -m api.worker_main; else uvicorn api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'; fi",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 600
   }
