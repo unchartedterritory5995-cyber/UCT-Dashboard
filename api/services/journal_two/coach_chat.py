@@ -466,6 +466,7 @@ def handle_user_turn(
     """
     from api.services.journal_two import coach_chat_tools as cct
     from api.services.journal_two import coach_prompts
+    from api.services.journal_two import compass_cost_guard
 
     if os.environ.get("COMPASS_CHAT_ENABLED", "true").lower() == "false":
         yield {"type": "error", "code": "disabled", "message": "Compass chat is disabled."}
@@ -477,6 +478,13 @@ def handle_user_turn(
         if rl["remaining"] <= 0:
             yield {"type": "error", "code": "rate_limited",
                    "message": "Daily chat limit reached.", "reset_at_utc": "midnight UTC"}
+            return
+
+        # Global daily cost circuit-breaker (O(1) in-memory — NOT a per-request DB
+        # read). Disabled unless COMPASS_COST_CAP_DAILY is set to a positive USD cap.
+        if compass_cost_guard.over_budget():
+            yield {"type": "error", "code": "cost_capped",
+                   "message": "Compass has reached its daily cost limit. It'll be back tomorrow."}
             return
 
         try:
@@ -517,6 +525,13 @@ def handle_user_turn(
                     tu = _extract_tool_use_from_event(ev)
                     if tu is not None:
                         tool_uses.append(tu)
+                # Accrue this call's token cost into the daily circuit-breaker
+                # (best-effort; a fake test client / missing usage is a no-op).
+                try:
+                    compass_cost_guard.record_from_usage(
+                        getattr(stream.get_final_message(), "usage", None))
+                except Exception:  # noqa: BLE001
+                    pass
 
             tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"],
                                 "status": "pending"} for tu in tool_uses]
