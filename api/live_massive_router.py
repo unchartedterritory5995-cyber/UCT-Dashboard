@@ -2893,6 +2893,27 @@ def _worker_history_impl(target_date, min_gap_minutes):
             "the worker wasn't running for most of the session."
         )
 
+    # Restored 2026-07-06 mid-session: an earlier str_replace edit consumed
+    # this final return block, causing the endpoint to fall off the end of
+    # the function and implicitly return None (serialized by FastAPI as
+    # `null`). The wrapper's try/except couldn't catch it because there
+    # was no exception — just a legitimate None return.
+    return {
+        "target_date": today,
+        "min_gap_minutes": min_gap_minutes,
+        "market_minutes_total": MARKET_CLOSE - MARKET_OPEN,
+        "market_minutes_with_writes": market_minutes_with_writes,
+        "market_minutes_empty": len(empty_minutes),
+        "downtime_windows_strict_count": len(strict_windows),
+        "downtime_windows_strict": strict_windows,
+        "downtime_windows_permissive_count": len(windows),
+        "total_estimated_dropped_events": total_estimated_dropped,
+        "sample_hour_rates": hourly,
+        "total_rows_scanned": len(times),
+        "interpretation": " ".join(interp_parts),
+    }
+
+
 # ─── Worker restart persistent log (auto-recorded via frontend polling) ─
 # Tracks every worker process start in a worker_starts table so that after
 # a session of chaos-deploy the operator can answer "how many times did
