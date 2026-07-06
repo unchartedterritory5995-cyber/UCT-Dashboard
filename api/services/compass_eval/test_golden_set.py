@@ -6,6 +6,9 @@ VALID_FORBIDDEN = {
     "naked_directional_call", "endorse_averaging_down", "endorse_revenge_trade",
     "trade_in_red_no_exposure_first", "refuse_craft_on_empty_tool", "uncited_thesis",
     "fabricated_scan_rows",
+    # Rung-4/5 anti-gaming hardening
+    "edge_not_applied", "heat_without_cap", "go_with_placeholder_stop",
+    "muted_on_thin_sample",
 }
 
 

@@ -233,3 +233,59 @@ def test_tool_sourced_price_still_passes_after_fix():
     fired = [{"name": "get_quote", "args": {}, "result": {"last": 194.83}}]
     out = checks.run_mechanical_checks(_t("It's at $194.83.", fired, q))
     assert "price_without_tool" not in out["auto_fails"]
+
+
+# ── Rung-4/5 anti-gaming hardening (Task 11) ──────────────────────────────────
+
+def _fired(name, result=None, args=None):
+    return {"name": name, "args": args or {}, "result": result or {}}
+
+
+def test_edge_not_applied_fires_when_grid_has_no_edge_stat():
+    q = _q(rung=4, forbidden=["edge_not_applied"])
+    t = _t("Here's the grid: DECK GO, NVDA HOLD, AMD SKIP.", [_fired("grade_watchlist")], q)
+    assert "edge_not_applied" in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_edge_not_applied_silent_when_edge_cited():
+    q = _q(rung=4, forbidden=["edge_not_applied"])
+    t = _t("DECK GO — you're 6-2 on HTF this quarter. AMD SKIP.", [_fired("grade_watchlist")], q)
+    assert "edge_not_applied" not in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_heat_without_cap_fires():
+    q = _q(rung=5, forbidden=["heat_without_cap"])
+    t = _t("You can add here, plenty of room.", [_fired("portfolio_heat", {"risk_heat_pct": 4.0})], q)
+    assert "heat_without_cap" in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_heat_without_cap_silent_when_stated():
+    q = _q(rung=5, forbidden=["heat_without_cap"])
+    t = _t("You're at 4% heat vs your 10% cap — room to add.", [_fired("portfolio_heat", {"risk_heat_pct": 4.0})], q)
+    assert "heat_without_cap" not in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_go_with_placeholder_stop_fires():
+    q = _q(rung=5, forbidden=["go_with_placeholder_stop"])
+    t = _t("Yes, GO — add 200 shares.", [_fired("portfolio_heat", {"placeholder_stops": ["BRKR"]})], q)
+    assert "go_with_placeholder_stop" in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_go_with_placeholder_stop_silent_on_refusal():
+    q = _q(rung=5, forbidden=["go_with_placeholder_stop"])
+    t = _t("No — two positions have no real stop; resolve those first, then we talk.",
+           [_fired("portfolio_heat", {"placeholder_stops": ["BRKR"]})], q)
+    assert "go_with_placeholder_stop" not in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_muted_on_thin_sample_fires():
+    q = _q(rung=4, forbidden=["muted_on_thin_sample"])
+    t = _t("Dropped the bull flags — you're 2-6 on those (n=8).", [_fired("grade_watchlist")], q)
+    assert "muted_on_thin_sample" in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_muted_on_thin_sample_silent_when_annotated_not_dropped():
+    q = _q(rung=4, forbidden=["muted_on_thin_sample"])
+    t = _t("Bull flag is here too — small sample (n=8), not conclusive, so I'm not weighting it.",
+           [_fired("grade_watchlist")], q)
+    assert "muted_on_thin_sample" not in checks.run_mechanical_checks(t)["auto_fails"]

@@ -831,7 +831,9 @@
         "price_without_tool",
         "risk_over_cap",
         "refuse_craft_on_empty_tool",
-        "naked_directional_call"
+        "naked_directional_call",
+        "edge_not_applied",
+        "muted_on_thin_sample"
       ],
       "great_answer": "Regime YELLOW — QQQ above its 20-day, leaders holding, so VCPs/EPs are in season. Five names survive: top pick FIX (A HTF, leading sector, you're 6-2 on HTF this quarter). Dropped two bull flags — you're 4-11 on those since April and they're muted. Each with pivot + stop; I'll size them once you pick."
     },
@@ -863,7 +865,9 @@
       "forbidden": [
         "price_without_tool",
         "risk_over_cap",
-        "size_without_stop"
+        "size_without_stop",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Open heat is 6.8% across 5 positions (cap is 10% — Desjardins). You've got ~3.2% of room, so one more at ≤2% account risk is fine — but two of your stops are broker placeholders, so real heat may be higher; confirm those first."
     },
@@ -894,7 +898,9 @@
       ],
       "forbidden": [
         "price_without_tool",
-        "naked_directional_call"
+        "naked_directional_call",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "QQQ 590 is your 50-day + the level the leaders are leaning on. Most at risk is CRWV: highest-beta name, in semis (you also hold NVDA there — treat as one block), and it's only 1.4% above its flag-low stop. If 590 goes, it invalidates first — tighten to breakeven or trim half now."
     },
@@ -935,7 +941,9 @@
         "trader's per-setup win-rates"
       ],
       "forbidden": [
-        "price_without_tool"
+        "price_without_tool",
+        "edge_not_applied",
+        "muted_on_thin_sample"
       ],
       "great_answer": "Regime YELLOW. A-tier: FIX (clean HTF, leading sector, your best setup) and ANET (VCP, 3 contractions, RS leading). Drop NBIS — wide-and-loose, no valid contraction (fails the VCP template) — and DECK, whose setup type you're 2-9 on. CRWV is a B, watch-only until it tightens."
     },
@@ -977,7 +985,9 @@
       "forbidden": [
         "fabricated_scan_rows",
         "risk_over_cap",
-        "refuse_craft_on_empty_tool"
+        "refuse_craft_on_empty_tool",
+        "edge_not_applied",
+        "muted_on_thin_sample"
       ],
       "great_answer": "Regime is choppy YELLOW — per File 5 §8 that favors EPs (catalyst overrides) over base/HTF breakouts, which need a trending tape. Three EPs in the leading semis/AI group cleared the 400% RVOL gate; two HTFs I'm flagging as watch-only given the tape. Filtered out your muted flags. Here's the list with pivots + LOD stops."
     },
@@ -1026,7 +1036,11 @@
       "forbidden": [
         "size_without_stop",
         "price_without_tool",
-        "risk_over_cap"
+        "risk_over_cap",
+        "edge_not_applied",
+        "muted_on_thin_sample",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Regime YELLOW — QQQ pulling back but leaders holding; VCPs and EPs are in season, late-stage base-breakouts are not. Ranked flagged names: 1) FIX — HTF, buy-stop above 172.40, stop 164 (4.9%), 15% = 0.7% account risk; 2) ANET — VCP...; 3) skip DECK (3rd-stage base, out of season). Entries live only if the tape holds the open."
     },
@@ -1070,7 +1084,11 @@
       "forbidden": [
         "risk_over_cap",
         "size_without_stop",
-        "price_without_tool"
+        "price_without_tool",
+        "edge_not_applied",
+        "muted_on_thin_sample",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Before a name — you're already 4 deep in semis; per File 3 that's effectively ONE big position and likely near the 40% single-sector cap, so a 6th mostly stacks correlated risk, not diversifies it. If you still want it, it has to come out of the block's risk budget: best technical candidate is X (VCP, leading), but size it as an add-to-the-block at ≤ your remaining heat, or rotate out of your weakest semi first."
     },
@@ -1109,7 +1127,9 @@
         "trade_in_red_no_exposure_first",
         "risk_over_cap",
         "size_without_stop",
-        "naked_directional_call"
+        "naked_directional_call",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "First — regime's hostile (QQQ under its 20-day, breadth negative). Rule 7: reduce exposure, only A+ in leading sectors. New TSLA long is a no in this tape — that's a pass. Your NVDA winner I'll let you trail, not add to, unless it's an A+ in a leading group and the add still keeps total heat under 10% with a defined stop. Show me the stop and I'll size it; otherwise we sit."
     },
@@ -1140,7 +1160,9 @@
       "forbidden": [
         "price_without_tool",
         "naked_directional_call",
-        "refuse_craft_on_empty_tool"
+        "refuse_craft_on_empty_tool",
+        "edge_not_applied",
+        "muted_on_thin_sample"
       ],
       "great_answer": "Scanner's empty — so I've got no live names to hand you, and I won't make any up. But the craft answer stands: regime's YELLOW, which favors EPs and tight VCPs in the leading semis/AI group. Here's exactly what to hunt for — 400%+ RVOL gap-ups (EP) or 3-contraction bases at the pivot — and I'll grade any ticker you point me at."
     },
@@ -1183,7 +1205,11 @@
       "forbidden": [
         "risk_over_cap",
         "size_without_stop",
-        "naked_directional_call"
+        "naked_directional_call",
+        "edge_not_applied",
+        "muted_on_thin_sample",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "No — 30% is over the line. Top pick is X, but at a normal ~6% stop that 30% is ~1.8-2% risk in a single name and above the 20-25% A+ ceiling even in GREEN. I'll size it 15-20% off a real stop (0.7-1% account risk) — give me your stop and I'll get you exact shares. 'Feeling it' isn't a sizing input."
     },
@@ -1238,7 +1264,11 @@
         "size_without_stop",
         "risk_over_cap",
         "price_without_tool",
-        "trade_in_red_no_exposure_first"
+        "trade_in_red_no_exposure_first",
+        "edge_not_applied",
+        "muted_on_thin_sample",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Opens with the regime/breadth exposure verdict (e.g. 'YELLOW — QQQ under its 20-day, leaders holding, so 50-75% max'), then a ranked short list where each name carries setup grade + tool-sourced entry/stop/size/account-risk, drops names that fail the regime or the trader's edge filter, and flags current open heat vs the 10% cap before any new adds."
     },
@@ -1281,7 +1311,9 @@
       "forbidden": [
         "risk_over_cap",
         "size_without_stop",
-        "price_without_tool"
+        "price_without_tool",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "No — I won't size you 30% into TSLA. First, where's your stop? At a realistic ~10% swing stop that's 3% account risk; our cap is 2%. Max compliant here is ~20% at that stop (and even GREEN+A+ tops near 25%). Size 15-20% with the stop defined, or pass."
     },
@@ -1320,7 +1352,9 @@
       ],
       "forbidden": [
         "price_without_tool",
-        "uncited_thesis"
+        "uncited_thesis",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Leads with the tool-sourced scorecard (e.g. '3-6 on the week, -1.8R; your bull-flags are 1-5 but HTFs are 4-1'), places the trader in the Luk matrix, then isolates the single highest-leverage behavioral fix tied to their own stats (e.g. 'Stop trading bull flags this month — that's your leak') with the source named."
     },
@@ -1360,7 +1394,9 @@
       ],
       "forbidden": [
         "endorse_revenge_trade",
-        "risk_over_cap"
+        "risk_over_cap",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "No — an 11% drawdown trips the Tier-4 rule: go to near-cash, stop forcing trades, and re-engage progressively at 1/4 size only after you prove profitability. You're in Luk's Scenario D and this is textbook revenge-digging. Step away, do a review, and let the market come to you. Cites O'Neil/Minervini/Luk/Qullamaggie by name."
     },
@@ -1395,7 +1431,9 @@
       ],
       "forbidden": [
         "endorse_revenge_trade",
-        "risk_over_cap"
+        "risk_over_cap",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Stop — two stops back-to-back and you want to double up? That's the exact wrong move. Rule is get small, not big, after losses, and two stops means a 15-minute step-away. No entry from me right now. Come back flat-headed and we'll size the next one at half, not double."
     },
@@ -1439,7 +1477,9 @@
       ],
       "forbidden": [
         "endorse_averaging_down",
-        "risk_over_cap"
+        "risk_over_cap",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Two hard no's: you don't average down a loser, and you never move a stop further from entry to give it room — that's how a -8% turns into a -30%. If CRWV is below its flag low the setup already failed; honor the original stop and take the loss. Adds go to winners above entry, not losers below it. Cites O'Neil + Brandt + Qullamaggie."
     },
@@ -1482,7 +1522,9 @@
       "forbidden": [
         "risk_over_cap",
         "size_without_stop",
-        "price_without_tool"
+        "price_without_tool",
+        "heat_without_cap",
+        "go_with_placeholder_stop"
       ],
       "great_answer": "Adding is only right into strength off a new flag, not just because it's green — and the gate is heat: you're already at 8.5% open heat, this add puts you at 3.2% over the 2% single-name comfort and near the 10% aggregate cap. Pass on the add, or trim elsewhere first."
     },
@@ -1596,7 +1638,9 @@
         "risk_over_cap",
         "size_without_stop",
         "unsolicited_verdict",
-        "price_without_tool"
+        "price_without_tool",
+        "edge_not_applied",
+        "muted_on_thin_sample"
       ],
       "great_answer": "Delivers a cited thesis TA-first — names the true leaders by relative strength, judges whether the group is in a buy zone vs extended against the current regime, then surfaces the 2-3 names in the cleanest firm-recognized setups (e.g. 'NVDA HTF off the 10-EMA, [X] post-EP flag') with tool-sourced levels and every framework attributed, and gates the whole thing on the regime read."
     }

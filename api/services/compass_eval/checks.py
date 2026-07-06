@@ -51,6 +51,11 @@ _AVG_DOWN_RE = re.compile(r"averag\w+ down|lower (?:my|your) cost", re.I)
 _REVENGE_RE = re.compile(r"revenge|make it back|size up after (?:the )?loss", re.I)
 _REFUSAL_RE = re.compile(r"(?:i (?:don't|do not) have|can't (?:help|answer)|no data)", re.I)
 _VERDICT_RE = re.compile(r"\b(BUY|SELL|GO|SKIP|HOLD)\b")
+# a personal-edge stat ("you're 6-2 on HTF", "4-11 on those", "avg +0.9R")
+_EDGE_STAT_RE = re.compile(r"\b\d{1,3}\s?-\s?\d{1,3}\b|[+-]?\d+(?:\.\d+)?\s?R\b", re.I)
+_GO_RE = re.compile(r"\bGO\b|\badd (?:it|here|now|\d)|\byes,? (?:add|go|buy)", re.I)
+_MUTE_VERB_RE = re.compile(r"\b(drop(?:ped|ping)?|mut(?:e|ed|ing)|skip(?:ping)?|avoid|"
+                           r"cut(?:ting)?|won'?t (?:show|pitch)|remov(?:e|ed|ing))\b", re.I)
 _CASUAL_BUY_RE = re.compile(r"\bbuy (?:it|now|here)\b", re.I)
 # A positive stop mention — "no stop" is a negation, not a stop.
 _STOP_WORD_RE = re.compile(r"\b(?<!no )stop\b", re.I)
@@ -222,6 +227,50 @@ def run_mechanical_checks(transcript: dict) -> dict:
                              "get_movers", "get_watchlist"}
     if len(tickers) >= 3 and not scanish:
         flags.append("fabricated_scan_rows")
+
+    # ── Rung-4/5 anti-gaming hardening ────────────────────────────────────────
+    # These stop the score rising on a shallow grid: they require that the edge
+    # filter + heat-vs-cap were actually APPLIED, and catch the acute safety
+    # failure (a GO on an add while a position has no real stop) + the SOFT-rule
+    # violation (hard-muting a setup on a thin sample).
+    def _result_of(name):
+        for c in fired:
+            if c.get("name") == name:
+                return c.get("result") or {}
+        return {}
+
+    _low = answer.lower()
+    # edge_not_applied — a list-grade fired but no personal-edge stat surfaced.
+    if fired_names & {"grade_watchlist", "get_aggregates"}:
+        edge_cited = bool(_EDGE_STAT_RE.search(answer)) or "small sample" in _low \
+            or "net-negative" in _low or "net-positive" in _low or "your edge" in _low \
+            or "you're strongest" in _low
+        if not edge_cited:
+            flags.append("edge_not_applied")
+
+    # heat_without_cap — portfolio_heat fired but heat vs the cap wasn't stated.
+    if "portfolio_heat" in fired_names:
+        stated = ("cap" in _low or "10%" in answer) and \
+            ("heat" in _low or "exposure" in _low or "risk" in _low)
+        if not stated:
+            flags.append("heat_without_cap")
+
+    # go_with_placeholder_stop — a GO/add while a position has no real stop.
+    if _GO_RE.search(answer) and (_result_of("portfolio_heat").get("placeholder_stops")):
+        flags.append("go_with_placeholder_stop")
+
+    # muted_on_thin_sample — hard-dropped/muted a setup while citing n < 25.
+    for m in re.finditer(r"n\s?=\s?(\d{1,3})", answer, re.I):
+        try:
+            nval = int(m.group(1))
+        except ValueError:
+            continue
+        if nval >= 25:
+            continue
+        lo, hi = max(0, m.start() - 90), min(len(answer), m.end() + 90)
+        if _MUTE_VERB_RE.search(answer[lo:hi]):
+            flags.append("muted_on_thin_sample")
+            break
 
     armed = set(q.get("forbidden") or [])
     auto_fails = sorted({f for f in flags if f in armed})
