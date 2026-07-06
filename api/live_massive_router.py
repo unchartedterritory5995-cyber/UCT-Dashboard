@@ -3140,3 +3140,50 @@ def restart_log(
         "startup_log": startup_log,
         "note": " ".join(note_parts),
     }
+
+
+# ─── Manual spot backfill trigger (Phase 3) ─────────────────────────────
+# The worker runs spot backfill automatically ~5s after each start(), but
+# if that first pass fails (Yahoo hiccup, DB lock, etc.) the rows stay
+# stranded until the next restart. This endpoint lets the operator retry
+# on demand from the browser without waiting for a full worker restart.
+# Also handy for backfilling historical days after the fact — pass
+# target_date=M/D/YYYY to run against any date's blank-spot rows.
+
+@router.post("/backfill-spot")
+def backfill_spot(
+    target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET."),
+):
+    """Manually run the stranded-spot backfill for a given date.
+
+    Same function that runs automatically at worker startup. Safe to call
+    multiple times — already-populated rows are excluded by the WHERE
+    clause. Returns the same result shape you'll see in the worker's
+    last_spot_backfill status field.
+
+    Common uses:
+      - Retry after a failed startup pass (Yahoo transient, DB lock)
+      - Backfill an older date after realizing rows never got Spot
+      - Diagnostic: run against yesterday to see if any rows are still
+        stranded from a restart during that session
+    """
+    try:
+        from api.massive_ws_worker import backfill_stranded_spots
+        return backfill_stranded_spots(target_date)
+    except ImportError as e:
+        return {
+            "ok": False,
+            "error": f"backfill_stranded_spots not available: {e}",
+            "note": "This endpoint requires the Phase 3 changes to "
+                    "massive_ws_worker.py (backfill_stranded_spots function). "
+                    "If you just deployed the router alone without the worker "
+                    "changes, deploy those too.",
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "ok": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback_last_frames": traceback.format_exc().splitlines()[-5:],
+        }
