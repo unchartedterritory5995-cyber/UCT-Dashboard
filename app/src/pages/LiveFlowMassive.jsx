@@ -1874,6 +1874,46 @@ export default function LiveFlowMassive() {
   const [dayStats, setDayStats] = useState(null);
   const lastIdRef = useRef(null);
   const newIdsRef = useRef(new Set());
+  // Persistent OI enrichment map — keyed by `${ticker}|${cp}|${strike}|${exp}`.
+  // Populated by the "fetch OI" button, applied on every setAlerts call so
+  // enriched values survive the 5s /recent poll cycle. Without this the
+  // enrichment is wiped on the next poll because the server-side row still
+  // has OI=0 in flow.db (7/2 backfill data was ingested with no OI column).
+  const oiEnrichmentRef = useRef({});
+
+  // Clear enrichment when targetDate changes. OI is date-specific — the
+  // snapshot for BE|C|370.0|9/18/2026 on 7/2 differs from the same contract
+  // on 7/3, so cross-date enrichment poisoning would show wrong values on
+  // rapid date-picker toggles.
+  useEffect(() => {
+    oiEnrichmentRef.current = {};
+  }, [targetDate]);
+
+  // Merge stored OI enrichment into a fresh alert list. Recomputes
+  // volumeOIRatio and oiExceeded inline to match the button-handler and
+  // server-side logic. Alerts with priorOI already populated (worker fetched
+  // OI successfully at write time) are left alone.
+  function applyOiEnrichment(alertList) {
+    const map = oiEnrichmentRef.current;
+    // Fast path: no enrichment stored yet (initial load or post-date-change)
+    let hasEntries = false;
+    for (const _ in map) { hasEntries = true; break; }
+    if (!hasEntries) return alertList;
+    return alertList.map(a => {
+      if (a.priorOI != null) return a;
+      const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
+      const oi = map[k];
+      if (oi == null) return a;
+      const ts = a.tradeSize || 0;
+      const ratio = (oi > 0 && ts > 0) ? Math.round((ts / oi) * 100) / 100 : null;
+      return {
+        ...a,
+        priorOI: oi,
+        volumeOIRatio: ratio,
+        oiExceeded: ratio != null && ratio > 1.0,
+      };
+    });
+  }
 
   // Persist controls
   useEffect(() => { saveFilters(filters); }, [filters]);
@@ -1984,7 +2024,9 @@ export default function LiveFlowMassive() {
         }
         if (incoming[0]) lastIdRef.current = incoming[0].id;
         newIdsRef.current = newIds;
-        setAlerts(incoming);
+        // Apply persisted OI enrichment before setAlerts so button-populated
+        // values survive the poll refresh (fix for OI-disappears-after-5s bug).
+        setAlerts(applyOiEnrichment(incoming));
         setStatus(d.status);
         setError(null);
       } catch (e) {
@@ -2217,6 +2259,14 @@ export default function LiveFlowMassive() {
       // without waiting for the next poll cycle. Recompute volumeOIRatio
       // and oiExceeded inline to match server-side logic.
       const filledKeys = new Set(Object.keys(oiMap));
+
+      // Persist into the enrichment ref BEFORE the setAlerts merge, so any
+      // /recent poll that fires in the microseconds between here and the
+      // React commit will already see the enrichment through applyOiEnrichment.
+      for (const k of filledKeys) {
+        oiEnrichmentRef.current[k] = oiMap[k];
+      }
+
       setAlerts(prev => prev.map(a => {
         if (a.priorOI != null) return a;
         const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
