@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVoice, getVoicePageHint } from '../context/VoiceContext'
 import useReadAloud from './useReadAloud'
@@ -162,25 +162,54 @@ function buildReadAloudPlan(contentKey) {
   return null
 }
 
+// ── Module-level connection state (singleton) ─────────────────────────────
+//
+// The live WebRTC session must survive SPA route changes. Many components
+// call this hook (FloatingOrb at App level, but also page-level surfaces:
+// CompassTodayTile, CompassChat, CompassAssistButton, RiskDashboard) and a
+// page-level instance unmounts on every navigation — so NO connection state
+// may live in per-component useRefs. One browser tab = at most one live
+// session; these singletons make every hook instance operate on it.
+// The session ends only on explicit disconnect (orb tap), silence timeout,
+// connection failure, or actual page unload (pagehide beacon below) —
+// never because the component that started it unmounted.
+const pcRef = { current: null }
+const dcRef = { current: null }
+const localStreamRef = { current: null }
+const sessionRef = { current: { id: null, openaiId: null, startedAt: 0 } }
+const silenceTimerRef = { current: null }
+const heartbeatTimerRef = { current: null }
+// A finished tool call can arrive on more than one Realtime event; run once.
+const handledCallsRef = { current: new Set() }
+// Log each never-before-seen event type once so a future API rename is visible.
+const loggedUnknownRef = { current: new Set() }
+// Latency probe: user-done-speaking -> assistant starts replying (model think time).
+const turnStartRef = { current: 0 }
+// Connect watchdog + a one-shot guard so a drop/timeout only errors once.
+const connectTimerRef = { current: null }
+const droppedRef = { current: false }
+
+// Tab close / reload: the component-unmount path no longer ends sessions, so
+// settle the server-side session record here. sendBeacon survives page unload
+// where fetch would be cancelled.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    const sess = sessionRef.current
+    if (!sess.id || typeof navigator === 'undefined' || !navigator.sendBeacon) return
+    const duration = Math.max(0, Math.round((Date.now() - sess.startedAt) / 1000))
+    try {
+      navigator.sendBeacon('/api/voice/session/end', new Blob(
+        [JSON.stringify({ session_id: sess.id, duration_seconds: duration })],
+        { type: 'application/json' }
+      ))
+    } catch { /* best effort */ }
+  })
+}
+
 export default function useRealtimeSession() {
   const voice = useVoice()
   const navigate = useNavigate()
   const readAloud = useReadAloud()
-  const pcRef = useRef(null)
-  const dcRef = useRef(null)
-  const localStreamRef = useRef(null)
-  const sessionRef = useRef({ id: null, openaiId: null, startedAt: 0 })
-  const silenceTimerRef = useRef(null)
-  const heartbeatTimerRef = useRef(null)
-  // A finished tool call can arrive on more than one Realtime event; run once.
-  const handledCallsRef = useRef(new Set())
-  // Log each never-before-seen event type once so a future API rename is visible.
-  const loggedUnknownRef = useRef(new Set())
-  // Latency probe: user-done-speaking -> assistant starts replying (model think time).
-  const turnStartRef = useRef(0)
-  // Connect watchdog + a one-shot guard so a drop/timeout only errors once.
-  const connectTimerRef = useRef(null)
-  const droppedRef = useRef(false)
 
   const cleanup = useCallback(async () => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
@@ -530,11 +559,12 @@ export default function useRealtimeSession() {
     }, HEARTBEAT_MS)
   }, [voice, disconnect, endSessionOnServer, cleanup, onChannelMessage, resetSilenceTimer])
 
-  // Stable unmount-only cleanup. Ref pattern avoids re-firing the effect on
-  // every voice-state change (which would cause an infinite disconnect loop).
-  const disconnectRef = useRef(null)
-  disconnectRef.current = disconnect
-  useEffect(() => () => { disconnectRef.current?.() }, [])
+  // NOTE: deliberately NO unmount cleanup here. Connection state is a module
+  // singleton (above) precisely so the conversation keeps going while the
+  // user navigates the app; an unmount-time disconnect() from ANY consumer
+  // (e.g. CompassTodayTile when leaving the Dashboard) killed the session on
+  // every route change AND wiped the shared VoiceContext state even when the
+  // unmounting instance didn't start the connection.
 
   return {
     connect,
