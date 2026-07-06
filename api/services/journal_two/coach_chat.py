@@ -13,7 +13,17 @@ from typing import Any
 
 from api.services.journal_two import db as j2_db
 
-RATE_LIMIT_PER_DAY = 200
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+# Per-user Compass chat messages/day. Env-overridable so the operator can tune
+# cost-per-user at launch without a deploy (default 200 = generous; a heavy
+# engaged trader is realistically 20-50/day).
+RATE_LIMIT_PER_DAY = _int_env("COMPASS_CHAT_DAILY_LIMIT", 200)
 
 
 def _get_conn(conn=None):
