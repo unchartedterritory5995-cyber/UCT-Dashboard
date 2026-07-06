@@ -2,19 +2,20 @@ import { renderWithProviders, screen } from '../test-utils'
 import NavBar from './NavBar'
 
 test('renders nav sidebar with free-tier links by default', () => {
-  // Free tier (default, no paid plan) shows ONLY the four FREE_PAGES:
-  // Breadth, Charts, Options Flow, Journal. Everything else (Dashboard,
-  // Morning Wire, UCT 20, Calendar, Screener, Patterns, Post Market, Model
-  // Book, Support) is paid-only and hidden from the nav.
+  // Free tier (default, no paid plan) shows the six FREE_PAGES matching the
+  // Landing "five tools, no card required" promise plus Model Book: Dashboard,
+  // Breadth, Charts, Options Flow, Journal, Model Book. Everything else
+  // (Morning Wire, UCT 20, Calendar, Theme Tracker, Screener, Patterns, Post
+  // Market, Watchlists, Support) is paid-only and hidden from the nav.
   renderWithProviders(<NavBar />)
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /breadth/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /^charts$/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /options flow/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /journal/i })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /model book/i })).toBeInTheDocument()
   // Paid-only pages are absent for free users
-  expect(screen.queryByRole('link', { name: /dashboard/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /model book/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: /calendar/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: /theme tracker/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: /watchlists/i })).not.toBeInTheDocument()

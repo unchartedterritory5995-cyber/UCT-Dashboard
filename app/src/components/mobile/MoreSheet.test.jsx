@@ -38,11 +38,13 @@ test('renders the full directory for a paid user', () => {
 test('free users only see free pages + account', () => {
   mockPlan = 'free'
   renderSheet()
+  expect(screen.getByText('Dashboard')).toBeInTheDocument()
   expect(screen.getByText('Breadth')).toBeInTheDocument()
   expect(screen.getByText('Charts')).toBeInTheDocument()
+  expect(screen.getByText('Model Book')).toBeInTheDocument()
   expect(screen.getByText('Settings')).toBeInTheDocument()
   // Paid-only destinations are hidden for free users
-  expect(screen.queryByText('Model Book')).toBeNull()
+  expect(screen.queryByText('Morning Wire')).toBeNull()
   expect(screen.queryByText('UCT 20')).toBeNull()
 })
 
