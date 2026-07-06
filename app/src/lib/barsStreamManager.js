@@ -229,9 +229,16 @@ function _watchdogSweep() {
       _teardownBucket(bucket)
       bucket.retryDelay = INITIAL_RETRY_MS
       _connectBucket(bucket)
-      for (const sub of _subscribers.values()) if (bucket.pairs.has(sub.key)) _notifyStatus(sub)
     }
   }
+  // Re-notify every sweep so the TIME-BASED `delivering` recency gate is actually
+  // OBSERVED: when a feed stops emitting bars but keeps heartbeating, no event fires,
+  // so without this the consumer never re-reads getStatus and the candle stays frozen
+  // with Finnhub suppressed (review re-check — the recency gate is otherwise dead code
+  // in steady state). Cheap: refresh() in useRealtimeBars bails when the status is
+  // unchanged, so this only re-renders a chart when its (connected/healthy/delivering)
+  // actually flips.
+  _notifyAllStatus()
 }
 
 // ── test hooks ──────────────────────────────────────────────────────────────

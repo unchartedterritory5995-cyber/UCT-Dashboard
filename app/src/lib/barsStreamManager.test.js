@@ -134,6 +134,26 @@ describe('barsStreamManager', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it('watchdog re-notifies each sweep so a stale delivering is OBSERVED, not dead code (re-review)', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
+    try {
+      const status = vi.fn()
+      bars.subscribe('AAPL', '1', { onStatus: status })
+      bars._flushRebuild()
+      const es = MockES.instances[0]
+      es._open()
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+      const before = status.mock.calls.length
+      // Connection stays alive via heartbeats (no reconnect), but no BARS arrive past the
+      // recency window — the sweep must still re-notify so the consumer sees delivering flip.
+      for (let i = 0; i < 12; i++) { es._emit('heartbeat'); vi.advanceTimersByTime(12000) }
+      expect(status.mock.calls.length).toBeGreaterThan(before)     // sweeps re-notified
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)    // recency gate observed
+    } finally { vi.useRealTimers() }
+  })
+
   it('prunes per-key liveness on last-unsubscribe → resubscribe is NOT instantly delivering (review #3)', () => {
     const unsub = bars.subscribe('AAPL', '1', {})
     flush()
