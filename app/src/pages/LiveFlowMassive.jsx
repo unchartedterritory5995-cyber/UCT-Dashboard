@@ -2184,10 +2184,23 @@ export default function LiveFlowMassive() {
 
     try {
       const oiMap = {};
-      const CHUNK = 100;  // backend cap matches LiveFlow.jsx pattern
+      const CHUNK = 400;  // matches /enrich-oi backend BATCH size — one round-trip
+      // Point at the snapshot-only endpoint (added 2026-07-05 to fix the hang
+      // on historical views). The old /api/oi-snapshot/bulk-fetch tried Schwab
+      // as a fallback for snapshot misses; Schwab has no historical OI so the
+      // HTTP call sat pending indefinitely. This endpoint never touches
+      // Schwab — it reads contract_oi_snapshots (346K rows) using the
+      // verified TICKER|CP|STRIKE.0|M/D/YYYY key format.
+      //
+      // target_date is passed when in historical view so the returned OI is
+      // pre-trade (snap_date <= view date), not post-trade lookahead. In live
+      // view (targetDate == null) we omit the param and get latest available.
+      const enrichUrl = targetDate
+        ? `/api/live/massive/enrich-oi?target_date=${encodeURIComponent(targetDate)}`
+        : "/api/live/massive/enrich-oi";
       for (let i = 0; i < contracts.length; i += CHUNK) {
         const chunk = contracts.slice(i, i + CHUNK);
-        const r = await fetch("/api/oi-snapshot/bulk-fetch", {
+        const r = await fetch(enrichUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(chunk),
