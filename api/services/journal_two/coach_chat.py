@@ -42,26 +42,39 @@ def _mentor_mode_active(user_id: str, conn=None) -> bool:
     COMPASS_MENTOR_MODE gate (api/routers/voice.py session_token) so text
     chat and voice share identical activation semantics:
       - "1"     -> on for everyone
+      - "beta"  -> on for admins + the COMPASS_MENTOR_BETA_EMAILS cohort
       - "admin" -> on only for users with users.role == "admin"
       - anything else (including unset) -> off
+    The rollout ladder (vision §7): off -> admin -> beta cohort -> all-paid.
     """
     mode = os.environ.get("COMPASS_MENTOR_MODE", "0")
     if mode == "1":
         return True
-    if mode == "admin":
+    if mode in ("admin", "beta"):
         _conn, _close = _get_conn(conn)
         try:
-            row = _conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+            row = _conn.execute("SELECT role, email FROM users WHERE id = ?", (user_id,)).fetchone()
             if row is None:
                 return False
             role = row["role"] if isinstance(row, sqlite3.Row) else row[0]
-            return role == "admin"
+            if role == "admin":
+                return True
+            if mode == "beta":
+                email = (row["email"] if isinstance(row, sqlite3.Row) else row[1]) or ""
+                return email.strip().lower() in _mentor_beta_emails()
+            return False
         except Exception:
             return False
         finally:
             if _close:
                 _conn.close()
     return False
+
+
+def _mentor_beta_emails() -> set:
+    return {e.strip().lower()
+            for e in os.environ.get("COMPASS_MENTOR_BETA_EMAILS", "").split(",")
+            if e.strip()}
 
 
 # ── Onboarding-state accessors (per-account j2_accounts OR unified state) ─────

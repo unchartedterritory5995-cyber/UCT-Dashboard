@@ -1126,7 +1126,16 @@ def session_token(
     # it before any subscriber). COMPASS_MENTOR_MODE=1 (all users) is handled
     # inside build_compass_voice_prompt(); this branch adds the admin-only tier
     # without double-appending. Appended last for maximum recency precedence.
-    if ctx == "compass" and os.environ.get("COMPASS_MENTOR_MODE") == "admin" and is_admin:
+    # Rollout ladder (vision §7): off -> admin -> beta cohort -> all-paid ("1").
+    # "beta" = admins + the COMPASS_MENTOR_BETA_EMAILS allowlist (mirrors the
+    # text-chat gate coach_chat._mentor_mode_active so both surfaces agree).
+    _mmode = os.environ.get("COMPASS_MENTOR_MODE")
+    _mentor_on = (_mmode == "admin" and is_admin)
+    if _mmode == "beta":
+        _beta = {e.strip().lower() for e in
+                 os.environ.get("COMPASS_MENTOR_BETA_EMAILS", "").split(",") if e.strip()}
+        _mentor_on = is_admin or (str(user.get("email") or "").strip().lower() in _beta)
+    if ctx == "compass" and _mentor_on:
         try:
             from api.services.voice_prompts.compass import _MENTOR_TWO_LANE
             session_instructions = session_instructions + _MENTOR_TWO_LANE
