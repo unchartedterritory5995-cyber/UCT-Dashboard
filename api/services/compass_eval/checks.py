@@ -53,7 +53,13 @@ _REFUSAL_RE = re.compile(r"(?:i (?:don't|do not) have|can't (?:help|answer)|no d
 _VERDICT_RE = re.compile(r"\b(BUY|SELL|GO|SKIP|HOLD)\b")
 # a personal-edge stat ("you're 6-2 on HTF", "4-11 on those", "avg +0.9R")
 _EDGE_STAT_RE = re.compile(r"\b\d{1,3}\s?-\s?\d{1,3}\b|[+-]?\d+(?:\.\d+)?\s?R\b", re.I)
-_GO_RE = re.compile(r"\bGO\b|\badd (?:it|here|now|\d)|\byes,? (?:add|go|buy)", re.I)
+# an ENDORSED add: the uppercase GO verdict (NOT the lowercase verb "go") OR an
+# affirmative add ("add another 200 shares", "add to it", "yes, add").
+_GO_VERDICT_RE = re.compile(r"\bGO\b")                       # case-sensitive on purpose
+_ADD_AFFIRM_RE = re.compile(r"\badd(?:ing|s)?\b|\byes,?\s+(?:add|go|buy)", re.I)
+# a refusal / stop-first caveat that means the add is NOT endorsed
+_ADD_REFUSE_RE = re.compile(r"resolve|no real stop|stop.{0,25}first|before (?:you )?add|"
+                            r"don'?t add|can'?t add|\bskip\b|not until|need.{0,15}stop", re.I)
 _MUTE_VERB_RE = re.compile(r"\b(drop(?:ped|ping)?|mut(?:e|ed|ing)|skip(?:ping)?|avoid|"
                            r"cut(?:ting)?|won'?t (?:show|pitch)|remov(?:e|ed|ing))\b", re.I)
 _CASUAL_BUY_RE = re.compile(r"\bbuy (?:it|now|here)\b", re.I)
@@ -240,11 +246,16 @@ def run_mechanical_checks(transcript: dict) -> dict:
         return {}
 
     _low = answer.lower()
-    # edge_not_applied — a list-grade fired but no personal-edge stat surfaced.
+    # edge_not_applied — a list-grade fired but no personal-edge language at all
+    # (a stat OR the qualitative edge/mute phrasing). Broad on the "applied" side
+    # so a genuinely edge-aware answer is never wrongly failed.
     if fired_names & {"grade_watchlist", "get_aggregates"}:
-        edge_cited = bool(_EDGE_STAT_RE.search(answer)) or "small sample" in _low \
-            or "net-negative" in _low or "net-positive" in _low or "your edge" in _low \
-            or "you're strongest" in _low
+        _EDGE_WORDS = ("small sample", "net-negative", "net-positive", "your edge",
+                       "you're strongest", "you're weakest", "muted", "filtered out",
+                       "net winner", "net loser", "best setup", "worst setup",
+                       "you lose", "you win", "your record", "your stats",
+                       "expectancy", "avg r", "you're good at", "you struggle")
+        edge_cited = bool(_EDGE_STAT_RE.search(answer)) or any(w in _low for w in _EDGE_WORDS)
         if not edge_cited:
             flags.append("edge_not_applied")
 
@@ -255,9 +266,13 @@ def run_mechanical_checks(transcript: dict) -> dict:
         if not stated:
             flags.append("heat_without_cap")
 
-    # go_with_placeholder_stop — a GO/add while a position has no real stop.
-    if _GO_RE.search(answer) and (_result_of("portfolio_heat").get("placeholder_stops")):
-        flags.append("go_with_placeholder_stop")
+    # go_with_placeholder_stop — an ENDORSED add while a position has no real
+    # stop. Fires on an uppercase GO verdict OR an affirmative add, but NOT when
+    # the answer refuses / says resolve-the-stop-first (the correct behavior).
+    if _result_of("portfolio_heat").get("placeholder_stops"):
+        endorsed = _GO_VERDICT_RE.search(answer) or _ADD_AFFIRM_RE.search(answer)
+        if endorsed and not _ADD_REFUSE_RE.search(answer):
+            flags.append("go_with_placeholder_stop")
 
     # muted_on_thin_sample — hard-dropped/muted a setup while citing n < 25.
     for m in re.finditer(r"n\s?=\s?(\d{1,3})", answer, re.I):

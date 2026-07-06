@@ -59,3 +59,11 @@ def test_by_sector_concentration_flag(monkeypatch):
         regime_fn=lambda: {"regime": "bull_trend", "exposure_rating": 120}, cap_fn=lambda: 10.0,
         account_size=100000.0)
     assert any(f["sector"] == "Semiconductors" for f in out["concentration_flags"])
+
+
+def test_null_stop_is_placeholder_not_dropped():
+    out = ph.portfolio_heat("u", **_fns([_pos("DECK", 105, 100, 100),
+                                         {"symbol": "NUL", "entry_price": 50, "stop_price": None, "shares": 200}]))
+    assert "NUL" in out["placeholder_stops"]          # surfaced, not dropped
+    assert out["risk_heat_pct"] == 0.5                # only DECK counts
+    assert any(p["symbol"] == "NUL" and p["placeholder_stop"] for p in out["per_position"])

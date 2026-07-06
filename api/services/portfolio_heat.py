@@ -106,11 +106,17 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
             continue
         try:
             entry = float(p.get("entry_price"))
-            stop = float(p.get("stop_price"))
             shares = float(p.get("shares"))
         except (TypeError, ValueError):
             continue
-        is_placeholder = (stop == entry) or stop <= 0
+        # A null / missing / non-numeric stop is a PLACEHOLDER (no real stop) —
+        # surface it, never silently drop it (dropping it under-reports heat and
+        # would let a confident over-cap add escape the no-GO guard).
+        try:
+            stop = float(p.get("stop_price"))
+            is_placeholder = (stop == entry) or stop <= 0
+        except (TypeError, ValueError):
+            stop, is_placeholder = entry, True
         risk = shares * abs(entry - stop)
         notional += shares * entry
         rec = {"symbol": sym, "side": p.get("side") or "long",

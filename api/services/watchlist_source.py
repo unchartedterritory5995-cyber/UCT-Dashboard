@@ -48,21 +48,18 @@ def _watchlist_syms(user_id, account_id):
 
 
 def _flagged_syms(user_id, account_id):
+    """The flagged list is EXCLUDED from list_user_watchlists' SQL — resolve it
+    via the dedicated accessor instead, or it silently reads empty."""
     from api.services import watchlist_service as wls
     from api.services.auth_db import get_connection
-    lists = wls.list_user_watchlists(user_id) or []
-    syms: list[str] = []
+    flagged = wls.get_or_create_flagged_list(user_id)
+    if not flagged or not flagged.get("id"):
+        return []
     conn = get_connection()
     try:
-        for wl in lists:
-            if not wl.get("is_flagged_list"):
-                continue
-            for it in (wls._get_items(conn, wl.get("id")) or []):
-                if it.get("sym"):
-                    syms.append(it["sym"])
+        return [it["sym"] for it in (wls._get_items(conn, flagged["id"]) or []) if it.get("sym")]
     finally:
         conn.close()
-    return syms
 
 
 _SCAN_MAX = 15

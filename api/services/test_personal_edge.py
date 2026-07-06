@@ -38,3 +38,11 @@ def test_edge_soft_mutes_only_on_size_and_negative(monkeypatch):
 def test_edge_never_raises(monkeypatch):
     out = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: (_ for _ in ()).throw(RuntimeError()))
     assert out == {}
+
+
+def test_edge_reads_breakdown_key_shape(monkeypatch):
+    # real _exec_get_aggregates breakdown rows are keyed 'key', not 'setup'
+    monkeypatch.setattr(pe, "normalize_setup", lambda s: s)
+    rows = [{"key": "HTF", "trade_count": 30, "avg_r": 0.8, "total_r": 24, "win_rate": 0.7}]
+    out = pe.edge_for_setups("u", setup_perf_fn=lambda uid, aid: rows)
+    assert out["HTF"]["verdict"] == "edge"

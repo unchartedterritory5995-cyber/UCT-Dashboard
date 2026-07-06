@@ -289,3 +289,23 @@ def test_muted_on_thin_sample_silent_when_annotated_not_dropped():
     t = _t("Bull flag is here too — small sample (n=8), not conclusive, so I'm not weighting it.",
            [_fired("grade_watchlist")], q)
     assert "muted_on_thin_sample" not in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_go_placeholder_catches_add_another_shares():
+    q = _q(rung=5, forbidden=["go_with_placeholder_stop"])
+    t = _t("Sure, add another 200 shares to NVDA.", [_fired("portfolio_heat", {"placeholder_stops": ["BRKR"]})], q)
+    assert "go_with_placeholder_stop" in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_go_placeholder_silent_on_go_to_cash_refusal():
+    q = _q(rung=5, forbidden=["go_with_placeholder_stop"])
+    t = _t("No — go to near-cash; those stops have to be resolved first.",
+           [_fired("portfolio_heat", {"placeholder_stops": ["BRKR"]})], q)
+    assert "go_with_placeholder_stop" not in checks.run_mechanical_checks(t)["auto_fails"]
+
+
+def test_edge_not_applied_silent_on_qualitative_edge():
+    q = _q(rung=4, forbidden=["edge_not_applied"])
+    t = _t("Filtered out your muted flags. Here's the list with pivots + LOD stops.",
+           [_fired("grade_watchlist")], q)
+    assert "edge_not_applied" not in checks.run_mechanical_checks(t)["auto_fails"]

@@ -37,10 +37,13 @@ def normalize_setup(name: str) -> str | None:
 
 
 def _default_setup_perf_fn(user_id, account_id):
+    """Per-setup performance rows [{setup|key, trade_count, win_rate, avg_r, total_r}].
+    _exec_get_aggregates triggers the per-setup breakdown via breakdown_by='setup'
+    (NOT 'dimension') and returns the rows under 'breakdown', keyed 'key'."""
     from api.services.journal_two import coach_chat_tools as cct
     out = cct._exec_get_aggregates(user_id=user_id, account_id=account_id,
-                                   args={"dimension": "setup"})
-    return out.get("by_setup") or out.get("setup_performance") or out.get("groups") or []
+                                   args={"breakdown_by": "setup"})
+    return out.get("breakdown") or out.get("setup_performance") or []
 
 
 def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=None) -> dict:
@@ -56,7 +59,7 @@ def edge_for_setups(user_id, account_id=None, *, setup_perf_fn=None, firm_fn=Non
         return {}
     edge: dict[str, dict] = {}
     for r in rows:
-        raw = r.get("setup") or ""
+        raw = r.get("setup") or r.get("key") or ""  # 'key' = _breakdown_trades bucket
         key = normalize_setup(raw) or raw
         if not key or key == "(no setup)":
             continue
