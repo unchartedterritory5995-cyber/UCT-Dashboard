@@ -70,6 +70,25 @@ def available() -> bool:
     return _engine() is not None
 
 
+def aggregate_heat_cap_pct() -> float:
+    """Firm TOTAL open-heat cap (Desjardins File 3 §1), read from the brain.
+    Fail-soft 10.0. NEVER derived as N× per-trade (would drift if per-trade is
+    reconfigured). Accepts an explicit engine accessor if the pack exposes one;
+    otherwise the documented default."""
+    uct = _engine()
+    if uct is None:
+        return 10.0
+    try:
+        acc = getattr(uct, "aggregate_heat_cap_pct", None)
+        if callable(acc):
+            v = acc()
+            if v:
+                return float(v)
+    except Exception:  # noqa: BLE001
+        pass
+    return 10.0
+
+
 def _current_regime() -> str:
     """Read the dashboard's own live regime classifier
     (api.services.voice_regime_classifier.get_current_regime) and map its
