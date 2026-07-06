@@ -1341,6 +1341,12 @@ def recent_massive_alerts(
     """
     today = target_date or _today_mdyyyy()
 
+    # Piggyback on the frontend's 5s polling cadence to auto-record any
+    # worker restart. Cheap O(1) module-cache check when nothing changed;
+    # single INSERT + cache-update when a restart is detected. See
+    # /restart-log endpoint below for the read side.
+    _log_startup_if_new()
+
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
@@ -2694,4 +2700,397 @@ def spot_check(target_date: str = Query(default=None, description="M/D/YYYY. Def
             if populated > 0 else
             "No rows on this date."
         ),
+    }
+
+
+# ─── Worker downtime detection (retroactive gap analysis) ───────────────
+# Detect windows during market hours where flow.db received zero writes,
+# which is a strong proxy for worker-down periods. Massive doesn't replay
+# missed events, so any consecutive-empty-minutes stretch during 9:30-16:00
+# ET is either (a) the worker was down/restarting or (b) the entire OPRA
+# feed had an outage. (a) dominates in practice.
+#
+# Why this works: liquid trading days see 500-5000 option prints per minute
+# across the tape. A single zero-print minute during regular hours is
+# already suspicious; two consecutive is near-certain worker downtime.
+# We report both counts (permissive and strict) so the operator can decide
+# which threshold matches their tolerance.
+#
+# Complementary approach: forward-looking restart log. Not built here — see
+# the response note for the ~5-line patch to massive_ws_worker.py that
+# would give you exact restart timestamps going forward.
+
+@router.get("/worker-history")
+def worker_history(
+    target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET."),
+    min_gap_minutes: int = Query(default=2, ge=1, le=30,
+                                  description="Minimum consecutive empty minutes to count as a downtime window."),
+):
+    """Retrospective outage detection from flow.db write timestamps.
+
+    Scans the target date's rows during market hours (9:30-16:00 ET),
+    buckets by minute, and reports every run of ≥min_gap_minutes consecutive
+    minutes with zero rows written. Each window is a probable worker-down
+    (or Massive-outage) event.
+
+    Returns:
+        {
+          "target_date": "7/6/2026",
+          "market_minutes_total": 390,
+          "market_minutes_with_writes": 388,
+          "market_minutes_empty": 2,
+          "downtime_windows_strict": [   # ≥ min_gap_minutes consecutive
+              {"start": "10:42 AM", "end": "10:44 AM",
+               "duration_min": 2, "est_dropped_events": 1400}
+          ],
+          "downtime_windows_permissive": 3,   # any single empty minute counts
+          "sample_hour_rates": {
+              "09": 12403, "10": 45201, ...   # rows per hour, sanity floor
+          },
+          "interpretation": "..."
+        }
+    """
+    today = target_date or _today_mdyyyy()
+
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        # Pull the CreatedTime for every row on this date. Single column, so
+        # even 500K rows on a busy day = ~5MB. Faster than doing minute-bucket
+        # aggregation in SQLite because CreatedTime is stored as "H:MM:SS AM/PM"
+        # text — parsing is easier in Python than in SQL substring gymnastics.
+        cur = conn.execute(
+            "SELECT CreatedTime FROM flow "
+            "WHERE CreatedDate = ? AND source = 'stocks'",
+            (today,)
+        )
+        times = [r[0] for r in cur.fetchall() if r[0]]
+    finally:
+        conn.close()
+
+    if not times:
+        return {
+            "target_date": today,
+            "total_rows": 0,
+            "note": "No rows found on this date (weekend, holiday, or worker "
+                    "was down the entire session).",
+        }
+
+    def _parse_to_minute_of_day(t: str) -> int | None:
+        """'2:58:37 PM' → 898 (minutes past midnight). None on parse failure."""
+        try:
+            s = t.strip().upper()
+            # Handle both 'H:MM:SS AM' and 'HH:MM:SS AM' plus stray whitespace
+            parts = s.split()
+            if len(parts) != 2:
+                return None
+            hhmmss, ampm = parts[0], parts[1]
+            h_str, m_str, *_ = hhmmss.split(":")
+            h, m = int(h_str), int(m_str)
+            if ampm == "PM" and h != 12:
+                h += 12
+            elif ampm == "AM" and h == 12:
+                h = 0
+            return h * 60 + m
+        except Exception:
+            return None
+
+    # Bucket every row into its minute-of-day. Only market hours count for
+    # the downtime analysis: 9:30 = minute 570, 16:00 = minute 960.
+    MARKET_OPEN = 9 * 60 + 30    # 570
+    MARKET_CLOSE = 16 * 60       # 960
+    minute_counts: dict[int, int] = {}
+    hour_counts: dict[int, int] = {}
+    for t in times:
+        m = _parse_to_minute_of_day(t)
+        if m is None:
+            continue
+        minute_counts[m] = minute_counts.get(m, 0) + 1
+        hour_counts[m // 60] = hour_counts.get(m // 60, 0) + 1
+
+    # Scan 570..959 for zero-count minutes and group into consecutive runs.
+    empty_minutes = [m for m in range(MARKET_OPEN, MARKET_CLOSE)
+                     if minute_counts.get(m, 0) == 0]
+    market_minutes_with_writes = (MARKET_CLOSE - MARKET_OPEN) - len(empty_minutes)
+
+    # Group consecutive empty minutes into windows.
+    windows: list[dict] = []
+    if empty_minutes:
+        run_start = empty_minutes[0]
+        prev = run_start
+        for m in empty_minutes[1:]:
+            if m == prev + 1:
+                prev = m
+                continue
+            windows.append({"start_min": run_start, "end_min": prev + 1,
+                            "duration_min": prev + 1 - run_start})
+            run_start = m
+            prev = m
+        windows.append({"start_min": run_start, "end_min": prev + 1,
+                        "duration_min": prev + 1 - run_start})
+
+    # Estimate dropped events per window using the average print rate of the
+    # non-empty minutes on either side of it (buffer = 5 min each side).
+    def _fmt(min_of_day: int) -> str:
+        h = min_of_day // 60
+        mm = min_of_day % 60
+        ampm = "AM" if h < 12 else "PM"
+        h12 = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
+        return f"{h12}:{mm:02d} {ampm}"
+
+    def _neighbor_rate(w: dict) -> float:
+        buf = 5
+        neighbors = []
+        for m in range(max(MARKET_OPEN, w["start_min"] - buf), w["start_min"]):
+            neighbors.append(minute_counts.get(m, 0))
+        for m in range(w["end_min"], min(MARKET_CLOSE, w["end_min"] + buf)):
+            neighbors.append(minute_counts.get(m, 0))
+        if not neighbors:
+            return 0.0
+        return sum(neighbors) / len(neighbors)
+
+    strict_windows = []
+    for w in windows:
+        if w["duration_min"] < min_gap_minutes:
+            continue
+        rate = _neighbor_rate(w)
+        strict_windows.append({
+            "start": _fmt(w["start_min"]),
+            "end": _fmt(w["end_min"]),
+            "duration_min": w["duration_min"],
+            "est_dropped_events": int(round(rate * w["duration_min"])),
+        })
+
+    hourly = {f"{h:02d}": hour_counts.get(h, 0)
+              for h in range(9, 17) if hour_counts.get(h, 0) > 0}
+
+    total_estimated_dropped = sum(w["est_dropped_events"] for w in strict_windows)
+    interp_parts = []
+    if not strict_windows:
+        interp_parts.append(
+            f"No worker downtime detected on {today} at the "
+            f"≥{min_gap_minutes}-minute threshold."
+        )
+    else:
+        interp_parts.append(
+            f"{len(strict_windows)} probable downtime window(s) "
+            f"detected on {today}. Estimated {total_estimated_dropped:,} "
+            f"OPRA events dropped (based on neighbor-minute rates)."
+        )
+    if len(windows) > len(strict_windows):
+        soft = len(windows) - len(strict_windows)
+        interp_parts.append(
+            f"{soft} additional single-minute gap(s) present but under threshold "
+            "— likely genuine market quiet, not downtime."
+        )
+    if len(empty_minutes) > 30:
+        interp_parts.append(
+            "High empty-minute count suggests either an extended outage or "
+            "the worker wasn't running for most of the session."
+        )
+
+# ─── Worker restart persistent log (auto-recorded via frontend polling) ─
+# Tracks every worker process start in a worker_starts table so that after
+# a session of chaos-deploy the operator can answer "how many times did
+# my worker restart today and when?" definitively.
+#
+# Auto-recording mechanism: _log_startup_if_new() reads the current
+# process's started_at from massive_ws_worker.get_status() and INSERTs it
+# into worker_starts if it hasn't been logged yet. The check is O(1) using
+# a module-level cache so it's cheap to call on every /recent request.
+# When the worker restarts, the module state resets → the next /recent
+# call re-detects and logs the new started_at.
+#
+# Piggybacks on the frontend's 5s poll cadence — no separate cron needed,
+# no touch to massive_ws_worker.py or main.py. Limitation: restarts that
+# happen before this code is deployed are lost. From first deploy of this
+# module onward, every subsequent restart is captured.
+
+_STARTUP_LOG_CACHE = {"last_logged_started_at": None}
+
+
+def _log_startup_if_new() -> None:
+    """Idempotent per-process: on first call after a restart, insert the
+    current started_at into worker_starts. Subsequent calls in the same
+    process are O(1) no-ops (module cache short-circuit).
+    """
+    try:
+        from api.massive_ws_worker import get_status
+        status = get_status() or {}
+        started_at = status.get("started_at")
+        if not started_at:
+            return
+        if _STARTUP_LOG_CACHE["last_logged_started_at"] == started_at:
+            return
+        import os as _os
+        import time as _time
+        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS worker_starts ("
+                "  started_at REAL PRIMARY KEY, "
+                "  logged_at REAL, "
+                "  deployment_id TEXT, "
+                "  replica_id TEXT"
+                ")"
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO worker_starts "
+                "(started_at, logged_at, deployment_id, replica_id) "
+                "VALUES (?, ?, ?, ?)",
+                (float(started_at), _time.time(),
+                 _os.environ.get("RAILWAY_DEPLOYMENT_ID", ""),
+                 _os.environ.get("RAILWAY_REPLICA_ID", "")),
+            )
+        _STARTUP_LOG_CACHE["last_logged_started_at"] = started_at
+    except Exception as e:
+        # Never let a logging failure affect the actual request handling.
+        print(f"[worker_starts] auto-log failed (non-fatal): {e}")
+
+
+@router.get("/restart-log")
+def restart_log(
+    target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET."),
+):
+    """Return the worker's process-start timestamps recorded for target_date.
+
+    Each row represents one process start (deploy, crash-restart, or
+    Railway platform restart). The gap between consecutive starts is an
+    approximate downtime window, but the more accurate downtime signal is
+    /worker-history which reads actual flow.db write gaps.
+
+    Response fields:
+      current_process_started_at_et: when the process currently serving
+        this request started (from live get_status(), not the DB).
+      current_uptime_sec: seconds since current process start.
+      startup_log: chronological list of every recorded start today.
+        `during_market_hours` flags restarts that crossed 9:30-16:00 ET.
+      restarts_during_market_hours: count of the flagged ones — the
+        actionable number for "how much data did I likely drop?"
+      note: caveat about pre-deploy restarts being unrecoverable.
+    """
+    # Fold in any restart we haven't captured yet, before reading back.
+    _log_startup_if_new()
+
+    today = target_date or _today_mdyyyy()
+
+    # Convert M/D/YYYY -> ET day boundaries in Unix seconds. Naive but
+    # correct for the operator's timezone (US Eastern is the reference
+    # for the whole platform).
+    try:
+        m, d, y = today.split("/")
+        from datetime import datetime, timezone, timedelta
+        # ET is UTC-4 during DST (Mar-Nov), UTC-5 otherwise. July is DST.
+        et_offset = timedelta(hours=-4)  # US Eastern DST
+        day_start_et = datetime(int(y), int(m), int(d), 0, 0, 0)
+        day_end_et = datetime(int(y), int(m), int(d), 23, 59, 59)
+        day_start_ts = (day_start_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
+        day_end_ts = (day_end_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
+    except Exception as e:
+        raise HTTPException(status_code=400,
+                            detail=f"bad target_date, expected M/D/YYYY: {e}")
+
+    MARKET_OPEN_ET_HHMM = 9 * 60 + 30
+    MARKET_CLOSE_ET_HHMM = 16 * 60
+
+    def _to_et_hhmm(unix_ts: float) -> int:
+        """Return minute-of-day in ET for a Unix timestamp (July DST)."""
+        from datetime import datetime, timezone, timedelta
+        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
+        return dt.hour * 60 + dt.minute
+
+    def _to_et_str(unix_ts: float) -> str:
+        from datetime import datetime, timezone, timedelta
+        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
+        h = dt.hour
+        ampm = "AM" if h < 12 else "PM"
+        h12 = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
+        return f"{h12}:{dt.minute:02d}:{dt.second:02d} {ampm} ET"
+
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS worker_starts ("
+            "  started_at REAL PRIMARY KEY, "
+            "  logged_at REAL, "
+            "  deployment_id TEXT, "
+            "  replica_id TEXT"
+            ")"
+        )
+        cur = conn.execute(
+            "SELECT started_at, logged_at, deployment_id, replica_id "
+            "FROM worker_starts "
+            "WHERE started_at >= ? AND started_at <= ? "
+            "ORDER BY started_at ASC",
+            (day_start_ts, day_end_ts),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    startup_log = []
+    prev_ts = None
+    for r in rows:
+        started_at, logged_at, deployment_id, replica_id = r
+        et_hhmm = _to_et_hhmm(started_at)
+        during_market = MARKET_OPEN_ET_HHMM <= et_hhmm < MARKET_CLOSE_ET_HHMM
+        entry = {
+            "started_at_et": _to_et_str(started_at),
+            "started_at_unix": started_at,
+            "logged_at_et": _to_et_str(logged_at) if logged_at else None,
+            "detection_lag_sec": round((logged_at - started_at), 1) if logged_at else None,
+            "during_market_hours": during_market,
+            "deployment_id": deployment_id or None,
+            "replica_id": replica_id or None,
+        }
+        if prev_ts is not None:
+            # Interval between previous logged start and this start. This is
+            # NOT the downtime — it's the *uptime* of the previous process
+            # plus its shutdown time. Downtime alone is a subset of this.
+            entry["seconds_since_previous_start"] = round(started_at - prev_ts, 1)
+        startup_log.append(entry)
+        prev_ts = started_at
+
+    # Current process's status — separate from the table so we always see
+    # the live number even if logging hasn't caught up yet.
+    current_started_at = None
+    current_uptime = None
+    try:
+        from api.massive_ws_worker import get_status
+        st = get_status() or {}
+        current_started_at = st.get("started_at")
+        current_uptime = st.get("uptime_sec")
+    except Exception:
+        pass
+
+    restarts_during_market_hours = sum(1 for e in startup_log if e["during_market_hours"])
+
+    note_parts = [
+        "This log auto-populates via /recent polling from the frontend. "
+        "It only captures restarts that happened AFTER this endpoint was "
+        "first deployed — prior restarts today are unrecoverable from data "
+        "alone; check Railway deploy history for those.",
+    ]
+    if restarts_during_market_hours > 0:
+        note_parts.append(
+            f"{restarts_during_market_hours} restart(s) occurred within 9:30-16:00 "
+            "ET — likely dropped Massive events during those windows. Cross-"
+            "reference with /worker-history for the actual data-loss estimate."
+        )
+    if not startup_log and current_started_at:
+        note_parts.append(
+            "No historical entries yet. This is the first request since the "
+            "endpoint was deployed; the current process start has now been "
+            "logged. Reload to see it."
+        )
+
+    return {
+        "target_date": today,
+        "current_process_started_at_et": (
+            _to_et_str(current_started_at) if current_started_at else None
+        ),
+        "current_process_started_at_unix": current_started_at,
+        "current_uptime_sec": current_uptime,
+        "restarts_recorded_today": len(startup_log),
+        "restarts_during_market_hours": restarts_during_market_hours,
+        "startup_log": startup_log,
+        "note": " ".join(note_parts),
     }
