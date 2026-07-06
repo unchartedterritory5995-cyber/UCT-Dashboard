@@ -261,19 +261,29 @@ def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = 
     # 1. Actuals — FMP (deepest), then yfinance fills gaps. These are REPORTED
     #    fiscal years labeled by fiscal-year-end (e.g. AAPL FY2024 ended Sep 2024
     #    → 2024); the latest one is the most recent COMPLETED fiscal year.
-    actuals = dict(_annual_actuals_from_fmp(ticker))
+    actuals = {y: dict(v) for y, v in _annual_actuals_from_fmp(ticker).items()}
     source = "fmp" if actuals else None
-    # yfinance is a BACKSTOP. Consult it only when FMP did NOT already return a
-    # deep (≥years_back) AND recent (newest ≥ cur_y-1) contiguous window — that
-    # skips a wasted, rate-limited Yahoo fetch on every cold load of the FMP
-    # happy path, while still deepening/refreshing thin or stale FMP coverage.
+    # yfinance is a BACKSTOP. Consult it when FMP did NOT return a deep (≥years_back)
+    # AND recent (newest ≥ cur_y-1) contiguous window, OR when it left a blank EPS/
+    # Sales cell in a year it DOES cover — that skips a wasted, rate-limited Yahoo
+    # fetch on the FMP happy path, while still deepening/refreshing thin coverage
+    # and topping up an individual missing cell (a null Sales showed '—' forever).
     fmp_recent = _contiguous_recent(actuals, years_back)
     fmp_covers = len(fmp_recent) >= years_back and fmp_recent[-1] >= cur_y - 1
-    if not fmp_covers:
+    has_blank = any(actuals.get(y, {}).get("eps") is None or actuals.get(y, {}).get("sales") is None
+                    for y in fmp_recent)
+    if not fmp_covers or has_blank:
         for y, v in _annual_actuals_from_yf(ticker).items():
             if y not in actuals:
-                actuals[y] = v
+                actuals[y] = dict(v)
                 source = source or "yfinance"
+            else:
+                # PER-FIELD fill: only populate a cell the primary left None; never
+                # overwrite a present FMP value.
+                row = actuals[y]
+                for field in ("eps", "sales"):
+                    if row.get(field) is None and v.get(field) is not None:
+                        row[field] = v[field]
 
     actual_years = _contiguous_recent(actuals, years_back)
 
