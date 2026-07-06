@@ -101,6 +101,21 @@ def _most_recent_closed_monday() -> str:
     return monday.isoformat()
 
 
+# ── Compass health (no-auth read-only status, mirrors fundamentals-health) ───
+
+@router.get("/compass-health")
+def compass_health_status(days: int = 7) -> dict[str, Any]:
+    """Weekly Compass mentor health: chat volume, active users, tool-failure
+    rate, and the worst-offending tools. Read-only; feeds the weekly owner email."""
+    from api.services import compass_health
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        return compass_health.compute_health(conn, days=max(1, min(90, int(days))))
+    finally:
+        conn.close()
+
+
 # ── Settings ─────────────────────────────────────────────────────────────────
 
 @router.get("/settings")

@@ -2594,6 +2594,28 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
 
+        # Compass Health — weekly owner ops email. NOT under _add_compass_job
+        # (that gates on the paused COMPASS_AUTOMATION_ENABLED); this is cheap
+        # SQL + email with no LLM, gated by its own COMPASS_HEALTH_EMAIL_ENABLED.
+        def _compass_health_email_job():
+            if _os.environ.get("COMPASS_HEALTH_EMAIL_ENABLED", "0") != "1":
+                return
+            try:
+                from api.services import compass_health
+                r = compass_health.send_weekly_health_email(days=7)
+                print(f"[scheduler] Compass Health email: sent={r['sent']} "
+                      f"recipients={r['recipients']} error={r.get('error')}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] Compass Health email error: {e}")
+
+        _scheduler.add_job(
+            _compass_health_email_job,
+            trigger=CronTrigger(day_of_week="mon", hour=13, minute=30),
+            id="compass_health_email",
+            max_instances=1,
+            replace_existing=True,
+        )
+
         _scheduler.add_job(
             _run_patterns_track_outcomes,
             trigger=IntervalTrigger(hours=4),
