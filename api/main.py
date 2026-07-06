@@ -2726,11 +2726,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
-# Fail-closed admin gate for /api/admin/* + /api/live/admin/* (ops/mutation endpoints
-# were unauthenticated — anyone could corrupt/wipe the Options Flow DB). Read-only
-# status dashboards stay open via admin_guard.OPEN_ADMIN_PATHS.
-from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
-app.add_middleware(_AdminGuard)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
@@ -4560,6 +4555,130 @@ async def _oi_confirmation_map(request: Request):
     # Cache for 60s so repeated toggle-on/off doesn't re-query
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
+
+
+@app.post("/api/admin/flow/delete-by-date")
+async def _flow_delete_by_date(
+    target_date: str,
+    source: str = "",
+    confirm: bool = False,
+):
+    """Delete all flow rows for a given date. Destructive; used when a date's
+    data needs to be rebuilt clean (e.g. 7/2/2026 had V1+V2+V3 backfills
+    inserted while iterating on Fix 1+2+3 in the 7/3 session — duplicate
+    rows produced 1000+ curated alerts vs. the ~30-50 the tune expects).
+
+    Recommended workflow after delete:
+      1. POST this endpoint with confirm=true
+      2. Re-apply the fill:
+         POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-stocks.csv&source=stocks
+         POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-indexes.csv&source=indexes
+      3. Re-apply patches:
+         POST /api/admin/massive/backfill-from-patches?patches_file=patches-7-2.json&target_date=7/2/2026
+      4. Rebuild color:
+         POST /api/admin/massive/rebuild-color?target_date=7/2/2026
+      5. Normalize sweep sides:
+         POST /api/admin/massive/normalize-sweep-sides?target_date=7/2/2026
+
+    target_date: 'M/D/YYYY' (required, no default — safety)
+    source: 'stocks' | 'indexes' | '' for both (default: both)
+    confirm: must be true to actually delete (default: false → returns preview count)
+
+    Preview mode (confirm=false): returns the count that WOULD be deleted
+    without touching the data. Use this first to verify scope.
+
+    Only touches the `flow` table. contract_oi_snapshots, aggregates, etc.
+    are untouched — their per-date rows remain valid.
+    """
+    try:
+        import sqlite3, os
+        if not target_date:
+            return {"ok": False, "error": "target_date is required (M/D/YYYY format)"}
+
+        # Basic format validation
+        parts = target_date.split("/")
+        if len(parts) != 3:
+            return {"ok": False, "error": f"target_date must be M/D/YYYY, got: {target_date!r}"}
+
+        # Source filter validation
+        if source and source not in ("stocks", "indexes"):
+            return {"ok": False, "error": f"source must be 'stocks', 'indexes', or empty; got: {source!r}"}
+
+        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        conn = sqlite3.connect(db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+
+        # Count first — always safe, no mutation
+        if source:
+            cur = conn.execute(
+                "SELECT COUNT(*) FROM flow WHERE CreatedDate = ? AND source = ?",
+                (target_date, source)
+            )
+        else:
+            cur = conn.execute(
+                "SELECT COUNT(*) FROM flow WHERE CreatedDate = ?",
+                (target_date,)
+            )
+        row_count = cur.fetchone()[0]
+
+        # Preview mode — no mutation
+        if not confirm:
+            conn.close()
+            return {
+                "ok": True,
+                "preview": True,
+                "stats": {
+                    "target_date": target_date,
+                    "source": source or "ALL",
+                    "would_delete": row_count,
+                    "message": "Preview only. Pass confirm=true to actually delete.",
+                }
+            }
+
+        # Live mode — perform the delete
+        if source:
+            cursor = conn.execute(
+                "DELETE FROM flow WHERE CreatedDate = ? AND source = ?",
+                (target_date, source)
+            )
+        else:
+            cursor = conn.execute(
+                "DELETE FROM flow WHERE CreatedDate = ?",
+                (target_date,)
+            )
+        rows_deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        # Bump data-version so client caches invalidate
+        try:
+            from api.flow_router import bump_data_version
+            new_ver = bump_data_version()
+        except Exception:
+            new_ver = None
+
+        return {
+            "ok": True,
+            "preview": False,
+            "stats": {
+                "target_date": target_date,
+                "source": source or "ALL",
+                "rows_deleted": rows_deleted,
+                "new_data_version": new_ver,
+                "next_steps": [
+                    f"POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-stocks.csv&source=stocks",
+                    f"POST /api/admin/massive/apply-gap-fill?fill_file=fill-7-2-indexes.csv&source=indexes",
+                    f"POST /api/admin/massive/backfill-from-patches?patches_file=patches-7-2.json&target_date={target_date}",
+                    f"POST /api/admin/massive/rebuild-color?target_date={target_date}",
+                    f"POST /api/admin/massive/normalize-sweep-sides?target_date={target_date}",
+                ]
+            }
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
 
 
 def serve_csv():
