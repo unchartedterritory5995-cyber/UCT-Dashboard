@@ -118,6 +118,37 @@ describe('barsStreamManager', () => {
     expect(bars._getBuckets().length).toBe(0)
   })
 
+  it('delivering goes FALSE once bars go stale, even while connected + heartbeating (review #2)', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
+    try {
+      bars.subscribe('AAPL', '1', {})
+      bars._flushRebuild()
+      const es = MockES.instances[0]
+      es._open()
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+      // No new bar for > BARS_LIVE_STALE_MS (feed dead but SSE would keep heartbeating).
+      vi.setSystemTime(Date.now() + bars.BARS_LIVE_STALE_MS + 5000)
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)  // must fall back to Finnhub
+    } finally { vi.useRealTimers() }
+  })
+
+  it('prunes per-key liveness on last-unsubscribe → resubscribe is NOT instantly delivering (review #3)', () => {
+    const unsub = bars.subscribe('AAPL', '1', {})
+    flush()
+    MockES.instances[0]._open()
+    MockES.instances[0]._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    unsub(); flush()
+    // Resubscribe (switch away + back): must start fresh, NOT report delivering on stale
+    // everDelivered — else it would suppress Finnhub through the pre-first-bar gap.
+    bars.subscribe('AAPL', '1', {})
+    flush()
+    MockES.instances[MockES.instances.length - 1]._open()
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+  })
+
   it('error drops healthy: getStatus reports not-connected after onerror', () => {
     bars.subscribe('AAPL', '1', {})
     flush()

@@ -2840,6 +2840,10 @@ export default function StockChart({
 
   const onRealtimeBar = useCallback((data) => {
     if (!candleSeriesRef.current) return
+    // Never paint a live bar onto a historical replay (mirror of writers A + C). When
+    // push is authoritative B is THE writer, so without this it would append a live
+    // candle onto the replayed slice (review #4).
+    if (replayMode) return
     // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
     // dispatches by key, but never apply a bar that isn't ours — cross-symbol
     // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
@@ -2914,7 +2918,7 @@ export default function StockChart({
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
     }
-  }, [cs.chartType, sym, resolvedTf])
+  }, [cs.chartType, sym, resolvedTf, replayMode])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
@@ -2938,17 +2942,40 @@ export default function StockChart({
       })
   }, [sym, resolvedTf, onRealtimeBar])
 
+  // Reactivity for the canary flag: setting/clearing localStorage 'uct.barsPush.enabled'
+  // takes effect on the next render with NO page reload (the plan's instant runtime
+  // revert). 'storage' fires cross-tab; a same-tab write dispatches 'uct-barspush-change'.
+  const [, _bumpPushGate] = useState(0)
+  useEffect(() => {
+    const onChange = (e) => {
+      if (!e || e.key == null || e.key === 'uct.barsPush.enabled' || e.type === 'uct-barspush-change') {
+        _bumpPushGate(n => n + 1)
+      }
+    }
+    window.addEventListener('storage', onChange)
+    window.addEventListener('uct-barspush-change', onChange)
+    return () => {
+      window.removeEventListener('storage', onChange)
+      window.removeEventListener('uct-barspush-change', onChange)
+    }
+  }, [])
+
+  // ONLY canary browsers (localStorage 'uct.barsPush.enabled'='1') subscribe to the
+  // bars pool, so STREAM_BARS_ENABLED=1 is truly user-neutral (review blocker #1): a
+  // non-canary browser opens no connection and paints no push bar. VITE_REALTIME_BARS
+  // is an additional compile-time cohort gate inside the hook.
+  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates
   const _barsPush = useRealtimeBars({
-    symbol: realtimeTfEligible && liveUpdates ? sym : null,
-    tf: realtimeTfEligible && liveUpdates ? resolvedTf : null,
+    symbol: _pushOptIn ? sym : null,
+    tf: _pushOptIn ? resolvedTf : null,
     onBar: onRealtimeBar,
     onReconnect: onRealtimeReconnect,
   })
-  // Single-writer gate: engage push ONLY when opted-in (default OFF), the TF is
-  // stream-eligible, live updates are on, AND the pool is actually DELIVERING bars
-  // for this (sym,tf) — never suppress the Finnhub writers on a merely-connected or
-  // silently-frozen feed (that would freeze the candle while ● LIVE still shows).
-  barsPushActiveRef.current = _barsPushEnabled() && realtimeTfEligible && liveUpdates && _barsPush.delivering
+  // Single-writer gate: engage push ONLY when opted-in, AND the pool is actually
+  // DELIVERING recent bars for this (sym,tf) — never suppress the Finnhub writers on a
+  // merely-connected or silently-frozen feed (that would freeze the candle while ● LIVE
+  // still shows). delivering is bar-recency-gated in barsStreamManager.
+  barsPushActiveRef.current = _pushOptIn && _barsPush.delivering
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -3276,14 +3303,24 @@ export default function StockChart({
       if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
     }
 
-    // Re-apply live price immediately after setData() to prevent snap-back.
-    // setData() overwrites with API data (stale by seconds/minutes), so we
-    // re-apply the latest WebSocket tick to keep the current candle accurate.
-    // Phase C: when push is authoritative, DON'T re-apply the (frozen) Finnhub
-    // latestLiveRef over the fresh REST tail — onRealtimeBar owns the developing bar,
-    // so this would repaint a stale bar every 30s (the seam the plan review flagged).
-    // The lastBarRef/lastServerCloseRef seed just above still runs, priming B cleanly.
-    if (!barsPushActiveRef.current && latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
+    // Re-apply the live developing bar immediately after setData() to prevent snap-back —
+    // setData() overwrites with API data (stale by seconds/minutes).
+    if (barsPushActiveRef.current) {
+      // Push is authoritative: re-top with the PUSH-owned developing bar (liveBarRef,
+      // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this
+      // the ~30s-stale server developing bar from _applyData would seam every SWR poll
+      // (review #7). Guard time-regress (server tail may be ahead of the last push bar).
+      const lb = liveBarRef.current
+      if (lb && lb.time != null && Number.isFinite(lb.close) && lb.close > 0) {
+        try {
+          if (isOhlcType(cs.chartType)) {
+            candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
+          } else {
+            candleSeriesRef.current.update({ time: lb.time, value: lb.close })
+          }
+        } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
+      }
+    } else if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
       const lp = latestLiveRef.current.price
       const tickSec = latestLiveRef.current.updated_at
       const last = lastBarRef.current

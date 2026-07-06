@@ -256,7 +256,12 @@ async def stream_bars(
                     yield f"event: bar\ndata: {json.dumps(msg)}\n\n"
 
                 if not got_one:
-                    await asyncio.sleep(0.05)
+                    # 250ms idle floor — MATCH stream_prices (deliberately slowed
+                    # 100ms→250ms because every open tab holds one of these loops on the
+                    # single shared event loop; 20Hz here was 2x that tuned budget). The
+                    # broadcaster's 10Hz upstream throttle already caps freshness, so the
+                    # extra ≤250ms drain latency is imperceptible.
+                    await asyncio.sleep(0.25)
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the

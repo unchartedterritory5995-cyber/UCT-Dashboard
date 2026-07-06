@@ -25,6 +25,11 @@ const INITIAL_RETRY_MS = 5000
 // consumer stops trusting a frozen feed. The backend heartbeats every 15s.
 export const BARS_WATCHDOG_MS = 45000
 const BARS_WATCHDOG_TICK_MS = 10000
+// A live developing bar updates ~every minute (Massive AM sub-updates), so if no
+// `bar` for this key arrived within this window the feed is effectively dead even if
+// the SSE keeps heartbeating — `delivering` must go false so the consumer falls back
+// to Finnhub instead of freezing the candle with Finnhub suppressed (review blocker #2).
+export const BARS_LIVE_STALE_MS = 120000
 
 let _nextId = 1
 const _subscribers = new Map()  // id -> { sym, tf, key, onBar, onReconnect, onStatus }
@@ -68,7 +73,12 @@ export function subscribe(sym, tf, { onBar, onReconnect, onStatus } = {}) {
   _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf), onBar, onReconnect, onStatus })
   _scheduleRebuild()
   return () => {
+    const wasKey = _subscribers.get(id)?.key
     _subscribers.delete(id)
+    // Prune per-key liveness when the LAST subscriber for a key leaves, so a later
+    // resubscribe starts fresh (everDelivered=false) instead of instantly reporting
+    // delivering on stale state, and _keyState can't grow unbounded (review #3).
+    if (wasKey && ![..._subscribers.values()].some(s => s.key === wasKey)) _keyState.delete(wasKey)
     _scheduleRebuild()
   }
 }
@@ -87,7 +97,14 @@ export function getStatus(sym, tf) {
   const connected = !!(bucket && bucket.connected)
   const healthy = connected && (Date.now() - bucket.lastMsg < BARS_WATCHDOG_MS)
   const ks = _keyState.get(key)
-  const delivering = healthy && !!(ks && ks.everDelivered)
+  // delivering REQUIRES a RECENT real bar for THIS key — NOT just connected/heartbeating.
+  // A feed that stops emitting bars but keeps the 15s heartbeat alive would otherwise
+  // keep `healthy` true forever, freezing the candle with Finnhub suppressed and no
+  // watchdog recovery (review blocker #2). Also closes the resubscribe case (#3): a
+  // freshly reconnected key has a stale lastBarAt so delivering stays false until a
+  // fresh bar arrives, keeping Finnhub authoritative through the gap.
+  const delivering = connected && !!(ks && ks.everDelivered) &&
+    (Date.now() - (ks?.lastBarAt || 0) < BARS_LIVE_STALE_MS)
   return { connected, healthy, delivering }
 }
 
