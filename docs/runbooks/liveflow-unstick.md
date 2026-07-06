@@ -33,3 +33,6 @@ This same procedure ends Class B stalls (watchdog→cooldown loops): a fresh pro
 3. Do not stack a third action within 10 min. If two kicks didn't restore flow, escalate (second-client check → Massive support).
 
 **Context:** full design in `docs/superpowers/specs/2026-07-06-liveflow-worker-deploy-survival-design.md`. This runbook retires once P1 (graceful stop + reconnect ladder) is live and drill-verified.
+
+---
+*P0 landed 2026-07-06 evening: exec + drainingSeconds:30 + --timeout-graceful-shutdown 5 live on both services (`0cc854ec`); worker watch paths active. This line doubles as the negative watch-path smoke commit (docs-only → worker must NOT rebuild).*
