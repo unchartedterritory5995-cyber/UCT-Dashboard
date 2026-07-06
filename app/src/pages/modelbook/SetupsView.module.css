@@ -533,6 +533,10 @@
      whole chart, so the next setup is never partly visible at the bottom. */
   scroll-snap-type: y mandatory;
 }
+/* While the admin add/edit form is open, disable snapping — the form is taller
+   than the viewport and isn't a snap point, so mandatory snapping would keep
+   pulling the scroll back down to the selected chart. */
+.stageExamplesFullNoSnap { scroll-snap-type: none; }
 
 /* ── Playbook hover panel ── */
 .pbPop {

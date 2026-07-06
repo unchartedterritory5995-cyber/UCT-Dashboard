@@ -893,8 +893,12 @@ function DetailStage({ setup, scrollReq, onLearn }) {
         </div>
       </div>
 
-      {/* Charted examples — full width */}
-      <div className={styles.stageExamplesFull}>
+      {/* Charted examples — full width. Mandatory snapping keeps each example a
+          whole-chart slide, but it fights the tall "+ Add Example" form (not a
+          snap point + taller than the viewport → scroll gets yanked back to the
+          nearest chart). Drop snapping while the form is open so it scrolls
+          freely. */}
+      <div className={`${styles.stageExamplesFull} ${adding ? styles.stageExamplesFullNoSnap : ''}`}>
         <ExamplesPane
           setup={setup}
           scrollReq={scrollReq}
