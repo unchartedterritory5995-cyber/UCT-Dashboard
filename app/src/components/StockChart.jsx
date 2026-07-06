@@ -254,7 +254,7 @@ const _ET_OFFSET = getETOffset()
 // watching the backend between steps: every eligible chart holds ONE /api/stream/bars loop on
 // the single shared event loop, so this is a SCALING step, not a feature flag. Per-browser
 // revert is always instant via localStorage; a full backend kill is STREAM_BARS_ENABLED=0.
-export const BARS_PUSH_ROLLOUT_PCT = 0
+export const BARS_PUSH_ROLLOUT_PCT = 25
 
 // Stable per-browser rollout bucket [0,100), assigned once + persisted so a browser's in/out
 // status doesn't flip between renders (or as the dial ramps) — a user won't flap push↔Finnhub.

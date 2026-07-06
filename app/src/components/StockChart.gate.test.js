@@ -1,30 +1,42 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { _barsPushEnabled, BARS_PUSH_ROLLOUT_PCT } from './StockChart'
 
-// The Phase C single-writer arbitration ships DARK: barsPushActive =
-// _barsPushEnabled() && eligible && liveUpdates && delivering. With the gate OFF
-// (default), barsPushActive is strictly false, so all four writer guards
-// (`if (barsPushActiveRef.current) return`) are no-ops and the chart behaves
-// EXACTLY as before — even though VITE_REALTIME_BARS is already '1' in prod and
-// the backend may be streaming. This test pins the default-off invariant.
-describe('_barsPushEnabled — Phase C single-writer gate (default OFF)', () => {
-  beforeEach(() => { try { localStorage.removeItem('uct.barsPush.enabled') } catch { /* ignore */ } })
-
-  it('is FALSE by default — push never engages until explicitly opted in', () => {
-    expect(_barsPushEnabled()).toBe(false)
+// Phase C single-writer + widen gate. barsPushActive = _barsPushEnabled() && eligible
+// && liveUpdates && delivering. _barsPushEnabled resolves: explicit localStorage
+// '1'=opt-in / '0'=opt-out, else a STAGED percentage rollout (BARS_PUSH_ROLLOUT_PCT of
+// browsers, by a stable per-browser bucket). These tests are PCT-aware so they hold at
+// any point on the ramp (0→100), and deterministic (they set the bucket, never random).
+describe('_barsPushEnabled — Phase C single-writer + widen gate', () => {
+  beforeEach(() => {
+    try {
+      localStorage.removeItem('uct.barsPush.enabled')
+      localStorage.removeItem('uct.barsPush.bucket')
+    } catch { /* ignore */ }
   })
 
-  it('engages for explicit opt-in "1"; explicit "0" is a hard per-browser revert', () => {
+  it('explicit opt-in "1" engages; explicit "0" is a hard per-browser revert that beats the rollout', () => {
+    localStorage.setItem('uct.barsPush.bucket', '0')   // would be IN at any PCT > 0
     localStorage.setItem('uct.barsPush.enabled', '1')
     expect(_barsPushEnabled()).toBe(true)
     localStorage.setItem('uct.barsPush.enabled', '0')
-    expect(_barsPushEnabled()).toBe(false)   // opt-out beats any rollout %
+    expect(_barsPushEnabled()).toBe(false)             // opt-out wins over the rollout
   })
 
-  it('SHIPS DARK: the widen dial is 0, so default (no opt-in) is off even with a bucket assigned', () => {
-    expect(BARS_PUSH_ROLLOUT_PCT).toBe(0)          // guard: widening is a deliberate bump
-    localStorage.setItem('uct.barsPush.bucket', '5')  // a low bucket would be IN once the dial ramps
-    expect(_barsPushEnabled()).toBe(false)         // ...but at 0% it's still off
+  it('rollout dial: a bucket BELOW the dial is IN, a bucket AT/ABOVE is OUT (strict <)', () => {
+    const pct = BARS_PUSH_ROLLOUT_PCT
+    if (pct > 0) {
+      localStorage.setItem('uct.barsPush.bucket', String(pct - 1))
+      expect(_barsPushEnabled()).toBe(true)
+    }
+    if (pct < 100) {
+      localStorage.setItem('uct.barsPush.bucket', String(pct))
+      expect(_barsPushEnabled()).toBe(false)
+    }
+  })
+
+  it('a high-bucket browser stays OFF until the dial reaches it (staged rollout, no flip-all)', () => {
+    localStorage.setItem('uct.barsPush.bucket', '99')
+    expect(_barsPushEnabled()).toBe(BARS_PUSH_ROLLOUT_PCT > 99)  // false unless fully widened
   })
 
   it('the per-browser rollout bucket is assigned once and stable (no push↔Finnhub flapping)', () => {
