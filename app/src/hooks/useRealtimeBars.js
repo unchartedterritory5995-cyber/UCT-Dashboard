@@ -33,7 +33,13 @@ export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
       setStatus({ connected: false, healthy: false, delivering: false })
       return undefined
     }
-    const refresh = () => setStatus(barsStreamManager.getStatus(symbol, tf))
+    // Bail when nothing changed so the pool's every-10s re-notify (which drives the
+    // delivering recency gate) doesn't re-render a chart whose liveness is unchanged.
+    const refresh = () => setStatus((prev) => {
+      const next = barsStreamManager.getStatus(symbol, tf)
+      return (prev.connected === next.connected && prev.healthy === next.healthy && prev.delivering === next.delivering)
+        ? prev : next
+    })
     const unsub = barsStreamManager.subscribe(symbol, tf, {
       onBar: (data) => {
         if (data?.bar?.t != null) lastBarTRef.current = data.bar.t

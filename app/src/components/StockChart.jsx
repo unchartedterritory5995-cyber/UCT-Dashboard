@@ -255,6 +255,18 @@ export function _barsPushEnabled() {
   } catch { return false }
 }
 
+// Operator/canary helper: set OR clear the canary flag AND dispatch the same-tab event
+// so open charts re-evaluate immediately (no reload — the plan's instant runtime revert).
+// From DevTools: window.__uctBarsPush(true) to canary, window.__uctBarsPush(false) to revert.
+export function setBarsPushEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsPush.enabled', '1')
+    else localStorage.removeItem('uct.barsPush.enabled')
+    window.dispatchEvent(new Event('uct-barspush-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
+
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
 const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -2821,7 +2833,7 @@ export default function StockChart({
     } catch (e) {
       if (e?.message) console.warn('[StockChart] live update error:', e.message)
     }
-  }, [livePrices, sym, resolvedTf, cs.chartType])
+  }, [livePrices, sym, resolvedTf, cs.chartType, replayMode])
 
   // Real-time bar streaming (Phase 4) — Massive AM events.
   // 60-min was added 2026-05-22 once the backend rollup adopted the canonical

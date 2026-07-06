@@ -64,9 +64,10 @@ test('modal renders stock chart for the active timeframe', async () => {
   const user = userEvent.setup()
   renderWithProviders(<TickerPopup sym="NVDA" />)
   await user.click(screen.getByTestId('ticker-NVDA'))
-  // Default tab on open is Daily → tf="D".
-  expect(screen.getByTestId('stock-chart-NVDA-D')).toBeInTheDocument()
+  // Default tab on open is Daily → tf="D". findBy (not getBy) waits for the heavy
+  // StockChart mount to render the stub — getBy raced under full-suite parallel load.
+  expect(await screen.findByTestId('stock-chart-NVDA-D')).toBeInTheDocument()
   // Switching to 5min triggers the chart to re-render with tf="5".
   await user.click(screen.getByRole('button', { name: '5min' }))
-  expect(screen.getByTestId('stock-chart-NVDA-5')).toBeInTheDocument()
+  expect(await screen.findByTestId('stock-chart-NVDA-5')).toBeInTheDocument()
 })
